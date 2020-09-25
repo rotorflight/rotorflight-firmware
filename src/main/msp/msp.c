@@ -1734,6 +1734,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 0); // was currentPidProfile->idle_min_rpm
 
         break;
+    case MSP_HELI_CONFIG:
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
+        sbufWriteU16(dst, currentPidProfile->yaw_cyclic_ff_gain);
+
+        break;
     case MSP_SENSOR_CONFIG:
 #if defined(USE_ACC)
         sbufWriteU8(dst, accelerometerConfig()->acc_hardware);
@@ -2527,6 +2534,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             sbufReadU8(src); // was currentPidProfile->idle_min_rpm
         }
         pidInitConfig(currentPidProfile);
+
+        break;
+    case MSP_SET_HELI_CONFIG:
+        currentPidProfile->yaw_collective_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU16(src);
+        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU16(src);
 
         break;
     case MSP_SET_SENSOR_CONFIG:
