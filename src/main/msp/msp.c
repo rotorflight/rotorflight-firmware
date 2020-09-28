@@ -1666,6 +1666,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
 
         break;
+    case MSP_RPM_FILTER:
+        sbufWriteData(dst, rpmFilterConfig(), sizeof(rpmFilterConfig_t));
+
+        break;
     case MSP_PID_ADVANCED:
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
@@ -2472,6 +2476,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gyroInitFilters();
         // reinitialize the PID filters with the new values
         pidInitFilters(currentPidProfile);
+
+        break;
+    case MSP_SET_RPM_FILTER:
+        sbufReadData(src, rpmFilterConfigMutable(), sizeof(rpmFilterConfig_t));
 
         break;
     case MSP_SET_PID_ADVANCED:

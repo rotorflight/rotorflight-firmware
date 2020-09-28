@@ -346,4 +346,6 @@
 #define MSP_SET_HELI_CONFIG      141    //in message          Sets the helicopter configuration
 #define MSP_GOVERNOR             142    //out message         Gets the governor configuration
 #define MSP_SET_GOVERNOR         143    //in message          Sets the governor configuration
+#define MSP_RPM_FILTER           144    //out message         Gets RPM filter configuration
+#define MSP_SET_RPM_FILTER       145    //in message          Sets RPM filter configuration
 
