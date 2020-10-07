@@ -1060,6 +1060,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, servoParams(i)->speed);
         }
         break;
+
+    case MSP_SERVO_OVERRIDE:
+        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+            sbufWriteU16(dst, getServoOverride(i));
+        }
+        break;
 #endif
 
     case MSP_MOTOR:
@@ -2337,8 +2343,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->trim = sbufReadU16(src);
         servoParamsMutable(i)->speed = sbufReadU16(src);
-#endif
         break;
+
+    case MSP_SET_SERVO_OVERRIDE:
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_SERVOS) {
+            return MSP_RESULT_ERROR;
+        }
+        setServoOverride(i, sbufReadU16(src));
+        break;
+#endif
 
     case MSP_SET_RC_DEADBAND:
         rcControlsConfigMutable()->deadband = sbufReadU8(src);
