@@ -356,4 +356,6 @@
 
 #define MSP_MIXER_OVERRIDE       190    //out message         Gets mixer input override values
 #define MSP_SET_MIXER_OVERRIDE   191    //in message          Sets mixer input override value
+#define MSP_SERVO_OVERRIDE       192    //out message         Gets servo output override values
+#define MSP_SET_SERVO_OVERRIDE   193    //in message          Sets servo output override value
 
