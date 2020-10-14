@@ -354,3 +354,6 @@
 #define MSP_MIXER_RULES          172    //out message         Gets the generic mixer rules
 #define MSP_SET_MIXER_RULES      173    //in message          Sets the generic mixer rules
 
+#define MSP_MIXER_OVERRIDE       190    //out message         Gets mixer input override values
+#define MSP_SET_MIXER_OVERRIDE   191    //in message          Sets mixer input override value
+
