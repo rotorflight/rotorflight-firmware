@@ -157,8 +157,6 @@ void targetConfiguration(void)
 	/* Force the clipping mixer at 100% seems better for brushed than default (off) and scaling)? */
         controlRateConfig->throttle_limit_type = THROTTLE_LIMIT_TYPE_CLIP;
         //controlRateConfig->throttle_limit_percent = 100;
-
-        controlRateConfig->thrExpo8 = 20; // 20% throttle expo
     }
 }
 #endif

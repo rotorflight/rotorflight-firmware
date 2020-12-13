@@ -322,8 +322,8 @@ static bool bstSlaveProcessFeedbackCommand(uint8_t bstRequest)
                 bstWrite8(currentControlRateProfile->rates[i]); // R,P,Y see flight_dynamics_index_t
             }
             bstWrite8(0); // currentControlRateProfile->dynThrPID
-            bstWrite8(currentControlRateProfile->thrMid8);
-            bstWrite8(currentControlRateProfile->thrExpo8);
+            bstWrite8(0); // currentControlRateProfile->thrMid8
+            bstWrite8(0); //currentControlRateProfile->thrExpo8
             bstWrite16(0); //currentControlRateProfile->tpa_breakpoint
             bstWrite8(currentControlRateProfile->rcExpo[FD_YAW]);
             bstWrite8(currentControlRateProfile->rcRates[FD_YAW]);
@@ -459,8 +459,8 @@ static bool bstSlaveProcessWriteCommand(uint8_t bstWriteCommand)
                     currentControlRateProfile->rates[i] = bstRead8();
                 }
                 bstRead8(); // currentControlRateProfile->dynThrPID
-                currentControlRateProfile->thrMid8 = bstRead8();
-                currentControlRateProfile->thrExpo8 = bstRead8();
+                bstRead8(); // currentControlRateProfile->thrMid8
+                bstRead8(); // currentControlRateProfile->thrExpo8
                 bstRead16(); // currentControlRateProfile->tpa_breakpoint
                 if (bstReadDataSize() >= 11) {
                     currentControlRateProfile->rcExpo[FD_YAW] = bstRead8();
