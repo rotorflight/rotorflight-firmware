@@ -78,18 +78,17 @@ bool isArmingDisabled(void);
 armingDisableFlags_e getArmingDisableFlags(void);
 
 typedef enum {
-    ANGLE_MODE      = (1 << 0),
-    HORIZON_MODE    = (1 << 1),
-//    MAG_MODE        = (1 << 2),
-//    BARO_MODE       = (1 << 3),
-//    GPS_HOME_MODE   = (1 << 4),
-//    GPS_HOLD_MODE   = (1 << 5),
-//    HEADFREE_MODE   = (1 << 6),
-//    UNUSED_MODE     = (1 << 7), // old autotune
-//    PASSTHRU_MODE   = (1 << 8),
-//    RANGEFINDER_MODE= (1 << 9),
-    FAILSAFE_MODE   = (1 << 10),
-    GPS_RESCUE_MODE = (1 << 11)
+    ANGLE_MODE_BIT       = 0,
+    HORIZON_MODE_BIT     = 1,
+    FAILSAFE_MODE_BIT    = 2,
+    GPS_RESCUE_MODE_BIT  = 3,
+} flightModeBits_e;
+
+typedef enum {
+    ANGLE_MODE           = BIT(ANGLE_MODE_BIT),
+    HORIZON_MODE         = BIT(HORIZON_MODE_BIT),
+    FAILSAFE_MODE        = BIT(FAILSAFE_MODE_BIT),
+    GPS_RESCUE_MODE      = BIT(GPS_RESCUE_MODE_BIT),
 } flightModeFlags_e;
 
 extern uint16_t flightModeFlags;
@@ -98,13 +97,13 @@ extern uint16_t flightModeFlags;
 #define ENABLE_FLIGHT_MODE(mask) enableFlightMode(mask)
 #define FLIGHT_MODE(mask) (flightModeFlags & (mask))
 
-// macro to initialize map from boxId_e to log2(flightModeFlags). Keep it in sync with flightModeFlags_e enum.
+// macro to initialize map from boxId_e flightModeBits. Keep it in sync with flightModeFlags_e enum.
 // [BOXARM] is left unpopulated
 #define BOXID_TO_FLIGHT_MODE_MAP_INITIALIZER {           \
-   [BOXANGLE]       = LOG2(ANGLE_MODE),                  \
-   [BOXHORIZON]     = LOG2(HORIZON_MODE),                \
-   [BOXFAILSAFE]    = LOG2(FAILSAFE_MODE),               \
-   [BOXGPSRESCUE]   = LOG2(GPS_RESCUE_MODE),             \
+   [BOXANGLE]       = ANGLE_MODE_BIT,                    \
+   [BOXHORIZON]     = HORIZON_MODE_BIT,                  \
+   [BOXFAILSAFE]    = FAILSAFE_MODE_BIT,                 \
+   [BOXGPSRESCUE]   = GPS_RESCUE_MODE_BIT,               \
 }                                                        \
 /**/
 
