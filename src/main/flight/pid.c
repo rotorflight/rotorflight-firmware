@@ -49,7 +49,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/rpm_filter.h"
-#include "flight/interpolated_setpoint.h"
+#include "flight/setpoint.h"
 
 #include "io/gps.h"
 

@@ -42,7 +42,7 @@
 
 #include "flight/failsafe.h"
 #include "flight/imu.h"
-#include "flight/interpolated_setpoint.h"
+#include "flight/setpoint.h"
 #include "flight/gps_rescue.h"
 #include "flight/pid.h"
 

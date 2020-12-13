@@ -26,7 +26,7 @@
 #include "build/debug.h"
 #include "common/maths.h"
 #include "fc/rc.h"
-#include "flight/interpolated_setpoint.h"
+#include "flight/setpoint.h"
 
 static float setpointDeltaImpl[XYZ_AXIS_COUNT];
 static float setpointDelta[XYZ_AXIS_COUNT];
