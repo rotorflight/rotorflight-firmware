@@ -27,6 +27,8 @@
 
 #ifdef USE_PWM_OUTPUT
 
+#include "common/maths.h"
+
 #include "drivers/io.h"
 #include "drivers/motor.h"
 #include "drivers/pwm_output.h"
@@ -161,14 +163,28 @@ static void pwmCompleteOneshotMotorUpdate(void)
     }
 }
 
-static float pwmConvertFromExternal(uint16_t externalValue)
+static float pwmConvertFromInternal(uint16_t internalValue)
 {
-    return (float)externalValue;
+    float motorValue;
+
+    if (internalValue <= motorConfig()->mincommand)
+        motorValue = 0.0f;
+    else
+        motorValue = scaleRangef(internalValue, motorConfig()->minthrottle, motorConfig()->maxthrottle, 0, 1);
+
+    return motorValue;
 }
 
-static uint16_t pwmConvertToExternal(float motorValue)
+static uint16_t pwmConvertToInternal(float motorValue)
 {
-    return (uint16_t)motorValue;
+    uint16_t internalValue;
+
+    if (motorValue > 0)
+        internalValue = scaleRangef(motorValue, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    else
+        internalValue = motorConfig()->mincommand;
+
+    return internalValue;
 }
 
 static motorVTable_t motorPwmVTable = {
@@ -177,12 +193,14 @@ static motorVTable_t motorPwmVTable = {
     .disable = pwmDisableMotors,
     .isMotorEnabled = pwmIsMotorEnabled,
     .shutdown = pwmShutdownPulsesForAllMotors,
-    .convertExternalToMotor = pwmConvertFromExternal,
-    .convertMotorToExternal = pwmConvertToExternal,
+    .convertInternalToMotor = pwmConvertFromInternal,
+    .convertMotorToInternal = pwmConvertToInternal,
 };
 
-motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
 {
+    bool useUnsyncedPwm = motorConfig->useUnsyncedPwm;
+
     motorPwmDevice.vTable = motorPwmVTable;
 
     float sMin = 0;
@@ -204,13 +222,11 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
     case PWM_TYPE_BRUSHED:
         sMin = 0;
         useUnsyncedPwm = true;
-        idlePulse = 0;
         break;
     case PWM_TYPE_STANDARD:
         sMin = 1e-3f;
         sLen = 1e-3f;
         useUnsyncedPwm = true;
-        idlePulse = 0;
         break;
     }
 
@@ -257,7 +273,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         motors[motorIndex].pulseScale = ((motorConfig->motorPwmProtocol == PWM_TYPE_BRUSHED) ? period : (sLen * hz)) / 1000.0f;
         motors[motorIndex].pulseOffset = (sMin * hz) - (motors[motorIndex].pulseScale * 1000);
 
-        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, idlePulse, motorConfig->motorPwmInversion);
+        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, 0, motorConfig->motorPwmInversion);
 
         bool timerAlreadyUsed = false;
         for (int i = 0; i < motorIndex; i++) {
@@ -314,7 +330,8 @@ void servoDevInit(const servoDevConfig_t *servoConfig)
         IOConfigGPIOAF(servos[servoIndex].io, IOCFG_AF_PP, timer->alternateFunction);
 #endif
 
-        pwmOutConfig(&servos[servoIndex].channel, timer, PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / servoConfig->servoPwmRate, servoConfig->servoCenterPulse, 0);
+        // RTFL: Initialize with zero output to support servos with different center pulse widths
+        pwmOutConfig(&servos[servoIndex].channel, timer, PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / servoConfig->servoPwmRate, 0, 0);
         servos[servoIndex].enabled = true;
     }
 }

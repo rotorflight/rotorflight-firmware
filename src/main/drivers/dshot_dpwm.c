@@ -144,18 +144,15 @@ static motorVTable_t dshotPwmVTable = {
     .write = dshotWrite,
     .writeInt = dshotWriteInt,
     .updateComplete = pwmCompleteDshotMotorUpdate,
-    .convertExternalToMotor = dshotConvertFromExternal,
-    .convertMotorToExternal = dshotConvertToExternal,
+    .convertInternalToMotor = dshotConvertFromInternal,
+    .convertMotorToInternal = dshotConvertToInternal,
     .shutdown = dshotPwmShutdown,
 };
 
 FAST_RAM_ZERO_INIT motorDevice_t dshotPwmDevice;
 
-motorDevice_t *dshotPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+motorDevice_t *dshotPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
 {
-    UNUSED(idlePulse);
-    UNUSED(useUnsyncedPwm);
-
     dshotPwmDevice.vTable = dshotPwmVTable;
 
 #ifdef USE_DSHOT_TELEMETRY

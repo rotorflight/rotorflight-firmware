@@ -87,7 +87,7 @@ static motorMixer_t motorMixer[MAX_SUPPORTED_MOTORS];
 
 FAST_RAM_ZERO_INIT float motorOutputHigh, motorOutputLow;
 
-static FAST_RAM_ZERO_INIT float disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
+static FAST_RAM_ZERO_INIT float disarmMotorOutput;
 static FAST_RAM_ZERO_INIT float rcCommandThrottleRange;
 
 uint8_t getMotorCount(void)
@@ -122,7 +122,7 @@ bool areMotorsRunning(void)
 // DSHOT scaling is done to the actual dshot range
 void initEscEndpoints(void)
 {
-    motorInitEndpoints(motorConfig(), 1.0f, &motorOutputLow, &motorOutputHigh, &disarmMotorOutput, &deadbandMotor3dHigh, &deadbandMotor3dLow);
+    //motorInitEndpoints(motorConfig(), 1.0f, &motorOutputLow, &motorOutputHigh, &disarmMotorOutput, &deadbandMotor3dHigh, &deadbandMotor3dLow);
 
     rcCommandThrottleRange = PWM_RANGE_MAX - PWM_RANGE_MIN;
 }

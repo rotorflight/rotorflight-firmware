@@ -49,7 +49,7 @@ uint8_t loadDmaBufferProshot(uint32_t *dmaBuffer, int stride, uint16_t packet);
 uint32_t getDshotHz(motorPwmProtocolTypes_e pwmProtocolType);
 
 struct motorDevConfig_s;
-motorDevice_t *dshotPwmDevInit(const struct motorDevConfig_s *motorConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm);
+motorDevice_t *dshotPwmDevInit(const struct motorDevConfig_s *motorConfig, uint8_t motorCount);
 
 /* Motor DMA related, moved from pwm_output.h */
 
