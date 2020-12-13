@@ -68,7 +68,7 @@ typedef struct imuRuntimeConfig_s {
     float dcm_kp;
 } imuRuntimeConfig_t;
 
-void imuConfigure(uint16_t throttle_correction_angle, uint8_t throttle_correction_value);
+void imuConfigure(void);
 
 float getCosTiltAngle(void);
 void getQuaternion(quaternion * q);

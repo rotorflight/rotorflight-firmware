@@ -179,7 +179,7 @@ static void activateConfig(void)
     accInitFilters();
 #endif
 
-    imuConfigure(throttleCorrectionConfig()->throttle_correction_angle, throttleCorrectionConfig()->throttle_correction_value);
+    imuConfigure();
 
 #if defined(USE_LED_STRIP_STATUS_MODE)
     reevaluateLedConfig();
