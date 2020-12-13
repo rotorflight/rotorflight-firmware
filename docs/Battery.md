@@ -80,7 +80,7 @@ set vbat_duration_for_critical = 20
 
 Current monitoring (amperage) is supported by connecting a current meter to the appropriate current meter ADC input (see the documentation for your particular board).
 
-When enabled, the following values calculated and used by the telemetry and OLED display subsystems:
+When enabled, the following values calculated and used by the telemetry subsystems:
 * Amps
 * mAh used
 * Capacity remaining

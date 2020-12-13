@@ -240,8 +240,6 @@
 #define MAX7456_SPI_INSTANCE    NULL // SPI3
 #define MAX7456_SPI_CS_PIN      NONE // PC9
 
-#define USE_I2C_OLED_DISPLAY
-
 #define USE_ADC
 
 #define ADC1_INSTANCE ADC1

@@ -26,7 +26,6 @@
 #include "common/utils.h"
 
 #include "drivers/display.h"
-#include "drivers/display_ug2864hsweg01.h"
 
 static displayPort_t oledDisplayPort;
 

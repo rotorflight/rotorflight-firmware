@@ -59,7 +59,6 @@
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
-#include "io/dashboard.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/piniobox.h"
@@ -307,10 +306,6 @@ void tasksInit(void)
     setTaskEnabled(TASK_ALTITUDE, sensors(SENSOR_BARO) || featureIsEnabled(FEATURE_GPS));
 #endif
 
-#ifdef USE_DASHBOARD
-    setTaskEnabled(TASK_DASHBOARD, featureIsEnabled(FEATURE_DASHBOARD));
-#endif
-
 #ifdef USE_TELEMETRY
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
         setTaskEnabled(TASK_TELEMETRY, true);
@@ -352,7 +347,7 @@ void tasksInit(void)
 #ifdef USE_MSP_DISPLAYPORT
     setTaskEnabled(TASK_CMS, true);
 #else
-    setTaskEnabled(TASK_CMS, featureIsEnabled(FEATURE_OSD) || featureIsEnabled(FEATURE_DASHBOARD));
+    setTaskEnabled(TASK_CMS, featureIsEnabled(FEATURE_OSD));
 #endif
 #endif
 
@@ -430,10 +425,6 @@ task_t tasks[TASK_COUNT] = {
 
 #if defined(USE_BARO) || defined(USE_GPS)
     [TASK_ALTITUDE] = DEFINE_TASK("ALTITUDE", NULL, NULL, taskCalculateAltitude, TASK_PERIOD_HZ(40), TASK_PRIORITY_LOW),
-#endif
-
-#ifdef USE_DASHBOARD
-    [TASK_DASHBOARD] = DEFINE_TASK("DASHBOARD", NULL, NULL, dashboardUpdate, TASK_PERIOD_HZ(10), TASK_PRIORITY_LOW),
 #endif
 
 #ifdef USE_OSD

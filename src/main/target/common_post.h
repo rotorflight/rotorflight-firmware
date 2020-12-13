@@ -36,17 +36,6 @@
 #undef USE_ESC_SENSOR_TELEMETRY
 #endif
 
-// XXX Followup implicit dependencies among DASHBOARD, display_xxx and USE_I2C.
-// XXX This should eventually be cleaned up.
-#ifndef USE_I2C
-#undef USE_I2C_OLED_DISPLAY
-#undef USE_DASHBOARD
-#else
-#ifdef USE_DASHBOARD
-#define USE_I2C_OLED_DISPLAY
-#endif
-#endif
-
 // XXX Remove USE_BARO_BMP280 and USE_BARO_MS5611 if USE_I2C is not defined.
 // XXX This should go away buy editing relevant target.h files
 #if !defined(USE_I2C)

@@ -61,7 +61,6 @@
 #include "flight/servos.h"
 
 #include "io/beeper.h"
-#include "io/dashboard.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/serial.h"
@@ -75,7 +74,6 @@
 #include "pg/beeper.h"
 #include "pg/beeper_dev.h"
 #include "pg/bus_i2c.h"
-#include "pg/dashboard.h"
 #include "pg/displayport_profiles.h"
 #include "pg/flash.h"
 #include "pg/gyrodev.h"
@@ -1440,10 +1438,6 @@ const clivalue_t valueTable[] = {
     { "cc2500_spi_chip_detect",         VAR_UINT8   | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CC2500_SPI_CONFIG, offsetof(rxCc2500SpiConfig_t, chipDetectEnabled) },
 #endif
     { "led_inversion",                  VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, ((1 << STATUS_LED_NUMBER) - 1) }, PG_STATUS_LED_CONFIG, offsetof(statusLedConfig_t, inversion) },
-#ifdef USE_DASHBOARD
-    { "dashboard_i2c_bus",           VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, I2CDEV_COUNT }, PG_DASHBOARD_CONFIG, offsetof(dashboardConfig_t, device) },
-    { "dashboard_i2c_addr",          VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { I2C_ADDR7_MIN, I2C_ADDR7_MAX }, PG_DASHBOARD_CONFIG, offsetof(dashboardConfig_t, address) },
-#endif
 
 // PG_CAMERA_CONTROL_CONFIG
 #ifdef USE_CAMERA_CONTROL

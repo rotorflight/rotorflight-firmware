@@ -68,7 +68,6 @@ And bigger than 128 megabits:
 #define TELEMETRY_JETIEXBUS
 #define TELEMETRY_MAVLINK
 #define TELEMETRY_SRXL
-#define USE_DASHBOARD
 #define USE_MSP_DISPLAYPORT
 #define USE_RX_MSP
 #define USE_SERIALRX_JETIEXBUS
