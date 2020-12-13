@@ -22,8 +22,6 @@
 
 #include "platform.h"
 
-#if defined(USE_RX_FRSKY_SPI) || defined(USE_RX_SFHSS_SPI)
-
 #include "common/maths.h"
 
 #include "drivers/io.h"
@@ -43,6 +41,8 @@
 #include "rx/rx_spi.h"
 
 #include "cc2500_common.h"
+
+#if defined(USE_RX_FRSKY_SPI) || defined(USE_RX_SFHSS_SPI)
 
 #if defined(USE_RX_CC2500_SPI_PA_LNA)
 static IO_t txEnPin;
