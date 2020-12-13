@@ -106,7 +106,6 @@
 #include "io/displayport_msp.h"
 #include "io/displayport_srxl.h"
 #include "io/flashfs.h"
-#include "io/gimbal.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/motors.h"
