@@ -163,7 +163,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .ff_smooth_factor = 37,
         .ff_boost = 15,
         .dyn_lpf_curve_expo = 5,
-        .vbat_sag_compensation = 0,
     );
 }
 

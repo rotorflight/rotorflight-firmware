@@ -259,12 +259,6 @@ static void validateAndFixConfig(void)
         if (pidProfilesMutable(i)->auto_profile_cell_count > MAX_AUTO_DETECT_CELL_COUNT || pidProfilesMutable(i)->auto_profile_cell_count < AUTO_PROFILE_CELL_COUNT_CHANGE) {
             pidProfilesMutable(i)->auto_profile_cell_count = AUTO_PROFILE_CELL_COUNT_STAY;
         }
-
-#if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-        if (batteryConfig()->voltageMeterSource != VOLTAGE_METER_ADC) {
-            pidProfilesMutable(i)->vbat_sag_compensation = 0;
-        }
-#endif
     }
 
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
