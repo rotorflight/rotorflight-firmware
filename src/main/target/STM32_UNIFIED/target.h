@@ -236,8 +236,10 @@
 
 #define USE_ADC
 
-#define USE_RX_SPI
+#define USE_CUSTOM_DEFAULTS
 
+#if 0
+#define USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D
 #define USE_RX_FRSKY_SPI_X
 #define USE_RX_SFHSS_SPI
@@ -245,8 +247,16 @@
 #define USE_RX_FRSKY_SPI_TELEMETRY
 #define USE_RX_CC2500_SPI_PA_LNA
 #define USE_RX_CC2500_SPI_DIVERSITY
-
 #define USE_RX_FLYSKY
 #define USE_RX_FLYSKY_SPI_LED
+#endif
 
-#define USE_CUSTOM_DEFAULTS
+#undef  USE_OSD
+#undef  USE_CMS
+#undef  USE_MAX7456
+#undef  USE_DASHBOARD
+#undef  USE_RCDEVICE
+#undef  USE_VTX_CONTROL
+#undef  USE_CAMERA_CONTROL
+#undef  USE_GYRO_DATA_ANALYSE
+
