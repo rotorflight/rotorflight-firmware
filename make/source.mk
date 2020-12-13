@@ -46,6 +46,7 @@ COMMON_SRC = \
             drivers/system.c \
             drivers/timer_common.c \
             drivers/timer.c \
+            drivers/freq.c \
             fc/board_info.c \
             fc/dispatch.c \
             fc/hardfaults.c \
