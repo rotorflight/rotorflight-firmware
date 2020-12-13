@@ -1177,7 +1177,7 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 }
 #endif
 
-static FAST_CODE void subTaskMotorUpdate(timeUs_t currentTimeUs)
+static FAST_CODE_NOINLINE void subTaskMotorUpdate(timeUs_t currentTimeUs)
 {
     uint32_t startTime = 0;
     if (debugMode == DEBUG_CYCLETIME) {
