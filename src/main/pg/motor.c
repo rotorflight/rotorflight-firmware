@@ -72,7 +72,10 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
     }
 #endif
 
-    motorConfig->motorPoleCount = 14;   // Most brushes motors that we use are 14 poles
+    for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS; motorIndex++) {
+        motorConfig->motorPoleCount[motorIndex] = 6;
+        motorConfig->motorRpmLpf[motorIndex] = 50;
+    }
 
 #ifdef USE_DSHOT_BITBANG
     motorConfig->dev.useDshotBitbang = DSHOT_BITBANG_DEFAULT;

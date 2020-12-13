@@ -296,7 +296,6 @@
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY
-#undef USE_RPM_FILTER
 #undef USE_DSHOT_TELEMETRY_STATS
 #endif
 

@@ -23,9 +23,14 @@
 #include "platform.h"
 
 #include "common/time.h"
+
 #include "pg/pg.h"
+
 #include "drivers/io_types.h"
 #include "drivers/pwm_output.h"
+
+#include "flight/servos.h"
+#include "flight/motors.h"
 
 typedef enum mixerMode
 {
