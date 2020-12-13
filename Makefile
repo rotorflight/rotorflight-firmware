@@ -5,7 +5,7 @@
 # this stuff is worth it, you can buy me a beer in return
 ###############################################################################
 #
-# Makefile for building the betaflight firmware.
+# Makefile for building the rotorflight firmware.
 #
 # Invoke this with 'make help' to see the list of supported targets.
 #
@@ -53,7 +53,7 @@ RELEASE ?= no
 # Things that need to be maintained as the source changes
 #
 
-FORKNAME      = betaflight
+FORKNAME      = rotorflight
 
 # Working directories
 ROOT            := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
