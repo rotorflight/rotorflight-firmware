@@ -597,19 +597,6 @@ bool processRx(timeUs_t currentTimeUs)
 
     const throttleStatus_e throttleStatus = calculateThrottleStatus();
 
-    /* In airmode iterm should be prevented to grow when Low thottle and Roll + Pitch Centered.
-     This is needed to prevent iterm winding on the ground, but keep full stabilisation on 0 throttle while in air */
-    if (throttleStatus == THROTTLE_LOW && false) {
-        pidSetItermReset(true);
-        if (currentPidProfile->pidAtMinThrottle)
-            pidStabilisationState(PID_STABILISATION_ON);
-        else
-            pidStabilisationState(PID_STABILISATION_OFF);
-    } else {
-        pidSetItermReset(false);
-        pidStabilisationState(PID_STABILISATION_ON);
-    }
-
     // When armed and motors aren't spinning, do beeps and then disarm
     // board after delay so users without buzzer won't lose fingers.
     // mixTable constrains motor commands, so checking  throttleStatus is enough
