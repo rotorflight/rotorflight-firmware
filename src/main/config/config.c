@@ -459,10 +459,6 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_LED_STRIP);
 #endif
 
-#ifndef USE_DASHBOARD
-    featureDisableImmediate(FEATURE_DASHBOARD);
-#endif
-
 #ifndef USE_OSD
     featureDisableImmediate(FEATURE_OSD);
 #endif

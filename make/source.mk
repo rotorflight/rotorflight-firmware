@@ -145,18 +145,15 @@ COMMON_SRC = \
             cms/cms_menu_vtx_rtc6705.c \
             cms/cms_menu_vtx_smartaudio.c \
             cms/cms_menu_vtx_tramp.c \
-            drivers/display_ug2864hsweg01.c \
             drivers/light_ws2811strip.c \
             drivers/rangefinder/rangefinder_hcsr04.c \
             drivers/rangefinder/rangefinder_lidartf.c \
             drivers/serial_escserial.c \
             drivers/vtx_common.c \
             drivers/vtx_table.c \
-            io/dashboard.c \
             io/displayport_frsky_osd.c \
             io/displayport_max7456.c \
             io/displayport_msp.c \
-            io/displayport_oled.c \
             io/displayport_srxl.c \
             io/displayport_crsf.c \
             io/displayport_hott.c \
@@ -288,7 +285,6 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/compass/compass_hmc5883l.c \
             drivers/compass/compass_qmc5883l.c \
             drivers/compass/compass_lis3mdl.c \
-            drivers/display_ug2864hsweg01.c \
             drivers/inverter.c \
             drivers/light_ws2811strip.c \
             drivers/light_ws2811strip_hal.c \
@@ -308,7 +304,6 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             config/feature.c \
             config/config_streamer.c \
             i2c_bst.c \
-            io/dashboard.c \
             io/serial.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \

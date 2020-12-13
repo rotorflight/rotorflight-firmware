@@ -46,7 +46,6 @@
 #include "flight/failsafe.h"
 
 #include "io/beeper.h"
-#include "io/dashboard.h"
 #include "io/gps.h"
 #include "io/motors.h"
 #include "io/vtx_control.h"
@@ -345,16 +344,6 @@ void processRcStickPositions()
             return;
         }
     }
-
-#ifdef USE_DASHBOARD
-    if (rcSticks == THR_LO + YAW_CE + PIT_HI + ROL_LO) {
-        dashboardDisablePageCycling();
-    }
-
-    if (rcSticks == THR_LO + YAW_CE + PIT_HI + ROL_HI) {
-        dashboardEnablePageCycling();
-    }
-#endif
 
 #ifdef USE_VTX_CONTROL
     if (rcSticks ==  THR_HI + YAW_LO + PIT_CE + ROL_HI) {
