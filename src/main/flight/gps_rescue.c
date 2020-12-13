@@ -74,7 +74,6 @@ typedef enum {
     RESCUE_FLYAWAY,
     RESCUE_GPSLOST,
     RESCUE_LOWSATS,
-    RESCUE_CRASH_FLIP_DETECTED,
     RESCUE_STALLED,
     RESCUE_TOO_CLOSE
 } rescueFailureState_e;
@@ -406,11 +405,6 @@ static void performSanityChecks()
             || (gpsRescueConfig()->sanityChecks == RESCUE_SANITY_FS_ONLY && rescueState.isFailsafe == true)) {
             rescueState.phase = RESCUE_ABORT;
         }
-    }
-
-    // Check if crash recovery mode is active, disarm if so.
-    if (crashRecoveryModeActive()) {
-        rescueState.failure = RESCUE_CRASH_FLIP_DETECTED;
     }
 
     // Check if GPS comms are healthy
