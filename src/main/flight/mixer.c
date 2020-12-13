@@ -545,13 +545,6 @@ static float applyThrottleLimit(float throttle)
     return throttle;
 }
 
-static void applyMotorStop(void)
-{
-    for (int i = 0; i < motorCount; i++) {
-        motor[i] = disarmMotorOutput;
-    }
-}
-
 #ifdef USE_DYN_LPF
 static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 {
@@ -647,16 +640,8 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         }
     }
 
-    if (featureIsEnabled(FEATURE_MOTOR_STOP)
-        && ARMING_FLAG(ARMED)
-        && !FLIGHT_MODE(GPS_RESCUE_MODE)   // disable motor_stop while GPS Rescue is active
-        && (rcData[THROTTLE] < rxConfig()->mincheck)) {
-        // motor_stop handling
-        applyMotorStop();
-    } else {
-        // Apply the mix to motor endpoints
-        applyMixToMotors(motorMix, activeMixer);
-    }
+    // Apply the mix to motor endpoints
+    applyMixToMotors(motorMix, activeMixer);
 }
 
 float mixerGetThrottle(void)

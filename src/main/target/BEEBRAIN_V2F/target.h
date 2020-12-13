@@ -111,11 +111,11 @@
 
 #if defined(BEEBRAIN_V2D)
     // Receiver - DSM
-    #define DEFAULT_FEATURES        (FEATURE_MOTOR_STOP | FEATURE_OSD)
+    #define DEFAULT_FEATURES        (FEATURE_OSD)
     #define SERIALRX_PROVIDER       SERIALRX_SPEKTRUM2048
 #else
     // Receiver - Frsky
-    #define DEFAULT_FEATURES        (FEATURE_MOTOR_STOP | FEATURE_OSD | FEATURE_TELEMETRY)
+    #define DEFAULT_FEATURES        (FEATURE_OSD | FEATURE_TELEMETRY)
     #define SERIALRX_PROVIDER       SERIALRX_SBUS
 #endif
 

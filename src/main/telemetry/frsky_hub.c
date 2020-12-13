@@ -193,12 +193,7 @@ static void sendThrottleOrBatterySizeAsRpm(void)
     }
 #else
     if (ARMING_FLAG(ARMED)) {
-        const throttleStatus_e throttleStatus = calculateThrottleStatus();
-        uint16_t throttleForRPM = rcCommand[THROTTLE] / BLADE_NUMBER_DIVIDER;
-        if (throttleStatus == THROTTLE_LOW && featureIsEnabled(FEATURE_MOTOR_STOP)) {
-            throttleForRPM = 0;
-        }
-        data = throttleForRPM;
+        data = rcCommand[THROTTLE] / BLADE_NUMBER_DIVIDER;
     } else {
         data = (batteryConfig()->batteryCapacity / BLADE_NUMBER_DIVIDER);
     }

@@ -43,7 +43,7 @@
 #undef USE_SERVOS
 #define TARGET_BOARD_IDENTIFIER "BEBR"
 #define USE_TARGET_CONFIG
-#define DEFAULT_FEATURES FEATURE_MOTOR_STOP
+#define DEFAULT_FEATURES 0
 #else
 #define TARGET_BOARD_IDENTIFIER "AFNA"
 // Beeper configuration is handled in 'config.c', since it is dependent on hardware revision
