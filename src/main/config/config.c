@@ -275,8 +275,6 @@ static void validateAndFixConfig(void)
     }
 
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
-        featureDisableImmediate(FEATURE_3D);
-
         if (motorConfig()->mincommand < 1000) {
             motorConfigMutable()->mincommand = 1000;
         }
@@ -371,19 +369,12 @@ static void validateAndFixConfig(void)
     }
 #endif
 
-    if (
-        featureIsConfigured(FEATURE_3D) || !featureIsConfigured(FEATURE_GPS) || mixerModeIsFixedWing(mixerConfig()->mixerMode)
-#if !defined(USE_GPS) || !defined(USE_GPS_RESCUE)
-        || true
-#endif
-        ) {
-
+    if (!featureIsConfigured(FEATURE_GPS)) {
 #ifdef USE_GPS_RESCUE
         if (failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE) {
             failsafeConfigMutable()->failsafe_procedure = FAILSAFE_PROCEDURE_DROP_IT;
         }
 #endif
-
         if (isModeActivationConditionPresent(BOXGPSRESCUE)) {
             removeModeActivationCondition(BOXGPSRESCUE);
         }

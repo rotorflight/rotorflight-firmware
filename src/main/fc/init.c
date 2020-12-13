@@ -584,9 +584,6 @@ void init(void)
     mixerConfigureOutput();
 
     uint16_t idlePulse = motorConfig()->mincommand;
-    if (featureIsEnabled(FEATURE_3D)) {
-        idlePulse = flight3DConfig()->neutral3d;
-    }
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
         idlePulse = 0; // brushed motors
     }

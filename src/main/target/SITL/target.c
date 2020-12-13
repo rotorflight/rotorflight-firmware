@@ -449,9 +449,6 @@ static void pwmCompleteMotorUpdate(void)
     // for gazebo8 ArduCopterPlugin remap, normal range = [0.0, 1.0], 3D rang = [-1.0, 1.0]
 
     double outScale = 1000.0;
-    if (featureIsEnabled(FEATURE_3D)) {
-        outScale = 500.0;
-    }
 
     pwmPkt.motor_speed[3] = motorsPwm[0] / outScale;
     pwmPkt.motor_speed[0] = motorsPwm[1] / outScale;
