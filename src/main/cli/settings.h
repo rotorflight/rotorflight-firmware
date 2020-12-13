@@ -121,9 +121,6 @@ typedef enum {
 #ifdef USE_SDCARD
     TABLE_SDCARD_MODE,
 #endif
-#ifdef USE_LAUNCH_CONTROL
-    TABLE_LAUNCH_CONTROL_MODE,
-#endif
 #ifdef USE_TPA_MODE
     TABLE_TPA_MODE,
 #endif

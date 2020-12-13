@@ -90,10 +90,6 @@ float motor_disarmed[MAX_SUPPORTED_MOTORS];
 mixerMode_e currentMixerMode;
 static motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
 
-#ifdef USE_LAUNCH_CONTROL
-static motorMixer_t launchControlMixer[MAX_SUPPORTED_MOTORS];
-#endif
-
 static FAST_RAM_ZERO_INIT int throttleAngleCorrection;
 
 static const motorMixer_t mixerQuadX[] = {
@@ -391,23 +387,6 @@ void mixerInit(mixerMode_e mixerMode)
     mixerInitProfile();
 }
 
-#ifdef USE_LAUNCH_CONTROL
-// Create a custom mixer for launch control based on the current settings
-// but disable the front motors. We don't care about roll or yaw because they
-// are limited in the PID controller.
-void loadLaunchControlMixer(void)
-{
-    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        launchControlMixer[i] = currentMixer[i];
-        // limit the front motors to minimum output
-        if (launchControlMixer[i].pitch < 0.0f) {
-            launchControlMixer[i].pitch = 0.0f;
-            launchControlMixer[i].throttle = 0.0f;
-        }
-    }
-}
-#endif
-
 #ifndef USE_QUAD_MIXER_ONLY
 
 void mixerConfigureOutput(void)
@@ -435,9 +414,6 @@ void mixerConfigureOutput(void)
                 currentMixer[i] = mixers[currentMixerMode].motor[i];
         }
     }
-#ifdef USE_LAUNCH_CONTROL
-    loadLaunchControlMixer();
-#endif
     mixerResetDisarmedMotors();
 }
 
@@ -463,9 +439,6 @@ void mixerConfigureOutput(void)
     for (int i = 0; i < motorCount; i++) {
         currentMixer[i] = mixerQuadX[i];
     }
-#ifdef USE_LAUNCH_CONTROL
-    loadLaunchControlMixer();
-#endif
     mixerResetDisarmedMotors();
 }
 #endif // USE_QUAD_MIXER_ONLY
@@ -838,14 +811,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         return;
     }
 
-    const bool launchControlActive = isLaunchControlActive();
-
     motorMixer_t * activeMixer = &currentMixer[0];
-#ifdef USE_LAUNCH_CONTROL
-    if (launchControlActive && (currentPidProfile->launchControlMode == LAUNCH_CONTROL_MODE_PITCHONLY)) {
-        activeMixer = &launchControlMixer[0];
-    }
-#endif
 
     // Calculate and Limit the PID sum
     const float scaledAxisPidRoll =
@@ -877,7 +843,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         throttle = applyThrottleLimit(throttle);
     }
 
-    const bool airmodeEnabled = airmodeIsEnabled() || launchControlActive;
+    const bool airmodeEnabled = airmodeIsEnabled();
 
 #ifdef USE_YAW_SPIN_RECOVERY
     // 50% throttle provides the maximum authority for yaw recovery when airmode is not active.
@@ -886,14 +852,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         throttle = 0.5f;   //
     }
 #endif // USE_YAW_SPIN_RECOVERY
-
-#ifdef USE_LAUNCH_CONTROL
-    // While launch control is active keep the throttle at minimum.
-    // Once the pilot triggers the launch throttle control will be reactivated.
-    if (launchControlActive) {
-        throttle = 0.0f;
-    }
-#endif
 
     // Find roll/pitch/yaw desired output
     float motorMix[MAX_SUPPORTED_MOTORS];

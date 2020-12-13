@@ -116,7 +116,6 @@ enum {
     ARMING_DELAYED_DISARMED = 0,
     ARMING_DELAYED_NORMAL = 1,
     ARMING_DELAYED_CRASHFLIP = 2,
-    ARMING_DELAYED_LAUNCH_CONTROL = 3,
 };
 
 #define GYRO_WATCHDOG_DELAY 80 //  delay for gyro sync
@@ -161,16 +160,6 @@ static timeUs_t runawayTakeoffTriggerUs = 0;
 static bool runawayTakeoffTemporarilyDisabled = false;
 #endif
 
-#ifdef USE_LAUNCH_CONTROL
-static launchControlState_e launchControlState = LAUNCH_CONTROL_DISABLED;
-
-const char * const osdLaunchControlModeNames[] = {
-    "NORMAL",
-    "PITCHONLY",
-    "FULL"
-};
-#endif
-
 PG_REGISTER_WITH_RESET_TEMPLATE(throttleCorrectionConfig_t, throttleCorrectionConfig, PG_THROTTLE_CORRECTION_CONFIG, 0);
 
 PG_RESET_TEMPLATE(throttleCorrectionConfig_t, throttleCorrectionConfig,
@@ -192,21 +181,6 @@ static bool isCalibrating(void)
 #endif
         ;
 }
-
-#ifdef USE_LAUNCH_CONTROL
-bool canUseLaunchControl(void)
-{
-    if (!isFixedWing()
-        && !isUsingSticksForArming()     // require switch arming for safety
-        && IS_RC_MODE_ACTIVE(BOXLAUNCHCONTROL)
-        && (!featureIsEnabled(FEATURE_MOTOR_STOP) || airmodeIsEnabled())  // can't use when motors are stopped
-        && !featureIsEnabled(FEATURE_3D) // pitch control is not 3D aware
-        && (flightModeFlags == 0)) {     // don't want to use unless in acro mode
-        return true;
-    }
-    return false;
-}
-#endif
 
 void resetArmingDisabled(void)
 {
@@ -235,11 +209,6 @@ static bool accNeedsCalibration(void)
             isModeActivationConditionPresent(BOXCALIB) ||
             isModeActivationConditionPresent(BOXACROTRAINER)) {
 
-            return true;
-        }
-
-        // Launch Control only requires the ACC if a angle limit is set
-        if (isModeActivationConditionPresent(BOXLAUNCHCONTROL) && currentPidProfile->launchControlAngleLimit) {
             return true;
         }
 
@@ -439,7 +408,7 @@ void disarm(flightLogDisarmReason_e reason)
         lastDisarmTimeUs = micros();
 
 #ifdef USE_OSD
-        if (flipOverAfterCrashActive || isLaunchControlActive()) {
+        if (flipOverAfterCrashActive) {
             osdSuppressStats(true);
         }
 #endif
@@ -494,10 +463,6 @@ void tryArm(void)
             if (tryingToArm == ARMING_DELAYED_DISARMED) {
                 if (IS_RC_MODE_ACTIVE(BOXFLIPOVERAFTERCRASH)) {
                     tryingToArm = ARMING_DELAYED_CRASHFLIP;
-#ifdef USE_LAUNCH_CONTROL
-                } else if (canUseLaunchControl()) {
-                    tryingToArm = ARMING_DELAYED_LAUNCH_CONTROL;
-#endif
                 } else {
                     tryingToArm = ARMING_DELAYED_NORMAL;
                 }
@@ -519,14 +484,6 @@ void tryArm(void)
                 if (!featureIsEnabled(FEATURE_3D)) {
                     dshotCommandWrite(ALL_MOTORS, getMotorCount(), DSHOT_CMD_SPIN_DIRECTION_REVERSED, DSHOT_CMD_TYPE_INLINE);
                 }
-            }
-        }
-#endif
-
-#ifdef USE_LAUNCH_CONTROL
-        if (!flipOverAfterCrashActive && (canUseLaunchControl() || (tryingToArm == ARMING_DELAYED_LAUNCH_CONTROL))) {
-            if (launchControlState == LAUNCH_CONTROL_DISABLED) {  // only activate if it hasn't already been triggered
-                launchControlState = LAUNCH_CONTROL_ACTIVE;
             }
         }
 #endif
@@ -774,9 +731,7 @@ bool processRx(timeUs_t currentTimeUs)
     const throttleStatus_e throttleStatus = calculateThrottleStatus();
     const uint8_t throttlePercent = calculateThrottlePercentAbs();
 
-    const bool launchControlActive = isLaunchControlActive();
-
-    if (airmodeIsEnabled() && ARMING_FLAG(ARMED) && !launchControlActive) {
+    if (airmodeIsEnabled() && ARMING_FLAG(ARMED)) {
         if (throttlePercent >= rxConfig()->airModeActivateThreshold) {
             airmodeIsActivated = true; // Prevent iterm from being reset
         }
@@ -786,7 +741,7 @@ bool processRx(timeUs_t currentTimeUs)
 
     /* In airmode iterm should be prevented to grow when Low thottle and Roll + Pitch Centered.
      This is needed to prevent iterm winding on the ground, but keep full stabilisation on 0 throttle while in air */
-    if (throttleStatus == THROTTLE_LOW && !airmodeIsActivated && !launchControlActive) {
+    if (throttleStatus == THROTTLE_LOW && !airmodeIsActivated) {
         pidSetItermReset(true);
         if (currentPidProfile->pidAtMinThrottle)
             pidStabilisationState(PID_STABILISATION_ON);
@@ -862,29 +817,6 @@ bool processRx(timeUs_t currentTimeUs)
     } else {
         DEBUG_SET(DEBUG_RUNAWAY_TAKEOFF, DEBUG_RUNAWAY_TAKEOFF_DEACTIVATING_DELAY, DEBUG_RUNAWAY_TAKEOFF_FALSE);
         DEBUG_SET(DEBUG_RUNAWAY_TAKEOFF, DEBUG_RUNAWAY_TAKEOFF_DEACTIVATING_TIME, DEBUG_RUNAWAY_TAKEOFF_FALSE);
-    }
-#endif
-
-#ifdef USE_LAUNCH_CONTROL
-    if (ARMING_FLAG(ARMED)) {
-        if (launchControlActive && (throttlePercent > currentPidProfile->launchControlThrottlePercent)) {
-            // throttle limit trigger reached, launch triggered
-            // reset the iterms as they may be at high values from holding the launch position
-            launchControlState = LAUNCH_CONTROL_TRIGGERED;
-            pidResetIterm();
-        }
-    } else {
-        if (launchControlState == LAUNCH_CONTROL_TRIGGERED) {
-            // If trigger mode is MULTIPLE then reset the state when disarmed
-            // and the mode switch is turned off.
-            // For trigger mode SINGLE we never reset the state and only a single
-            // launch is allowed until a reboot.
-            if (currentPidProfile->launchControlAllowTriggerReset && !IS_RC_MODE_ACTIVE(BOXLAUNCHCONTROL)) {
-                launchControlState = LAUNCH_CONTROL_DISABLED;
-            }
-        } else {
-            launchControlState = LAUNCH_CONTROL_DISABLED;
-        }
     }
 #endif
 
@@ -1314,11 +1246,3 @@ void resetTryingToArm()
     tryingToArm = ARMING_DELAYED_DISARMED;
 }
 
-bool isLaunchControlActive(void)
-{
-#ifdef USE_LAUNCH_CONTROL
-    return launchControlState == LAUNCH_CONTROL_ACTIVE;
-#else
-    return false;
-#endif
-}

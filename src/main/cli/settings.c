@@ -422,12 +422,6 @@ static const char * const lookupTableSdcardMode[] = {
 };
 #endif
 
-#ifdef USE_LAUNCH_CONTROL
-static const char * const lookupTableLaunchControlMode[] = {
-    "NORMAL", "PITCHONLY", "FULL"
-};
-#endif
-
 #ifdef USE_TPA_MODE
 static const char * const lookupTableTpaMode[] = {
     "PD", "D"
@@ -590,9 +584,6 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableGyroHardware),
 #ifdef USE_SDCARD
     LOOKUP_TABLE_ENTRY(lookupTableSdcardMode),
-#endif
-#ifdef USE_LAUNCH_CONTROL
-    LOOKUP_TABLE_ENTRY(lookupTableLaunchControlMode),
 #endif
 #ifdef USE_TPA_MODE
     LOOKUP_TABLE_ENTRY(lookupTableTpaMode),
@@ -1098,14 +1089,6 @@ const clivalue_t valueTable[] = {
     { "motor_output_limit",         VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { MOTOR_OUTPUT_LIMIT_PERCENT_MIN, MOTOR_OUTPUT_LIMIT_PERCENT_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, motor_output_limit) },
     { "auto_profile_cell_count",    VAR_INT8 | PROFILE_VALUE,  .config.minmax = { AUTO_PROFILE_CELL_COUNT_CHANGE, MAX_AUTO_DETECT_CELL_COUNT }, PG_PID_PROFILE, offsetof(pidProfile_t, auto_profile_cell_count) },
 
-#ifdef USE_LAUNCH_CONTROL
-    { "launch_control_mode",        VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LAUNCH_CONTROL_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, launchControlMode) },
-    { "launch_trigger_allow_reset", VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, launchControlAllowTriggerReset) },
-    { "launch_trigger_throttle_percent", VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, LAUNCH_CONTROL_THROTTLE_TRIGGER_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, launchControlThrottlePercent) },
-    { "launch_angle_limit",         VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 80 }, PG_PID_PROFILE, offsetof(pidProfile_t, launchControlAngleLimit) },
-    { "launch_control_gain",        VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, launchControlGain) },
-#endif
-
 #ifdef USE_THRUST_LINEARIZATION
     { "thrust_linear",              VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, thrustLinearization) },
 #endif
@@ -1232,9 +1215,6 @@ const clivalue_t valueTable[] = {
     { "osd_warn_rc_smoothing",      VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_RC_SMOOTHING,     PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
 #endif
     { "osd_warn_fail_safe",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_FAIL_SAFE,   PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
-#ifdef USE_LAUNCH_CONTROL
-    { "osd_warn_launch_control",    VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_LAUNCH_CONTROL,   PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
-#endif
     { "osd_warn_no_gps_rescue",     VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_GPS_RESCUE_UNAVAILABLE, PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
     { "osd_warn_gps_rescue_disabled", VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_GPS_RESCUE_DISABLED, PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
     { "osd_warn_rssi",              VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_RSSI,             PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},

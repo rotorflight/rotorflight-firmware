@@ -1338,29 +1338,6 @@ static void osdElementWarnings(osdElementParms_t *element)
         return;
     }
 
-#ifdef USE_LAUNCH_CONTROL
-    // Warn when in launch control mode
-    if (osdWarnGetState(OSD_WARNING_LAUNCH_CONTROL) && isLaunchControlActive()) {
-#ifdef USE_ACC
-        if (sensors(SENSOR_ACC)) {
-            const int pitchAngle = constrain((attitude.raw[FD_PITCH] - accelerometerConfig()->accelerometerTrims.raw[FD_PITCH]) / 10, -90, 90);
-            tfp_sprintf(element->buff, "LAUNCH %d", pitchAngle);
-        } else
-#endif // USE_ACC
-        {
-            tfp_sprintf(element->buff, "LAUNCH");
-        }
-
-        // Blink the message if the throttle is within 10% of the launch setting
-        if ( calculateThrottlePercent() >= MAX(currentPidProfile->launchControlThrottlePercent - 10, 0)) {
-            SET_BLINK(OSD_WARNINGS);
-        }
-
-        element->attr = DISPLAYPORT_ATTR_INFO;
-        return;
-    }
-#endif // USE_LAUNCH_CONTROL
-
     // RSSI
     if (osdWarnGetState(OSD_WARNING_RSSI) && (getRssiPercent() < osdConfig()->rssi_alarm)) {
         tfp_sprintf(element->buff, "RSSI LOW");

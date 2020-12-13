@@ -33,19 +33,6 @@ typedef struct throttleCorrectionConfig_s {
 } throttleCorrectionConfig_t;
 
 typedef enum {
-    LAUNCH_CONTROL_DISABLED = 0,
-    LAUNCH_CONTROL_ACTIVE,
-    LAUNCH_CONTROL_TRIGGERED,
-} launchControlState_e;
-
-typedef enum {
-    LAUNCH_CONTROL_MODE_NORMAL = 0,
-    LAUNCH_CONTROL_MODE_PITCHONLY,
-    LAUNCH_CONTROL_MODE_FULL,
-    LAUNCH_CONTROL_MODE_COUNT // must be the last element
-} launchControlMode_e;
-
-typedef enum {
     DISARM_REASON_ARMING_DISABLED   = 0,
     DISARM_REASON_FAILSAFE          = 1,
     DISARM_REASON_THROTTLE_TIMEOUT  = 2,
@@ -59,11 +46,6 @@ typedef enum {
     DISARM_REASON_SYSTEM            = 255,
 #endif
 } flightLogDisarmReason_e;
-
-#ifdef USE_LAUNCH_CONTROL
-#define LAUNCH_CONTROL_THROTTLE_TRIGGER_MAX 90
-extern const char * const osdLaunchControlModeNames[LAUNCH_CONTROL_MODE_COUNT];
-#endif
 
 PG_DECLARE(throttleCorrectionConfig_t, throttleCorrectionConfig);
 
@@ -96,4 +78,3 @@ void resetTryingToArm();
 
 void subTaskTelemetryPollSensors(timeUs_t currentTimeUs);
 
-bool isLaunchControlActive(void);
