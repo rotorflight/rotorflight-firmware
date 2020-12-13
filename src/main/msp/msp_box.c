@@ -51,7 +51,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXANGLE, "ANGLE", 1 },
     { BOXHORIZON, "HORIZON", 2 },
 //    { BOXBARO, "BARO", 3 },
-    { BOXANTIGRAVITY, "ANTI GRAVITY", 4 },
+//    { BOXANTIGRAVITY, "ANTI GRAVITY", 4 },
     { BOXMAG, "MAG", 5 },
     { BOXHEADFREE, "HEADFREE", 6 },
     { BOXHEADADJ, "HEADADJ", 7 },
@@ -184,16 +184,6 @@ void initActiveBoxIds(void)
     BME(BOXPREARM);
     if (!featureIsEnabled(FEATURE_AIRMODE)) {
         BME(BOXAIRMODE);
-    }
-
-    bool acceleratorGainsEnabled = false;
-    for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
-        if (pidProfiles(i)->itermAcceleratorGain != ITERM_ACCELERATOR_GAIN_OFF) {
-            acceleratorGainsEnabled = true;
-        }
-    }
-    if (acceleratorGainsEnabled && !featureIsEnabled(FEATURE_ANTI_GRAVITY)) {
-        BME(BOXANTIGRAVITY);
     }
 
     if (sensors(SENSOR_ACC)) {
