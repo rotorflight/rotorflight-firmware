@@ -678,13 +678,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
     throttle = pidCompensateThrustLinearization(throttle);
 #endif
 
-#if defined(USE_THROTTLE_BOOST)
-    if (throttleBoost > 0.0f) {
-        const float throttleHpf = throttle - pt1FilterApply(&throttleLpf, throttle);
-        throttle = constrainf(throttle + throttleBoost * throttleHpf, 0.0f, 1.0f);
-    }
-#endif
-
 #ifdef USE_GPS_RESCUE
     // If gps rescue is active then override the throttle. This prevents things
     // like throttle boost or throttle limit from negatively affecting the throttle.

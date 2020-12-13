@@ -358,17 +358,6 @@ static void validateAndFixConfig(void)
         }
     }
 
-#if defined(USE_THROTTLE_BOOST)
-    if (!rcSmoothingIsEnabled() ||
-        !(rxConfig()->rcInterpolationChannels == INTERPOLATION_CHANNELS_RPYT
-        || rxConfig()->rcInterpolationChannels == INTERPOLATION_CHANNELS_T
-        || rxConfig()->rcInterpolationChannels == INTERPOLATION_CHANNELS_RPT)) {
-        for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
-            pidProfilesMutable(i)->throttle_boost = 0;
-        }
-    }
-#endif
-
     if (!featureIsConfigured(FEATURE_GPS)) {
 #ifdef USE_GPS_RESCUE
         if (failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE) {

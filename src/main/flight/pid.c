@@ -144,8 +144,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
         .itermLimit = 400,
-        .throttle_boost = 5,
-        .throttle_boost_cutoff = 15,
         .iterm_rotation = false,
         .iterm_relax = ITERM_RELAX_RP,
         .iterm_relax_cutoff = ITERM_RELAX_CUTOFF_DEFAULT,
@@ -393,9 +391,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pt1FilterInit(&ptermYawLowpass, pt1FilterGain(pidProfile->yaw_lowpass_hz, dT));
     }
 
-#if defined(USE_THROTTLE_BOOST)
-    pt1FilterInit(&throttleLpf, pt1FilterGain(pidProfile->throttle_boost_cutoff, dT));
-#endif
 #if defined(USE_ITERM_RELAX)
     if (itermRelax) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
@@ -483,10 +478,6 @@ static FAST_RAM_ZERO_INIT float levelGain, horizonGain, horizonTransition, horiz
 static FAST_RAM_ZERO_INIT float itermWindupPointInv;
 static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 static FAST_RAM_ZERO_INIT float itermLimit;
-#if defined(USE_THROTTLE_BOOST)
-FAST_RAM_ZERO_INIT float throttleBoost;
-pt1Filter_t throttleLpf;
-#endif
 static FAST_RAM_ZERO_INIT bool itermRotation;
 
 #ifdef USE_INTEGRATED_YAW_CONTROL
@@ -572,9 +563,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         itermWindupPointInv = 1.0f / (1.0f - itermWindupPoint);
     }
     itermLimit = pidProfile->itermLimit;
-#if defined(USE_THROTTLE_BOOST)
-    throttleBoost = pidProfile->throttle_boost * 0.1f;
-#endif
     itermRotation = pidProfile->iterm_rotation;
 
 #if defined(USE_ITERM_RELAX)
