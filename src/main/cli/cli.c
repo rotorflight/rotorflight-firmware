@@ -243,12 +243,38 @@ static char __attribute__ ((section(".custom_defaults_end_address"))) *customDef
 
 // sync this with features_e
 static const char * const featureNames[] = {
-    "RX_PPM", "", "INFLIGHT_ACC_CAL", "RX_SERIAL", "",
-    "", "SOFTSERIAL", "GPS", "",
-    "RANGEFINDER", "TELEMETRY", "", "3D", "RX_PARALLEL_PWM",
-    "RX_MSP", "RSSI_ADC", "LED_STRIP", "DISPLAY", "OSD",
-    "", "CHANNEL_FORWARDING", "", "",
-    "", "", "RX_SPI", "", "ESC_SENSOR", "", "DYNAMIC_FILTER", NULL
+    [0]  = "RX_PPM",
+    [1]  = "",
+    [2]  = "INFLIGHT_ACC_CAL",
+    [3]  = "RX_SERIAL",
+    [4]  = "",
+    [5]  = "",
+    [6]  = "SOFTSERIAL",
+    [7]  = "GPS",
+    [8]  = "",
+    [9]  = "RANGEFINDER",
+    [10] = "TELEMETRY",
+    [11] = "",
+    [12] = "",
+    [13] = "RX_PARALLEL_PWM",
+    [14] = "RX_MSP",
+    [15] = "RSSI_ADC",
+    [16] = "LED_STRIP",
+    [17] = "DISPLAY",
+    [18] = "OSD",
+    [19] = "",
+    [20] = "CHANNEL_FORWARDING",
+    [21] = "",
+    [22] = "",
+    [23] = "",
+    [24] = "",
+    [25] = "RX_SPI",
+    [26] = "",
+    [27] = "ESC_SENSOR",
+    [28] = "",
+    [29] = "DYNAMIC_FILTER",
+    [30] = "",
+    [31] = NULL
 };
 
 // sync this with rxFailsafeChannelMode_e
