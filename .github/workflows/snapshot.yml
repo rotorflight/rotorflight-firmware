@@ -30,7 +30,7 @@ jobs:
       run: echo "revision=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified FC_VER_SUFFIX="_${GITHUB_REF##*/}"
+      run: make unified FC_VER_SUFFIX="_${GITHUB_REF##*/}" FLASH_CONFIG_ERASE=yes
 
     - name: Create Snapshot
       run: |
