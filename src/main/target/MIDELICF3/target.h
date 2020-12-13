@@ -136,7 +136,7 @@
 #define USE_ESCSERIAL
 #define ESCSERIAL_TIMER_TX_PIN   PB9 // Motor 6, can't use escserial for hexa
 
-#define DEFAULT_FEATURES        (FEATURE_AIRMODE | FEATURE_TELEMETRY)
+#define DEFAULT_FEATURES        (FEATURE_TELEMETRY)
 
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff

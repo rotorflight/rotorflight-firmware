@@ -75,7 +75,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXSERVO3, "SERVO3", 25 },
     { BOXBLACKBOX, "BLACKBOX", 26 },
     { BOXFAILSAFE, "FAILSAFE", 27 },
-    { BOXAIRMODE, "AIR MODE", 28 },
+//    { BOXAIRMODE, "AIR MODE", 28 },
 //    { BOX3D, "DISABLE / SWITCH 3D", 29},
 //    { BOXFPVANGLEMIX, "FPV ANGLE MIX", 30},
     { BOXBLACKBOXERASE, "BLACKBOX ERASE (>30s)", 31 },
@@ -182,10 +182,6 @@ void initActiveBoxIds(void)
 #define BME(boxId) do { bitArraySet(&ena, boxId); } while (0)
     BME(BOXARM);
     BME(BOXPREARM);
-    if (!featureIsEnabled(FEATURE_AIRMODE)) {
-        BME(BOXAIRMODE);
-    }
-
     if (sensors(SENSOR_ACC)) {
         BME(BOXANGLE);
         BME(BOXHORIZON);

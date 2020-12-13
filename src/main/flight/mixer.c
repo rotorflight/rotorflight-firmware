@@ -602,8 +602,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         throttle = applyThrottleLimit(throttle);
     }
 
-    const bool airmodeEnabled = airmodeIsEnabled();
-
     // Find roll/pitch/yaw desired output
     float motorMix[MAX_SUPPORTED_MOTORS];
     float motorMixMax = 0, motorMixMin = 0;
@@ -636,11 +634,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
     }
 #endif
 
-#ifdef USE_AIRMODE_LPF
-    const float unadjustedThrottle = throttle;
-    throttle += pidGetAirmodeThrottleOffset();
-    float airmodeThrottleChange = 0;
-#endif
     mixerThrottle = throttle;
 
     motorMixRange = motorMixMax - motorMixMin;
@@ -648,26 +641,14 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         for (int i = 0; i < motorCount; i++) {
             motorMix[i] /= motorMixRange;
         }
-        // Get the maximum correction by setting offset to center when airmode enabled
-        if (airmodeEnabled) {
-            throttle = 0.5f;
-        }
     } else {
-        if (airmodeEnabled || throttle > 0.5f) {  // Only automatically adjust throttle when airmode enabled. Airmode logic is always active on high throttle
+        if (throttle > 0.5f) {
             throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
-#ifdef USE_AIRMODE_LPF
-            airmodeThrottleChange = constrainf(unadjustedThrottle, -motorMixMin, 1.0f - motorMixMax) - unadjustedThrottle;
-#endif
         }
     }
 
-#ifdef USE_AIRMODE_LPF
-    pidUpdateAirmodeLpf(airmodeThrottleChange);
-#endif
-
     if (featureIsEnabled(FEATURE_MOTOR_STOP)
         && ARMING_FLAG(ARMED)
-        && !airmodeEnabled
         && !FLIGHT_MODE(GPS_RESCUE_MODE)   // disable motor_stop while GPS Rescue is active
         && (rcData[THROTTLE] < rxConfig()->mincheck)) {
         // motor_stop handling

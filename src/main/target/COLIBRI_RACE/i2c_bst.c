@@ -849,7 +849,6 @@ bool writeFCModeToBST(void)
            IS_ENABLED(FLIGHT_MODE(ANGLE_MODE)) << 1 |
            IS_ENABLED(FLIGHT_MODE(HORIZON_MODE)) << 2 |
            IS_ENABLED(FLIGHT_MODE(MAG_MODE)) << 4 |
-           IS_ENABLED(IS_RC_MODE_ACTIVE(BOXAIRMODE)) << 5 |
            IS_ENABLED(FLIGHT_MODE(FAILSAFE_MODE)) << 7;
 
     bstMasterStartBuffer(PUBLIC_ADDRESS);
