@@ -55,9 +55,8 @@ typedef struct dshotProtocolControl_s {
     bool requestTelemetry;
 } dshotProtocolControl_t;
 
-void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow);
-float dshotConvertFromExternal(uint16_t externalValue);
-uint16_t dshotConvertToExternal(float motorValue);
+float dshotConvertFromInternal(uint16_t internalValue);
+uint16_t dshotConvertToInternal(float motorValue);
 
 uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb);
 

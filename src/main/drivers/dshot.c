@@ -47,32 +47,28 @@
 
 #include "dshot.h"
 
-void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
-    UNUSED(deadbandMotor3dHigh);
-    UNUSED(deadbandMotor3dLow);
-    float outputLimitOffset = (DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) * (1 - outputLimit);
-    *disarm = DSHOT_CMD_MOTOR_STOP;
-    *outputLow = DSHOT_MIN_THROTTLE + ((DSHOT_MAX_THROTTLE - DSHOT_MIN_THROTTLE) / 100.0f) * CONVERT_PARAMETER_TO_PERCENT(motorConfig->digitalIdleOffsetValue);
-    *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
-}
-
-float dshotConvertFromExternal(uint16_t externalValue)
+float dshotConvertFromInternal(uint16_t internalValue)
 {
     float motorValue;
 
-    externalValue = constrain(externalValue, PWM_RANGE_MIN, PWM_RANGE_MAX);
-    motorValue = (externalValue == PWM_RANGE_MIN) ? DSHOT_CMD_MOTOR_STOP : scaleRangef(externalValue, PWM_RANGE_MIN + 1, PWM_RANGE_MAX, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    if (internalValue == DSHOT_CMD_MOTOR_STOP)
+        motorValue = 0.0f;
+    else
+        motorValue = scaleRangef(internalValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, 0, 1);
 
     return motorValue;
 }
 
-uint16_t dshotConvertToExternal(float motorValue)
+uint16_t dshotConvertToInternal(float motorValue)
 {
-    uint16_t externalValue;
+    uint16_t internalValue;
 
-    externalValue = (motorValue < DSHOT_MIN_THROTTLE) ? PWM_RANGE_MIN : scaleRangef(motorValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, PWM_RANGE_MIN + 1, PWM_RANGE_MAX);
+    if (motorValue > 0)
+        internalValue = scaleRangef(motorValue, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    else
+        internalValue = DSHOT_CMD_MOTOR_STOP;
 
-    return externalValue;
+    return internalValue;
 }
 
 FAST_CODE uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb)

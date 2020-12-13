@@ -55,18 +55,14 @@ typedef struct {
 extern FAST_RAM_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 
 struct motorDevConfig_s;
-motorDevice_t *motorPwmDevInit(const struct motorDevConfig_s *motorDevConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm);
+motorDevice_t *motorPwmDevInit(const struct motorDevConfig_s *motorDevConfig, uint8_t motorCount);
 
 typedef struct servoDevConfig_s {
-    // PWM values, in milliseconds, common range is 1000-2000 (1ms to 2ms)
-    uint16_t servoCenterPulse;              // This is the value for servos when they should be in the middle. e.g. 1500.
     uint16_t servoPwmRate;                  // The update rate of servo outputs (50-498Hz)
     ioTag_t  ioTags[MAX_SUPPORTED_SERVOS];
 } servoDevConfig_t;
 
 void servoDevInit(const servoDevConfig_t *servoDevConfig);
-
-void pwmServoConfig(const struct timerHardware_s *timerHardware, uint8_t servoIndex, uint16_t servoPwmRate, uint16_t servoCenterPulse);
 
 void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware, uint32_t hz, uint16_t period, uint16_t value, uint8_t inversion);
 
