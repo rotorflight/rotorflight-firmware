@@ -3560,6 +3560,13 @@ static void cliReboot(void)
     cliRebootEx(REBOOT_TARGET_FIRMWARE);
 }
 
+static void cliDFU(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    UNUSED(cmdline);
+    cliRebootEx(REBOOT_TARGET_BOOTLOADER_ROM);
+}
+
 static void cliBootloader(const char *cmdName, char *cmdline)
 {
     rebootTarget_e rebootTarget;
@@ -6516,6 +6523,7 @@ const clicmd_t cmdTable[] = {
 #else
     CLI_COMMAND_DEF("defaults", "reset to defaults and reboot", "{nosave}", cliDefaults),
 #endif
+    CLI_COMMAND_DEF("dfu", "reboot into DFU bootloader", NULL, cliDFU),
     CLI_COMMAND_DEF("diff", "list configuration changes from default", "[master|profile|rates|hardware|all] {defaults|bare}", cliDiff),
 #ifdef USE_RESOURCE_MGMT
 
