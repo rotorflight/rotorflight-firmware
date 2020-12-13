@@ -302,7 +302,7 @@ CPPCHECK        = cppcheck $(CSOURCES) --enable=all --platform=unix64 \
                   -I/usr/include -I/usr/include/linux
 
 
-TARGET_BASENAME = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET)_$(REVISION)
+TARGET_BASENAME = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)$(SUFFIX)_$(TARGET)
 
 #
 # Things we will build
