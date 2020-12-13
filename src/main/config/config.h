@@ -44,6 +44,7 @@ typedef struct systemConfig_s {
     uint8_t pidProfileIndex;
     uint8_t activeRateProfile;
     uint8_t debug_mode;
+    uint8_t debug_axis;
     uint8_t task_statistics;
     uint8_t cpu_overclock;
     uint8_t powerOnArmingGraceTime; // in seconds
