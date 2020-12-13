@@ -153,6 +153,10 @@
 #define PG_BETAFLIGHT_END 553
 
 
+// Rotorflight configuration
+#define PG_FREQ_SENSOR_CONFIG 1000
+
+
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047
 #define PG_OSD_VIDEO_CONFIG 2046

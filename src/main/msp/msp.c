@@ -66,6 +66,7 @@
 #include "drivers/usb_msc.h"
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
+#include "drivers/freq.h"
 
 #include "fc/board_info.h"
 #include "fc/controlrate_profile.h"
@@ -1109,6 +1110,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
                     errorRatio = getDshotTelemetryMotorInvalidPercent(i);
 #endif
                 }
+            }
+#endif
+
+#ifdef USE_FREQ_SENSOR
+            if (featureIsEnabled(FEATURE_FREQ_SENSOR) && isFreqSensorPortInitialized(i)) {
+                motorRpm = calcMotorRPM(i, getFreqSensorRPM(i));
             }
 #endif
 
