@@ -890,19 +890,11 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     static bool gpsRescuePreviousState = false;
 #endif
 
-    const float tpaFactor = getThrottlePIDAttenuation();
-
 #if defined(USE_ACC)
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 #else
     UNUSED(pidProfile);
     UNUSED(currentTimeUs);
-#endif
-
-#ifdef USE_TPA_MODE
-    const float tpaFactorKp = (currentControlRateProfile->tpaMode == TPA_MODE_PD) ? tpaFactor : 1.0f;
-#else
-    const float tpaFactorKp = tpaFactor;
 #endif
 
 #if defined(USE_ACC)
@@ -1015,7 +1007,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // b = 1 and only c (feedforward weight) can be tuned (amount derivative on measurement or error).
 
         // -----calculate P component
-        pidData[axis].P = pidCoefficient[axis].Kp * errorRate * tpaFactorKp;
+        pidData[axis].P = pidCoefficient[axis].Kp * errorRate;
         if (axis == FD_YAW) {
             pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
         }
@@ -1054,7 +1046,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             const float delta =
                 - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidFrequency;
 
-            pidData[axis].D = pidCoefficient[axis].Kd * delta * tpaFactor;
+            pidData[axis].D = pidCoefficient[axis].Kd * delta;
         } else {
             pidData[axis].D = 0;
         }
