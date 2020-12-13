@@ -254,8 +254,8 @@ static void calculateSetpointRate(int axis)
 
 static FAST_CODE uint8_t processRcInterpolation(void)
 {
-    static FAST_RAM_ZERO_INIT float rcCommandInterp[4];
-    static FAST_RAM_ZERO_INIT float rcStepSize[4];
+    static FAST_RAM_ZERO_INIT float rcCommandInterp[5];
+    static FAST_RAM_ZERO_INIT float rcStepSize[5];
     static FAST_RAM_ZERO_INIT int16_t rcInterpolationStepCount;
 
     uint16_t rxRefreshRate;
@@ -457,7 +457,7 @@ FAST_CODE_NOINLINE bool rcSmoothingAutoCalculate(void)
 static FAST_CODE uint8_t processRcSmoothingFilter(void)
 {
     uint8_t updatedChannel = 0;
-    static FAST_RAM_ZERO_INIT float lastRxData[4];
+    static FAST_RAM_ZERO_INIT float lastRxData[5];
     static FAST_RAM_ZERO_INIT bool initialized;
     static FAST_RAM_ZERO_INIT timeMs_t validRxFrameTimeMs;
     static FAST_RAM_ZERO_INIT bool calculateCutoffs;
@@ -700,6 +700,8 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
     }
 
     rcCommand[THROTTLE] = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX);
+
+    rcCommand[COLLECTIVE] = constrain(rcData[COLLECTIVE] - rxConfig()->midrc, -500, 500);
 }
 
 void resetYawAxis(void)
