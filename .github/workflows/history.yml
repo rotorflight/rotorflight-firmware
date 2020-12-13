@@ -1,0 +1,86 @@
+name: History
+
+on:
+  push:
+    tags:
+      - 'history/*'
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 500
+
+    - name: Delete tag
+      run: git push origin :${GITHUB_REF}
+
+    - name: Cache ARM tools
+      uses: actions/cache@v2
+      env:
+        cache-name: cache-arm-tools
+      with:
+        path: downloads/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2
+        key: gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Set build variables
+      run: |
+        echo "GIT_VER=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+        echo "GIT_TAG=${GITHUB_REF##refs/tags/}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
+
+    - name: Machine details
+      run: |
+        free
+        cat /proc/cpuinfo  | grep -E '^(processor)|(vendor_id)|(model name)|(cpu MHz)|(cache size)'
+
+    - name: Build git history
+      run: |
+        testbuild()
+        {
+            echo "Building $1"
+            nice make TARGET=$1 JFLAG='-j 4' 2>&1 > ${RESULT}.$1.out
+            grep -E -i '(warning:)|(error:)' ${RESULT}.$1.out || true
+        }
+
+        N=${GIT_VER%%-*}
+        M=${GIT_VER##*-}
+
+        while [[ $N -lt $M ]]
+        do
+            RESULT=$(printf '%04d' $N)
+
+            git checkout ${GITHUB_REF}~$N --force --detach
+
+            rm -fr obj
+
+            testbuild STM32H743 &
+            testbuild STM32F745 &
+            testbuild STM32F7X2 &
+            testbuild STM32F411 &
+            testbuild STM32F405 &
+            testbuild STM32G47X &
+            testbuild MATEKF722 &
+            testbuild MATEKF411 &
+            testbuild MATEKF405 &
+
+            wait
+
+            grep -q -v -E -i '(warning:)|(error:)' ${RESULT}.*.out
+
+            let N+=1
+        done
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: rotorflight-history-${{ env.GIT_VER }}
+        path: 0*.out
