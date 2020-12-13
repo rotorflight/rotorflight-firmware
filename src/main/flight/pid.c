@@ -97,13 +97,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 2);
 #define PID_PROCESS_DENOM_DEFAULT       1
 #endif
 
-#if defined(USE_D_MIN)
-#define D_MIN_GAIN_FACTOR 0.00005f
-#define D_MIN_SETPOINT_GAIN_FACTOR 0.00005f
-#define D_MIN_RANGE_HZ 80    // Biquad lowpass input cutoff to peak D around propwash frequencies
-#define D_MIN_LOWPASS_HZ 10  // PT1 lowpass cutoff to smooth the boost effect
-#endif
-
 PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .pid_process_denom = PID_PROCESS_DENOM_DEFAULT
 );
@@ -161,9 +154,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_filter2_type = FILTER_PT1,
         .dyn_lpf_dterm_min_hz = 70,
         .dyn_lpf_dterm_max_hz = 170,
-        .d_min = { 23, 25, 0 },      // roll, pitch, yaw
-        .d_min_gain = 37,
-        .d_min_advance = 20,
         .motor_output_limit = 100,
         .auto_profile_cell_count = AUTO_PROFILE_CELL_COUNT_STAY,
         .profileName = { 0 },
@@ -175,10 +165,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_lpf_curve_expo = 5,
         .vbat_sag_compensation = 0,
     );
-#ifndef USE_D_MIN
-    pidProfile->pid[PID_ROLL].D = 30;
-    pidProfile->pid[PID_PITCH].D = 32;
-#endif
 }
 
 void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
@@ -236,11 +222,6 @@ static FAST_RAM_ZERO_INIT float acErrorLimit;
 static FAST_RAM_ZERO_INIT float acCutoff;
 static FAST_RAM_ZERO_INIT pt1Filter_t acLpf[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float oldSetpointCorrection[XYZ_AXIS_COUNT];
-#endif
-
-#if defined(USE_D_MIN)
-static FAST_RAM_ZERO_INIT biquadFilter_t dMinRange[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT pt1Filter_t dMinLowpass[XYZ_AXIS_COUNT];
 #endif
 
 #ifdef USE_RC_SMOOTHING_FILTER
@@ -386,17 +367,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         }
     }
 #endif
-#if defined(USE_D_MIN)
-
-    // Initialize the filters for all axis even if the d_min[axis] value is 0
-    // Otherwise if the pidProfile->d_min_xxx parameters are ever added to
-    // in-flight adjustments and transition from 0 to > 0 in flight the feature
-    // won't work because the filter wasn't initialized.
-    for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-        biquadFilterInitLPF(&dMinRange[axis], D_MIN_RANGE_HZ, targetPidLooptime);
-        pt1FilterInit(&dMinLowpass[axis], pt1FilterGain(D_MIN_LOWPASS_HZ, dT));
-     }
-#endif
     ffBoostFactor = (float)pidProfile->ff_boost / 10.0f;
     ffSpikeLimitInverse = pidProfile->ff_spike_limit ? 1.0f / ((float)pidProfile->ff_spike_limit / 10.0f) : 0.0f;
 }
@@ -480,12 +450,6 @@ static FAST_RAM_ZERO_INIT uint16_t dynLpfMax;
 static FAST_RAM_ZERO_INIT uint8_t dynLpfCurveExpo;
 #endif
 
-#ifdef USE_D_MIN
-static FAST_RAM_ZERO_INIT float dMinPercent[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT float dMinGyroGain;
-static FAST_RAM_ZERO_INIT float dMinSetpointGain;
-#endif
-
 #ifdef USE_INTERPOLATED_SP
 static FAST_RAM_ZERO_INIT ffInterpolationType_t ffFromInterpolatedSetpoint;
 #endif
@@ -565,19 +529,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     dynLpfCurveExpo = pidProfile->dyn_lpf_curve_expo;
 #endif
 
-#if defined(USE_D_MIN)
-    for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        const uint8_t dMin = pidProfile->d_min[axis];
-        if ((dMin > 0) && (dMin < pidProfile->pid[axis].D)) {
-            dMinPercent[axis] = dMin / (float)(pidProfile->pid[axis].D);
-        } else {
-            dMinPercent[axis] = 0;
-        }
-    }
-    dMinGyroGain = pidProfile->d_min_gain * D_MIN_GAIN_FACTOR / D_MIN_LOWPASS_HZ;
-    dMinSetpointGain = pidProfile->d_min_gain * D_MIN_SETPOINT_GAIN_FACTOR * pidProfile->d_min_advance * pidFrequency / (100 * D_MIN_LOWPASS_HZ);
-    // lowpass included inversely in gain since stronger lowpass decreases peak effect
-#endif
 #ifdef USE_INTERPOLATED_SP
     ffFromInterpolatedSetpoint = pidProfile->ff_interpolate_sp;
     ffSmoothFactor = 1.0f - ((float)pidProfile->ff_smooth_factor) / 100.0f;
@@ -1103,26 +1054,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             const float delta =
                 - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidFrequency;
 
-            float dMinFactor = 1.0f;
-#if defined(USE_D_MIN)
-            if (dMinPercent[axis] > 0) {
-                float dMinGyroFactor = biquadFilterApply(&dMinRange[axis], delta);
-                dMinGyroFactor = fabsf(dMinGyroFactor) * dMinGyroGain;
-                const float dMinSetpointFactor = (fabsf(pidSetpointDelta)) * dMinSetpointGain;
-                dMinFactor = MAX(dMinGyroFactor, dMinSetpointFactor);
-                dMinFactor = dMinPercent[axis] + (1.0f - dMinPercent[axis]) * dMinFactor;
-                dMinFactor = pt1FilterApply(&dMinLowpass[axis], dMinFactor);
-                dMinFactor = MIN(dMinFactor, 1.0f);
-                if (axis == FD_ROLL) {
-                    DEBUG_SET(DEBUG_D_MIN, 0, lrintf(dMinGyroFactor * 100));
-                    DEBUG_SET(DEBUG_D_MIN, 1, lrintf(dMinSetpointFactor * 100));
-                    DEBUG_SET(DEBUG_D_MIN, 2, lrintf(pidCoefficient[axis].Kd * dMinFactor * 10 / DTERM_SCALE));
-                } else if (axis == FD_PITCH) {
-                    DEBUG_SET(DEBUG_D_MIN, 3, lrintf(pidCoefficient[axis].Kd * dMinFactor * 10 / DTERM_SCALE));
-                }
-            }
-#endif
-            pidData[axis].D = pidCoefficient[axis].Kd * delta * tpaFactor * dMinFactor;
+            pidData[axis].D = pidCoefficient[axis].Kd * delta * tpaFactor;
         } else {
             pidData[axis].D = 0;
         }
