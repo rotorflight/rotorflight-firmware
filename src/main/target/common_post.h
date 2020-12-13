@@ -139,6 +139,7 @@
 #undef USE_VTX_TRAMP
 #undef USE_VTX_SMARTAUDIO
 #undef USE_VTX_TABLE
+#undef USE_VTX_RTC6705
 #endif
 
 #if defined(USE_RX_FRSKY_SPI_D) || defined(USE_RX_FRSKY_SPI_X) || defined(USE_RX_REDPINE_SPI)

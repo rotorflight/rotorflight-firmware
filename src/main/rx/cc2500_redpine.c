@@ -399,12 +399,14 @@ void switchRedpineMode(void)
 void redpineSetRcData(uint16_t *rcData, const uint8_t *packet)
 {
     if (packet[CHANNEL_START] == VTX_STATUS_FRAME && packet[CHANNEL_START + 1] == 0) {
+#ifdef USE_VTX_CONTROL
         if (!ARMING_FLAG(ARMED)) {
             vtxSettingsConfigMutable()->band = packet[5] + 1;
             vtxSettingsConfigMutable()->channel = packet[6];
             vtxSettingsConfigMutable()->power = packet[7];
             saveConfigAndNotify();
         }
+#endif
     } else {
         uint16_t channelValue;
         // 4 stick channels (11-bit)
