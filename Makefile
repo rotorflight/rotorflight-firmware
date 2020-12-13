@@ -33,6 +33,9 @@ RAM_BASED ?= no
 # reserve space for custom defaults
 CUSTOM_DEFAULTS_EXTENDED ?= no
 
+# generate image that erases config
+FLASH_CONFIG_ERASE ?= no
+
 # Debugger optons:
 #   empty           - ordinary build with all optimizations enabled
 #   RELWITHDEBINFO  - ordinary build with debug symbols and all optimizations enabled
@@ -198,6 +201,10 @@ endif
 ifeq ($(CUSTOM_DEFAULTS_EXTENDED),yes)
 TARGET_FLAGS += -DUSE_CUSTOM_DEFAULTS=
 EXTRA_LD_FLAGS += -Wl,--defsym=USE_CUSTOM_DEFAULTS_EXTENDED=1
+endif
+
+ifeq ($(FLASH_CONFIG_ERASE),yes)
+TARGET_FLAGS += -DUSE_CONFIG_ERASE
 endif
 
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
