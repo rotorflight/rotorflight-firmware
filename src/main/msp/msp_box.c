@@ -82,7 +82,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXCAMERA1, "CAMERA CONTROL 1", 32},
     { BOXCAMERA2, "CAMERA CONTROL 2", 33},
     { BOXCAMERA3, "CAMERA CONTROL 3", 34 },
-    { BOXFLIPOVERAFTERCRASH, "FLIP OVER AFTER CRASH", 35 },
+//    { BOXFLIPOVERAFTERCRASH, "FLIP OVER AFTER CRASH", 35 }, (removed)
     { BOXPREARM, "PREARM", 36 },
     { BOXBEEPGPSCOUNT, "BEEP GPS SATELLITE COUNT", 37 },
 //    { BOX3DONASWITCH, "3D ON A SWITCH", 38 }, (removed)
@@ -227,14 +227,6 @@ void initActiveBoxIds(void)
 #ifdef USE_FLASHFS
     BME(BOXBLACKBOXERASE);
 #endif
-#endif
-
-#ifdef USE_DSHOT
-    bool configuredMotorProtocolDshot;
-    checkMotorProtocolEnabled(&motorConfig()->dev, &configuredMotorProtocolDshot);
-    if (configuredMotorProtocolDshot) {
-        BME(BOXFLIPOVERAFTERCRASH);
-    }
 #endif
 
     if (featureIsEnabled(FEATURE_INFLIGHT_ACC_CAL)) {
