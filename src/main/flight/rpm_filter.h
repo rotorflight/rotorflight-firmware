@@ -23,24 +23,21 @@
 #include "common/axis.h"
 #include "pg/pg.h"
 
-typedef struct rpmFilterConfig_s
+#define RPM_FILTER_BANK_COUNT 16
+
+typedef struct rpmFilteConfig_s
 {
-    uint8_t  gyro_rpm_notch_harmonics;   // how many harmonics should be covered with notches? 0 means filter off
-    uint8_t  gyro_rpm_notch_min;         // minimum frequency of the notches
-    uint16_t gyro_rpm_notch_q;           // q of the notches
+    uint8_t  filter_bank_motor_index[RPM_FILTER_BANK_COUNT];    // Motor index
+    uint16_t filter_bank_gear_ratio[RPM_FILTER_BANK_COUNT];     // Motor/rotor speed ratio *1000
+    uint16_t filter_bank_notch_q[RPM_FILTER_BANK_COUNT];        // Filter Q * 100
+    uint16_t filter_bank_min_hz[RPM_FILTER_BANK_COUNT];         // Filter minimum frequency
+    uint16_t filter_bank_max_hz[RPM_FILTER_BANK_COUNT];         // Filter maximum frequency
 
-    uint8_t  dterm_rpm_notch_harmonics;  // how many harmonics should be covered with notches? 0 means filter off
-    uint8_t  dterm_rpm_notch_min;        // minimum frequency of the notches
-    uint16_t dterm_rpm_notch_q;          // q of the notches
-
-    uint16_t rpm_lpf;                    // the cutoff of the lpf on reported motor rpm
 } rpmFilterConfig_t;
+
 
 PG_DECLARE(rpmFilterConfig_t, rpmFilterConfig);
 
 void  rpmFilterInit(const rpmFilterConfig_t *config);
 float rpmFilterGyro(int axis, float values);
-float rpmFilterDterm(int axis, float values);
 void  rpmFilterUpdate();
-bool isRpmFilterEnabled(void);
-float rpmMinMotorFrequency();

@@ -1406,13 +1406,94 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("dshot_bidir", "%d",                     motorConfig()->dev.useDshotTelemetry);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_harmonics", "%d",        rpmFilterConfig()->gyro_rpm_notch_harmonics);
-        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_q", "%d",                rpmFilterConfig()->gyro_rpm_notch_q);
-        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_min", "%d",              rpmFilterConfig()->gyro_rpm_notch_min);
-        BLACKBOX_PRINT_HEADER_LINE("dterm_rpm_notch_harmonics", "%d",       rpmFilterConfig()->dterm_rpm_notch_harmonics);
-        BLACKBOX_PRINT_HEADER_LINE("dterm_rpm_notch_q", "%d",               rpmFilterConfig()->dterm_rpm_notch_q);
-        BLACKBOX_PRINT_HEADER_LINE("dterm_rpm_notch_min", "%d",             rpmFilterConfig()->dterm_rpm_notch_min);
-        BLACKBOX_PRINT_HEADER_LINE("rpm_notch_lpf", "%d",                   rpmFilterConfig()->rpm_lpf);
+#if RPM_FILTER_BANK_COUNT != 16
+#error RPM_FILTER_BANK_COUNT hardcoded to 16 in blackbox.c
+#endif
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_filter_bank_motor_index", "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                                                                            rpmFilterConfig()->filter_bank_motor_index[0],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[1],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[2],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[3],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[4],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[5],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[6],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[7],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[8],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[9],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[10],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[11],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[12],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[13],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[14],
+                                                                            rpmFilterConfig()->filter_bank_motor_index[15]);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_filter_bank_gear_ratio", "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[0],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[1],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[2],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[3],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[4],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[5],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[6],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[7],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[8],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[9],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[10],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[11],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[12],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[13],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[14],
+                                                                            rpmFilterConfig()->filter_bank_gear_ratio[15]);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_filter_bank_notch_q", "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                                                                            rpmFilterConfig()->filter_bank_notch_q[0],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[1],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[2],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[3],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[4],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[5],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[6],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[7],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[8],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[9],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[10],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[11],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[12],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[13],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[14],
+                                                                            rpmFilterConfig()->filter_bank_notch_q[15]);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_filter_bank_min_hz", "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                                                                            rpmFilterConfig()->filter_bank_min_hz[0],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[1],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[2],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[3],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[4],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[5],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[6],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[7],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[8],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[9],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[10],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[11],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[12],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[13],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[14],
+                                                                            rpmFilterConfig()->filter_bank_min_hz[15]);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_filter_bank_max_hz", "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+                                                                            rpmFilterConfig()->filter_bank_max_hz[0],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[1],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[2],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[3],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[4],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[5],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[6],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[7],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[8],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[9],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[10],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[11],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[12],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[13],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[14],
+                                                                            rpmFilterConfig()->filter_bank_max_hz[15]);
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE("acc_lpf_hz", "%d",                 (int)(accelerometerConfig()->acc_lpf_hz * 100.0f));

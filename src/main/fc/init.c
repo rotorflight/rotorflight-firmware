@@ -825,6 +825,12 @@ void init(void)
 
     rpmSourceInit();
 
+#ifdef USE_RPM_FILTER
+    if (featureIsEnabled(FEATURE_RPM_FILTER)) {
+        rpmFilterInit(rpmFilterConfig());
+    }
+#endif
+
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
 #endif

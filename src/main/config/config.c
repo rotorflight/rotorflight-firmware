@@ -419,6 +419,10 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_ESC_SENSOR);
 #endif
 
+#ifndef USE_RPM_FILTER
+    featureDisableImmediate(FEATURE_RPM_FILTER);
+#endif
+
 #ifndef USE_GYRO_DATA_ANALYSE
     featureDisableImmediate(FEATURE_DYNAMIC_FILTER);
 #endif
