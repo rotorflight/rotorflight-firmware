@@ -23,7 +23,7 @@
 #if defined(STM32F405)
 #define TARGET_BOARD_IDENTIFIER "S405"
 
-#define USBD_PRODUCT_STRING     "Betaflight STM32F405"
+#define USBD_PRODUCT_STRING     "Rotorflight STM32F405"
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -54,7 +54,7 @@
 #elif defined(STM32F411)
 #define TARGET_BOARD_IDENTIFIER "S411"
 
-#define USBD_PRODUCT_STRING     "Betaflight STM32F411"
+#define USBD_PRODUCT_STRING     "Rotorflight STM32F411"
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -81,7 +81,7 @@
 #elif defined(STM32F7X2)
 #define TARGET_BOARD_IDENTIFIER "S7X2"
 
-#define USBD_PRODUCT_STRING     "Betaflight STM32F7x2"
+#define USBD_PRODUCT_STRING     "Rotorflight STM32F7x2"
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -110,7 +110,7 @@
 #elif defined(STM32F745)
 #define TARGET_BOARD_IDENTIFIER "S745"
 
-#define USBD_PRODUCT_STRING     "Betaflight STM32F745"
+#define USBD_PRODUCT_STRING     "Rotorflight STM32F745"
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -174,7 +174,7 @@
 #elif defined(STM32H743)
 #define TARGET_BOARD_IDENTIFIER "SH74"
 
-#define USBD_PRODUCT_STRING     "Betaflight STM32H743"
+#define USBD_PRODUCT_STRING     "Rotorflight STM32H743"
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
