@@ -503,12 +503,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         pidCoefficient[axis].Kd = DTERM_SCALE * pidProfile->pid[axis].D;
         pidCoefficient[axis].Kf = FEEDFORWARD_SCALE * (pidProfile->pid[axis].F / 100.0f);
     }
-#ifdef USE_INTEGRATED_YAW_CONTROL
-    if (!pidProfile->use_integrated_yaw)
-#endif
-    {
-        pidCoefficient[FD_YAW].Ki *= 2.5f;
-    }
 
     levelGain = pidProfile->pid[PID_LEVEL].P / 10.0f;
     horizonGain = pidProfile->pid[PID_LEVEL].I / 10.0f;
