@@ -266,26 +266,6 @@ static void calculateSetpointRate(int axis)
     DEBUG_SET(DEBUG_ANGLERATE, axis, angleRate);
 }
 
-static void scaleRcCommandToFpvCamAngle(void)
-{
-    //recalculate sin/cos only when rxConfig()->fpvCamAngleDegrees changed
-    static uint8_t lastFpvCamAngleDegrees = 0;
-    static float cosFactor = 1.0;
-    static float sinFactor = 0.0;
-
-    if (lastFpvCamAngleDegrees != rxConfig()->fpvCamAngleDegrees) {
-        lastFpvCamAngleDegrees = rxConfig()->fpvCamAngleDegrees;
-        cosFactor = cos_approx(rxConfig()->fpvCamAngleDegrees * RAD);
-        sinFactor = sin_approx(rxConfig()->fpvCamAngleDegrees * RAD);
-    }
-
-    float roll = setpointRate[ROLL];
-    float yaw = setpointRate[YAW];
-    setpointRate[ROLL] = constrainf(roll * cosFactor -  yaw * sinFactor, -SETPOINT_RATE_LIMIT * 1.0f, SETPOINT_RATE_LIMIT * 1.0f);
-    setpointRate[YAW]  = constrainf(yaw  * cosFactor + roll * sinFactor, -SETPOINT_RATE_LIMIT * 1.0f, SETPOINT_RATE_LIMIT * 1.0f);
-}
-
-#define THROTTLE_BUFFER_MAX 20
 #define THROTTLE_DELTA_MS 100
 
 static FAST_CODE uint8_t processRcInterpolation(void)
@@ -702,11 +682,6 @@ FAST_CODE void processRcCommand(void)
         }
 
         DEBUG_SET(DEBUG_RC_INTERPOLATION, 3, setpointRate[0]);
-
-        // Scaling of AngleRate to camera angle (Mixing Roll and Yaw)
-        if (rxConfig()->fpvCamAngleDegrees && IS_RC_MODE_ACTIVE(BOXFPVANGLEMIX) && !FLIGHT_MODE(HEADFREE_MODE)) {
-            scaleRcCommandToFpvCamAngle();
-        }
     }
 
     isRxDataNew = false;
