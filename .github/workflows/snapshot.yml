@@ -30,7 +30,7 @@ jobs:
       run: echo "release=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified SUFFIX=-${{ env.release }}
+      run: make unified SUFFIX=-${{ env.release }} FLASH_CONFIG_ERASE=yes
 
     - name: Move HEX
       run: mv obj/*.hex .
