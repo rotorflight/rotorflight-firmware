@@ -246,7 +246,6 @@ MCU_COMMON_SRC = \
             drivers/pwm_output_dshot_hal.c \
             drivers/pwm_output_dshot_shared.c \
             drivers/persistent.c \
-            drivers/transponder_ir_io_hal.c \
             drivers/audio_stm32h7xx.c \
             drivers/memprot_hal.c \
             drivers/memprot_stm32h7xx.c \

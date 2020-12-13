@@ -26,7 +26,6 @@
 // Limit some options that are not generally available for F1 targets to avoid non-F1 compatible code to get in
 #undef USE_DSHOT
 #undef USE_LED_STRIP
-#undef USE_TRANSPONDER
 #undef USE_CAMERA_CONTROL
 
 #define TARGET_BOARD_IDENTIFIER "N1RG"

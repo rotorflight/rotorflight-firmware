@@ -36,7 +36,7 @@
 #define PG_SERIAL_CONFIG 13 // struct OK
 #define PG_PID_PROFILE 14 // struct OK, CF differences
 #define PG_ARMING_CONFIG 16 // structs OK, CF naming differences
-#define PG_TRANSPONDER_CONFIG 17 // struct OK
+//#define PG_TRANSPONDER_CONFIG 17 // struct OK
 #define PG_SYSTEM_CONFIG 18 // just has i2c_highspeed
 #define PG_FEATURE_CONFIG 19 // just has enabledFeatures
 #define PG_MIXER_CONFIG 20 // Cleanflight has single struct mixerConfig_t, betaflight has mixerConfig_t and servoMixerConfig_t
