@@ -80,7 +80,7 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     "RX_SPEKTRUM_SPI",
     "DSHOT_RPM_TELEMETRY",
     "RPM_FILTER",
-    "D_MIN",
+    "UNUSED_47",
     "AC_CORRECTION",
     "AC_ERROR",
     "DUAL_GYRO_SCALED",
