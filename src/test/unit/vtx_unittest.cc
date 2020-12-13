@@ -178,7 +178,6 @@ extern "C" {
     void rescheduleTask(taskId_e, timeDelta_t) {}
     bool usbCableIsInserted(void) { return false; }
     bool usbVcpIsConnected(void) { return false; }
-    void pidSetAntiGravityState(bool newState) { UNUSED(newState); }
     void osdSuppressStats(bool) {}
     void pidSetItermReset(bool) {}
     void applyAccelerometerTrimsDelta(rollAndPitchTrims_t*) {}

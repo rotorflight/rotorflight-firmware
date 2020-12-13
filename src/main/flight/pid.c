@@ -85,11 +85,6 @@ static FAST_RAM_ZERO_INIT bool inCrashRecoveryMode = false;
 static FAST_RAM_ZERO_INIT float dT;
 static FAST_RAM_ZERO_INIT float pidFrequency;
 
-static FAST_RAM_ZERO_INIT uint8_t antiGravityMode;
-static FAST_RAM_ZERO_INIT float antiGravityThrottleHpf;
-static FAST_RAM_ZERO_INIT uint16_t itermAcceleratorGain;
-static FAST_RAM_ZERO_INIT float antiGravityOsdCutoff;
-static FAST_RAM_ZERO_INIT bool antiGravityEnabled;
 static FAST_RAM_ZERO_INIT bool zeroThrottleItermReset;
 
 PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 2);
@@ -133,8 +128,6 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
 static FAST_RAM_ZERO_INIT float airmodeThrottleOffsetLimit;
 #endif
 
-#define ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF 15  // The anti gravity throttle highpass filter cutoff
-
 #define CRASH_RECOVERY_DETECTION_DELAY_US 1000000  // 1 second delay before crash recovery detection is active after entering a self-level mode
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 15);
@@ -161,8 +154,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .feedForwardTransition = 0,
         .yawRateAccelLimit = 0,
         .rateAccelLimit = 0,
-        .itermThrottleThreshold = 250,
-        .itermAcceleratorGain = 3500,
         .crash_time = 500,          // ms
         .crash_delay = 0,           // ms
         .crash_recovery_angle = 10, // degrees
@@ -189,7 +180,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 90,
         .abs_control_error_limit = 20,
         .abs_control_cutoff = 11,
-        .antiGravityMode = ANTI_GRAVITY_SMOOTH,
         .dterm_lowpass_hz = 150,    // NOTE: dynamic lpf is enabled by default so this setting is actually
                                     // overridden and the static lowpass 1 is disabled. We can't set this
                                     // value to 0 otherwise Configurator versions 10.4 and earlier will also
@@ -244,18 +234,6 @@ static void pidSetTargetLooptime(uint32_t pidLooptime)
 #ifdef USE_DSHOT
     dshotSetPidLoopTime(targetPidLooptime);
 #endif
-}
-
-static FAST_RAM_ZERO_INIT float itermAccelerator;
-
-void pidSetItermAccelerator(float newItermAccelerator)
-{
-    itermAccelerator = newItermAccelerator;
-}
-
-bool pidOsdAntiGravityActive(void)
-{
-    return (itermAccelerator > antiGravityOsdCutoff);
 }
 
 void pidStabilisationState(pidStabilisationState_e pidControllerState)
@@ -315,8 +293,6 @@ static FAST_RAM_ZERO_INIT uint8_t rcSmoothingFilterType;
 static FAST_RAM_ZERO_INIT pt1Filter_t airmodeThrottleLpf1;
 static FAST_RAM_ZERO_INIT pt1Filter_t airmodeThrottleLpf2;
 #endif
-
-static FAST_RAM_ZERO_INIT pt1Filter_t antiGravityThrottleLpf;
 
 static FAST_RAM_ZERO_INIT float ffBoostFactor;
 static FAST_RAM_ZERO_INIT float ffSmoothFactor;
@@ -474,8 +450,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
     }
 #endif
 
-    pt1FilterInit(&antiGravityThrottleLpf, pt1FilterGain(ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF, dT));
-
     ffBoostFactor = (float)pidProfile->ff_boost / 10.0f;
     ffSpikeLimitInverse = pidProfile->ff_spike_limit ? 1.0f / ((float)pidProfile->ff_spike_limit / 10.0f) : 0.0f;
 }
@@ -577,13 +551,6 @@ FAST_RAM_ZERO_INIT float thrustLinearizationReciprocal;
 FAST_RAM_ZERO_INIT float thrustLinearizationB;
 #endif
 
-void pidUpdateAntiGravityThrottleFilter(float throttle)
-{
-    if (antiGravityMode == ANTI_GRAVITY_SMOOTH) {
-        antiGravityThrottleHpf = throttle - pt1FilterApply(&antiGravityThrottleLpf, throttle);
-    }
-}
-
 #ifdef USE_DYN_LPF
 static FAST_RAM uint8_t dynLpfFilter = DYN_LPF_NONE;
 static FAST_RAM_ZERO_INIT uint16_t dynLpfMin;
@@ -634,7 +601,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         const float itermWindupPoint = pidProfile->itermWindupPointPercent / 100.0f;
         itermWindupPointInv = 1.0f / (1.0f - itermWindupPoint);
     }
-    itermAcceleratorGain = pidProfile->itermAcceleratorGain;
     crashTimeLimitUs = pidProfile->crash_time * 1000;
     crashTimeDelayUs = pidProfile->crash_delay * 1000;
     crashRecoveryAngleDeciDegrees = pidProfile->crash_recovery_angle * 10;
@@ -648,17 +614,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     throttleBoost = pidProfile->throttle_boost * 0.1f;
 #endif
     itermRotation = pidProfile->iterm_rotation;
-    antiGravityMode = pidProfile->antiGravityMode;
-
-    // Calculate the anti-gravity value that will trigger the OSD display.
-    // For classic AG it's either 1.0 for off and > 1.0 for on.
-    // For the new AG it's a continuous floating value so we want to trigger the OSD
-    // display when it exceeds 25% of its possible range. This gives a useful indication
-    // of AG activity without excessive display.
-    antiGravityOsdCutoff = 0.0f;
-    if (antiGravityMode == ANTI_GRAVITY_SMOOTH) {
-        antiGravityOsdCutoff += ((itermAcceleratorGain - 1000) / 1000.0f) * 0.25f;
-    }
 
 #if defined(USE_ITERM_RELAX)
     itermRelax = pidProfile->iterm_relax;
@@ -1262,15 +1217,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     gpsRescuePreviousState = gpsRescueIsActive;
 #endif
 
-    // Dynamic i component,
-    if ((antiGravityMode == ANTI_GRAVITY_SMOOTH) && antiGravityEnabled) {
-        itermAccelerator = fabsf(antiGravityThrottleHpf) * 0.01f * (itermAcceleratorGain - 1000);
-        DEBUG_SET(DEBUG_ANTI_GRAVITY, 1, lrintf(antiGravityThrottleHpf * 1000));
-    }
-    DEBUG_SET(DEBUG_ANTI_GRAVITY, 0, lrintf(itermAccelerator * 1000));
-
-    float agGain = dT * itermAccelerator * AG_KI;
-
     // gradually scale back integration when above windup point
     float dynCi = dT;
     if (itermWindupPointInv > 1.0f) {
@@ -1382,7 +1328,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // -----calculate I component
         float Ki = pidCoefficient[axis].Ki;
         float axisDynCi = (axis == FD_YAW) ? dynCi : dT; // only apply windup protection to yaw
-        pidData[axis].I = constrainf(previousIterm + (Ki * axisDynCi + agGain) * itermErrorRate, -itermLimit, itermLimit);
+        pidData[axis].I = constrainf(previousIterm + Ki * axisDynCi * itermErrorRate, -itermLimit, itermLimit);
 
         // -----calculate pidSetpointDelta
         float pidSetpointDelta = 0;
@@ -1525,20 +1471,6 @@ void pidSetAcroTrainerState(bool newState)
     }
 }
 #endif // USE_ACRO_TRAINER
-
-void pidSetAntiGravityState(bool newState)
-{
-    if (newState != antiGravityEnabled) {
-        // reset the accelerator on state changes
-        itermAccelerator = 0.0f;
-    }
-    antiGravityEnabled = newState;
-}
-
-bool pidAntiGravityEnabled(void)
-{
-    return antiGravityEnabled;
-}
 
 #ifdef USE_DYN_LPF
 void dynLpfDTermUpdate(float throttle)

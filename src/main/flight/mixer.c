@@ -873,8 +873,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs, uint8_t vbatPidCompensa
         motorMix[i] = mix;
     }
 
-    pidUpdateAntiGravityThrottleFilter(throttle);
-
 #ifdef USE_DYN_LPF
     updateDynLpfCutoffs(currentTimeUs, throttle);
 #endif

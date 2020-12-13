@@ -48,9 +48,6 @@
 #define ITERM_RELAX_SETPOINT_THRESHOLD 40.0f
 #define ITERM_RELAX_CUTOFF_DEFAULT 15
 
-// Anti gravity I constant
-#define AG_KI 21.586988f;
-
 #define ITERM_ACCELERATOR_GAIN_OFF 1000
 #define ITERM_ACCELERATOR_GAIN_MAX 30000
 typedef enum {
@@ -88,11 +85,6 @@ typedef struct pidf_s {
 } pidf_t;
 
 typedef enum {
-    ANTI_GRAVITY_SMOOTH,
-    ANTI_GRAVITY_STEP
-} antiGravityMode_e;
-
-typedef enum {
     ITERM_RELAX_OFF,
     ITERM_RELAX_RP,
     ITERM_RELAX_RPY,
@@ -128,9 +120,6 @@ typedef struct pidProfile_s {
     uint8_t horizon_tilt_expert_mode;       // OFF or ON
 
     // Betaflight PID controller parameters
-    uint8_t  antiGravityMode;             // type of anti gravity method
-    uint16_t itermThrottleThreshold;        // max allowed throttle delta before iterm accelerated in ms
-    uint16_t itermAcceleratorGain;          // Iterm Accelerator Gain when itermThrottlethreshold is hit
     uint16_t yawRateAccelLimit;             // yaw accel limiter for deg/sec/ms
     uint16_t rateAccelLimit;                // accel limiter roll/pitch deg/sec/ms
     uint16_t crash_dthreshold;              // dterm crash value
@@ -224,7 +213,6 @@ extern pt1Filter_t throttleLpf;
 
 void pidResetIterm(void);
 void pidStabilisationState(pidStabilisationState_e pidControllerState);
-void pidSetItermAccelerator(float newItermAccelerator);
 void pidInitFilters(const pidProfile_t *pidProfile);
 void pidInitConfig(const pidProfile_t *pidProfile);
 void pidInit(const pidProfile_t *pidProfile);
@@ -234,11 +222,6 @@ void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
 void pidInitSetpointDerivativeLpf(uint16_t filterCutoff, uint8_t debugAxis, uint8_t filterType);
 void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
-void pidUpdateAntiGravityThrottleFilter(float throttle);
-bool pidOsdAntiGravityActive(void);
-bool pidOsdAntiGravityMode(void);
-void pidSetAntiGravityState(bool newState);
-bool pidAntiGravityEnabled(void);
 #ifdef USE_THRUST_LINEARIZATION
 float pidApplyThrustLinearization(float motorValue);
 float pidCompensateThrustLinearization(float throttle);

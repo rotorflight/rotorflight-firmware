@@ -563,12 +563,6 @@ static void osdElementAngleRollPitch(osdElementParms_t *element)
 }
 #endif
 
-static void osdElementAntiGravity(osdElementParms_t *element)
-{
-    if (pidOsdAntiGravityActive()) {
-        strcpy(element->buff, "AG");
-    }
-}
 
 #ifdef USE_ACC
 static void osdElementArtificialHorizon(osdElementParms_t *element)
@@ -1551,7 +1545,6 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_NUMERICAL_VARIO,
 #endif
     OSD_COMPASS_BAR,
-    OSD_ANTI_GRAVITY,
 #ifdef USE_BLACKBOX
     OSD_LOG_STATUS,
 #endif
@@ -1659,7 +1652,6 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #ifdef USE_ADC_INTERNAL
     [OSD_CORE_TEMPERATURE]        = osdElementCoreTemperature,
 #endif
-    [OSD_ANTI_GRAVITY]            = osdElementAntiGravity,
 #ifdef USE_ACC
     [OSD_G_FORCE]                 = osdElementGForce,
 #endif
