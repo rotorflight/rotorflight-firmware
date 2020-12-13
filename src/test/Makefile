@@ -348,10 +348,6 @@ timer_definition_unittest_INCLUDE_DIRS = \
 		$(TEST_DIR)/timer_definition_unittest.include \
 		$(TARGET_DIR)/$(call get_base_target,$1)
 
-transponder_ir_unittest_SRC := \
-		$(USER_DIR)/drivers/transponder_ir_ilap.c \
-		$(USER_DIR)/drivers/transponder_ir_arcitimer.c
-
 ws2811_unittest_SRC := \
 		$(USER_DIR)/drivers/light_ws2811strip.c
 

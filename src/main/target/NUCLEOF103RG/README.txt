@@ -12,7 +12,6 @@ It is also easy to convert exisiting F1 targets to be built to run on the Nucleo
 - Also add
 #undef USE_DSHOT
 #undef USE_LED_STRIP
-#undef USE_TRANSPONDER
 #undef USE_CAMERA_CONTROL
     to target.h to avoid non-F1 compatible code from getting in.
 
