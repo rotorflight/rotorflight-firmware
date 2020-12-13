@@ -122,6 +122,10 @@ typedef struct flightLogEvent_flightMode_s { // New Event Data type
     uint32_t lastFlags;
 } flightLogEvent_flightMode_t;
 
+typedef struct flightLogEvent_govState_s { // New Event Data type for RTFL governor state
+    uint8_t govState;
+} flightLogEvent_govState_t;
+
 typedef struct flightLogEvent_inflightAdjustment_s {
     int32_t newValue;
     float newFloatValue;
@@ -142,6 +146,7 @@ typedef union flightLogEventData_u {
     flightLogEvent_disarm_t disarm;
     flightLogEvent_inflightAdjustment_t inflightAdjustment;
     flightLogEvent_loggingResume_t loggingResume;
+    flightLogEvent_govState_t govState;
 } flightLogEventData_t;
 
 typedef struct flightLogEvent_s {
