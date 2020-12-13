@@ -318,6 +318,6 @@ void emfat_init_files(void)
         emfat_set_entry_cma(entry);
     }
 
-    emfat_init(&emfat, "BETAFLT", entries);
+    emfat_init(&emfat, "RTFL", entries);
     LED0_OFF;
 }
