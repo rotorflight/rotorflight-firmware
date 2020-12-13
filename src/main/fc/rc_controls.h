@@ -30,6 +30,7 @@ typedef enum rc_alias {
     PITCH,
     YAW,
     THROTTLE,
+    COLLECTIVE,
     AUX1,
     AUX2,
     AUX3,
@@ -44,7 +45,7 @@ typedef enum rc_alias {
     AUX12
 } rc_alias_e;
 
-#define PRIMARY_CHANNEL_COUNT (THROTTLE + 1)
+#define PRIMARY_CHANNEL_COUNT 5
 
 typedef enum {
     THROTTLE_LOW = 0,
@@ -103,7 +104,7 @@ typedef enum {
 // (Super) rates are constrained to [0, 100] for Betaflight rates, so values higher than 100 won't make a difference. Range extended for RaceFlight rates.
 #define CONTROL_RATE_CONFIG_RATE_MAX  255
 
-extern float rcCommand[4];
+extern float rcCommand[5];
 
 typedef struct rcSmoothingFilterTraining_s {
     float sum;
@@ -119,7 +120,7 @@ typedef union rcSmoothingFilterTypes_u {
 
 typedef struct rcSmoothingFilter_s {
     bool filterInitialized;
-    rcSmoothingFilterTypes_t filter[4];
+    rcSmoothingFilterTypes_t filter[5];
     rcSmoothingInputFilter_e inputFilterType;
     uint8_t inputCutoffSetting;
     uint16_t inputCutoffFrequency;
