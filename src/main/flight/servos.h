@@ -47,42 +47,9 @@ enum {
 typedef enum {
     SERVO_GIMBAL_PITCH = 0,
     SERVO_GIMBAL_ROLL = 1,
-    SERVO_FLAPS = 2,
-    SERVO_FLAPPERON_1 = 3,
-    SERVO_FLAPPERON_2 = 4,
-    SERVO_RUDDER = 5,
-    SERVO_ELEVATOR = 6,
-    SERVO_THROTTLE = 7, // for internal combustion (IC) planes
-
-    SERVO_BICOPTER_LEFT = 4,
-    SERVO_BICOPTER_RIGHT = 5,
-
-    SERVO_DUALCOPTER_LEFT = 4,
-    SERVO_DUALCOPTER_RIGHT = 5,
-
-    SERVO_SINGLECOPTER_1 = 3,
-    SERVO_SINGLECOPTER_2 = 4,
-    SERVO_SINGLECOPTER_3 = 5,
-    SERVO_SINGLECOPTER_4 = 6,
-
-    SERVO_HELI_LEFT = 0,
-    SERVO_HELI_RIGHT = 1,
-    SERVO_HELI_TOP = 2,
-    SERVO_HELI_RUD = 3
-
-} servoIndex_e; // FIXME rename to servoChannel_e
-
-#define SERVO_PLANE_INDEX_MIN SERVO_FLAPS
-#define SERVO_PLANE_INDEX_MAX SERVO_THROTTLE
-
-#define SERVO_DUALCOPTER_INDEX_MIN SERVO_DUALCOPTER_LEFT
-#define SERVO_DUALCOPTER_INDEX_MAX SERVO_DUALCOPTER_RIGHT
-
-#define SERVO_SINGLECOPTER_INDEX_MIN SERVO_SINGLECOPTER_1
-#define SERVO_SINGLECOPTER_INDEX_MAX SERVO_SINGLECOPTER_4
-
-#define SERVO_FLAPPERONS_MIN SERVO_FLAPPERON_1
-#define SERVO_FLAPPERONS_MAX SERVO_FLAPPERON_2
+    SERVO_HELI_FIRST = 2,
+    SERVO_HELI_LAST = 7,
+} servoIndex_e;
 
 #define MAX_SERVO_RULES (2 * MAX_SUPPORTED_SERVOS)
 
@@ -123,7 +90,6 @@ PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
 typedef struct servoConfig_s {
     servoDevConfig_t dev;
     uint16_t servo_lowpass_freq;            // lowpass servo filter frequency selection; 1/1000ths of loop freq
-    uint8_t tri_unarmed_servo;              // send tail servo correction pulses even when unarmed
     uint8_t channelForwardingStartChannel;
 } servoConfig_t;
 
@@ -137,14 +103,9 @@ extern int16_t servo[MAX_SUPPORTED_SERVOS];
 
 bool isMixerUsingServos(void);
 void writeServos(void);
-void servoMixerLoadMix(int index);
 void loadCustomServoMixer(void);
 int servoDirection(int servoIndex, int fromChannel);
 void servoConfigureOutput(void);
 void servosInit(void);
 void servosFilterInit(void);
 void servoMixer(void);
-// tricopter specific
-void servosTricopterInit(void);
-void servosTricopterMixer(void);
-bool servosTricopterIsEnabledServoUnarmed(void);
