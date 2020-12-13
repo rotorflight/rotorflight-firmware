@@ -965,8 +965,6 @@ const clivalue_t valueTable[] = {
     { "abs_control_cutoff",         VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 45 }, PG_PID_PROFILE, offsetof(pidProfile_t, abs_control_cutoff) },
 #endif
 
-    { "auto_profile_cell_count",    VAR_INT8 | PROFILE_VALUE,  .config.minmax = { AUTO_PROFILE_CELL_COUNT_CHANGE, MAX_AUTO_DETECT_CELL_COUNT }, PG_PID_PROFILE, offsetof(pidProfile_t, auto_profile_cell_count) },
-
 #ifdef USE_INTERPOLATED_SP
     { "ff_interpolate_sp",          VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = {TABLE_INTERPOLATED_SP}, PG_PID_PROFILE, offsetof(pidProfile_t, ff_interpolate_sp) },
     { "ff_spike_limit",             VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = {0, 255}, PG_PID_PROFILE, offsetof(pidProfile_t, ff_spike_limit) },
