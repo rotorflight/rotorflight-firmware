@@ -47,8 +47,6 @@
 #include "flight/pid.h"
 #include "flight/servos.h"
 
-#include "io/gimbal.h"
-
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 #include "pg/rx.h"
@@ -87,9 +85,6 @@ void pgResetFn_servoParams(servoParam_t *instance)
         );
     }
 }
-
-// no template required since default is zero
-PG_REGISTER(gimbalConfig_t, gimbalConfig, PG_GIMBAL_CONFIG, 0);
 
 int16_t servo[MAX_SUPPORTED_SERVOS];
 
