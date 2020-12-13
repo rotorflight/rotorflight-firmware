@@ -69,13 +69,6 @@ static FAST_RAM_ZERO_INIT bool overflowDetected;
 static FAST_RAM_ZERO_INIT timeUs_t overflowTimeUs;
 #endif
 
-#ifdef USE_YAW_SPIN_RECOVERY
-static FAST_RAM_ZERO_INIT bool yawSpinRecoveryEnabled;
-static FAST_RAM_ZERO_INIT int yawSpinRecoveryThreshold;
-static FAST_RAM_ZERO_INIT bool yawSpinDetected;
-static FAST_RAM_ZERO_INIT timeUs_t yawSpinTimeUs;
-#endif
-
 static FAST_RAM_ZERO_INIT float accumulatedMeasurements[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float gyroPrevious[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT int accumulatedMeasurementCount;
@@ -123,8 +116,6 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_soft_notch_cutoff_2 = 0;
     gyroConfig->checkOverflow = GYRO_OVERFLOW_CHECK_ALL_AXES;
     gyroConfig->gyro_offset_yaw = 0;
-    gyroConfig->yaw_spin_recovery = YAW_SPIN_RECOVERY_AUTO;
-    gyroConfig->yaw_spin_threshold = 1950;
     gyroConfig->dyn_lpf_gyro_min_hz = 200;
     gyroConfig->dyn_lpf_gyro_max_hz = 500;
     gyroConfig->dyn_notch_max_hz = 600;
@@ -330,53 +321,11 @@ static FAST_CODE void checkForOverflow(timeUs_t currentTimeUs)
         if (overflowCheck & gyro.overflowAxisMask) {
             overflowDetected = true;
             overflowTimeUs = currentTimeUs;
-#ifdef USE_YAW_SPIN_RECOVERY
-            yawSpinDetected = false;
-#endif // USE_YAW_SPIN_RECOVERY
         }
 #endif // SIMULATOR_BUILD
     }
 }
 #endif // USE_GYRO_OVERFLOW_CHECK
-
-#ifdef USE_YAW_SPIN_RECOVERY
-static FAST_CODE_NOINLINE void handleYawSpin(timeUs_t currentTimeUs)
-{
-    const float yawSpinResetRate = yawSpinRecoveryThreshold - 100.0f;
-    if (fabsf(gyro.gyroADCf[Z]) < yawSpinResetRate) {
-        // testing whether 20ms of consecutive OK gyro yaw values is enough
-        if (cmpTimeUs(currentTimeUs, yawSpinTimeUs) > 20000) {
-            yawSpinDetected = false;
-        }
-    } else {
-        // reset the yaw spin time
-        yawSpinTimeUs = currentTimeUs;
-    }
-}
-
-static FAST_CODE void checkForYawSpin(timeUs_t currentTimeUs)
-{
-    // if not in overflow mode, handle yaw spins above threshold
-#ifdef USE_GYRO_OVERFLOW_CHECK
-    if (overflowDetected) {
-        yawSpinDetected = false;
-        return;
-    }
-#endif // USE_GYRO_OVERFLOW_CHECK
-
-    if (yawSpinDetected) {
-        handleYawSpin(currentTimeUs);
-    } else {
-#ifndef SIMULATOR_BUILD
-        // check for spin on yaw axis only
-         if (abs((int)gyro.gyroADCf[Z]) > yawSpinRecoveryThreshold) {
-            yawSpinDetected = true;
-            yawSpinTimeUs = currentTimeUs;
-        }
-#endif // SIMULATOR_BUILD
-    }
-}
-#endif // USE_YAW_SPIN_RECOVERY
 
 static FAST_CODE FAST_CODE_NOINLINE void gyroUpdateSensor(gyroSensor_t *gyroSensor)
 {
@@ -524,12 +473,6 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
     }
 #endif
 
-#ifdef USE_YAW_SPIN_RECOVERY
-    if (yawSpinRecoveryEnabled) {
-        checkForYawSpin(currentTimeUs);
-    }
-#endif
-
     if (!overflowDetected) {
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             // integrate using trapezium rule to avoid bias
@@ -539,7 +482,7 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
         accumulatedMeasurementCount++;
     }
 
-#if !defined(USE_GYRO_OVERFLOW_CHECK) && !defined(USE_YAW_SPIN_RECOVERY)
+#if !defined(USE_GYRO_OVERFLOW_CHECK)
     UNUSED(currentTimeUs);
 #endif
 }
@@ -604,13 +547,6 @@ bool gyroOverflowDetected(void)
 #endif // USE_GYRO_OVERFLOW_CHECK
 }
 
-#ifdef USE_YAW_SPIN_RECOVERY
-bool gyroYawSpinDetected(void)
-{
-    return yawSpinDetected;
-}
-#endif // USE_YAW_SPIN_RECOVERY
-
 uint16_t gyroAbsRateDps(int axis)
 {
     return fabsf(gyro.gyroADCf[axis]);
@@ -643,30 +579,3 @@ void dynLpfGyroUpdate(float throttle)
 }
 #endif
 
-#ifdef USE_YAW_SPIN_RECOVERY
-void initYawSpinRecovery(int maxYawRate)
-{
-    bool enabledFlag;
-    int threshold;
-
-    switch (gyroConfig()->yaw_spin_recovery) {
-    case YAW_SPIN_RECOVERY_ON:
-        enabledFlag = true;
-        threshold = gyroConfig()->yaw_spin_threshold;
-        break;
-    case YAW_SPIN_RECOVERY_AUTO:
-        enabledFlag = true;
-        const int overshootAllowance = MAX(maxYawRate / 4, 200); // Allow a 25% or minimum 200dps overshoot tolerance
-        threshold = constrain(maxYawRate + overshootAllowance, YAW_SPIN_RECOVERY_THRESHOLD_MIN, YAW_SPIN_RECOVERY_THRESHOLD_MAX);
-        break;
-    case YAW_SPIN_RECOVERY_OFF:
-    default:
-        enabledFlag = false;
-        threshold = YAW_SPIN_RECOVERY_THRESHOLD_MAX;
-        break;
-    }
-
-    yawSpinRecoveryEnabled = enabledFlag;
-    yawSpinRecoveryThreshold = threshold;
-}
-#endif

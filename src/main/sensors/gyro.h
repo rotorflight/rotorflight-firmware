@@ -38,11 +38,6 @@
 
 #define FILTER_FREQUENCY_MAX 4000 // maximum frequency for filter cutoffs (nyquist limit of 8K max sampling)
 
-#ifdef USE_YAW_SPIN_RECOVERY
-#define YAW_SPIN_RECOVERY_THRESHOLD_MIN 500
-#define YAW_SPIN_RECOVERY_THRESHOLD_MAX 1950
-#endif
-
 typedef union gyroLowpassFilter_u {
     pt1Filter_t pt1FilterState;
     biquadFilter_t biquadFilterState;
@@ -145,12 +140,6 @@ enum {
     DYN_LPF_BIQUAD
 };
 
-typedef enum {
-    YAW_SPIN_RECOVERY_OFF,
-    YAW_SPIN_RECOVERY_ON,
-    YAW_SPIN_RECOVERY_AUTO
-} yawSpinRecoveryMode_e;
-
 #define GYRO_CONFIG_USE_GYRO_1      0
 #define GYRO_CONFIG_USE_GYRO_2      1
 #define GYRO_CONFIG_USE_GYRO_BOTH   2
@@ -181,9 +170,6 @@ typedef struct gyroConfig_s {
     uint8_t  gyro_lowpass_type;
     uint8_t  gyro_lowpass2_type;
 
-    uint8_t  yaw_spin_recovery;
-    int16_t  yaw_spin_threshold;
-
     uint16_t gyroCalibrationDuration;   // Gyro calibration duration in 1/100 second
 
     uint16_t dyn_lpf_gyro_min_hz;
@@ -210,14 +196,10 @@ bool gyroIsCalibrationComplete(void);
 void gyroReadTemperature(void);
 int16_t gyroGetTemperature(void);
 bool gyroOverflowDetected(void);
-bool gyroYawSpinDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 #ifdef USE_DYN_LPF
 float dynThrottle(float throttle);
 void dynLpfGyroUpdate(float throttle);
-#endif
-#ifdef USE_YAW_SPIN_RECOVERY
-void initYawSpinRecovery(int maxYawRate);
 #endif
 #ifdef USE_GYRO_DATA_ANALYSE
 bool isDynamicFilterActive(void);
