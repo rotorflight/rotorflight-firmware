@@ -786,8 +786,6 @@ static void osdElementFlymode(osdElementParms_t *element)
         strcpy(element->buff, "!FS!");
     } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
         strcpy(element->buff, "RESC");
-    } else if (FLIGHT_MODE(HEADFREE_MODE)) {
-        strcpy(element->buff, "HEAD");
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
@@ -1340,14 +1338,6 @@ static void osdElementWarnings(osdElementParms_t *element)
     }
 
 #endif // USE_GPS_RESCUE
-
-    // Show warning if in HEADFREE flight mode
-    if (FLIGHT_MODE(HEADFREE_MODE)) {
-        tfp_sprintf(element->buff, "HEADFREE");
-        element->attr = DISPLAYPORT_ATTR_WARNING;
-        SET_BLINK(OSD_WARNINGS);
-        return;
-    }
 
 #ifdef USE_ADC_INTERNAL
     const int16_t coreTemperature = getCoreTemperatureCelsius();
