@@ -323,12 +323,7 @@ bool mixerIsTricopter(void)
 // DSHOT scaling is done to the actual dshot range
 void initEscEndpoints(void)
 {
-    float motorOutputLimit = 1.0f;
-    if (currentPidProfile->motor_output_limit < 100) {
-        motorOutputLimit = currentPidProfile->motor_output_limit / 100.0f;
-    }
-
-    motorInitEndpoints(motorConfig(), motorOutputLimit, &motorOutputLow, &motorOutputHigh, &disarmMotorOutput, &deadbandMotor3dHigh, &deadbandMotor3dLow);
+    motorInitEndpoints(motorConfig(), 1.0f, &motorOutputLow, &motorOutputHigh, &disarmMotorOutput, &deadbandMotor3dHigh, &deadbandMotor3dLow);
 
     rcCommandThrottleRange = PWM_RANGE_MAX - PWM_RANGE_MIN;
 }

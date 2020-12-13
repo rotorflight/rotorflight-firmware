@@ -1748,7 +1748,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 0);
 #endif
         // Added in MSP API 1.43
-        sbufWriteU8(dst, currentPidProfile->motor_output_limit);
+        sbufWriteU8(dst, 0); // was currentPidProfile->motor_output_limit
         sbufWriteU8(dst, currentPidProfile->auto_profile_cell_count);
         sbufWriteU8(dst, 0); // was currentPidProfile->idle_min_rpm
 
@@ -2571,7 +2571,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if(sbufBytesRemaining(src) >= 3) {
             // Added in MSP API 1.43
-            currentPidProfile->motor_output_limit = sbufReadU8(src);
+            sbufReadU8(src); // was currentPidProfile->motor_output_limit
             currentPidProfile->auto_profile_cell_count = sbufReadU8(src);
             sbufReadU8(src); // was currentPidProfile->idle_min_rpm
         }
