@@ -90,7 +90,7 @@ COMMON_SRC = \
             flight/gps_rescue.c \
             flight/gyroanalyse.c \
             flight/imu.c \
-            flight/interpolated_setpoint.c \
+            flight/setpoint.c \
             flight/mixer.c \
             flight/pid.c \
             flight/rpm_filter.c \
