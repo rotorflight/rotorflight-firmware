@@ -1178,10 +1178,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     const float tpaFactorKp = tpaFactor;
 #endif
 
-#ifdef USE_YAW_SPIN_RECOVERY
-    const bool yawSpinActive = gyroYawSpinDetected();
-#endif
-
 #if defined(USE_ACC)
     const bool gpsRescueIsActive = FLIGHT_MODE(GPS_RESCUE_MODE);
     levelMode_e levelMode;
@@ -1272,14 +1268,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             currentPidSetpoint = applyAcroTrainer(axis, angleTrim, currentPidSetpoint);
         }
 #endif // USE_ACRO_TRAINER
-
-        // Handle yaw spin recovery - zero the setpoint on yaw to aid in recovery
-        // It's not necessary to zero the set points for R/P because the PIDs will be zeroed below
-#ifdef USE_YAW_SPIN_RECOVERY
-        if ((axis == FD_YAW) && yawSpinActive) {
-            currentPidSetpoint = 0.0f;
-        }
-#endif // USE_YAW_SPIN_RECOVERY
 
         // -----calculate error rate
         const float gyroRate = gyro.gyroADCf[axis]; // Process variable from gyro output in deg/sec
@@ -1404,18 +1392,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         } else {
             pidData[axis].F = 0;
         }
-
-#ifdef USE_YAW_SPIN_RECOVERY
-        if (yawSpinActive) {
-            pidData[axis].I = 0;  // in yaw spin always disable I
-            if (axis <= FD_PITCH)  {
-                // zero PIDs on pitch and roll leaving yaw P to correct spin
-                pidData[axis].P = 0;
-                pidData[axis].D = 0;
-                pidData[axis].F = 0;
-            }
-        }
-#endif // USE_YAW_SPIN_RECOVERY
 
         // calculating the PID sum
         const float pidSum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
