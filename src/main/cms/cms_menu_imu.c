@@ -297,69 +297,6 @@ static CMS_Menu cmsx_menuRateProfile = {
     .entries = cmsx_menuRateProfileEntries
 };
 
-#ifdef USE_LAUNCH_CONTROL
-static uint8_t cmsx_launchControlMode;
-static uint8_t cmsx_launchControlAllowTriggerReset;
-static uint8_t cmsx_launchControlThrottlePercent;
-static uint8_t cmsx_launchControlAngleLimit;
-static uint8_t cmsx_launchControlGain;
-
-static const void *cmsx_launchControlOnEnter(displayPort_t *pDisp)
-{
-    UNUSED(pDisp);
-
-    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
-
-    cmsx_launchControlMode  = pidProfile->launchControlMode;
-    cmsx_launchControlAllowTriggerReset  = pidProfile->launchControlAllowTriggerReset;
-    cmsx_launchControlThrottlePercent  = pidProfile->launchControlThrottlePercent;
-    cmsx_launchControlAngleLimit  = pidProfile->launchControlAngleLimit;
-    cmsx_launchControlGain  = pidProfile->launchControlGain;
-
-    return NULL;
-}
-
-static const void *cmsx_launchControlOnExit(displayPort_t *pDisp, const OSD_Entry *self)
-{
-    UNUSED(pDisp);
-    UNUSED(self);
-
-    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
-
-    pidProfile->launchControlMode = cmsx_launchControlMode;
-    pidProfile->launchControlAllowTriggerReset = cmsx_launchControlAllowTriggerReset;
-    pidProfile->launchControlThrottlePercent = cmsx_launchControlThrottlePercent;
-    pidProfile->launchControlAngleLimit = cmsx_launchControlAngleLimit;
-    pidProfile->launchControlGain = cmsx_launchControlGain;
-
-    return NULL;
-}
-
-static const OSD_Entry cmsx_menuLaunchControlEntries[] = {
-    { "-- LAUNCH CONTROL --", OME_Label, NULL, pidProfileIndexString, 0 },
-
-    { "MODE",             OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_launchControlMode, LAUNCH_CONTROL_MODE_COUNT - 1, osdLaunchControlModeNames}, 0 },
-    { "ALLOW RESET",      OME_Bool,  NULL, &cmsx_launchControlAllowTriggerReset, 0 },
-    { "TRIGGER THROTTLE", OME_UINT8, NULL, &(OSD_UINT8_t) { &cmsx_launchControlThrottlePercent, 0,  LAUNCH_CONTROL_THROTTLE_TRIGGER_MAX, 1 } , 0 },
-    { "ANGLE LIMIT",      OME_UINT8, NULL, &(OSD_UINT8_t) { &cmsx_launchControlAngleLimit,      0,  80, 1 } , 0 },
-    { "ITERM GAIN",       OME_UINT8, NULL, &(OSD_UINT8_t) { &cmsx_launchControlGain,            0, 200, 1 } , 0 },
-	
-    { "BACK", OME_Back, NULL, NULL, 0 },
-    { NULL, OME_END, NULL, NULL, 0 }
-};
-
-static CMS_Menu cmsx_menuLaunchControl = {
-#ifdef CMS_MENU_DEBUG
-    .GUARD_text = "LAUNCH",
-    .GUARD_type = OME_MENU,
-#endif
-    .onEnter = cmsx_launchControlOnEnter,
-    .onExit = cmsx_launchControlOnExit,
-    .onDisplayUpdate = NULL,
-    .entries = cmsx_menuLaunchControlEntries,
-};
-#endif
-
 static uint8_t  cmsx_feedForwardTransition;
 static uint8_t  cmsx_ff_boost;
 static uint8_t  cmsx_angleStrength;
@@ -496,9 +433,6 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "I_RELAX",         OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax,        ITERM_RELAX_COUNT - 1,      lookupTableItermRelax       }, 0 },
     { "I_RELAX TYPE",    OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax_type,   ITERM_RELAX_TYPE_COUNT - 1, lookupTableItermRelaxType   }, 0 },
     { "I_RELAX CUTOFF",  OME_UINT8,  NULL, &(OSD_UINT8_t)   { &cmsx_iterm_relax_cutoff, 1, 50, 1 }, 0 },
-#endif
-#ifdef USE_LAUNCH_CONTROL
-    {"LAUNCH CONTROL", OME_Submenu, cmsMenuChange, &cmsx_menuLaunchControl, 0 },
 #endif
     { "MTR OUT LIM %",OME_UINT8, NULL, &(OSD_UINT8_t) { &cmsx_motorOutputLimit, MOTOR_OUTPUT_LIMIT_PERCENT_MIN,  MOTOR_OUTPUT_LIMIT_PERCENT_MAX,  1}, 0 },
 

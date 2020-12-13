@@ -163,11 +163,6 @@ typedef struct pidProfile_s {
     uint8_t dterm_filter2_type;             // Filter selection for 2nd dterm
     uint16_t dyn_lpf_dterm_min_hz;
     uint16_t dyn_lpf_dterm_max_hz;
-    uint8_t launchControlMode;              // Whether launch control is limited to pitch only (launch stand or top-mount) or all axes (on battery)
-    uint8_t launchControlThrottlePercent;   // Throttle percentage to trigger launch for launch control
-    uint8_t launchControlAngleLimit;        // Optional launch control angle limit (requires ACC)
-    uint8_t launchControlGain;              // Iterm gain used while launch control is active
-    uint8_t launchControlAllowTriggerReset; // Controls trigger behavior and whether the trigger can be reset
     uint8_t use_integrated_yaw;             // Selects whether the yaw pidsum should integrated
     uint8_t integrated_yaw_relax;           // Specifies how much integrated yaw should be reduced to offset the drag based yaw component
     uint8_t thrustLinearization;            // Compensation factor for pid linearization
