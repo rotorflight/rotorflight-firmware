@@ -88,7 +88,6 @@ void targetConfiguration(void)
     parseRcChannels("TAER1234", rxConfigMutable());
 
     mixerConfigMutable()->yaw_motors_reversed = true;
-    imuConfigMutable()->small_angle = 180;
 
     blackboxConfigMutable()->p_ratio = 128;
 
