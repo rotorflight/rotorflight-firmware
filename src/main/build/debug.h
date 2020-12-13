@@ -23,11 +23,22 @@
 #include "platform.h"
 
 #define DEBUG16_VALUE_COUNT 4
+#define DEBUG32_VALUE_COUNT 8
 
 extern FAST_RAM_ZERO_INIT uint8_t debugMode;
 extern FAST_RAM_ZERO_INIT int16_t debug[DEBUG16_VALUE_COUNT];
 
-#define DEBUG_SET(mode, index, value) do { if (debugMode == (mode)) { debug[(index)] = (value); } } while (0)
+#ifdef USE_DEBUG32
+extern FAST_RAM_ZERO_INIT int32_t debug32[DEBUG32_VALUE_COUNT];
+#endif
+
+#define DEBUG_SET(mode, index, value)   do { if (debugMode == (mode)) { debug[(index)] = (value); } } while(0)
+
+#ifdef USE_DEBUG32
+#define DEBUG32_SET(mode, index, value)   do { if (debugMode == (mode) && (index) < DEBUG32_VALUE_COUNT) { debug32[(index)] = (value); } } while(0)
+#else
+#define DEBUG32_SET(mode, index, value)
+#endif
 
 typedef enum {
     DEBUG_NONE,

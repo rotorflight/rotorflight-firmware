@@ -25,6 +25,10 @@
 FAST_RAM_ZERO_INIT uint8_t debugMode;
 FAST_RAM_ZERO_INIT int16_t debug[DEBUG16_VALUE_COUNT];
 
+#ifdef USE_DEBUG32
+FAST_RAM_ZERO_INIT int32_t debug32[DEBUG32_VALUE_COUNT];
+#endif
+
 #define DEBUG_NAME(x)  [DEBUG_ ## x] = #x
 
 // Please ensure that names listed here match the enum values defined in 'debug.h'

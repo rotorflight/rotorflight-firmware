@@ -245,6 +245,18 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"debug",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
     {"debug",       3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
 
+    /* Extended 32bit debug */
+#ifdef USE_DEBUG32
+    {"debug32",     0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     4, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     5, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     6, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+    {"debug32",     7, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
+#endif
+
 };
 
 #ifdef USE_GPS
@@ -326,6 +338,9 @@ typedef struct blackboxMainState_s {
     uint16_t rssi;
 
     int16_t debug[DEBUG16_VALUE_COUNT];
+#ifdef USE_DEBUG32
+    int32_t debug32[DEBUG32_VALUE_COUNT];
+#endif
 
 } blackboxMainState_t;
 
@@ -626,6 +641,13 @@ static void writeIntraframe(void)
         blackboxWriteSigned16VBArray(blackboxCurrent->debug, DEBUG16_VALUE_COUNT);
     }
 
+#ifdef USE_DEBUG32
+    // Write extended debug
+    if (testBlackboxCondition(FLIGHT_LOG_FIELD_CONDITION_DEBUG)) {
+        blackboxWriteSignedVBArray(blackboxCurrent->debug32, DEBUG32_VALUE_COUNT);
+    }
+#endif
+
     //Rotate our history buffers:
 
     //The current state becomes the new "before" state
@@ -757,6 +779,14 @@ static void writeInterframe(void)
     if (testBlackboxCondition(FLIGHT_LOG_FIELD_CONDITION_DEBUG)) {
         blackboxWriteMainStateArrayUsingAveragePredictor(offsetof(blackboxMainState_t, debug), DEBUG16_VALUE_COUNT);
     }
+
+#ifdef USE_DEBUG32
+    if (testBlackboxCondition(FLIGHT_LOG_FIELD_CONDITION_DEBUG)) {
+        int32_t deltas[DEBUG32_VALUE_COUNT];
+        arraySubInt32(deltas, blackboxCurrent->debug32, blackboxLast->debug32, DEBUG32_VALUE_COUNT);
+        blackboxWriteSignedVBArray(deltas, DEBUG32_VALUE_COUNT);
+    }
+#endif
 
     //Rotate our history buffers
     blackboxHistory[2] = blackboxHistory[1];
@@ -1075,6 +1105,12 @@ static void loadMainState(timeUs_t currentTimeUs)
     for (int i = 0; i < DEBUG16_VALUE_COUNT; i++) {
         blackboxCurrent->debug[i] = debug[i];
     }
+
+#ifdef USE_DEBUG32
+    for (int i = 0; i < DEBUG32_VALUE_COUNT; i++) {
+        blackboxCurrent->debug32[i] = debug32[i];
+    }
+#endif
 
 #else
     UNUSED(currentTimeUs);
