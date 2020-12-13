@@ -1337,9 +1337,6 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_ABSOLUTE_CONTROL
         BLACKBOX_PRINT_HEADER_LINE("abs_control_gain", "%d",                currentPidProfile->abs_control_gain);
 #endif
-#ifdef USE_INTEGRATED_YAW_CONTROL
-        BLACKBOX_PRINT_HEADER_LINE("use_integrated_yaw", "%d",              currentPidProfile->use_integrated_yaw);
-#endif
         BLACKBOX_PRINT_HEADER_LINE("feedforward_transition", "%d",          currentPidProfile->feedForwardTransition);
         BLACKBOX_PRINT_HEADER_LINE("feedforward_weight", "%d,%d,%d",        currentPidProfile->pid[PID_ROLL].F,
                                                                             currentPidProfile->pid[PID_PITCH].F,

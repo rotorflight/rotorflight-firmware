@@ -134,8 +134,6 @@ typedef struct pidProfile_s {
     uint8_t dterm_filter2_type;             // Filter selection for 2nd dterm
     uint16_t dyn_lpf_dterm_min_hz;
     uint16_t dyn_lpf_dterm_max_hz;
-    uint8_t use_integrated_yaw;             // Selects whether the yaw pidsum should integrated
-    uint8_t integrated_yaw_relax;           // Specifies how much integrated yaw should be reduced to offset the drag based yaw component
     uint8_t d_min[XYZ_AXIS_COUNT];          // Minimum D value on each axis
     uint8_t d_min_gain;                     // Gain factor for amount of gyro / setpoint activity required to boost D
     uint8_t d_min_advance;                  // Percentage multiplier for setpoint input to boost algorithm
