@@ -72,8 +72,7 @@ const char pidNames[] =
     "ROLL;"
     "PITCH;"
     "YAW;"
-    "LEVEL;"
-    "MAG;";
+    "LEVEL;";
 
 FAST_RAM_ZERO_INIT uint32_t targetPidLooptime;
 FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
@@ -112,7 +111,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_PITCH] = { 46, 90, 38, 95 },
             [PID_YAW] =   { 45, 90, 0, 90 },
             [PID_LEVEL] = { 50, 50, 75, 0 },
-            [PID_MAG] =   { 40, 0, 0, 0 },
         },
         .pidSumLimit = PIDSUM_LIMIT,
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,

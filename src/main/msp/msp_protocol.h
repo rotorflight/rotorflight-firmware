@@ -298,7 +298,7 @@
 #define MSP_RESET_CONF           208    //in message          no param
 #define MSP_SET_WP               209    //in message          sets a given WP (WP#,lat, lon, alt, flags)
 #define MSP_SELECT_SETTING       210    //in message          Select Setting Number (0-2)
-#define MSP_SET_HEADING          211    //in message          define a new heading hold direction
+//#define MSP_SET_HEADING          211    //in message          define a new heading hold direction
 #define MSP_SET_SERVO_CONFIGURATION 212    //in message          Servo settings
 #define MSP_SET_MOTOR            214    //in message          PropBalance function
 #define MSP_SET_NAV_CONFIG       215    //in message          Sets nav config parameters - write to the eeprom

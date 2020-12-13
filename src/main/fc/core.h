@@ -23,10 +23,6 @@
 #include "common/time.h"
 #include "pg/pg.h"
 
-#if defined(USE_GPS) || defined(USE_MAG)
-extern int16_t magHold;
-#endif
-
 typedef enum {
     DISARM_REASON_ARMING_DISABLED   = 0,
     DISARM_REASON_FAILSAFE          = 1,
