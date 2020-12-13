@@ -20,9 +20,12 @@
 
 #pragma once
 
+#include "platform.h"
+
 #define DEBUG16_VALUE_COUNT 4
-extern int16_t debug[DEBUG16_VALUE_COUNT];
-extern uint8_t debugMode;
+
+extern FAST_RAM_ZERO_INIT uint8_t debugMode;
+extern FAST_RAM_ZERO_INIT int16_t debug[DEBUG16_VALUE_COUNT];
 
 #define DEBUG_SET(mode, index, value) do { if (debugMode == (mode)) { debug[(index)] = (value); } } while (0)
 

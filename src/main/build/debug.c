@@ -20,12 +20,10 @@
 
 #include <stdint.h>
 
-#include "platform.h"
-
 #include "debug.h"
 
-int16_t debug[DEBUG16_VALUE_COUNT];
-uint8_t debugMode;
+FAST_RAM_ZERO_INIT uint8_t debugMode;
+FAST_RAM_ZERO_INIT int16_t debug[DEBUG16_VALUE_COUNT];
 
 #define DEBUG_NAME(x)  [DEBUG_ ## x] = #x
 
