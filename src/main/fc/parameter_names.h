@@ -59,6 +59,7 @@
 #define PARAM_NAME_D_MAX_GAIN "d_max_gain"
 #define PARAM_NAME_D_MAX_ADVANCE "d_max_advance"
 #define PARAM_NAME_DEBUG_MODE "debug_mode"
+#define PARAM_NAME_DEBUG_AXIS "debug_axis"
 #define PARAM_NAME_RPM_FILTER_HARMONICS "rpm_filter_harmonics"
 #define PARAM_NAME_RPM_FILTER_Q "rpm_filter_q"
 #define PARAM_NAME_RPM_FILTER_MIN_HZ "rpm_filter_min_hz"
