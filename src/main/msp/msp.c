@@ -763,8 +763,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_DEBUG:
-        for (int i = 0; i < DEBUG16_VALUE_COUNT; i++) {
-            sbufWriteU16(dst, debug[i]);      // 4 variables are here for general monitoring purpose
+        for (int i = 0; i < 4; i++) {
+            sbufWriteU16(dst, constrain(debug[i], INT16_MIN, INT16_MAX));
         }
         break;
 
