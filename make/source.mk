@@ -94,6 +94,7 @@ COMMON_SRC = \
             flight/pid.c \
             flight/rpm_filter.c \
             flight/servos.c \
+            flight/motors.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \

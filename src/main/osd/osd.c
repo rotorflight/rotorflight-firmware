@@ -455,28 +455,6 @@ static void osdResetStats(void)
     stats.min_rssi_dbm = CRSF_SNR_MAX;
 }
 
-#if defined(USE_ESC_SENSOR) || defined(USE_DSHOT_TELEMETRY)
-static int32_t getAverageEscRpm(void)
-{
-#ifdef USE_DSHOT_TELEMETRY
-    if (motorConfig()->dev.useDshotTelemetry) {
-        uint32_t rpm = 0;
-        for (int i = 0; i < getMotorCount(); i++) {
-            rpm += getDshotTelemetry(i);
-        }
-        rpm = rpm / getMotorCount();
-        return rpm * 100 * 2 / motorConfig()->motorPoleCount;
-    }
-#endif
-#ifdef USE_ESC_SENSOR
-    if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-        return calcEscRpm(osdEscDataCombined->rpm);
-    }
-#endif
-    return 0;
-}
-#endif
-
 static void osdUpdateStats(void)
 {
     int16_t value = 0;
@@ -549,12 +527,12 @@ static void osdUpdateStats(void)
     }
 #endif
 
-#if defined(USE_ESC_SENSOR) || defined(USE_DSHOT_TELEMETRY)
-    int32_t rpm = getAverageEscRpm();
-    if (stats.max_esc_rpm < rpm) {
-        stats.max_esc_rpm = rpm;
+    if (isRpmSourceActive()) {
+        int32_t rpm = getHeadSpeed();
+        if (stats.max_esc_rpm < rpm) {
+            stats.max_esc_rpm = rpm;
+        }
     }
-#endif
 }
 
 #ifdef USE_BLACKBOX

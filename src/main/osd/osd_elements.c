@@ -205,17 +205,7 @@ typedef int (*getEscRpmOrFreqFnPtr)(int i);
 
 static int getEscRpm(int i)
 {
-#ifdef USE_DSHOT_TELEMETRY
-    if (motorConfig()->dev.useDshotTelemetry) {
-        return 100.0f / (motorConfig()->motorPoleCount / 2.0f) * getDshotTelemetry(i);
-    }
-#endif
-#ifdef USE_ESC_SENSOR
-    if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-        return calcEscRpm(getEscSensorData(i)->rpm);
-    }
-#endif
-    return 0;
+    return getMotorRPM(i);
 }
 
 static int getEscRpmFreq(int i)
@@ -1372,7 +1362,7 @@ static void osdElementWarnings(osdElementParms_t *element)
             const char motorNumber = '1' + i;
             // if everything is OK just display motor number else R, T or C
             char warnFlag = motorNumber;
-            if (ARMING_FLAG(ARMED) && osdConfig()->esc_rpm_alarm != ESC_RPM_ALARM_OFF && calcEscRpm(escData->rpm) <= osdConfig()->esc_rpm_alarm) {
+            if (ARMING_FLAG(ARMED) && osdConfig()->esc_rpm_alarm != ESC_RPM_ALARM_OFF && calcMotorRPM(i,escData->rpm) <= osdConfig()->esc_rpm_alarm) {
                 warnFlag = 'R';
             }
             if (osdConfig()->esc_temp_alarm != ESC_TEMP_ALARM_OFF && escData->temperature >= osdConfig()->esc_temp_alarm) {

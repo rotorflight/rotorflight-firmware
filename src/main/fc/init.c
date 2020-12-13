@@ -823,6 +823,8 @@ void init(void)
     }
 #endif
 
+    rpmSourceInit();
+
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
 #endif
