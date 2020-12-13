@@ -103,8 +103,6 @@ void targetConfiguration(void)
 
     systemConfigMutable()->cpu_overclock = 2; //216MHZ
 
-    pidConfigMutable()->runaway_takeoff_prevention = false;
-
     featureConfigSet((FEATURE_DYNAMIC_FILTER | FEATURE_AIRMODE) ^ FEATURE_RX_PARALLEL_PWM);
 
     /* AlienWhoop PIDs tested with 6mm and 7mm motors on most frames */
