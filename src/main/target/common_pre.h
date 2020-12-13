@@ -267,7 +267,6 @@
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 7))
-#define USE_THROTTLE_BOOST
 #define USE_INTEGRATED_YAW_CONTROL
 #endif
 
