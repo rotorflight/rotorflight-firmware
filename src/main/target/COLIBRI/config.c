@@ -49,7 +49,6 @@
 // alternative defaults settings for Colibri/Gemini targets
 void targetConfiguration(void)
 {
-    mixerConfigMutable()->mixerMode = MIXER_HEX6X;
     rxConfigMutable()->serialrx_provider = 2;
 
     motorConfigMutable()->minthrottle = 1070;
