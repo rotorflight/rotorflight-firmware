@@ -105,7 +105,7 @@
 #define BRUSHED_MOTORS
 
 #define DEFAULT_RX_FEATURE      FEATURE_RX_SPI
-#define DEFAULT_FEATURES        (FEATURE_MOTOR_STOP)
+#define DEFAULT_FEATURES        0
 
 
 #define USB_DETECT_PIN          PC14
