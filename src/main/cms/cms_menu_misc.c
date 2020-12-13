@@ -113,7 +113,6 @@ CMS_Menu cmsx_menuRcPreview = {
 
 static uint16_t motorConfig_minthrottle;
 static uint8_t motorConfig_digitalIdleOffsetValue;
-static uint8_t rxConfig_fpvCamAngleDegrees;
 
 static const void *cmsx_menuMiscOnEnter(displayPort_t *pDisp)
 {
@@ -121,7 +120,6 @@ static const void *cmsx_menuMiscOnEnter(displayPort_t *pDisp)
 
     motorConfig_minthrottle = motorConfig()->minthrottle;
     motorConfig_digitalIdleOffsetValue = motorConfig()->digitalIdleOffsetValue / 10;
-    rxConfig_fpvCamAngleDegrees = rxConfig()->fpvCamAngleDegrees;
 
     return NULL;
 }
@@ -133,7 +131,6 @@ static const void *cmsx_menuMiscOnExit(displayPort_t *pDisp, const OSD_Entry *se
 
     motorConfigMutable()->minthrottle = motorConfig_minthrottle;
     motorConfigMutable()->digitalIdleOffsetValue = 10 * motorConfig_digitalIdleOffsetValue;
-    rxConfigMutable()->fpvCamAngleDegrees = rxConfig_fpvCamAngleDegrees;
 
     return NULL;
 }
@@ -144,7 +141,6 @@ static const OSD_Entry menuMiscEntries[]=
 
     { "MIN THR",       OME_UINT16,  NULL,          &(OSD_UINT16_t){ &motorConfig_minthrottle,            1000, 2000, 1 }, REBOOT_REQUIRED },
     { "DIGITAL IDLE",  OME_UINT8,   NULL,          &(OSD_UINT8_t) { &motorConfig_digitalIdleOffsetValue,    0,  200, 1 }, REBOOT_REQUIRED },
-    { "FPV CAM ANGLE", OME_UINT8,   NULL,          &(OSD_UINT8_t) { &rxConfig_fpvCamAngleDegrees,           0,   90, 1 }, 0 },
     { "RC PREV",       OME_Submenu, cmsMenuChange, &cmsx_menuRcPreview, 0},
 
     { "BACK", OME_Back, NULL, NULL, 0},
