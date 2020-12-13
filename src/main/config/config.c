@@ -500,13 +500,6 @@ static void validateAndFixConfig(void)
         motorConfigMutable()->dev.useDshotTelemetry = false;
     }
 
-#if defined(USE_DYN_IDLE)
-    if (!isRpmFilterEnabled()) {
-        for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
-            pidProfilesMutable(i)->idle_min_rpm = 0;
-        }
-    }
-#endif // USE_DYN_IDLE
 #endif // USE_DSHOT_TELEMETRY
 #endif // USE_DSHOT
 

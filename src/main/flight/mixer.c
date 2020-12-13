@@ -283,12 +283,6 @@ FAST_RAM_ZERO_INIT float motorOutputHigh, motorOutputLow;
 
 static FAST_RAM_ZERO_INIT float disarmMotorOutput, deadbandMotor3dHigh, deadbandMotor3dLow;
 static FAST_RAM_ZERO_INIT float rcCommandThrottleRange;
-#ifdef USE_DYN_IDLE
-static FAST_RAM_ZERO_INIT float idleMaxIncrease;
-static FAST_RAM_ZERO_INIT float idleThrottleOffset;
-static FAST_RAM_ZERO_INIT float idleMinMotorRps;
-static FAST_RAM_ZERO_INIT float idleP;
-#endif
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
 static FAST_RAM_ZERO_INIT float vbatSagCompensationFactor;
 static FAST_RAM_ZERO_INIT float vbatFull;
@@ -347,12 +341,6 @@ void initEscEndpoints(void)
 // Initialize pidProfile related mixer settings
 void mixerInitProfile(void)
 {
-#ifdef USE_DYN_IDLE
-    idleMinMotorRps = currentPidProfile->idle_min_rpm * 100.0f / 60.0f;
-    idleMaxIncrease = currentPidProfile->idle_max_increase * 0.001f;
-    idleP = currentPidProfile->idle_p * 0.0001f;
-#endif
-
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
     vbatSagCompensationFactor = 0.0f;
     if (currentPidProfile->vbat_sag_compensation > 0) {
@@ -375,10 +363,6 @@ void mixerInit(mixerMode_e mixerMode)
     if (mixerIsTricopter()) {
         mixerTricopterInit();
     }
-#endif
-
-#ifdef USE_DYN_IDLE
-    idleThrottleOffset = motorConfig()->digitalIdleOffsetValue * 0.0001f;
 #endif
 
     mixerInitProfile();
@@ -481,36 +465,11 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
     static float motorRangeMinIncrease = 0;
-#ifdef USE_DYN_IDLE
-    static float oldMinRps;
-#endif
     float currentThrottleInputRange = 0;
 
     {
         throttle = rcCommand[THROTTLE] - PWM_RANGE_MIN;
         float appliedMotorOutputLow = motorOutputLow;
-#ifdef USE_DYN_IDLE
-        if (idleMinMotorRps > 0.0f) {
-            appliedMotorOutputLow = DSHOT_MIN_THROTTLE;
-            const float maxIncrease = isAirmodeActivated() ? idleMaxIncrease : 0.04f;
-            const float minRps = rpmMinMotorFrequency();
-            const float targetRpsChangeRate = (idleMinMotorRps - minRps) * currentPidProfile->idle_adjustment_speed;
-            const float error = targetRpsChangeRate - (minRps - oldMinRps) * pidGetPidFrequency();
-            const float pidSum = constrainf(idleP * error, -currentPidProfile->idle_pid_limit, currentPidProfile->idle_pid_limit);
-            motorRangeMinIncrease = constrainf(motorRangeMinIncrease + pidSum * pidGetDT(), 0.0f, maxIncrease);
-            oldMinRps = minRps;
-            throttle += idleThrottleOffset * rcCommandThrottleRange;
-
-            DEBUG_SET(DEBUG_DYN_IDLE, 0, motorRangeMinIncrease * 1000);
-            DEBUG_SET(DEBUG_DYN_IDLE, 1, targetRpsChangeRate);
-            DEBUG_SET(DEBUG_DYN_IDLE, 2, error);
-            DEBUG_SET(DEBUG_DYN_IDLE, 3, minRps);
-        } else {
-            motorRangeMinIncrease = 0;
-            oldMinRps = 0;
-        }
-#endif
-
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         float motorRangeAttenuationFactor = 0;
         // reduce motorRangeMax when battery is full
