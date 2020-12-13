@@ -318,7 +318,6 @@
 #endif // TARGET_FLASH_SIZE > 128
 
 #if (TARGET_FLASH_SIZE > 256)
-#define USE_AIRMODE_LPF
 #define USE_CANVAS
 #define USE_FRSKYOSD
 #define USE_GPS

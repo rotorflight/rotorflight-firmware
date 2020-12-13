@@ -1404,7 +1404,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, rxConfig()->rx_max_usec);
         sbufWriteU8(dst, rxConfig()->rcInterpolation);
         sbufWriteU8(dst, rxConfig()->rcInterpolationInterval);
-        sbufWriteU16(dst, rxConfig()->airModeActivateThreshold * 10 + 1000);
+        sbufWriteU16(dst, 0); // was rxConfig()->airModeActivateThreshold
 #ifdef USE_RX_SPI
         sbufWriteU8(dst, rxSpiConfig()->rx_spi_protocol);
         sbufWriteU32(dst, rxSpiConfig()->rx_spi_id);
@@ -2954,7 +2954,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 4) {
             rxConfigMutable()->rcInterpolation = sbufReadU8(src);
             rxConfigMutable()->rcInterpolationInterval = sbufReadU8(src);
-            rxConfigMutable()->airModeActivateThreshold = (sbufReadU16(src) - 1000) / 10;
+            sbufReadU16(src); // was rxConfigMutable()->airModeActivateThreshold
         }
         if (sbufBytesRemaining(src) >= 6) {
 #ifdef USE_RX_SPI

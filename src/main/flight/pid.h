@@ -106,7 +106,7 @@ typedef struct pidProfile_s {
     uint8_t itermWindupPointPercent;        // iterm windup threshold, percent motor saturation
     uint16_t pidSumLimit;
     uint16_t pidSumLimitYaw;
-    uint8_t pidAtMinThrottle;               // Disable/Enable pids on zero throttle. Normally even without airmode P and D would be active.
+    uint8_t pidAtMinThrottle;               // Disable/Enable pids on zero throttle.
     uint8_t levelAngleLimit;                // Max angle in degrees in level mode
 
     uint8_t horizon_tilt_effect;            // inclination factor for Horizon mode
@@ -141,7 +141,6 @@ typedef struct pidProfile_s {
     uint8_t d_min_advance;                  // Percentage multiplier for setpoint input to boost algorithm
     uint8_t motor_output_limit;             // Upper limit of the motor output (percent)
     int8_t auto_profile_cell_count;         // Cell count for this profile to be used with if auto PID profile switching is used
-    uint8_t transient_throttle_limit;       // Maximum DC component of throttle change to mix into throttle to prevent airmode mirroring noise
     uint8_t ff_boost;                       // amount of high-pass filtered FF to add to FF, 100 means 100% added
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
 
@@ -192,10 +191,6 @@ void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
 void pidInitSetpointDerivativeLpf(uint16_t filterCutoff, uint8_t debugAxis, uint8_t filterType);
 void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
-#ifdef USE_AIRMODE_LPF
-void pidUpdateAirmodeLpf(float currentOffset);
-float pidGetAirmodeThrottleOffset();
-#endif
 
 #ifdef UNIT_TEST
 #include "sensors/acceleration.h"

@@ -45,8 +45,6 @@
 boxBitmask_t rcModeActivationMask; // one bit per mode defined in boxId_e
 static boxBitmask_t stickyModesEverDisabled;
 
-static bool airmodeEnabled;
-
 static int activeMacCount = 0;
 static uint8_t activeMacArray[MAX_MODE_ACTIVATION_CONDITION_COUNT];
 static int activeLinkedMacCount = 0;
@@ -73,10 +71,6 @@ bool IS_RC_MODE_ACTIVE(boxId_e boxId)
 void rcModeUpdate(boxBitmask_t *newState)
 {
     rcModeActivationMask = *newState;
-}
-
-bool airmodeIsEnabled(void) {
-    return airmodeEnabled;
 }
 
 bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range) {
@@ -168,8 +162,6 @@ void updateActivatedModes(void)
     bitArrayXor(&newMask, sizeof(newMask), &newMask, &andMask);
 
     rcModeUpdate(&newMask);
-
-    airmodeEnabled = featureIsEnabled(FEATURE_AIRMODE) || IS_RC_MODE_ACTIVE(BOXAIRMODE);
 }
 
 bool isModeActivationConditionPresent(boxId_e modeId)
