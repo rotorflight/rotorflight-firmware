@@ -1586,17 +1586,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         serializeSDCardSummaryReply(dst);
         break;
 
-    case MSP_MOTOR_3D_CONFIG:
-        sbufWriteU16(dst, flight3DConfig()->deadband3d_low);
-        sbufWriteU16(dst, flight3DConfig()->deadband3d_high);
-        sbufWriteU16(dst, flight3DConfig()->neutral3d);
-        break;
-
     case MSP_RC_DEADBAND:
         sbufWriteU8(dst, rcControlsConfig()->deadband);
         sbufWriteU8(dst, rcControlsConfig()->yaw_deadband);
         sbufWriteU8(dst, rcControlsConfig()->alt_hold_deadband);
-        sbufWriteU16(dst, flight3DConfig()->deadband3d_throttle);
+        sbufWriteU16(dst, 0); // was flight3DConfig()->deadband3d_throttle);
         break;
 
 
@@ -2378,17 +2372,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
         break;
 
-    case MSP_SET_MOTOR_3D_CONFIG:
-        flight3DConfigMutable()->deadband3d_low = sbufReadU16(src);
-        flight3DConfigMutable()->deadband3d_high = sbufReadU16(src);
-        flight3DConfigMutable()->neutral3d = sbufReadU16(src);
-        break;
-
     case MSP_SET_RC_DEADBAND:
         rcControlsConfigMutable()->deadband = sbufReadU8(src);
         rcControlsConfigMutable()->yaw_deadband = sbufReadU8(src);
         rcControlsConfigMutable()->alt_hold_deadband = sbufReadU8(src);
-        flight3DConfigMutable()->deadband3d_throttle = sbufReadU16(src);
+        sbufReadU16(src); // was flight3DConfigMutable()->deadband3d_throttle
         break;
 
     case MSP_SET_RESET_CURR_PID:

@@ -45,7 +45,7 @@
 #define PG_PROFILE_SELECTION 23 // just contains current_profile_index
 #define PG_RX_CONFIG 24 // betaflight rxConfig_t contains different values
 #define PG_RC_CONTROLS_CONFIG 25 // Cleanflight has more parameters in rcControlsConfig_t
-#define PG_MOTOR_3D_CONFIG 26 // Cleanflight has motor3DConfig_t, betaflight has flight3DConfig_t with more parameters
+//#define PG_MOTOR_3D_CONFIG 26 // Cleanflight has motor3DConfig_t, betaflight has flight3DConfig_t with more parameters
 #define PG_LED_STRIP_CONFIG 27 // structs OK
 #define PG_COLOR_CONFIG 28 // part of led strip, structs OK
 #define PG_AIRPLANE_CONFIG 29 // struct OK

@@ -76,7 +76,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXBLACKBOX, "BLACKBOX", 26 },
     { BOXFAILSAFE, "FAILSAFE", 27 },
     { BOXAIRMODE, "AIR MODE", 28 },
-    { BOX3D, "DISABLE / SWITCH 3D", 29},
+//    { BOX3D, "DISABLE / SWITCH 3D", 29},
 //    { BOXFPVANGLEMIX, "FPV ANGLE MIX", 30},
     { BOXBLACKBOXERASE, "BLACKBOX ERASE (>30s)", 31 },
     { BOXCAMERA1, "CAMERA CONTROL 1", 32},
@@ -202,9 +202,7 @@ void initActiveBoxIds(void)
 #ifdef USE_GPS
     if (featureIsEnabled(FEATURE_GPS)) {
 #ifdef USE_GPS_RESCUE
-        if (!featureIsEnabled(FEATURE_3D) && !isFixedWing()) {
-            BME(BOXGPSRESCUE);
-        }
+        BME(BOXGPSRESCUE);
 #endif
         BME(BOXBEEPGPSCOUNT);
     }
@@ -230,10 +228,6 @@ void initActiveBoxIds(void)
     BME(BOXBLACKBOXERASE);
 #endif
 #endif
-
-    if (featureIsEnabled(FEATURE_3D)) {
-        BME(BOX3D);
-    }
 
 #ifdef USE_DSHOT
     bool configuredMotorProtocolDshot;

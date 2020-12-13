@@ -88,17 +88,6 @@ PG_RESET_TEMPLATE(armingConfig_t, armingConfig,
     .auto_disarm_delay = 5
 );
 
-PG_REGISTER_WITH_RESET_TEMPLATE(flight3DConfig_t, flight3DConfig, PG_MOTOR_3D_CONFIG, 0);
-PG_RESET_TEMPLATE(flight3DConfig_t, flight3DConfig,
-    .deadband3d_low = 1406,
-    .deadband3d_high = 1514,
-    .neutral3d = 1460,
-    .deadband3d_throttle = 50,
-    .limit3d_low = 1000,
-    .limit3d_high = 2000,
-    .switched_mode3d = false
-);
-
 bool isUsingSticksForArming(void)
 {
     return isUsingSticksToArm;
@@ -111,15 +100,7 @@ bool areSticksInApModePosition(uint16_t ap_mode)
 
 throttleStatus_e calculateThrottleStatus(void)
 {
-    if (featureIsEnabled(FEATURE_3D)) {
-        if (IS_RC_MODE_ACTIVE(BOX3D) || flight3DConfig()->switched_mode3d) {
-            if (rcData[THROTTLE] < rxConfig()->mincheck) {
-                return THROTTLE_LOW;
-            }
-        } else if ((rcData[THROTTLE] > (rxConfig()->midrc - flight3DConfig()->deadband3d_throttle) && rcData[THROTTLE] < (rxConfig()->midrc + flight3DConfig()->deadband3d_throttle))) {
-            return THROTTLE_LOW;
-        }
-    } else if (rcData[THROTTLE] < rxConfig()->mincheck) {
+    if (rcData[THROTTLE] < rxConfig()->mincheck) {
         return THROTTLE_LOW;
     }
 
