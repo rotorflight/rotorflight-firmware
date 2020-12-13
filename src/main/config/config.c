@@ -374,6 +374,8 @@ static void validateAndFixConfig(void)
 // clear features that are not supported.
 // I have kept them all here in one place, some could be moved to sections of code above.
 
+    featureDisableImmediate(UNUSED_FEATURES);
+
 #ifndef USE_PPM
     featureDisableImmediate(FEATURE_RX_PPM);
 #endif

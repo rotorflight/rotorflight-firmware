@@ -26,33 +26,62 @@
 #define DEFAULT_FEATURES 0
 #endif
 #ifndef DEFAULT_RX_FEATURE
-#define DEFAULT_RX_FEATURE FEATURE_RX_PARALLEL_PWM
+#define DEFAULT_RX_FEATURE 0
 #endif
 
 typedef enum {
-    FEATURE_RX_PPM = 1 << 0,
-    //FEATURE_INFLIGHT_ACC_CAL = 1 << 2,
-    FEATURE_RX_SERIAL = 1 << 3,
-    //FEATURE_MOTOR_STOP = 1 << 4,
-    //FEATURE_SERVO_TILT = 1 << 5,
-    FEATURE_SOFTSERIAL = 1 << 6,
-    FEATURE_GPS = 1 << 7,
-    FEATURE_RANGEFINDER = 1 << 9,
-    FEATURE_TELEMETRY = 1 << 10,
-    //FEATURE_3D = 1 << 12,
-    FEATURE_RX_PARALLEL_PWM = 1 << 13,
-    FEATURE_RX_MSP = 1 << 14,
-    FEATURE_RSSI_ADC = 1 << 15,
-    FEATURE_LED_STRIP = 1 << 16,
-    FEATURE_DASHBOARD = 1 << 17,
-    FEATURE_OSD = 1 << 18,
-    //FEATURE_CHANNEL_FORWARDING = 1 << 20,
-    //FEATURE_AIRMODE = 1 << 22,
-    FEATURE_RX_SPI = 1 << 25,
-    FEATURE_ESC_SENSOR = 1 << 27,
-    //FEATURE_ANTI_GRAVITY = 1 << 28,
-    //FEATURE_DYNAMIC_FILTER = 1 << 29, (removed)
+    FEATURE_RX_PPM                 = BIT(0),
+    FEATURE_UNUSED_1               = BIT(1),
+    FEATURE_UNUSED_2               = BIT(2),
+    FEATURE_RX_SERIAL              = BIT(3),
+    FEATURE_UNUSED_4               = BIT(4),
+    FEATURE_UNUSED_5               = BIT(5),
+    FEATURE_SOFTSERIAL             = BIT(6),
+    FEATURE_GPS                    = BIT(7),
+    FEATURE_UNUSED_8               = BIT(8),
+    FEATURE_RANGEFINDER            = BIT(9),
+    FEATURE_TELEMETRY              = BIT(10),
+    FEATURE_UNUSED_11              = BIT(11),
+    FEATURE_UNUSED_12              = BIT(12),
+    FEATURE_RX_PARALLEL_PWM        = BIT(13),
+    FEATURE_RX_MSP                 = BIT(14),
+    FEATURE_RSSI_ADC               = BIT(15),
+    FEATURE_LED_STRIP              = BIT(16),
+    FEATURE_DASHBOARD              = BIT(17),
+    FEATURE_OSD                    = BIT(18),
+    FEATURE_UNUSED_19              = BIT(19),
+    FEATURE_UNUSED_20              = BIT(20),
+    FEATURE_UNUSED_21              = BIT(21),
+    FEATURE_UNUSED_22              = BIT(22),
+    FEATURE_UNUSED_23              = BIT(23),
+    FEATURE_UNUSED_24              = BIT(24),
+    FEATURE_RX_SPI                 = BIT(25),
+    FEATURE_UNUSED_26              = BIT(26),
+    FEATURE_ESC_SENSOR             = BIT(27),
+    FEATURE_UNUSED_28              = BIT(28),
+    FEATURE_UNUSED_29              = BIT(29),
+    FEATURE_UNUSED_30              = BIT(30),
 } features_e;
+
+#define UNUSED_FEATURES ( \
+    FEATURE_UNUSED_1  | \
+    FEATURE_UNUSED_2  | \
+    FEATURE_UNUSED_4  | \
+    FEATURE_UNUSED_5  | \
+    FEATURE_UNUSED_8  | \
+    FEATURE_UNUSED_11 | \
+    FEATURE_UNUSED_12 | \
+    FEATURE_UNUSED_19 | \
+    FEATURE_UNUSED_20 | \
+    FEATURE_UNUSED_21 | \
+    FEATURE_UNUSED_22 | \
+    FEATURE_UNUSED_23 | \
+    FEATURE_UNUSED_24 | \
+    FEATURE_UNUSED_26 | \
+    FEATURE_UNUSED_28 | \
+    FEATURE_UNUSED_29 | \
+    FEATURE_UNUSED_30 | \
+    0)
 
 typedef struct featureConfig_s {
     uint32_t enabledFeatures;
