@@ -243,10 +243,6 @@ void initActiveBoxIds(void)
     }
 #endif
 
-    if (featureIsEnabled(FEATURE_SERVO_TILT)) {
-        BME(BOXCAMSTAB);
-    }
-
     if (featureIsEnabled(FEATURE_INFLIGHT_ACC_CAL)) {
         BME(BOXCALIB);
     }

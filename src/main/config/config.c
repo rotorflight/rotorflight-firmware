@@ -468,7 +468,7 @@ static void validateAndFixConfig(void)
 #endif
 
 #ifndef USE_SERVOS
-    featureDisableImmediate(FEATURE_SERVO_TILT | FEATURE_CHANNEL_FORWARDING);
+    featureDisableImmediate(FEATURE_CHANNEL_FORWARDING);
 #endif
 
 #ifndef USE_RX_SPI
