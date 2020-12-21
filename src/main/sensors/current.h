@@ -26,7 +26,6 @@
 typedef enum {
     CURRENT_METER_NONE = 0,
     CURRENT_METER_ADC,
-    CURRENT_METER_VIRTUAL,
     CURRENT_METER_ESC,
     CURRENT_METER_MSP,
     CURRENT_METER_COUNT
@@ -52,7 +51,7 @@ typedef struct currentMeterMAhDrawnState_s {
 //
 
 typedef enum {
-    CURRENT_SENSOR_VIRTUAL = 0,
+    CURRENT_SENSOR_NONE = 0,
     CURRENT_SENSOR_ADC,
     CURRENT_SENSOR_ESC,
     CURRENT_SENSOR_MSP
