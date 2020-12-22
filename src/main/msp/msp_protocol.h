@@ -349,3 +349,8 @@
 #define MSP_RPM_FILTER           144    //out message         Gets RPM filter configuration
 #define MSP_SET_RPM_FILTER       145    //in message          Sets RPM filter configuration
 
+#define MSP_MIXER_INPUTS         170    //out message         Gets the generic mixer inputs
+#define MSP_SET_MIXER_INPUTS     171    //in message          Sets the generic mixer inputs
+#define MSP_MIXER_RULES          172    //out message         Gets the generic mixer rules
+#define MSP_SET_MIXER_RULES      173    //in message          Sets the generic mixer rules
+

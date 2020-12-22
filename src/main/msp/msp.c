@@ -1361,6 +1361,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->mode);
         break;
 
+    case MSP_MIXER_INPUTS:
+        sbufWriteData(dst, mixerInputs(0), sizeof(mixerInput_t) * MIXER_INPUT_COUNT);
+        break;
+
+    case MSP_MIXER_RULES:
+        sbufWriteData(dst, mixerRules(0), sizeof(mixerRule_t) * MIXER_RULE_COUNT);
+        break;
+
     case MSP_RX_CONFIG:
         sbufWriteU8(dst, rxConfig()->serialrx_provider);
         sbufWriteU16(dst, rxConfig()->maxcheck);
@@ -2883,6 +2891,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_MIXER_CONFIG:
         mixerConfigMutable()->mode = sbufReadU8(src);
+        break;
+
+    case MSP_SET_MIXER_INPUTS:
+        sbufReadData(src, mixerInputsMutable(0), sizeof(mixerInput_t) * MIXER_INPUT_COUNT);
+        break;
+
+    case MSP_SET_MIXER_RULES:
+        sbufReadData(src, mixerRulesMutable(0), sizeof(mixerRule_t) * MIXER_RULE_COUNT);
         break;
 
     case MSP_SET_RX_CONFIG:
