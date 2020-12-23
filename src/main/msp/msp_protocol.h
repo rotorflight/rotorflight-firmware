@@ -321,7 +321,7 @@
 #define MSP_EEPROM_WRITE         250    //in message          no param
 #define MSP_RESERVE_1            251    //reserved for system usage
 #define MSP_RESERVE_2            252    //reserved for system usage
-#define MSP_DEBUGMSG             253    //out message         debug string buffer
+#define MSP_DEBUG32              253    //out message         debug32
 #define MSP_DEBUG                254    //out message         debug1,debug2,debug3,debug4
 #define MSP_V2_FRAME             255    //MSPv2 payload indicator
 
