@@ -708,6 +708,16 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         }
         break;
 
+    case MSP_DEBUG32:
+#ifdef USE_DEBUG32
+        for (int i = 0; i < DEBUG32_VALUE_COUNT; i++) {
+            sbufWriteU32(dst, debug32[i]);
+        }
+#else
+        sbufWriteU32(dst, 0);
+#endif
+        break;
+
     case MSP_UID:
         sbufWriteU32(dst, U_ID_0);
         sbufWriteU32(dst, U_ID_1);
