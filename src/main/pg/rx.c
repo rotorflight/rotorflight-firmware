@@ -57,7 +57,7 @@ void pgResetFn_rxConfig(rxConfig_t *rxConfig)
         .rssi_invert = 0,
         .rssi_src_frame_lpf_period = 30,
         .rcInterpolation = RC_SMOOTHING_AUTO,
-        .rcInterpolationChannels = INTERPOLATION_CHANNELS_RPYT,
+        .rcInterpolationChannels = ROLL_FLAG | PITCH_FLAG | YAW_FLAG | COLLECTIVE_FLAG,
         .rcInterpolationInterval = 19,
         .max_aux_channel = DEFAULT_AUX_CHANNEL_COUNT,
         .rc_smoothing_type = RC_SMOOTHING_TYPE_FILTER,
