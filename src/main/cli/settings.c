@@ -275,7 +275,14 @@ static const char * const lookupTableRcInterpolation[] = {
 };
 
 static const char * const lookupTableRcInterpolationChannels[] = {
-    "RP", "RPY", "RPYT", "T", "RPT",
+    "OFF", "R",    "P",    "RP",
+    "Y",   "RY",   "PY",   "RPY",
+    "T",   "RT",   "PT",   "RPT",
+    "YT",  "RYT",  "PYT",  "RPYT",
+    "C",   "RC",   "PC",   "RPC",
+    "YC",  "RYC",  "PYC",  "RPYC",
+    "TC",  "RTC",  "PTC",  "RPTC",
+    "YTC", "RYTC", "PYTC", "RPYTC",
 };
 
 static const char * const lookupTableLowpassType[] = {
