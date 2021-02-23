@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -e
+
+
+## Parameters
+
+TEST=${1:-master}
+HIST=${2:-3}
+
+BRANCH="test-branch-$(date +%Y%m%d-%H%M%S)"
+OUTDIR=".git-history-build"
+
+
+
+## Functions
+
+testbuild()
+{
+    echo "Building $1"
+    nice make TARGET=$1 2>&1 > ${RESULT}.$1.out
+    egrep -i '(warning)|(error)' ${RESULT}.$1.out || true
+}
+
+
+## Work starts here
+
+test -d ${OUTDIR} || mkdir ${OUTDIR}
+
+rm -f ${OUTDIR}/[0-9][0-9][0-9][0-9].*.out
+
+
+git checkout ${TEST} -b ${BRANCH}
+
+N=0
+
+while [ $N -le ${HIST} ]
+do
+    RESULT=${OUTDIR}/$(printf '%04d' $N)
+
+    git reset --hard ${TEST}~$N
+
+    rm -fr obj
+
+    testbuild STM32F745 &
+    testbuild STM32F7X2 &
+    testbuild STM32F411 &
+    testbuild STM32F405 &
+    testbuild MATEKF722 &
+    testbuild MATEKF411 &
+
+    wait
+
+    let N+=1
+done
+
+git checkout -f ${TEST} && git branch -d -f ${BRANCH}
+
