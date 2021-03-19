@@ -219,26 +219,6 @@ static FAST_RAM_ZERO_INIT uint8_t rcSmoothingDebugAxis;
 static FAST_RAM_ZERO_INIT uint8_t rcSmoothingFilterType;
 #endif // USE_RC_SMOOTHING_FILTER
 
-static FAST_RAM_ZERO_INIT float ffBoostFactor;
-static FAST_RAM_ZERO_INIT float ffSmoothFactor;
-static FAST_RAM_ZERO_INIT float ffSpikeLimitInverse;
-
-float pidGetSpikeLimitInverse()
-{
-    return ffSpikeLimitInverse;
-}
-
-
-float pidGetFfBoostFactor()
-{
-    return ffBoostFactor;
-}
-
-float pidGetFfSmoothFactor()
-{
-    return ffSmoothFactor;
-}
-
 
 void pidInitFilters(const pidProfile_t *pidProfile)
 {
@@ -346,8 +326,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         }
     }
 #endif
-    ffBoostFactor = (float)pidProfile->ff_boost / 10.0f;
-    ffSpikeLimitInverse = pidProfile->ff_spike_limit ? 1.0f / ((float)pidProfile->ff_spike_limit / 10.0f) : 0.0f;
 }
 
 #ifdef USE_RC_SMOOTHING_FILTER
@@ -427,8 +405,9 @@ static FAST_RAM_ZERO_INIT uint8_t dynLpfCurveExpo;
 #endif
 
 #ifdef USE_INTERPOLATED_SP
-static FAST_RAM_ZERO_INIT ffInterpolationType_t ffFromInterpolatedSetpoint;
+static FAST_RAM_ZERO_INIT bool spInterpolation;
 #endif
+
 
 void pidInitConfig(const pidProfile_t *pidProfile)
 {
@@ -508,8 +487,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 #endif
 
 #ifdef USE_INTERPOLATED_SP
-    ffFromInterpolatedSetpoint = pidProfile->ff_interpolate_sp;
-    ffSmoothFactor = 1.0f - ((float)pidProfile->ff_smooth_factor) / 100.0f;
+    spInterpolation = (pidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF);
     interpolatedSpInit(pidProfile);
 #endif
 
@@ -851,9 +829,6 @@ STATIC_UNIT_TESTED void applyItermRelax(const int axis, const float iterm,
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
     static float previousGyroRateDterm[XYZ_AXIS_COUNT];
-#ifdef USE_INTERPOLATED_SP
-    static FAST_RAM_ZERO_INIT uint32_t lastFrameNumber;
-#endif
 
 #if defined(USE_ACC)
     static timeUs_t levelModeStartTimeUs = 0;
@@ -899,14 +874,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     }
 
     rotateItermAndAxisError();
-
-#ifdef USE_INTERPOLATED_SP
-    bool newRcFrame = false;
-    if (lastFrameNumber != getRcFrameNumber()) {
-        lastFrameNumber = getRcFrameNumber();
-        newRcFrame = true;
-    }
-#endif
 
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
@@ -972,16 +939,15 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // -----calculate pidSetpointDelta
         float pidSetpointDelta = 0;
 #ifdef USE_INTERPOLATED_SP
-        if (ffFromInterpolatedSetpoint) {
-            pidSetpointDelta = interpolatedSpApply(axis, newRcFrame, ffFromInterpolatedSetpoint);
-        } else {
+        if (spInterpolation) {
+            pidSetpointDelta = interpolatedSpApply(axis);
+        } else
+#endif
+        {
             pidSetpointDelta = currentPidSetpoint - previousPidSetpoint[axis];
         }
-#else
-        pidSetpointDelta = currentPidSetpoint - previousPidSetpoint[axis];
-#endif
-        previousPidSetpoint[axis] = currentPidSetpoint;
 
+        previousPidSetpoint[axis] = currentPidSetpoint;
 
 #ifdef USE_RC_SMOOTHING_FILTER
         pidSetpointDelta = applyRcSmoothingDerivativeFilter(axis, pidSetpointDelta);

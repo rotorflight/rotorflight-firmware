@@ -1001,8 +1001,8 @@ const clivalue_t valueTable[] = {
     { "ff_spike_limit",             VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = {0, 255}, PG_PID_PROFILE, offsetof(pidProfile_t, ff_spike_limit) },
     { "ff_max_rate_limit",          VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = {0, 150}, PG_PID_PROFILE, offsetof(pidProfile_t, ff_max_rate_limit) },
     { "ff_smooth_factor",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = {0, 75}, PG_PID_PROFILE, offsetof(pidProfile_t, ff_smooth_factor) },
-#endif
     { "ff_boost",                   VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, ff_boost) },
+#endif
 
     { "yaw_cyclic_ff_gain",             VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cyclic_ff_gain) },
     { "yaw_collective_ff_gain",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_gain) },

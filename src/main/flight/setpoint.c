@@ -28,16 +28,15 @@
 #include "fc/rc.h"
 #include "flight/setpoint.h"
 
-static float setpointDeltaImpl[XYZ_AXIS_COUNT];
-static float setpointDelta[XYZ_AXIS_COUNT];
-static uint8_t holdCount[XYZ_AXIS_COUNT];
-
 typedef struct laggedMovingAverageCombined_s {
      laggedMovingAverage_t filter;
      float buf[4];
 } laggedMovingAverageCombined_t;
 
-laggedMovingAverageCombined_t  setpointDeltaAvg[XYZ_AXIS_COUNT];
+static laggedMovingAverageCombined_t setpointDeltaAvg[XYZ_AXIS_COUNT];
+static float setpointDeltaImpl[XYZ_AXIS_COUNT];
+static float setpointDelta[XYZ_AXIS_COUNT];
+static uint8_t holdCount[XYZ_AXIS_COUNT];
 
 static float prevSetpointSpeed[XYZ_AXIS_COUNT];
 static float prevAcceleration[XYZ_AXIS_COUNT];
@@ -45,14 +44,24 @@ static float prevRawSetpoint[XYZ_AXIS_COUNT];
 static float prevDeltaImpl[XYZ_AXIS_COUNT];
 static bool bigStep[XYZ_AXIS_COUNT];
 static uint8_t averagingCount;
+static uint32_t prevFrameNumber;
 
 // Configuration
 static float ffMaxRateLimit[XYZ_AXIS_COUNT];
 static float ffMaxRate[XYZ_AXIS_COUNT];
+static float ffBoostFactor;
+static float ffSmoothFactor;
+static float ffSpikeLimitInverse;
 
-void interpolatedSpInit(const pidProfile_t *pidProfile) {
-    const float ffMaxRateScale = pidProfile->ff_max_rate_limit * 0.01f;
+
+void interpolatedSpInit(const pidProfile_t *pidProfile)
+{
+    ffSmoothFactor = 1.0f - ((float)pidProfile->ff_smooth_factor) / 100.0f;
+    ffBoostFactor = (float)pidProfile->ff_boost / 10.0f;
+    ffSpikeLimitInverse = pidProfile->ff_spike_limit ? 1.0f / ((float)pidProfile->ff_spike_limit / 10.0f) : 0.0f;
     averagingCount = pidProfile->ff_interpolate_sp;
+
+    const float ffMaxRateScale = pidProfile->ff_max_rate_limit * 0.01f;
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         ffMaxRate[i] = applyCurve(i, 1.0f);
         ffMaxRateLimit[i] = ffMaxRate[i] * ffMaxRateScale;
@@ -60,17 +69,20 @@ void interpolatedSpInit(const pidProfile_t *pidProfile) {
     }
 }
 
-FAST_CODE_NOINLINE float interpolatedSpApply(int axis, bool newRcFrame, ffInterpolationType_t type) {
+float interpolatedSpApply(int axis)
+{
+    uint32_t frameNumber = getRcFrameNumber();
 
-    if (newRcFrame) {
+    if (frameNumber != prevFrameNumber) {
         float rawSetpoint = getRawSetpoint(axis);
-
         const float rxInterval = getCurrentRxRefreshRate() * 1e-6f;
         const float rxRate = 1.0f / rxInterval;
         float setpointSpeed = (rawSetpoint - prevRawSetpoint[axis]) * rxRate;
         float setpointAcceleration = setpointSpeed - prevSetpointSpeed[axis];
         float setpointSpeedModified = setpointSpeed;
         float setpointAccelerationModified = setpointAcceleration;
+
+        prevFrameNumber = frameNumber;
 
         // Glitch reduction code for identical packets
         if (fabsf(setpointAcceleration) > 3.0f * fabsf(prevAcceleration[axis])) {
@@ -143,13 +155,12 @@ FAST_CODE_NOINLINE float interpolatedSpApply(int axis, bool newRcFrame, ffInterp
         setpointAcceleration *= pidGetDT();
         setpointAccelerationModified *= pidGetDT();
 
-        const float ffBoostFactor = pidGetFfBoostFactor();
         float clip = 1.0f;
         float boostAmount = 0.0f;
         if (ffBoostFactor != 0.0f) {
             //calculate clip factor to reduce boost on big spikes
-            if (pidGetSpikeLimitInverse()) {
-                clip = 1 / (1 + (setpointAcceleration * setpointAcceleration * pidGetSpikeLimitInverse()));
+            if (ffSpikeLimitInverse) {
+                clip = 1 / (1 + (setpointAcceleration * setpointAcceleration * ffSpikeLimitInverse));
                 clip *= clip;
             }
             // don't clip first step inwards from max deflection
@@ -175,11 +186,10 @@ FAST_CODE_NOINLINE float interpolatedSpApply(int axis, bool newRcFrame, ffInterp
         setpointDeltaImpl[axis] += boostAmount * clip;
 
         // first order (kind of) smoothing of FF
-        const float ffSmoothFactor = pidGetFfSmoothFactor();
         setpointDeltaImpl[axis] = prevDeltaImpl[axis] + ffSmoothFactor * (setpointDeltaImpl[axis] - prevDeltaImpl[axis]);
         prevDeltaImpl[axis] = setpointDeltaImpl[axis];
 
-        if (type == FF_INTERPOLATE_ON) {
+        if (averagingCount < 2) {
             setpointDelta[axis] = setpointDeltaImpl[axis];
         } else {
             setpointDelta[axis] = laggedMovingAverageUpdate(&setpointDeltaAvg[axis].filter, setpointDeltaImpl[axis]);
@@ -188,33 +198,22 @@ FAST_CODE_NOINLINE float interpolatedSpApply(int axis, bool newRcFrame, ffInterp
     return setpointDelta[axis];
 }
 
-FAST_CODE_NOINLINE float applyFfLimit(int axis, float value, float Kp, float currentPidSetpoint) {
-    switch (axis) {
-    case FD_ROLL:
-        DEBUG_SET(DEBUG_FF_LIMIT, 0, value);
-
-        break;
-    case FD_PITCH:
-        DEBUG_SET(DEBUG_FF_LIMIT, 1, value);
-
-        break;
-    }
-
+float applyFfLimit(int axis, float value, float Kp, float currentPidSetpoint)
+{
     if (fabsf(currentPidSetpoint) <= ffMaxRateLimit[axis]) {
         value = constrainf(value, (-ffMaxRateLimit[axis] - currentPidSetpoint) * Kp, (ffMaxRateLimit[axis] - currentPidSetpoint) * Kp);
     } else {
         value = 0;
     }
 
-    if (axis == FD_ROLL) {
-        DEBUG_SET(DEBUG_FF_LIMIT, 2, value);
-    }
+    DEBUG_SET(DEBUG_FF_LIMIT, axis, value);
 
     return value;
 }
 
 bool shouldApplyFfLimits(int axis)
 {
-    return ffMaxRateLimit[axis] != 0.0f && axis < FD_YAW;
+    return (ffMaxRateLimit[axis] != 0.0f);
 }
+
 #endif

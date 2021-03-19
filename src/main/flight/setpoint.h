@@ -34,6 +34,7 @@ typedef enum ffInterpolationType_e {
 } ffInterpolationType_t;
 
 void interpolatedSpInit(const pidProfile_t *pidProfile);
-float interpolatedSpApply(int axis, bool newRcFrame, ffInterpolationType_t type);
+float interpolatedSpApply(int axis);
+
 float applyFfLimit(int axis, float value, float Kp, float currentPidSetpoint);
 bool shouldApplyFfLimits(int axis);

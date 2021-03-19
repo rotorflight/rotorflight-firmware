@@ -191,7 +191,4 @@ void dynLpfDTermUpdate(float throttle);
 float pidGetPreviousSetpoint(int axis);
 float pidGetDT();
 float pidGetPidFrequency();
-float pidGetFfBoostFactor();
-float pidGetFfSmoothFactor();
-float pidGetSpikeLimitInverse();
 float dynDtermLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, uint8_t expo);
