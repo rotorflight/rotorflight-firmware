@@ -167,7 +167,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dyn_lpf_dterm_max_hz = 170,
         .use_integrated_yaw = false,
         .integrated_yaw_relax = 200,
-        .thrustLinearization = 0,
         .d_min = { 23, 25, 0 },      // roll, pitch, yaw
         .d_min_gain = 37,
         .d_min_advance = 20,
@@ -506,12 +505,6 @@ static FAST_RAM_ZERO_INIT int acroTrainerAxisState[2];  // only need roll and pi
 static FAST_RAM_ZERO_INIT float acroTrainerGain;
 #endif // USE_ACRO_TRAINER
 
-#ifdef USE_THRUST_LINEARIZATION
-FAST_RAM_ZERO_INIT float thrustLinearization;
-FAST_RAM_ZERO_INIT float thrustLinearizationReciprocal;
-FAST_RAM_ZERO_INIT float thrustLinearizationB;
-#endif
-
 #ifdef USE_DYN_LPF
 static FAST_RAM uint8_t dynLpfFilter = DYN_LPF_NONE;
 static FAST_RAM_ZERO_INIT uint16_t dynLpfMin;
@@ -615,13 +608,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     integratedYawRelax = pidProfile->integrated_yaw_relax;
 #endif
 
-#ifdef USE_THRUST_LINEARIZATION
-    thrustLinearization = pidProfile->thrustLinearization / 100.0f;
-    if (thrustLinearization != 0.0f) {
-        thrustLinearizationReciprocal = 1.0f / thrustLinearization;
-        thrustLinearizationB = (1.0f - thrustLinearization) / (2.0f * thrustLinearization);
-    }
-#endif
 #if defined(USE_D_MIN)
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
         const uint8_t dMin = pidProfile->d_min[axis];
@@ -664,27 +650,6 @@ void pidAcroTrainerInit(void)
     acroTrainerAxisState[FD_PITCH] = 0;
 }
 #endif // USE_ACRO_TRAINER
-
-#ifdef USE_THRUST_LINEARIZATION
-float pidCompensateThrustLinearization(float throttle)
-{
-    if (thrustLinearization != 0.0f) {
-        throttle = throttle * (throttle * thrustLinearization + 1.0f - thrustLinearization);
-    }
-    return throttle;
-}
-
-float pidApplyThrustLinearization(float motorOutput)
-{
-    if (thrustLinearization != 0.0f) {
-        if (motorOutput > 0.0f) {
-            motorOutput = sqrtf(motorOutput * thrustLinearizationReciprocal +
-                                thrustLinearizationB * thrustLinearizationB) - thrustLinearizationB;
-        }
-    }
-    return motorOutput;
-}
-#endif
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
 {
