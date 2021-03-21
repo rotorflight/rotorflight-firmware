@@ -136,7 +136,6 @@ typedef struct pidProfile_s {
     uint16_t dyn_lpf_dterm_max_hz;
     uint8_t use_integrated_yaw;             // Selects whether the yaw pidsum should integrated
     uint8_t integrated_yaw_relax;           // Specifies how much integrated yaw should be reduced to offset the drag based yaw component
-    uint8_t thrustLinearization;            // Compensation factor for pid linearization
     uint8_t d_min[XYZ_AXIS_COUNT];          // Minimum D value on each axis
     uint8_t d_min_gain;                     // Gain factor for amount of gyro / setpoint activity required to boost D
     uint8_t d_min_advance;                  // Percentage multiplier for setpoint input to boost algorithm
@@ -199,10 +198,6 @@ void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
 void pidInitSetpointDerivativeLpf(uint16_t filterCutoff, uint8_t debugAxis, uint8_t filterType);
 void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
-#ifdef USE_THRUST_LINEARIZATION
-float pidApplyThrustLinearization(float motorValue);
-float pidCompensateThrustLinearization(float throttle);
-#endif
 #ifdef USE_AIRMODE_LPF
 void pidUpdateAirmodeLpf(float currentOffset);
 float pidGetAirmodeThrottleOffset();
