@@ -332,7 +332,7 @@ bool blackboxDeviceOpen(void)
                 blackboxMaxHeaderBytesPerIteration = BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION;
                 break;
             default:
-                blackboxMaxHeaderBytesPerIteration = constrain((targetPidLooptime * 3) / 500, 1, BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION);
+                blackboxMaxHeaderBytesPerIteration = constrain((pidGetLooptime() * 3) / 500, 1, BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION);
                 break;
             };
 
