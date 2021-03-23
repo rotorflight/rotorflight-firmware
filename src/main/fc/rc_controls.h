@@ -121,6 +121,7 @@ typedef union rcSmoothingFilterTypes_u {
 typedef struct rcSmoothingFilter_s {
     bool filterInitialized;
     rcSmoothingFilterTypes_t filter[5];
+    rcSmoothingFilterTypes_t derivativeFilter[3];
     rcSmoothingInputFilter_e inputFilterType;
     uint8_t inputCutoffSetting;
     uint16_t inputCutoffFrequency;

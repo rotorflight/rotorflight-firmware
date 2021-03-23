@@ -390,14 +390,40 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
     if ((rcSmoothingData.derivativeFilterType != RC_SMOOTHING_DERIVATIVE_OFF)
         && (currentPidProfile->ff_interpolate_sp == FF_INTERPOLATE_OFF)
         && (rcSmoothingData.derivativeCutoffSetting == 0)) {
-
         smoothingData->derivativeCutoffFrequency = calcRcSmoothingCutoff(smoothingData->averageFrameTimeUs, (smoothingData->derivativeFilterType == RC_SMOOTHING_DERIVATIVE_PT1), smoothingData->autoSmoothnessFactor);
     }
 
     if (!smoothingData->filterInitialized) {
-        pidInitSetpointDerivativeLpf(smoothingData->derivativeCutoffFrequency, smoothingData->debugAxis, smoothingData->derivativeFilterType);
-    } else if (smoothingData->derivativeCutoffFrequency != oldCutoff) {
-        pidUpdateSetpointDerivativeLpf(smoothingData->derivativeCutoffFrequency);
+        if (smoothingData->derivativeCutoffFrequency > 0) {
+            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
+                switch (smoothingData->derivativeFilterType) {
+                    case RC_SMOOTHING_DERIVATIVE_PT1:
+                        pt1FilterInit(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
+                        break;
+                    case RC_SMOOTHING_DERIVATIVE_BIQUAD:
+                        biquadFilterInitLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, targetPidLooptime);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+    else if (smoothingData->derivativeCutoffFrequency != oldCutoff) {
+        if (smoothingData->derivativeCutoffFrequency) {
+            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
+                switch (smoothingData->derivativeFilterType) {
+                    case RC_SMOOTHING_DERIVATIVE_PT1:
+                        pt1FilterUpdateCutoff(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
+                        break;
+                    case RC_SMOOTHING_DERIVATIVE_BIQUAD:
+                        biquadFilterUpdateLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, targetPidLooptime);
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
     }
 }
 
@@ -591,7 +617,6 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
                     case RC_SMOOTHING_INPUT_PT1:
                         rcCommand[updatedChannel] = pt1FilterApply((pt1Filter_t*) &rcSmoothingData.filter[updatedChannel], lastRxData[updatedChannel]);
                         break;
-
                     case RC_SMOOTHING_INPUT_BIQUAD:
                     default:
                         rcCommand[updatedChannel] = biquadFilterApplyDF1((biquadFilter_t*) &rcSmoothingData.filter[updatedChannel], lastRxData[updatedChannel]);
@@ -606,6 +631,30 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
 
     return interpolationChannels;
 }
+
+float FAST_CODE rcSmoothingApplyDerivativeFilter(int axis, float setpointDelta)
+{
+    if (axis == rcSmoothingData.debugAxis) {
+        DEBUG_SET(DEBUG_RC_SMOOTHING, 1, lrintf(setpointDelta * 100.0f));
+    }
+    if (rcSmoothingData.filterInitialized) {
+        switch (rcSmoothingData.derivativeFilterType) {
+            case RC_SMOOTHING_DERIVATIVE_PT1:
+                setpointDelta = pt1FilterApply(&rcSmoothingData.derivativeFilter[axis].pt1Filter, setpointDelta);
+                break;
+            case RC_SMOOTHING_DERIVATIVE_BIQUAD:
+                setpointDelta = biquadFilterApplyDF1(&rcSmoothingData.derivativeFilter[axis].biquadFilter, setpointDelta);
+                break;
+            default:
+                break;
+        }
+        if (axis == rcSmoothingData.debugAxis) {
+            DEBUG_SET(DEBUG_RC_SMOOTHING, 2, lrintf(setpointDelta * 100.0f));
+        }
+    }
+    return setpointDelta;
+}
+
 #endif // USE_RC_SMOOTHING_FILTER
 
 FAST_CODE void processRcCommand(void)
