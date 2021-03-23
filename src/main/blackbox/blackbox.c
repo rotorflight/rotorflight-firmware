@@ -1964,7 +1964,7 @@ void blackboxInit(void)
     // an I-frame is written every 32ms
     // blackboxUpdate() is run in synchronisation with the PID loop
     // targetPidLooptime is 1000 for 1kHz loop, 500 for 2kHz loop etc, targetPidLooptime is rounded for short looptimes
-    blackboxIInterval = (uint16_t)(32 * 1000 / targetPidLooptime);
+    blackboxIInterval = (uint16_t)(32 * 1000 / pidGetLooptime());
 
     // by default p_ratio is 32 and a P-frame is written every 1ms
     // if p_ratio is zero then no P-frames are logged

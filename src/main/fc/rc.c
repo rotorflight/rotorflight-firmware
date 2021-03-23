@@ -270,7 +270,7 @@ static FAST_CODE uint8_t processRcInterpolation(void)
         }
 
         if (isRxDataNew && rxRefreshRate > 0) {
-            rcInterpolationStepCount = rxRefreshRate / targetPidLooptime;
+            rcInterpolationStepCount = rxRefreshRate / pidGetLooptime();
 
             for (int channel = 0; channel < PRIMARY_CHANNEL_COUNT; channel++) {
                 if ((1 << channel) & interpolationChannels) {
@@ -351,7 +351,8 @@ static FAST_CODE bool rcSmoothingRxRateValid(int currentRxRefreshRate)
 // the auto-calculated cutoff frequency based on detected rx frame rate.
 FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothingData)
 {
-    const float dT = targetPidLooptime * 1e-6f;
+    const float dT = pidGetDT();
+    const uint32_t pidLooptime = pidGetLooptime();
     uint16_t oldCutoff = smoothingData->inputCutoffFrequency;
 
     if (smoothingData->inputCutoffSetting == 0) {
@@ -375,9 +376,9 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                     case RC_SMOOTHING_INPUT_BIQUAD:
                     default:
                         if (!smoothingData->filterInitialized) {
-                            biquadFilterInitLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, targetPidLooptime);
+                            biquadFilterInitLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
                         } else {
-                            biquadFilterUpdateLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, targetPidLooptime);
+                            biquadFilterUpdateLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
                         }
                         break;
                 }
@@ -401,7 +402,7 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                         pt1FilterInit(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
                         break;
                     case RC_SMOOTHING_DERIVATIVE_BIQUAD:
-                        biquadFilterInitLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, targetPidLooptime);
+                        biquadFilterInitLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
                         break;
                     default:
                         break;
@@ -417,7 +418,7 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                         pt1FilterUpdateCutoff(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
                         break;
                     case RC_SMOOTHING_DERIVATIVE_BIQUAD:
-                        biquadFilterUpdateLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, targetPidLooptime);
+                        biquadFilterUpdateLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
                         break;
                     default:
                         break;
@@ -548,7 +549,7 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
 
             // If the filter cutoffs are set to auto and we have good rx data, then determine the average rx frame rate
             // and use that to calculate the filter cutoff frequencies
-            if ((currentTimeMs > RC_SMOOTHING_FILTER_STARTUP_DELAY_MS) && (targetPidLooptime > 0)) { // skip during FC initialization
+            if ((currentTimeMs > RC_SMOOTHING_FILTER_STARTUP_DELAY_MS) && (pidGetLooptime() > 0)) { // skip during FC initialization
                 if (rxIsReceivingSignal()  && rcSmoothingRxRateValid(currentRxRefreshRate)) {
 
                     // set the guard time expiration if it's not set

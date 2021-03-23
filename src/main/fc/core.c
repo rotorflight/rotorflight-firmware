@@ -782,7 +782,7 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
         static uint32_t previousUpdateTime;
         const uint32_t currentDeltaTime = startTime - previousUpdateTime;
         debug[2] = currentDeltaTime;
-        debug[3] = currentDeltaTime - targetPidLooptime;
+        debug[3] = currentDeltaTime - pidGetLooptime();
         previousUpdateTime = startTime;
     } else if (debugMode == DEBUG_PIDLOOP) {
         startTime = micros();

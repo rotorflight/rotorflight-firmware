@@ -155,8 +155,6 @@ extern const char pidNames[];
 
 extern pidAxisData_t pidData[3];
 
-extern uint32_t targetPidLooptime;
-
 void resetPidProfile(pidProfile_t *profile);
 
 void pidResetIterm(void);
@@ -183,3 +181,4 @@ float calcHorizonLevelStrength(void);
 float pidGetPreviousSetpoint(int axis);
 float pidGetDT();
 float pidGetPidFrequency();
+uint32_t pidGetLooptime();
