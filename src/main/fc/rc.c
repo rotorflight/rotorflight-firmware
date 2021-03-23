@@ -59,14 +59,10 @@
 typedef float (applyRatesFn)(const int axis, float rcCommandf, const float rcCommandfAbs);
 
 #ifdef USE_INTERPOLATED_SP
-// Setpoint in degrees/sec before RC-Smoothing is applied
-static float rawSetpoint[XYZ_AXIS_COUNT];
-// Stick deflection [-1.0, 1.0] before RC-Smoothing is applied
-static float rawDeflection[XYZ_AXIS_COUNT];
-static float oldRcCommand[XYZ_AXIS_COUNT];
+static float rawSetpoint[XYZ_AXIS_COUNT];             // Setpoint in degrees/sec before RC-Smoothing is applied
 #endif
+
 static float setpointRate[3], rcDeflection[3], rcDeflectionAbs[3];
-static bool reverseMotors = false;
 static applyRatesFn *applyRates;
 static uint16_t currentRxRefreshRate;
 static bool isRxDataNew = false;
@@ -86,10 +82,13 @@ static FAST_RAM_ZERO_INIT uint32_t rcFrameNumber;
 #define RC_SMOOTHING_RX_RATE_CHANGE_PERCENT     20    // Look for samples varying this much from the current detected frame rate to initiate retraining
 #define RC_SMOOTHING_RX_RATE_MIN_US             1000  // 1ms
 #define RC_SMOOTHING_RX_RATE_MAX_US             50000 // 50ms or 20hz
+
 #define RC_SMOOTHING_INTERPOLATED_FEEDFORWARD_DERIVATIVE_PT1_HZ 100 // The value to use for "auto" when interpolated feedforward is enabled
 
 static FAST_RAM_ZERO_INIT rcSmoothingFilter_t rcSmoothingData;
+
 #endif // USE_RC_SMOOTHING_FILTER
+
 
 uint32_t getRcFrameNumber()
 {
@@ -116,12 +115,6 @@ float getRawSetpoint(int axis)
 {
     return rawSetpoint[axis];
 }
-
-float getRawDeflection(int axis)
-{
-    return rawDeflection[axis];
-}
-
 #endif
 
 #define SETPOINT_RATE_LIMIT 1998
@@ -300,7 +293,6 @@ static FAST_CODE uint8_t processRcInterpolation(void)
     DEBUG_SET(DEBUG_RC_INTERPOLATION, 2, rcInterpolationStepCount);
 
     return updatedChannel;
-
 }
 
 void updateRcRefreshRate(timeUs_t currentTimeUs)
@@ -630,7 +622,7 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
         }
     }
 
-    return interpolationChannels;
+    return updatedChannel;
 }
 
 float FAST_CODE rcSmoothingApplyDerivativeFilter(int axis, float setpointDelta)
@@ -660,7 +652,7 @@ float FAST_CODE rcSmoothingApplyDerivativeFilter(int axis, float setpointDelta)
 
 FAST_CODE void processRcCommand(void)
 {
-    uint8_t updatedChannel;
+    uint8_t updatedChannel = 0;
 
     if (isRxDataNew) {
         rcFrameNumber++;
@@ -669,16 +661,13 @@ FAST_CODE void processRcCommand(void)
 #ifdef USE_INTERPOLATED_SP
     if (isRxDataNew) {
         for (int i = FD_ROLL; i <= FD_YAW; i++) {
-            oldRcCommand[i] = rcCommand[i];
             float rcCommandf;
             if (i == FD_YAW) {
                 rcCommandf = rcCommand[i] / rcCommandYawDivider;
             } else {
                 rcCommandf = rcCommand[i] / rcCommandDivider;
             }
-            const float rcCommandfAbs = fabsf(rcCommandf);
-            rawSetpoint[i] = applyRates(i, rcCommandf, rcCommandfAbs);
-            rawDeflection[i] = rcCommandf;
+            rawSetpoint[i] = applyRates(i, rcCommandf, fabsf(rcCommandf));
         }
     }
 #endif
@@ -696,18 +685,9 @@ FAST_CODE void processRcCommand(void)
     }
 
     if (isRxDataNew || updatedChannel) {
-        const uint8_t maxUpdatedAxis = isRxDataNew ? FD_YAW : MIN(updatedChannel, FD_YAW); // throttle channel doesn't require rate calculation
-#if defined(SIMULATOR_BUILD)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunsafe-loop-optimizations"
-#endif
-        for (int axis = FD_ROLL; axis <= maxUpdatedAxis; axis++) {
-#if defined(SIMULATOR_BUILD)
-#pragma GCC diagnostic pop
-#endif
+        for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
             calculateSetpointRate(axis);
         }
-
         DEBUG_SET(DEBUG_RC_INTERPOLATION, 3, setpointRate[0]);
     }
 
@@ -751,11 +731,6 @@ void resetYawAxis(void)
 {
     rcCommand[YAW] = 0;
     setpointRate[YAW] = 0;
-}
-
-bool isMotorsReversed(void)
-{
-    return reverseMotors;
 }
 
 void initRcProcessing(void)
