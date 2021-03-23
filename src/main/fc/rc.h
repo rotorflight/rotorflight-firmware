@@ -45,7 +45,6 @@ float getThrottlePIDAttenuation(void);
 void updateRcCommands(void);
 void resetYawAxis(void);
 void initRcProcessing(void);
-bool isMotorsReversed(void);
 bool rcSmoothingIsEnabled(void);
 rcSmoothingFilter_t *getRcSmoothingData(void);
 bool rcSmoothingAutoCalculate(void);
