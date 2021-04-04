@@ -20,10 +20,13 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include "voltage_ids.h"
 
-#define SLOW_VOLTAGE_TASK_FREQ_HZ 50
-#define FAST_VOLTAGE_TASK_FREQ_HZ 200
+#ifndef VOLTAGE_TASK_FREQ_HZ
+#define VOLTAGE_TASK_FREQ_HZ 50
+#endif
 
 //
 // meters
