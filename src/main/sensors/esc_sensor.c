@@ -101,8 +101,7 @@ typedef enum {
 
 typedef enum {
     ESC_SENSOR_TRIGGER_STARTUP = 0,
-    ESC_SENSOR_TRIGGER_READY = 1,
-    ESC_SENSOR_TRIGGER_PENDING = 2
+    ESC_SENSOR_TRIGGER_PENDING = 1,
 } escSensorTriggerState_t;
 
 #define ESC_SENSOR_BAUDRATE 115200
@@ -303,6 +302,17 @@ static void selectNextMotor(void)
     }
 }
 
+static void setRequest(timeMs_t currentTimeMs)
+{
+    startEscDataRead(telemetryBuffer, TELEMETRY_FRAME_SIZE);
+    getMotorDmaOutput(escSensorMotor)->protocolControl.requestTelemetry = true;
+
+    escSensorTriggerState = ESC_SENSOR_TRIGGER_PENDING;
+    escTriggerTimestamp = currentTimeMs;
+
+    DEBUG_SET(DEBUG_ESC_SENSOR, DEBUG_ESC_MOTOR_INDEX, escSensorMotor + 1);
+}
+
 // XXX Review ESC sensor under refactored motor handling
 
 void escSensorProcess(timeUs_t currentTimeUs)
@@ -317,36 +327,22 @@ void escSensorProcess(timeUs_t currentTimeUs)
         case ESC_SENSOR_TRIGGER_STARTUP:
             // Wait period of time before requesting telemetry (let the system boot first)
             if (currentTimeMs >= ESC_BOOTTIME) {
-                escSensorTriggerState = ESC_SENSOR_TRIGGER_READY;
+                setRequest(currentTimeMs);
             }
-
             break;
-        case ESC_SENSOR_TRIGGER_READY:
-            escTriggerTimestamp = currentTimeMs;
 
-            startEscDataRead(telemetryBuffer, TELEMETRY_FRAME_SIZE);
-            motorDmaOutput_t * const motor = getMotorDmaOutput(escSensorMotor);
-            motor->protocolControl.requestTelemetry = true;
-            escSensorTriggerState = ESC_SENSOR_TRIGGER_PENDING;
-
-            DEBUG_SET(DEBUG_ESC_SENSOR, DEBUG_ESC_MOTOR_INDEX, escSensorMotor + 1);
-
-            break;
         case ESC_SENSOR_TRIGGER_PENDING:
             if (currentTimeMs < escTriggerTimestamp + ESC_REQUEST_TIMEOUT) {
                 uint8_t state = decodeEscFrame();
                 switch (state) {
                     case ESC_SENSOR_FRAME_COMPLETE:
                         selectNextMotor();
-                        escSensorTriggerState = ESC_SENSOR_TRIGGER_READY;
-
+                        setRequest(currentTimeMs);
                         break;
                     case ESC_SENSOR_FRAME_FAILED:
                         increaseDataAge();
-
                         selectNextMotor();
-                        escSensorTriggerState = ESC_SENSOR_TRIGGER_READY;
-
+                        setRequest(currentTimeMs);
                         DEBUG_SET(DEBUG_ESC_SENSOR, DEBUG_ESC_NUM_CRC_ERRORS, ++totalCrcErrorCount);
                         break;
                     case ESC_SENSOR_FRAME_PENDING:
@@ -355,13 +351,10 @@ void escSensorProcess(timeUs_t currentTimeUs)
             } else {
                 // Move on to next ESC, we'll come back to this one
                 increaseDataAge();
-
                 selectNextMotor();
-                escSensorTriggerState = ESC_SENSOR_TRIGGER_READY;
-
+                setRequest(currentTimeMs);
                 DEBUG_SET(DEBUG_ESC_SENSOR, DEBUG_ESC_NUM_TIMEOUTS, ++totalTimeoutCount);
             }
-
             break;
     }
 }
