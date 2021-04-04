@@ -134,7 +134,7 @@ currentMeterADCState_t currentMeterADCState;
 void currentMeterADCInit(void)
 {
     memset(&currentMeterADCState, 0, sizeof(currentMeterADCState_t));
-    pt1FilterInit(&adciBatFilter, pt1FilterGain(GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod), HZ_TO_INTERVAL(50)));
+    pt1FilterInit(&adciBatFilter, pt1FilterGain(GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod), HZ_TO_INTERVAL(CURRENT_TASK_FREQ_HZ)));
 }
 
 void currentMeterADCRefresh(int32_t lastUpdateAt)

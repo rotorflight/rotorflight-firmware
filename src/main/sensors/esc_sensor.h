@@ -20,7 +20,13 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include "common/time.h"
+
+#ifndef ESC_SENSOR_TASK_FREQ_HZ
+#define ESC_SENSOR_TASK_FREQ_HZ 50
+#endif
 
 typedef struct escSensorConfig_s {
     uint8_t halfDuplex;             // Set to false to listen on the TX pin for telemetry data
