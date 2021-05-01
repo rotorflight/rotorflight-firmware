@@ -112,8 +112,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_YAW] =   { 45, 90, 0, 90 },
             [PID_LEVEL] = { 50, 50, 75, 0 },
         },
-        .dterm_notch_hz = 0,
-        .dterm_notch_cutoff = 0,
         .levelAngleLimit = 55,
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
@@ -130,22 +128,12 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 90,
         .abs_control_error_limit = 20,
         .abs_control_cutoff = 11,
-        .dterm_lowpass_hz = 150,    // NOTE: dynamic lpf is enabled by default so this setting is actually
-                                    // overridden and the static lowpass 1 is disabled. We can't set this
-                                    // value to 0 otherwise Configurator versions 10.4 and earlier will also
-                                    // reset the lowpass filter type to PT1 overriding the desired BIQUAD setting.
-        .dterm_lowpass2_hz = 150,   // second Dterm LPF ON by default
-        .dterm_filter_type = FILTER_PT1,
-        .dterm_filter2_type = FILTER_PT1,
-        .dyn_lpf_dterm_min_hz = 70,
-        .dyn_lpf_dterm_max_hz = 170,
         .profileName = { 0 },
         .ff_interpolate_sp = FF_INTERPOLATE_AVG2,
         .ff_spike_limit = 60,
         .ff_max_rate_limit = 100,
         .ff_smooth_factor = 37,
         .ff_boost = 15,
-        .dyn_lpf_curve_expo = 5,
         .yaw_cyclic_ff_gain = 0,
         .yaw_collective_ff_gain = 300,
         .yaw_collective_ff_impulse_gain = 300,
@@ -172,11 +160,6 @@ static void pidSetTargetLooptime(uint32_t pidLooptime)
 
 const angle_index_t rcAliasToAngleIndexMap[] = { AI_ROLL, AI_PITCH };
 
-typedef union dtermLowpass_u {
-    pt1Filter_t pt1Filter;
-    biquadFilter_t biquadFilter;
-} dtermLowpass_t;
-
 static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT float tailCyclicFFGain;
@@ -186,13 +169,6 @@ static FAST_RAM_ZERO_INIT float tailCollectiveImpulseFFGain;
 static FAST_RAM_ZERO_INIT float collectiveDeflectionLPF;
 static FAST_RAM_ZERO_INIT float collectiveDeflectionHPF;
 static FAST_RAM_ZERO_INIT float collectiveImpulseFilterGain;
-
-static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermNotchApplyFn;
-static FAST_RAM_ZERO_INIT biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpassApplyFn;
-static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpass2ApplyFn;
-static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass2[XYZ_AXIS_COUNT];
 
 #if defined(USE_ITERM_RELAX)
 static FAST_RAM_ZERO_INIT pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
@@ -222,94 +198,11 @@ static FAST_RAM_ZERO_INIT uint8_t rcSmoothingFilterType;
 
 void pidInitFilters(const pidProfile_t *pidProfile)
 {
-    STATIC_ASSERT(FD_YAW == 2, FD_YAW_incorrect); // ensure yaw axis is 2
-
+    UNUSED(pidProfile);
+    
     if (targetPidLooptime == 0) {
         // no looptime set, so set all the filters to null
-        dtermNotchApplyFn = nullFilterApply;
-        dtermLowpassApplyFn = nullFilterApply;
         return;
-    }
-
-    const uint32_t pidFrequencyNyquist = pidFrequency / 2; // No rounding needed
-
-    uint16_t dTermNotchHz;
-    if (pidProfile->dterm_notch_hz <= pidFrequencyNyquist) {
-        dTermNotchHz = pidProfile->dterm_notch_hz;
-    } else {
-        if (pidProfile->dterm_notch_cutoff < pidFrequencyNyquist) {
-            dTermNotchHz = pidFrequencyNyquist;
-        } else {
-            dTermNotchHz = 0;
-        }
-    }
-
-    if (dTermNotchHz != 0 && pidProfile->dterm_notch_cutoff != 0) {
-        dtermNotchApplyFn = (filterApplyFnPtr)biquadFilterApply;
-        const float notchQ = filterGetNotchQ(dTermNotchHz, pidProfile->dterm_notch_cutoff);
-        for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-            biquadFilterInit(&dtermNotch[axis], dTermNotchHz, targetPidLooptime, notchQ, FILTER_NOTCH);
-        }
-    } else {
-        dtermNotchApplyFn = nullFilterApply;
-    }
-
-    //1st Dterm Lowpass Filter
-    uint16_t dterm_lowpass_hz = pidProfile->dterm_lowpass_hz;
-
-#ifdef USE_DYN_LPF
-    if (pidProfile->dyn_lpf_dterm_min_hz) {
-        dterm_lowpass_hz = pidProfile->dyn_lpf_dterm_min_hz;
-    }
-#endif
-
-    if (dterm_lowpass_hz > 0 && dterm_lowpass_hz < pidFrequencyNyquist) {
-        switch (pidProfile->dterm_filter_type) {
-        case FILTER_PT1:
-            dtermLowpassApplyFn = (filterApplyFnPtr)pt1FilterApply;
-            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-                pt1FilterInit(&dtermLowpass[axis].pt1Filter, pt1FilterGain(dterm_lowpass_hz, dT));
-            }
-            break;
-        case FILTER_BIQUAD:
-#ifdef USE_DYN_LPF
-            dtermLowpassApplyFn = (filterApplyFnPtr)biquadFilterApplyDF1;
-#else
-            dtermLowpassApplyFn = (filterApplyFnPtr)biquadFilterApply;
-#endif
-            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-                biquadFilterInitLPF(&dtermLowpass[axis].biquadFilter, dterm_lowpass_hz, targetPidLooptime);
-            }
-            break;
-        default:
-            dtermLowpassApplyFn = nullFilterApply;
-            break;
-        }
-    } else {
-        dtermLowpassApplyFn = nullFilterApply;
-    }
-
-    //2nd Dterm Lowpass Filter
-    if (pidProfile->dterm_lowpass2_hz == 0 || pidProfile->dterm_lowpass2_hz > pidFrequencyNyquist) {
-    	dtermLowpass2ApplyFn = nullFilterApply;
-    } else {
-        switch (pidProfile->dterm_filter2_type) {
-        case FILTER_PT1:
-            dtermLowpass2ApplyFn = (filterApplyFnPtr)pt1FilterApply;
-            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-                pt1FilterInit(&dtermLowpass2[axis].pt1Filter, pt1FilterGain(pidProfile->dterm_lowpass2_hz, dT));
-            }
-            break;
-        case FILTER_BIQUAD:
-            dtermLowpass2ApplyFn = (filterApplyFnPtr)biquadFilterApply;
-            for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-                biquadFilterInitLPF(&dtermLowpass2[axis].biquadFilter, pidProfile->dterm_lowpass2_hz, targetPidLooptime);
-            }
-            break;
-        default:
-            dtermLowpass2ApplyFn = nullFilterApply;
-            break;
-        }
     }
 
 #if defined(USE_ITERM_RELAX)
@@ -397,13 +290,6 @@ static FAST_RAM_ZERO_INIT int acroTrainerAxisState[2];  // only need roll and pi
 static FAST_RAM_ZERO_INIT float acroTrainerGain;
 #endif // USE_ACRO_TRAINER
 
-#ifdef USE_DYN_LPF
-static FAST_RAM uint8_t dynLpfFilter = DYN_LPF_NONE;
-static FAST_RAM_ZERO_INIT uint16_t dynLpfMin;
-static FAST_RAM_ZERO_INIT uint16_t dynLpfMax;
-static FAST_RAM_ZERO_INIT uint8_t dynLpfCurveExpo;
-#endif
-
 #ifdef USE_INTERPOLATED_SP
 static FAST_RAM_ZERO_INIT bool spInterpolation;
 #endif
@@ -463,27 +349,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidCoefficient[FD_ROLL].Ki  = MAX(0.0f, pidCoefficient[FD_ROLL].Ki  + rollCorrection);
     pidCoefficient[FD_PITCH].Ki = MAX(0.0f, pidCoefficient[FD_PITCH].Ki + pitchCorrection);
     pidCoefficient[FD_YAW].Ki   = MAX(0.0f, pidCoefficient[FD_YAW].Ki   + yawCorrection);
-#endif
-
-#ifdef USE_DYN_LPF
-    if (pidProfile->dyn_lpf_dterm_min_hz > 0) {
-        switch (pidProfile->dterm_filter_type) {
-        case FILTER_PT1:
-            dynLpfFilter = DYN_LPF_PT1;
-            break;
-        case FILTER_BIQUAD:
-            dynLpfFilter = DYN_LPF_BIQUAD;
-            break;
-        default:
-            dynLpfFilter = DYN_LPF_NONE;
-            break;
-        }
-    } else {
-        dynLpfFilter = DYN_LPF_NONE;
-    }
-    dynLpfMin = pidProfile->dyn_lpf_dterm_min_hz;
-    dynLpfMax = pidProfile->dyn_lpf_dterm_max_hz;
-    dynLpfCurveExpo = pidProfile->dyn_lpf_curve_expo;
 #endif
 
 #ifdef USE_INTERPOLATED_SP
@@ -864,15 +729,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     gpsRescuePreviousState = gpsRescueIsActive;
 #endif
 
-    // Precalculate gyro deta for D-term here, this allows loop unrolling
-    float gyroRateDterm[XYZ_AXIS_COUNT];
-    for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        gyroRateDterm[axis] = gyro.gyroADCf[axis];
-        gyroRateDterm[axis] = dtermNotchApplyFn((filter_t *) &dtermNotch[axis], gyroRateDterm[axis]);
-        gyroRateDterm[axis] = dtermLowpassApplyFn((filter_t *) &dtermLowpass[axis], gyroRateDterm[axis]);
-        gyroRateDterm[axis] = dtermLowpass2ApplyFn((filter_t *) &dtermLowpass2[axis], gyroRateDterm[axis]);
-    }
-
     rotateItermAndAxisError();
 
     // ----------PID controller----------
@@ -955,20 +811,20 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         // -----calculate D component
         if (pidCoefficient[axis].Kd > 0) {
-
             // Divide rate change by dT to get differential (ie dr/dt).
             // dT is fixed and calculated from the target PID loop time
             // This is done to avoid DTerm spikes that occur with dynamically
             // calculated deltaT whenever another task causes the PID
             // loop execution to be delayed.
+            float gyroRateDterm = gyro.gyroDtermADCf[axis];
             const float delta =
-                - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidFrequency;
+                - (gyroRateDterm - previousGyroRateDterm[axis]) * pidFrequency;
 
             pidData[axis].D = pidCoefficient[axis].Kd * delta;
+            previousGyroRateDterm[axis] = gyroRateDterm;
         } else {
             pidData[axis].D = 0;
         }
-        previousGyroRateDterm[axis] = gyroRateDterm[axis];
 
         // -----calculate feedforward component
 #ifdef USE_ABSOLUTE_CONTROL
@@ -1035,37 +891,6 @@ void pidSetAcroTrainerState(bool newState)
     }
 }
 #endif // USE_ACRO_TRAINER
-
-#ifdef USE_DYN_LPF
-void dynLpfDTermUpdate(float throttle)
-{
-    static unsigned int cutoffFreq;
-    if (dynLpfFilter != DYN_LPF_NONE) {
-        if (dynLpfCurveExpo > 0) {
-            cutoffFreq = dynDtermLpfCutoffFreq(throttle, dynLpfMin, dynLpfMax, dynLpfCurveExpo);
-        } else {
-            cutoffFreq = fmax(dynThrottle(throttle) * dynLpfMax, dynLpfMin);
-        }
-
-         if (dynLpfFilter == DYN_LPF_PT1) {
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                pt1FilterUpdateCutoff(&dtermLowpass[axis].pt1Filter, pt1FilterGain(cutoffFreq, dT));
-            }
-        } else if (dynLpfFilter == DYN_LPF_BIQUAD) {
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                biquadFilterUpdateLPF(&dtermLowpass[axis].biquadFilter, cutoffFreq, targetPidLooptime);
-            }
-        }
-    }
-}
-#endif
-
-float dynDtermLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, uint8_t expo) {
-    const float expof = expo / 10.0f;
-    static float curve;
-    curve = throttle * (1 - throttle) * expof + throttle;
-    return (dynLpfMax - dynLpfMin) * curve + dynLpfMin;
-}
 
 float pidGetPreviousSetpoint(int axis)
 {

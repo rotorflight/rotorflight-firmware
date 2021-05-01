@@ -472,7 +472,6 @@ static uint16_t dynFiltGyroMin;
 static uint16_t dynFiltGyroMax;
 static uint16_t dynFiltDtermMin;
 static uint16_t dynFiltDtermMax;
-static uint8_t dynFiltDtermExpo;
 #endif
 
 static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
@@ -486,12 +485,10 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
     dynFiltNotchMinHz   = gyroConfig()->dyn_notch_min_hz;
 #endif
 #ifdef USE_DYN_LPF
-    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
     dynFiltGyroMin  = gyroConfig()->dyn_lpf_gyro_min_hz;
     dynFiltGyroMax  = gyroConfig()->dyn_lpf_gyro_max_hz;
-    dynFiltDtermMin = pidProfile->dyn_lpf_dterm_min_hz;
-    dynFiltDtermMax = pidProfile->dyn_lpf_dterm_max_hz;
-    dynFiltDtermExpo = pidProfile->dyn_lpf_curve_expo;
+    dynFiltDtermMin = gyroConfig()->dyn_lpf_dterm_min_hz;
+    dynFiltDtermMax = gyroConfig()->dyn_lpf_dterm_max_hz;
 #endif
 
     return NULL;
@@ -509,12 +506,10 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
     gyroConfigMutable()->dyn_notch_min_hz        = dynFiltNotchMinHz;
 #endif
 #ifdef USE_DYN_LPF
-    pidProfile_t *pidProfile = currentPidProfile;
-    gyroConfigMutable()->dyn_lpf_gyro_min_hz = dynFiltGyroMin;
-    gyroConfigMutable()->dyn_lpf_gyro_max_hz = dynFiltGyroMax;
-    pidProfile->dyn_lpf_dterm_min_hz         = dynFiltDtermMin;
-    pidProfile->dyn_lpf_dterm_max_hz         = dynFiltDtermMax;
-    pidProfile->dyn_lpf_curve_expo           = dynFiltDtermExpo;
+    gyroConfigMutable()->dyn_lpf_gyro_min_hz  = dynFiltGyroMin;
+    gyroConfigMutable()->dyn_lpf_gyro_max_hz  = dynFiltGyroMax;
+    gyroConfigMutable()->dyn_lpf_dterm_min_hz = dynFiltDtermMin;
+    gyroConfigMutable()->dyn_lpf_dterm_max_hz = dynFiltDtermMax;
 #endif
 
     return NULL;
@@ -536,7 +531,6 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
     { "LPF GYRO MAX",   OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltGyroMax,  0, 1000, 1 }, 0 },
     { "DTERM DLPF MIN", OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltDtermMin, 0, 1000, 1 }, 0 },
     { "DTERM DLPF MAX", OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltDtermMax, 0, 1000, 1 }, 0 },
-    { "DTERM DLPF EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &dynFiltDtermExpo, 0, 10, 1 }, 0 },
 #endif
 
     { "BACK", OME_Back, NULL, NULL, 0 },
@@ -565,12 +559,10 @@ static const void *cmsx_FilterPerProfileRead(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
-    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
-
-    cmsx_dterm_lowpass_hz   = pidProfile->dterm_lowpass_hz;
-    cmsx_dterm_lowpass2_hz  = pidProfile->dterm_lowpass2_hz;
-    cmsx_dterm_notch_hz     = pidProfile->dterm_notch_hz;
-    cmsx_dterm_notch_cutoff = pidProfile->dterm_notch_cutoff;
+    cmsx_dterm_lowpass_hz   = gyroConfig()->dterm_lowpass_hz;
+    cmsx_dterm_lowpass2_hz  = gyroConfig()->dterm_lowpass2_hz;
+    cmsx_dterm_notch_hz     = gyroConfig()->dterm_notch_hz;
+    cmsx_dterm_notch_cutoff = gyroConfig()->dterm_notch_cutoff;
 
     return NULL;
 }
@@ -580,12 +572,10 @@ static const void *cmsx_FilterPerProfileWriteback(displayPort_t *pDisp, const OS
     UNUSED(pDisp);
     UNUSED(self);
 
-    pidProfile_t *pidProfile = currentPidProfile;
-
-    pidProfile->dterm_lowpass_hz   = cmsx_dterm_lowpass_hz;
-    pidProfile->dterm_lowpass2_hz  = cmsx_dterm_lowpass2_hz;
-    pidProfile->dterm_notch_hz     = cmsx_dterm_notch_hz;
-    pidProfile->dterm_notch_cutoff = cmsx_dterm_notch_cutoff;
+    gyroConfigMutable()->dterm_lowpass_hz   = cmsx_dterm_lowpass_hz;
+    gyroConfigMutable()->dterm_lowpass2_hz  = cmsx_dterm_lowpass2_hz;
+    gyroConfigMutable()->dterm_notch_hz     = cmsx_dterm_notch_hz;
+    gyroConfigMutable()->dterm_notch_cutoff = cmsx_dterm_notch_cutoff;
 
     return NULL;
 }
