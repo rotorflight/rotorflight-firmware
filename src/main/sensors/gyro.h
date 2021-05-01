@@ -38,6 +38,8 @@
 
 #define FILTER_FREQUENCY_MAX 4000 // maximum frequency for filter cutoffs (nyquist limit of 8K max sampling)
 
+#define DYN_LPF_UPDATE_DELAY_US 5000
+
 typedef union gyroLowpassFilter_u {
     pt1Filter_t pt1FilterState;
     biquadFilter_t biquadFilterState;
@@ -71,6 +73,7 @@ typedef struct gyro_s {
     float scale;
     float gyroADC[XYZ_AXIS_COUNT];     // aligned, calibrated, scaled, but unfiltered data from the sensor(s)
     float gyroADCf[XYZ_AXIS_COUNT];    // filtered gyro data
+    float gyroDtermADCf[XYZ_AXIS_COUNT]; // filtered gyro data for D-term
     uint8_t sampleCount;               // gyro sensor sample counter
     float sampleSum[XYZ_AXIS_COUNT];   // summed samples used for downsampling
     bool downsampleFilterEnabled;      // if true then downsample using gyro lowpass 2, otherwise use averaging
@@ -101,6 +104,21 @@ typedef struct gyro_s {
     filterApplyFnPtr notchFilterDynApplyFn2;
     biquadFilter_t notchFilterDyn[XYZ_AXIS_COUNT];
     biquadFilter_t notchFilterDyn2[XYZ_AXIS_COUNT];
+
+    // D-term filters
+    filterApplyFnPtr dtermNotchApplyFn;
+    biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
+
+    filterApplyFnPtr dtermLowpassApplyFn;
+    gyroLowpassFilter_t dtermLowpassFilter[XYZ_AXIS_COUNT];
+    filterApplyFnPtr dtermLowpass2ApplyFn;
+    gyroLowpassFilter_t dtermLowpass2Filter[XYZ_AXIS_COUNT];
+
+#ifdef USE_DYN_LPF
+    uint8_t  dynLpfDtermFilter;
+    uint16_t dynLpfDtermMin;
+    uint16_t dynLpfDtermMax;
+#endif
 
 #ifdef USE_GYRO_DATA_ANALYSE
     gyroAnalyseState_t gyroAnalyseState;
@@ -146,15 +164,22 @@ enum {
 
 enum {
     FILTER_LOWPASS = 0,
-    FILTER_LOWPASS2
+    FILTER_LOWPASS2,
+    FILTER_DTERM_LOWPASS,
+    FILTER_DTERM_LOWPASS2,
 };
 
 typedef struct gyroConfig_s {
-    uint8_t  gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
-    uint8_t  gyro_hardware_lpf;                // gyro DLPF setting
 
+    uint8_t  gyrosDetected;                     // What gyros should detection be attempted for on startup. Automatically set on first startup.
+
+    uint8_t  gyroMovementCalibrationThreshold;  // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
+    uint16_t gyroCalibrationDuration;           // Gyro calibration duration in 1/100 second
+
+    uint8_t  gyro_hardware_lpf;
     uint8_t  gyro_high_fsr;
     uint8_t  gyro_to_use;
+    uint8_t  checkOverflow;
 
     uint16_t gyro_lowpass_hz;
     uint16_t gyro_lowpass2_hz;
@@ -164,13 +189,10 @@ typedef struct gyroConfig_s {
     uint16_t gyro_soft_notch_hz_2;
     uint16_t gyro_soft_notch_cutoff_2;
     int16_t  gyro_offset_yaw;
-    uint8_t  checkOverflow;
 
     // Lowpass primary/secondary
     uint8_t  gyro_lowpass_type;
     uint8_t  gyro_lowpass2_type;
-
-    uint16_t gyroCalibrationDuration;   // Gyro calibration duration in 1/100 second
 
     uint16_t dyn_lpf_gyro_min_hz;
     uint16_t dyn_lpf_gyro_max_hz;
@@ -180,9 +202,19 @@ typedef struct gyroConfig_s {
     uint16_t dyn_notch_q;
     uint16_t dyn_notch_min_hz;
 
+    // D-term lowpass
+    uint8_t   dterm_filter_type;              // Filter selection for dterm
+    uint16_t  dterm_lowpass_hz;               // Delta Filter in hz
+    uint8_t   dterm_filter2_type;             // Filter selection for 2nd dterm
+    uint16_t  dterm_lowpass2_hz;              // Extra PT1 Filter on D in hz
+    uint16_t  dterm_notch_hz;                 // Biquad dterm notch hz
+    uint16_t  dterm_notch_cutoff;             // Biquad dterm notch low cutoff
+
+    uint16_t  dyn_lpf_dterm_min_hz;           // Minimum freq for D-term LPF
+    uint16_t  dyn_lpf_dterm_max_hz;           // Maximum freq for D-term LPF
+
     uint8_t  gyro_filter_debug_axis;
 
-    uint8_t gyrosDetected; // What gyros should detection be attempted for on startup. Automatically set on first startup.
 } gyroConfig_t;
 
 PG_DECLARE(gyroConfig_t, gyroConfig);
@@ -198,8 +230,7 @@ int16_t gyroGetTemperature(void);
 bool gyroOverflowDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 #ifdef USE_DYN_LPF
-float dynThrottle(float throttle);
-void dynLpfGyroUpdate(float throttle);
+void dynLpfUpdate(timeUs_t currentTimeUs, float ratio);
 #endif
 #ifdef USE_GYRO_DATA_ANALYSE
 bool isDynamicFilterActive(void);

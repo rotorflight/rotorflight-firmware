@@ -747,6 +747,10 @@ static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
         startTime = micros();
     }
 
+#ifdef USE_DYN_LPF
+    dynLpfUpdate(currentTimeUs, getHeadSpeedRatio());
+#endif
+
 #ifdef USE_RPM_FILTER
     rpmFilterUpdate();
 #endif
@@ -755,8 +759,6 @@ static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
     if (!cliMode && blackboxConfig()->device) {
         blackboxUpdate(currentTimeUs);
     }
-#else
-    UNUSED(currentTimeUs);
 #endif
 
     DEBUG_SET(DEBUG_PIDLOOP, 3, micros() - startTime);
