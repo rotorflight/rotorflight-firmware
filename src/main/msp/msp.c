@@ -1691,7 +1691,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0); // was pidProfile.yaw_p_limit
         sbufWriteU8(dst, 0); // reserved
         sbufWriteU8(dst, 0); // was vbatPidCompensation
-        sbufWriteU8(dst, currentPidProfile->feedForwardTransition);
+        sbufWriteU8(dst, 0); // was currentPidProfile->feedForwardTransition
         sbufWriteU8(dst, 0); // was low byte of currentPidProfile->dtermSetpointWeight
         sbufWriteU8(dst, 0); // reserved
         sbufWriteU8(dst, 0); // reserved
@@ -2498,7 +2498,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         sbufReadU16(src); // was pidProfile.yaw_p_limit
         sbufReadU8(src); // reserved
         sbufReadU8(src); // was vbatPidCompensation
-        currentPidProfile->feedForwardTransition = sbufReadU8(src);
+        sbufReadU8(src); // was currentPidProfile->feedForwardTransition
         sbufReadU8(src); // was low byte of currentPidProfile->dtermSetpointWeight
         sbufReadU8(src); // reserved
         sbufReadU8(src); // reserved
