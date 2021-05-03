@@ -88,7 +88,6 @@ void targetConfiguration(void)
 
         pidProfile->pid[PID_PITCH].F = 200;
         pidProfile->pid[PID_ROLL].F = 200;
-        pidProfile->feedForwardTransition = 50;
     }
 
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {

@@ -292,7 +292,6 @@ static CMS_Menu cmsx_menuRateProfile = {
     .entries = cmsx_menuRateProfileEntries
 };
 
-static uint8_t  cmsx_feedForwardTransition;
 static uint8_t  cmsx_ff_boost;
 static uint8_t  cmsx_angleStrength;
 static uint8_t  cmsx_horizonStrength;
@@ -317,7 +316,6 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 
     const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
 
-    cmsx_feedForwardTransition  = pidProfile->feedForwardTransition;
     cmsx_ff_boost = pidProfile->ff_boost;
 
     cmsx_angleStrength =     pidProfile->pid[PID_LEVEL].P;
@@ -344,7 +342,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     UNUSED(self);
 
     pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
-    pidProfile->feedForwardTransition = cmsx_feedForwardTransition;
     pidInitConfig(currentPidProfile);
     pidProfile->ff_boost = cmsx_ff_boost;
 
@@ -370,7 +367,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
 static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "-- OTHER PP --", OME_Label, NULL, pidProfileIndexString, 0 },
 
-    { "FF TRANS",      OME_FLOAT,  NULL, &(OSD_FLOAT_t)  { &cmsx_feedForwardTransition,  0,    100,   1, 10 }, 0 },
 #ifdef USE_INTERPOLATED_SP
     { "FF MODE",       OME_TAB,    NULL, &(OSD_TAB_t)    { &cmsx_ff_interpolate_sp,  4, lookupTableInterpolatedSetpoint}, 0 },
     { "FF SMOOTHNESS", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_ff_smooth_factor,     0,     75,   1  }   , 0 },

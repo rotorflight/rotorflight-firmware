@@ -130,7 +130,6 @@ void targetConfiguration(void)
         pidProfile->dterm_notch_hz = 0;
         pidProfile->pid[PID_PITCH].F = 100;
         pidProfile->pid[PID_ROLL].F = 100;
-        pidProfile->feedForwardTransition = 0;
 
 	pidProfile->levelAngleLimit = 65;
     }
