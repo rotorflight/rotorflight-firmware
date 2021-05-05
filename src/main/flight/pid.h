@@ -123,6 +123,13 @@ typedef struct pidProfile_s {
     uint8_t ff_spike_limit;                 // FF stick extrapolation lookahead period in ms
     uint8_t ff_smooth_factor;               // Amount of smoothing for interpolated FF steps
     uint8_t dyn_lpf_curve_expo;             // set the curve for dynamic dterm lowpass filter
+
+    // Tail (yaw) parameters
+    uint16_t yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
+    uint16_t yaw_collective_ff_gain;         // Feedforward for collective into Yaw
+    uint16_t yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
+    uint16_t yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
+
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
