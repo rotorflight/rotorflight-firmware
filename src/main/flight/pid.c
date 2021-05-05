@@ -794,7 +794,7 @@ STATIC_UNIT_TESTED void applyAbsoluteControl(const int axis, const float gyroRat
         }
 
         // Check to ensure we are spooled up at a reasonable level
-        if (false) { // isSpooledUp()
+        if (isSpooledUp()) {
             axisError[axis] = constrainf(axisError[axis] + acErrorRate * dT, -acErrorLimit, acErrorLimit);
             const float acCorrection = constrainf(axisError[axis] * acGain, -acLimit, acLimit);
             *currentPidSetpoint += acCorrection;

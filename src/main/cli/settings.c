@@ -476,6 +476,10 @@ static const char * const lookupTableRotationDir[] = {
     "CW", "CCW",
 };
 
+static const char * const lookupTableGovernorMode[] = {
+    "OFF", "PASSTHROUGH", "STANDARD", "MODE1", "MODE2",
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -587,6 +591,7 @@ const lookupTableEntry_t lookupTables[] = {
 #endif
 
     LOOKUP_TABLE_ENTRY(lookupTableRotationDir),
+    LOOKUP_TABLE_ENTRY(lookupTableGovernorMode),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -825,6 +830,30 @@ const clivalue_t valueTable[] = {
     { "beeper_dshot_beacon_tone",   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = {1, DSHOT_CMD_BEACON5 }, PG_BEEPER_CONFIG, offsetof(beeperConfig_t, dshotBeaconTone) },
 #endif
 #endif // USE_BEEPER
+
+// PG_GOVERNOR_CONFIG
+    { "gov_mode",                   VAR_UINT8  |  MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },
+    { "gov_max_headspeed",          VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 10000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_max_headspeed) },
+    { "gov_gear_ratio",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1000, 30000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_gear_ratio) },
+    { "gov_pwr_filter",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_pwr_filter) },
+    { "gov_rpm_filter",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_rpm_filter) },
+    { "gov_gain",                   VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_gain) },
+    { "gov_p_gain",                 VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_p_gain) },
+    { "gov_i_gain",                 VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_i_gain) },
+    { "gov_d_gain",                 VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_d_gain) },
+    { "gov_f_gain",                 VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_f_gain) },
+    { "gov_cyclic_ff_weight",       VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_cyclic_ff_weight) },
+    { "gov_collective_ff_weight",   VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 500 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_collective_ff_weight) },
+    { "gov_spoolup_time",           VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 600 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_spoolup_time) },
+    { "gov_tracking_time",          VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_tracking_time) },
+    { "gov_recovery_time",          VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_recovery_time) },
+    { "gov_autorotation_timeout",   VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_autorotation_timeout) },
+    { "gov_autorotation_bailout_time", VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_autorotation_bailout_time) },
+    { "gov_autorotation_min_entry_time", VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_autorotation_min_entry_time) },
+    { "gov_lost_throttle_timeout",  VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_lost_throttle_timeout) },
+    { "gov_lost_headspeed_timeout", VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_lost_headspeed_timeout) },
+    { "gov_vbat_offset",            VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_vbat_offset) },
+    { "gov_ff_exponent",            VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_ff_exponent) },
 
 // PG_SERVO_CONFIG
 #ifdef USE_SERVOS

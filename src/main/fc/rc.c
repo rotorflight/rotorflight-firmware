@@ -738,6 +738,9 @@ void initRcProcessing(void)
     }
 
     interpolationChannels = rxConfig()->rcInterpolationChannels;
+
+    if (featureIsEnabled(FEATURE_GOVERNOR))
+        interpolationChannels &= ~THROTTLE_FLAG;
 }
 
 bool rcSmoothingIsEnabled(void)

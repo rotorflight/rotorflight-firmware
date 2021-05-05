@@ -824,6 +824,10 @@ void init(void)
     }
 #endif
 
+    if (featureIsEnabled(FEATURE_GOVERNOR)) {
+        governorInit();
+    }
+
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
 #endif
