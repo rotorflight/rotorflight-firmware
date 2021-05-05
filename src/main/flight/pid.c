@@ -978,20 +978,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         oldSetpointCorrection[axis] = setpointCorrection;
 #endif
 
-        // Only enable feedforward for rate mode (flightModeFlag=0 is acro/rate mode)
-        const float feedforwardGain = (flightModeFlags) ? 0.0f : pidCoefficient[axis].Kf;
-        if (feedforwardGain > 0) {
-            float feedForward = feedforwardGain * pidSetpointDelta * pidFrequency;
-
-#ifdef USE_INTERPOLATED_SP
-            pidData[axis].F = shouldApplyFfLimits(axis) ?
-                applyFfLimit(axis, feedForward, pidCoefficient[axis].Kp, currentPidSetpoint) : feedForward;
-#else
-            pidData[axis].F = feedForward;
-#endif
-        } else {
-            pidData[axis].F = 0;
-        }
+        // Direct stick feedforward on all axis
+        pidData[axis].F = pidCoefficient[axis].Kf * currentPidSetpoint;
 
         // calculating the PID sum
         pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
