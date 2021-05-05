@@ -38,6 +38,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/governor.h"
 
 #include "rx/rx.h"
 
@@ -130,7 +131,12 @@ static void mixerUpdateInputs(void)
 
     // No stabilization (yet)
     mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
-    mixInput[MIXER_IN_STABILIZED_THROTTLE]   = mixInput[MIXER_IN_RC_COMMAND_THROTTLE];
+
+    // Update governor sub-mixer
+    governorUpdate();
+
+    // Update throttle from governor
+    mixInput[MIXER_IN_STABILIZED_THROTTLE] = getGovernorOutput();
 
     // PID stabilized controls
     mixInput[MIXER_IN_STABILIZED_ROLL]  = pidData[FD_ROLL].Sum  * MIXER_PID_SCALING;

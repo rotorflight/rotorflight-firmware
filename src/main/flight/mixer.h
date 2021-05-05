@@ -24,6 +24,7 @@
 
 #include "flight/servos.h"
 #include "flight/motors.h"
+#include "flight/governor.h"
 #include "flight/rpm_filter.h"
 
 
