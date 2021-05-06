@@ -123,33 +123,36 @@ static float calcHorizonLevelStrength(void)
     return constrainf(horizonLevelStrength, 0, 1);
 }
 
-float pidLevelApply(int axis, float currentPidSetpoint)
+float pidLevelApply(int axis, float setPoint)
 {
-    const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
+    if (axis != FD_YAW)
+    {
+        const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 
-    // calculate error angle and limit the angle to the max inclination
-    // rcDeflection is in range [-1.0, 1.0]
-    float angle = levelAngleLimit * getRcDeflection(axis);
+        // calculate error angle and limit the angle to the max inclination
+        // rcDeflection is in range [-1.0, 1.0]
+        float angle = levelAngleLimit * getRcDeflection(axis);
 
 #ifdef USE_GPS_RESCUE
-    angle += gpsRescueAngle[axis] / 100; // ANGLE IS IN CENTIDEGREES
+        angle += gpsRescueAngle[axis] / 100; // ANGLE IS IN CENTIDEGREES
 #endif
-    angle = constrainf(angle, -levelAngleLimit, levelAngleLimit);
+        angle = constrainf(angle, -levelAngleLimit, levelAngleLimit);
 
-    const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
+        const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
 
-    if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        // Angle based control
-        currentPidSetpoint = errorAngle * levelGain;
+        if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
+            // Angle based control
+            setPoint = errorAngle * levelGain;
+        }
+        else if (FLIGHT_MODE(HORIZON_MODE)) {
+            // HORIZON mode - mix of ANGLE and ACRO modes
+            // mix in errorAngle to setPoint to add a little auto-level feel
+            const float horizonLevelStrength = calcHorizonLevelStrength();
+            setPoint += errorAngle * horizonGain * horizonLevelStrength;
+        }
     }
-    else if (FLIGHT_MODE(HORIZON_MODE)) {
-        // HORIZON mode - mix of ANGLE and ACRO modes
-        // mix in errorAngle to currentPidSetpoint to add a little auto-level feel
-        const float horizonLevelStrength = calcHorizonLevelStrength();
-        currentPidSetpoint += errorAngle * horizonGain * horizonLevelStrength;
-    }
 
-    return currentPidSetpoint;
+    return setPoint;
 }
 
 #endif // USE_ACC
