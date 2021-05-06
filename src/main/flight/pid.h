@@ -178,7 +178,7 @@ float pidLevel(int axis, const pidProfile_t *pidProfile,
     const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint);
 float calcHorizonLevelStrength(void);
 #endif
-float pidGetPreviousSetpoint(int axis);
+float pidGetSetpoint(int axis);
 float pidGetDT();
 float pidGetPidFrequency();
 uint32_t pidGetLooptime();
