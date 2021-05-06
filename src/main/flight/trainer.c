@@ -96,8 +96,7 @@ static inline int acroTrainerSign(float x)
 
 float acroTrainerApply(int axis, float setPoint)
 {
-    if (acroTrainerActive && axis != FD_YAW &&
-        (!FLIGHT_MODE(ANGLE_MODE) && !FLIGHT_MODE(HORIZON_MODE) && !FLIGHT_MODE(GPS_RESCUE_MODE)))
+    if (acroTrainerActive && axis != FD_YAW)
     {
         const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
         const float currentAngle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
