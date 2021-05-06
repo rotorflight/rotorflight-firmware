@@ -635,7 +635,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     }
 }
 
-float pidGetPreviousSetpoint(int axis)
+float pidGetSetpoint(int axis)
 {
     return previousPidSetpoint[axis];
 }

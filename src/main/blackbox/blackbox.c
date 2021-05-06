@@ -1098,7 +1098,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     // log the currentPidSetpoint values applied to the PID controller
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        blackboxCurrent->setpoint[i] = lrintf(pidGetPreviousSetpoint(i));
+        blackboxCurrent->setpoint[i] = lrintf(pidGetSetpoint(i));
     }
     // log the final throttle value used in the mixer
     blackboxCurrent->setpoint[3] = lrintf(mixerGetThrottle() * 1000);
