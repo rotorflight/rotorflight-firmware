@@ -741,13 +741,7 @@ void init(void)
     pidInit(currentPidProfile);
 
 #ifdef USE_SERVOS
-    servosInit();
-    servoConfigureOutput();
-    if (isMixerUsingServos()) {
-        //pwm_params.useChannelForwarding = featureIsEnabled(FEATURE_CHANNEL_FORWARDING);
-        servoDevInit(&servoConfig()->dev);
-    }
-    servosFilterInit();
+    servoInit();
 #endif
 
 #ifdef USE_PINIO

@@ -304,9 +304,9 @@ void pwmWriteServo(uint8_t index, float value)
     }
 }
 
-void servoDevInit(const servoDevConfig_t *servoConfig)
+void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount)
 {
-    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS; servoIndex++) {
+    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS && servoIndex < servoCount; servoIndex++) {
         const ioTag_t tag = servoConfig->ioTags[servoIndex];
 
         if (!tag) {

@@ -50,7 +50,7 @@ typedef enum {
     FEATURE_DISPLAY                = BIT(17),
     FEATURE_OSD                    = BIT(18),
     FEATURE_UNUSED_19              = BIT(19),
-    FEATURE_CHANNEL_FORWARDING     = BIT(20),
+    FEATURE_UNUSED_20              = BIT(20),
     FEATURE_UNUSED_21              = BIT(21),
     FEATURE_UNUSED_22              = BIT(22),
     FEATURE_UNUSED_23              = BIT(23),
@@ -71,6 +71,7 @@ typedef enum {
     FEATURE_UNUSED_11 | \
     FEATURE_UNUSED_12 | \
     FEATURE_UNUSED_19 | \
+    FEATURE_UNUSED_20 | \
     FEATURE_UNUSED_21 | \
     FEATURE_UNUSED_22 | \
     FEATURE_UNUSED_23 | \

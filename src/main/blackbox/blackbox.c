@@ -1099,7 +1099,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
 #ifdef USE_SERVOS
     //Tail servo for tricopters
-    blackboxCurrent->servo[5] = servo[5];
+    blackboxCurrent->servo[5] = getServoOutput(5);
 #endif
 
     for (int i = 0; i < DEBUG16_VALUE_COUNT; i++) {
