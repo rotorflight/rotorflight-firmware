@@ -56,11 +56,11 @@ static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 
 void pidLevelInit(const pidProfile_t *pidProfile)
 {
-    levelGain = pidProfile->pid[PID_LEVEL].P / 10.0f;
-    levelAngleLimit = pidProfile->levelAngleLimit;
+    levelGain = pidProfile->angle_level_strength / 10.0f;
+    levelAngleLimit = pidProfile->angle_level_limit;
 
-    horizonGain = pidProfile->pid[PID_LEVEL].I / 10.0f;
-    horizonTransition = (float)pidProfile->pid[PID_LEVEL].D;
+    horizonGain = pidProfile->horizon_level_strength / 10.0f;
+    horizonTransition = pidProfile->horizon_transition;
     horizonTiltExpertMode = pidProfile->horizon_tilt_expert_mode;
     horizonCutoffDegrees = (175 - pidProfile->horizon_tilt_effect) * 1.8f;
     horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;

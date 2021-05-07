@@ -57,7 +57,6 @@ typedef enum {
     PID_ROLL,
     PID_PITCH,
     PID_YAW,
-    PID_LEVEL,
     PID_ITEM_COUNT
 } pidIndex_e;
 
@@ -95,13 +94,16 @@ typedef struct pidProfile_s {
 
     pidf_t  pid[PID_ITEM_COUNT];
 
-    uint8_t levelAngleLimit;                // Max angle in degrees in level mode
+    uint8_t angle_level_strength;
+    uint8_t angle_level_limit;              // Max angle in degrees in level mode
 
+    uint8_t horizon_level_strength;
+    uint8_t horizon_transition;
     uint8_t horizon_tilt_effect;            // inclination factor for Horizon mode
     uint8_t horizon_tilt_expert_mode;       // OFF or ON
 
     // Betaflight PID controller parameters
-    uint16_t itermLimit;
+    uint16_t iterm_limit;
     uint8_t iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
     uint8_t iterm_relax_type;               // Specifies type of relax algorithm
     uint8_t iterm_relax_cutoff;             // This cutoff frequency specifies a low pass filter which predicts average response of the quad to setpoint

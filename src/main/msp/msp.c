@@ -1724,7 +1724,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 0); // reserved
         sbufWriteU16(dst, 0); // was currentPidProfile->rateAccelLimit
         sbufWriteU16(dst, 0); // was currentPidProfile->yawRateAccelLimit
-        sbufWriteU8(dst, currentPidProfile->levelAngleLimit);
+        sbufWriteU8(dst, currentPidProfile->angle_level_limit);
         sbufWriteU8(dst, 0); // was pidProfile.levelSensitivity
         sbufWriteU16(dst, 0); // was currentPidProfile->itermThrottleThreshold
         sbufWriteU16(dst, 0); // was currentPidProfile->itermAcceleratorGain
@@ -2549,7 +2549,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         sbufReadU16(src); // was currentPidProfile->rateAccelLimit
         sbufReadU16(src); // was currentPidProfile->yawRateAccelLimit
         if (sbufBytesRemaining(src) >= 2) {
-            currentPidProfile->levelAngleLimit = sbufReadU8(src);
+            currentPidProfile->angle_level_limit = sbufReadU8(src);
             sbufReadU8(src); // was pidProfile.levelSensitivity
         }
         if (sbufBytesRemaining(src) >= 4) {

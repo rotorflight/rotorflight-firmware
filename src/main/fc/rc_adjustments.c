@@ -553,9 +553,9 @@ static uint8_t applySelectAdjustment(adjustmentFunction_e adjustmentFunction, ui
     case ADJUSTMENT_HORIZON_STRENGTH:
         {
             uint8_t newValue = constrain(position, 0, 200); // FIXME magic numbers repeated in serial_cli.c
-            if (currentPidProfile->pid[PID_LEVEL].D != newValue) {
-                beeps = ((newValue - currentPidProfile->pid[PID_LEVEL].D) / 8) + 1;
-                currentPidProfile->pid[PID_LEVEL].D = newValue;
+            if (currentPidProfile->horizon_transition != newValue) {
+                beeps = ((newValue - currentPidProfile->horizon_transition) / 8) + 1;
+                currentPidProfile->horizon_transition = newValue;
                 blackboxLogInflightAdjustmentEvent(ADJUSTMENT_HORIZON_STRENGTH, position);
             }
         }
