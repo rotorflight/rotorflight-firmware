@@ -228,7 +228,7 @@ void motorUpdate(void)
 
     for (int i = 0; i < motorCount; i++) {
         if (ARMING_FLAG(ARMED))
-            output = 0; // mixerGetMotorOutput(i);
+            output = mixerGetMotorOutput(i);
         else
             output = motorOverride[i] / 1000.0f;
 

@@ -112,8 +112,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_YAW] =   { 45, 90, 0, 90 },
             [PID_LEVEL] = { 50, 50, 75, 0 },
         },
-        .pidSumLimit = PIDSUM_LIMIT,
-        .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
         .levelAngleLimit = 55,

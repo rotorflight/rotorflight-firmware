@@ -1,28 +1,21 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #pragma once
-
-#include "platform.h"
-
-#include "common/time.h"
 
 #include "pg/pg.h"
 
@@ -31,53 +24,123 @@
 
 #include "flight/servos.h"
 #include "flight/motors.h"
+#include "flight/rpm_filter.h"
 
-typedef enum mixerMode
+
+enum {
+    MIXER_IN_NONE = 0,
+    MIXER_IN_STABILIZED_ROLL,
+    MIXER_IN_STABILIZED_PITCH,
+    MIXER_IN_STABILIZED_YAW,
+    MIXER_IN_STABILIZED_COLLECTIVE,
+    MIXER_IN_STABILIZED_THROTTLE,
+    MIXER_IN_RC_COMMAND_ROLL,
+    MIXER_IN_RC_COMMAND_PITCH,
+    MIXER_IN_RC_COMMAND_YAW,
+    MIXER_IN_RC_COMMAND_COLLECTIVE,
+    MIXER_IN_RC_COMMAND_THROTTLE,
+    MIXER_IN_RC_CHANNEL_ROLL,
+    MIXER_IN_RC_CHANNEL_PITCH,
+    MIXER_IN_RC_CHANNEL_YAW,
+    MIXER_IN_RC_CHANNEL_COLLECTIVE,
+    MIXER_IN_RC_CHANNEL_THROTTLE,
+    MIXER_IN_RC_CHANNEL_AUX1,
+    MIXER_IN_RC_CHANNEL_AUX2,
+    MIXER_IN_RC_CHANNEL_AUX3,
+    MIXER_IN_RC_CHANNEL_9,
+    MIXER_IN_RC_CHANNEL_10,
+    MIXER_IN_RC_CHANNEL_11,
+    MIXER_IN_RC_CHANNEL_12,
+    MIXER_IN_RC_CHANNEL_13,
+    MIXER_IN_RC_CHANNEL_14,
+    MIXER_IN_RC_CHANNEL_15,
+    MIXER_IN_RC_CHANNEL_16,
+    MIXER_IN_RC_CHANNEL_17,
+    MIXER_IN_RC_CHANNEL_18,
+    MIXER_IN_COUNT
+};
+
+enum {
+    MIXER_OP_NUL = 0,
+    MIXER_OP_SET,
+    MIXER_OP_ADD,
+    MIXER_OP_MUL,
+    MIXER_OP_COUNT
+};
+
+
+#define MIXER_RULE_COUNT      32
+
+#define MIXER_INPUT_COUNT     MIXER_IN_COUNT
+#define MIXER_OUTPUT_COUNT    (1 + MAX_SUPPORTED_SERVOS + MAX_SUPPORTED_MOTORS)
+
+#define MIXER_SERVO_OFFSET    1
+#define MIXER_MOTOR_OFFSET    (MIXER_SERVO_OFFSET + MAX_SUPPORTED_SERVOS)
+
+#define MIXER_RATE_MIN       -10000
+#define MIXER_RATE_MAX        10000
+
+#define MIXER_WEIGHT_MIN     -10000
+#define MIXER_WEIGHT_MAX      10000
+
+#define MIXER_INPUT_MIN      -2500
+#define MIXER_INPUT_MAX       2500
+
+#define MIXER_OVERRIDE_MIN   -2500
+#define MIXER_OVERRIDE_MAX    2500
+#define MIXER_OVERRIDE_OFF    (MIXER_OVERRIDE_MAX + 1)
+
+#define MIXER_RC_SCALING      (1.0f / 500)
+#define MIXER_PID_SCALING     (1.0f / 500)
+#define MIXER_THR_SCALING     (1.0f / (PWM_RANGE_MAX - PWM_RANGE_MIN))
+#define MIXER_THR_OFFSET      PWM_RANGE_MIN
+
+
+typedef struct
 {
-    MIXER_CUSTOM = 23,
-} mixerMode_e;
+    uint8_t mode;
 
-// Custom mixer data per motor
-typedef struct motorMixer_s {
-    float throttle;
-    float roll;
-    float pitch;
-    float yaw;
-} motorMixer_t;
-
-PG_DECLARE_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer);
-
-// Custom mixer configuration
-typedef struct mixer_s {
-    uint8_t motorCount;
-    uint8_t useServo;
-    const motorMixer_t *motor;
-} mixer_t;
-
-typedef struct mixerConfig_s {
-    bool yaw_motors_reversed;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
 
-#define CHANNEL_FORWARDING_DISABLED (uint8_t)0xFF
+typedef struct
+{
+    int16_t   rate;             // multiplier
+    int16_t   min;              // minimum input value
+    int16_t   max;              // maximum input value
+} mixerInput_t;
 
-extern const mixer_t mixers[];
-extern float motor[MAX_SUPPORTED_MOTORS];
-extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
-extern float motorOutputHigh, motorOutputLow;
-struct rxConfig_s;
+PG_DECLARE_ARRAY(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs);
 
-float getMotorMixRange(void);
+typedef struct
+{
+    uint32_t  mode;              // active flight mode bitmap
+    uint8_t   oper;              // rule operation
+    uint8_t   input;             // input channel
+    uint8_t   output;            // output channel
+    int16_t   offset;            // addition
+    int16_t   weight;            // multiplier (weight and direction)
+} mixerRule_t;
 
-void initEscEndpoints(void);
+PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
+
+
 void mixerInit(void);
-void mixerInitProfile(void);
 
-void mixerConfigureOutput(void);
+void mixerUpdate(void);
 
-void mixerResetDisarmedMotors(void);
-void mixTable(timeUs_t currentTimeUs);
-void writeMotors(void);
+float mixerGetInput(uint8_t i);
+float mixerGetOutput(uint8_t i);
+float mixerGetServoOutput(uint8_t i);
+float mixerGetMotorOutput(uint8_t i);
 
-float mixerGetThrottle(void);
+int16_t mixerGetOverride(uint8_t i);
+int16_t mixerSetOverride(uint8_t i, int16_t value);
+
+float getCyclicDeflection(void);
+float getCollectiveDeflection(void);
+
+static inline bool mixerPidAxisSaturated(uint8_t i) { UNUSED(i); return false; /* TODO */ }
+static inline float mixerGetThrottle(void) { return mixerGetInput(MIXER_IN_RC_COMMAND_THROTTLE); }
+

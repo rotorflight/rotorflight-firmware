@@ -769,21 +769,23 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 }
 #endif
 
-static FAST_CODE_NOINLINE void subTaskMotorUpdate(timeUs_t currentTimeUs)
+static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
 {
+    UNUSED(currentTimeUs);
+
     uint32_t startTime = 0;
     if (debugMode == DEBUG_CYCLETIME) {
         startTime = micros();
-        static uint32_t previousMotorUpdateTime;
-        const uint32_t currentDeltaTime = startTime - previousMotorUpdateTime;
+        static uint32_t previousUpdateTime;
+        const uint32_t currentDeltaTime = startTime - previousUpdateTime;
         debug[2] = currentDeltaTime;
         debug[3] = currentDeltaTime - targetPidLooptime;
-        previousMotorUpdateTime = startTime;
+        previousUpdateTime = startTime;
     } else if (debugMode == DEBUG_PIDLOOP) {
         startTime = micros();
     }
 
-    mixTable(currentTimeUs);
+    mixerUpdate();
 
 #ifdef USE_SERVOS
     servoUpdate();
@@ -853,13 +855,13 @@ FAST_CODE void taskMainPidLoop(timeUs_t currentTimeUs)
     // DEBUG_PIDLOOP, timings for:
     // 0 - gyroUpdate()
     // 1 - subTaskPidController()
-    // 2 - subTaskMotorUpdate()
+    // 2 - subTaskMixerUpdate()
     // 3 - subTaskPidSubprocesses()
     DEBUG_SET(DEBUG_PIDLOOP, 0, micros() - currentTimeUs);
 
     subTaskRcCommand(currentTimeUs);
     subTaskPidController(currentTimeUs);
-    subTaskMotorUpdate(currentTimeUs);
+    subTaskMixerUpdate(currentTimeUs);
     subTaskPidSubprocesses(currentTimeUs);
 
     if (debugMode == DEBUG_CYCLETIME) {

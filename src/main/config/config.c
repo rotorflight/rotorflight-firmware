@@ -756,10 +756,7 @@ void changePidProfile(uint8_t pidProfileIndex)
     if (pidProfileIndex < PID_PROFILE_COUNT) {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
-
         pidInit(currentPidProfile);
-        initEscEndpoints();
-        mixerInitProfile();
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

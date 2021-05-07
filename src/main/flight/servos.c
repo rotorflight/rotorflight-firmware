@@ -147,7 +147,7 @@ void servoUpdate(void)
         if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
             pos = servoOverride[i] / 1000.0f;
         else
-            pos = 0; // TODO mixerGetServoOutput(i);
+            pos = mixerGetServoOutput(i);
 
         pos = constrainf(servo->rate * pos, servo->min, servo->max);
         pos = servo->mid + trim + pos;
