@@ -91,12 +91,13 @@
 #include "fc/stats.h"
 #include "fc/tasks.h"
 
-#include "flight/failsafe.h"
 #include "flight/imu.h"
-#include "flight/mixer.h"
 #include "flight/pid.h"
-#include "flight/rpm_filter.h"
+#include "flight/mixer.h"
 #include "flight/servos.h"
+#include "flight/motors.h"
+#include "flight/rpm_filter.h"
+#include "flight/failsafe.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -579,7 +580,6 @@ void init(void)
 #endif
 
     mixerInit();
-    mixerConfigureOutput();
 
 #ifdef USE_MOTOR
     motorInit();

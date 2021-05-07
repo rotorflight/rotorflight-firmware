@@ -360,7 +360,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->ff_smooth_factor = cmsx_ff_smooth_factor;
 #endif
 
-    initEscEndpoints();
     return NULL;
 }
 

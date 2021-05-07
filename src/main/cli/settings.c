@@ -53,12 +53,13 @@
 
 #include "flight/failsafe.h"
 #include "flight/gps_rescue.h"
-#include "flight/imu.h"
-#include "flight/mixer.h"
-#include "flight/pid.h"
 #include "flight/position.h"
-#include "flight/rpm_filter.h"
+#include "flight/imu.h"
+#include "flight/pid.h"
+#include "flight/mixer.h"
 #include "flight/servos.h"
+#include "flight/motors.h"
+#include "flight/rpm_filter.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -811,9 +812,6 @@ const clivalue_t valueTable[] = {
 #endif
 #endif // USE_BEEPER
 
-// PG_MIXER_CONFIG
-    { "yaw_motors_reversed",        VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, yaw_motors_reversed) },
-
 // PG_SERVO_CONFIG
 #ifdef USE_SERVOS
     { "servo_pwm_rate",             VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 50, 498 }, PG_SERVO_CONFIG, offsetof(servoConfig_t, dev.servoPwmRate) },
@@ -926,8 +924,6 @@ const clivalue_t valueTable[] = {
     { "iterm_relax_cutoff",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_cutoff) },
 #endif
     { "iterm_limit",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, itermLimit) },
-    { "pidsum_limit",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { PIDSUM_LIMIT_MIN, PIDSUM_LIMIT_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pidSumLimit) },
-    { "pidsum_limit_yaw",           VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { PIDSUM_LIMIT_MIN, PIDSUM_LIMIT_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pidSumLimitYaw) },
 
 #ifdef USE_ACRO_TRAINER
     { "acro_trainer_angle_limit",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 80 }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_angle_limit) },

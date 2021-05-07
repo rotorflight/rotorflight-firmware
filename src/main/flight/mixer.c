@@ -1,21 +1,18 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <stdbool.h>
@@ -26,296 +23,213 @@
 #include "platform.h"
 
 #include "build/build_config.h"
-#include "build/debug.h"
 
 #include "common/axis.h"
 #include "common/filter.h"
 #include "common/maths.h"
 
-#include "config/feature.h"
-
-#include "pg/motor.h"
-#include "pg/rx.h"
-
-#include "drivers/dshot.h"
-#include "drivers/motor.h"
-#include "drivers/time.h"
-#include "drivers/io.h"
-
-#include "io/motors.h"
-
 #include "config/config.h"
-#include "fc/controlrate_profile.h"
+#include "config/config_reset.h"
+
+#include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 #include "fc/rc_modes.h"
-#include "fc/runtime_config.h"
-#include "fc/core.h"
-#include "fc/rc.h"
 
-#include "flight/failsafe.h"
-#include "flight/imu.h"
-#include "flight/gps_rescue.h"
-#include "flight/mixer.h"
 #include "flight/pid.h"
-#include "flight/rpm_filter.h"
+#include "flight/imu.h"
+#include "flight/mixer.h"
 
 #include "rx/rx.h"
 
-#include "sensors/battery.h"
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
+
 #include "sensors/gyro.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_MIXER_CONFIG, 0);
 
-#define DYN_LPF_THROTTLE_STEPS           100
-#define DYN_LPF_THROTTLE_UPDATE_DELAY_US 5000 // minimum of 5ms between updates
+PG_REGISTER(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
 
-PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
-    .yaw_motors_reversed = false,
-);
+PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
 
-PG_REGISTER_ARRAY(motorMixer_t, MAX_SUPPORTED_MOTORS, customMotorMixer, PG_MOTOR_MIXER, 0);
+PG_REGISTER_ARRAY(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs, PG_GENERIC_MIXER_INPUTS, 0);
 
-#define PWM_RANGE_MID 1500
 
-static FAST_RAM_ZERO_INIT uint8_t motorCount;
-static FAST_RAM_ZERO_INIT float motorMixRange;
+static FAST_RAM_ZERO_INIT mixerRule_t rules[MIXER_RULE_COUNT];
 
-float FAST_RAM_ZERO_INIT motor[MAX_SUPPORTED_MOTORS];
-float motor_disarmed[MAX_SUPPORTED_MOTORS];
+static FAST_RAM_ZERO_INIT float     mixInput[MIXER_INPUT_COUNT];
+static FAST_RAM_ZERO_INIT float     mixOutput[MIXER_OUTPUT_COUNT];
+static FAST_RAM_ZERO_INIT int16_t   mixOverride[MIXER_INPUT_COUNT];
 
-static motorMixer_t motorMixer[MAX_SUPPORTED_MOTORS];
+static FAST_RAM_ZERO_INIT uint32_t  flightModeMask;
 
-FAST_RAM_ZERO_INIT float motorOutputHigh, motorOutputLow;
+static FAST_RAM_ZERO_INIT float     cyclicTotal;
+static FAST_RAM_ZERO_INIT float     cyclicLimit;
 
-static FAST_RAM_ZERO_INIT float disarmMotorOutput;
-static FAST_RAM_ZERO_INIT float rcCommandThrottleRange;
 
-float getMotorMixRange(void)
+static inline float mixerOverrideInput(int index, float val)
 {
-    return motorMixRange;
+    // Check override only if not armed
+    if (!ARMING_FLAG(ARMED)) {
+        if (mixOverride[index] >= MIXER_OVERRIDE_MIN && mixOverride[index] <= MIXER_OVERRIDE_MAX)
+            val = mixOverride[index] * 0.001f;
+    }
+
+    return val;
 }
 
-// All PWM motor scaling is done to standard PWM range of 1000-2000 for easier tick conversion with legacy code / configurator
-// DSHOT scaling is done to the actual dshot range
-void initEscEndpoints(void)
+static inline float mixerScaleInput(int index, float val)
 {
-    //motorInitEndpoints(motorConfig(), 1.0f, &motorOutputLow, &motorOutputHigh, &disarmMotorOutput, &deadbandMotor3dHigh, &deadbandMotor3dLow);
+    const mixerInput_t *in = mixerInputs(index);
 
-    rcCommandThrottleRange = PWM_RANGE_MAX - PWM_RANGE_MIN;
+    // Override real input with a test value
+    val = mixerOverrideInput(index, val);
+
+    // Constrain and scale
+    val = constrainf(val, in->min*0.001f, in->max*0.001f) * in->rate * 0.001f;
+
+    return val;
 }
 
-// Initialize pidProfile related mixer settings
-void mixerInitProfile(void)
-{
-
-}
 
 void mixerInit(void)
 {
-    initEscEndpoints();
+    cyclicLimit = PIDSUM_LIMIT * MIXER_PID_SCALING;
 
-    mixerInitProfile();
-}
+    for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+        const mixerRule_t *rule = mixerRules(i);
 
-void mixerConfigureOutput(void)
-{
-    motorCount = 0;
-
-    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        if ((customMotorMixer(i)->throttle == 0.0f) &&
-            (customMotorMixer(i)->pitch == 0.0f) &&
-            (customMotorMixer(i)->roll == 0.0f) &&
-            (customMotorMixer(i)->yaw == 0.0f)) {
-            break;
+        if (rule->oper) {
+            rules[i].mode    = rule->mode;
+            rules[i].oper    = constrain(rule->oper, 0, MIXER_OP_COUNT - 1);
+            rules[i].input   = constrain(rule->input, 0, MIXER_INPUT_COUNT - 1);
+            rules[i].output  = constrain(rule->output, 0, MIXER_OUTPUT_COUNT - 1);
+            rules[i].offset  = constrain(rule->offset, MIXER_INPUT_MIN, MIXER_INPUT_MAX);
+            rules[i].weight  = constrain(rule->weight, MIXER_WEIGHT_MIN, MIXER_WEIGHT_MAX);
         }
-        motorMixer[i] = *customMotorMixer(i);
-        motorCount++;
     }
 
-    mixerResetDisarmedMotors();
-}
-
-void mixerResetDisarmedMotors(void)
-{
-    // set disarmed motor values
-    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        motor_disarmed[i] = disarmMotorOutput;
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
+        mixOverride[i] = MIXER_OVERRIDE_OFF;
     }
 }
 
-void writeMotors(void)
+static void mixerUpdateInputs(void)
 {
-    motorWriteAll(motor);
+    // Flight Dynamics
+    mixInput[MIXER_IN_RC_COMMAND_ROLL]        = rcCommand[ROLL]       * MIXER_RC_SCALING;
+    mixInput[MIXER_IN_RC_COMMAND_PITCH]       = rcCommand[PITCH]      * MIXER_RC_SCALING;
+    mixInput[MIXER_IN_RC_COMMAND_YAW]         = rcCommand[YAW]        * MIXER_RC_SCALING;
+    mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE]  = rcCommand[COLLECTIVE] * MIXER_RC_SCALING;
+
+    // Throttle input
+    mixInput[MIXER_IN_RC_COMMAND_THROTTLE]    = (rcCommand[THROTTLE] - MIXER_THR_OFFSET) * MIXER_THR_SCALING;
+
+    // AUX channels
+    for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++)
+        mixInput[MIXER_IN_RC_CHANNEL_ROLL + i] = (rcData[i] - rxConfig()->midrc) * MIXER_RC_SCALING;
+
+    // No stabilization (yet)
+    mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
+    mixInput[MIXER_IN_STABILIZED_THROTTLE]   = mixInput[MIXER_IN_RC_COMMAND_THROTTLE];
+
+    // PID stabilized controls
+    mixInput[MIXER_IN_STABILIZED_ROLL]  = pidData[FD_ROLL].Sum  * MIXER_PID_SCALING;
+    mixInput[MIXER_IN_STABILIZED_PITCH] = pidData[FD_PITCH].Sum * MIXER_PID_SCALING;
+    mixInput[MIXER_IN_STABILIZED_YAW]   = pidData[FD_YAW].Sum   * MIXER_PID_SCALING;
+
+    // Scale/limit inputs
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++)
+        mixInput[i] = mixerScaleInput(i, mixInput[i]);
+
+    // TODO: Move into swash sub-mixer
+    // Swashplate cyclic deflection
+    cyclicTotal = sqrtf(mixInput[MIXER_IN_STABILIZED_ROLL] * mixInput[MIXER_IN_STABILIZED_ROLL] +
+                        mixInput[MIXER_IN_STABILIZED_PITCH] * mixInput[MIXER_IN_STABILIZED_PITCH]);
+
+    // Cyclic ring limit reached
+    if (cyclicTotal > cyclicLimit) {
+        mixInput[MIXER_IN_STABILIZED_ROLL]  *= cyclicLimit / cyclicTotal;
+        mixInput[MIXER_IN_STABILIZED_PITCH] *= cyclicLimit / cyclicTotal;
+        cyclicTotal = cyclicLimit;
+    }
 }
 
-static FAST_RAM_ZERO_INIT float throttle = 0;
-static FAST_RAM_ZERO_INIT float mixerThrottle = 0;
-static FAST_RAM_ZERO_INIT float motorOutputMin;
-static FAST_RAM_ZERO_INIT float motorRangeMin;
-static FAST_RAM_ZERO_INIT float motorRangeMax;
-static FAST_RAM_ZERO_INIT float motorOutputRange;
-static FAST_RAM_ZERO_INIT int8_t motorOutputMixSign;
-
-
-static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
+void mixerUpdate(void)
 {
-    UNUSED(currentTimeUs);
-    static float motorRangeMinIncrease = 0;
-    float currentThrottleInputRange = 0;
-
-    {
-        throttle = rcCommand[THROTTLE] - PWM_RANGE_MIN;
-        float appliedMotorOutputLow = motorOutputLow;
-        motorRangeMax = motorOutputHigh;
-
-        currentThrottleInputRange = rcCommandThrottleRange;
-        motorRangeMin = appliedMotorOutputLow + motorRangeMinIncrease * (motorOutputHigh - appliedMotorOutputLow);
-        motorOutputMin = motorRangeMin;
-        motorOutputRange = motorRangeMax - motorRangeMin;
-        motorOutputMixSign = 1;
+    // Reset mixer inputs
+    for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
+        mixInput[i] = 0;
+    }
+    // Reset mixer outputs
+    for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
+        mixOutput[i] = 0;
     }
 
-    throttle = constrainf(throttle / currentThrottleInputRange, 0.0f, 1.0f);
-}
+    // Fetch input values
+    mixerUpdateInputs();
 
-static void applyMixToMotors(float motorMix[])
-{
-    // Now add in the desired throttle, but keep in a range that doesn't clip adjusted
-    // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
-    for (int i = 0; i < motorCount; i++) {
-        float motorOutput = motorOutputMixSign * motorMix[i] + throttle * motorMixer[i].throttle;
-        motorOutput = motorOutputMin + motorOutputRange * motorOutput;
+    // Current flight mode bitmap
+    flightModeMask = ((uint32_t)(~flightModeFlags)) << 16 | flightModeFlags;
 
-        if (failsafeIsActive()) {
-#ifdef USE_DSHOT
-            if (isMotorProtocolDshot()) {
-                motorOutput = (motorOutput < motorRangeMin) ? disarmMotorOutput : motorOutput; // Prevent getting into special reserved range
+    // Calculate mixer outputs
+    for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+        if (rules[i].oper && ((rules[i].mode == 0) || (rules[i].mode & flightModeMask))) {
+            uint8_t src = rules[i].input;
+            uint8_t dst = rules[i].output;
+            float   out = (rules[i].offset + rules[i].weight * mixInput[src]) * 0.001f;
+
+            switch (rules[i].oper)
+            {
+                case MIXER_OP_SET:
+                    mixOutput[dst] = out;
+                    break;
+                case MIXER_OP_ADD:
+                    mixOutput[dst] += out;
+                    break;
+                case MIXER_OP_MUL:
+                    mixOutput[dst] *= out;
+                    break;
             }
-#endif
-            motorOutput = constrain(motorOutput, disarmMotorOutput, motorRangeMax);
-        } else {
-            motorOutput = constrain(motorOutput, motorRangeMin, motorRangeMax);
-        }
-        motor[i] = motorOutput;
-    }
-
-    // Disarmed mode
-    if (!ARMING_FLAG(ARMED)) {
-        for (int i = 0; i < motorCount; i++) {
-            motor[i] = motor_disarmed[i];
         }
     }
 }
 
-static float applyThrottleLimit(float throttle)
+float mixerGetInput(uint8_t i)
 {
-    if (currentControlRateProfile->throttle_limit_percent < 100) {
-        const float throttleLimitFactor = currentControlRateProfile->throttle_limit_percent / 100.0f;
-        switch (currentControlRateProfile->throttle_limit_type) {
-            case THROTTLE_LIMIT_TYPE_SCALE:
-                return throttle * throttleLimitFactor;
-            case THROTTLE_LIMIT_TYPE_CLIP:
-                return MIN(throttle, throttleLimitFactor);
-        }
-    }
-
-    return throttle;
+    return mixInput[i];
 }
 
-#ifdef USE_DYN_LPF
-static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
+float mixerGetOutput(uint8_t i)
 {
-    static timeUs_t lastDynLpfUpdateUs = 0;
-    static int dynLpfPreviousQuantizedThrottle = -1;  // to allow an initial zero throttle to set the filter cutoff
-
-    if (cmpTimeUs(currentTimeUs, lastDynLpfUpdateUs) >= DYN_LPF_THROTTLE_UPDATE_DELAY_US) {
-        const int quantizedThrottle = lrintf(throttle * DYN_LPF_THROTTLE_STEPS); // quantize the throttle reduce the number of filter updates
-        if (quantizedThrottle != dynLpfPreviousQuantizedThrottle) {
-            // scale the quantized value back to the throttle range so the filter cutoff steps are repeatable
-            const float dynLpfThrottle = (float)quantizedThrottle / DYN_LPF_THROTTLE_STEPS;
-            dynLpfGyroUpdate(dynLpfThrottle);
-            dynLpfDTermUpdate(dynLpfThrottle);
-            dynLpfPreviousQuantizedThrottle = quantizedThrottle;
-            lastDynLpfUpdateUs = currentTimeUs;
-        }
-    }
+    return mixOutput[i];
 }
-#endif
 
-FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
+float mixerGetServoOutput(uint8_t i)
 {
-    // Find min and max throttle based on conditions. Throttle has to be known before mixing
-    calculateThrottleAndCurrentMotorEndpoints(currentTimeUs);
-
-    // Calculate and Limit the PID sum
-    const float scaledAxisPidRoll =
-        constrainf(pidData[FD_ROLL].Sum, -currentPidProfile->pidSumLimit, currentPidProfile->pidSumLimit) / PID_MIXER_SCALING;
-    const float scaledAxisPidPitch =
-        constrainf(pidData[FD_PITCH].Sum, -currentPidProfile->pidSumLimit, currentPidProfile->pidSumLimit) / PID_MIXER_SCALING;
-
-    uint16_t yawPidSumLimit = currentPidProfile->pidSumLimitYaw;
-
-    float scaledAxisPidYaw =
-        constrainf(pidData[FD_YAW].Sum, -yawPidSumLimit, yawPidSumLimit) / PID_MIXER_SCALING;
-
-    if (!mixerConfig()->yaw_motors_reversed) {
-        scaledAxisPidYaw = -scaledAxisPidYaw;
-    }
-
-    // Apply the throttle_limit_percent to scale or limit the throttle based on throttle_limit_type
-    if (currentControlRateProfile->throttle_limit_type != THROTTLE_LIMIT_TYPE_OFF) {
-        throttle = applyThrottleLimit(throttle);
-    }
-
-    // Find roll/pitch/yaw desired output
-    float motorMix[MAX_SUPPORTED_MOTORS];
-    float motorMixMax = 0, motorMixMin = 0;
-    for (int i = 0; i < motorCount; i++) {
-
-        float mix =
-            scaledAxisPidRoll  * motorMixer[i].roll +
-            scaledAxisPidPitch * motorMixer[i].pitch +
-            scaledAxisPidYaw   * motorMixer[i].yaw;
-
-        if (mix > motorMixMax) {
-            motorMixMax = mix;
-        } else if (mix < motorMixMin) {
-            motorMixMin = mix;
-        }
-        motorMix[i] = mix;
-    }
-
-#ifdef USE_DYN_LPF
-    updateDynLpfCutoffs(currentTimeUs, throttle);
-#endif
-
-#ifdef USE_GPS_RESCUE
-    // If gps rescue is active then override the throttle. This prevents things
-    // like throttle boost or throttle limit from negatively affecting the throttle.
-    if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        throttle = gpsRescueGetThrottle();
-    }
-#endif
-
-    mixerThrottle = throttle;
-
-    motorMixRange = motorMixMax - motorMixMin;
-    if (motorMixRange > 1.0f) {
-        for (int i = 0; i < motorCount; i++) {
-            motorMix[i] /= motorMixRange;
-        }
-    } else {
-        if (throttle > 0.5f) {
-            throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
-        }
-    }
-
-    // Apply the mix to motor endpoints
-    applyMixToMotors(motorMix);
+    return mixOutput[MIXER_SERVO_OFFSET + i];
 }
 
-float mixerGetThrottle(void)
+float mixerGetMotorOutput(uint8_t i)
 {
-    return mixerThrottle;
+    return mixOutput[MIXER_MOTOR_OFFSET + i];
 }
 
+int16_t mixerGetOverride(uint8_t i)
+{
+    return mixOverride[i];
+}
+
+int16_t mixerSetOverride(uint8_t i, int16_t value)
+{
+    return mixOverride[i] = value;
+}
+
+float getCyclicDeflection(void)
+{
+    return cyclicTotal;
+}
+
+float getCollectiveDeflection(void)
+{
+    return fabsf(mixInput[MIXER_IN_STABILIZED_COLLECTIVE]);
+}

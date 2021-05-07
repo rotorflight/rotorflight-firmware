@@ -28,12 +28,8 @@
 
 #define MAX_PID_PROCESS_DENOM       16
 #define PID_CONTROLLER_BETAFLIGHT   1
-#define PID_MIXER_SCALING           1000.0f
-#define PID_SERVO_MIXER_SCALING     0.7f
+
 #define PIDSUM_LIMIT                500
-#define PIDSUM_LIMIT_YAW            400
-#define PIDSUM_LIMIT_MIN            100
-#define PIDSUM_LIMIT_MAX            1000
 
 // Scaling factors for Pids for better tunable range in configurator for betaflight pid controller. The scaling is based on legacy pid controller or previous float
 #define PTERM_SCALE 0.032029f
@@ -96,8 +92,6 @@ typedef struct pidProfile_s {
     pidf_t  pid[PID_ITEM_COUNT];
 
     uint8_t dterm_filter_type;              // Filter selection for dterm
-    uint16_t pidSumLimit;
-    uint16_t pidSumLimitYaw;
     uint8_t levelAngleLimit;                // Max angle in degrees in level mode
 
     uint8_t horizon_tilt_effect;            // inclination factor for Horizon mode
@@ -147,7 +141,6 @@ typedef struct pidAxisData_s {
     float I;
     float D;
     float F;
-
     float Sum;
 } pidAxisData_t;
 
