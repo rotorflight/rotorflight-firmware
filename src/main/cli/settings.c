@@ -617,13 +617,14 @@ const clivalue_t valueTable[] = {
     { "gyro_calib_duration",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 50,  3000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroCalibrationDuration) },
     { "gyro_calib_noise_limit",     VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0,  200 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroMovementCalibrationThreshold) },
     { "gyro_offset_yaw",            VAR_INT16  | MASTER_VALUE, .config.minmax = { -1000, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_offset_yaw) },
+
 #ifdef USE_GYRO_OVERFLOW_CHECK
     { "gyro_overflow_detect",       VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GYRO_OVERFLOW_CHECK }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, checkOverflow) },
 #endif
-
 #ifdef USE_MULTI_GYRO
     { "gyro_to_use",                VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GYRO }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_to_use) },
 #endif
+
 #if defined(USE_GYRO_DATA_ANALYSE)
     { "dyn_notch_width_percent",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 20 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_notch_width_percent) },
     { "dyn_notch_q",                VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_notch_q) },
@@ -964,7 +965,7 @@ const clivalue_t valueTable[] = {
     { "iterm_relax_type",           VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ITERM_RELAX_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_type) },
     { "iterm_relax_cutoff",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_cutoff) },
 #endif
-    { "iterm_limit",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, itermLimit) },
+    { "iterm_limit",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_limit) },
 
 #ifdef USE_ACRO_TRAINER
     { "acro_trainer_angle_limit",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 80 }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_angle_limit) },
@@ -986,12 +987,11 @@ const clivalue_t valueTable[] = {
     { "d_yaw",                      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].D) },
     { "f_yaw",                      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].F) },
 
-    { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_LEVEL].P) },
-    { "horizon_level_strength",     VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_LEVEL].I) },
-    { "horizon_transition",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_LEVEL].D) },
+    { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_strength) },
+    { "angle_level_limit",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_limit) },
 
-    { "level_limit",                VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, levelAngleLimit) },
-
+    { "horizon_level_strength",     VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, horizon_level_strength) },
+    { "horizon_transition",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, horizon_transition) },
     { "horizon_tilt_effect",        VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0,  250 }, PG_PID_PROFILE, offsetof(pidProfile_t, horizon_tilt_effect) },
     { "horizon_tilt_expert_mode",   VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, horizon_tilt_expert_mode) },
 

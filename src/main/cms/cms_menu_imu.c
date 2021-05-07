@@ -318,9 +318,9 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 
     cmsx_ff_boost = pidProfile->ff_boost;
 
-    cmsx_angleStrength =     pidProfile->pid[PID_LEVEL].P;
-    cmsx_horizonStrength =   pidProfile->pid[PID_LEVEL].I;
-    cmsx_horizonTransition = pidProfile->pid[PID_LEVEL].D;
+    cmsx_angleStrength =     pidProfile->angle_level_strength;
+    cmsx_horizonStrength =   pidProfile->horizon_level_strength;
+    cmsx_horizonTransition = pidProfile->horizon_transition;
 
 #ifdef USE_ITERM_RELAX
     cmsx_iterm_relax = pidProfile->iterm_relax;
@@ -345,9 +345,9 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidInitConfig(currentPidProfile);
     pidProfile->ff_boost = cmsx_ff_boost;
 
-    pidProfile->pid[PID_LEVEL].P = cmsx_angleStrength;
-    pidProfile->pid[PID_LEVEL].I = cmsx_horizonStrength;
-    pidProfile->pid[PID_LEVEL].D = cmsx_horizonTransition;
+    pidProfile->angle_level_strength = cmsx_angleStrength;
+    pidProfile->horizon_level_strength = cmsx_horizonStrength;
+    pidProfile->horizon_transition = cmsx_horizonTransition;
 
 #ifdef USE_ITERM_RELAX
     pidProfile->iterm_relax = cmsx_iterm_relax;
