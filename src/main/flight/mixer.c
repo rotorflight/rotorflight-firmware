@@ -90,32 +90,9 @@ FAST_RAM_ZERO_INIT float motorOutputHigh, motorOutputLow;
 static FAST_RAM_ZERO_INIT float disarmMotorOutput;
 static FAST_RAM_ZERO_INIT float rcCommandThrottleRange;
 
-uint8_t getMotorCount(void)
-{
-    return motorCount;
-}
-
 float getMotorMixRange(void)
 {
     return motorMixRange;
-}
-
-bool areMotorsRunning(void)
-{
-    bool motorsRunning = false;
-    if (ARMING_FLAG(ARMED)) {
-        motorsRunning = true;
-    } else {
-        for (int i = 0; i < motorCount; i++) {
-            if (motor_disarmed[i] != disarmMotorOutput) {
-                motorsRunning = true;
-
-                break;
-            }
-        }
-    }
-
-    return motorsRunning;
 }
 
 // All PWM motor scaling is done to standard PWM range of 1000-2000 for easier tick conversion with legacy code / configurator
@@ -169,21 +146,6 @@ void mixerResetDisarmedMotors(void)
 void writeMotors(void)
 {
     motorWriteAll(motor);
-}
-
-static void writeAllMotors(int16_t mc)
-{
-    // Sends commands to all motors
-    for (int i = 0; i < motorCount; i++) {
-        motor[i] = mc;
-    }
-    writeMotors();
-}
-
-void stopMotors(void)
-{
-    writeAllMotors(disarmMotorOutput);
-    delay(50); // give the timers and ESCs a chance to react.
 }
 
 static FAST_RAM_ZERO_INIT float throttle = 0;
