@@ -62,7 +62,7 @@ typedef struct servoDevConfig_s {
     ioTag_t  ioTags[MAX_SUPPORTED_SERVOS];
 } servoDevConfig_t;
 
-void servoDevInit(const servoDevConfig_t *servoDevConfig);
+void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount);
 
 void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware, uint32_t hz, uint16_t period, uint16_t value, uint8_t inversion);
 
