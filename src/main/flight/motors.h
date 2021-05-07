@@ -19,7 +19,22 @@
 
 #include "platform.h"
 
+#define MOTOR_OVERRIDE_OFF      0
+#define MOTOR_OVERRIDE_MIN      0
+#define MOTOR_OVERRIDE_MAX   1000
 
+
+uint8_t getMotorCount(void);
+
+uint16_t getMotorOutput(uint8_t motor);
+
+uint16_t getMotorOverride(uint8_t motor);
+uint16_t setMotorOverride(uint8_t motor, uint16_t value);
+
+bool hasMotorOverride(uint8_t motor);
+void resetMotorOverride(void);
+
+bool areMotorsRunning(void);
 bool isRpmSourceActive(void);
 
 int getMotorRPM(uint8_t motor);
@@ -32,7 +47,12 @@ int calcMotorRPM(uint8_t motor, int erpm);
 float calcMotorRPMf(uint8_t motor, int erpm);
 
 void rpmSourceInit(void);
-void rpmSourceUpdate(void);
+
+void motorStop(void);
+void motorInit(void);
+void motorUpdate(void);
+
+static inline void stopMotors(void) { motorStop(); }
 
 static inline float getHeadSpeed(void) { return getMotorRPMf(0); } // TODO
 

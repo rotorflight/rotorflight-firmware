@@ -582,10 +582,7 @@ void init(void)
     mixerConfigureOutput();
 
 #ifdef USE_MOTOR
-    /* Motors needs to be initialized soon as posible because hardware initialization
-     * may send spurious pulses to esc's causing their early initialization. Also ppm
-     * receiver may share timer with motors so motors MUST be initialized here. */
-    motorDevInit(&motorConfig()->dev, getMotorCount());
+    motorInit();
     systemState |= SYSTEM_STATE_MOTORS_READY;
 #endif
 

@@ -66,6 +66,11 @@ typedef enum {
 } rpmSource_e;
 
 
+static FAST_RAM_ZERO_INIT uint8_t        motorCount;
+
+static FAST_RAM_ZERO_INIT float          motorOutput[MAX_SUPPORTED_MOTORS];
+static FAST_RAM_ZERO_INIT uint16_t       motorOverride[MAX_SUPPORTED_MOTORS];
+
 static FAST_RAM_ZERO_INIT float          motorRpm[MAX_SUPPORTED_MOTORS];
 static FAST_RAM_ZERO_INIT float          motorRpmRaw[MAX_SUPPORTED_MOTORS];
 static FAST_RAM_ZERO_INIT uint8_t        motorRpmDiv[MAX_SUPPORTED_MOTORS];
@@ -73,12 +78,54 @@ static FAST_RAM_ZERO_INIT uint8_t        motorRpmSource[MAX_SUPPORTED_MOTORS];
 static FAST_RAM_ZERO_INIT biquadFilter_t motorRpmFilter[MAX_SUPPORTED_MOTORS];
 
 
+uint8_t getMotorCount(void)
+{
+    return motorCount;
+}
+
+uint16_t getMotorOutput(uint8_t motor)
+{
+    return lrintf(motorOutput[motor] * 1000);
+}
+
+bool hasMotorOverride(uint8_t motor)
+{
+    return (motorOverride[motor] != MOTOR_OVERRIDE_OFF);
+}
+
+uint16_t getMotorOverride(uint8_t motor)
+{
+    return motorOverride[motor];
+}
+
+uint16_t setMotorOverride(uint8_t motor, uint16_t value)
+{
+    return motorOverride[motor] = value;
+}
+
+void resetMotorOverride(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++)
+        motorOverride[i] = 0;
+}
+
+bool areMotorsRunning(void)
+{
+    if (ARMING_FLAG(ARMED))
+        return true;
+
+    for (int i = 0; i < motorCount; i++)
+        if (motorOutput[i] > 0)
+            return true;
+
+    return false;
+}
+
 bool isRpmSourceActive(void)
 {
     for (int i = 0; i < getMotorCount(); i++)
         if (motorRpmSource[i] == RPM_SRC_NONE)
             return false;
-
     return true;
 }
 
@@ -163,12 +210,45 @@ void rpmSourceInit(void)
     }
 }
 
-void rpmSourceUpdate(void)
+
+void motorInit(void)
 {
-    for (int i = 0; i < getMotorCount(); i++) {
+    const ioTag_t *ioTags = motorConfig()->dev.ioTags;
+
+    for (motorCount = 0;
+         motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
+         motorCount++);
+
+    motorDevInit(&motorConfig()->dev, motorCount);
+}
+
+void motorUpdate(void)
+{
+    float output;
+
+    for (int i = 0; i < motorCount; i++) {
+        if (ARMING_FLAG(ARMED))
+            output = 0; // mixerGetMotorOutput(i);
+        else
+            output = motorOverride[i] / 1000.0f;
+
+        motorOutput[i] = constrainf(output, 0, 1);
+    }
+
+    motorWriteAll(motorOutput);
+
+    for (int i = 0; i < motorCount; i++) {
         motorRpmRaw[i] = calcMotorRPMf(i,getMotorERPM(i));
         motorRpm[i] = biquadFilterApply(&motorRpmFilter[i], motorRpmRaw[i]);
         DEBUG_SET(DEBUG_RPM_SOURCE, i, lrintf(motorRpmRaw[i]));
     }
 }
 
+void motorStop(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++)
+        motorOutput[i] = 0;
+
+    motorWriteAll(motorOutput);
+    delay(50);
+}

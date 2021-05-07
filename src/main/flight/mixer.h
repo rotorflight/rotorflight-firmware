@@ -68,9 +68,7 @@ extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
 extern float motorOutputHigh, motorOutputLow;
 struct rxConfig_s;
 
-uint8_t getMotorCount(void);
 float getMotorMixRange(void);
-bool areMotorsRunning(void);
 
 void initEscEndpoints(void);
 void mixerInit(void);
@@ -80,7 +78,6 @@ void mixerConfigureOutput(void);
 
 void mixerResetDisarmedMotors(void);
 void mixTable(timeUs_t currentTimeUs);
-void stopMotors(void);
 void writeMotors(void);
 
 float mixerGetThrottle(void);

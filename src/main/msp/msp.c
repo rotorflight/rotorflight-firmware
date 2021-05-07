@@ -1071,19 +1071,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
 
     case MSP_MOTOR:
-        for (unsigned i = 0; i < 8; i++) {
+        for (int i = 0; i < 8; i++) {
 #ifdef USE_MOTOR
-            if (!motorIsEnabled() || i >= MAX_SUPPORTED_MOTORS || !motorIsMotorEnabled(i)) {
-                sbufWriteU16(dst, 0);
-                continue;
-            }
-
-            sbufWriteU16(dst, 0); // TODO motor[i]
-#else
-            sbufWriteU16(dst, 0);
+            if (i < getMotorCount() && motorIsEnabled() && motorIsMotorEnabled(i))
+                sbufWriteU16(dst, getMotorOutput(i));
+            else
 #endif
+                sbufWriteU16(dst, 0);
         }
-
         break;
 
     // Added in API version 1.42
@@ -2283,7 +2278,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_MOTOR:
         for (int i = 0; i < getMotorCount(); i++) {
-            sbufReadU16(src);  // TODO motor_disarmed[i] = sbufReadU16(src);
+            setMotorOverride(i, sbufReadU16(src));
         }
         break;
 

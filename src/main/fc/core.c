@@ -798,18 +798,8 @@ static FAST_CODE_NOINLINE void subTaskMotorUpdate(timeUs_t currentTimeUs)
         writeServos();
     }
 #endif
-
-    writeMotors();
-
-    rpmSourceUpdate();
-
-#ifdef USE_DSHOT_TELEMETRY_STATS
-    if (debugMode == DEBUG_DSHOT_RPM_ERRORS && useDshotTelemetry) {
-        const uint8_t motorCount = MIN(getMotorCount(), 4);
-        for (uint8_t i = 0; i < motorCount; i++) {
-            debug[i] = getDshotTelemetryMotorInvalidPercent(i);
-        }
-    }
+#ifdef USE_MOTOR
+    motorUpdate();
 #endif
 
     DEBUG_SET(DEBUG_PIDLOOP, 2, micros() - startTime);
