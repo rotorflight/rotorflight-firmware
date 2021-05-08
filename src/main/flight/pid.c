@@ -95,6 +95,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
         .iterm_limit = 400,
+        .iterm_decay = 20,
         .iterm_rotation = false,
         .iterm_relax = ITERM_RELAX_RP,
         .iterm_relax_type = ITERM_RELAX_SETPOINT,
@@ -167,6 +168,10 @@ static FAST_RAM_ZERO_INIT bool spInterpolation;
 #endif
 
 static FAST_RAM_ZERO_INIT float itermLimit;
+
+#ifdef USE_ITERM_DECAY
+static FAST_RAM_ZERO_INIT float itermDecay;
+#endif
 
 static FAST_RAM_ZERO_INIT bool itermRotation;
 
@@ -245,6 +250,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     itermLimit = pidProfile->iterm_limit;
     itermRotation = pidProfile->iterm_rotation;
 
+#ifdef USE_ITERM_DECAY
+    itermDecay = dT * 10.0f / pidProfile->iterm_decay;
+#endif
 #ifdef USE_ITERM_RELAX
     itermRelax = pidProfile->iterm_relax;
     itermRelaxType = pidProfile->iterm_relax_type;
@@ -475,6 +483,14 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // -----calculate error rate for I-term
         float itermErrorRate = currentPidSetpoint - gyroRate;
 
+#ifdef USE_ITERM_DECAY
+        if (!isSpooledUp()) {
+            pidData[axis].I -= pidData[axis].I * itermDecay;
+#ifdef USE_ABSOLUTE_CONTROL
+            axisError[axis] -= axisError[axis] * itermDecay;
+#endif
+        }
+#endif
 #ifdef USE_ITERM_RELAX
         applyItermRelax(axis, pidData[axis].I, gyroRate, &itermErrorRate, &currentPidSetpoint);
 #ifdef USE_ABSOLUTE_CONTROL

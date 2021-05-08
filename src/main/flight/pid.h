@@ -134,6 +134,7 @@ typedef struct pidProfile_s
     uint8_t   horizon_tilt_expert_mode;       // OFF or ON
 
     uint16_t  iterm_limit;
+    uint8_t   iterm_decay;
     uint8_t   iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
 
     uint8_t   iterm_relax;                    // Enable iterm suppression during stick input
