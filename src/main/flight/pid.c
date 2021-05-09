@@ -173,7 +173,9 @@ static FAST_RAM_ZERO_INIT float itermLimit;
 static FAST_RAM_ZERO_INIT float itermDecay;
 #endif
 
+#ifdef USE_ITERM_ROTATION
 static FAST_RAM_ZERO_INIT bool itermRotation;
+#endif
 
 
 float pidGetDT()
@@ -248,8 +250,10 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidCoefficient[FD_YAW].Kf = YAW_F_TERM_SCALE * pidProfile->pid[FD_YAW].F;
 
     itermLimit = pidProfile->iterm_limit;
-    itermRotation = pidProfile->iterm_rotation;
 
+#ifdef USE_ITERM_ROTATION
+    itermRotation = pidProfile->iterm_rotation;
+#endif
 #ifdef USE_ITERM_DECAY
     itermDecay = dT * 10.0f / pidProfile->iterm_decay;
 #endif
@@ -329,60 +333,45 @@ void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
     }
 }
 
-
-static void rotateVector(float *v, float *rotation)
+static inline void rotateVector(float *x, float *y, float r)
 {
-    // rotate v around rotation vector rotation
-    // rotation in radians, all elements must be small
-    for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        int i_1 = (i + 1) % 3;
-        int i_2 = (i + 2) % 3;
-        float newV = v[i_1] + v[i_2] * rotation[i];
-        v[i_2] -= v[i_1] * rotation[i];
-        v[i_1] = newV;
+    float a,b;
+
+    a = x[0] + y[0] * r;
+    b = y[0] - x[0] * r;
+
+    x[0] = a;
+    y[0] = b;
+}
+
+#ifdef USE_ITERM_ROTATION
+static inline void rotateIterm(void)
+{
+    if (itermRotation) {
+        rotateVector(&pidData[X].I, &pidData[Y].I, gyro.gyroADCf[Z]*dT*RAD);
+    }
+}
+#endif
+
+#ifdef USE_ABSOLUTE_CONTROL
+static inline void rotateAxisError(void)
+{
+    if (itermRelax && acGain > 0) {
+        rotateVector(&axisError[X], &axisError[Y], gyro.gyroADCf[Z]*dT*RAD);
     }
 }
 
-STATIC_UNIT_TESTED void rotateItermAndAxisError()
-{
-    if (itermRotation
-#ifdef USE_ABSOLUTE_CONTROL
-        || acGain > 0
-#endif
-        ) {
-        const float gyroToAngle = dT * RAD;
-        float rotationRads[XYZ_AXIS_COUNT];
-        for (int i = FD_ROLL; i <= FD_YAW; i++) {
-            rotationRads[i] = gyro.gyroADCf[i] * gyroToAngle;
-        }
-#ifdef USE_ABSOLUTE_CONTROL
-        if (acGain > 0) {
-            rotateVector(axisError, rotationRads);
-        }
-#endif
-        if (itermRotation) {
-            float v[XYZ_AXIS_COUNT];
-            for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-                v[i] = pidData[i].I;
-            }
-            rotateVector(v, rotationRads );
-            for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-                pidData[i].I = v[i];
-            }
-        }
-    }
-}
-
-#ifdef USE_ABSOLUTE_CONTROL
 static FAST_CODE void applyAbsoluteControl(const int axis, const float gyroRate,
     float *itermErrorRate, float *currentPidSetpoint)
 {
     if (itermRelax && acGain > 0) {
         const float setpointLpf = pt1FilterApply(&acLpf[axis], *currentPidSetpoint);
         const float setpointHpf = fabsf(*currentPidSetpoint - setpointLpf);
-        float acErrorRate = 0;
         const float gmaxac = setpointLpf + 2 * setpointHpf;
         const float gminac = setpointLpf - 2 * setpointHpf;
+
+        float acErrorRate = 0;
+
         if (gyroRate >= gminac && gyroRate <= gmaxac) {
             const float acErrorRate1 = gmaxac - gyroRate;
             const float acErrorRate2 = gminac - gyroRate;
@@ -457,7 +446,12 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     UNUSED(pidProfile);
     UNUSED(currentTimeUs);
 
-    rotateItermAndAxisError();
+#ifdef USE_ITERM_ROTATION
+    rotateIterm();
+#endif
+#ifdef USE_ABSOLUTE_CONTROL
+    rotateAxisError();
+#endif
 
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis)
@@ -493,9 +487,9 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #endif
 #ifdef USE_ITERM_RELAX
         applyItermRelax(axis, pidData[axis].I, gyroRate, &itermErrorRate, &currentPidSetpoint);
+#endif
 #ifdef USE_ABSOLUTE_CONTROL
         applyAbsoluteControl(axis, gyroRate, &itermErrorRate, &currentPidSetpoint);
-#endif
 #endif
         // -----axis saturated
         if (pidAxisSaturated(axis))

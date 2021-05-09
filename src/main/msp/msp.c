@@ -1729,7 +1729,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0); // was currentPidProfile->itermThrottleThreshold
         sbufWriteU16(dst, 0); // was currentPidProfile->itermAcceleratorGain
         sbufWriteU16(dst, 0); // was currentPidProfile->dtermSetpointWeight
+#if defined(USE_ITERM_ROTATION)
         sbufWriteU8(dst, currentPidProfile->iterm_rotation);
+#else
+        sbufWriteU8(dst, 0);
+#endif
         sbufWriteU8(dst, 0); // was currentPidProfile->smart_feedforward
 #if defined(USE_ITERM_RELAX)
         sbufWriteU8(dst, currentPidProfile->iterm_relax);
@@ -2561,7 +2565,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if (sbufBytesRemaining(src) >= 14) {
             // Added in MSP API 1.40
+#if defined(USE_ITERM_ROTATION)
             currentPidProfile->iterm_rotation = sbufReadU8(src);
+#else
+            sbufReadU8(src);
+#endif
             sbufReadU8(src); // was currentPidProfile->smart_feedforward
 #if defined(USE_ITERM_RELAX)
             currentPidProfile->iterm_relax = sbufReadU8(src);
