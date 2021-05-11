@@ -105,8 +105,6 @@ typedef struct pidProfile_s {
     uint8_t horizon_tilt_expert_mode;       // OFF or ON
 
     // Betaflight PID controller parameters
-    uint16_t yawRateAccelLimit;             // yaw accel limiter for deg/sec/ms
-    uint16_t rateAccelLimit;                // accel limiter roll/pitch deg/sec/ms
     uint16_t itermLimit;
     uint16_t dterm_lowpass2_hz;             // Extra PT1 Filter on D in hz
     uint8_t iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
