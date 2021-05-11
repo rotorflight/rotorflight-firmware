@@ -94,6 +94,7 @@ COMMON_SRC = \
             flight/setpoint.c \
             flight/mixer.c \
             flight/pid.c \
+            flight/leveling.c \
             flight/governor.c \
             flight/rpm_filter.c \
             flight/servos.c \
