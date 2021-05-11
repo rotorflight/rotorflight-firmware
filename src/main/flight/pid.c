@@ -333,6 +333,33 @@ void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
     }
 }
 
+/*
+ * 2D Rotation matrix
+ *
+ *        | cos(r)   -sin r |
+ *    R = |                 |
+ *        | sin(r)    cos r |
+ *
+ *
+ *                3     5     7     9
+ *               x     x     x     x
+ * sin(x) = x - --- + --- - --- + --- - ...
+ *               3!    5!    7!    9!
+ *
+ *                2     4     6     8
+ *               x     x     x     x
+ * cos(x) = 1 - --- + --- - --- + --- - ...
+ *               2!    4!    6!    8!
+ *
+ *
+ * For very small values of x, sin(x) ~= x and cos(x) ~= 1.
+ *
+ * In the use case below, using an additional term gives nearly 24bits of
+ * resolution, which is close to what can be stored in a float anyway.
+ *
+ */
+
+#ifdef __ZERO_ORDER_APPROX__
 static inline void rotateVector(float *x, float *y, float r)
 {
     float a,b;
@@ -343,6 +370,25 @@ static inline void rotateVector(float *x, float *y, float r)
     x[0] = a;
     y[0] = b;
 }
+#else
+
+#define SIN2(R) ((R)-(R)*(R)*(R)/6)
+#define COS2(R) (1.0f-(R)*(R)/2)
+
+static inline void rotateVector(float *x, float *y, float r)
+{
+    float a,b,s,c;
+
+    s = SIN2(r);
+    c = COS2(r);
+
+    a = x[0]*c + y[0]*s;
+    b = y[0]*c - x[0]*s;
+
+    x[0] = a;
+    y[0] = b;
+}
+#endif
 
 #ifdef USE_ITERM_ROTATION
 static inline void rotateIterm(void)
