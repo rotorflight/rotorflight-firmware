@@ -119,8 +119,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
         .levelAngleLimit = 55,
-        .yawRateAccelLimit = 0,
-        .rateAccelLimit = 0,
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
         .itermLimit = 400,
@@ -389,7 +387,6 @@ typedef struct pidCoefficient_s {
 } pidCoefficient_t;
 
 static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT float maxVelocity[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float levelGain, horizonGain, horizonTransition, horizonCutoffDegrees, horizonFactorRatio;
 static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 static FAST_RAM_ZERO_INIT float itermLimit;
@@ -440,8 +437,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     horizonTiltExpertMode = pidProfile->horizon_tilt_expert_mode;
     horizonCutoffDegrees = (175 - pidProfile->horizon_tilt_effect) * 1.8f;
     horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
-    maxVelocity[FD_ROLL] = maxVelocity[FD_PITCH] = pidProfile->rateAccelLimit * 100 * dT;
-    maxVelocity[FD_YAW] = pidProfile->yawRateAccelLimit * 100 * dT;
 
     itermLimit = pidProfile->itermLimit;
     itermRotation = pidProfile->iterm_rotation;
@@ -680,19 +675,6 @@ static FAST_CODE_NOINLINE float applyAcroTrainer(int axis, const rollAndPitchTri
 }
 #endif // USE_ACRO_TRAINER
 
-static float accelerationLimit(int axis, float currentPidSetpoint)
-{
-    static float previousSetpoint[XYZ_AXIS_COUNT];
-    const float currentVelocity = currentPidSetpoint - previousSetpoint[axis];
-
-    if (fabsf(currentVelocity) > maxVelocity[axis]) {
-        currentPidSetpoint = (currentVelocity > 0) ? previousSetpoint[axis] + maxVelocity[axis] : previousSetpoint[axis] - maxVelocity[axis];
-    }
-
-    previousSetpoint[axis] = currentPidSetpoint;
-    return currentPidSetpoint;
-}
-
 static void rotateVector(float v[XYZ_AXIS_COUNT], float rotation[XYZ_AXIS_COUNT])
 {
     // rotate v around rotation vector rotation
@@ -910,9 +892,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
 
         float currentPidSetpoint = getSetpointRate(axis);
-        if (maxVelocity[axis]) {
-            currentPidSetpoint = accelerationLimit(axis, currentPidSetpoint);
-        }
+
         // Yaw control is GYRO based, direct sticks control is applied to rate PID
 #if defined(USE_ACC)
         switch (levelMode) {
