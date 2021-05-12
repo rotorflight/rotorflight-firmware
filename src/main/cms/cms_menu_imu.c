@@ -492,10 +492,10 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
     dynFiltNotchMinHz   = gyroConfig()->dyn_notch_min_hz;
 #endif
 #ifdef USE_DYN_LPF
-    dynFiltGyroMin  = gyroConfig()->dyn_lpf_gyro_min_hz;
-    dynFiltGyroMax  = gyroConfig()->dyn_lpf_gyro_max_hz;
-    dynFiltDtermMin = gyroConfig()->dyn_lpf_dterm_min_hz;
-    dynFiltDtermMax = gyroConfig()->dyn_lpf_dterm_max_hz;
+    dynFiltGyroMin  = gyroConfig()->gyro_dyn_lpf_min_hz;
+    dynFiltGyroMax  = gyroConfig()->gyro_dyn_lpf_max_hz;
+    dynFiltDtermMin = gyroConfig()->dterm_dyn_lpf_min_hz;
+    dynFiltDtermMax = gyroConfig()->dterm_dyn_lpf_max_hz;
 #endif
 
     return NULL;
@@ -513,10 +513,10 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
     gyroConfigMutable()->dyn_notch_min_hz        = dynFiltNotchMinHz;
 #endif
 #ifdef USE_DYN_LPF
-    gyroConfigMutable()->dyn_lpf_gyro_min_hz  = dynFiltGyroMin;
-    gyroConfigMutable()->dyn_lpf_gyro_max_hz  = dynFiltGyroMax;
-    gyroConfigMutable()->dyn_lpf_dterm_min_hz = dynFiltDtermMin;
-    gyroConfigMutable()->dyn_lpf_dterm_max_hz = dynFiltDtermMax;
+    gyroConfigMutable()->gyro_dyn_lpf_min_hz  = dynFiltGyroMin;
+    gyroConfigMutable()->gyro_dyn_lpf_max_hz  = dynFiltGyroMax;
+    gyroConfigMutable()->dterm_dyn_lpf_min_hz = dynFiltDtermMin;
+    gyroConfigMutable()->dterm_dyn_lpf_max_hz = dynFiltDtermMax;
 #endif
 
     return NULL;

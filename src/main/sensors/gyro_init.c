@@ -220,7 +220,7 @@ static bool gyroInitLowpassFilterLpf(int slot, int type, uint16_t lpfHz, uint32_
 #ifdef USE_DYN_LPF
 static void dynLpfFilterInit()
 {
-    if (gyroConfig()->dyn_lpf_gyro_min_hz > 0) {
+    if (gyroConfig()->gyro_dyn_lpf_min_hz > 0) {
         switch (gyroConfig()->gyro_lowpass_type) {
         case FILTER_PT1:
             gyro.dynLpfFilter = DYN_LPF_PT1;
@@ -235,10 +235,10 @@ static void dynLpfFilterInit()
     } else {
         gyro.dynLpfFilter = DYN_LPF_NONE;
     }
-    gyro.dynLpfMin = gyroConfig()->dyn_lpf_gyro_min_hz;
-    gyro.dynLpfMax = gyroConfig()->dyn_lpf_gyro_max_hz;
+    gyro.dynLpfMin = gyroConfig()->gyro_dyn_lpf_min_hz;
+    gyro.dynLpfMax = gyroConfig()->gyro_dyn_lpf_max_hz;
 
-    if (gyroConfig()->dyn_lpf_dterm_min_hz > 0) {
+    if (gyroConfig()->dterm_dyn_lpf_min_hz > 0) {
         switch (gyroConfig()->dterm_filter_type) {
         case FILTER_PT1:
             gyro.dynLpfDtermFilter = DYN_LPF_PT1;
@@ -253,8 +253,8 @@ static void dynLpfFilterInit()
     } else {
         gyro.dynLpfDtermFilter = DYN_LPF_NONE;
     }
-    gyro.dynLpfDtermMin = gyroConfig()->dyn_lpf_dterm_min_hz;
-    gyro.dynLpfDtermMax = gyroConfig()->dyn_lpf_dterm_max_hz;
+    gyro.dynLpfDtermMin = gyroConfig()->dterm_dyn_lpf_min_hz;
+    gyro.dynLpfDtermMax = gyroConfig()->dterm_dyn_lpf_max_hz;
 
 }
 #endif
@@ -280,11 +280,11 @@ void gyroInitFilters(void)
     uint16_t dterm_lowpass_hz = gyroConfig()->dterm_lowpass_hz;
 
 #ifdef USE_DYN_LPF
-    if (gyroConfig()->dyn_lpf_gyro_min_hz > 0) {
-        gyro_lowpass_hz = gyroConfig()->dyn_lpf_gyro_min_hz;
+    if (gyroConfig()->gyro_dyn_lpf_min_hz > 0) {
+        gyro_lowpass_hz = gyroConfig()->gyro_dyn_lpf_min_hz;
     }
-    if (gyroConfig()->dyn_lpf_dterm_min_hz) {
-        dterm_lowpass_hz = gyroConfig()->dyn_lpf_dterm_min_hz;
+    if (gyroConfig()->dterm_dyn_lpf_min_hz) {
+        dterm_lowpass_hz = gyroConfig()->dterm_dyn_lpf_min_hz;
     }
 #endif
 

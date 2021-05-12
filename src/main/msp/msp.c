@@ -1681,10 +1681,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         // Added in MSP API 1.41
         sbufWriteU8(dst, gyroConfig()->dterm_filter2_type);
 #if defined(USE_DYN_LPF)
-        sbufWriteU16(dst, gyroConfig()->dyn_lpf_gyro_min_hz);
-        sbufWriteU16(dst, gyroConfig()->dyn_lpf_gyro_max_hz);
-        sbufWriteU16(dst, gyroConfig()->dyn_lpf_dterm_min_hz);
-        sbufWriteU16(dst, gyroConfig()->dyn_lpf_dterm_max_hz);
+        sbufWriteU16(dst, gyroConfig()->gyro_dyn_lpf_min_hz);
+        sbufWriteU16(dst, gyroConfig()->gyro_dyn_lpf_max_hz);
+        sbufWriteU16(dst, gyroConfig()->dterm_dyn_lpf_min_hz);
+        sbufWriteU16(dst, gyroConfig()->dterm_dyn_lpf_max_hz);
 #else
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
@@ -2493,10 +2493,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             // Added in MSP API 1.41
             gyroConfigMutable()->dterm_filter2_type = sbufReadU8(src);
 #if defined(USE_DYN_LPF)
-            gyroConfigMutable()->dyn_lpf_gyro_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->dyn_lpf_gyro_max_hz = sbufReadU16(src);
-            gyroConfigMutable()->dyn_lpf_dterm_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->dyn_lpf_dterm_max_hz = sbufReadU16(src);
+            gyroConfigMutable()->gyro_dyn_lpf_min_hz = sbufReadU16(src);
+            gyroConfigMutable()->gyro_dyn_lpf_max_hz = sbufReadU16(src);
+            gyroConfigMutable()->dterm_dyn_lpf_min_hz = sbufReadU16(src);
+            gyroConfigMutable()->dterm_dyn_lpf_max_hz = sbufReadU16(src);
 #else
             sbufReadU16(src);
             sbufReadU16(src);

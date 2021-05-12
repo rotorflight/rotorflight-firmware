@@ -194,8 +194,8 @@ typedef struct gyroConfig_s {
     uint8_t  gyro_lowpass_type;
     uint8_t  gyro_lowpass2_type;
 
-    uint16_t dyn_lpf_gyro_min_hz;
-    uint16_t dyn_lpf_gyro_max_hz;
+    uint16_t gyro_dyn_lpf_min_hz;
+    uint16_t gyro_dyn_lpf_max_hz;
 
     uint16_t dyn_notch_max_hz;
     uint8_t  dyn_notch_width_percent;
@@ -210,8 +210,8 @@ typedef struct gyroConfig_s {
     uint16_t  dterm_notch_hz;                 // Biquad dterm notch hz
     uint16_t  dterm_notch_cutoff;             // Biquad dterm notch low cutoff
 
-    uint16_t  dyn_lpf_dterm_min_hz;           // Minimum freq for D-term LPF
-    uint16_t  dyn_lpf_dterm_max_hz;           // Maximum freq for D-term LPF
+    uint16_t  dterm_dyn_lpf_min_hz;           // Minimum freq for D-term LPF
+    uint16_t  dterm_dyn_lpf_max_hz;           // Maximum freq for D-term LPF
 
     uint8_t  gyro_filter_debug_axis;
 
