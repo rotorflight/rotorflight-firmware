@@ -116,6 +116,7 @@ typedef struct gyro_s {
 
 #ifdef USE_DYN_LPF
     uint8_t  dynLpfDtermFilter;
+    uint16_t dynLpfDtermHz;
     uint16_t dynLpfDtermMin;
     uint16_t dynLpfDtermMax;
 #endif
@@ -133,6 +134,7 @@ typedef struct gyro_s {
 
 #ifdef USE_DYN_LPF
     uint8_t dynLpfFilter;
+    uint16_t dynLpfHz;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
 #endif

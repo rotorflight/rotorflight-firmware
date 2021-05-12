@@ -235,6 +235,7 @@ static void dynLpfFilterInit()
     } else {
         gyro.dynLpfFilter = DYN_LPF_NONE;
     }
+    gyro.dynLpfHz  = gyroConfig()->gyro_lowpass_hz;
     gyro.dynLpfMin = gyroConfig()->gyro_dyn_lpf_min_hz;
     gyro.dynLpfMax = gyroConfig()->gyro_dyn_lpf_max_hz;
 
@@ -253,6 +254,7 @@ static void dynLpfFilterInit()
     } else {
         gyro.dynLpfDtermFilter = DYN_LPF_NONE;
     }
+    gyro.dynLpfDtermHz  = gyroConfig()->dterm_lowpass_hz;
     gyro.dynLpfDtermMin = gyroConfig()->dterm_dyn_lpf_min_hz;
     gyro.dynLpfDtermMax = gyroConfig()->dterm_dyn_lpf_max_hz;
 

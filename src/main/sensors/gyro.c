@@ -564,7 +564,7 @@ uint16_t gyroAbsRateDps(int axis)
 static void dynLpfGyroUpdate(float ratio)
 {
     if (gyro.dynLpfFilter != DYN_LPF_NONE) {
-        const unsigned int cutoffFreq = fmax(ratio * gyro.dynLpfMax, gyro.dynLpfMin);
+        const unsigned int cutoffFreq = constrainf(ratio * gyro.dynLpfHz, gyro.dynLpfMin, gyro.dynLpfMax);
 
         if (gyro.dynLpfFilter == DYN_LPF_PT1) {
             DEBUG_SET(DEBUG_DYN_LPF, 2, cutoffFreq);
@@ -583,7 +583,7 @@ static void dynLpfGyroUpdate(float ratio)
 static void dynLpfDTermUpdate(float ratio)
 {
     if (gyro.dynLpfDtermFilter != DYN_LPF_NONE) {
-        const unsigned int cutoffFreq = fmax(ratio * gyro.dynLpfDtermMax, gyro.dynLpfDtermMin);
+        const unsigned int cutoffFreq = constrainf(ratio * gyro.dynLpfDtermHz, gyro.dynLpfDtermMin, gyro.dynLpfDtermMax);
 
         if (gyro.dynLpfDtermFilter == DYN_LPF_PT1) {
             for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
