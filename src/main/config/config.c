@@ -546,11 +546,11 @@ void validateAndFixGyroConfig(void)
     }
 #ifdef USE_DYN_LPF
     //Prevent invalid dynamic lowpass filter
-    if (gyroConfig()->dyn_lpf_gyro_min_hz > gyroConfig()->dyn_lpf_gyro_max_hz) {
-        gyroConfigMutable()->dyn_lpf_gyro_min_hz = 0;
+    if (gyroConfig()->gyro_dyn_lpf_min_hz > gyroConfig()->gyro_dyn_lpf_max_hz) {
+        gyroConfigMutable()->gyro_dyn_lpf_min_hz = 0;
     }
-    if (gyroConfig()->dyn_lpf_dterm_min_hz > gyroConfig()->dyn_lpf_dterm_max_hz) {
-        gyroConfigMutable()->dyn_lpf_dterm_min_hz = 0;
+    if (gyroConfig()->dterm_dyn_lpf_min_hz > gyroConfig()->dterm_dyn_lpf_max_hz) {
+        gyroConfigMutable()->dterm_dyn_lpf_min_hz = 0;
     }
 #endif
 
