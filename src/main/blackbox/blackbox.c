@@ -1394,8 +1394,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass_type", "%d",               gyroConfig()->gyro_lowpass_type);
         BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass_hz", "%d",                 gyroConfig()->gyro_lowpass_hz);
 #ifdef USE_DYN_LPF
-        BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass_dyn_hz", "%d,%d",          gyroConfig()->dyn_lpf_gyro_min_hz,
-                                                                            gyroConfig()->dyn_lpf_gyro_max_hz);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass_dyn_hz", "%d,%d",          gyroConfig()->gyro_dyn_lpf_min_hz,
+                                                                            gyroConfig()->gyro_dyn_lpf_max_hz);
 #endif
         BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass2_type", "%d",              gyroConfig()->gyro_lowpass2_type);
         BLACKBOX_PRINT_HEADER_LINE("gyro_lowpass2_hz", "%d",                gyroConfig()->gyro_lowpass2_hz);
@@ -1416,8 +1416,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("dterm_notch_hz", "%d",                  gyroConfig()->dterm_notch_hz);
         BLACKBOX_PRINT_HEADER_LINE("dterm_notch_cutoff", "%d",              gyroConfig()->dterm_notch_cutoff);
 #ifdef USE_DYN_LPF
-        BLACKBOX_PRINT_HEADER_LINE("dterm_lowpass_dyn_hz", "%d,%d",         gyroConfig()->dyn_lpf_dterm_min_hz,
-                                                                            gyroConfig()->dyn_lpf_dterm_max_hz);
+        BLACKBOX_PRINT_HEADER_LINE("dterm_lowpass_dyn_hz", "%d,%d",         gyroConfig()->dterm_dyn_lpf_min_hz,
+                                                                            gyroConfig()->dterm_dyn_lpf_max_hz);
 #endif
 
 #ifdef USE_DSHOT_TELEMETRY

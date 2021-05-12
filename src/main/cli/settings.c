@@ -632,10 +632,10 @@ const clivalue_t valueTable[] = {
     { "dyn_notch_max_hz",           VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 200, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_notch_max_hz) },
 #endif
 #ifdef USE_DYN_LPF
-    { "dyn_lpf_gyro_min_hz",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf_gyro_min_hz) },
-    { "dyn_lpf_gyro_max_hz",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf_gyro_max_hz) },
-    { "dyn_lpf_dterm_min_hz",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf_dterm_min_hz) },
-    { "dyn_lpf_dterm_max_hz",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dyn_lpf_dterm_max_hz) },
+    { "gyro_dyn_lpf_min_hz",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_dyn_lpf_min_hz) },
+    { "gyro_dyn_lpf_max_hz",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_dyn_lpf_max_hz) },
+    { "dterm_dyn_lpf_min_hz",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_dyn_lpf_min_hz) },
+    { "dterm_dyn_lpf_max_hz",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_dyn_lpf_max_hz) },
 #endif
     { "dterm_lowpass_type",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_LOWPASS_TYPE }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_filter_type) },
     { "dterm_lowpass_hz",           VAR_INT16  | MASTER_VALUE, .config.minmax = { 0, FILTER_FREQUENCY_MAX }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_lowpass_hz) },

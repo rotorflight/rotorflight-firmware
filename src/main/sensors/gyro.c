@@ -116,8 +116,8 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_soft_notch_cutoff_2 = 0;
     gyroConfig->checkOverflow = GYRO_OVERFLOW_CHECK_ALL_AXES;
     gyroConfig->gyro_offset_yaw = 0;
-    gyroConfig->dyn_lpf_gyro_min_hz = 200;
-    gyroConfig->dyn_lpf_gyro_max_hz = 500;
+    gyroConfig->gyro_dyn_lpf_min_hz = 200;
+    gyroConfig->gyro_dyn_lpf_max_hz = 500;
     gyroConfig->dyn_notch_max_hz = 600;
     gyroConfig->dyn_notch_width_percent = 8;
     gyroConfig->dyn_notch_q = 120;
@@ -128,8 +128,8 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dterm_lowpass2_hz = 150;
     gyroConfig->dterm_notch_hz = 0;
     gyroConfig->dterm_notch_cutoff = 0;
-    gyroConfig->dyn_lpf_dterm_min_hz = 70;
-    gyroConfig->dyn_lpf_dterm_max_hz = 170;
+    gyroConfig->dterm_dyn_lpf_min_hz = 70;
+    gyroConfig->dterm_dyn_lpf_max_hz = 170;
     gyroConfig->gyro_filter_debug_axis = FD_ROLL;
 }
 
