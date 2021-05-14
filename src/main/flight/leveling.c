@@ -140,7 +140,8 @@ float pidLevelApply(int axis, float setPoint)
 
         const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
 
-        if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
+
+        if (FLIGHT_MODE(ANGLE_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
             // Angle based control
             setPoint = errorAngle * levelGain;
         }

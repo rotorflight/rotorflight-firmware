@@ -767,19 +767,22 @@ static void osdElementFlymode(osdElementParms_t *element)
 {
     // Note that flight mode display has precedence in what to display.
     //  1. FS
-    //  2. GPS RESCUE
-    //  3. ANGLE, HORIZON, ACRO TRAINER
-    //  4. AIR
-    //  5. ACRO
+    //  2. RESCUE
+    //  3. GPS RESCUE
+    //  4. ANGLE, HORIZON
+    //  5. ACRO TRAINER
+    //  6. ACRO
 
     if (FLIGHT_MODE(FAILSAFE_MODE)) {
         strcpy(element->buff, "!FS!");
-    } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
+    } else if (FLIGHT_MODE(RESCUE_MODE)) {
         strcpy(element->buff, "RESC");
+    } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
+        strcpy(element->buff, "HOME");
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         strcpy(element->buff, "ANGL");
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
-        strcpy(element->buff, "HOR ");
+        strcpy(element->buff, "HORZ");
     } else if (IS_RC_MODE_ACTIVE(BOXACROTRAINER)) {
         strcpy(element->buff, "ATRN");
     } else {
