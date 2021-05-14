@@ -167,6 +167,7 @@ static bool accNeedsCalibration(void)
         // Check for any configured modes that use the ACC
         if (isModeActivationConditionPresent(BOXANGLE) ||
             isModeActivationConditionPresent(BOXHORIZON) ||
+            isModeActivationConditionPresent(BOXRESCUE) ||
             isModeActivationConditionPresent(BOXGPSRESCUE) ||
             isModeActivationConditionPresent(BOXCAMSTAB) ||
             isModeActivationConditionPresent(BOXCALIB) ||
@@ -634,41 +635,35 @@ bool processRx(timeUs_t currentTimeUs)
         processRcAdjustments(currentControlRateProfile);
     }
 
-    bool canUseHorizonMode = true;
+    if (sensors(SENSOR_ACC)) {
+        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+            ENABLE_FLIGHT_MODE(RESCUE_MODE);
+        } else {
+            DISABLE_FLIGHT_MODE(RESCUE_MODE);
+        }
 
-    if ((IS_RC_MODE_ACTIVE(BOXANGLE) || failsafeIsActive()) && (sensors(SENSOR_ACC))) {
-        // bumpless transfer to Level mode
-        canUseHorizonMode = false;
-
-        if (!FLIGHT_MODE(ANGLE_MODE)) {
+        if (IS_RC_MODE_ACTIVE(BOXANGLE)) {
             ENABLE_FLIGHT_MODE(ANGLE_MODE);
+            DISABLE_FLIGHT_MODE(HORIZON_MODE);
+        } else {
+            DISABLE_FLIGHT_MODE(ANGLE_MODE);
+            if (IS_RC_MODE_ACTIVE(BOXHORIZON)) {
+                ENABLE_FLIGHT_MODE(HORIZON_MODE);
+            } else {
+                DISABLE_FLIGHT_MODE(HORIZON_MODE);
+            }
         }
-    } else {
-        DISABLE_FLIGHT_MODE(ANGLE_MODE); // failsafe support
-    }
-
-    if (IS_RC_MODE_ACTIVE(BOXHORIZON) && canUseHorizonMode) {
-
-        DISABLE_FLIGHT_MODE(ANGLE_MODE);
-
-        if (!FLIGHT_MODE(HORIZON_MODE)) {
-            ENABLE_FLIGHT_MODE(HORIZON_MODE);
-        }
-    } else {
-        DISABLE_FLIGHT_MODE(HORIZON_MODE);
     }
 
 #ifdef USE_GPS_RESCUE
     if (ARMING_FLAG(ARMED) && (IS_RC_MODE_ACTIVE(BOXGPSRESCUE) || (failsafeIsActive() && failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE))) {
-        if (!FLIGHT_MODE(GPS_RESCUE_MODE)) {
-            ENABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
-        }
+        ENABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
     } else {
         DISABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
     }
 #endif
 
-    if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) {
+    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | RESCUE_MODE | FAILSAFE_MODE)) {
         LED1_ON;
         // increase frequency of attitude task to reduce drift when in angle or horizon mode
         rescheduleTask(TASK_ATTITUDE, TASK_PERIOD_HZ(500));

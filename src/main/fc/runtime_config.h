@@ -82,7 +82,8 @@ typedef enum {
     HORIZON_MODE_BIT     = 1,
     PASSTHRU_MODE_BIT    = 2,
     FAILSAFE_MODE_BIT    = 3,
-    GPS_RESCUE_MODE_BIT  = 4,
+    RESCUE_MODE_BIT      = 4,
+    GPS_RESCUE_MODE_BIT  = 5,
 } flightModeBits_e;
 
 typedef enum {
@@ -90,6 +91,7 @@ typedef enum {
     HORIZON_MODE         = BIT(HORIZON_MODE_BIT),
     PASSTHRU_MODE        = BIT(PASSTHRU_MODE_BIT),
     FAILSAFE_MODE        = BIT(FAILSAFE_MODE_BIT),
+    RESCUE_MODE          = BIT(RESCUE_MODE_BIT),
     GPS_RESCUE_MODE      = BIT(GPS_RESCUE_MODE_BIT),
 } flightModeFlags_e;
 
@@ -106,6 +108,7 @@ extern uint16_t flightModeFlags;
    [BOXHORIZON]     = HORIZON_MODE_BIT,                  \
    [BOXPASSTHRU]    = PASSTHRU_MODE_BIT,                 \
    [BOXFAILSAFE]    = FAILSAFE_MODE_BIT,                 \
+   [BOXRESCUE]      = RESCUE_MODE_BIT,                   \
    [BOXGPSRESCUE]   = GPS_RESCUE_MODE_BIT,               \
 }                                                        \
 /**/
