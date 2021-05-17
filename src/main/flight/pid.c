@@ -387,6 +387,9 @@ STATIC_UNIT_TESTED void applyAbsoluteControl(const int axis, const float gyroRat
             acErrorRate = (gyroRate > gmaxac ? gmaxac : gminac ) - gyroRate;
         }
 
+        if (pidAxisSaturated(axis))
+            acErrorRate = 0;
+
         // Check to ensure we are spooled up at a reasonable level
         if (isSpooledUp()) {
             axisError[axis] = constrainf(axisError[axis] + acErrorRate * dT, -acErrorLimit, acErrorLimit);
@@ -524,6 +527,9 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
         float setpointCorrection = currentPidSetpoint - uncorrectedSetpoint;
 #endif
+        // -----axis saturated
+        if (pidAxisSaturated(axis))
+            itermErrorRate = 0;
 
         // --------low-level gyro-based PID based on 2DOF PID controller. ----------
         // 2-DOF PID controller with optional filter on derivative term.

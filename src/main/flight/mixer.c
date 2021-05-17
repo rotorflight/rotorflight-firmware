@@ -60,8 +60,8 @@ static FAST_RAM_ZERO_INIT mixerRule_t rules[MIXER_RULE_COUNT];
 static FAST_RAM_ZERO_INIT float     mixInput[MIXER_INPUT_COUNT];
 static FAST_RAM_ZERO_INIT float     mixOutput[MIXER_OUTPUT_COUNT];
 static FAST_RAM_ZERO_INIT int16_t   mixOverride[MIXER_INPUT_COUNT];
-
-static FAST_RAM_ZERO_INIT uint32_t  flightModeMask;
+static FAST_RAM_ZERO_INIT uint32_t  mixOutputMap[MIXER_OUTPUT_COUNT];
+static FAST_RAM_ZERO_INIT uint16_t  mixSaturated[MIXER_INPUT_COUNT];
 
 static FAST_RAM_ZERO_INIT float     cyclicTotal;
 static FAST_RAM_ZERO_INIT float     cyclicLimit;
@@ -161,6 +161,8 @@ static void mixerUpdateInputs(void)
 
     // Cyclic ring limit reached
     if (cyclicTotal > cyclicLimit) {
+        mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
+        mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
         mixInput[MIXER_IN_STABILIZED_ROLL]  *= cyclicLimit / cyclicTotal;
         mixInput[MIXER_IN_STABILIZED_PITCH] *= cyclicLimit / cyclicTotal;
         cyclicTotal = cyclicLimit;
@@ -172,17 +174,20 @@ void mixerUpdate(void)
     // Reset mixer inputs
     for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
         mixInput[i] = 0;
+        if (mixSaturated[i])
+            mixSaturated[i]--;
     }
     // Reset mixer outputs
     for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
         mixOutput[i] = 0;
+        mixOutputMap[i] = 0;
     }
 
     // Fetch input values
     mixerUpdateInputs();
 
     // Current flight mode bitmap
-    flightModeMask = ((uint32_t)(~flightModeFlags)) << 16 | flightModeFlags;
+    uint32_t flightModeMask = ((uint32_t)(~flightModeFlags)) << 16 | flightModeFlags;
 
     // Calculate mixer outputs
     for (int i = 0; i < MIXER_RULE_COUNT; i++) {
@@ -195,14 +200,36 @@ void mixerUpdate(void)
             {
                 case MIXER_OP_SET:
                     mixOutput[dst] = out;
+                    mixOutputMap[dst] = BIT(src);
                     break;
                 case MIXER_OP_ADD:
                     mixOutput[dst] += out;
+                    mixOutputMap[dst] |= BIT(src);
                     break;
                 case MIXER_OP_MUL:
                     mixOutput[dst] *= out;
+                    mixOutputMap[dst] |= BIT(src);
                     break;
             }
+        }
+    }
+}
+
+bool mixerSaturated(uint8_t index)
+{
+    return (mixSaturated[index] > 0);
+}
+
+void mixerSaturateInput(uint8_t index)
+{
+    mixSaturated[index] = MIXER_SATURATION_TIME;
+}
+
+void mixerSaturateOutput(uint8_t index)
+{
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
+        if (mixOutputMap[index] & BIT(i)) {
+            mixerSaturateInput(i);
         }
     }
 }
