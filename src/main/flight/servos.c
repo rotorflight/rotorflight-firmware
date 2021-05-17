@@ -127,6 +127,18 @@ void servoInit(void)
     }
 }
 
+static inline float limitTravel(uint8_t servo, float pos, float min, float max)
+{
+    if (pos > max) {
+        mixerSaturateServoOutput(servo);
+        return max;
+    } else if (pos < min) {
+        mixerSaturateServoOutput(servo);
+        return min;
+    }
+    return pos;
+}
+
 static inline float limitSpeed(float old, float new, float rate)
 {
     float diff = new - old;
@@ -152,7 +164,7 @@ void servoUpdate(void)
         else
             pos = mixerGetServoOutput(i);
 
-        pos = constrainf(servoParams(i)->rate * pos, servoParams(i)->min, servoParams(i)->max);
+        pos = limitTravel(i, servoParams(i)->rate * pos, servoParams(i)->min, servoParams(i)->max);
         pos = servoParams(i)->mid + trim + pos;
 
         if (servoSpeed[i] > 0)

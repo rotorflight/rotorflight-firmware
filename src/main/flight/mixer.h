@@ -96,6 +96,8 @@ enum {
 #define MIXER_THR_SCALING     (1.0f / (PWM_RANGE_MAX - PWM_RANGE_MIN))
 #define MIXER_THR_OFFSET      PWM_RANGE_MIN
 
+#define MIXER_SATURATION_TIME 5
+
 
 typedef struct
 {
@@ -136,12 +138,20 @@ float mixerGetOutput(uint8_t i);
 float mixerGetServoOutput(uint8_t i);
 float mixerGetMotorOutput(uint8_t i);
 
+bool mixerSaturated(uint8_t index);
+void mixerSaturateInput(uint8_t index);
+void mixerSaturateOutput(uint8_t index);
+
 int16_t mixerGetOverride(uint8_t i);
 int16_t mixerSetOverride(uint8_t i, int16_t value);
 
 float getCyclicDeflection(void);
 float getCollectiveDeflection(void);
 
-static inline bool mixerPidAxisSaturated(uint8_t i) { UNUSED(i); return false; /* TODO */ }
 static inline float mixerGetThrottle(void) { return mixerGetInput(MIXER_IN_RC_COMMAND_THROTTLE); }
+
+static inline bool pidAxisSaturated(uint8_t i) { return mixerSaturated(MIXER_IN_STABILIZED_ROLL + i); }
+
+static inline void mixerSaturateServoOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_SERVO_OFFSET); }
+static inline void mixerSaturateMotorOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_MOTOR_OFFSET); }
 
