@@ -116,7 +116,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         },
         .pidSumLimit = PIDSUM_LIMIT,
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
-        .yaw_lowpass_hz = 0,
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
         .itermWindupPointPercent = 100,
@@ -190,8 +189,6 @@ static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpassApplyFn;
 static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT filterApplyFnPtr dtermLowpass2ApplyFn;
 static FAST_RAM_ZERO_INIT dtermLowpass_t dtermLowpass2[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT filterApplyFnPtr ptermYawLowpassApplyFn;
-static FAST_RAM_ZERO_INIT pt1Filter_t ptermYawLowpass;
 
 #if defined(USE_ITERM_RELAX)
 static FAST_RAM_ZERO_INIT pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
@@ -247,7 +244,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         // no looptime set, so set all the filters to null
         dtermNotchApplyFn = nullFilterApply;
         dtermLowpassApplyFn = nullFilterApply;
-        ptermYawLowpassApplyFn = nullFilterApply;
         return;
     }
 
@@ -330,13 +326,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
             dtermLowpass2ApplyFn = nullFilterApply;
             break;
         }
-    }
-
-    if (pidProfile->yaw_lowpass_hz == 0 || pidProfile->yaw_lowpass_hz > pidFrequencyNyquist) {
-        ptermYawLowpassApplyFn = nullFilterApply;
-    } else {
-        ptermYawLowpassApplyFn = (filterApplyFnPtr)pt1FilterApply;
-        pt1FilterInit(&ptermYawLowpass, pt1FilterGain(pidProfile->yaw_lowpass_hz, dT));
     }
 
 #if defined(USE_ITERM_RELAX)
@@ -994,9 +983,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         // -----calculate P component
         pidData[axis].P = pidCoefficient[axis].Kp * errorRate;
-        if (axis == FD_YAW) {
-            pidData[axis].P = ptermYawLowpassApplyFn((filter_t *) &ptermYawLowpass, pidData[axis].P);
-        }
 
         // -----calculate I component
         float Ki = pidCoefficient[axis].Ki;
