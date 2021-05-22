@@ -61,8 +61,7 @@
 #define YAW_D_TERM_SCALE            0.00050000f
 #define YAW_F_TERM_SCALE            0.01250000f
 
-#define ITERM_RELAX_SETPOINT_THRESHOLD     40.0f
-#define ITERM_RELAX_CUTOFF_DEFAULT         15
+#define ITERM_RELAX_SETPOINT_THRESHOLD    40.0f
 
 #define pidNames "ROLL;PITCH;YAW;"
 
@@ -146,6 +145,7 @@ typedef struct pidProfile_s
     uint8_t   acro_trainer_debug_axis;        // The axis for which record debugging values are captured 0=roll, 1=pitch
     uint16_t  acro_trainer_lookahead_ms;      // The lookahead window in milliseconds used to reduce overshoot
 
+    uint8_t   abs_control;                    // Enable absolute control
     uint8_t   abs_control_gain;               // How strongly should the absolute accumulated error be corrected for
     uint8_t   abs_control_limit;              // Limit to the correction
     uint8_t   abs_control_error_limit;        // Limit to the accumulated error
