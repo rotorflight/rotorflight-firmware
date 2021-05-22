@@ -99,15 +99,16 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .iterm_rotation = false,
         .iterm_relax = ITERM_RELAX_RP,
         .iterm_relax_type = ITERM_RELAX_SETPOINT,
-        .iterm_relax_cutoff = ITERM_RELAX_CUTOFF_DEFAULT,
+        .iterm_relax_cutoff = 10,
         .acro_trainer_gain = 75,
         .acro_trainer_angle_limit = 20,
         .acro_trainer_lookahead_ms = 50,
         .acro_trainer_debug_axis = FD_ROLL,
-        .abs_control_gain = 0,
-        .abs_control_limit = 90,
-        .abs_control_error_limit = 20,
-        .abs_control_cutoff = 11,
+        .abs_control = false,
+        .abs_control_gain = 10,
+        .abs_control_limit = 120,
+        .abs_control_error_limit = 45,
+        .abs_control_cutoff = 6,
         .ff_interpolate_sp = FF_INTERPOLATE_AVG2,
         .ff_spike_limit = 60,
         .ff_max_rate_limit = 100,
@@ -151,16 +152,15 @@ static FAST_RAM_ZERO_INIT float collectiveImpulseFilterGain;
 static FAST_RAM_ZERO_INIT pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
 static FAST_RAM_ZERO_INIT uint8_t itermRelaxType;
-static FAST_RAM_ZERO_INIT uint8_t itermRelaxCutoff;
 #endif
 
 #ifdef USE_ABSOLUTE_CONTROL
-static FAST_RAM_ZERO_INIT float axisError[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT float acGain;
-static FAST_RAM_ZERO_INIT float acLimit;
+static FAST_RAM_ZERO_INIT bool  absoluteControl;
+static FAST_RAM_ZERO_INIT pt1Filter_t acFilter[XYZ_AXIS_COUNT];
+static FAST_RAM_ZERO_INIT float acError[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float acErrorLimit;
-static FAST_RAM_ZERO_INIT float acCutoff;
-static FAST_RAM_ZERO_INIT pt1Filter_t acLpf[XYZ_AXIS_COUNT];
+static FAST_RAM_ZERO_INIT float acLimit;
+static FAST_RAM_ZERO_INIT float acGain;
 #endif
 
 #ifdef USE_INTERPOLATED_SP
@@ -216,15 +216,15 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #ifdef USE_ITERM_RELAX
     if (itermRelax) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-            pt1FilterInit(&windupLpf[i], pt1FilterGain(itermRelaxCutoff, dT));
+            pt1FilterInit(&windupLpf[i], pt1FilterGain(pidProfile->iterm_relax_cutoff, dT));
         }
-    }
-#endif
 #ifdef USE_ABSOLUTE_CONTROL
-    if (itermRelax) {
-        for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-            pt1FilterInit(&acLpf[i], pt1FilterGain(acCutoff, dT));
+        if (absoluteControl) {
+            for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+                pt1FilterInit(&acFilter[i], pt1FilterGain(pidProfile->abs_control_cutoff, dT));
+            }
         }
+#endif
     }
 #endif
 }
@@ -260,7 +260,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 #ifdef USE_ITERM_RELAX
     itermRelax = pidProfile->iterm_relax;
     itermRelaxType = pidProfile->iterm_relax_type;
-    itermRelaxCutoff = pidProfile->iterm_relax_cutoff;
 #endif
 
 #ifdef USE_ACC
@@ -271,16 +270,18 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 #endif
 
 #ifdef USE_ABSOLUTE_CONTROL
-    acGain = (float)pidProfile->abs_control_gain;
-    acLimit = (float)pidProfile->abs_control_limit;
-    acErrorLimit = (float)pidProfile->abs_control_error_limit;
-    acCutoff = (float)pidProfile->abs_control_cutoff;
-    float rollCorrection  = -acGain * ROLL_P_TERM_SCALE  / ROLL_I_TERM_SCALE  * pidCoefficient[FD_ROLL].Kp;
-    float pitchCorrection = -acGain * PITCH_P_TERM_SCALE / PITCH_I_TERM_SCALE * pidCoefficient[FD_PITCH].Kp;
-    float yawCorrection   = -acGain * YAW_P_TERM_SCALE   / YAW_I_TERM_SCALE   * pidCoefficient[FD_YAW].Kp;
-    pidCoefficient[FD_ROLL].Ki  = MAX(0.0f, pidCoefficient[FD_ROLL].Ki  + rollCorrection);
-    pidCoefficient[FD_PITCH].Ki = MAX(0.0f, pidCoefficient[FD_PITCH].Ki + pitchCorrection);
-    pidCoefficient[FD_YAW].Ki   = MAX(0.0f, pidCoefficient[FD_YAW].Ki   + yawCorrection);
+    absoluteControl = pidProfile->abs_control && pidProfile->abs_control_gain > 0;
+    acGain = pidProfile->abs_control_gain / 10.0f;
+    acLimit = pidProfile->abs_control_limit;
+    acErrorLimit = pidProfile->abs_control_error_limit;
+
+    float RC = acGain * pidCoefficient[FD_ROLL].Kp * ROLL_P_TERM_SCALE / ROLL_I_TERM_SCALE;
+    float PC = acGain * pidCoefficient[FD_PITCH].Kp * PITCH_P_TERM_SCALE / PITCH_I_TERM_SCALE;
+    float YC = acGain * pidCoefficient[FD_YAW].Kp * YAW_P_TERM_SCALE / YAW_I_TERM_SCALE;
+
+    pidCoefficient[FD_ROLL].Ki  = MAX(0, pidCoefficient[FD_ROLL].Ki  - RC);
+    pidCoefficient[FD_PITCH].Ki = MAX(0, pidCoefficient[FD_PITCH].Ki - PC);
+    pidCoefficient[FD_YAW].Ki   = MAX(0, pidCoefficient[FD_YAW].Ki   - YC);
 #endif
 
 #ifdef USE_INTERPOLATED_SP
@@ -300,8 +301,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 void pidInit(const pidProfile_t *pidProfile)
 {
     pidSetLooptime(gyro.targetLooptime);
-    pidInitFilters(pidProfile);
+
     pidInitConfig(pidProfile);
+    pidInitFilters(pidProfile);
 }
 
 static void pidReset(void)
@@ -318,9 +320,9 @@ static void pidReset(void)
 void pidResetIterm(void)
 {
     for (int axis = 0; axis < 3; axis++) {
-        pidData[axis].I = 0.0f;
+        pidData[axis].I = 0;
 #ifdef USE_ABSOLUTE_CONTROL
-        axisError[axis] = 0.0f;
+        acError[axis] = 0;
 #endif
     }
 }
@@ -402,87 +404,104 @@ static inline void rotateIterm(void)
 #ifdef USE_ABSOLUTE_CONTROL
 static inline void rotateAxisError(void)
 {
-    if (itermRelax && acGain > 0) {
-        rotateVector(&axisError[X], &axisError[Y], gyro.gyroADCf[Z]*dT*RAD);
+    if (itermRelax && absoluteControl) {
+        rotateVector(&acError[X], &acError[Y], gyro.gyroADCf[Z]*dT*RAD);
     }
 }
 
-static FAST_CODE void applyAbsoluteControl(const int axis, const float gyroRate,
-    float *itermErrorRate, float *currentPidSetpoint)
+static FAST_CODE float applyAbsoluteControl(const int axis,
+	const float gyroRate, const float currentPidSetpoint)
 {
-    if (itermRelax && acGain > 0) {
-        const float setpointLpf = pt1FilterApply(&acLpf[axis], *currentPidSetpoint);
-        const float setpointHpf = fabsf(*currentPidSetpoint - setpointLpf);
-        const float gmaxac = setpointLpf + 2 * setpointHpf;
-        const float gminac = setpointLpf - 2 * setpointHpf;
+    const float acLpf = pt1FilterApply(&acFilter[axis], currentPidSetpoint);
+    const float acHpf = fabsf(currentPidSetpoint - acLpf);
+    const float acGmax = acLpf + 2 * acHpf;
+    const float acGmin = acLpf - 2 * acHpf;
+    const float acError1 = acGmax - gyroRate;
+    const float acError2 = acGmin - gyroRate;
 
-        float acErrorRate = 0;
+    float acErrorRate = 0, acCorrection = 0;
 
-        if (gyroRate >= gminac && gyroRate <= gmaxac) {
-            const float acErrorRate1 = gmaxac - gyroRate;
-            const float acErrorRate2 = gminac - gyroRate;
-            if (acErrorRate1 * axisError[axis] < 0) {
-                acErrorRate = acErrorRate1;
-            } else {
-                acErrorRate = acErrorRate2;
-            }
-            if (fabsf(acErrorRate * dT) > fabsf(axisError[axis]) ) {
-                acErrorRate = -axisError[axis] * pidFrequency;
-            }
-        } else {
-            acErrorRate = (gyroRate > gmaxac ? gmaxac : gminac ) - gyroRate;
-        }
-
-        if (pidAxisSaturated(axis))
-            acErrorRate = 0;
-
-        // Check to ensure we are spooled up at a reasonable level
-        if (isSpooledUp()) {
-            axisError[axis] = constrainf(axisError[axis] + acErrorRate * dT, -acErrorLimit, acErrorLimit);
-            const float acCorrection = constrainf(axisError[axis] * acGain, -acLimit, acLimit);
-            *currentPidSetpoint += acCorrection;
-            *itermErrorRate += acCorrection;
-            DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
-            if (axis == FD_ROLL) {
-                DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
-            }
-        }
-
-        DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(axisError[axis] * 10));
+    if (gyroRate > acGmax) {
+        acErrorRate = acError1; // < 0
     }
+    else if (gyroRate < acGmin) {
+        acErrorRate = acError2; // > 0
+    }
+    else {
+        if (acError[axis] < 0)
+            acErrorRate = acError1; // > 0
+        else
+            acErrorRate = acError2; // < 0
+    }
+
+    if (fabsf(acErrorRate * dT) > fabsf(acError[axis]))
+        acErrorRate = -acError[axis] * pidFrequency;
+
+    if (pidAxisSaturated(axis) || !isSpooledUp())
+        acErrorRate = 0;
+
+    acError[axis] = constrainf(acError[axis] + acErrorRate * dT, -acErrorLimit, acErrorLimit);
+
+    acCorrection = constrainf(acError[axis] * acGain, -acLimit, acLimit);
+
+    DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(acError[axis] * 10));
+    DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
+
+    if (axis == FD_ROLL) {
+        DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
+        DEBUG32_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 1, currentPidSetpoint * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 2, acLpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 3, acHpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 4, acError1 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 5, acError2 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 6, acErrorRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 7, acCorrection * 1000);
+    }
+
+    return acCorrection;
 }
 #endif
 
 #ifdef USE_ITERM_RELAX
-static FAST_CODE void applyItermRelax(const int axis, const float iterm,
-    const float gyroRate, float *itermErrorRate, float *currentPidSetpoint)
+static FAST_CODE float applyItermRelax(const int axis, const float iterm,
+    float itermErrorRate, const float gyroRate, const float currentPidSetpoint)
 {
-    if (itermRelax) {
-        const float setpointLpf = pt1FilterApply(&windupLpf[axis], *currentPidSetpoint);
-        const float setpointHpf = fabsf(*currentPidSetpoint - setpointLpf);
+    const float setpointLpf = pt1FilterApply(&windupLpf[axis], currentPidSetpoint);
+    const float setpointHpf = fabsf(currentPidSetpoint - setpointLpf);
 
-        // Always active on ROLL & PITCH; active also on YAW if _RPY
-        if (axis < FD_YAW || itermRelax == ITERM_RELAX_RPY || itermRelax == ITERM_RELAX_RPY_INC)
-        {
-            const float itermRelaxFactor = MAX(0, 1 - setpointHpf / ITERM_RELAX_SETPOINT_THRESHOLD);
-            const bool isDecreasingI = ((iterm > 0) && (*itermErrorRate < 0)) || ((iterm < 0) && (*itermErrorRate > 0));
-            if ((itermRelax >= ITERM_RELAX_RP_INC) && isDecreasingI) {
-                // Do Nothing, use the precalculed itermErrorRate
-            } else if (itermRelaxType == ITERM_RELAX_SETPOINT) {
-                *itermErrorRate *= itermRelaxFactor;
+    // Always active on ROLL & PITCH; active also on YAW if _RPY
+    if (axis < FD_YAW || itermRelax == ITERM_RELAX_RPY || itermRelax == ITERM_RELAX_RPY_INC)
+    {
+        const float itermRelaxFactor = MAX(0, 1.0f - setpointHpf / ITERM_RELAX_SETPOINT_THRESHOLD);
+
+        if ((itermRelax == ITERM_RELAX_RP_INC || itermRelax == ITERM_RELAX_RPY_INC) &&
+            (((iterm > 0) && (itermErrorRate < 0)) || ((iterm < 0) && (itermErrorRate > 0)))) {
+            // Iterm decreasing, no change
+        }
+        else {
+            if (itermRelaxType == ITERM_RELAX_SETPOINT) {
+                itermErrorRate *= itermRelaxFactor;
             } else if (itermRelaxType == ITERM_RELAX_GYRO ) {
-                *itermErrorRate = fapplyDeadband(setpointLpf - gyroRate, setpointHpf);
-            } else {
-                *itermErrorRate = 0.0f;
-            }
-
-            if (axis == FD_ROLL) {
-                DEBUG_SET(DEBUG_ITERM_RELAX, 0, lrintf(setpointHpf));
-                DEBUG_SET(DEBUG_ITERM_RELAX, 1, lrintf(itermRelaxFactor * 100.0f));
-                DEBUG_SET(DEBUG_ITERM_RELAX, 2, lrintf(*itermErrorRate));
+                itermErrorRate = fapplyDeadband(setpointLpf - gyroRate, setpointHpf);
             }
         }
+
+        if (axis == FD_ROLL) {
+            DEBUG_SET(DEBUG_ITERM_RELAX, 0, lrintf(setpointHpf));
+            DEBUG_SET(DEBUG_ITERM_RELAX, 1, lrintf(itermRelaxFactor * 100.0f));
+            DEBUG_SET(DEBUG_ITERM_RELAX, 2, lrintf(itermErrorRate));
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 0, currentPidSetpoint * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 1, gyroRate * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 2, setpointLpf * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 3, setpointHpf * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 4, itermRelaxFactor * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 5, itermErrorRate * 1000);
+        }
     }
+
+    return itermErrorRate;
 }
 #endif
 
@@ -527,15 +546,21 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (!isSpooledUp()) {
             pidData[axis].I -= pidData[axis].I * itermDecay;
 #ifdef USE_ABSOLUTE_CONTROL
-            axisError[axis] -= axisError[axis] * itermDecay;
+            acError[axis] -= acError[axis] * itermDecay;
 #endif
         }
 #endif
 #ifdef USE_ITERM_RELAX
-        applyItermRelax(axis, pidData[axis].I, gyroRate, &itermErrorRate, &currentPidSetpoint);
-#endif
+        if (itermRelax) {
+            itermErrorRate = applyItermRelax(axis, pidData[axis].I, itermErrorRate, gyroRate, currentPidSetpoint);
 #ifdef USE_ABSOLUTE_CONTROL
-        applyAbsoluteControl(axis, gyroRate, &itermErrorRate, &currentPidSetpoint);
+            if (absoluteControl) {
+                float delta = applyAbsoluteControl(axis, gyroRate, currentPidSetpoint);
+                itermErrorRate += delta;
+                currentPidSetpoint += delta;
+            }
+#endif
+        }
 #endif
         // -----axis saturated
         if (pidAxisSaturated(axis))
