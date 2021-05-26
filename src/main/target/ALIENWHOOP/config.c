@@ -87,8 +87,6 @@ void targetConfiguration(void)
     rxConfigMutable()->rcInterpolationInterval = 14;
     parseRcChannels("TAER1234", rxConfigMutable());
 
-    mixerConfigMutable()->yaw_motors_reversed = true;
-
     blackboxConfigMutable()->p_ratio = 128;
 
     /* Breadboard-specific settings for development purposes only
@@ -121,17 +119,10 @@ void targetConfiguration(void)
         pidProfile->pid[PID_YAW].P = 220;
         pidProfile->pid[PID_YAW].I = 75;
         pidProfile->pid[PID_YAW].D = 20;
-        pidProfile->pid[PID_LEVEL].P = 65;
-        pidProfile->pid[PID_LEVEL].I = 65;
-        pidProfile->pid[PID_LEVEL].D = 55;
 
         /* Setpoints */
-        pidProfile->dterm_filter_type = FILTER_BIQUAD;
-        pidProfile->dterm_notch_hz = 0;
         pidProfile->pid[PID_PITCH].F = 100;
         pidProfile->pid[PID_ROLL].F = 100;
-
-	pidProfile->levelAngleLimit = 65;
     }
 
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {

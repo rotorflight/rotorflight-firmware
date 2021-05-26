@@ -83,8 +83,6 @@ void targetConfiguration(void)
         pidProfile->pid[PID_PITCH].D = 18;
         pidProfile->pid[PID_YAW].P = 200;
         pidProfile->pid[PID_YAW].I = 45;
-        pidProfile->pid[PID_LEVEL].P = 30;
-        pidProfile->pid[PID_LEVEL].D = 30;
 
         pidProfile->pid[PID_PITCH].F = 200;
         pidProfile->pid[PID_ROLL].F = 200;

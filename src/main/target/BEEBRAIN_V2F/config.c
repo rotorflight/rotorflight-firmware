@@ -102,11 +102,6 @@ void targetConfiguration(void)
     batteryConfigMutable()->vbatmincellvoltage = 280;
     batteryConfigMutable()->vbatwarningcellvoltage = 330;
 
-    *customMotorMixerMutable(0) = (motorMixer_t){ 1.0f, -0.414178f,  1.0f, -1.0f };    // REAR_R
-    *customMotorMixerMutable(1) = (motorMixer_t){ 1.0f, -0.414178f, -1.0f,  1.0f };    // FRONT_R
-    *customMotorMixerMutable(2) = (motorMixer_t){ 1.0f,  0.414178f,  1.0f,  1.0f };    // REAR_L
-    *customMotorMixerMutable(3) = (motorMixer_t){ 1.0f,  0.414178f, -1.0f, -1.0f };    // FRONT_L
-
     vcdProfileMutable()->video_system = VIDEO_SYSTEM_NTSC;
 #if defined(BEESTORM)
     strcpy(pilotConfigMutable()->name, "BeeStorm");
