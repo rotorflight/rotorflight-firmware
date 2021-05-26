@@ -92,7 +92,6 @@ void targetConfiguration(void)
         pidProfile->pid[PID_PITCH].P = 70;
         pidProfile->pid[PID_PITCH].I = 62;
         pidProfile->pid[PID_PITCH].D = 19;
-        pidProfile->pid[PID_LEVEL].I = 40;
     }
 
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {

@@ -184,8 +184,6 @@
 #define RANGEFINDER_HCSR04_TRIGGER_PIN       PB0
 #define RANGEFINDER_HCSR04_ECHO_PIN          PB1
 
-#define MAX_SUPPORTED_MOTORS    12
-
 // IO - 303 in 100pin package
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff
