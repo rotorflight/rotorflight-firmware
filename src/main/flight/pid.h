@@ -65,6 +65,10 @@
 
 #define pidNames "ROLL;PITCH;YAW;"
 
+enum {
+    FD_COLL = 3,
+};
+
 typedef enum {
     PID_ROLL,
     PID_PITCH,
@@ -86,6 +90,13 @@ typedef enum {
     ITERM_RELAX_SETPOINT,
     ITERM_RELAX_TYPE_COUNT,
 } itermRelaxType_e;
+
+typedef enum {
+    NORM_ABSOLUTE,
+    NORM_LINEAR,
+    NORM_NATURAL,
+    NORM_TYPE_COUNT,
+} normalization_e;
 
 typedef struct pidf_s {
     uint8_t P;
@@ -165,6 +176,9 @@ typedef struct pidProfile_s
     uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
     uint16_t  yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
 
+    uint8_t   cyclic_normalization;           // Type of pitch/roll rate normalization
+    uint8_t   collective_normalization;       // Type of collective normalization
+
     uint16_t  rescue_collective;              // Collective value for rescue
     uint16_t  rescue_boost;                   // Add  boost to rescue_collective until delay has expired
     uint8_t   rescue_delay;                   // Timer for non-inverted rescue in 0.1s steps
@@ -198,6 +212,7 @@ uint32_t pidGetLooptime();
 
 float pidGetSetpoint(int axis);
 
+float pidGetStabilizedCollective(void);
 
 #ifdef UNIT_TEST
 
