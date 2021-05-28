@@ -119,6 +119,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_gain = 300,
         .yaw_collective_ff_impulse_gain = 300,
         .yaw_collective_ff_impulse_freq = 100,
+        .rate_normalization = RATE_NORM_ABSOLUTE,
     );
 }
 
@@ -164,6 +165,8 @@ static FAST_RAM_ZERO_INIT float acErrorLimit;
 static FAST_RAM_ZERO_INIT float acLimit;
 static FAST_RAM_ZERO_INIT float acGain;
 #endif
+
+static FAST_RAM_ZERO_INIT uint8_t rateNormalization;
 
 #ifdef USE_INTERPOLATED_SP
 static FAST_RAM_ZERO_INIT bool spInterpolation;
@@ -290,6 +293,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     spInterpolation = (pidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF);
     interpolatedSpInit(pidProfile);
 #endif
+
+    // Rate normalization for pitch & roll
+    rateNormalization = pidProfile->rate_normalization;
 
     // Collective impulse high-pass filter
     collectiveImpulseFilterGain = dT / (dT + (1 / (2 * M_PIf * pidProfile->yaw_collective_ff_impulse_freq / 100.0f)));
@@ -508,9 +514,49 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
 }
 #endif
 
-static FAST_CODE void applyTailPrecompensation(const pidProfile_t *pidProfile)
+static inline float getPIDNormalizationGain(uint8_t axis, float hsRatio)
+{
+    if (axis == FD_YAW && mixerMotorizedTail())
+        return 1.0f;
+    else
+        return 1.0f / (hsRatio*hsRatio);
+}
+
+static inline float getYawPrecompGain(float hsRatio)
+{
+    if (mixerMotorizedTail())
+        return (hsRatio*hsRatio);
+    else
+        return 1.0f;
+}
+
+static inline float getNormalizedRate(uint8_t axis, float hsRatio)
+{
+    float ratio;
+
+    // YAW is always absolute rate
+    if (axis == FD_YAW) {
+        ratio = 1.0f;
+    }
+    // PITCH and ROLL can be relaxed
+    else {
+        if (rateNormalization == RATE_NORM_NATURAL)
+            ratio = hsRatio * hsRatio;
+        else if (rateNormalization == RATE_NORM_LINEAR)
+            ratio = hsRatio;
+        else
+            ratio = 1.0f;
+    }
+
+    return ratio * getSetpointRate(axis);
+}
+
+static FAST_CODE void applyTailPrecompensation(const pidProfile_t *pidProfile, float hsRatio)
 {
     UNUSED(pidProfile);
+
+    // Yaw precompensation gain and direction
+    float Kc = getYawPrecompGain(hsRatio) * mixerRotationSign();
 
     // Get stick throws
     float cyclicDeflection = getCyclicDeflection();
@@ -528,7 +574,7 @@ static FAST_CODE void applyTailPrecompensation(const pidProfile_t *pidProfile)
     float tailCyclicFF = fabsf(cyclicDeflection) * tailCyclicFFGain;
 
     // Calculate total precompensation
-    float tailPrecomp = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset;
+    float tailPrecomp = (tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset) * Kc;
 
     // Add to YAW PID sum
     pidData[FD_YAW].Sum += tailPrecomp;
@@ -546,10 +592,17 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     rotateAxisError();
 #endif
 
-    // ----------PID controller----------
-    for (int axis = FD_ROLL; axis <= FD_YAW; ++axis)
+    // -----headspeed ratio with limits
+    float hsRatio = constrainf(getHeadSpeedRatio(), 0.7f, 1.2f);
+
+    // -----foreach (ROLL, PITCH, YAW)
+    for (int axis = FD_ROLL; axis <= FD_YAW; axis++)
     {
-        float currentPidSetpoint = getSetpointRate(axis);
+        // -----normalised Setpoint rate
+        float currentPidSetpoint = getNormalizedRate(axis, hsRatio);
+
+        // -----PID normalisation gain
+        float Kn = getPIDNormalizationGain(axis, hsRatio);
 
 #ifdef USE_ACC
         // -----apply leveling
@@ -635,11 +688,12 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].F = pidCoefficient[axis].Kf * currentPidSetpoint;
 
         // -----calculate the PID sum
-        pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
+        pidData[axis].Sum = (pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F) * Kn;
+
     }
 
     // Calculate cyclic/collective precompensation for tail
-    applyTailPrecompensation(pidProfile);
+    applyTailPrecompensation(pidProfile, hsRatio);
 
     // Reset PID control if gyro overflow detected
     if (gyroOverflowDetected())
