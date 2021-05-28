@@ -131,6 +131,7 @@ typedef enum {
 #endif
     TABLE_ROTATION_DIR,
     TABLE_GOVERNOR_MODE,
+    TABLE_NORMALIZATION_MODE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

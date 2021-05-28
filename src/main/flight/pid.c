@@ -88,6 +88,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_PITCH] = { 46, 90, 38, 95 },
             [PID_YAW] =   { 45, 90, 0, 90 },
         },
+        .normalization_mode = NORM_MODE_LINEAR,
         .angle_level_strength = 50,
         .angle_level_limit = 55,
         .horizon_level_strength = 50,
@@ -499,10 +500,25 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     rotateAxisError();
 #endif
 
+    // -----limited headspeed ratio
+    float Hr = constrainf(getHeadSpeedRatio(), 0.7f, 1.2f);
+
+    // -----PID normalisation gain
+    float Kn = 1.0f / (Hr*Hr);
+
+    // -----rate normalisation gain
+    float Kr;
+    if (pidProfile->normalization_mode == NORM_MODE_ABSOLUTE)
+        Kr = 1.0f;
+    else if (pidProfile->normalization_mode == NORM_MODE_LINEAR)
+        Kr = Hr;
+    else
+        Kr = Hr*Hr;
+
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis)
     {
-        float currentPidSetpoint = getSetpointRate(axis);
+        float currentPidSetpoint = getSetpointRate(axis) * Kr;
 
 #ifdef USE_ACC
         // -----apply leveling
@@ -609,7 +625,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         }
 
         // calculating the PID sum
-        pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
+        pidData[axis].Sum = (pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F) * Kn;
     }
 
     // Reset PID control if gyro overflow detected

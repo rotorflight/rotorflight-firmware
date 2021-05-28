@@ -480,6 +480,10 @@ static const char * const lookupTableGovernorMode[] = {
     "OFF", "PASSTHROUGH", "STANDARD", "MODE1", "MODE2",
 };
 
+static const char * const lookupTableNormalizationMode[] = {
+    "NONE", "LINEAR", "ABSOLUTE"
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -592,6 +596,7 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRotationDir),
     LOOKUP_TABLE_ENTRY(lookupTableGovernorMode),
+    LOOKUP_TABLE_ENTRY(lookupTableNormalizationMode),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -989,6 +994,8 @@ const clivalue_t valueTable[] = {
     { "i_yaw",                      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].I) },
     { "d_yaw",                      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].D) },
     { "f_yaw",                      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 },PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].F) },
+
+    { "normalization_mode",         VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_NORMALIZATION_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, normalization_mode) },
 
     { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_strength) },
     { "angle_level_limit",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_limit) },
