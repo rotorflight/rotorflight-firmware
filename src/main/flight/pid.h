@@ -87,6 +87,13 @@ typedef enum {
     ITERM_RELAX_TYPE_COUNT,
 } itermRelaxType_e;
 
+typedef enum {
+    RATE_NORM_ABSOLUTE,
+    RATE_NORM_LINEAR,
+    RATE_NORM_NATURAL,
+    RATE_NORM_TYPE_COUNT,
+} rateNormalization_e;
+
 typedef struct pidf_s {
     uint8_t P;
     uint8_t I;
@@ -162,6 +169,8 @@ typedef struct pidProfile_s
     uint16_t  yaw_collective_ff_gain;         // Feedforward for collective into Yaw
     uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
     uint16_t  yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
+
+    uint8_t   rate_normalization;             // Type of pitch/roll rate normalization
 
 } pidProfile_t;
 
