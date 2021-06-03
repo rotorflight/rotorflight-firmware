@@ -138,10 +138,17 @@ static void mixerUpdateInputs(void)
     // Update throttle from governor
     mixInput[MIXER_IN_STABILIZED_THROTTLE] = getGovernorOutput();
 
-    // PID stabilized controls
-    mixInput[MIXER_IN_STABILIZED_ROLL]  = pidData[FD_ROLL].Sum  * MIXER_PID_SCALING;
-    mixInput[MIXER_IN_STABILIZED_PITCH] = pidData[FD_PITCH].Sum * MIXER_PID_SCALING;
-    mixInput[MIXER_IN_STABILIZED_YAW]   = pidData[FD_YAW].Sum   * MIXER_PID_SCALING;
+    // PASSTHROUGH mode disables roll/pitch stabilization (flybar mode)
+    if (!FLIGHT_MODE(PASSTHRU_MODE)) {
+        mixInput[MIXER_IN_STABILIZED_ROLL]  = pidData[FD_ROLL].Sum  * MIXER_PID_SCALING;
+        mixInput[MIXER_IN_STABILIZED_PITCH] = pidData[FD_PITCH].Sum * MIXER_PID_SCALING;
+    } else {
+        mixInput[MIXER_IN_STABILIZED_ROLL]  = rcCommand[ROLL]       * MIXER_RC_SCALING;
+        mixInput[MIXER_IN_STABILIZED_PITCH] = rcCommand[PITCH]      * MIXER_RC_SCALING;
+    }
+
+    // Tail/Yaw is always stabilised
+    mixInput[MIXER_IN_STABILIZED_YAW] = pidData[FD_YAW].Sum   * MIXER_PID_SCALING;
 
     // Scale/limit inputs
     for (int i = 1; i < MIXER_INPUT_COUNT; i++)
