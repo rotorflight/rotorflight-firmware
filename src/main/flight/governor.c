@@ -968,9 +968,9 @@ void governorInit(void)
         govLostThrottleTimeout  = governorConfig()->gov_lost_throttle_timeout * 100;
         govLostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
-        biquadFilterInitLPF(&govVoltageFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
-        biquadFilterInitLPF(&govCurrentFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
-        biquadFilterInitLPF(&govMotorRPMFilter, governorConfig()->gov_rpm_filter, pidGetLooptime());
+        biquadFilterInitBessel(&govVoltageFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
+        biquadFilterInitBessel(&govCurrentFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
+        biquadFilterInitBessel(&govMotorRPMFilter, governorConfig()->gov_rpm_filter, pidGetLooptime());
     }
 }
 
