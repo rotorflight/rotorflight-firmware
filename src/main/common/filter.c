@@ -104,6 +104,11 @@ void biquadFilterInitLPF(biquadFilter_t *filter, float filterFreq, uint32_t refr
     biquadFilterInit(filter, filterFreq, refreshRate, BIQUAD_Q, FILTER_LPF);
 }
 
+void biquadFilterInitBessel(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate)
+{
+    biquadFilterInit(filter, filterFreq, refreshRate, 0, FILTER_BESSEL);
+}
+
 void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate, float Q, biquadFilterType_e filterType)
 {
     // setup variables
@@ -141,6 +146,22 @@ void biquadFilterInit(biquadFilter_t *filter, float filterFreq, uint32_t refresh
         a1 = -2 * cs;
         a2 = 1 - alpha;
         break;
+    case FILTER_BESSEL:
+        {
+            const float w = tan_approx(omega/2);
+            const float a = -0.8660254f * w;
+            const float b = 0.5f * w;
+            const float A = -2 * a;
+            const float B = a*a + b*b;
+            const float C = w * w;
+            b0 = C;
+            b1 = 2 * C;
+            b2 = C;
+            a0 = 1 + A + B;
+            a1 = 2 * (B - 1);
+            a2 = 1 - A + B;
+        }
+        break;
     }
 
     // precompute the coefficients
@@ -175,6 +196,11 @@ FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float filterFreq, uint
 FAST_CODE void biquadFilterUpdateLPF(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate)
 {
     biquadFilterUpdate(filter, filterFreq, refreshRate, BIQUAD_Q, FILTER_LPF);
+}
+
+FAST_CODE void biquadFilterUpdateBessel(biquadFilter_t *filter, float filterFreq, uint32_t refreshRate)
+{
+    biquadFilterUpdate(filter, filterFreq, refreshRate, 0, FILTER_BESSEL);
 }
 
 /* Computes a biquadFilter_t filter on a sample (slightly less precise than df2 but works in dynamic mode) */
