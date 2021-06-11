@@ -368,9 +368,9 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                     case RC_SMOOTHING_INPUT_BIQUAD:
                     default:
                         if (!smoothingData->filterInitialized) {
-                            biquadFilterInitLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
+                            biquadFilterInitBessel((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
                         } else {
-                            biquadFilterUpdateLPF((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
+                            biquadFilterUpdateBessel((biquadFilter_t*) &smoothingData->filter[i], smoothingData->inputCutoffFrequency, pidLooptime);
                         }
                         break;
                 }
@@ -394,7 +394,7 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                         pt1FilterInit(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
                         break;
                     case RC_SMOOTHING_DERIVATIVE_BIQUAD:
-                        biquadFilterInitLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
+                        biquadFilterInitBessel(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
                         break;
                     default:
                         break;
@@ -410,7 +410,7 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
                         pt1FilterUpdateCutoff(&smoothingData->derivativeFilter[axis].pt1Filter, pt1FilterGain(smoothingData->derivativeCutoffFrequency, dT));
                         break;
                     case RC_SMOOTHING_DERIVATIVE_BIQUAD:
-                        biquadFilterUpdateLPF(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
+                        biquadFilterUpdateBessel(&smoothingData->derivativeFilter[axis].biquadFilter, smoothingData->derivativeCutoffFrequency, pidLooptime);
                         break;
                     default:
                         break;
