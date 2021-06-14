@@ -458,6 +458,15 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
 
     if (axis == FD_ROLL) {
         DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
+        DEBUG32_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 1, currentPidSetpoint * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 2, acLpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 3, acHpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 4, acError1 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 5, acError2 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 6, acErrorRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 7, acCorrection * 1000);
     }
 
     return acCorrection;
@@ -492,6 +501,12 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
             DEBUG_SET(DEBUG_ITERM_RELAX, 0, lrintf(setpointHpf));
             DEBUG_SET(DEBUG_ITERM_RELAX, 1, lrintf(itermRelaxFactor * 100.0f));
             DEBUG_SET(DEBUG_ITERM_RELAX, 2, lrintf(itermErrorRate));
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 0, currentPidSetpoint * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 1, gyroRate * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 2, setpointLpf * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 3, setpointHpf * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 4, itermRelaxFactor * 1000);
+            DEBUG32_SET(DEBUG_ITERM_RELAX, 5, itermErrorRate * 1000);
         }
     }
 
