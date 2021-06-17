@@ -114,6 +114,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .ff_max_rate_limit = 100,
         .ff_smooth_factor = 37,
         .ff_boost = 15,
+        .yaw_center_offset = 0,
         .yaw_cyclic_ff_gain = 0,
         .yaw_collective_ff_gain = 300,
         .yaw_collective_ff_impulse_gain = 300,
@@ -142,6 +143,7 @@ static FAST_RAM_ZERO_INIT float previousDtermGyroRate[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT biquadFilter_t pFilter[XYZ_AXIS_COUNT];
 
+static FAST_RAM_ZERO_INIT float tailCenterOffset;
 static FAST_RAM_ZERO_INIT float tailCyclicFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveImpulseFFGain;
@@ -298,6 +300,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     collectiveImpulseFilterGain = dT / (dT + (1 / (2 * M_PIf * pidProfile->yaw_collective_ff_impulse_freq / 100.0f)));
 
     // Tail feedforward gains
+    tailCenterOffset = pidProfile->yaw_center_offset / 1000.0f;
     tailCyclicFFGain = pidProfile->yaw_cyclic_ff_gain;
     tailCollectiveFFGain = pidProfile->yaw_collective_ff_gain;
     tailCollectiveImpulseFFGain = pidProfile->yaw_collective_ff_impulse_gain;
@@ -624,7 +627,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             float tailCyclicFF = getCyclicDeflection() * tailCyclicFFGain;
 
             // Calculate total tail feedforward
-            float tailTotalFF = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF;
+            float tailTotalFF = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset;
 
             // Main rotor direction changes the feedforward sign
             if (motorConfig()->mainRotorDir == DIR_CW)

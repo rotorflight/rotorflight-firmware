@@ -846,6 +846,9 @@ const clivalue_t valueTable[] = {
 #endif
 #endif // USE_BEEPER
 
+// PG_GENERIC_MIXER_CONFIG
+    { "motor_tail",                 VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, motor_tail) },
+
 // PG_GOVERNOR_CONFIG
     { "gov_mode",                   VAR_UINT8  |  MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },
     { "gov_max_headspeed",          VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 10000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_max_headspeed) },
@@ -1024,6 +1027,7 @@ const clivalue_t valueTable[] = {
     { "ff_boost",                   VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, ff_boost) },
 #endif
 
+    { "yaw_center_offset",              VAR_INT16  | PROFILE_VALUE, .config.minmax = { -250, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_center_offset) },
     { "yaw_cyclic_ff_gain",             VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cyclic_ff_gain) },
     { "yaw_collective_ff_gain",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_gain) },
     { "yaw_collective_ff_impulse_gain", VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_impulse_gain) },

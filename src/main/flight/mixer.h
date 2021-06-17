@@ -101,7 +101,8 @@ enum {
 
 typedef struct
 {
-    uint8_t mode;
+    uint8_t   mode;
+    uint8_t   motor_tail;       // Tail motor vs. variable pitch tail
 
 } mixerConfig_t;
 

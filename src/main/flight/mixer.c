@@ -150,6 +150,14 @@ static void mixerUpdateInputs(void)
     // Tail/Yaw is always stabilised
     mixInput[MIXER_IN_STABILIZED_YAW] = pidData[FD_YAW].Sum   * MIXER_PID_SCALING;
 
+    // Motor tail control
+    if (mixerConfig()->motor_tail) {
+        if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.001f)
+            mixInput[MIXER_IN_STABILIZED_YAW] = 0;
+        else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.20f)
+            mixInput[MIXER_IN_STABILIZED_YAW] *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.20f;
+    }
+
     // Scale/limit inputs
     for (int i = 1; i < MIXER_INPUT_COUNT; i++)
         mixInput[i] = mixerScaleInput(i, mixInput[i]);
