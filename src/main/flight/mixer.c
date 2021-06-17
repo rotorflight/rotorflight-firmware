@@ -66,6 +66,8 @@ static FAST_RAM_ZERO_INIT uint16_t  mixSaturated[MIXER_INPUT_COUNT];
 static FAST_RAM_ZERO_INIT float     cyclicTotal;
 static FAST_RAM_ZERO_INIT float     cyclicLimit;
 
+static FAST_RAM_ZERO_INIT float     tailMotorIdle;
+
 
 static inline float mixerOverrideInput(int index, float val)
 {
@@ -112,6 +114,8 @@ void mixerInit(void)
     for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
         mixOverride[i] = MIXER_OVERRIDE_OFF;
     }
+
+    tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
 }
 
 static void mixerUpdateInputs(void)
@@ -132,6 +136,9 @@ static void mixerUpdateInputs(void)
     // No stabilization (yet)
     mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
 
+    // Tail/Yaw is always stabilised - positive is against main rotor torque
+    mixInput[MIXER_IN_STABILIZED_YAW] = mixerRotationSign() * pidData[FD_YAW].Sum *  MIXER_PID_SCALING;
+
     // Update governor sub-mixer
     governorUpdate();
 
@@ -147,8 +154,22 @@ static void mixerUpdateInputs(void)
         mixInput[MIXER_IN_STABILIZED_PITCH] = rcCommand[PITCH]      * MIXER_RC_SCALING;
     }
 
-    // Tail/Yaw is always stabilised
-    mixInput[MIXER_IN_STABILIZED_YAW] = pidData[FD_YAW].Sum   * MIXER_PID_SCALING;
+    // Motorized tail control
+    if (mixerMotorizedTail()) {
+
+        // Thrust linearizaion
+        mixInput[MIXER_IN_STABILIZED_YAW] = sqrtf(constrainf(mixInput[MIXER_IN_STABILIZED_YAW], 0, 1));
+
+        // Spoolup follows main rotor
+        if (isSpooledUp()) {
+            mixInput[MIXER_IN_STABILIZED_YAW] = constrainf(mixInput[MIXER_IN_STABILIZED_YAW], tailMotorIdle, 1);
+        } else {
+            if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+                mixInput[MIXER_IN_STABILIZED_YAW] = 0;
+            else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
+                mixInput[MIXER_IN_STABILIZED_YAW] *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
+        }
+    }
 
     // Scale/limit inputs
     for (int i = 1; i < MIXER_INPUT_COUNT; i++)
