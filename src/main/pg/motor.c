@@ -77,8 +77,6 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
         motorConfig->motorRpmLpf[motorIndex] = 50;
     }
 
-    motorConfig->mainRotorDir = DIR_CW;
-
 #ifdef USE_DSHOT_BITBANG
     motorConfig->dev.useDshotBitbang = DSHOT_BITBANG_DEFAULT;
     motorConfig->dev.useDshotBitbangedTimer = DSHOT_BITBANGED_TIMER_DEFAULT;

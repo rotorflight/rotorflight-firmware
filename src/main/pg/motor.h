@@ -26,11 +26,6 @@
 #include "drivers/dshot_bitbang.h"
 
 typedef enum {
-    DIR_CW,
-    DIR_CCW,
-} dir_e;
-
-typedef enum {
     DSHOT_BITBANGED_TIMER_AUTO = 0,
     DSHOT_BITBANGED_TIMER_TIM1,
     DSHOT_BITBANGED_TIMER_TIM8,
@@ -63,7 +58,6 @@ typedef struct motorConfig_s {
     uint16_t mincommand;                    // This is the value for the ESCs when they are not armed. In some cases, this value must be lowered down to 900 for some specific ESCs
     uint8_t motorPoleCount[MAX_SUPPORTED_MOTORS]; // Magnetic poles in the motors for calculating actual RPM from eRPM provided by ESC telemetry
     uint16_t motorRpmLpf[MAX_SUPPORTED_MOTORS];   // RPM low pass filter
-    uint8_t mainRotorDir;                         // Main rotor direction: CW/CCW
 } motorConfig_t;
 
 PG_DECLARE(motorConfig_t, motorConfig);

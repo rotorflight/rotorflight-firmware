@@ -114,6 +114,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .ff_max_rate_limit = 100,
         .ff_smooth_factor = 37,
         .ff_boost = 15,
+        .yaw_center_offset = 0,
         .yaw_cyclic_ff_gain = 0,
         .yaw_collective_ff_gain = 300,
         .yaw_collective_ff_impulse_gain = 300,
@@ -140,6 +141,7 @@ static FAST_RAM_ZERO_INIT uint32_t pidLooptime;
 static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float previousDtermGyroRate[XYZ_AXIS_COUNT];
 
+static FAST_RAM_ZERO_INIT float tailCenterOffset;
 static FAST_RAM_ZERO_INIT float tailCyclicFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveImpulseFFGain;
@@ -293,6 +295,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     collectiveImpulseFilterGain = dT / (dT + (1 / (2 * M_PIf * pidProfile->yaw_collective_ff_impulse_freq / 100.0f)));
 
     // Tail feedforward gains
+    tailCenterOffset = pidProfile->yaw_center_offset / 1000.0f;
     tailCyclicFFGain = pidProfile->yaw_cyclic_ff_gain;
     tailCollectiveFFGain = pidProfile->yaw_collective_ff_gain;
     tailCollectiveImpulseFFGain = pidProfile->yaw_collective_ff_impulse_gain;
@@ -505,6 +508,31 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
 }
 #endif
 
+static FAST_CODE void applyTailPrecompensation(const pidProfile_t *pidProfile)
+{
+    UNUSED(pidProfile);
+
+    // Get stick throws
+    float cyclicDeflection = getCyclicDeflection();
+    float collectiveDeflection = getCollectiveDeflection();
+
+    // Collective pitch impulse filter
+    collectiveDeflectionLPF += (collectiveDeflection - collectiveDeflectionLPF) * collectiveImpulseFilterGain;
+    collectiveDeflectionHPF = collectiveDeflection - collectiveDeflectionLPF;
+
+    // Collective components
+    float tailCollectiveFF = fabsf(collectiveDeflection) * tailCollectiveFFGain;
+    float tailCollectiveImpulseFF = fabsf(collectiveDeflectionHPF) * tailCollectiveImpulseFFGain;
+
+    // Cyclic component
+    float tailCyclicFF = fabsf(cyclicDeflection) * tailCyclicFFGain;
+
+    // Calculate total precompensation
+    float tailPrecomp = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset;
+
+    // Add to YAW PID sum
+    pidData[FD_YAW].Sum += tailPrecomp;
+}
 
 FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
@@ -606,37 +634,12 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // -----calculate feedforward component
         pidData[axis].F = pidCoefficient[axis].Kf * currentPidSetpoint;
 
-        // Calculate tail feedforward precompensation
-        if (axis == FD_YAW) {
-
-            // Get absolute value of collective stick throw
-            float cyclicDeflection = getCyclicDeflection();
-            float collectiveDeflection = getCollectiveDeflection();
-
-            // Collective pitch impulse feed-forward for the main motor
-            collectiveDeflectionLPF += (collectiveDeflection - collectiveDeflectionLPF) * collectiveImpulseFilterGain;
-            collectiveDeflectionHPF = collectiveDeflection - collectiveDeflectionLPF;
-
-            // Feedforward collective components
-            float tailCollectiveFF = fabsf(collectiveDeflection) * tailCollectiveFFGain;
-            float tailCollectiveImpulseFF = fabsf(collectiveDeflectionHPF) * tailCollectiveImpulseFFGain;
-
-            // Feedforward cyclic component
-            float tailCyclicFF = fabsf(cyclicDeflection) * tailCyclicFFGain;
-
-            // Calculate total tail feedforward
-            float tailTotalFF = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF;
-
-            // Main rotor direction changes the feedforward sign
-            if (motorConfig()->mainRotorDir == DIR_CW)
-                pidData[FD_YAW].F -= tailTotalFF;
-            else
-                pidData[FD_YAW].F += tailTotalFF;
-        }
-
-        // calculating the PID sum
+        // -----calculate the PID sum
         pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
     }
+
+    // Calculate cyclic/collective precompensation for tail
+    applyTailPrecompensation(pidProfile);
 
     // Reset PID control if gyro overflow detected
     if (gyroOverflowDetected())

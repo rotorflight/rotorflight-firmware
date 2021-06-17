@@ -157,6 +157,7 @@ typedef struct pidProfile_s
     uint8_t   ff_smooth_factor;               // Amount of smoothing for interpolated FF steps
     uint8_t   ff_boost;                       // amount of high-pass filtered FF to add to FF, 100 means 100% added
 
+    uint16_t  yaw_center_offset;              // Yaw zero offset
     uint16_t  yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
     uint16_t  yaw_collective_ff_gain;         // Feedforward for collective into Yaw
     uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
