@@ -140,6 +140,8 @@ static FAST_RAM_ZERO_INIT uint32_t pidLooptime;
 static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float previousDtermGyroRate[XYZ_AXIS_COUNT];
 
+static FAST_RAM_ZERO_INIT biquadFilter_t pFilter[XYZ_AXIS_COUNT];
+
 static FAST_RAM_ZERO_INIT float tailCyclicFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveFFGain;
 static FAST_RAM_ZERO_INIT float tailCollectiveImpulseFFGain;
@@ -212,7 +214,10 @@ float pidGetSetpoint(int axis)
 
 void pidInitFilters(const pidProfile_t *pidProfile)
 {
-    UNUSED(pidProfile);
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+        if (pidProfile->p_filter_hz[i])
+            biquadFilterInitBessel(&pFilter[i], pidProfile->p_filter_hz[i], pidLooptime);
+    }
 
 #ifdef USE_ITERM_RELAX
     if (itermRelax) {
@@ -566,6 +571,10 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
         // -----calculate P component
         pidData[axis].P = pidCoefficient[axis].Kp * errorRate;
+
+        // -----extra P filtering
+        if (pidProfile->p_filter_hz[axis])
+            pidData[axis].P = biquadFilterApply(&pFilter[axis], pidData[axis].P);
 
 #ifdef __NOT_USED__
         // -----calculate setpoint delta

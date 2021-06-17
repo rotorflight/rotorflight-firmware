@@ -132,6 +132,8 @@ typedef struct pidProfile_s
 
     pidf_t    pid[PID_ITEM_COUNT];
 
+    uint8_t   p_filter_hz[XYZ_AXIS_COUNT];    // Additional filtering on P
+
     uint8_t   angle_level_strength;
     uint8_t   angle_level_limit;              // Max angle in degrees in level mode
 
