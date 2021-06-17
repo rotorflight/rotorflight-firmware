@@ -33,6 +33,16 @@
 #include "flight/rpm_filter.h"
 
 
+typedef enum {
+    DIR_CW,
+    DIR_CCW,
+} dir_e;
+
+typedef enum {
+    TAIL_MODE_VARIABLE,
+    TAIL_MODE_MOTORIZED,
+} tail_mode_e;
+
 enum {
     MIXER_IN_NONE = 0,
     MIXER_IN_STABILIZED_ROLL,
@@ -106,7 +116,11 @@ enum {
 
 typedef struct
 {
-    uint8_t mode;
+    uint8_t   mode;
+
+    uint8_t   main_rotor_dir;   // Main rotor direction: CW/CCW
+    uint8_t   tail_rotor_mode;  // Tail motor vs. variable pitch tail
+    int16_t   tail_motor_idle;  // Idle throttle for tail motor
 
 } mixerConfig_t;
 
@@ -161,4 +175,8 @@ static inline bool pidAxisSaturated(uint8_t i) { return mixerSaturated(MIXER_IN_
 
 static inline void mixerSaturateServoOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_SERVO_OFFSET); }
 static inline void mixerSaturateMotorOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_MOTOR_OFFSET); }
+
+static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1; }
+
+static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode == TAIL_MODE_MOTORIZED); }
 
