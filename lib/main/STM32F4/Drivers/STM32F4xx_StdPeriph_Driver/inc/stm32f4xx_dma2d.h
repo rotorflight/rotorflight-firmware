@@ -265,11 +265,11 @@ typedef struct
 /** @defgroup DMA2D_OFFSET
   * @{
   */
-#define OFFSET               ((uint32_t)0x00003FFF)
+#define DMA2D_OFFSET         ((uint32_t)0x00003FFF)
 
-#define IS_DMA2D_FGO(FGO)  ((FGO) <= OFFSET)
+#define IS_DMA2D_FGO(FGO)  ((FGO) <= DMA2D_OFFSET)
 
-#define IS_DMA2D_BGO(BGO)  ((BGO) <= OFFSET) 
+#define IS_DMA2D_BGO(BGO)  ((BGO) <= DMA2D_OFFSET)
 
 /**
   * @}
