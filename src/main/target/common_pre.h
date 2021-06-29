@@ -206,12 +206,17 @@
 #define USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 
+#if (TARGET_FLASH_SIZE > 256)
+#define PID_PROFILE_COUNT 6
+#define CONTROL_RATE_PROFILE_COUNT  6
+#else
 #if (TARGET_FLASH_SIZE > 128)
 #define PID_PROFILE_COUNT 3
 #define CONTROL_RATE_PROFILE_COUNT  6
 #else
 #define PID_PROFILE_COUNT 2
 #define CONTROL_RATE_PROFILE_COUNT  3
+#endif
 #endif
 
 #if (TARGET_FLASH_SIZE > 64)
