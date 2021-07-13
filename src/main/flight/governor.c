@@ -329,7 +329,7 @@ static void govUpdateInputs(void)
     govCurrent = biquadFilterApply(&govCurrentFilter, getAmperageLatest() * 0.01f);
 
     // Calculate feedforward from collective deflection
-    govCollectiveFF = govColWeight * getCollectiveDeflection();
+    govCollectiveFF = govColWeight * getCollectiveDeflectionAbs();
 
     // Calculate feedforward from cyclic deflection
     govCyclicFF = govCycWeight * getCyclicDeflection();
