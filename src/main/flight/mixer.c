@@ -271,5 +271,5 @@ float getCyclicDeflection(void)
 
 float getCollectiveDeflection(void)
 {
-    return fabsf(mixInput[MIXER_IN_STABILIZED_COLLECTIVE]);
+    return mixInput[MIXER_IN_STABILIZED_COLLECTIVE];
 }
