@@ -220,6 +220,7 @@ bool isSpooledUp(void)
     switch (govState)
     {
         case GS_ACTIVE:
+        case GS_RECOVERY:
         case GS_LOST_THROTTLE:
         case GS_LOST_HEADSPEED:
         case GS_AUTOROTATION:
@@ -229,7 +230,6 @@ bool isSpooledUp(void)
         case GS_THROTTLE_OFF:
         case GS_THROTTLE_IDLE:
         case GS_SPOOLING_UP:
-        case GS_RECOVERY:
             return false;
     }
 
