@@ -375,7 +375,7 @@ static void govUpdateData(void)
     govTargetHeadSpeed = govThrottle * govMaxHeadSpeed;
 
     // Calculate feedforward from collective deflection
-    govCollectiveFF = govColWeight * getCollectiveDeflection();
+    govCollectiveFF = govColWeight * getCollectiveDeflectionAbs();
 
     // Calculate feedforward from cyclic deflection
     govCyclicFF = govCycWeight * getCyclicDeflection();

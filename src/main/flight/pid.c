@@ -585,6 +585,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (axis == FD_YAW) {
 
             // Get absolute value of collective stick throw
+            float cyclicDeflection = getCyclicDeflection();
             float collectiveDeflection = getCollectiveDeflection();
 
             // Collective pitch impulse feed-forward for the main motor
@@ -592,11 +593,11 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             collectiveDeflectionHPF = collectiveDeflection - collectiveDeflectionLPF;
 
             // Feedforward collective components
-            float tailCollectiveFF = collectiveDeflection * tailCollectiveFFGain;
-            float tailCollectiveImpulseFF = collectiveDeflectionHPF * tailCollectiveImpulseFFGain;
+            float tailCollectiveFF = fabsf(collectiveDeflection) * tailCollectiveFFGain;
+            float tailCollectiveImpulseFF = fabsf(collectiveDeflectionHPF) * tailCollectiveImpulseFFGain;
 
             // Feedforward cyclic component
-            float tailCyclicFF = getCyclicDeflection() * tailCyclicFFGain;
+            float tailCyclicFF = fabsf(cyclicDeflection) * tailCyclicFFGain;
 
             // Calculate total tail feedforward
             float tailTotalFF = tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF;

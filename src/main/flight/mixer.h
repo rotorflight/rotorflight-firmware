@@ -17,6 +17,11 @@
 
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
+
 #include "pg/pg.h"
 
 #include "drivers/io_types.h"
@@ -147,6 +152,8 @@ int16_t mixerSetOverride(uint8_t i, int16_t value);
 
 float getCyclicDeflection(void);
 float getCollectiveDeflection(void);
+
+static inline float getCollectiveDeflectionAbs(void) { return fabsf(getCollectiveDeflection()); }
 
 static inline float mixerGetThrottle(void) { return mixerGetInput(MIXER_IN_RC_COMMAND_THROTTLE); }
 
