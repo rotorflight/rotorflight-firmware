@@ -47,7 +47,7 @@
 
 
 // Throttle mapping in IDLE state
-#define GOV_THROTTLE_OFF_LIMIT          0.05f
+#define GOV_THROTTLE_OFF_LIMIT          0.10f
 #define GOV_THROTTLE_IDLE_LIMIT         0.20f
 #define GOV_THROTTLE_IDLE_RANGE         0.10f
 
