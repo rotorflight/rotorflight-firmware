@@ -39,6 +39,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/governor.h"
+#include "flight/leveling.h"
 
 #include "rx/rx.h"
 
@@ -133,8 +134,12 @@ static void mixerUpdateInputs(void)
     for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++)
         mixInput[MIXER_IN_RC_CHANNEL_ROLL + i] = (rcData[i] - rxConfig()->midrc) * MIXER_RC_SCALING;
 
-    // No stabilization (yet)
-    mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
+    // Collective -- TODO: move rescue to separate module
+    if (!FLIGHT_MODE(RESCUE_MODE)) {
+        mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
+    } else {
+        mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = pidRescueCollective();
+    }
 
     // Tail/Yaw is always stabilised - positive is against main rotor torque
     mixInput[MIXER_IN_STABILIZED_YAW] = mixerRotationSign() * pidData[FD_YAW].Sum *  MIXER_PID_SCALING;
