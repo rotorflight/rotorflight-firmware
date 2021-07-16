@@ -165,6 +165,10 @@ typedef struct pidProfile_s
     uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
     uint16_t  yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
 
+    uint16_t  rescue_collective;              // Collective value for rescue
+    uint16_t  rescue_boost;                   // Add  boost to rescue_collective until delay has expired
+    uint8_t   rescue_delay;                   // Timer for non-inverted rescue in 0.1s steps
+
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);

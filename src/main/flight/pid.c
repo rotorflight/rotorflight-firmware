@@ -119,6 +119,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_gain = 100,
         .yaw_collective_ff_impulse_gain = 20,
         .yaw_collective_ff_impulse_freq = 100,
+        .rescue_collective = 0,
+        .rescue_boost = 0,
+        .rescue_delay = 35,
     );
 }
 
@@ -551,6 +554,9 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
     rotateAxisError();
 #endif
+
+    // Update rescue mode state
+    pidRescueUpdate();
 
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis)

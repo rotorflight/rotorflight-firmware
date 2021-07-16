@@ -53,6 +53,13 @@ static FAST_RAM_ZERO_INIT float horizonFactorRatio;
 
 static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 
+static FAST_RAM_ZERO_INIT float rescueCollective;
+static FAST_RAM_ZERO_INIT float rescueBoost;
+static FAST_RAM_ZERO_INIT uint16_t rescueDelay;
+
+static FAST_RAM_ZERO_INIT timeMs_t rescueStart;
+static FAST_RAM_ZERO_INIT bool rescueInverted;
+
 
 void pidLevelInit(const pidProfile_t *pidProfile)
 {
@@ -64,8 +71,102 @@ void pidLevelInit(const pidProfile_t *pidProfile)
     horizonTiltExpertMode = pidProfile->horizon_tilt_expert_mode;
     horizonCutoffDegrees = (175 - pidProfile->horizon_tilt_effect) * 1.8f;
     horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
+
+    rescueCollective = pidProfile->rescue_collective / 1000.0f;
+    rescueBoost = pidProfile->rescue_boost / 1000.0f;
+    rescueDelay = pidProfile->rescue_delay * 100;
 }
 
+FAST_CODE void pidRescueUpdate(void)
+{
+    if (FLIGHT_MODE(RESCUE_MODE)) {
+        rescueInverted = cmp32(millis(), rescueStart) < rescueDelay;
+    }
+    else {
+        rescueStart = millis();
+        rescueInverted = false;
+    }
+}
+
+FAST_CODE float pidRescueCollective(void)
+{
+    float collective = rescueCollective;
+
+    // Initial rescue with boost
+    if (rescueInverted)
+        collective = constrainf(collective + rescueBoost, 0, 1);
+
+    // attitude.values.roll/pitch = 0 when level, 1800 when fully inverted (decidegrees)
+    const float absRoll = fabsf(attitude.values.roll / 900.0f);
+    const float absPitch = fabsf(attitude.values.pitch / 900.0f);
+
+    // Pitch is +90/-90 at straight down and straight up. Convert it so that level = 1.0
+    const float pitchCurrentInclination = 1.0f - absPitch;
+
+    // Roll is +90/-90 when sideways, and +180/-180 when inverted
+    const float rollCurrentInclination = (absRoll < 1.0f) ?  1.0f - absRoll : -1.0f + absRoll;
+
+    // Smaller of the two
+    const float vertCurrentInclination = MIN(pitchCurrentInclination, rollCurrentInclination);
+
+    // Add more pitch as the heli approaches level
+    collective *= vertCurrentInclination * vertCurrentInclination;
+
+    // We're closer to inverted. Use negative collective pitch
+    if (absRoll > 1.0f)
+        collective = -collective;
+
+    return collective;
+}
+
+static float calcRescueErrorAngle(int axis)
+{
+    const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
+    const float roll = (attitude.raw[FD_ROLL] - angleTrim->raw[FD_ROLL]) / 10.0f;
+    const float angle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
+
+    float error = 0;
+
+    if (roll > 90 && rescueInverted) {
+        // Rolled right closer to inverted, continue to roll right to inverted (+180 degrees)
+        if (axis == FD_PITCH) {
+            error = angle;
+        } else if (axis == FD_ROLL) {
+            error = 180.0f - angle;
+        }
+    } else if (roll < -90 && rescueInverted) {
+        // Rolled left closer to inverted, continue to roll left to inverted (-180 degrees)
+        if (axis == FD_PITCH) {
+            error = angle;
+        } else if (axis == FD_ROLL) {
+            error = -180.0f - angle;
+        }
+    } else {
+        // We're rolled left or right between -90 and 90, and thus are closer to up-right
+        if (axis == FD_PITCH) {
+            error = -angle;
+        } else if (axis == FD_ROLL) {
+            error = -angle;
+        }
+    }
+
+    return error;
+}
+
+static float calcLevelErrorAngle(int axis)
+{
+    const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
+    float angle = levelAngleLimit * getRcDeflection(axis);
+
+#ifdef USE_GPS_RESCUE
+    angle += gpsRescueAngle[axis] / 100.0f; // ANGLE IS IN CENTIDEGREES
+#endif
+    angle = constrainf(angle, -levelAngleLimit, levelAngleLimit);
+
+    float error = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
+
+    return error;
+}
 
 static float calcHorizonLevelStrength(void)
 {
@@ -127,19 +228,13 @@ float pidLevelApply(int axis, float setPoint)
 {
     if (axis != FD_YAW)
     {
-        const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
+        float errorAngle = 0;
 
-        // calculate error angle and limit the angle to the max inclination
-        // rcDeflection is in range [-1.0, 1.0]
-        float angle = levelAngleLimit * getRcDeflection(axis);
-
-#ifdef USE_GPS_RESCUE
-        angle += gpsRescueAngle[axis] / 100; // ANGLE IS IN CENTIDEGREES
-#endif
-        angle = constrainf(angle, -levelAngleLimit, levelAngleLimit);
-
-        const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
-
+        if (FLIGHT_MODE(RESCUE_MODE)) {
+            errorAngle = calcRescueErrorAngle(axis);
+        } else {
+            errorAngle = calcLevelErrorAngle(axis);
+        }
 
         if (FLIGHT_MODE(ANGLE_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
             // Angle based control
@@ -147,9 +242,8 @@ float pidLevelApply(int axis, float setPoint)
         }
         else if (FLIGHT_MODE(HORIZON_MODE)) {
             // HORIZON mode - mix of ANGLE and ACRO modes
-            // mix in errorAngle to setPoint to add a little auto-level feel
-            const float horizonLevelStrength = calcHorizonLevelStrength();
-            setPoint += errorAngle * horizonGain * horizonLevelStrength;
+            // mix in errorAngle to setpoint to add a little auto-level feel
+            setPoint += errorAngle * horizonGain * calcHorizonLevelStrength();
         }
     }
 
@@ -157,4 +251,3 @@ float pidLevelApply(int axis, float setPoint)
 }
 
 #endif // USE_ACC
-
