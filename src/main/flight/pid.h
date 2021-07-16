@@ -174,6 +174,8 @@ typedef struct pidProfile_s
 
     uint8_t   rate_normalization;             // Type of pitch/roll rate normalization
 
+    uint16_t  rescue_collective;              // Collective value for rescue
+
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);

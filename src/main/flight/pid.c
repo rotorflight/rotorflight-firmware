@@ -120,6 +120,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_impulse_gain = 20,
         .yaw_collective_ff_impulse_freq = 100,
         .rate_normalization = RATE_NORM_ABSOLUTE,
+        .rescue_collective = 0,
     );
 }
 
