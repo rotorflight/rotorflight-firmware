@@ -54,13 +54,13 @@
 // Minimum throttle output from PI algorithms
 #define GOV_MIN_THROTTLE_OUTPUT         0.05f
 
-// Motor RPM quality levels
-#define GOV_RPM_DETECT_DELAY            100
-#define GOV_RPM_DETECT_SPEED            2000
+// Headspeed quality levels
+#define GOV_HS_DETECT_DELAY             100
+#define GOV_HS_DETECT_RATIO             0.05f
 
-// Lost RPM levels
-#define GOV_RPM_INVALID_SPEED           1000
-#define GOV_RPM_INVALID_THROTTLE        0.10f
+// Lost headspeed levels
+#define GOV_HS_INVALID_RATIO            0.01f
+#define GOV_HS_INVALID_THROTTLE         0.10f
 
 
 PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 0);
@@ -119,6 +119,7 @@ static FAST_RAM_ZERO_INIT float govHeadSpeed;
 static FAST_RAM_ZERO_INIT float govMaxHeadSpeed;
 static FAST_RAM_ZERO_INIT float govTargetHeadSpeed;
 
+static FAST_RAM_ZERO_INIT float govHeadSpeedRatio;
 static FAST_RAM_ZERO_INIT bool  govHeadSpeedError;
 static FAST_RAM_ZERO_INIT bool  govHeadSpeedPresent;
 
@@ -202,7 +203,7 @@ float getHeadSpeed(void)
 
 float getHeadSpeedRatio(void)
 {
-    return govHeadSpeed / govMaxHeadSpeed;
+    return govHeadSpeedRatio;
 }
 
 uint8_t getGovernorState(void)
@@ -301,8 +302,14 @@ static void govUpdateInputs(void)
     // RPM signal is noisy - filtering is required
     float filteredRPM = biquadFilterApply(&govMotorRPMFilter, govMotorRPM);
 
+    // Calculate headspeed from filtered motor speed
+    govHeadSpeed = filteredRPM / govGearRatio;
+
+    // Calculate HS vs MaxHS ratio
+    govHeadSpeedRatio = govHeadSpeed / govMaxHeadSpeed;
+
     // Evaluate RPM signal quality
-    if (govMotorRPM > 0 && filteredRPM > GOV_RPM_DETECT_SPEED) {
+    if (govMotorRPM > 0 && govHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
         if (!govMotorRPMGood) {
             govMotorRPMGood = millis();
         }
@@ -313,13 +320,10 @@ static void govUpdateInputs(void)
     }
 
     // Headspeed is present if RPM is stable
-    govHeadSpeedPresent = (govMotorRPMGood && cmp32(millis(),govMotorRPMGood) > GOV_RPM_DETECT_DELAY);
+    govHeadSpeedPresent = (govMotorRPMGood && cmp32(millis(),govMotorRPMGood) > GOV_HS_DETECT_DELAY);
 
     // Headspeed should be available if throttle is high enough
-    govHeadSpeedError = (govMotorRPM < GOV_RPM_INVALID_SPEED && govOutput > GOV_RPM_INVALID_THROTTLE);
-
-    // Calculate headspeed from filtered motor speed
-    govHeadSpeed = filteredRPM / govGearRatio;
+    govHeadSpeedError = ((govHeadSpeedRatio < GOV_HS_INVALID_RATIO || govMotorRPM < 1) && govOutput > GOV_HS_INVALID_THROTTLE);
 
     // Battery state - zero when battery unplugged
     govNominalVoltage = getBatteryCellCount() * 3.70f;
