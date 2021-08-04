@@ -242,18 +242,24 @@ bool isSpooledUp(void)
 
 static inline float rampUpLimit(float target, float current, float rate)
 {
-    if (target > current)
-        return MIN(current + rate, target);
+    if (rate > 0) {
+        if (target > current)
+            return MIN(current + rate, target);
+    }
 
     return target;
 }
 
 static inline float rampLimit(float target, float current, float rate)
 {
-    if (target > current)
-        return MIN(current + rate, target);
-    else
-        return MAX(current - rate, target);
+    if (rate > 0) {
+        if (target > current)
+            return MIN(current + rate, target);
+        else
+            return MAX(current - rate, target);
+    }
+
+    return target;
 }
 
 static inline float idleMap(float throttle)
@@ -809,6 +815,15 @@ static float govMode2Control(void)
 }
 
 
+static inline float govCalcRate(uint16_t param, uint16_t min, uint16_t max)
+{
+    if (param)
+        return 10 * pidGetDT() / constrain(param,min,max);
+    else
+        return 0;
+}
+
+
 //// Interface functions
 
 void governorUpdate(void)
@@ -823,7 +838,6 @@ void governorUpdate(void)
         govStateUpdate();
     }
 }
-
 
 void governorInit(void)
 {
@@ -883,10 +897,10 @@ void governorInit(void)
         govAutoTimeout  = governorConfig()->gov_autorotation_timeout * 100;
         govAutoMinEntry = governorConfig()->gov_autorotation_min_entry_time * 1000;
 
-        govThrottleSpoolupRate  = pidGetDT() / constrainf(governorConfig()->gov_spoolup_time, 1, 600) * 10;
-        govThrottleTrackingRate = pidGetDT() / constrainf(governorConfig()->gov_tracking_time, 1, 50) * 10;
-        govThrottleRecoveryRate = pidGetDT() / constrainf(governorConfig()->gov_recovery_time, 1, 50) * 10;
-        govThrottleBailoutRate  = pidGetDT() / constrainf(governorConfig()->gov_autorotation_bailout_time, 1, 100) * 10;
+        govThrottleSpoolupRate  = govCalcRate(governorConfig()->gov_spoolup_time, 1, 600);
+        govThrottleTrackingRate = govCalcRate(governorConfig()->gov_tracking_time, 1, 100);
+        govThrottleRecoveryRate = govCalcRate(governorConfig()->gov_recovery_time, 1, 100);
+        govThrottleBailoutRate  = govCalcRate(governorConfig()->gov_autorotation_bailout_time, 1, 100);
 
         govSetpointSpoolupRate  = govThrottleSpoolupRate  * govMaxHeadSpeed;
         govSetpointTrackingRate = govThrottleTrackingRate * govMaxHeadSpeed;
