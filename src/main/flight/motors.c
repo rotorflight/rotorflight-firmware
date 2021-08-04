@@ -222,18 +222,6 @@ void motorInit(void)
     motorDevInit(&motorConfig()->dev, motorCount);
 }
 
-static inline float limitThrottle(uint8_t motor, float throttle, float min, float max)
-{
-    if (throttle > max) {
-        mixerSaturateMotorOutput(motor);
-        return max;
-    } else if (throttle < min) {
-        mixerSaturateMotorOutput(motor);
-        return min;
-    }
-    return throttle;
-}
-
 void motorUpdate(void)
 {
     float output;
@@ -244,7 +232,7 @@ void motorUpdate(void)
         else
             output = motorOverride[i] / 1000.0f;
 
-        motorOutput[i] = limitThrottle(i, output, 0, 1);
+        motorOutput[i] = constrainf(output, 0, 1);
     }
 
     motorWriteAll(motorOutput);
