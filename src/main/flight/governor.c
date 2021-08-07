@@ -532,7 +532,7 @@ static void governorUpdateState(void)
             //  -- Once 99% headspeed reached, move to ACTIVE
             //  -- If throttle reaches 95% before headspeed target, also move to ACTIVE
             //  -- If throttle <20%, move back to IDLE
-            //  -- If no headspeed detected, move to LOST_HEADSPEED
+            //  -- If no headspeed detected, move to IDLE
             //  -- If NO throttle, move to THROTTLE_OFF
             case GS_SPOOLING_UP:
                 govMain = govPrev;
@@ -541,7 +541,7 @@ static void governorUpdateState(void)
                 else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_THROTTLE_IDLE);
                 else if (govHeadSpeedError)
-                    govChangeState(GS_LOST_HEADSPEED);
+                    govChangeState(GS_THROTTLE_IDLE);
                 else if (govHeadSpeed > govTargetHeadSpeed * 0.99f || govMain > 0.95f)
                     govEnterActiveState(GS_ACTIVE);
                 else {
