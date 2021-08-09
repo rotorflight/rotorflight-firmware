@@ -1673,8 +1673,8 @@ static void cliSerialPassthrough(const char *cmdName, char *cmdline)
 
 static void printAdjustmentRange(dumpFlags_t dumpMask, const adjustmentRange_t *adjustmentRanges, const adjustmentRange_t *defaultAdjustmentRanges, const char *headingStr)
 {
-    const char *format = "adjrange %u 0 %u %u %u %u %u %u %u";
-    // print out adjustment ranges channel settings
+    const char *format = "adjfunc %u %u %u %u %u %u %u %d %d";
+
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
     for (uint32_t i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
         const adjustmentRange_t *ar = &adjustmentRanges[i];
@@ -1685,33 +1685,35 @@ static void printAdjustmentRange(dumpFlags_t dumpMask, const adjustmentRange_t *
             headingStr = cliPrintSectionHeading(dumpMask, !equalsDefault, headingStr);
             cliDefaultPrintLinef(dumpMask, equalsDefault, format,
                 i,
-                arDefault->auxChannelIndex,
-                MODE_STEP_TO_CHANNEL_VALUE(arDefault->range.startStep),
-                MODE_STEP_TO_CHANNEL_VALUE(arDefault->range.endStep),
-                arDefault->adjustmentConfig,
-                arDefault->auxSwitchChannelIndex,
-                arDefault->adjustmentCenter,
-                arDefault->adjustmentScale
+                arDefault->enaChannel,
+                MODE_STEP_TO_CHANNEL_VALUE(arDefault->enaRange.startStep),
+                MODE_STEP_TO_CHANNEL_VALUE(arDefault->enaRange.endStep),
+                arDefault->adjFunction,
+                arDefault->adjChannel,
+                arDefault->adjStep,
+                arDefault->adjMin,
+                arDefault->adjMax
             );
         }
         cliDumpPrintLinef(dumpMask, equalsDefault, format,
             i,
-            ar->auxChannelIndex,
-            MODE_STEP_TO_CHANNEL_VALUE(ar->range.startStep),
-            MODE_STEP_TO_CHANNEL_VALUE(ar->range.endStep),
-            ar->adjustmentConfig,
-            ar->auxSwitchChannelIndex,
-            ar->adjustmentCenter,
-            ar->adjustmentScale
+            ar->enaChannel,
+            MODE_STEP_TO_CHANNEL_VALUE(ar->enaRange.startStep),
+            MODE_STEP_TO_CHANNEL_VALUE(ar->enaRange.endStep),
+            ar->adjFunction,
+            ar->adjChannel,
+            ar->adjStep,
+            ar->adjMin,
+            ar->adjMax
         );
     }
 }
 
 static void cliAdjustmentRange(const char *cmdName, char *cmdline)
 {
-    const char *format = "adjrange %u 0 %u %u %u %u %u %u %u";
-    int i, val = 0;
+    const char *format = "adjfunc %u %u %u %u %u %u %u %d %d";
     const char *ptr;
+    int i, val = 0;
 
     if (isEmpty(cmdline)) {
         printAdjustmentRange(DUMP_MASTER, adjustmentRanges(0), NULL, NULL);
@@ -1725,26 +1727,19 @@ static void cliAdjustmentRange(const char *cmdName, char *cmdline)
             ptr = nextArg(ptr);
             if (ptr) {
                 val = atoi(ptr);
-                // Was: slot
-                // Keeping the parameter to retain backwards compatibility for the command format.
-                validArgumentCount++;
-            }
-            ptr = nextArg(ptr);
-            if (ptr) {
-                val = atoi(ptr);
                 if (val >= 0 && val < MAX_AUX_CHANNEL_COUNT) {
-                    ar->auxChannelIndex = val;
+                    ar->enaChannel = val;
                     validArgumentCount++;
                 }
             }
 
-            ptr = processChannelRangeArgs(ptr, &ar->range, &validArgumentCount);
+            ptr = processChannelRangeArgs(ptr, &ar->enaRange, &validArgumentCount);
 
             ptr = nextArg(ptr);
             if (ptr) {
                 val = atoi(ptr);
                 if (val >= 0 && val < ADJUSTMENT_FUNCTION_COUNT) {
-                    ar->adjustmentConfig = val;
+                    ar->adjFunction = val;
                     validArgumentCount++;
                 }
             }
@@ -1752,45 +1747,48 @@ static void cliAdjustmentRange(const char *cmdName, char *cmdline)
             if (ptr) {
                 val = atoi(ptr);
                 if (val >= 0 && val < MAX_AUX_CHANNEL_COUNT) {
-                    ar->auxSwitchChannelIndex = val;
+                    ar->adjChannel = val;
                     validArgumentCount++;
                 }
             }
 
-            if (validArgumentCount != 6) {
+            ptr = nextArg(ptr);
+            if (ptr) {
+                val = atoi(ptr);
+                ar->adjStep = val;
+                validArgumentCount++;
+            }
+            ptr = nextArg(ptr);
+            if (ptr) {
+                val = atoi(ptr);
+                ar->adjMin = val;
+                validArgumentCount++;
+            }
+            ptr = nextArg(ptr);
+            if (ptr) {
+                val = atoi(ptr);
+                ar->adjMax = val;
+                validArgumentCount++;
+            }
+
+            if (validArgumentCount != 8) {
                 memset(ar, 0, sizeof(adjustmentRange_t));
                 cliShowInvalidArgumentCountError(cmdName);
                 return;
             }
 
-            // Optional arguments
-            ar->adjustmentCenter = 0;
-            ar->adjustmentScale = 0;
-
-            ptr = nextArg(ptr);
-            if (ptr) {
-                val = atoi(ptr);
-                ar->adjustmentCenter = val;
-                validArgumentCount++;
-            }
-            ptr = nextArg(ptr);
-            if (ptr) {
-                val = atoi(ptr);
-                ar->adjustmentScale = val;
-                validArgumentCount++;
-            }
-
-            activeAdjustmentRangeReset();
+            adjustmentRangeReset(i);
 
             cliDumpPrintLinef(0, false, format,
                 i,
-                ar->auxChannelIndex,
-                MODE_STEP_TO_CHANNEL_VALUE(ar->range.startStep),
-                MODE_STEP_TO_CHANNEL_VALUE(ar->range.endStep),
-                ar->adjustmentConfig,
-                ar->auxSwitchChannelIndex,
-                ar->adjustmentCenter,
-                ar->adjustmentScale
+                ar->enaChannel,
+                MODE_STEP_TO_CHANNEL_VALUE(ar->enaRange.startStep),
+                MODE_STEP_TO_CHANNEL_VALUE(ar->enaRange.endStep),
+                ar->adjFunction,
+                ar->adjChannel,
+                ar->adjStep,
+                ar->adjMin,
+                ar->adjMax
             );
 
         } else {
@@ -6539,7 +6537,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 
             printAux(dumpMask, modeActivationConditions_CopyArray, modeActivationConditions(0), "aux");
 
-            printAdjustmentRange(dumpMask, adjustmentRanges_CopyArray, adjustmentRanges(0), "adjrange");
+            printAdjustmentRange(dumpMask, adjustmentRanges_CopyArray, adjustmentRanges(0), "adjfunc");
 
             printRxRange(dumpMask, rxChannelRangeConfigs_CopyArray, rxChannelRangeConfigs(0), "rxrange");
 
@@ -6687,7 +6685,7 @@ static void cliHelp(const char *cmdName, char *cmdline);
 
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
-    CLI_COMMAND_DEF("adjrange", "configure adjustment ranges", "<index> <unused> <range channel> <start> <end> <function> <select channel> [<center> <scale>]", cliAdjustmentRange),
+    CLI_COMMAND_DEF("adjfunc", "configure adjustment functionss", "<index> <enable channel> <start> <end> <function> <value channel> <step> <min> <max>", cliAdjustmentRange),
     CLI_COMMAND_DEF("aux", "configure modes", "<index> <mode> <aux> <start> <end> <logic>", cliAux),
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
