@@ -72,6 +72,7 @@ PG_DECLARE(governorConfig_t, governorConfig);
 
 void governorInit();
 void governorUpdate();
+void governorUpdateGains(void);
 
 uint8_t getGovernorState();
 

@@ -839,6 +839,17 @@ void governorUpdate(void)
     }
 }
 
+void governorUpdateGains(void)
+{
+    govK            = (float)governorConfig()->gov_gain / 100.0f;
+    govKp           = (float)governorConfig()->gov_p_gain / 10.0f;
+    govKi           = (float)governorConfig()->gov_i_gain / 10.0f;
+    govKd           = (float)governorConfig()->gov_d_gain / 1000.0f;
+    govKf           = (float)governorConfig()->gov_f_gain / 100.0f;
+    govCycWeight    = (float)governorConfig()->gov_cyclic_ff_weight / 100.0f;
+    govColWeight    = (float)governorConfig()->gov_collective_ff_weight / 100.0f;
+}
+
 void governorInit(void)
 {
     // Must have at least one motor
@@ -879,14 +890,9 @@ void governorInit(void)
                 break;
         }
 
+        governorUpdateGains();
+
         govGearRatio    = (float)governorConfig()->gov_gear_ratio / 1000.0f;
-        govK            = (float)governorConfig()->gov_gain / 100.0f;
-        govKp           = (float)governorConfig()->gov_p_gain / 10.0f;
-        govKi           = (float)governorConfig()->gov_i_gain / 10.0f;
-        govKd           = (float)governorConfig()->gov_d_gain / 1000.0f;
-        govKf           = (float)governorConfig()->gov_f_gain / 100.0f;
-        govCycWeight    = (float)governorConfig()->gov_cyclic_ff_weight / 100.0f;
-        govColWeight    = (float)governorConfig()->gov_collective_ff_weight / 100.0f;
         govFFexponent   = (float)governorConfig()->gov_ff_exponent / 100.0f;
         govBatOffset    = (float)governorConfig()->gov_vbat_offset / 100.0f;
 
