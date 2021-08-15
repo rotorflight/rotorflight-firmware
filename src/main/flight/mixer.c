@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 
 #include "platform.h"
@@ -70,30 +71,21 @@ static FAST_RAM_ZERO_INIT float     cyclicLimit;
 static FAST_RAM_ZERO_INIT float     tailMotorIdle;
 
 
-static inline float mixerOverrideInput(int index, float val)
-{
-    // Check override only if not armed
-    if (!ARMING_FLAG(ARMED)) {
-        if (mixOverride[index] >= MIXER_OVERRIDE_MIN && mixOverride[index] <= MIXER_OVERRIDE_MAX)
-            val = mixOverride[index] * 0.001f;
-    }
-
-    return val;
-}
-
-static inline float mixerScaleInput(int index, float val)
+static inline float mixerLimitInput(int index, float value)
 {
     const mixerInput_t *in = mixerInputs(index);
 
-    // Override real input with a test value
-    val = mixerOverrideInput(index, val);
+    // Check override only if not armed
+    if (!ARMING_FLAG(ARMED)) {
+        if (mixOverride[index] >= MIXER_OVERRIDE_MIN && mixOverride[index] <= MIXER_OVERRIDE_MAX)
+            value = mixOverride[index] / 1000.0f;
+    }
 
-    // Constrain and scale
-    val = constrainf(val, in->min*0.001f, in->max*0.001f) * in->rate * 0.001f;
+    // Constrain
+    value = constrainf(value, in->min / 1000.0f, in->max / 1000.0f);
 
-    return val;
+    return value;
 }
-
 
 void mixerInit(void)
 {
@@ -162,7 +154,7 @@ static void mixerUpdateInputs(void)
     // Motorized tail control
     if (mixerMotorizedTail()) {
 
-        // Thrust linearizaion
+        // Thrust linearization
         mixInput[MIXER_IN_STABILIZED_YAW] = sqrtf(constrainf(mixInput[MIXER_IN_STABILIZED_YAW], 0, 1));
 
         // Spoolup follows main rotor
@@ -176,9 +168,9 @@ static void mixerUpdateInputs(void)
         }
     }
 
-    // Scale/limit inputs
+    // Limit/override inputs
     for (int i = 1; i < MIXER_INPUT_COUNT; i++)
-        mixInput[i] = mixerScaleInput(i, mixInput[i]);
+        mixInput[i] = mixerLimitInput(i, mixInput[i]);
 
     // TODO: Move into swash sub-mixer
     // Swashplate cyclic deflection
@@ -220,7 +212,8 @@ void mixerUpdate(void)
         if (rules[i].oper && ((rules[i].mode == 0) || (rules[i].mode & flightModeMask))) {
             uint8_t src = rules[i].input;
             uint8_t dst = rules[i].output;
-            float   out = (rules[i].offset + rules[i].weight * mixInput[src]) * 0.001f;
+            float   val = mixInput[src] * mixerInputs(src)->rate / 1000.0f;
+            float   out = (rules[i].offset + rules[i].weight * val) / 1000.0f;
 
             switch (rules[i].oper)
             {
