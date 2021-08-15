@@ -204,27 +204,30 @@ static float calcHorizonLevelStrength(void)
     return constrainf(horizonLevelStrength, 0, 1);
 }
 
-float pidLevelApply(int axis, float currentPidSetpoint)
+float pidLevelApply(int axis, float setPoint)
 {
-    float errorAngle = 0;
+    if (axis != FD_YAW)
+    {
+        float errorAngle = 0;
 
-    if (FLIGHT_MODE(RESCUE_MODE)) {
-        errorAngle = calcRescueErrorAngle(axis);
-    } else {
-        errorAngle = calcLevelErrorAngle(axis);
+        if (FLIGHT_MODE(RESCUE_MODE)) {
+            errorAngle = calcRescueErrorAngle(axis);
+        } else {
+            errorAngle = calcLevelErrorAngle(axis);
+        }
+
+        if (FLIGHT_MODE(ANGLE_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
+            // Angle based control
+            setPoint = errorAngle * levelGain;
+        }
+        else if (FLIGHT_MODE(HORIZON_MODE)) {
+            // HORIZON mode - mix of ANGLE and ACRO modes
+            // mix in errorAngle to setpoint to add a little auto-level feel
+            setPoint += errorAngle * horizonGain * calcHorizonLevelStrength();
+        }
     }
 
-    if (FLIGHT_MODE(ANGLE_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
-        // Angle based control
-        currentPidSetpoint = errorAngle * levelGain;
-    }
-    else if (FLIGHT_MODE(HORIZON_MODE)) {
-        // HORIZON mode - mix of ANGLE and ACRO modes
-        // mix in errorAngle to currentPidSetpoint to add a little auto-level feel
-        currentPidSetpoint += errorAngle * horizonGain * calcHorizonLevelStrength();
-    }
-
-    return currentPidSetpoint;
+    return setPoint;
 }
 
 #endif // USE_ACC
