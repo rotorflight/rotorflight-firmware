@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 #include <math.h>
 
 #include "platform.h"
@@ -65,41 +66,28 @@ static FAST_RAM_ZERO_INIT uint32_t  mixOutputMap[MIXER_OUTPUT_COUNT];
 static FAST_RAM_ZERO_INIT uint16_t  mixSaturated[MIXER_INPUT_COUNT];
 
 static FAST_RAM_ZERO_INIT float     cyclicTotal;
-static FAST_RAM_ZERO_INIT float     cyclicLimit;
 
 static FAST_RAM_ZERO_INIT float     tailMotorIdle;
 
 
-static inline float mixerOverrideInput(int index, float val)
-{
-    // Check override only if not armed
-    if (!ARMING_FLAG(ARMED)) {
-        if (mixOverride[index] >= MIXER_OVERRIDE_MIN && mixOverride[index] <= MIXER_OVERRIDE_MAX)
-            val = mixOverride[index] * 0.001f;
-    }
-
-    return val;
-}
-
-static inline float mixerScaleInput(int index, float val)
+static inline void mixerSetInput(int index, float value)
 {
     const mixerInput_t *in = mixerInputs(index);
 
-    // Override real input with a test value
-    val = mixerOverrideInput(index, val);
+    // Check override only if not armed
+    if (!ARMING_FLAG(ARMED)) {
+        if (mixOverride[index] >= MIXER_OVERRIDE_MIN && mixOverride[index] <= MIXER_OVERRIDE_MAX)
+            value = mixOverride[index] / 1000.0f;
+    }
 
-    // Constrain and scale
-    val = constrainf(val, in->min*0.001f, in->max*0.001f) * in->rate * 0.001f;
-
-    return val;
+    // Constrain
+    mixInput[index] = constrainf(value, in->min / 1000.0f, in->max / 1000.0f);
 }
-
 
 void mixerInit(void)
 {
-    cyclicLimit = PIDSUM_LIMIT * MIXER_PID_SCALING;
-
-    for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+    for (int i = 0; i < MIXER_RULE_COUNT; i++)
+    {
         const mixerRule_t *rule = mixerRules(i);
 
         if (rule->oper) {
@@ -122,47 +110,47 @@ void mixerInit(void)
 static void mixerUpdateInputs(void)
 {
     // Flight Dynamics
-    mixInput[MIXER_IN_RC_COMMAND_ROLL]        = rcCommand[ROLL]       * MIXER_RC_SCALING;
-    mixInput[MIXER_IN_RC_COMMAND_PITCH]       = rcCommand[PITCH]      * MIXER_RC_SCALING;
-    mixInput[MIXER_IN_RC_COMMAND_YAW]         = rcCommand[YAW]        * MIXER_RC_SCALING;
-    mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE]  = rcCommand[COLLECTIVE] * MIXER_RC_SCALING;
+    mixerSetInput(MIXER_IN_RC_COMMAND_ROLL,rcCommand[ROLL] * MIXER_RC_SCALING);
+    mixerSetInput(MIXER_IN_RC_COMMAND_PITCH, rcCommand[PITCH] * MIXER_RC_SCALING);
+    mixerSetInput(MIXER_IN_RC_COMMAND_YAW, rcCommand[YAW] * MIXER_RC_SCALING);
+    mixerSetInput(MIXER_IN_RC_COMMAND_COLLECTIVE, rcCommand[COLLECTIVE] * MIXER_RC_SCALING);
 
     // Throttle input
-    mixInput[MIXER_IN_RC_COMMAND_THROTTLE]    = (rcCommand[THROTTLE] - MIXER_THR_OFFSET) * MIXER_THR_SCALING;
+    mixerSetInput(MIXER_IN_RC_COMMAND_THROTTLE, (rcCommand[THROTTLE] - MIXER_THR_OFFSET) * MIXER_THR_SCALING);
 
-    // AUX channels
+    // RC channels
     for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++)
-        mixInput[MIXER_IN_RC_CHANNEL_ROLL + i] = (rcData[i] - rxConfig()->midrc) * MIXER_RC_SCALING;
+        mixerSetInput(MIXER_IN_RC_CHANNEL_ROLL + i, (rcData[i] - rxConfig()->midrc) * MIXER_RC_SCALING);
 
-    // Collective -- TODO: move rescue to separate module
+    // Collective
     if (!FLIGHT_MODE(RESCUE_MODE)) {
-        mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = mixInput[MIXER_IN_RC_COMMAND_COLLECTIVE];
+        mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, rcCommand[COLLECTIVE] * MIXER_RC_SCALING);
     } else {
-        mixInput[MIXER_IN_STABILIZED_COLLECTIVE] = pidRescueCollective();
+        mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, pidRescueCollective());
+    }
+
+    // PASSTHROUGH mode disables cyclic stabilization (flybar mode)
+    if (!FLIGHT_MODE(PASSTHRU_MODE)) {
+        mixerSetInput(MIXER_IN_STABILIZED_ROLL, pidData[FD_ROLL].Sum * MIXER_PID_SCALING);
+        mixerSetInput(MIXER_IN_STABILIZED_PITCH, pidData[FD_PITCH].Sum * MIXER_PID_SCALING);
+    } else {
+        mixerSetInput(MIXER_IN_STABILIZED_ROLL, rcCommand[ROLL] * MIXER_RC_SCALING);
+        mixerSetInput(MIXER_IN_STABILIZED_PITCH, rcCommand[PITCH] * MIXER_RC_SCALING);
     }
 
     // Tail/Yaw is always stabilised - positive is against main rotor torque
-    mixInput[MIXER_IN_STABILIZED_YAW] = mixerRotationSign() * pidData[FD_YAW].Sum *  MIXER_PID_SCALING;
+    mixerSetInput(MIXER_IN_STABILIZED_YAW, mixerRotationSign() * pidData[FD_YAW].Sum * MIXER_PID_SCALING);
 
     // Update governor sub-mixer
     governorUpdate();
 
     // Update throttle from governor
-    mixInput[MIXER_IN_STABILIZED_THROTTLE] = getGovernorOutput();
-
-    // PASSTHROUGH mode disables roll/pitch stabilization (flybar mode)
-    if (!FLIGHT_MODE(PASSTHRU_MODE)) {
-        mixInput[MIXER_IN_STABILIZED_ROLL]  = pidData[FD_ROLL].Sum  * MIXER_PID_SCALING;
-        mixInput[MIXER_IN_STABILIZED_PITCH] = pidData[FD_PITCH].Sum * MIXER_PID_SCALING;
-    } else {
-        mixInput[MIXER_IN_STABILIZED_ROLL]  = rcCommand[ROLL]       * MIXER_RC_SCALING;
-        mixInput[MIXER_IN_STABILIZED_PITCH] = rcCommand[PITCH]      * MIXER_RC_SCALING;
-    }
+    mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
     // Motorized tail control
     if (mixerMotorizedTail()) {
 
-        // Thrust linearizaion
+        // Thrust linearization
         mixInput[MIXER_IN_STABILIZED_YAW] = sqrtf(constrainf(mixInput[MIXER_IN_STABILIZED_YAW], 0, 1));
 
         // Spoolup follows main rotor
@@ -176,23 +164,9 @@ static void mixerUpdateInputs(void)
         }
     }
 
-    // Scale/limit inputs
-    for (int i = 1; i < MIXER_INPUT_COUNT; i++)
-        mixInput[i] = mixerScaleInput(i, mixInput[i]);
-
-    // TODO: Move into swash sub-mixer
-    // Swashplate cyclic deflection
-    cyclicTotal = sqrtf(mixInput[MIXER_IN_STABILIZED_ROLL] * mixInput[MIXER_IN_STABILIZED_ROLL] +
-                        mixInput[MIXER_IN_STABILIZED_PITCH] * mixInput[MIXER_IN_STABILIZED_PITCH]);
-
-    // Cyclic ring limit reached
-    if (cyclicTotal > cyclicLimit) {
-        mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
-        mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
-        mixInput[MIXER_IN_STABILIZED_ROLL]  *= cyclicLimit / cyclicTotal;
-        mixInput[MIXER_IN_STABILIZED_PITCH] *= cyclicLimit / cyclicTotal;
-        cyclicTotal = cyclicLimit;
-    }
+    // Total cyclic deflection
+    cyclicTotal = sqrtf(sq(mixInput[MIXER_IN_STABILIZED_ROLL]) +
+                        sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
 }
 
 void mixerUpdate(void)
@@ -220,7 +194,8 @@ void mixerUpdate(void)
         if (rules[i].oper && ((rules[i].mode == 0) || (rules[i].mode & flightModeMask))) {
             uint8_t src = rules[i].input;
             uint8_t dst = rules[i].output;
-            float   out = (rules[i].offset + rules[i].weight * mixInput[src]) * 0.001f;
+            float   val = mixInput[src] * mixerInputs(src)->rate / 1000.0f;
+            float   out = (rules[i].offset + rules[i].weight * val) / 1000.0f;
 
             switch (rules[i].oper)
             {
