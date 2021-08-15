@@ -87,11 +87,49 @@ static inline float mixerLimitInput(int index, float value)
     return value;
 }
 
+static void mixerCyclicLimit(void)
+{
+    // Swashring enabled
+    if (cyclicLimit > 0)
+    {
+        float SR = mixInput[MIXER_IN_STABILIZED_ROLL];
+        float SP = mixInput[MIXER_IN_STABILIZED_PITCH];
+
+        const mixerInput_t *mixR = mixerInputs(MIXER_IN_STABILIZED_ROLL);
+        const mixerInput_t *mixP = mixerInputs(MIXER_IN_STABILIZED_PITCH);
+
+        // Assume min<0 and max>0 for cyclic & pitch
+        const float maxR = ABS((SR < 0) ? mixR->min : mixR->max) / 1000.0f;
+        const float maxP = ABS((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
+
+        // Stretch the limits to the unit circle
+        SR /= MAX(maxR, 0.001f) * cyclicLimit;
+        SP /= MAX(maxP, 0.001f) * cyclicLimit;
+
+        // Stretched cyclic deflection
+        const float cyclic = sqrtf(sq(SR) + sq(SP));
+
+        // Cyclic limits reached - scale back
+        if (cyclic > 1.0f)
+        {
+            mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
+            mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
+
+            mixInput[MIXER_IN_STABILIZED_ROLL]  /= cyclic;
+            mixInput[MIXER_IN_STABILIZED_PITCH] /= cyclic;
+        }
+    }
+
+    // Total cyclic deflection
+    cyclicTotal = sqrtf(sq(mixInput[MIXER_IN_STABILIZED_ROLL]) +
+                        sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
+}
+
+
 void mixerInit(void)
 {
-    cyclicLimit = PIDSUM_LIMIT * MIXER_PID_SCALING;
-
-    for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+    for (int i = 0; i < MIXER_RULE_COUNT; i++)
+    {
         const mixerRule_t *rule = mixerRules(i);
 
         if (rule->oper) {
@@ -109,6 +147,11 @@ void mixerInit(void)
     }
 
     tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
+
+    if (mixerConfig()->swash_ring)
+        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
+    else
+        cyclicLimit = 0;
 }
 
 static void mixerUpdateInputs(void)
@@ -172,19 +215,8 @@ static void mixerUpdateInputs(void)
     for (int i = 1; i < MIXER_INPUT_COUNT; i++)
         mixInput[i] = mixerLimitInput(i, mixInput[i]);
 
-    // TODO: Move into swash sub-mixer
-    // Swashplate cyclic deflection
-    cyclicTotal = sqrtf(mixInput[MIXER_IN_STABILIZED_ROLL] * mixInput[MIXER_IN_STABILIZED_ROLL] +
-                        mixInput[MIXER_IN_STABILIZED_PITCH] * mixInput[MIXER_IN_STABILIZED_PITCH]);
-
-    // Cyclic ring limit reached
-    if (cyclicTotal > cyclicLimit) {
-        mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
-        mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
-        mixInput[MIXER_IN_STABILIZED_ROLL]  *= cyclicLimit / cyclicTotal;
-        mixInput[MIXER_IN_STABILIZED_PITCH] *= cyclicLimit / cyclicTotal;
-        cyclicTotal = cyclicLimit;
-    }
+    // Apply swash ring
+    mixerCyclicLimit();
 }
 
 void mixerUpdate(void)
