@@ -47,7 +47,6 @@
 
 static FAST_RAM_ZERO_INIT uint8_t  servoCount;
 
-static FAST_RAM_ZERO_INIT float    servoSpeed[MAX_SUPPORTED_SERVOS];
 static FAST_RAM_ZERO_INIT float    servoOutput[MAX_SUPPORTED_SERVOS];
 static FAST_RAM_ZERO_INIT int16_t  servoOverride[MAX_SUPPORTED_SERVOS];
 
@@ -118,12 +117,6 @@ void servoInit(void)
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
         servoOutput[i] = servoParams(i)->mid;
         servoOverride[i] = SERVO_OVERRIDE_OFF;
-
-        if (servoParams(i)->speed > 0) {
-            float range = abs(servoParams(i)->rate);
-            float speed = servoParams(i)->speed * 1000;
-            servoSpeed[i] = range * gyro.targetLooptime / speed;
-        }
     }
 }
 
@@ -139,9 +132,11 @@ static inline float limitTravel(uint8_t servo, float pos, float min, float max)
     return pos;
 }
 
-static inline float limitSpeed(float old, float new, float rate)
+static inline float limitSpeed(float rate, float speed, float old, float new)
 {
     float diff = new - old;
+
+    rate = fabsf(rate * gyro.targetLooptime) / (speed * 1000);
 
     if (diff > rate)
         return old + rate;
@@ -157,18 +152,20 @@ void servoUpdate(void)
 
     for (int i = 0; i < servoCount; i++)
     {
-        trim = (servoParams(i)->rate >= 0) ? servoParams(i)->trim : -servoParams(i)->trim;
+        const servoParam_t *servo = servoParams(i);
+
+        trim = (servo->rate >= 0) ? servo->trim : -servo->trim;
 
         if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
             pos = servoOverride[i] / 1000.0f;
         else
             pos = mixerGetServoOutput(i);
 
-        pos = limitTravel(i, servoParams(i)->rate * pos, servoParams(i)->min, servoParams(i)->max);
-        pos = servoParams(i)->mid + trim + pos;
+        pos = limitTravel(i, servo->rate * pos, servo->min, servo->max);
+        pos = servo->mid + trim + pos;
 
-        if (servoSpeed[i] > 0)
-            pos = limitSpeed(servoOutput[i], pos, servoSpeed[i]);
+        if (servo->speed > 0)
+            pos = limitSpeed(servo->rate, servo->speed, servoOutput[i], pos);
 
         servoOutput[i] = pos;
 
