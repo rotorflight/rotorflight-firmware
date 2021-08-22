@@ -118,6 +118,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(GOV_I_GAIN,         GOV,   0, 500),
     ADJ_CONFIG(GOV_D_GAIN,         GOV,   0, 500),
     ADJ_CONFIG(GOV_F_GAIN,         GOV,   0, 500),
+    ADJ_CONFIG(GOV_TTA_GAIN,       GOV,   0, 200),
     ADJ_CONFIG(GOV_CYCLIC_FF,      GOV,   0, 500),
     ADJ_CONFIG(GOV_COLLECTIVE_FF,  GOV,   0, 500),
 
@@ -234,6 +235,9 @@ static int getAdjustmentValue(uint8_t adjFunc)
         break;
     case ADJUSTMENT_GOV_F_GAIN:
         value = governorConfig()->gov_f_gain;
+        break;
+    case ADJUSTMENT_GOV_TTA_GAIN:
+        value = governorConfig()->gov_tta_gain;
         break;
     case ADJUSTMENT_GOV_CYCLIC_FF:
         value = governorConfig()->gov_cyclic_ff_weight;
@@ -366,6 +370,9 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         break;
     case ADJUSTMENT_GOV_F_GAIN:
         governorConfigMutable()->gov_f_gain = value;
+        break;
+    case ADJUSTMENT_GOV_TTA_GAIN:
+        governorConfigMutable()->gov_tta_gain = value;
         break;
     case ADJUSTMENT_GOV_CYCLIC_FF:
         governorConfigMutable()->gov_cyclic_ff_weight = value;

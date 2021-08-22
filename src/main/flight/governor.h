@@ -65,6 +65,8 @@ typedef struct governorConfig_s {
     uint16_t gov_collective_ff_weight;
     uint16_t gov_ff_exponent;
     uint16_t gov_vbat_offset;
+    uint8_t  gov_tta_gain;
+    uint8_t  gov_tta_limit;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);
