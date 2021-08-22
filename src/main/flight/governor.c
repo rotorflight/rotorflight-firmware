@@ -88,6 +88,8 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_collective_ff_weight = 100,
     .gov_ff_exponent = 150,
     .gov_vbat_offset = 0,
+    .gov_tta_gain = 0,
+    .gov_tta_limit = 0,
 );
 
 
@@ -161,8 +163,11 @@ static FAST_RAM_ZERO_INIT float govCyclicFF;
 static FAST_RAM_ZERO_INIT float govCollectiveFF;
 static FAST_RAM_ZERO_INIT float govFeedForward;
 static FAST_RAM_ZERO_INIT float govFFexponent;
-
 static FAST_RAM_ZERO_INIT float govBatOffset;
+
+static FAST_RAM_ZERO_INIT float govTTAMull;
+static FAST_RAM_ZERO_INIT float govTTAGain;
+static FAST_RAM_ZERO_INIT float govTTALimit;
 
 
 //// Prototypes
@@ -383,8 +388,17 @@ static void govUpdateData(void)
     // Angle-of-attack vs. FeedForward curve
     govFeedForward = powf(govCollectiveFF + govCyclicFF, govFFexponent);
 
+    // Tail Torque Assist
+    if (mixerMotorizedTail() && govTTAGain != 0) {
+        float TTA = govTTAGain * mixerGetInput(MIXER_IN_STABILIZED_YAW);
+        govTTAMull = constrainf(TTA, 0, govTTALimit) + 1.0f;
+    }
+    else {
+        govTTAMull = 1.0f;
+    }
+
     // Normalized RPM error
-    float newError = (govSetpoint - govHeadSpeed) / govMaxHeadSpeed;
+    float newError = (govSetpoint * govTTAMull - govHeadSpeed) / govMaxHeadSpeed;
 
     // Update PIDF terms
     govP = govK * govKp * newError;
@@ -449,7 +463,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to LOST_THROTTLE
             //  -- If throttle <20%, move to AUTO or SPOOLING_UP
             case GS_ACTIVE:
-                govMain = govThrottle;
+                govMain = govThrottle * govTTAMull;
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
                 else if (govMain < GOV_THROTTLE_IDLE_LIMIT) {
@@ -900,6 +914,7 @@ void governorUpdateGains(void)
     govKf           = (float)governorConfig()->gov_f_gain / 100.0f;
     govCycWeight    = (float)governorConfig()->gov_cyclic_ff_weight / 100.0f;
     govColWeight    = (float)governorConfig()->gov_collective_ff_weight / 100.0f;
+    govTTAGain      = (float)governorConfig()->gov_tta_gain / -100.0f;
 }
 
 void governorInit(void)
@@ -947,6 +962,8 @@ void governorInit(void)
         govGearRatio    = (float)governorConfig()->gov_gear_ratio / 1000.0f;
         govFFexponent   = (float)governorConfig()->gov_ff_exponent / 100.0f;
         govBatOffset    = (float)governorConfig()->gov_vbat_offset / 100.0f;
+
+        govTTALimit     = (float)governorConfig()->gov_tta_limit / 100.0f;
 
         govMaxHeadSpeed = constrainf(governorConfig()->gov_max_headspeed, 100, 10000);
 

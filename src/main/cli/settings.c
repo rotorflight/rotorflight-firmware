@@ -873,6 +873,8 @@ const clivalue_t valueTable[] = {
     { "gov_lost_headspeed_timeout", VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_lost_headspeed_timeout) },
     { "gov_vbat_offset",            VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_vbat_offset) },
     { "gov_ff_exponent",            VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_ff_exponent) },
+    { "gov_tta_gain",               VAR_UINT8  |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 200 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_tta_gain) },
+    { "gov_tta_limit",              VAR_UINT8  |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_tta_limit) },
 
 // PG_SERVO_CONFIG
 #ifdef USE_SERVOS
