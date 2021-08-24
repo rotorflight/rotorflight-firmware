@@ -66,6 +66,7 @@ static FAST_RAM_ZERO_INIT uint32_t  mixOutputMap[MIXER_OUTPUT_COUNT];
 static FAST_RAM_ZERO_INIT uint16_t  mixSaturated[MIXER_INPUT_COUNT];
 
 static FAST_RAM_ZERO_INIT float     cyclicTotal;
+static FAST_RAM_ZERO_INIT float     cyclicLimit;
 
 static FAST_RAM_ZERO_INIT float     tailMotorIdle;
 
@@ -83,6 +84,45 @@ static inline void mixerSetInput(int index, float value)
     // Constrain
     mixInput[index] = constrainf(value, in->min / 1000.0f, in->max / 1000.0f);
 }
+
+static void mixerCyclicLimit(void)
+{
+    // Swashring enabled
+    if (cyclicLimit > 0)
+    {
+        float SR = mixInput[MIXER_IN_STABILIZED_ROLL];
+        float SP = mixInput[MIXER_IN_STABILIZED_PITCH];
+
+        const mixerInput_t *mixR = mixerInputs(MIXER_IN_STABILIZED_ROLL);
+        const mixerInput_t *mixP = mixerInputs(MIXER_IN_STABILIZED_PITCH);
+
+        // Assume min<0 and max>0 for cyclic & pitch
+        const float maxR = ABS((SR < 0) ? mixR->min : mixR->max) / 1000.0f;
+        const float maxP = ABS((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
+
+        // Stretch the limits to the unit circle
+        SR /= MAX(maxR, 0.001f) * cyclicLimit;
+        SP /= MAX(maxP, 0.001f) * cyclicLimit;
+
+        // Stretched cyclic deflection
+        const float cyclic = sqrtf(sq(SR) + sq(SP));
+
+        // Cyclic limits reached - scale back
+        if (cyclic > 1.0f)
+        {
+            mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
+            mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
+
+            mixInput[MIXER_IN_STABILIZED_ROLL]  /= cyclic;
+            mixInput[MIXER_IN_STABILIZED_PITCH] /= cyclic;
+        }
+    }
+
+    // Total cyclic deflection
+    cyclicTotal = sqrtf(sq(mixInput[MIXER_IN_STABILIZED_ROLL]) +
+                        sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
+}
+
 
 void mixerInit(void)
 {
@@ -105,6 +145,11 @@ void mixerInit(void)
     }
 
     tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
+
+    if (mixerConfig()->swash_ring)
+        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
+    else
+        cyclicLimit = 0;
 }
 
 static void mixerUpdateInputs(void)
@@ -138,6 +183,9 @@ static void mixerUpdateInputs(void)
         mixerSetInput(MIXER_IN_STABILIZED_PITCH, rcCommand[PITCH] * MIXER_RC_SCALING);
     }
 
+    // Apply swash ring
+    mixerCyclicLimit();
+
     // Tail/Yaw is always stabilised - positive is against main rotor torque
     mixerSetInput(MIXER_IN_STABILIZED_YAW, mixerRotationSign() * pidData[FD_YAW].Sum * MIXER_PID_SCALING);
 
@@ -163,10 +211,6 @@ static void mixerUpdateInputs(void)
                 mixInput[MIXER_IN_STABILIZED_YAW] *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
         }
     }
-
-    // Total cyclic deflection
-    cyclicTotal = sqrtf(sq(mixInput[MIXER_IN_STABILIZED_ROLL]) +
-                        sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
 }
 
 void mixerUpdate(void)
