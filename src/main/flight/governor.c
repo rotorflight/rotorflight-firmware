@@ -295,13 +295,6 @@ static void govDebugStats(void)
 
 static void govUpdateInputs(void)
 {
-    // Update throttle state
-    govThrottle = (float)(rcCommand[THROTTLE] - PWM_RANGE_MIN) / (PWM_RANGE_MAX - PWM_RANGE_MIN);
-    govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
-
-    // Update headspeed target
-    govTargetHeadSpeed = govThrottle * govMaxHeadSpeed;
-
     // Assume motor[0]
     govMotorRPM = getMotorRawRPMf(0);
 
@@ -337,6 +330,16 @@ static void govUpdateInputs(void)
     // Voltage & current filters
     govVoltage = biquadFilterApply(&govVoltageFilter, getBatteryVoltageLatest() * 0.01f);
     govCurrent = biquadFilterApply(&govCurrentFilter, getAmperageLatest() * 0.01f);
+}
+
+static void govUpdateData(void)
+{
+    // Update throttle state
+    govThrottle = (float)(rcCommand[THROTTLE] - PWM_RANGE_MIN) / (PWM_RANGE_MAX - PWM_RANGE_MIN);
+    govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
+
+    // Update headspeed target
+    govTargetHeadSpeed = govThrottle * govMaxHeadSpeed;
 
     // Calculate feedforward from collective deflection
     govCollectiveFF = govColWeight * getCollectiveDeflectionAbs();
@@ -841,11 +844,14 @@ static inline float govCalcRate(uint16_t param, uint16_t min, uint16_t max)
 
 void governorUpdate(void)
 {
+    // Calculate inputs even if governor not active
+    govUpdateInputs();
+
     // Governor is active
     if (govMode)
     {
-        // Calculate all governor inputs
-        govUpdateInputs();
+        // Update internal state data
+        govUpdateData();
 
         // Run state machine
         govStateUpdate();
