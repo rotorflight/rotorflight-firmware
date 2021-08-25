@@ -693,10 +693,13 @@ static void governorUpdateState(void)
 
 static void govPIDInit(void)
 {
+    // PID limits
+    govP = constrainf(govP, -0.25f, 0.25f);
+
     // Use govI to reach the target
     govI = govOutput - govP;
 
-    // Realistic bounds
+    // Limited range
     govI = constrainf(govI, 0, 0.95f);
 }
 
@@ -704,7 +707,7 @@ static float govPIDControl(void)
 {
     float output;
 
-    // PID limits -- TODO
+    // PID limits
     govP = constrainf(govP, -0.25f, 0.25f);
     govI = constrainf(govI,      0, 0.95f);
     govD = constrainf(govD, -0.25f, 0.25f);
@@ -732,10 +735,15 @@ static float govPIDControl(void)
 
 static void govMode1Init(void)
 {
+    // PID limits
+    govP = constrainf(govP, -0.25f, 0.25f);
+    govD = constrainf(govD, -0.25f, 0.25f);
+    govF = constrainf(govF,      0, 0.25f);
+
     // Use govI to reach the target
     govI = govOutput - (govP + govD + govF);
 
-    // Realistic bounds
+    // Limited range
     govI = constrainf(govI, 0, 0.95f);
 }
 
@@ -743,7 +751,7 @@ static float govMode1Control(void)
 {
     float output;
 
-    // PID limits -- TODO
+    // PID limits
     govP = constrainf(govP, -0.25f, 0.25f);
     govI = constrainf(govI,      0, 0.95f);
     govD = constrainf(govD, -0.25f, 0.25f);
@@ -778,10 +786,15 @@ static void govMode2Init(void)
     // Expected PID output
     float pidTarget = govOutput / pidGain;
 
+    // PID limits
+    govP = constrainf(govP, -0.25f, 0.25f);
+    govD = constrainf(govD, -0.25f, 0.25f);
+    govF = constrainf(govF,      0, 0.25f);
+
     // Use govI to reach the target
     govI = pidTarget - (govP + govD + govF);
 
-    // Realistic bounds
+    // Limited range
     govI = constrainf(govI, 0, 0.95f);
 }
 
@@ -792,7 +805,7 @@ static float govMode2Control(void)
     // Normalized battery voltage
     float pidGain = govNominalVoltage / (govVoltage - govBatOffset);
 
-    // PID limits -- TODO
+    // PID limits
     govP = constrainf(govP, -0.25f, 0.25f);
     govI = constrainf(govI,      0, 0.95f);
     govD = constrainf(govD, -0.25f, 0.25f);
