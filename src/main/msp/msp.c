@@ -1073,6 +1073,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_MOTOR_OVERRIDE:
+        for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+#ifdef USE_MOTOR
+            if (i < getMotorCount())
+                sbufWriteU16(dst, getMotorOverride(i));
+            else
+#endif
+                sbufWriteU16(dst, 0);
+        }
+        break;
+
     // Added in API version 1.42
     case MSP_MOTOR_TELEMETRY:
         sbufWriteU8(dst, getMotorCount());
@@ -2249,6 +2260,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
 
+    case MSP_SET_MOTOR_OVERRIDE:
+#ifdef USE_MOTOR
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_MOTORS) {
+            return MSP_RESULT_ERROR;
+        }
+        setMotorOverride(i, sbufReadU16(src));
+#endif
+        break;
+
     case MSP_SET_MOTOR_CONFIG:
         motorConfigMutable()->minthrottle = sbufReadU16(src);
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
@@ -2315,12 +2336,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         compassConfigMutable()->mag_declination = sbufReadU16(src) * 10;
         break;
 #endif
-
-    case MSP_SET_MOTOR:
-        for (int i = 0; i < getMotorCount(); i++) {
-            setMotorOverride(i, sbufReadU16(src));
-        }
-        break;
 
 #ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
