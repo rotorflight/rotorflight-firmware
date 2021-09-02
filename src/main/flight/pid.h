@@ -65,6 +65,10 @@
 
 #define pidNames "ROLL;PITCH;YAW;"
 
+enum {
+    FD_COLL = 3,
+};
+
 typedef enum {
     PID_ROLL,
     PID_PITCH,
@@ -203,6 +207,7 @@ uint32_t pidGetLooptime();
 
 float pidGetSetpoint(int axis);
 
+float pidGetStabilizedCollective(void);
 
 #ifdef UNIT_TEST
 

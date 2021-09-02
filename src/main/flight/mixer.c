@@ -168,11 +168,7 @@ static void mixerUpdateInputs(void)
         mixerSetInput(MIXER_IN_RC_CHANNEL_ROLL + i, (rcData[i] - rxConfig()->midrc) * MIXER_RC_SCALING);
 
     // Collective
-    if (!FLIGHT_MODE(RESCUE_MODE)) {
-        mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, rcCommand[COLLECTIVE] * MIXER_RC_SCALING);
-    } else {
-        mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, pidRescueCollective());
-    }
+    mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, pidGetStabilizedCollective());
 
     // PASSTHROUGH mode disables cyclic stabilization (flybar mode)
     if (!FLIGHT_MODE(PASSTHRU_MODE)) {
