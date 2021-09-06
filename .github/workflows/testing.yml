@@ -1,9 +1,9 @@
-name: Release
+name: Testing
 
 on:
   push:
     tags:
-      - 'release/*'
+      - 'testing/*'
 
 jobs:
 
@@ -30,11 +30,17 @@ jobs:
       run: echo "revision=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified
+      run: make unified FC_VER_SUFFIX="_${GITHUB_REF##*/}" FLASH_CONFIG_ERASE=yes
 
-    - name: Create Release
-      run: |
-        gh release create ${GITHUB_REF##refs/tags/} --notes-file "Release.md" --title "Rotorflight Release ${GITHUB_REF##*/}" obj/*.hex
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Move HEX
+      run: mv obj/*.hex .
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: rotorflight-test-${{ env.revision }}
+        path: rotorflight*.hex
+
+    - name: Delete tag
+      run: git push origin :${GITHUB_REF}
 

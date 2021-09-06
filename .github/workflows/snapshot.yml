@@ -27,17 +27,14 @@ jobs:
       run: make arm_sdk_install
 
     - name: Set build variables
-      run: echo "release=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+      run: echo "revision=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified SUFFIX=-${{ env.release }} FLASH_CONFIG_ERASE=yes
+      run: make unified FC_VER_SUFFIX="_${GITHUB_REF##*/}" FLASH_CONFIG_ERASE=yes
 
-    - name: Move HEX
-      run: mv obj/*.hex .
-
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: rotorflight-snapshot-${{ env.release }}
-        path: rotorflight*.hex
+    - name: Create Snapshot
+      run: |
+        gh release create ${GITHUB_REF##refs/tags/} --prerelease --notes-file "Snapshot.md" --title "Rotorflight Snapshot ${GITHUB_REF##*/}" obj/*.hex
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
