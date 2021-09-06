@@ -296,6 +296,16 @@ static void govDebugStats(void)
     DEBUG_SET(DEBUG_GOVERNOR,  1, govSetpoint);
     DEBUG_SET(DEBUG_GOVERNOR,  2, govPidSum * 1000);
     DEBUG_SET(DEBUG_GOVERNOR,  3, govFeedForward * 1000);
+
+    DEBUG32_SET(DEBUG_GOVERNOR, 0, govHeadSpeed);
+    DEBUG32_SET(DEBUG_GOVERNOR, 1, govMotorRPM);
+    DEBUG32_SET(DEBUG_GOVERNOR, 2, govVoltage * 1000);
+    DEBUG32_SET(DEBUG_GOVERNOR, 3, govCurrent * 1000);
+
+    DEBUG32_SET(DEBUG_GOVERNOR, 4, govP * 1000);
+    DEBUG32_SET(DEBUG_GOVERNOR, 5, govI * 1000);
+    DEBUG32_SET(DEBUG_GOVERNOR, 6, govD * 1000);
+    DEBUG32_SET(DEBUG_GOVERNOR, 7, govF * 1000);
 }
 
 static void govUpdateInputs(void)
