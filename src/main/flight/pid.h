@@ -178,7 +178,9 @@ typedef struct pidProfile_s
 
     uint8_t   rate_normalization;             // Type of pitch/roll rate normalization
 
-    uint16_t  rescue_collective;              // Collective value for rescue
+    uint8_t   rescue_delay;              		// Timer for non-inverted rescue. Value = Sec *10. 1s == 10. Set to 35 to disable 
+	uint16_t  rescue_collective;              	// Collective value for rescue
+	uint16_t  rescue_boost;              		// Boost Collective value for rescue. Added to rescue_collective until delay has expired
 
 } pidProfile_t;
 
@@ -204,6 +206,7 @@ void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
 float pidGetDT();
 float pidGetPidFrequency();
 uint32_t pidGetLooptime();
+extern bool 	delayComplete();	 
 
 float pidGetSetpoint(int axis);
 

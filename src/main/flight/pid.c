@@ -120,7 +120,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_impulse_gain = 20,
         .yaw_collective_ff_impulse_freq = 100,
         .rate_normalization = RATE_NORM_ABSOLUTE,
+		.rescue_delay = 35,
         .rescue_collective = 0,
+        .rescue_boost = 0,						   
     );
 }
 
@@ -190,12 +192,23 @@ static FAST_RAM_ZERO_INIT float itermDecay;
 static FAST_RAM_ZERO_INIT bool itermRotation;
 #endif
 
+#ifdef USE_ACC
+static FAST_RAM_ZERO_INIT bool rescueInvert;
+static FAST_RAM_ZERO_INIT uint8_t rescueDelay;
+static FAST_RAM_ZERO_INIT uint16_t rescueDelayTarget;
+static FAST_RAM_ZERO_INIT uint16_t rescueDelayCurrent;
+
+#endif  
 
 float pidGetDT()
 {
     return dT;
 }
 
+bool delayComplete()
+{
+	return rescueInvert;
+}
 float pidGetPidFrequency()
 {
     return pidFrequency;
@@ -285,6 +298,8 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 
 #ifdef USE_ACC
     pidLevelInit(pidProfile);
+	rescueDelay = pidProfile->rescue_delay;
+	rescueDelayTarget = rescueDelay/dT/10 ;
 #endif
 #ifdef USE_ACRO_TRAINER
     acroTrainerInit(pidProfile);
@@ -601,14 +616,23 @@ static FAST_CODE void pidNormaliseCollective(void)
 {
     float collective;
 
-    if (FLIGHT_MODE(RESCUE_MODE))
+    if (FLIGHT_MODE(RESCUE_MODE)) {
+		if (rescueDelay < 35) {		//set to 35 to disable delayed roll to upright rescue
+			if (rescueDelayCurrent < rescueDelayTarget) {
+				rescueDelayCurrent++;
+			} else {
+				rescueInvert = true;
+			}
+		}
         collective = pidRescueCollective();
-    else
-        collective = rcCommand[COLLECTIVE] * MIXER_RC_SCALING * getRateNormalizationGain(FD_COLL, pidHeadspeedRatio);
-
+	} else {
+        rescueInvert = false;
+		rescueDelayCurrent = 0;
+		collective = rcCommand[COLLECTIVE] * MIXER_RC_SCALING * getRateNormalizationGain(FD_COLL, pidHeadspeedRatio);
+	}
     collectiveCommand = collective * getNormalizationGain(FD_COLL, pidHeadspeedRatio);
-}
-
+	
+}	
 static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Normalised Setpoint rate

@@ -54,6 +54,7 @@ static FAST_RAM_ZERO_INIT float horizonFactorRatio;
 static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 
 static FAST_RAM_ZERO_INIT float rescueCollective;
+static FAST_RAM_ZERO_INIT float rescueBoost;				
 
 
 void pidLevelInit(const pidProfile_t *pidProfile)
@@ -68,12 +69,20 @@ void pidLevelInit(const pidProfile_t *pidProfile)
     horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
 
     rescueCollective = pidProfile->rescue_collective / 1000.0f;
+	rescueBoost = pidProfile->rescue_boost / 1000.0f;			  
 }
 
 float pidRescueCollective(void)
 {
     float collective = 0;
-
+	float tempcollective = 0;
+	
+	// boost rescue collective until rescue delay expires 
+	if (!delayComplete()) {
+		tempcollective = rescueCollective + rescueBoost;	
+	} else {
+		tempcollective = rescueCollective; 
+	}
     // attitude.values.roll/pitch = 0 when level, 1800 when fully inverted (decidegrees)
     const float absRoll = fabsf(attitude.values.roll / 900.0f);
     const float absPitch = fabsf(attitude.values.pitch / 900.0f);
@@ -91,10 +100,10 @@ float pidRescueCollective(void)
     // vertCurrentInclination is between 0.0 (vertical) and 1.0 (level)
     if ( absRoll < 1.0f ) {
         // We're closer to upright. Use positive collective pitch.
-        collective = rescueCollective * (vertCurrentInclination * vertCurrentInclination);
+        collective = tempcollective * (vertCurrentInclination * vertCurrentInclination);
     } else {
         // We're closer to inverted. Use negative collective pitch.
-        collective = -rescueCollective * (vertCurrentInclination * vertCurrentInclination);
+        collective = -tempcollective * (vertCurrentInclination * vertCurrentInclination);
     }
 
     return collective;
@@ -107,15 +116,17 @@ static float calcRescueErrorAngle(int axis)
     const float angle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
     float error = 0;
 
-    if (roll > 90) {
+    if ((roll > 90) && !delayComplete()) {
         // Rolled right closer to inverted, continue to roll right to inverted (+180 degrees)
-        if (axis == FD_PITCH) {
+        // when rescue delay expired, disable and roll to upright
+		if (axis == FD_PITCH) {
             error = angle;
         } else if (axis == FD_ROLL) {
             error = 180.0f - angle;
         }
-    } else if (roll < -90) {
+    } else if ((roll < -90) && !delayComplete()) { 
         // Rolled left closer to inverted, continue to roll left to inverted (-180 degrees)
+		// when rescue delay expired, disable and roll to upright
         if (axis == FD_PITCH) {
             error = angle;
         } else if (axis == FD_ROLL) {
