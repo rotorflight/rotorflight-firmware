@@ -79,7 +79,7 @@ float pidRescueCollective(void)
 	
 	// boost rescue collective until rescue delay expires 
 	if (!delayComplete()) {
-		tempcollective = rescueCollective + rescueBoost;	
+		tempcollective = constrainf(rescueCollective + rescueBoost, 0, 1);	
 	} else {
 		tempcollective = rescueCollective; 
 	}
