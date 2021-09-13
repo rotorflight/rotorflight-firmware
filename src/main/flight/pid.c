@@ -119,7 +119,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_gain = 100,
         .yaw_collective_ff_impulse_gain = 20,
         .yaw_collective_ff_impulse_freq = 100,
-        .rate_normalization = RATE_NORM_ABSOLUTE,
+        .cyclic_normalization = NORM_ABSOLUTE,
+        .collective_normalization = NORM_NATURAL,
         .rescue_collective = 0,
     );
 }
@@ -159,6 +160,9 @@ static FAST_RAM_ZERO_INIT float collectiveImpulseFilterGain;
 
 static FAST_RAM_ZERO_INIT float collectiveCommand;
 
+static FAST_RAM_ZERO_INIT uint8_t cyclicNormalization;
+static FAST_RAM_ZERO_INIT uint8_t collectiveNormalization;
+
 #ifdef USE_ITERM_RELAX
 static FAST_RAM_ZERO_INIT pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
@@ -173,8 +177,6 @@ static FAST_RAM_ZERO_INIT float acErrorLimit;
 static FAST_RAM_ZERO_INIT float acLimit;
 static FAST_RAM_ZERO_INIT float acGain;
 #endif
-
-static FAST_RAM_ZERO_INIT uint8_t rateNormalization;
 
 #ifdef USE_INTERPOLATED_SP
 static FAST_RAM_ZERO_INIT bool spInterpolation;
@@ -310,8 +312,9 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     interpolatedSpInit(pidProfile);
 #endif
 
-    // Rate normalization for pitch & roll
-    rateNormalization = pidProfile->rate_normalization;
+    // Normalization mode
+    cyclicNormalization = pidProfile->cyclic_normalization;
+    collectiveNormalization = pidProfile->collective_normalization;
 
     // Collective impulse high-pass filter
     collectiveImpulseFilterGain = dT / (dT + (1 / (2 * M_PIf * pidProfile->yaw_collective_ff_impulse_freq / 100.0f)));
@@ -532,7 +535,7 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
 #endif
 
 
-static inline float getNormalizationGain(uint8_t axis, float hsRatio)
+static inline float getPIDNormalizationGain(uint8_t axis, float hsRatio)
 {
     if (axis == FD_YAW && mixerMotorizedTail())
         return 1.0f;
@@ -544,19 +547,32 @@ static inline float getRateNormalizationGain(uint8_t axis, float hsRatio)
 {
     float ratio;
 
-    // YAW is always absolute rate
-    if (axis == FD_YAW) {
-        ratio = 1.0f;
-    }
-    // PITCH,ROLL,COLL can be relaxed
-    else {
-        if (rateNormalization == RATE_NORM_NATURAL)
+    if (axis == FD_ROLL || axis == FD_PITCH) {
+        if (cyclicNormalization == NORM_NATURAL)
             ratio = hsRatio * hsRatio;
-        else if (rateNormalization == RATE_NORM_LINEAR)
+        else if (cyclicNormalization == NORM_LINEAR)
             ratio = hsRatio;
         else
             ratio = 1.0f;
     }
+    else {
+        // YAW is always ABSOLUTE
+        ratio = 1.0f;
+    }
+
+    return ratio;
+}
+
+static inline float getCollectiveNormalizationGain(float hsRatio)
+{
+    float ratio;
+
+    if (collectiveNormalization == NORM_NATURAL)
+        ratio = hsRatio * hsRatio;
+    else if (collectiveNormalization == NORM_LINEAR)
+        ratio = hsRatio;
+    else
+        ratio = 1.0f;
 
     return ratio;
 }
@@ -599,14 +615,14 @@ static FAST_CODE void pidApplyYawPrecomp(void)
 
 static FAST_CODE void pidNormaliseCollective(void)
 {
-    float collective;
+    float command;
 
     if (FLIGHT_MODE(RESCUE_MODE))
-        collective = pidRescueCollective();
+        command = pidRescueCollective();
     else
-        collective = rcCommand[COLLECTIVE] * MIXER_RC_SCALING * getRateNormalizationGain(FD_COLL, pidHeadspeedRatio);
+        command = rcCommand[COLLECTIVE] * MIXER_RC_SCALING * getCollectiveNormalizationGain(pidHeadspeedRatio);
 
-    collectiveCommand = collective * getNormalizationGain(FD_COLL, pidHeadspeedRatio);
+    collectiveCommand = command * getPIDNormalizationGain(FD_COLL, pidHeadspeedRatio);
 }
 
 static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
@@ -615,7 +631,7 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
     float currentPidSetpoint = getRateNormalizationGain(axis, pidHeadspeedRatio) * getSetpointRate(axis);
 
     // PID normalisation gain
-    float Kn = getNormalizationGain(axis, pidHeadspeedRatio);
+    float Kn = getPIDNormalizationGain(axis, pidHeadspeedRatio);
 
 #ifdef USE_ACC
     // Apply leveling
@@ -701,7 +717,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     UNUSED(currentTimeUs);
 
     // Headspeed ratio for normalization
-    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), 0.7f, 1.22f);
+    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), 0.7f, 1.25f);
 
     // Rotate error around yaw axis
 #ifdef USE_ITERM_ROTATION

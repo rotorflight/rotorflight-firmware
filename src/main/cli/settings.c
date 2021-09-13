@@ -1011,7 +1011,8 @@ const clivalue_t valueTable[] = {
     { "roll_error_filter",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_filter_hz[PID_ROLL]) },
     { "yaw_error_filter",           VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_filter_hz[PID_YAW]) },
 
-    { "rate_normalization",         VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_RATE_NORMALIZATION }, PG_PID_PROFILE, offsetof(pidProfile_t, rate_normalization) },
+    { "cyclic_normalization",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_NORMALIZATION }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_normalization) },
+    { "collective_normalization",   VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_NORMALIZATION }, PG_PID_PROFILE, offsetof(pidProfile_t, collective_normalization) },
 
     { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_strength) },
     { "angle_level_limit",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_limit) },

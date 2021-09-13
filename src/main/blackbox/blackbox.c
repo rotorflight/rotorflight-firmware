@@ -1406,7 +1406,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_impulse_gain", "%d",  currentPidProfile->yaw_collective_ff_impulse_gain);
         BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_impulse_freq", "%d",  currentPidProfile->yaw_collective_ff_impulse_freq);
 
-        BLACKBOX_PRINT_HEADER_LINE("rate_normalization", "%d",              currentPidProfile->rate_normalization);
+        BLACKBOX_PRINT_HEADER_LINE("cyclic_normalization", "%d",            currentPidProfile->cyclic_normalization);
+        BLACKBOX_PRINT_HEADER_LINE("collective_normalization", "%d",        currentPidProfile->collective_normalization);
         BLACKBOX_PRINT_HEADER_LINE("rescue_collective", "%d",               currentPidProfile->rescue_collective);
 
         BLACKBOX_PRINT_HEADER_LINE("main_rotor_dir", "%d",                  mixerConfig()->main_rotor_dir);
