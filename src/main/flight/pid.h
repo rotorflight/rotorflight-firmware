@@ -180,6 +180,8 @@ typedef struct pidProfile_s
     uint8_t   collective_normalization;       // Type of collective normalization
 
     uint16_t  rescue_collective;              // Collective value for rescue
+    uint16_t  rescue_boost;                   // Add  boost to rescue_collective until delay has expired
+    uint8_t   rescue_delay;                   // Timer for non-inverted rescue in 0.1s steps
 
 } pidProfile_t;
 

@@ -54,6 +54,11 @@ static FAST_RAM_ZERO_INIT float horizonFactorRatio;
 static FAST_RAM_ZERO_INIT uint8_t horizonTiltExpertMode;
 
 static FAST_RAM_ZERO_INIT float rescueCollective;
+static FAST_RAM_ZERO_INIT float rescueBoost;
+static FAST_RAM_ZERO_INIT uint16_t rescueDelay;
+
+static FAST_RAM_ZERO_INIT timeMs_t rescueStart;
+static FAST_RAM_ZERO_INIT bool rescueInverted;
 
 
 void pidLevelInit(const pidProfile_t *pidProfile)
@@ -68,11 +73,28 @@ void pidLevelInit(const pidProfile_t *pidProfile)
     horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
 
     rescueCollective = pidProfile->rescue_collective / 1000.0f;
+    rescueBoost = pidProfile->rescue_boost / 1000.0f;
+    rescueDelay = pidProfile->rescue_delay * 100;
 }
 
-float pidRescueCollective(void)
+FAST_CODE void pidRescueUpdate(void)
 {
-    float collective = 0;
+    if (FLIGHT_MODE(RESCUE_MODE)) {
+        rescueInverted = cmp32(millis(), rescueStart) < rescueDelay;
+    }
+    else {
+        rescueStart = millis();
+        rescueInverted = false;
+    }
+}
+
+FAST_CODE float pidRescueCollective(void)
+{
+    float collective = rescueCollective;
+
+    // Initial rescue with boost
+    if (rescueInverted)
+        collective = constrainf(collective + rescueBoost, 0, 1);
 
     // attitude.values.roll/pitch = 0 when level, 1800 when fully inverted (decidegrees)
     const float absRoll = fabsf(attitude.values.roll / 900.0f);
@@ -88,14 +110,11 @@ float pidRescueCollective(void)
     const float vertCurrentInclination = MIN(pitchCurrentInclination, rollCurrentInclination);
 
     // Add more pitch as the heli approaches level
-    // vertCurrentInclination is between 0.0 (vertical) and 1.0 (level)
-    if ( absRoll < 1.0f ) {
-        // We're closer to upright. Use positive collective pitch.
-        collective = rescueCollective * (vertCurrentInclination * vertCurrentInclination);
-    } else {
-        // We're closer to inverted. Use negative collective pitch.
-        collective = -rescueCollective * (vertCurrentInclination * vertCurrentInclination);
-    }
+    collective *= vertCurrentInclination * vertCurrentInclination;
+
+    // We're closer to inverted. Use negative collective pitch
+    if (absRoll > 1.0f)
+        collective = -collective;
 
     return collective;
 }
@@ -105,16 +124,17 @@ static float calcRescueErrorAngle(int axis)
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
     const float roll = (attitude.raw[FD_ROLL] - angleTrim->raw[FD_ROLL]) / 10.0f;
     const float angle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
+
     float error = 0;
 
-    if (roll > 90) {
+    if (roll > 90 && rescueInverted) {
         // Rolled right closer to inverted, continue to roll right to inverted (+180 degrees)
         if (axis == FD_PITCH) {
             error = angle;
         } else if (axis == FD_ROLL) {
             error = 180.0f - angle;
         }
-    } else if (roll < -90) {
+    } else if (roll < -90 && rescueInverted) {
         // Rolled left closer to inverted, continue to roll left to inverted (-180 degrees)
         if (axis == FD_PITCH) {
             error = angle;

@@ -122,6 +122,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .cyclic_normalization = NORM_ABSOLUTE,
         .collective_normalization = NORM_NATURAL,
         .rescue_collective = 0,
+        .rescue_delay = 35,
+        .rescue_boost = 0,
     );
 }
 
@@ -726,6 +728,9 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #ifdef USE_ABSOLUTE_CONTROL
     rotateAxisError();
 #endif
+
+    // Update rescue mode state
+    pidRescueUpdate();
 
     // Apply PID for each axis
     pidApplyAxis(pidProfile, FD_ROLL);

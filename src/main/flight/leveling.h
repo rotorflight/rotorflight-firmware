@@ -23,5 +23,6 @@
 void pidLevelInit(const pidProfile_t *pidProfile);
 float pidLevelApply(int axis, float currentPidSetpoint);
 
+void pidRescueUpdate(void);
 float pidRescueCollective(void);
 
