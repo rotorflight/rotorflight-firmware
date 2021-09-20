@@ -1,0 +1,4 @@
+rotorflight:
+  build: .
+  volumes:
+    - ./:/rotorflight
