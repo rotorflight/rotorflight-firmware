@@ -107,7 +107,6 @@ enum {
 #define MIXER_OVERRIDE_OFF    (MIXER_OVERRIDE_MAX + 1)
 
 #define MIXER_RC_SCALING      (1.0f / 500)
-#define MIXER_PID_SCALING     (1.0f / 500)
 #define MIXER_THR_SCALING     (1.0f / (PWM_RANGE_MAX - PWM_RANGE_MIN))
 #define MIXER_THR_OFFSET      PWM_RANGE_MIN
 

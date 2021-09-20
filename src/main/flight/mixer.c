@@ -172,8 +172,8 @@ static void mixerUpdateInputs(void)
 
     // PASSTHROUGH mode disables cyclic stabilization (flybar mode)
     if (!FLIGHT_MODE(PASSTHRU_MODE)) {
-        mixerSetInput(MIXER_IN_STABILIZED_ROLL, pidData[FD_ROLL].Sum * MIXER_PID_SCALING);
-        mixerSetInput(MIXER_IN_STABILIZED_PITCH, pidData[FD_PITCH].Sum * MIXER_PID_SCALING);
+        mixerSetInput(MIXER_IN_STABILIZED_ROLL, getPidSum(FD_ROLL));
+        mixerSetInput(MIXER_IN_STABILIZED_PITCH, getPidSum(FD_PITCH));
     } else {
         mixerSetInput(MIXER_IN_STABILIZED_ROLL, rcCommand[ROLL] * MIXER_RC_SCALING);
         mixerSetInput(MIXER_IN_STABILIZED_PITCH, rcCommand[PITCH] * MIXER_RC_SCALING);
@@ -183,7 +183,7 @@ static void mixerUpdateInputs(void)
     mixerCyclicLimit();
 
     // Tail/Yaw is always stabilised - positive is against main rotor torque
-    mixerSetInput(MIXER_IN_STABILIZED_YAW, mixerRotationSign() * pidData[FD_YAW].Sum * MIXER_PID_SCALING);
+    mixerSetInput(MIXER_IN_STABILIZED_YAW, mixerRotationSign() * getPidSum(FD_YAW));
 
     // Update governor sub-mixer
     governorUpdate();
