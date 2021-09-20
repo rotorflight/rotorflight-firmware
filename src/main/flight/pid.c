@@ -135,20 +135,18 @@ void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
 }
 
 
-FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
-
-static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT float dT;
 static FAST_RAM_ZERO_INIT float pidFrequency;
 static FAST_RAM_ZERO_INIT uint32_t pidLooptime;
 
-static FAST_RAM_ZERO_INIT float pidHeadspeedRatio;
+static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
 
-static FAST_RAM_ZERO_INIT float previousPidSetpoint[XYZ_AXIS_COUNT];
-static FAST_RAM_ZERO_INIT float previousDtermGyroRate[XYZ_AXIS_COUNT];
+static FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT biquadFilter_t errorFilter[XYZ_AXIS_COUNT];
+
+static FAST_RAM_ZERO_INIT float pidHeadspeedRatio;
 
 static FAST_RAM_ZERO_INIT float tailCenterOffset;
 
@@ -220,9 +218,14 @@ static void pidSetLooptime(uint32_t looptime)
 #endif
 }
 
-float pidGetSetpoint(int axis)
+float getPidSum(int axis)
 {
-    return previousPidSetpoint[axis];
+    return pidData[axis].Sum / PIDSUM_SCALING;
+}
+
+const pidAxisData_t * getPidData(int axis)
+{
+    return &pidData[axis];
 }
 
 float pidGetStabilizedCollective(void)
@@ -338,23 +341,15 @@ void pidInit(const pidProfile_t *pidProfile)
 
 static void pidReset(void)
 {
-    for (int axis = 0; axis < 3; axis++) {
-        pidData[axis].P = 0;
-        pidData[axis].I = 0;
-        pidData[axis].D = 0;
-        pidData[axis].F = 0;
-        pidData[axis].Sum = 0;
-    }
+    memset(pidData, 0, sizeof(pidData));
 }
 
-void pidResetIterm(void)
+void pidResetError(int axis)
 {
-    for (int axis = 0; axis < 3; axis++) {
-        pidData[axis].I = 0;
+    pidData[axis].I = 0;
 #ifdef USE_ABSOLUTE_CONTROL
-        acError[axis] = 0;
+    acError[axis] = 0;
 #endif
-    }
 }
 
 
@@ -427,7 +422,7 @@ static inline void rotateVector(float *x, float *y, float r)
 static inline void rotateIterm(void)
 {
     if (itermRotation) {
-        rotateVector(&pidData[X].I, &pidData[Y].I, gyro.gyroADCf[Z]*dT*RAD);
+        rotateVector(&pidData[X].Ierror, &pidData[Y].Ierror, gyro.gyroADCf[Z]*dT*RAD);
     }
 }
 #endif
@@ -547,36 +542,26 @@ static inline float getPIDNormalizationGain(uint8_t axis, float hsRatio)
 
 static inline float getRateNormalizationGain(uint8_t axis, float hsRatio)
 {
-    float ratio;
-
     if (axis == FD_ROLL || axis == FD_PITCH) {
         if (cyclicNormalization == NORM_NATURAL)
-            ratio = hsRatio * hsRatio;
+            return hsRatio * hsRatio;
         else if (cyclicNormalization == NORM_LINEAR)
-            ratio = hsRatio;
+            return hsRatio;
         else
-            ratio = 1.0f;
-    }
-    else {
-        // YAW is always ABSOLUTE
-        ratio = 1.0f;
+            return 1.0f;
     }
 
-    return ratio;
+    return 1.0f;
 }
 
 static inline float getCollectiveNormalizationGain(float hsRatio)
 {
-    float ratio;
-
     if (collectiveNormalization == NORM_NATURAL)
-        ratio = hsRatio * hsRatio;
+        return hsRatio * hsRatio;
     else if (collectiveNormalization == NORM_LINEAR)
-        ratio = hsRatio;
-    else
-        ratio = 1.0f;
+        return hsRatio;
 
-    return ratio;
+    return 1.0f;
 }
 
 static inline float getYawPrecompGain(float hsRatio)
@@ -611,7 +596,8 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     // Calculate total precompensation
     float tailPrecomp = (tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset) * Kc;
 
-    // Add to YAW PID sum
+    // Add to YAW feedforward
+    pidData[FD_YAW].F   += tailPrecomp;
     pidData[FD_YAW].Sum += tailPrecomp;
 }
 
@@ -627,10 +613,11 @@ static FAST_CODE void pidNormaliseCollective(void)
     collectiveCommand = command * getPIDNormalizationGain(FD_COLL, pidHeadspeedRatio);
 }
 
+
 static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Normalised Setpoint rate
-    float currentPidSetpoint = getRateNormalizationGain(axis, pidHeadspeedRatio) * getSetpointRate(axis);
+    float pidSetpoint = getRateNormalizationGain(axis, pidHeadspeedRatio) * getSetpointRate(axis);
 
     // PID normalisation gain
     float Kn = getPIDNormalizationGain(axis, pidHeadspeedRatio);
@@ -638,12 +625,12 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 #ifdef USE_ACC
     // Apply leveling
     if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
-        currentPidSetpoint = pidLevelApply(axis, currentPidSetpoint);
+        pidSetpoint = pidLevelApply(axis, pidSetpoint);
     }
 #ifdef USE_ACRO_TRAINER
     else {
         // Apply trainer
-        currentPidSetpoint = acroTrainerApply(axis, currentPidSetpoint);
+        pidSetpoint = acroTrainerApply(axis, pidSetpoint);
     }
 #endif
 #endif
@@ -652,12 +639,16 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
     float gyroRate = gyro.gyroADCf[axis];
 
     // Calculate error rate for I-term
-    float itermErrorRate = currentPidSetpoint - gyroRate;
+    float itermErrorRate = pidSetpoint - gyroRate;
+
+    // Calculate rate and delta for D-term
+    float dtermErrorRate = gyro.gyroDtermADCf[axis];
+    float dtermDelta = (pidData[axis].Derror - dtermErrorRate) * pidFrequency;
 
     // Apply I-term decay
 #ifdef USE_ITERM_DECAY
     if (!isSpooledUp()) {
-        pidData[axis].I -= pidData[axis].I * itermDecay;
+        pidData[axis].Ierror -= pidData[axis].Ierror * itermDecay;
 #ifdef USE_ABSOLUTE_CONTROL
         acError[axis] -= acError[axis] * itermDecay;
 #endif
@@ -667,50 +658,54 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
     // Apply I-term relax & Absolute Control
 #ifdef USE_ITERM_RELAX
     if (itermRelax) {
-        itermErrorRate = applyItermRelax(axis, pidData[axis].I, itermErrorRate, gyroRate, currentPidSetpoint);
+        itermErrorRate = applyItermRelax(axis, pidData[axis].Ierror, itermErrorRate, gyroRate, pidSetpoint);
 #ifdef USE_ABSOLUTE_CONTROL
         if (absoluteControl) {
-            float delta = applyAbsoluteControl(axis, gyroRate, currentPidSetpoint);
+            float delta = applyAbsoluteControl(axis, gyroRate, pidSetpoint);
             itermErrorRate += delta;
-            currentPidSetpoint += delta;
+            pidSetpoint += delta;
         }
 #endif
     }
 #endif
 
+    // Save data
+    pidData[axis].Setpoint = pidSetpoint;
+    pidData[axis].GyroRate = gyroRate;
+
     // No accumulation if axis saturated
-    if (pidAxisSaturated(axis))
+    if (pidAxisSaturated(axis)) {
         itermErrorRate = 0;
+        dtermDelta = 0;
+    }
 
-    // Calculate I component
-    float itermDelta = pidCoefficient[axis].Ki * dT * itermErrorRate;
-    pidData[axis].I = constrainf(pidData[axis].I + itermDelta, -itermLimit, itermLimit);
+    // Calculate I-term error change after modifications
+    float itermDelta = itermErrorRate * dT;
 
-    // Calculate error rate after currentPidSetpoint modifications
-    float errorRate = currentPidSetpoint - gyroRate;
+    // Calculate I-component
+    pidData[axis].Ierror = constrainf(pidData[axis].Ierror + itermDelta, -itermLimit, itermLimit);
+    pidData[axis].I = Kn * pidCoefficient[axis].Ki * pidData[axis].Ierror;
+
+    // Calculate P-term error rate after modifications
+    float ptermErrorRate = pidSetpoint - gyroRate;
 
     // Extra error filtering
     if (pidProfile->error_filter_hz[axis])
-        errorRate = biquadFilterApply(&errorFilter[axis], errorRate);
+        ptermErrorRate = biquadFilterApply(&errorFilter[axis], ptermErrorRate);
 
     // Calculate P-component
-    pidData[axis].P = pidCoefficient[axis].Kp * errorRate;
+    pidData[axis].Perror = ptermErrorRate;
+    pidData[axis].P = Kn * pidCoefficient[axis].Kp * ptermErrorRate;
 
-    // Calculate gyro D-component
-    if (pidCoefficient[axis].Kd > 0) {
-        const float dtermGyroRate = gyro.gyroDtermADCf[axis];
-        const float delta = (previousDtermGyroRate[axis] - dtermGyroRate) * pidFrequency;
-        pidData[axis].D = pidCoefficient[axis].Kd * delta;
-        previousDtermGyroRate[axis] = dtermGyroRate;
-    } else {
-        pidData[axis].D = 0;
-    }
+    // Calculate D-component
+    pidData[axis].Derror = dtermErrorRate;
+    pidData[axis].D = Kn * pidCoefficient[axis].Kd * dtermDelta;
 
     // Calculate feedforward component
-    pidData[axis].F = pidCoefficient[axis].Kf * currentPidSetpoint;
+    pidData[axis].F = Kn * pidCoefficient[axis].Kf * pidSetpoint;
 
-    // Calculate PID sum and apply gain
-    pidData[axis].Sum = (pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F) * Kn;
+    // Calculate PID sum
+    pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
 }
 
 

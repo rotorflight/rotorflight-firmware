@@ -86,20 +86,20 @@ void FAST_CODE_NOINLINE pidAudioUpdate(void)
     switch (pidAudioMode) {
     case PID_AUDIO_PIDSUM_X:
         {
-            const uint32_t pidSumX = MIN(fabsf(pidData[FD_ROLL].Sum), PIDSUM_LIMIT);
-            tone = scaleRange(pidSumX, 0, PIDSUM_LIMIT, TONE_MAX, TONE_MIN);
+            const float pidSumX = constrainf(fabsf(getPidSum(FD_ROLL)), 0, 1);
+            tone = scaleRange(pidSumX, 0, 1, TONE_MAX, TONE_MIN);
             break;
         }
     case PID_AUDIO_PIDSUM_Y:
         {
-            const uint32_t pidSumY = MIN(fabsf(pidData[FD_PITCH].Sum), PIDSUM_LIMIT);
-            tone = scaleRange(pidSumY, 0, PIDSUM_LIMIT, TONE_MAX, TONE_MIN);
+            const float pidSumY = constrainf(fabsf(getPidSum(FD_PITCH)), 0, 1);
+            tone = scaleRange(pidSumY, 0, 1, TONE_MAX, TONE_MIN);
             break;
         }
     case PID_AUDIO_PIDSUM_XY:
         {
-            const uint32_t pidSumXY = MIN((fabsf(pidData[FD_ROLL].Sum) + fabsf(pidData[FD_PITCH].Sum)) / 2, PIDSUM_LIMIT);
-            tone = scaleRange(pidSumXY, 0, PIDSUM_LIMIT, TONE_MAX, TONE_MIN);
+            const uint32_t pidSumXY = constrainf(fabsf(getPidSum(FD_ROLL)) + fabsf(getPidSum(FD_PITCH)), 0, 2);
+            tone = scaleRange(pidSumXY, 0, 2, TONE_MAX, TONE_MIN);
             break;
         }
     default:

@@ -45,6 +45,7 @@
 #define MAX_PID_PROCESS_DENOM       16
 
 #define PIDSUM_LIMIT                500
+#define PIDSUM_SCALING              500
 
 #define ROLL_P_TERM_SCALE           0.00333333f
 #define ROLL_I_TERM_SCALE           0.05000000f
@@ -113,6 +114,11 @@ typedef struct pidCoefficient_s {
 } pidCoefficient_t;
 
 typedef struct pidAxisData_s {
+    float Setpoint;
+    float GyroRate;
+    float Perror;
+    float Ierror;
+    float Derror;
     float P;
     float I;
     float D;
@@ -188,9 +194,6 @@ typedef struct pidProfile_s
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
 
 
-extern pidAxisData_t pidData[];
-
-
 void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs);
 
 void pidInitFilters(const pidProfile_t *pidProfile);
@@ -199,7 +202,7 @@ void pidInit(const pidProfile_t *pidProfile);
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
-void pidResetIterm(void);
+void pidResetError(int axis);
 
 void pidInitSetpointDerivativeLpf(uint16_t filterCutoff, uint8_t debugAxis, uint8_t filterType);
 void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
@@ -208,21 +211,8 @@ float pidGetDT();
 float pidGetPidFrequency();
 uint32_t pidGetLooptime();
 
-float pidGetSetpoint(int axis);
+float getPidSum(int axis);
+const pidAxisData_t * getPidData(int axis);
 
 float pidGetStabilizedCollective(void);
 
-#ifdef UNIT_TEST
-
-#include "sensors/acceleration.h"
-
-extern float axisError[XYZ_AXIS_COUNT];
-
-void applyItermRelax(const int axis, const float iterm,
-    const float gyroRate, float *itermErrorRate, float *currentPidSetpoint);
-void applyAbsoluteControl(const int axis, const float gyroRate, float *currentPidSetpoint, float *itermErrorRate);
-float pidLevel(int axis, const pidProfile_t *pidProfile,
-    const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint);
-float calcHorizonLevelStrength(void);
-
-#endif
