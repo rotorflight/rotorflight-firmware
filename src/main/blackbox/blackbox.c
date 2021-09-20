@@ -1078,10 +1078,11 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->time = currentTimeUs;
 
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        blackboxCurrent->axisPID_P[i] = pidData[i].P;
-        blackboxCurrent->axisPID_I[i] = pidData[i].I;
-        blackboxCurrent->axisPID_D[i] = pidData[i].D;
-        blackboxCurrent->axisPID_F[i] = pidData[i].F;
+        const pidAxisData_t *pid = getPidData(i);
+        blackboxCurrent->axisPID_P[i] = pid->P;
+        blackboxCurrent->axisPID_I[i] = pid->I;
+        blackboxCurrent->axisPID_D[i] = pid->D;
+        blackboxCurrent->axisPID_F[i] = pid->F;
         blackboxCurrent->gyroADC[i] = lrintf(gyro.gyroADCf[i]);
 #if defined(USE_ACC)
         blackboxCurrent->accADC[i] = lrintf(acc.accADC[i]);
@@ -1098,7 +1099,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     // log the currentPidSetpoint values applied to the PID controller
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        blackboxCurrent->setpoint[i] = lrintf(pidGetSetpoint(i));
+        blackboxCurrent->setpoint[i] = lrintf(getPidData(i)->Setpoint);
     }
     // log the final throttle value used in the mixer
     blackboxCurrent->setpoint[3] = lrintf(mixerGetThrottle() * 1000);

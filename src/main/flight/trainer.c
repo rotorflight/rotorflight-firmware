@@ -113,7 +113,7 @@ float acroTrainerApply(int axis, float setPoint)
         if (!acroTrainerAxisState[axis] && fabsf(currentAngle) > acroTrainerAngleLimit) {
             if (angleSign == setpointSign) {
                 acroTrainerAxisState[axis] = angleSign;
-                pidData[axis].I = 0;
+                pidResetError(axis);
             }
         }
 
@@ -132,7 +132,7 @@ float acroTrainerApply(int axis, float setPoint)
             const int projectedAngleSign = acroTrainerSign(projectedAngle);
             if (fabsf(projectedAngle) > acroTrainerAngleLimit && projectedAngleSign == setpointSign) {
                 setPoint = ((acroTrainerAngleLimit * projectedAngleSign) - projectedAngle) * acroTrainerGain;
-                pidData[axis].I = 0;
+                pidResetError(axis);
             }
         }
 
