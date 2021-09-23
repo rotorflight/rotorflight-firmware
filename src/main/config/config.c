@@ -284,6 +284,7 @@ static void validateAndFixConfig(void)
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
+#if 0
     if (!rcSmoothingIsEnabled()) {
         for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
             pidProfilesMutable(i)->pid[PID_ROLL].F = 0;
@@ -301,6 +302,7 @@ static void validateAndFixConfig(void)
                 pidProfilesMutable(i)->pid[PID_YAW].F = 0;
         }
     }
+#endif
 
     if (!featureIsConfigured(FEATURE_GPS)) {
 #ifdef USE_GPS_RESCUE
