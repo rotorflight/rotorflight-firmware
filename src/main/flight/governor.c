@@ -201,16 +201,6 @@ static FAST_RAM_ZERO_INIT govFloatFn  govActiveCalc;
 
 //// Access functions
 
-float getHeadSpeed(void)
-{
-    return govHeadSpeed;
-}
-
-float getHeadSpeedRatio(void)
-{
-    return govHeadSpeedRatio;
-}
-
 uint8_t getGovernorState(void)
 {
     return govState;
@@ -221,25 +211,58 @@ float getGovernorOutput(void)
     return govOutput;
 }
 
-bool isSpooledUp(void)
+float getHeadSpeed(void)
 {
-    switch (govState)
-    {
-        case GS_ACTIVE:
-        case GS_RECOVERY:
-        case GS_LOST_THROTTLE:
-        case GS_LOST_HEADSPEED:
-        case GS_AUTOROTATION:
-        case GS_AUTOROTATION_BAILOUT:
-            return true;
+    return govHeadSpeed;
+}
 
-        case GS_THROTTLE_OFF:
-        case GS_THROTTLE_IDLE:
-        case GS_SPOOLING_UP:
-            return false;
+float getHeadSpeedRatio(void)
+{
+    if (govMode) {
+        switch (govState)
+        {
+            case GS_ACTIVE:
+            case GS_RECOVERY:
+            case GS_SPOOLING_UP:
+            case GS_AUTOROTATION_BAILOUT:
+                return govHeadSpeedRatio;
+
+            case GS_AUTOROTATION:
+            case GS_THROTTLE_OFF:
+            case GS_THROTTLE_IDLE:
+            case GS_LOST_THROTTLE:
+            case GS_LOST_HEADSPEED:
+                return 1.0f;
+        }
+        return 1.0f;
     }
 
-    return false;
+    return 1.0f;
+}
+
+bool isSpooledUp(void)
+{
+    if (govMode) {
+        switch (govState)
+        {
+            case GS_ACTIVE:
+            case GS_RECOVERY:
+            case GS_LOST_THROTTLE:
+            case GS_LOST_HEADSPEED:
+            case GS_AUTOROTATION:
+            case GS_AUTOROTATION_BAILOUT:
+                return true;
+
+            case GS_THROTTLE_OFF:
+            case GS_THROTTLE_IDLE:
+            case GS_SPOOLING_UP:
+                return false;
+        }
+        return false;
+    }
+
+    // Governor not used - assume spooled up
+    return true;
 }
 
 
