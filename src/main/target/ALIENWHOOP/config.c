@@ -140,9 +140,6 @@ void targetConfiguration(void)
         controlRateConfig->rates[FD_PITCH] = 0;
         controlRateConfig->rates[FD_YAW] = 0;
 
-	/* Force the clipping mixer at 100% seems better for brushed than default (off) and scaling)? */
-        controlRateConfig->throttle_limit_type = THROTTLE_LIMIT_TYPE_CLIP;
-        //controlRateConfig->throttle_limit_percent = 100;
     }
 }
 #endif
