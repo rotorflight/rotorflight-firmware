@@ -322,7 +322,7 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     collectiveNormalization = pidProfile->collective_normalization;
 
     // Collective impulse high-pass filter
-    collectiveImpulseFilterGain = dT / (dT + (1 / (2 * M_PIf * pidProfile->yaw_collective_ff_impulse_freq / 100.0f)));
+    collectiveImpulseFilterGain = pt1FilterGain(pidProfile->yaw_collective_ff_impulse_freq / 100.0f, dT);
 
     // Tail feedforward gains
     tailCenterOffset = pidProfile->yaw_center_offset / 1000.0f;
