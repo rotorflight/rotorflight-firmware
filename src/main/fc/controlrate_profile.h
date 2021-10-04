@@ -32,13 +32,6 @@ typedef enum {
     RATES_TYPE_QUICK,
 } ratesType_e;
 
-typedef enum {
-    THROTTLE_LIMIT_TYPE_OFF = 0,
-    THROTTLE_LIMIT_TYPE_SCALE,
-    THROTTLE_LIMIT_TYPE_CLIP,
-    THROTTLE_LIMIT_TYPE_COUNT   // must be the last entry
-} throttleLimitType_e;
-
 #define MAX_RATE_PROFILE_NAME_LENGTH 8u
 
 typedef struct controlRateConfig_s {
@@ -46,8 +39,6 @@ typedef struct controlRateConfig_s {
     uint8_t rcRates[3];
     uint8_t rcExpo[3];
     uint8_t rates[3];
-    uint8_t throttle_limit_type;            // Sets the throttle limiting type - off, scale or clip
-    uint8_t throttle_limit_percent;         // Sets the maximum pilot commanded throttle limit
     uint16_t rate_limit[3];                 // Sets the maximum rate for the axes
     char profileName[MAX_RATE_PROFILE_NAME_LENGTH + 1]; // Descriptive name for rate profile
 } controlRateConfig_t;
