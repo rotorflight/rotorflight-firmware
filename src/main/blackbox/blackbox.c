@@ -1314,11 +1314,13 @@ static bool blackboxWriteSysinfo(void)
 #endif
         BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(buf));
         BLACKBOX_PRINT_HEADER_LINE("Craft name", "%s",                      pilotConfig()->name);
+
+        BLACKBOX_PRINT_HEADER_LINE("debug_mode", "%d",                      debugMode);
+        BLACKBOX_PRINT_HEADER_LINE("features", "%d",                        featureConfig()->enabledFeatures);
+
         BLACKBOX_PRINT_HEADER_LINE("I interval", "%d",                      blackboxIInterval);
         BLACKBOX_PRINT_HEADER_LINE("P interval", "%d",                      blackboxPInterval);
         BLACKBOX_PRINT_HEADER_LINE("P ratio", "%d",                         blackboxConfig()->p_ratio);
-        BLACKBOX_PRINT_HEADER_LINE("minthrottle", "%d",                     motorConfig()->minthrottle);
-        BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
         BLACKBOX_PRINT_HEADER_LINE("gyro_scale","0x%x",                     castFloatBytesToInt(1.0f));
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE("acc_1G", "%u",                          acc.dev.acc_1G);
@@ -1346,18 +1348,21 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("looptime", "%d",                        gyro.sampleLooptime);
         BLACKBOX_PRINT_HEADER_LINE("gyro_sync_denom", "%d",                 1);
         BLACKBOX_PRINT_HEADER_LINE("pid_process_denom", "%d",               activePidLoopDenom);
+
+        BLACKBOX_PRINT_HEADER_LINE("rates_type", "%d",                      currentControlRateProfile->rates_type);
+        BLACKBOX_PRINT_HEADER_LINE("rates", "%d,%d,%d",                     currentControlRateProfile->rates[ROLL],
+                                                                            currentControlRateProfile->rates[PITCH],
+                                                                            currentControlRateProfile->rates[YAW]);
         BLACKBOX_PRINT_HEADER_LINE("rc_rates", "%d,%d,%d",                  currentControlRateProfile->rcRates[ROLL],
                                                                             currentControlRateProfile->rcRates[PITCH],
                                                                             currentControlRateProfile->rcRates[YAW]);
         BLACKBOX_PRINT_HEADER_LINE("rc_expo", "%d,%d,%d",                   currentControlRateProfile->rcExpo[ROLL],
                                                                             currentControlRateProfile->rcExpo[PITCH],
                                                                             currentControlRateProfile->rcExpo[YAW]);
-        BLACKBOX_PRINT_HEADER_LINE("rates", "%d,%d,%d",                     currentControlRateProfile->rates[ROLL],
-                                                                            currentControlRateProfile->rates[PITCH],
-                                                                            currentControlRateProfile->rates[YAW]);
         BLACKBOX_PRINT_HEADER_LINE("rate_limits", "%d,%d,%d",               currentControlRateProfile->rate_limit[ROLL],
                                                                             currentControlRateProfile->rate_limit[PITCH],
                                                                             currentControlRateProfile->rate_limit[YAW]);
+
         BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d",                   currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
                                                                             currentPidProfile->pid[PID_ROLL].D);
@@ -1367,27 +1372,77 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d",                    currentPidProfile->pid[PID_YAW].P,
                                                                             currentPidProfile->pid[PID_YAW].I,
                                                                             currentPidProfile->pid[PID_YAW].D);
-#if defined(USE_ITERM_RELAX)
-        BLACKBOX_PRINT_HEADER_LINE("iterm_relax", "%d",                    currentPidProfile->iterm_relax);
-        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_type", "%d",               currentPidProfile->iterm_relax_type);
-        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_cutoff", "%d",             currentPidProfile->iterm_relax_cutoff);
-#endif
-
-        // Betaflight PID controller parameters
-#ifdef USE_ABSOLUTE_CONTROL
-        BLACKBOX_PRINT_HEADER_LINE("abs_control", "%d",                     currentPidProfile->abs_control);
-        BLACKBOX_PRINT_HEADER_LINE("abs_control_gain", "%d",                currentPidProfile->abs_control_gain);
-#endif
         BLACKBOX_PRINT_HEADER_LINE("feedforward_weight", "%d,%d,%d",        currentPidProfile->pid[PID_ROLL].F,
                                                                             currentPidProfile->pid[PID_PITCH].F,
                                                                             currentPidProfile->pid[PID_YAW].F);
+
+        BLACKBOX_PRINT_HEADER_LINE("iterm_limit", "%d",                     currentPidProfile->iterm_limit);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_decay", "%d",                     currentPidProfile->iterm_decay);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_rotation", "%d",                  currentPidProfile->iterm_rotation);
+
+#if defined(USE_ITERM_RELAX)
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax", "%d",                     currentPidProfile->iterm_relax);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_type", "%d",                currentPidProfile->iterm_relax_type);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_cutoff", "%d",              currentPidProfile->iterm_relax_cutoff);
+#endif
+
+#ifdef USE_ABSOLUTE_CONTROL
+        BLACKBOX_PRINT_HEADER_LINE("abs_control", "%d",                     currentPidProfile->abs_control);
+        BLACKBOX_PRINT_HEADER_LINE("abs_control_gain", "%d",                currentPidProfile->abs_control_gain);
+        BLACKBOX_PRINT_HEADER_LINE("abs_control_limit", "%d",               currentPidProfile->abs_control_limit);
+        BLACKBOX_PRINT_HEADER_LINE("abs_control_error_limit", "%d",         currentPidProfile->abs_control_error_limit);
+        BLACKBOX_PRINT_HEADER_LINE("abs_control_cutoff", "%d",              currentPidProfile->abs_control_cutoff);
+#endif
 #ifdef USE_INTERPOLATED_SP
         BLACKBOX_PRINT_HEADER_LINE("ff_interpolate_sp", "%d",               currentPidProfile->ff_interpolate_sp);
         BLACKBOX_PRINT_HEADER_LINE("ff_spike_limit", "%d",                  currentPidProfile->ff_spike_limit);
         BLACKBOX_PRINT_HEADER_LINE("ff_max_rate_limit", "%d",               currentPidProfile->ff_max_rate_limit);
-#endif
+        BLACKBOX_PRINT_HEADER_LINE("ff_smooth_factor", "%d",                currentPidProfile->ff_smooth_factor);
         BLACKBOX_PRINT_HEADER_LINE("ff_boost", "%d",                        currentPidProfile->ff_boost);
-        // End of Betaflight controller parameters
+#endif
+
+        BLACKBOX_PRINT_HEADER_LINE("yaw_center_offset", "%d",               currentPidProfile->yaw_center_offset);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_cw_stop_gain", "%d",                currentPidProfile->yaw_cw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_ccw_stop_gain", "%d",               currentPidProfile->yaw_ccw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_cyclic_ff_gain", "%d",              currentPidProfile->yaw_cyclic_ff_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_gain", "%d",          currentPidProfile->yaw_collective_ff_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_impulse_gain", "%d",  currentPidProfile->yaw_collective_ff_impulse_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_impulse_freq", "%d",  currentPidProfile->yaw_collective_ff_impulse_freq);
+
+        BLACKBOX_PRINT_HEADER_LINE("cyclic_normalization", "%d",            currentPidProfile->cyclic_normalization);
+        BLACKBOX_PRINT_HEADER_LINE("collective_normalization", "%d",        currentPidProfile->collective_normalization);
+        BLACKBOX_PRINT_HEADER_LINE("rescue_collective", "%d",               currentPidProfile->rescue_collective);
+
+        BLACKBOX_PRINT_HEADER_LINE("gov_headspeed", "%d",                   currentPidProfile->gov_headspeed);
+        BLACKBOX_PRINT_HEADER_LINE("gov_gain", "%d",                        currentPidProfile->gov_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_p_gain", "%d",                      currentPidProfile->gov_p_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_i_gain", "%d",                      currentPidProfile->gov_i_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_d_gain", "%d",                      currentPidProfile->gov_d_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_f_gain", "%d",                      currentPidProfile->gov_f_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_tta_gain", "%d",                    currentPidProfile->gov_tta_gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_tta_limit", "%d",                   currentPidProfile->gov_tta_limit);
+        BLACKBOX_PRINT_HEADER_LINE("gov_cyclic_ff_weight", "%d",            currentPidProfile->gov_cyclic_ff_weight);
+        BLACKBOX_PRINT_HEADER_LINE("gov_collective_ff_weight", "%d",        currentPidProfile->gov_collective_ff_weight);
+
+        BLACKBOX_PRINT_HEADER_LINE("gov_mode", "%d",                        governorConfig()->gov_mode);
+        BLACKBOX_PRINT_HEADER_LINE("gov_gear_ratio", "%d",                  governorConfig()->gov_gear_ratio);
+        BLACKBOX_PRINT_HEADER_LINE("gov_spoolup_time", "%d",                governorConfig()->gov_spoolup_time);
+        BLACKBOX_PRINT_HEADER_LINE("gov_tracking_time", "%d",               governorConfig()->gov_tracking_time);
+        BLACKBOX_PRINT_HEADER_LINE("gov_recovery_time", "%d",               governorConfig()->gov_recovery_time);
+        BLACKBOX_PRINT_HEADER_LINE("gov_lost_throttle_timeout", "%d",       governorConfig()->gov_lost_throttle_timeout);
+        BLACKBOX_PRINT_HEADER_LINE("gov_lost_headspeed_timeout", "%d",      governorConfig()->gov_lost_headspeed_timeout);
+        BLACKBOX_PRINT_HEADER_LINE("gov_autorotation_timeout", "%d",        governorConfig()->gov_autorotation_timeout);
+        BLACKBOX_PRINT_HEADER_LINE("gov_autorotation_bailout_time", "%d",   governorConfig()->gov_autorotation_bailout_time);
+        BLACKBOX_PRINT_HEADER_LINE("gov_autorotation_min_entry_time", "%d", governorConfig()->gov_autorotation_min_entry_time);
+        BLACKBOX_PRINT_HEADER_LINE("gov_pwr_filter", "%d",                  governorConfig()->gov_pwr_filter);
+        BLACKBOX_PRINT_HEADER_LINE("gov_rpm_filter", "%d",                  governorConfig()->gov_rpm_filter);
+        BLACKBOX_PRINT_HEADER_LINE("gov_ff_exponent", "%d",                 governorConfig()->gov_ff_exponent);
+        BLACKBOX_PRINT_HEADER_LINE("gov_vbat_offset", "%d",                 governorConfig()->gov_vbat_offset);
+
+        BLACKBOX_PRINT_HEADER_LINE("main_rotor_dir", "%d",                  mixerConfig()->main_rotor_dir);
+        BLACKBOX_PRINT_HEADER_LINE("tail_rotor_mode", "%d",                 mixerConfig()->tail_rotor_mode);
+        BLACKBOX_PRINT_HEADER_LINE("tail_motor_idle", "%d",                 mixerConfig()->tail_motor_idle);
+        BLACKBOX_PRINT_HEADER_LINE("swash_ring", "%d",                      mixerConfig()->swash_ring);
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->yaw_deadband);
@@ -1422,9 +1477,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             gyroConfig()->dterm_dyn_lpf_max_hz);
 #endif
 
-#ifdef USE_DSHOT_TELEMETRY
-        BLACKBOX_PRINT_HEADER_LINE("dshot_bidir", "%d",                     motorConfig()->dev.useDshotTelemetry);
-#endif
 #ifdef USE_RPM_FILTER
 #if RPM_FILTER_BANK_COUNT != 16
 #error RPM_FILTER_BANK_COUNT hardcoded to 16 in blackbox.c
@@ -1516,7 +1568,7 @@ static bool blackboxWriteSysinfo(void)
                                                                             rpmFilterConfig()->filter_bank_max_hz[15]);
 #endif
 #if defined(USE_ACC)
-        BLACKBOX_PRINT_HEADER_LINE("acc_lpf_hz", "%d",                 (int)(accelerometerConfig()->acc_lpf_hz * 100.0f));
+        BLACKBOX_PRINT_HEADER_LINE("acc_lpf_hz", "%d",                      accelerometerConfig()->acc_lpf_hz * 100);
         BLACKBOX_PRINT_HEADER_LINE("acc_hardware", "%d",                    accelerometerConfig()->acc_hardware);
 #endif
 #ifdef USE_BARO
@@ -1526,16 +1578,11 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("mag_hardware", "%d",                    compassConfig()->mag_hardware);
 #endif
         BLACKBOX_PRINT_HEADER_LINE("gyro_cal_on_first_arm", "%d",           armingConfig()->gyro_cal_on_first_arm);
+
         BLACKBOX_PRINT_HEADER_LINE("rc_interpolation", "%d",                rxConfig()->rcInterpolation);
         BLACKBOX_PRINT_HEADER_LINE("rc_interpolation_interval", "%d",       rxConfig()->rcInterpolationInterval);
         BLACKBOX_PRINT_HEADER_LINE("rc_interpolation_channels", "%d",       rxConfig()->rcInterpolationChannels);
         BLACKBOX_PRINT_HEADER_LINE("serialrx_provider", "%d",               rxConfig()->serialrx_provider);
-        BLACKBOX_PRINT_HEADER_LINE("use_unsynced_pwm", "%d",                motorConfig()->dev.useUnsyncedPwm);
-        BLACKBOX_PRINT_HEADER_LINE("motor_pwm_protocol", "%d",              motorConfig()->dev.motorPwmProtocol);
-        BLACKBOX_PRINT_HEADER_LINE("motor_pwm_rate", "%d",                  motorConfig()->dev.motorPwmRate);
-        BLACKBOX_PRINT_HEADER_LINE("dshot_idle_value", "%d",                motorConfig()->digitalIdleOffsetValue);
-        BLACKBOX_PRINT_HEADER_LINE("debug_mode", "%d",                      debugMode);
-        BLACKBOX_PRINT_HEADER_LINE("features", "%d",                        featureConfig()->enabledFeatures);
 
 #ifdef USE_RC_SMOOTHING_FILTER
         BLACKBOX_PRINT_HEADER_LINE("rc_smoothing_type", "%d",               rxConfig()->rc_smoothing_type);
@@ -1549,7 +1596,15 @@ static bool blackboxWriteSysinfo(void)
                                                                             rcSmoothingData->derivativeCutoffFrequency);
         BLACKBOX_PRINT_HEADER_LINE("rc_smoothing_rx_average", "%d",         rcSmoothingData->averageFrameTimeUs);
 #endif // USE_RC_SMOOTHING_FILTER
-        BLACKBOX_PRINT_HEADER_LINE("rates_type", "%d",                      currentControlRateProfile->rates_type);
+
+        BLACKBOX_PRINT_HEADER_LINE("motor_pwm_protocol", "%d",              motorConfig()->dev.motorPwmProtocol);
+        BLACKBOX_PRINT_HEADER_LINE("motor_pwm_rate", "%d",                  motorConfig()->dev.motorPwmRate);
+        BLACKBOX_PRINT_HEADER_LINE("use_unsynced_pwm", "%d",                motorConfig()->dev.useUnsyncedPwm);
+        BLACKBOX_PRINT_HEADER_LINE("minthrottle", "%d",                     motorConfig()->minthrottle);
+        BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
+#ifdef USE_DSHOT_TELEMETRY
+        BLACKBOX_PRINT_HEADER_LINE("dshot_bidir", "%d",                     motorConfig()->dev.useDshotTelemetry);
+#endif
 
         default:
             return true;
