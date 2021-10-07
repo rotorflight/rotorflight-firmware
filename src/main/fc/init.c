@@ -108,7 +108,6 @@
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/motors.h"
-#include "io/pidaudio.h"
 #include "io/piniobox.h"
 #include "io/rcdevice_cam.h"
 #include "io/serial.h"
@@ -747,10 +746,6 @@ void init(void)
     gyroInitFilters();
 
     pidInit(currentPidProfile);
-
-#ifdef USE_PID_AUDIO
-    pidAudioInit();
-#endif
 
 #ifdef USE_SERVOS
     servosInit();
