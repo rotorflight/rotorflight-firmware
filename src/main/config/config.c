@@ -465,6 +465,17 @@ static void validateAndFixConfig(void)
     targetValidateConfiguration();
 #endif
 
+    for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
+        pidProfile_t *pidProfile = pidProfilesMutable(i);
+
+        if (pidProfile->iterm_limit[0] == 0)
+            pidProfile->iterm_limit[0] = 500;
+        if (pidProfile->iterm_limit[1] == 0)
+            pidProfile->iterm_limit[1] = pidProfile->iterm_limit[0];
+        if (pidProfile->iterm_limit[2] == 0)
+            pidProfile->iterm_limit[2] = pidProfile->iterm_limit[0];
+    }
+
     for (unsigned i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
         switch (controlRateProfilesMutable(i)->rates_type) {
         case RATES_TYPE_BETAFLIGHT:

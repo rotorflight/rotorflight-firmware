@@ -94,7 +94,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .horizon_transition = 75,
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
-        .iterm_limit = 500,
+        .iterm_limit = { 500, 500, 500 },
         .iterm_decay = 25,
         .iterm_rotation = true,
         .iterm_relax = ITERM_RELAX_RP,
@@ -182,7 +182,7 @@ static FAST_RAM_ZERO_INIT float acGain;
 static FAST_RAM_ZERO_INIT bool spInterpolation;
 #endif
 
-static FAST_RAM_ZERO_INIT float itermLimit;
+static FAST_RAM_ZERO_INIT float itermLimit[XYZ_AXIS_COUNT];
 
 #ifdef USE_ITERM_DECAY
 static FAST_RAM_ZERO_INIT float itermDecay;
@@ -277,7 +277,8 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidCoefficient[FD_YAW].Kd = YAW_D_TERM_SCALE * pidProfile->pid[FD_YAW].D;
     pidCoefficient[FD_YAW].Kf = YAW_F_TERM_SCALE * pidProfile->pid[FD_YAW].F;
 
-    itermLimit = pidProfile->iterm_limit;
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++)
+        itermLimit[i] = constrain(pidProfile->iterm_limit[i], 0, 1000);
 
 #ifdef USE_ITERM_ROTATION
     itermRotation = pidProfile->iterm_rotation;
@@ -683,7 +684,7 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
     float itermDelta = itermErrorRate * dT;
 
     // Calculate I-component
-    pidData[axis].Ierror = constrainf(pidData[axis].Ierror + itermDelta, -itermLimit, itermLimit);
+    pidData[axis].Ierror = constrainf(pidData[axis].Ierror + itermDelta, -itermLimit[axis], itermLimit[axis]);
     pidData[axis].I = Kn * pidCoefficient[axis].Ki * pidData[axis].Ierror;
 
     // Calculate P-term error rate after modifications
