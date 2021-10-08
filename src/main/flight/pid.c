@@ -99,7 +99,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .iterm_rotation = true,
         .iterm_relax = ITERM_RELAX_RP,
         .iterm_relax_type = ITERM_RELAX_SETPOINT,
-        .iterm_relax_cutoff = 10,
+        .iterm_relax_cutoff = { 10, 10, 10 },
         .acro_trainer_gain = 75,
         .acro_trainer_angle_limit = 20,
         .acro_trainer_lookahead_ms = 50,
@@ -164,9 +164,9 @@ static FAST_RAM_ZERO_INIT uint8_t cyclicNormalization;
 static FAST_RAM_ZERO_INIT uint8_t collectiveNormalization;
 
 #ifdef USE_ITERM_RELAX
-static FAST_RAM_ZERO_INIT pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
 static FAST_RAM_ZERO_INIT uint8_t itermRelaxType;
+static FAST_RAM_ZERO_INIT pt1Filter_t itermRelaxLpf[XYZ_AXIS_COUNT];
 #endif
 
 #ifdef USE_ABSOLUTE_CONTROL
@@ -244,8 +244,10 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #ifdef USE_ITERM_RELAX
     if (itermRelax) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-            pt1FilterInit(&windupLpf[i], pt1FilterGain(pidProfile->iterm_relax_cutoff, dT));
+            uint8_t freq = constrain(pidProfile->iterm_relax_cutoff[i], 1, 50);
+            pt1FilterInit(&itermRelaxLpf[i], pt1FilterGain(freq, dT));
         }
+
 #ifdef USE_ABSOLUTE_CONTROL
         if (absoluteControl) {
             for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
@@ -495,7 +497,7 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
 static FAST_CODE float applyItermRelax(const int axis, const float iterm,
     float itermErrorRate, const float gyroRate, const float currentPidSetpoint)
 {
-    const float setpointLpf = pt1FilterApply(&windupLpf[axis], currentPidSetpoint);
+    const float setpointLpf = pt1FilterApply(&itermRelaxLpf[axis], currentPidSetpoint);
     const float setpointHpf = fabsf(currentPidSetpoint - setpointLpf);
 
     // Always active on ROLL & PITCH; active also on YAW if _RPY

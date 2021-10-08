@@ -157,7 +157,7 @@ typedef struct pidProfile_s
 
     uint8_t   iterm_relax;                    // Enable iterm suppression during stick input
     uint8_t   iterm_relax_type;               // Specifies type of relax algorithm
-    uint8_t   iterm_relax_cutoff;             // This cutoff frequency specifies a low pass filter which predicts average response of the quad to setpoint
+    uint8_t   iterm_relax_cutoff[XYZ_AXIS_COUNT]; // Low pass filter which predicts average response to setpoint
 
     uint8_t   acro_trainer_gain;              // The strength of the limiting. Raising may reduce overshoot but also lead to oscillation around the angle limit
     uint8_t   acro_trainer_angle_limit;       // Acro trainer roll/pitch angle limit in degrees
