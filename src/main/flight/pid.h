@@ -151,7 +151,7 @@ typedef struct pidProfile_s
     uint8_t   horizon_tilt_effect;            // inclination factor for Horizon mode
     uint8_t   horizon_tilt_expert_mode;       // OFF or ON
 
-    uint16_t  iterm_limit;
+    uint16_t  iterm_limit[XYZ_AXIS_COUNT];    // Maximum I-term for each axis
     uint8_t   iterm_decay;
     uint8_t   iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
 
