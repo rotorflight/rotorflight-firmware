@@ -474,6 +474,13 @@ static void validateAndFixConfig(void)
             pidProfile->iterm_limit[1] = pidProfile->iterm_limit[0];
         if (pidProfile->iterm_limit[2] == 0)
             pidProfile->iterm_limit[2] = pidProfile->iterm_limit[0];
+
+        if (pidProfile->iterm_relax_cutoff[0] == 0)
+            pidProfile->iterm_relax_cutoff[0] = 10;
+        if (pidProfile->iterm_relax_cutoff[1] == 0)
+            pidProfile->iterm_relax_cutoff[1] = pidProfile->iterm_relax_cutoff[0];
+        if (pidProfile->iterm_relax_cutoff[2] == 0)
+            pidProfile->iterm_relax_cutoff[2] = pidProfile->iterm_relax_cutoff[0];
     }
 
     for (unsigned i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
