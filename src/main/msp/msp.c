@@ -1876,7 +1876,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_GOVERNOR:
         sbufWriteU8(dst, governorConfig()->gov_mode);
-        sbufWriteU16(dst, governorConfig()->gov_max_headspeed);
         sbufWriteU16(dst, governorConfig()->gov_spoolup_time);
         sbufWriteU16(dst, governorConfig()->gov_tracking_time);
         sbufWriteU16(dst, governorConfig()->gov_recovery_time);
@@ -1888,13 +1887,18 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_gear_ratio);
         sbufWriteU16(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU16(dst, governorConfig()->gov_rpm_filter);
-        sbufWriteU16(dst, governorConfig()->gov_gain);
-        sbufWriteU16(dst, governorConfig()->gov_p_gain);
-        sbufWriteU16(dst, governorConfig()->gov_i_gain);
-        sbufWriteU16(dst, governorConfig()->gov_d_gain);
-        sbufWriteU16(dst, governorConfig()->gov_f_gain);
-        sbufWriteU16(dst, governorConfig()->gov_cyclic_ff_weight);
-        sbufWriteU16(dst, governorConfig()->gov_collective_ff_weight);
+
+        // Move to PID_ADVANCED
+        sbufWriteU16(dst, currentPidProfile->gov_headspeed);
+        sbufWriteU8(dst, currentPidProfile->gov_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_p_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_i_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_d_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_f_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_tta_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_tta_limit);
+        sbufWriteU8(dst, currentPidProfile->gov_cyclic_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->gov_collective_ff_weight);
         break;
 
     default:
@@ -2166,7 +2170,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->pid[i].I = sbufReadU8(src);
             currentPidProfile->pid[i].D = sbufReadU8(src);
         }
-        pidInitConfig(currentPidProfile);
+        pidInitProfile(currentPidProfile);
         break;
 
     case MSP_SET_MODE_RANGE:
@@ -2621,7 +2625,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             sbufReadU8(src); // was currentPidProfile->auto_profile_cell_count
             sbufReadU8(src); // was currentPidProfile->idle_min_rpm
         }
-        pidInitConfig(currentPidProfile);
+        pidInitProfile(currentPidProfile);
 
         break;
     case MSP_SET_HELI_CONFIG:
@@ -3248,7 +3252,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_GOVERNOR:
         governorConfigMutable()->gov_mode = sbufReadU8(src);
-        governorConfigMutable()->gov_max_headspeed = sbufReadU16(src);
         governorConfigMutable()->gov_spoolup_time = sbufReadU16(src);
         governorConfigMutable()->gov_tracking_time = sbufReadU16(src);
         governorConfigMutable()->gov_recovery_time = sbufReadU16(src);
@@ -3260,13 +3263,20 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_gear_ratio = sbufReadU16(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU16(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU16(src);
-        governorConfigMutable()->gov_gain = sbufReadU16(src);
-        governorConfigMutable()->gov_p_gain = sbufReadU16(src);
-        governorConfigMutable()->gov_i_gain = sbufReadU16(src);
-        governorConfigMutable()->gov_d_gain = sbufReadU16(src);
-        governorConfigMutable()->gov_f_gain = sbufReadU16(src);
-        governorConfigMutable()->gov_cyclic_ff_weight = sbufReadU16(src);
-        governorConfigMutable()->gov_collective_ff_weight = sbufReadU16(src);
+
+        // Move to PID_ADVANCED
+        currentPidProfile->gov_headspeed = sbufReadU16(src);
+        currentPidProfile->gov_gain = sbufReadU8(src);
+        currentPidProfile->gov_p_gain = sbufReadU8(src);
+        currentPidProfile->gov_i_gain = sbufReadU8(src);
+        currentPidProfile->gov_d_gain = sbufReadU8(src);
+        currentPidProfile->gov_f_gain = sbufReadU8(src);
+        currentPidProfile->gov_tta_gain = sbufReadU8(src);
+        currentPidProfile->gov_tta_limit = sbufReadU8(src);
+        currentPidProfile->gov_cyclic_ff_weight = sbufReadU8(src);
+        currentPidProfile->gov_collective_ff_weight = sbufReadU8(src);
+
+        governorInitProfile(currentPidProfile);
         break;
 
     default:
