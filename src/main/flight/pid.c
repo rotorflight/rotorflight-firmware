@@ -124,6 +124,16 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .rescue_collective = 0,
         .rescue_boost = 0,
         .rescue_delay = 35,
+        .gov_headspeed = 1000,
+        .gov_gain = 50,
+        .gov_p_gain = 40,
+        .gov_i_gain = 50,
+        .gov_d_gain = 0,
+        .gov_f_gain = 15,
+        .gov_tta_gain = 0,
+        .gov_tta_limit = 0,
+        .gov_cyclic_ff_weight = 40,
+        .gov_collective_ff_weight = 100,
     );
 }
 
@@ -259,7 +269,7 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 #endif
 }
 
-void pidInitConfig(const pidProfile_t *pidProfile)
+void pidInitProfile(const pidProfile_t *pidProfile)
 {
     // Roll axis
     pidCoefficient[FD_ROLL].Kp = ROLL_P_TERM_SCALE * pidProfile->pid[FD_ROLL].P;
@@ -332,13 +342,16 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     tailCyclicFFGain = pidProfile->yaw_cyclic_ff_gain;
     tailCollectiveFFGain = pidProfile->yaw_collective_ff_gain;
     tailCollectiveImpulseFFGain = pidProfile->yaw_collective_ff_impulse_gain;
+
+    // Governor profile
+    governorInitProfile(pidProfile);
 }
 
 void pidInit(const pidProfile_t *pidProfile)
 {
     pidSetLooptime(gyro.targetLooptime);
 
-    pidInitConfig(pidProfile);
+    pidInitProfile(pidProfile);
     pidInitFilters(pidProfile);
 }
 

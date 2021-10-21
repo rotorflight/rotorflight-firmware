@@ -189,6 +189,17 @@ typedef struct pidProfile_s
     uint16_t  rescue_boost;                   // Add  boost to rescue_collective until delay has expired
     uint8_t   rescue_delay;                   // Timer for non-inverted rescue in 0.1s steps
 
+    uint16_t  gov_headspeed;                  // Governor full headspeed
+    uint8_t   gov_gain;                       // Master gain
+    uint8_t   gov_p_gain;                     // P-gain
+    uint8_t   gov_i_gain;                     // I-gain
+    uint8_t   gov_d_gain;                     // D-gain
+    uint8_t   gov_f_gain;                     // Feedforward gain
+    uint8_t   gov_tta_gain;                   // Tail Torque Assist gain
+    uint8_t   gov_tta_limit;                  // Tail Torque Assist limit
+    uint8_t   gov_cyclic_ff_weight;           // Cyclic feedforward weight
+    uint8_t   gov_collective_ff_weight;       // Collective feedforward weight
+
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
@@ -196,14 +207,14 @@ PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
 
 void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs);
 
-void pidInitFilters(const pidProfile_t *pidProfile);
-void pidInitConfig(const pidProfile_t *pidProfile);
 void pidInit(const pidProfile_t *pidProfile);
+void pidInitFilters(const pidProfile_t *pidProfile);
+void pidInitProfile(const pidProfile_t *pidProfile);
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
+
 void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
 void pidResetError(int axis);
-
 void resetPidProfile(pidProfile_t *profile);
 
 void pidInitSetpointDerivativeLpf(uint16_t filterCutoff, uint8_t debugAxis, uint8_t filterType);

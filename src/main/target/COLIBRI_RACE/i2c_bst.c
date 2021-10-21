@@ -329,7 +329,7 @@ static bool bstSlaveProcessFeedbackCommand(uint8_t bstRequest)
                 bstWrite8(currentPidProfile->pid[i].I);
                 bstWrite8(currentPidProfile->pid[i].D);
             }
-            pidInitConfig(currentPidProfile);
+            pidInitProfile(currentPidProfile);
             break;
         case BST_MODE_RANGES:
             for (i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {

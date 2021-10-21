@@ -67,7 +67,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CO
 
 PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_mode = GM_PASSTHROUGH,
-    .gov_max_headspeed = 2000,
     .gov_gear_ratio = 1000,
     .gov_spoolup_time = 100,
     .gov_tracking_time = 20,
@@ -79,17 +78,8 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_min_entry_time = 10,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
-    .gov_gain = 100,
-    .gov_p_gain = 20,
-    .gov_i_gain = 20,
-    .gov_d_gain = 0,
-    .gov_f_gain = 0,
-    .gov_cyclic_ff_weight = 40,
-    .gov_collective_ff_weight = 100,
     .gov_ff_exponent = 150,
     .gov_vbat_offset = 0,
-    .gov_tta_gain = 0,
-    .gov_tta_limit = 0,
 );
 
 
@@ -118,7 +108,7 @@ static FAST_RAM_ZERO_INIT biquadFilter_t govMotorRPMFilter;
 
 static FAST_RAM_ZERO_INIT float govSetpoint;
 static FAST_RAM_ZERO_INIT float govHeadSpeed;
-static FAST_RAM_ZERO_INIT float govMaxHeadSpeed;
+static FAST_RAM_ZERO_INIT float govFullHeadSpeed;
 static FAST_RAM_ZERO_INIT float govTargetHeadSpeed;
 
 static FAST_RAM_ZERO_INIT float govHeadSpeedRatio;
@@ -343,7 +333,7 @@ static void govUpdateInputs(void)
     govHeadSpeed = filteredRPM / govGearRatio;
 
     // Calculate HS vs MaxHS ratio
-    govHeadSpeedRatio = govHeadSpeed / govMaxHeadSpeed;
+    govHeadSpeedRatio = govHeadSpeed / govFullHeadSpeed;
 
     // Evaluate RPM signal quality
     if (govMotorRPM > 0 && govHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
@@ -377,7 +367,7 @@ static void govUpdateData(void)
     govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
 
     // Update headspeed target
-    govTargetHeadSpeed = govThrottle * govMaxHeadSpeed;
+    govTargetHeadSpeed = govThrottle * govFullHeadSpeed;
 
     // Calculate feedforward from collective deflection
     govCollectiveFF = govColWeight * getCollectiveDeflectionAbs();
@@ -398,7 +388,7 @@ static void govUpdateData(void)
     }
 
     // Normalized RPM error
-    float newError = (govSetpoint * govTTAMull - govHeadSpeed) / govMaxHeadSpeed;
+    float newError = (govSetpoint * govTTAMull - govHeadSpeed) / govFullHeadSpeed;
 
     // Update PIDF terms
     govP = govK * govKp * newError;
@@ -905,19 +895,32 @@ void governorUpdate(void)
     }
 }
 
-void governorUpdateGains(void)
+void governorInitProfile(const pidProfile_t *pidProfile)
 {
-    govK            = (float)governorConfig()->gov_gain / 100.0f;
-    govKp           = (float)governorConfig()->gov_p_gain / 10.0f;
-    govKi           = (float)governorConfig()->gov_i_gain / 10.0f;
-    govKd           = (float)governorConfig()->gov_d_gain / 1000.0f;
-    govKf           = (float)governorConfig()->gov_f_gain / 100.0f;
-    govCycWeight    = (float)governorConfig()->gov_cyclic_ff_weight / 100.0f;
-    govColWeight    = (float)governorConfig()->gov_collective_ff_weight / 100.0f;
-    govTTAGain      = (float)governorConfig()->gov_tta_gain / -100.0f;
+    if (getMotorCount() > 0)
+    {
+        govK  = pidProfile->gov_gain / 100.0f;
+        govKp = pidProfile->gov_p_gain / 10.0f;
+        govKi = pidProfile->gov_i_gain / 10.0f;
+        govKd = pidProfile->gov_d_gain / 1000.0f;
+        govKf = pidProfile->gov_f_gain / 100.0f;
+
+        govTTAGain   = pidProfile->gov_tta_gain / -100.0f;
+        govTTALimit  = pidProfile->gov_tta_limit / 100.0f;
+
+        govCycWeight = pidProfile->gov_cyclic_ff_weight / 100.0f;
+        govColWeight = pidProfile->gov_collective_ff_weight / 100.0f;
+
+        govFullHeadSpeed = constrainf(pidProfile->gov_headspeed, 100, 10000);
+
+        govSetpointSpoolupRate  = govThrottleSpoolupRate  * govFullHeadSpeed;
+        govSetpointTrackingRate = govThrottleTrackingRate * govFullHeadSpeed;
+        govSetpointRecoveryRate = govThrottleRecoveryRate * govFullHeadSpeed;
+        govSetpointBailoutRate  = govThrottleBailoutRate  * govFullHeadSpeed;
+    }
 }
 
-void governorInit(void)
+void governorInit(const pidProfile_t *pidProfile)
 {
     // Must have at least one motor
     if (getMotorCount() > 0)
@@ -957,15 +960,9 @@ void governorInit(void)
                 break;
         }
 
-        governorUpdateGains();
-
-        govGearRatio    = (float)governorConfig()->gov_gear_ratio / 1000.0f;
-        govFFexponent   = (float)governorConfig()->gov_ff_exponent / 100.0f;
-        govBatOffset    = (float)governorConfig()->gov_vbat_offset / 100.0f;
-
-        govTTALimit     = (float)governorConfig()->gov_tta_limit / 100.0f;
-
-        govMaxHeadSpeed = constrainf(governorConfig()->gov_max_headspeed, 100, 10000);
+        govGearRatio    = governorConfig()->gov_gear_ratio / 1000.0f;
+        govFFexponent   = governorConfig()->gov_ff_exponent / 100.0f;
+        govBatOffset    = governorConfig()->gov_vbat_offset / 100.0f;
 
         govAutoEnabled  = (governorConfig()->gov_autorotation_timeout > 0 &&
                            governorConfig()->gov_autorotation_bailout_time > 0);
@@ -977,17 +974,14 @@ void governorInit(void)
         govThrottleRecoveryRate = govCalcRate(governorConfig()->gov_recovery_time, 1, 100);
         govThrottleBailoutRate  = govCalcRate(governorConfig()->gov_autorotation_bailout_time, 1, 100);
 
-        govSetpointSpoolupRate  = govThrottleSpoolupRate  * govMaxHeadSpeed;
-        govSetpointTrackingRate = govThrottleTrackingRate * govMaxHeadSpeed;
-        govSetpointRecoveryRate = govThrottleRecoveryRate * govMaxHeadSpeed;
-        govSetpointBailoutRate  = govThrottleBailoutRate  * govMaxHeadSpeed;
-
         govLostThrottleTimeout  = governorConfig()->gov_lost_throttle_timeout * 100;
         govLostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
         biquadFilterInitBessel(&govVoltageFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
         biquadFilterInitBessel(&govCurrentFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
         biquadFilterInitBessel(&govMotorRPMFilter, governorConfig()->gov_rpm_filter, pidGetLooptime());
+
+        governorInitProfile(pidProfile);
     }
 }
 
