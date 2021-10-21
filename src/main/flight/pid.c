@@ -88,6 +88,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_PITCH] = { 10, 50,  0, 50 },
             [PID_YAW] =   { 50, 50,  0,  0 },
         },
+        .debug_axis = FD_ROLL,
         .angle_level_strength = 50,
         .angle_level_limit = 55,
         .horizon_level_strength = 50,
@@ -103,7 +104,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .acro_trainer_gain = 75,
         .acro_trainer_angle_limit = 20,
         .acro_trainer_lookahead_ms = 50,
-        .acro_trainer_debug_axis = FD_ROLL,
         .abs_control = false,
         .abs_control_gain = 10,
         .abs_control_limit = 120,
@@ -151,6 +151,8 @@ void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
 static FAST_RAM_ZERO_INIT float dT;
 static FAST_RAM_ZERO_INIT float pidFrequency;
 static FAST_RAM_ZERO_INIT uint32_t pidLooptime;
+
+static FAST_RAM_ZERO_INIT uint8_t pidDebugAxis;
 
 static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
 
@@ -233,6 +235,11 @@ static void pidSetLooptime(uint32_t looptime)
 #endif
 }
 
+bool pidAxisDebug(int axis)
+{
+    return (axis == pidDebugAxis);
+}
+
 float getPidSum(int axis)
 {
     return pidData[axis].Sum / PIDSUM_SCALING;
@@ -276,6 +283,8 @@ void pidInitFilters(const pidProfile_t *pidProfile)
 
 void pidInitProfile(const pidProfile_t *pidProfile)
 {
+    pidDebugAxis = pidProfile->debug_axis;
+
     // Roll axis
     pidCoefficient[FD_ROLL].Kp = ROLL_P_TERM_SCALE * pidProfile->pid[FD_ROLL].P;
     pidCoefficient[FD_ROLL].Ki = ROLL_I_TERM_SCALE * pidProfile->pid[FD_ROLL].I;
@@ -496,7 +505,7 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
     DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(acError[axis] * 10));
     DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
 
-    if (axis == FD_ROLL) {
+    if (pidAxisDebug(axis)) {
         DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
         DEBUG32_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
         DEBUG32_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
@@ -537,7 +546,7 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
             }
         }
 
-        if (axis == FD_ROLL) {
+        if (pidAxisDebug(axis)) {
             DEBUG_SET(DEBUG_ITERM_RELAX, 0, lrintf(setpointHpf));
             DEBUG_SET(DEBUG_ITERM_RELAX, 1, lrintf(itermRelaxFactor * 100.0f));
             DEBUG_SET(DEBUG_ITERM_RELAX, 2, lrintf(itermErrorRate));
