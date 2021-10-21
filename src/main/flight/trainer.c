@@ -50,15 +50,12 @@ static FAST_RAM_ZERO_INIT float acroTrainerLookaheadTime;
 
 static FAST_RAM_ZERO_INIT int8_t acroTrainerAxisState[2];
 
-static FAST_RAM_ZERO_INIT uint8_t acroTrainerDebugAxis;
-
 
 void acroTrainerInit(const pidProfile_t *pidProfile)
 {
     acroTrainerGain = (float)pidProfile->acro_trainer_gain / 10.0f;
     acroTrainerAngleLimit = pidProfile->acro_trainer_angle_limit;
     acroTrainerLookaheadTime = (float)pidProfile->acro_trainer_lookahead_ms / 1000.0f;
-    acroTrainerDebugAxis = pidProfile->acro_trainer_debug_axis;
 }
 
 void acroTrainerReset(void)
@@ -136,7 +133,7 @@ float acroTrainerApply(int axis, float setPoint)
             }
         }
 
-        if (axis == acroTrainerDebugAxis) {
+        if (pidAxisDebug(axis)) {
             DEBUG_SET(DEBUG_ACRO_TRAINER, 0, lrintf(currentAngle * 10.0f));
             DEBUG_SET(DEBUG_ACRO_TRAINER, 1, acroTrainerAxisState[axis]);
             DEBUG_SET(DEBUG_ACRO_TRAINER, 2, lrintf(setPoint));

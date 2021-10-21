@@ -141,6 +141,8 @@ typedef struct pidProfile_s
 
     pidf_t    pid[PID_ITEM_COUNT];
 
+    uint8_t   debug_axis;                     // The axis for which debugging values are captured
+
     uint8_t   error_filter_hz[XYZ_AXIS_COUNT];  // Additional filtering on PID error
 
     uint8_t   angle_level_strength;
@@ -161,7 +163,6 @@ typedef struct pidProfile_s
 
     uint8_t   acro_trainer_gain;              // The strength of the limiting. Raising may reduce overshoot but also lead to oscillation around the angle limit
     uint8_t   acro_trainer_angle_limit;       // Acro trainer roll/pitch angle limit in degrees
-    uint8_t   acro_trainer_debug_axis;        // The axis for which record debugging values are captured 0=roll, 1=pitch
     uint16_t  acro_trainer_lookahead_ms;      // The lookahead window in milliseconds used to reduce overshoot
 
     uint8_t   abs_control;                    // Enable absolute control
@@ -212,6 +213,8 @@ void pidUpdateSetpointDerivativeLpf(uint16_t filterCutoff);
 float pidGetDT();
 float pidGetPidFrequency();
 uint32_t pidGetLooptime();
+
+bool pidAxisDebug(int axis);
 
 float getPidSum(int axis);
 const pidAxisData_t * getPidData(int axis);
