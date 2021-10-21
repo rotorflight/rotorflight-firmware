@@ -689,7 +689,7 @@ static void processStepwiseAdjustments(controlRateConfig_t *controlRateConfig, c
 
             setConfigDirty();
 
-            pidInitConfig(currentPidProfile);
+            pidInitProfile(currentPidProfile);
 
             adjustmentState->ready = false;
 
@@ -745,7 +745,7 @@ static void processContinuosAdjustments(controlRateConfig_t *controlRateConfig)
 
                         setConfigDirtyIfNotPermanent(&adjustmentRange->range);
 
-                        pidInitConfig(currentPidProfile);
+                        pidInitProfile(currentPidProfile);
                     }
                 }
 #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)

@@ -184,7 +184,7 @@ static const void *cmsx_PidWriteback(displayPort_t *pDisp, const OSD_Entry *self
         pidProfile->pid[i].D = tempPid[i][2];
         pidProfile->pid[i].F = tempPidF[i];
     }
-    pidInitConfig(currentPidProfile);
+    pidInitProfile(currentPidProfile);
 
     return NULL;
 }
@@ -337,9 +337,10 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     UNUSED(self);
 
     pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
-    pidInitConfig(currentPidProfile);
-    pidProfile->ff_boost = cmsx_ff_boost;
 
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->ff_boost = cmsx_ff_boost;
     pidProfile->angle_level_strength = cmsx_angleStrength;
     pidProfile->horizon_level_strength = cmsx_horizonStrength;
     pidProfile->horizon_transition = cmsx_horizonTransition;
