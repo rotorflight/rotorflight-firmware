@@ -624,6 +624,11 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     // Add to YAW feedforward
     pidData[FD_YAW].F   += tailPrecomp;
     pidData[FD_YAW].Sum += tailPrecomp;
+
+    DEBUG_SET(DEBUG_YAW_PRECOMP, 0, lrintf(tailCyclicFF));
+    DEBUG_SET(DEBUG_YAW_PRECOMP, 1, lrintf(tailCollectiveFF));
+    DEBUG_SET(DEBUG_YAW_PRECOMP, 2, lrintf(tailCollectiveImpulseFF));
+    DEBUG_SET(DEBUG_YAW_PRECOMP, 3, lrintf(tailPrecomp));
 }
 
 static FAST_CODE void pidNormaliseCollective(void)
