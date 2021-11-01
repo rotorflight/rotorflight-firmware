@@ -1779,6 +1779,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
     case MSP_HELI_CONFIG:
         sbufWriteU16(dst, currentPidProfile->yaw_center_offset);
+        sbufWriteU8(dst, currentPidProfile->yaw_cw_stop_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_ccw_stop_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
@@ -2630,6 +2632,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
     case MSP_SET_HELI_CONFIG:
         currentPidProfile->yaw_center_offset = sbufReadU16(src);
+        currentPidProfile->yaw_cw_stop_gain = sbufReadU8(src);
+        currentPidProfile->yaw_ccw_stop_gain = sbufReadU8(src);
         currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU8(src);
