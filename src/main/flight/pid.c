@@ -115,6 +115,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .ff_smooth_factor = 37,
         .ff_boost = 15,
         .yaw_center_offset = 0,
+        .yaw_cw_stop_gain = 100,
+        .yaw_ccw_stop_gain = 100,
         .yaw_cyclic_ff_gain = 50,
         .yaw_collective_ff_gain = 100,
         .yaw_collective_ff_impulse_gain = 20,
@@ -159,6 +161,9 @@ static FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT biquadFilter_t errorFilter[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT float pidHeadspeedRatio;
+
+static FAST_RAM_ZERO_INIT float tailCWStopGain;
+static FAST_RAM_ZERO_INIT float tailCCWStopGain;
 
 static FAST_RAM_ZERO_INIT float tailCenterOffset;
 
@@ -346,7 +351,9 @@ void pidInitProfile(const pidProfile_t *pidProfile)
     // Collective impulse high-pass filter
     collectiveImpulseFilterGain = pt1FilterGain(pidProfile->yaw_collective_ff_impulse_freq / 100.0f, dT);
 
-    // Tail feedforward gains
+    // Tail/yaw parameters
+    tailCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
+    tailCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
     tailCenterOffset = pidProfile->yaw_center_offset / 1000.0f;
     tailCyclicFFGain = pidProfile->yaw_cyclic_ff_gain;
     tailCollectiveFFGain = pidProfile->yaw_collective_ff_gain;
@@ -723,13 +730,20 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
     if (pidProfile->error_filter_hz[axis])
         ptermErrorRate = biquadFilterApply(&errorFilter[axis], ptermErrorRate);
 
+    // Extra stop gain
+    float Ks;
+    if (axis == FD_YAW)
+        Ks = (ptermErrorRate > 0) ? tailCWStopGain : tailCCWStopGain;
+    else
+        Ks = 1.0f;
+
     // Calculate P-component
     pidData[axis].Perror = ptermErrorRate;
-    pidData[axis].P = Kn * pidCoefficient[axis].Kp * ptermErrorRate;
+    pidData[axis].P = Ks * Kn * pidCoefficient[axis].Kp * ptermErrorRate;
 
     // Calculate D-component
     pidData[axis].Derror = dtermErrorRate;
-    pidData[axis].D = Kn * pidCoefficient[axis].Kd * dtermDelta;
+    pidData[axis].D = Ks * Kn * pidCoefficient[axis].Kd * dtermDelta;
 
     // Calculate feedforward component
     pidData[axis].F = Kn * pidCoefficient[axis].Kf * pidSetpoint;
