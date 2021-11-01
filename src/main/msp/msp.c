@@ -1753,9 +1753,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
         sbufWriteU8(dst, 0);
 #endif
-        sbufWriteU16(dst, currentPidProfile->pid[PID_ROLL].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_PITCH].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_YAW].F);
+        sbufWriteU8(dst, currentPidProfile->pid[PID_ROLL].F);
+        sbufWriteU8(dst, currentPidProfile->pid[PID_PITCH].F);
+        sbufWriteU8(dst, currentPidProfile->pid[PID_YAW].F);
 
         sbufWriteU8(dst, 0); // was currentPidProfile->antiGravityMode
         sbufWriteU8(dst, 0); // was currentPidProfile->d_min[PID_ROLL]
@@ -1778,10 +1778,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
         break;
     case MSP_HELI_CONFIG:
-        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_gain);
-        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
-        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
-        sbufWriteU16(dst, currentPidProfile->yaw_cyclic_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_center_offset);
+        sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
 
         break;
     case MSP_SENSOR_CONFIG:
@@ -2590,9 +2591,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             sbufReadU8(src);
 #endif
             // PID controller feedforward terms
-            currentPidProfile->pid[PID_ROLL].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_PITCH].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_YAW].F = sbufReadU16(src);
+            currentPidProfile->pid[PID_ROLL].F = sbufReadU8(src);
+            currentPidProfile->pid[PID_PITCH].F = sbufReadU8(src);
+            currentPidProfile->pid[PID_YAW].F = sbufReadU8(src);
 
             sbufReadU8(src); // was currentPidProfile->antiGravityMode
         }
@@ -2624,10 +2625,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
     case MSP_SET_HELI_CONFIG:
-        currentPidProfile->yaw_collective_ff_gain = sbufReadU16(src);
-        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU16(src);
-        currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU16(src);
-        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_center_offset = sbufReadU16(src);
+        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
+        currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
+        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU8(src);
+        currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU8(src);
 
         break;
     case MSP_SET_SENSOR_CONFIG:

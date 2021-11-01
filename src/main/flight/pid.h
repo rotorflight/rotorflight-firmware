@@ -103,7 +103,7 @@ typedef struct pidf_s {
     uint8_t P;
     uint8_t I;
     uint8_t D;
-    uint16_t F;
+    uint8_t F;
 } pidf_t;
 
 typedef struct pidCoefficient_s {
@@ -176,11 +176,11 @@ typedef struct pidProfile_s
     uint8_t   ff_smooth_factor;               // Amount of smoothing for interpolated FF steps
     uint8_t   ff_boost;                       // amount of high-pass filtered FF to add to FF, 100 means 100% added
 
-    uint16_t  yaw_center_offset;              // Yaw zero offset
-    uint16_t  yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
-    uint16_t  yaw_collective_ff_gain;         // Feedforward for collective into Yaw
-    uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
-    uint16_t  yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
+    int16_t   yaw_center_offset;              // Yaw zero offset
+    uint8_t   yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
+    uint8_t   yaw_collective_ff_gain;         // Feedforward for collective into Yaw
+    uint8_t   yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
+    uint8_t   yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
 
     uint8_t   cyclic_normalization;           // Type of pitch/roll rate normalization
     uint8_t   collective_normalization;       // Type of collective normalization
