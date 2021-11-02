@@ -29,9 +29,6 @@
 #include "pg/pg.h"
 
 
-#define PID_CONTROLLER_BETAFLIGHT   1
-#define PID_CONTROLLER_ROTORFLIGHT  2
-
 #if defined(STM32F1)
 #define PID_PROCESS_DENOM_DEFAULT   8
 #elif defined(STM32F3)
@@ -64,7 +61,6 @@
 
 #define ITERM_RELAX_SETPOINT_THRESHOLD    40.0f
 
-#define pidNames "ROLL;PITCH;YAW;"
 
 enum {
     FD_COLL = 3,
