@@ -1217,17 +1217,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentPidProfile->pid[i].P);
             sbufWriteU8(dst, currentPidProfile->pid[i].I);
             sbufWriteU8(dst, currentPidProfile->pid[i].D);
+            sbufWriteU8(dst, currentPidProfile->pid[i].F);
         }
-        break;
-
-    case MSP_PIDNAMES:
-        for (const char *c = pidNames; *c; c++) {
-            sbufWriteU8(dst, *c);
-        }
-        break;
-
-    case MSP_PID_CONTROLLER:
-        sbufWriteU8(dst, PID_CONTROLLER_BETAFLIGHT);
         break;
 
     case MSP_MODE_RANGES:
@@ -1705,75 +1696,24 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
     case MSP_RPM_FILTER:
         sbufWriteData(dst, rpmFilterConfig(), sizeof(rpmFilterConfig_t));
-
         break;
+
     case MSP_PID_ADVANCED:
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0); // was pidProfile.yaw_p_limit
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // was vbatPidCompensation
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedForwardTransition
-        sbufWriteU8(dst, 0); // was low byte of currentPidProfile->dtermSetpointWeight
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU16(dst, 0); // was currentPidProfile->rateAccelLimit
-        sbufWriteU16(dst, 0); // was currentPidProfile->yawRateAccelLimit
-        sbufWriteU8(dst, currentPidProfile->angle_level_limit);
-        sbufWriteU8(dst, 0); // was pidProfile.levelSensitivity
-        sbufWriteU16(dst, 0); // was currentPidProfile->itermThrottleThreshold
-        sbufWriteU16(dst, 0); // was currentPidProfile->itermAcceleratorGain
-        sbufWriteU16(dst, 0); // was currentPidProfile->dtermSetpointWeight
-#if defined(USE_ITERM_ROTATION)
+        sbufWriteU16(dst, currentPidProfile->iterm_limit[0]);
+        sbufWriteU16(dst, currentPidProfile->iterm_limit[1]);
+        sbufWriteU16(dst, currentPidProfile->iterm_limit[2]);
+        sbufWriteU8(dst, currentPidProfile->iterm_decay);
         sbufWriteU8(dst, currentPidProfile->iterm_rotation);
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        sbufWriteU8(dst, 0); // was currentPidProfile->smart_feedforward
-#if defined(USE_ITERM_RELAX)
         sbufWriteU8(dst, currentPidProfile->iterm_relax);
         sbufWriteU8(dst, currentPidProfile->iterm_relax_type);
-#else
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-#endif
-#if defined(USE_ABSOLUTE_CONTROL)
-        sbufWriteU8(dst, currentPidProfile->abs_control_gain);
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        sbufWriteU8(dst, 0); // was currentPidProfile->throttle_boost
-#if defined(USE_ACRO_TRAINER)
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[0]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[1]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[2]);
+        sbufWriteU8(dst, currentPidProfile->angle_level_strength);
+        sbufWriteU8(dst, currentPidProfile->angle_level_limit);
+        sbufWriteU8(dst, currentPidProfile->horizon_level_strength);
+        sbufWriteU8(dst, currentPidProfile->acro_trainer_gain);
         sbufWriteU8(dst, currentPidProfile->acro_trainer_angle_limit);
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        sbufWriteU8(dst, currentPidProfile->pid[PID_ROLL].F);
-        sbufWriteU8(dst, currentPidProfile->pid[PID_PITCH].F);
-        sbufWriteU8(dst, currentPidProfile->pid[PID_YAW].F);
-
-        sbufWriteU8(dst, 0); // was currentPidProfile->antiGravityMode
-        sbufWriteU8(dst, 0); // was currentPidProfile->d_min[PID_ROLL]
-        sbufWriteU8(dst, 0); // was currentPidProfile->d_min[PID_PITCH]
-        sbufWriteU8(dst, 0); // was currentPidProfile->d_min[PID_YAW]
-        sbufWriteU8(dst, 0); // was currentPidProfile->d_min_gain
-        sbufWriteU8(dst, 0); // was currentPidProfile->d_min_advance
-        sbufWriteU8(dst, 0); // was currentPidProfile->use_integrated_yaw
-        sbufWriteU8(dst, 0); // was currentPidProfile->integrated_yaw_relax
-#if defined(USE_ITERM_RELAX)
-        // Added in MSP API 1.42
-        sbufWriteU8(dst, 0); // was currentPidProfile->iterm_relax_cutoff
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        // Added in MSP API 1.43
-        sbufWriteU8(dst, 0); // was currentPidProfile->motor_output_limit
-        sbufWriteU8(dst, 0); // was currentPidProfile->auto_profile_cell_count
-        sbufWriteU8(dst, 0); // was currentPidProfile->idle_min_rpm
-
-        break;
-    case MSP_HELI_CONFIG:
         sbufWriteU16(dst, currentPidProfile->yaw_center_offset);
         sbufWriteU8(dst, currentPidProfile->yaw_cw_stop_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_ccw_stop_gain);
@@ -1781,8 +1721,26 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
-
+        sbufWriteU8(dst, currentPidProfile->cyclic_normalization);
+        sbufWriteU8(dst, currentPidProfile->collective_normalization);
+        sbufWriteU16(dst, currentPidProfile->rescue_collective);
+        sbufWriteU16(dst, currentPidProfile->rescue_boost);
+        sbufWriteU8(dst, currentPidProfile->rescue_delay);
+        sbufWriteU16(dst, currentPidProfile->gov_headspeed);
+        sbufWriteU8(dst, currentPidProfile->gov_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_p_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_i_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_d_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_f_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_tta_gain);
+        sbufWriteU8(dst, currentPidProfile->gov_tta_limit);
+        sbufWriteU8(dst, currentPidProfile->gov_cyclic_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->gov_collective_ff_weight);
         break;
+
+    case MSP_HELI_CONFIG:
+        break;
+
     case MSP_SENSOR_CONFIG:
 #if defined(USE_ACC)
         sbufWriteU8(dst, accelerometerConfig()->acc_hardware);
@@ -1886,17 +1844,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU16(dst, governorConfig()->gov_rpm_filter);
 
-        // Move to PID_ADVANCED
-        sbufWriteU16(dst, currentPidProfile->gov_headspeed);
-        sbufWriteU8(dst, currentPidProfile->gov_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_p_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_i_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_d_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_f_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_tta_gain);
-        sbufWriteU8(dst, currentPidProfile->gov_tta_limit);
-        sbufWriteU8(dst, currentPidProfile->gov_cyclic_ff_weight);
-        sbufWriteU8(dst, currentPidProfile->gov_collective_ff_weight);
         break;
 
     default:
@@ -2159,14 +2106,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
 
-    case MSP_SET_PID_CONTROLLER:
-        break;
-
     case MSP_SET_PID:
         for (int i = 0; i < PID_ITEM_COUNT; i++) {
             currentPidProfile->pid[i].P = sbufReadU8(src);
             currentPidProfile->pid[i].I = sbufReadU8(src);
             currentPidProfile->pid[i].D = sbufReadU8(src);
+            currentPidProfile->pid[i].F = sbufReadU8(src);
         }
         pidInitProfile(currentPidProfile);
         break;
@@ -2541,93 +2486,24 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
     case MSP_SET_RPM_FILTER:
         sbufReadData(src, rpmFilterConfigMutable(), sizeof(rpmFilterConfig_t));
-
         break;
+
     case MSP_SET_PID_ADVANCED:
-        sbufReadU16(src);
-        sbufReadU16(src);
-        sbufReadU16(src); // was pidProfile.yaw_p_limit
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // was vbatPidCompensation
-        sbufReadU8(src); // was currentPidProfile->feedForwardTransition
-        sbufReadU8(src); // was low byte of currentPidProfile->dtermSetpointWeight
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // reserved
-        sbufReadU16(src); // was currentPidProfile->rateAccelLimit
-        sbufReadU16(src); // was currentPidProfile->yawRateAccelLimit
-        if (sbufBytesRemaining(src) >= 2) {
-            currentPidProfile->angle_level_limit = sbufReadU8(src);
-            sbufReadU8(src); // was pidProfile.levelSensitivity
-        }
-        if (sbufBytesRemaining(src) >= 4) {
-            sbufReadU16(src); // was currentPidProfile->itermThrottleThreshold
-            sbufReadU16(src); // was currentPidProfile->itermAcceleratorGain
-        }
-        if (sbufBytesRemaining(src) >= 2) {
-            sbufReadU16(src); // was currentPidProfile->dtermSetpointWeight
-        }
-        if (sbufBytesRemaining(src) >= 14) {
-            // Added in MSP API 1.40
-#if defined(USE_ITERM_ROTATION)
-            currentPidProfile->iterm_rotation = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-#endif
-            sbufReadU8(src); // was currentPidProfile->smart_feedforward
-#if defined(USE_ITERM_RELAX)
-            currentPidProfile->iterm_relax = sbufReadU8(src);
-            currentPidProfile->iterm_relax_type = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-            sbufReadU8(src);
-#endif
-#if defined(USE_ABSOLUTE_CONTROL)
-            currentPidProfile->abs_control_gain = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-#endif
-            sbufReadU8(src); // was currentPidProfile->throttle_boost
-#if defined(USE_ACRO_TRAINER)
-            currentPidProfile->acro_trainer_angle_limit = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-#endif
-            // PID controller feedforward terms
-            currentPidProfile->pid[PID_ROLL].F = sbufReadU8(src);
-            currentPidProfile->pid[PID_PITCH].F = sbufReadU8(src);
-            currentPidProfile->pid[PID_YAW].F = sbufReadU8(src);
-
-            sbufReadU8(src); // was currentPidProfile->antiGravityMode
-        }
-        if (sbufBytesRemaining(src) >= 7) {
-            // Added in MSP API 1.41
-            sbufReadU8(src); // was currentPidProfile->d_min[PID_ROLL]
-            sbufReadU8(src); // was currentPidProfile->d_min[PID_PITCH]
-            sbufReadU8(src); // was currentPidProfile->d_min[PID_YAW]
-            sbufReadU8(src); // was currentPidProfile->d_min_gain
-            sbufReadU8(src); // was currentPidProfile->d_min_advance
-            sbufReadU8(src); // was currentPidProfile->use_integrated_yaw
-            sbufReadU8(src); // was currentPidProfile->integrated_yaw_relax
-        }
-        if(sbufBytesRemaining(src) >= 1) {
-            // Added in MSP API 1.42
-#if defined(USE_ITERM_RELAX)
-            sbufReadU8(src); // was currentPidProfile->iterm_relax_cutoff
-#else
-            sbufReadU8(src);
-#endif
-        }
-        if(sbufBytesRemaining(src) >= 3) {
-            // Added in MSP API 1.43
-            sbufReadU8(src); // was currentPidProfile->motor_output_limit
-            sbufReadU8(src); // was currentPidProfile->auto_profile_cell_count
-            sbufReadU8(src); // was currentPidProfile->idle_min_rpm
-        }
-        pidInitProfile(currentPidProfile);
-
-        break;
-    case MSP_SET_HELI_CONFIG:
+        currentPidProfile->iterm_limit[0] = sbufReadU16(src);
+        currentPidProfile->iterm_limit[1] = sbufReadU16(src);
+        currentPidProfile->iterm_limit[2] = sbufReadU16(src);
+        currentPidProfile->iterm_decay = sbufReadU8(src);
+        currentPidProfile->iterm_rotation = sbufReadU8(src);
+        currentPidProfile->iterm_relax = sbufReadU8(src);
+        currentPidProfile->iterm_relax_type = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[0] = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[1] = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[2] = sbufReadU8(src);
+        currentPidProfile->angle_level_strength = sbufReadU8(src);
+        currentPidProfile->angle_level_limit = sbufReadU8(src);
+        currentPidProfile->horizon_level_strength = sbufReadU8(src);
+        currentPidProfile->acro_trainer_gain = sbufReadU8(src);
+        currentPidProfile->acro_trainer_angle_limit = sbufReadU8(src);
         currentPidProfile->yaw_center_offset = sbufReadU16(src);
         currentPidProfile->yaw_cw_stop_gain = sbufReadU8(src);
         currentPidProfile->yaw_ccw_stop_gain = sbufReadU8(src);
@@ -2635,8 +2511,28 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU8(src);
+        currentPidProfile->cyclic_normalization = sbufReadU8(src);
+        currentPidProfile->collective_normalization = sbufReadU8(src);
+        currentPidProfile->rescue_collective = sbufReadU16(src);
+        currentPidProfile->rescue_boost = sbufReadU16(src);
+        currentPidProfile->rescue_delay = sbufReadU8(src);
+        currentPidProfile->gov_headspeed = sbufReadU16(src);
+        currentPidProfile->gov_gain = sbufReadU8(src);
+        currentPidProfile->gov_p_gain = sbufReadU8(src);
+        currentPidProfile->gov_i_gain = sbufReadU8(src);
+        currentPidProfile->gov_d_gain = sbufReadU8(src);
+        currentPidProfile->gov_f_gain = sbufReadU8(src);
+        currentPidProfile->gov_tta_gain = sbufReadU8(src);
+        currentPidProfile->gov_tta_limit = sbufReadU8(src);
+        currentPidProfile->gov_cyclic_ff_weight = sbufReadU8(src);
+        currentPidProfile->gov_collective_ff_weight = sbufReadU8(src);
 
+        pidInit(currentPidProfile);
         break;
+
+    case MSP_SET_HELI_CONFIG:
+        break;
+
     case MSP_SET_SENSOR_CONFIG:
 #if defined(USE_ACC)
         accelerometerConfigMutable()->acc_hardware = sbufReadU8(src);
@@ -3236,20 +3132,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_gear_ratio = sbufReadU16(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU16(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU16(src);
-
-        // Move to PID_ADVANCED
-        currentPidProfile->gov_headspeed = sbufReadU16(src);
-        currentPidProfile->gov_gain = sbufReadU8(src);
-        currentPidProfile->gov_p_gain = sbufReadU8(src);
-        currentPidProfile->gov_i_gain = sbufReadU8(src);
-        currentPidProfile->gov_d_gain = sbufReadU8(src);
-        currentPidProfile->gov_f_gain = sbufReadU8(src);
-        currentPidProfile->gov_tta_gain = sbufReadU8(src);
-        currentPidProfile->gov_tta_limit = sbufReadU8(src);
-        currentPidProfile->gov_cyclic_ff_weight = sbufReadU8(src);
-        currentPidProfile->gov_collective_ff_weight = sbufReadU8(src);
-
-        governorInitProfile(currentPidProfile);
         break;
 
     default:

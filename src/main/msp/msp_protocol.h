@@ -149,8 +149,8 @@
 
 #define MSP_SONAR_ALTITUDE              58 //out message get sonar altitude [cm]
 
-#define MSP_PID_CONTROLLER              59
-#define MSP_SET_PID_CONTROLLER          60
+//#define MSP_PID_CONTROLLER              59
+//#define MSP_SET_PID_CONTROLLER          60
 
 #define MSP_ARMING_CONFIG               61
 #define MSP_SET_ARMING_CONFIG           62
@@ -254,7 +254,7 @@
 #define MSP_ALTITUDE             109    //out message         altitude, variometer
 #define MSP_ANALOG               110    //out message         vbat, powermetersum, rssi if available on RX
 #define MSP_RC_TUNING            111    //out message         rc rate, rc expo, rollpitch rate, yaw rate, dyn throttle PID
-#define MSP_PID                  112    //out message         P I D coeff (9 are used currently)
+#define MSP_PID                  112    //out message         PIDF coefficients
 // Legacy Multiicommand that was never used.
 //DEPRECATED - #define MSP_BOX                  113    //out message         BOX setup (number is dependant of your setup)
 // Legacy command that was under constant change due to the naming vagueness, avoid at all costs - use more specific commands instead.
@@ -262,7 +262,7 @@
 // Legacy Multiicommand that was never used and always wrong
 //DEPRECATED - #define MSP_MOTOR_PINS           115    //out message         which pins are in use for motors & servos, for GUI
 #define MSP_BOXNAMES             116    //out message         the aux switch names
-#define MSP_PIDNAMES             117    //out message         the PID names
+//#define MSP_PIDNAMES             117    //out message         the PID names
 #define MSP_WP                   118    //out message         get a WP, WP# is in the payload, returns (WP#, lat, lon, alt, flags) WP#0-home, WP#16-poshold
 #define MSP_BOXIDS               119    //out message         get the permanent IDs associated to BOXes
 #define MSP_SERVO_CONFIGURATIONS 120    //out message         All servo configurations.
@@ -287,7 +287,7 @@
 
 #define MSP_SET_RAW_RC           200    //in message          8 rc chan
 #define MSP_SET_RAW_GPS          201    //in message          fix, numsat, lat, lon, alt, speed
-#define MSP_SET_PID              202    //in message          P I D coeff (9 are used currently)
+#define MSP_SET_PID              202    //in message          PIDF coefficients
 // Legacy multiiwii command that was never used.
 //DEPRECATED - #define MSP_SET_BOX              203    //in message          BOX setup (number is dependant of your setup)
 #define MSP_SET_RC_TUNING        204    //in message          rc rate, rc expo, rollpitch rate, yaw rate, dyn throttle PID, yaw expo
