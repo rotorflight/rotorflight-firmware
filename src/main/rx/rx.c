@@ -269,6 +269,8 @@ void rxInit(void)
     rxRuntimeState.rcReadRawFn = nullReadRawRC;
     rxRuntimeState.rcFrameStatusFn = nullFrameStatus;
     rxRuntimeState.rcProcessFrameFn = nullProcessFrame;
+    rxRuntimeState.channelCount = MAX_SUPPORTED_RC_CHANNEL_COUNT;
+    rxRuntimeState.rxRefreshRate = 50000;
     rcSampleIndex = 0;
     needRxSignalMaxDelayUs = DELAY_10_HZ;
 
