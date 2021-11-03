@@ -1260,24 +1260,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_MOTOR_CONFIG:
+        sbufWriteU16(dst, motorConfig()->mincommand);
         sbufWriteU16(dst, motorConfig()->minthrottle);
         sbufWriteU16(dst, motorConfig()->maxthrottle);
-        sbufWriteU16(dst, motorConfig()->mincommand);
 
-        // API 1.42
-        sbufWriteU8(dst, getMotorCount());
-        sbufWriteU8(dst, motorConfig()->motorPoleCount[0]); // RTFL: TODO other motors
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
+        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
+        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
 #ifdef USE_DSHOT_TELEMETRY
         sbufWriteU8(dst, motorConfig()->dev.useDshotTelemetry);
 #else
         sbufWriteU8(dst, 0);
 #endif
+        for (int i = 0; i < 4; i++)
+            sbufWriteU8(dst, motorConfig()->motorPoleCount[i]);
 
-#ifdef USE_ESC_SENSOR
-        sbufWriteU8(dst, featureIsEnabled(FEATURE_ESC_SENSOR)); // ESC sensor available
-#else
-        sbufWriteU8(dst, 0);
-#endif
         break;
 
 #ifdef USE_MAG
@@ -1621,20 +1619,15 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
         break;
     }
+
     case MSP_ADVANCED_CONFIG:
         sbufWriteU8(dst, pidConfig()->pid_process_denom);
-        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
-        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
-        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
-        sbufWriteU16(dst, motorConfig()->digitalIdleOffsetValue);
-        sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
         sbufWriteU8(dst, gyroConfig()->gyro_to_use);
         sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
         sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
         sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
         sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
         sbufWriteU8(dst, gyroConfig()->checkOverflow);
-        //Added in MSP API 1.42
         sbufWriteU8(dst, systemConfig()->debug_mode);
         sbufWriteU8(dst, DEBUG_COUNT);
         break;
@@ -2225,19 +2218,22 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MOTOR_CONFIG:
+        motorConfigMutable()->mincommand = sbufReadU16(src);
         motorConfigMutable()->minthrottle = sbufReadU16(src);
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
-        motorConfigMutable()->mincommand = sbufReadU16(src);
 
-        // version 1.42
-        if (sbufBytesRemaining(src) >= 2) {
-            motorConfigMutable()->motorPoleCount[0] = sbufReadU8(src); // RTFL: TODO other motors
+        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
+        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
+        motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
+        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
 #if defined(USE_DSHOT_TELEMETRY)
-            motorConfigMutable()->dev.useDshotTelemetry = sbufReadU8(src);
+        motorConfigMutable()->dev.useDshotTelemetry = sbufReadU8(src);
 #else
-            sbufReadU8(src);
+        sbufReadU8(src);
 #endif
-        }
+        for (int i = 0; i < 4; i++)
+            motorConfigMutable()->motorPoleCount[i] = sbufReadU8(src);
+
         break;
 
 #ifdef USE_GPS
@@ -2372,27 +2368,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ADVANCED_CONFIG:
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
-        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
-        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
-        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
-        if (sbufBytesRemaining(src) >= 2) {
-            motorConfigMutable()->digitalIdleOffsetValue = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src)) {
-            motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 8) {
-            gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
-            gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
-            gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
-            gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
-            gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
-            gyroConfigMutable()->checkOverflow = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            //Added in MSP API 1.42
-            systemConfigMutable()->debug_mode = sbufReadU8(src);
-        }
+        gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
+        gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
+        gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
+        gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
+        gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
+        gyroConfigMutable()->checkOverflow = sbufReadU8(src);
+        systemConfigMutable()->debug_mode = sbufReadU8(src);
         validateAndFixGyroConfig();
         break;
 
