@@ -1628,13 +1628,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
     }
     case MSP_ADVANCED_CONFIG:
-        sbufWriteU8(dst, 1);  // was gyroConfig()->gyro_sync_denom - removed in API 1.43
         sbufWriteU8(dst, pidConfig()->pid_process_denom);
         sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
         sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
         sbufWriteU16(dst, motorConfig()->digitalIdleOffsetValue);
-        sbufWriteU8(dst, 0); // DEPRECATED: gyro_use_32kHz
         sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
         sbufWriteU8(dst, gyroConfig()->gyro_to_use);
         sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
@@ -1645,28 +1643,24 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         //Added in MSP API 1.42
         sbufWriteU8(dst, systemConfig()->debug_mode);
         sbufWriteU8(dst, DEBUG_COUNT);
-
         break;
-    case MSP_FILTER_CONFIG :
-        sbufWriteU8(dst, gyroConfig()->gyro_lowpass_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_lowpass_hz);
-        sbufWriteU16(dst, 0); // was currentPidProfile->yaw_lowpass_hz
+
+    case MSP_FILTER_CONFIG:
+        sbufWriteU8(dst,  gyroConfig()->gyro_hardware_lpf);
+        sbufWriteU8(dst,  gyroConfig()->gyro_lowpass_type);
+        sbufWriteU16(dst, gyroConfig()->gyro_lowpass_hz);
+        sbufWriteU8(dst,  gyroConfig()->gyro_lowpass2_type);
+        sbufWriteU16(dst, gyroConfig()->gyro_lowpass2_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_1);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_1);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_cutoff);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_2);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_2);
-        sbufWriteU8(dst, gyroConfig()->dterm_filter_type);
-        sbufWriteU8(dst, gyroConfig()->gyro_hardware_lpf);
-        sbufWriteU8(dst, 0); // DEPRECATED: gyro_32khz_hardware_lpf
-        sbufWriteU16(dst, gyroConfig()->gyro_lowpass_hz);
-        sbufWriteU16(dst, gyroConfig()->gyro_lowpass2_hz);
-        sbufWriteU8(dst, gyroConfig()->gyro_lowpass_type);
-        sbufWriteU8(dst, gyroConfig()->gyro_lowpass2_type);
+        sbufWriteU8(dst,  gyroConfig()->dterm_filter_type);
+        sbufWriteU16(dst, gyroConfig()->dterm_lowpass_hz);
+        sbufWriteU8(dst,  gyroConfig()->dterm_filter2_type);
         sbufWriteU16(dst, gyroConfig()->dterm_lowpass2_hz);
-        // Added in MSP API 1.41
-        sbufWriteU8(dst, gyroConfig()->dterm_filter2_type);
+        sbufWriteU16(dst, gyroConfig()->dterm_notch_hz);
+        sbufWriteU16(dst, gyroConfig()->dterm_notch_cutoff);
 #if defined(USE_DYN_LPF)
         sbufWriteU16(dst, gyroConfig()->gyro_dyn_lpf_min_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_dyn_lpf_max_hz);
@@ -1678,28 +1672,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
-        // Added in MSP API 1.42
 #if defined(USE_GYRO_DATA_ANALYSE)
-        sbufWriteU8(dst, 0); // DEPRECATED 1.43: dyn_notch_range
         sbufWriteU8(dst, gyroConfig()->dyn_notch_width_percent);
         sbufWriteU16(dst, gyroConfig()->dyn_notch_q);
         sbufWriteU16(dst, gyroConfig()->dyn_notch_min_hz);
-#else
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0);
-#endif
-        sbufWriteU8(dst, 0); // was rpmFilterConfig()->gyro_rpm_notch_harmonics
-        sbufWriteU8(dst, 0); // was rpmFilterConfig()->gyro_rpm_notch_min
-#if defined(USE_GYRO_DATA_ANALYSE)
-        // Added in MSP API 1.43
         sbufWriteU16(dst, gyroConfig()->dyn_notch_max_hz);
 #else
+        sbufWriteU8(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
-
         break;
+
     case MSP_RPM_FILTER:
         for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
             sbufWriteU8(dst, rpmFilterConfig()->filter_bank_motor_index[i]);
@@ -2392,16 +2377,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     }
 
     case MSP_SET_ADVANCED_CONFIG:
-        sbufReadU8(src); // was gyroConfigMutable()->gyro_sync_denom - removed in API 1.43
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
         motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
         motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
         motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
         if (sbufBytesRemaining(src) >= 2) {
             motorConfigMutable()->digitalIdleOffsetValue = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src)) {
-            sbufReadU8(src); // DEPRECATED: gyro_use_32khz
         }
         if (sbufBytesRemaining(src)) {
             motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
@@ -2418,84 +2399,51 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             //Added in MSP API 1.42
             systemConfigMutable()->debug_mode = sbufReadU8(src);
         }
-
         validateAndFixGyroConfig();
-
         break;
+
     case MSP_SET_FILTER_CONFIG:
-        gyroConfigMutable()->gyro_lowpass_hz = sbufReadU8(src);
+        gyroConfigMutable()->gyro_hardware_lpf = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lowpass_type = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lowpass_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_lowpass2_type = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lowpass2_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_hz_1 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_hz_2 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_cutoff_2 = sbufReadU16(src);
+        gyroConfigMutable()->dterm_filter_type = sbufReadU8(src);
         gyroConfigMutable()->dterm_lowpass_hz = sbufReadU16(src);
-        sbufReadU16(src); // was currentPidProfile->yaw_lowpass_hz
-        if (sbufBytesRemaining(src) >= 8) {
-            gyroConfigMutable()->gyro_soft_notch_hz_1 = sbufReadU16(src);
-            gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);
-            gyroConfigMutable()->dterm_notch_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_notch_cutoff = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 4) {
-            gyroConfigMutable()->gyro_soft_notch_hz_2 = sbufReadU16(src);
-            gyroConfigMutable()->gyro_soft_notch_cutoff_2 = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            gyroConfigMutable()->dterm_filter_type = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 10) {
-            gyroConfigMutable()->gyro_hardware_lpf = sbufReadU8(src);
-            sbufReadU8(src); // DEPRECATED: gyro_32khz_hardware_lpf
-            gyroConfigMutable()->gyro_lowpass_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_lowpass2_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_lowpass_type = sbufReadU8(src);
-            gyroConfigMutable()->gyro_lowpass2_type = sbufReadU8(src);
-            gyroConfigMutable()->dterm_lowpass2_hz = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 9) {
-            // Added in MSP API 1.41
-            gyroConfigMutable()->dterm_filter2_type = sbufReadU8(src);
+        gyroConfigMutable()->dterm_filter2_type = sbufReadU8(src);
+        gyroConfigMutable()->dterm_lowpass2_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_notch_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_notch_cutoff = sbufReadU16(src);
 #if defined(USE_DYN_LPF)
-            gyroConfigMutable()->gyro_dyn_lpf_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_dyn_lpf_max_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_dyn_lpf_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_dyn_lpf_max_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_dyn_lpf_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_dyn_lpf_max_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_dyn_lpf_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_dyn_lpf_max_hz = sbufReadU16(src);
 #else
-            sbufReadU16(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
 #endif
-        }
-        if (sbufBytesRemaining(src) >= 8) {
-            // Added in MSP API 1.42
 #if defined(USE_GYRO_DATA_ANALYSE)
-            sbufReadU8(src); // DEPRECATED: dyn_notch_range
-            gyroConfigMutable()->dyn_notch_width_percent = sbufReadU8(src);
-            gyroConfigMutable()->dyn_notch_q = sbufReadU16(src);
-            gyroConfigMutable()->dyn_notch_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->dyn_notch_width_percent = sbufReadU8(src);
+        gyroConfigMutable()->dyn_notch_q = sbufReadU16(src);
+        gyroConfigMutable()->dyn_notch_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->dyn_notch_max_hz = sbufReadU16(src);
 #else
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
+        sbufReadU8(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
 #endif
-            sbufReadU8(src); // was rpmFilterConfigMutable()->gyro_rpm_notch_harmonics
-            sbufReadU8(src); // was rpmFilterConfigMutable()->gyro_rpm_notch_min
-        }
-        if (sbufBytesRemaining(src) >= 2) {
-#if defined(USE_GYRO_DATA_ANALYSE)
-            // Added in MSP API 1.43
-            gyroConfigMutable()->dyn_notch_max_hz = sbufReadU16(src);
-#else
-            sbufReadU16(src);
-#endif
-        }
-
-
-        // reinitialize the gyro filters with the new values
         validateAndFixGyroConfig();
         gyroInitFilters();
-        // reinitialize the PID filters with the new values
-        pidInitFilters(currentPidProfile);
-
         break;
+
     case MSP_SET_RPM_FILTER:
         for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
             rpmFilterConfigMutable()->filter_bank_motor_index[i] = sbufReadU8(src);
