@@ -1177,6 +1177,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, boardAlignment()->yawDegrees);
         break;
 
+    case MSP_DEBUG_CONFIG:
+        sbufWriteU8(dst, DEBUG_COUNT);
+        sbufWriteU8(dst, systemConfig()->debug_mode);
+        break;
+
     case MSP_ARMING_CONFIG:
         sbufWriteU8(dst, armingConfig()->auto_disarm_delay);
         sbufWriteU8(dst, 0);
@@ -1618,8 +1623,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
         sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
         sbufWriteU8(dst, gyroConfig()->checkOverflow);
-        sbufWriteU8(dst, systemConfig()->debug_mode);
-        sbufWriteU8(dst, DEBUG_COUNT);
         break;
 
     case MSP_FILTER_CONFIG:
@@ -2072,6 +2075,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 #endif
+
+    case MSP_SET_DEBUG_CONFIG:
+        systemConfigMutable()->debug_mode = sbufReadU8(src);
+        break;
+
     case MSP_SET_ARMING_CONFIG:
         armingConfigMutable()->auto_disarm_delay = sbufReadU8(src);
         sbufReadU8(src); // reserved
@@ -2311,7 +2319,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
         gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
         gyroConfigMutable()->checkOverflow = sbufReadU8(src);
-        systemConfigMutable()->debug_mode = sbufReadU8(src);
         validateAndFixGyroConfig();
         break;
 
