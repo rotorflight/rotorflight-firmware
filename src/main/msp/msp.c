@@ -1184,8 +1184,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_ARMING_CONFIG:
         sbufWriteU8(dst, armingConfig()->auto_disarm_delay);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0); // was imuConfig()->small_angle
         break;
 
     case MSP_RC_TUNING:
@@ -2076,10 +2074,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ARMING_CONFIG:
         armingConfigMutable()->auto_disarm_delay = sbufReadU8(src);
-        sbufReadU8(src); // reserved
-        if (sbufBytesRemaining(src)) {
-            sbufReadU8(src); // was imuConfigMutable()->small_angle
-        }
         break;
 
     case MSP_SET_PID:
@@ -2663,9 +2657,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_ARMING_DISABLED:
         {
             const uint8_t command = sbufReadU8(src);
-            if (sbufBytesRemaining(src)) {
-                sbufReadU8(src); // was disableRunawayTakeoff
-            }
             if (command) {
                 mspArmingDisableByDescriptor(srcDesc);
                 setArmingDisabled(ARMING_DISABLED_MSP);
