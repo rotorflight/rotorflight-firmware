@@ -905,8 +905,11 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         govKd = pidProfile->gov_d_gain / 1000.0f;
         govKf = pidProfile->gov_f_gain / 100.0f;
 
-        govTTAGain   = pidProfile->gov_tta_gain / -100.0f;
+        govTTAGain   = pidProfile->gov_tta_gain / -250.0f;
         govTTALimit  = pidProfile->gov_tta_limit / 100.0f;
+
+        if (govMode >= GM_STANDARD)
+            govTTAGain /= govK * govKp;
 
         govCycWeight = pidProfile->gov_cyclic_ff_weight / 100.0f;
         govColWeight = pidProfile->gov_collective_ff_weight / 100.0f;
