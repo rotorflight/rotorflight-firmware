@@ -2486,7 +2486,6 @@ static void cliMixer(const char *cmdName, char *cmdline)
     }
     // count > 0
     else if (strcasecmp(args[FUNC], "reset") == 0) {
-        mixerConfigMutable()->mode = 0;
         PG_RESET(mixerInputs);
         PG_RESET(mixerRules);
     }
@@ -2589,7 +2588,6 @@ static void cliMixer(const char *cmdName, char *cmdline)
         }
         else if (count == 2) {
             if (strcasecmp(args[ARG1], "reset") == 0) {
-                mixerConfigMutable()->mode = 0;
                 PG_RESET(mixerRules);
             }
         }
@@ -2598,7 +2596,6 @@ static void cliMixer(const char *cmdName, char *cmdline)
             if (strcasecmp(args[OPER], "del") == 0) {
                 int index = atoi(args[RULE]);
                 if (index >= 0 && index < MIXER_RULE_COUNT) {
-                    mixerConfigMutable()->mode = 0;
                     memset(mixerRulesMutable(index), 0, sizeof(mixerRule_t));
                 } else {
                     cliShowArgumentRangeError(cmdName, NULL, 0, 0);
@@ -2633,9 +2630,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
                 vals[OFFSET] >= MIXER_INPUT_MIN && vals[OFFSET] <= MIXER_INPUT_MAX &&
                 vals[WEIGHT] >= MIXER_WEIGHT_MIN && vals[WEIGHT] <= MIXER_WEIGHT_MAX)
             {
-                mixerConfig_t *cfg = mixerConfigMutable();
                 mixerRule_t *mix = mixerRulesMutable(vals[RULE]);
-                cfg->mode   = 0;
                 mix->oper   = vals[OPER];
                 mix->input  = vals[INPUT];
                 mix->output = vals[OUTPUT];
