@@ -1357,7 +1357,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
     case MSP_MIXER_CONFIG:
-        sbufWriteU8(dst, mixerConfig()->mode);
+        sbufWriteU8(dst, mixerConfig()->main_rotor_dir);
+        sbufWriteU8(dst, mixerConfig()->tail_rotor_mode);
+        sbufWriteU8(dst, mixerConfig()->tail_motor_idle);
+        sbufWriteU8(dst, mixerConfig()->swash_ring);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2722,7 +2725,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_CONFIG:
-        mixerConfigMutable()->mode = sbufReadU8(src);
+        mixerConfigMutable()->main_rotor_dir = sbufReadU8(src);
+        mixerConfigMutable()->tail_rotor_mode = sbufReadU8(src);
+        mixerConfigMutable()->tail_motor_idle = sbufReadU8(src);
+        mixerConfigMutable()->swash_ring = sbufReadU8(src);
         break;
 
     case MSP_SET_MIXER_INPUTS:
