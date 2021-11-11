@@ -115,8 +115,6 @@ enum {
 
 typedef struct
 {
-    uint8_t   mode;
-
     uint8_t   main_rotor_dir;   // Main rotor direction: CW/CCW
 
     uint8_t   tail_rotor_mode;  // Tail motor vs. variable pitch tail
