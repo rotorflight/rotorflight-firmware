@@ -55,7 +55,10 @@ static FAST_RAM_ZERO_INIT uint32_t totalWaitingTasks;
 static FAST_RAM_ZERO_INIT uint32_t totalWaitingTasksSamples;
 
 static FAST_RAM_ZERO_INIT bool calculateTaskStatistics;
-FAST_RAM_ZERO_INIT uint16_t averageSystemLoadPercent = 0;
+static FAST_RAM_ZERO_INIT uint16_t averageSystemLoadPercent = 0;
+
+static FAST_RAM_ZERO_INIT uint32_t totalCPUTime;
+static FAST_RAM_ZERO_INIT timeUs_t checkCPUTime;
 
 static FAST_RAM_ZERO_INIT int taskQueuePos = 0;
 STATIC_UNIT_TESTED FAST_RAM_ZERO_INIT int taskQueueSize = 0;
@@ -290,21 +293,23 @@ FAST_CODE timeUs_t schedulerExecuteTask(task_t *selectedTask, timeUs_t currentTi
         selectedTask->dynamicPriority = 0;
 
         // Execute task
+        const timeUs_t currentTimeBeforeTaskCallUs = micros();
+        selectedTask->taskFunc(currentTimeBeforeTaskCallUs);
+        const timeUs_t currentTimeAfterTaskCallUs = micros();
+
+        taskExecutionTimeUs = currentTimeAfterTaskCallUs - currentTimeBeforeTaskCallUs;
+
+        totalCPUTime += currentTimeAfterTaskCallUs - currentTimeUs;
+
 #if defined(USE_TASK_STATISTICS)
         if (calculateTaskStatistics) {
-            const timeUs_t currentTimeBeforeTaskCallUs = micros();
-            selectedTask->taskFunc(currentTimeBeforeTaskCallUs);
-            taskExecutionTimeUs = micros() - currentTimeBeforeTaskCallUs;
             selectedTask->movingSumExecutionTimeUs += taskExecutionTimeUs - selectedTask->movingSumExecutionTimeUs / TASK_STATS_MOVING_SUM_COUNT;
             selectedTask->movingSumDeltaTimeUs += selectedTask->taskLatestDeltaTimeUs - selectedTask->movingSumDeltaTimeUs / TASK_STATS_MOVING_SUM_COUNT;
             selectedTask->totalExecutionTimeUs += taskExecutionTimeUs;   // time consumed by scheduler + task
             selectedTask->maxExecutionTimeUs = MAX(selectedTask->maxExecutionTimeUs, taskExecutionTimeUs);
             selectedTask->movingAverageCycleTimeUs += 0.05f * (period - selectedTask->movingAverageCycleTimeUs);
-        } else
-#endif
-        {
-            selectedTask->taskFunc(currentTimeUs);
         }
+#endif
     }
 
     return taskExecutionTimeUs;
@@ -449,3 +454,15 @@ uint16_t getAverageSystemLoadPercent(void)
 {
     return averageSystemLoadPercent;
 }
+
+uint16_t getAverageCPULoadPercent(void)
+{
+    timeUs_t period = micros() - checkCPUTime;
+    uint32_t load = 100 * totalCPUTime / period;
+
+    totalCPUTime = 0;
+    checkCPUTime = micros();
+
+    return load;
+}
+
