@@ -989,7 +989,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_GYRO));
 
             sbufWriteU8(dst, getAverageSystemLoadPercent());
-            sbufWriteU8(dst, 0);
+            sbufWriteU8(dst, getAverageCPULoadPercent());
         }
         break;
 
