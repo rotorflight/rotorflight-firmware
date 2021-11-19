@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Written by Antonio Galea - 2010/11/18
 # Distributed under Gnu LGPL 3.0
@@ -135,7 +135,7 @@ if __name__=="__main__":
           try:
             address = address & 0xFFFFFFFF
           except ValueError:
-            print "Address %s invalid." % address
+            print("Address %s invalid." % address)
             sys.exit(1)
           target.append({ 'address': address, 'data': ih.tobinstr(start=address, end=end-1)})
 
