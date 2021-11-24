@@ -27,10 +27,13 @@ jobs:
       run: make arm_sdk_install
 
     - name: Set build variables
-      run: echo "revision=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+      run: |
+        echo "GIT_VER=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+        echo "GIT_TAG=${GITHUB_REF##refs/tags/}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified FC_VER_SUFFIX="_${GITHUB_REF##*/}" FLASH_CONFIG_ERASE=yes
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
 
     - name: Move HEX
       run: mv obj/*.hex .
