@@ -223,6 +223,7 @@ static bool processingCustomDefaults = false;
 static char cliBufferTemp[CLI_IN_BUFFER_SIZE];
 
 #define CUSTOM_DEFAULTS_START_PREFIX ("# " FC_FIRMWARE_NAME)
+#define CUSTOM_DEFAULTS_START_PREFIX_BF ("# Betaflight")
 #define CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX "# config: manufacturer_id: "
 #define CUSTOM_DEFAULTS_BOARD_NAME_PREFIX ", board_name: "
 #define CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX ", version: "
@@ -4620,7 +4621,8 @@ static const char *parseCustomDefaultsHeaderElement(char *dest, const char *cust
 static void parseCustomDefaultsHeader(void)
 {
     const char *customDefaultsPtr = customDefaultsStart;
-    if (strncmp(customDefaultsPtr, CUSTOM_DEFAULTS_START_PREFIX, strlen(CUSTOM_DEFAULTS_START_PREFIX)) == 0) {
+    if (strncmp(customDefaultsPtr, CUSTOM_DEFAULTS_START_PREFIX, strlen(CUSTOM_DEFAULTS_START_PREFIX)) == 0 ||
+        strncmp(customDefaultsPtr, CUSTOM_DEFAULTS_START_PREFIX_BF, strlen(CUSTOM_DEFAULTS_START_PREFIX_BF)) == 0) {
         customDefaultsFound = true;
 
         customDefaultsPtr = strchr(customDefaultsPtr, '\n');
