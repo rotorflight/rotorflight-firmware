@@ -1406,15 +1406,31 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RX_CONFIG:
         sbufWriteU8(dst, rxConfig()->serialrx_provider);
+        sbufWriteU8(dst, rxConfig()->serialrx_inverted);
+        sbufWriteU8(dst, rxConfig()->halfDuplex);
         sbufWriteU16(dst, rxConfig()->maxcheck);
         sbufWriteU16(dst, rxConfig()->midrc);
         sbufWriteU16(dst, rxConfig()->mincheck);
-        sbufWriteU8(dst, rxConfig()->spektrum_sat_bind);
         sbufWriteU16(dst, rxConfig()->rx_min_usec);
         sbufWriteU16(dst, rxConfig()->rx_max_usec);
         sbufWriteU8(dst, rxConfig()->rcInterpolation);
         sbufWriteU8(dst, rxConfig()->rcInterpolationInterval);
-        sbufWriteU16(dst, 0); // was rxConfig()->airModeActivateThreshold
+        sbufWriteU8(dst, rxConfig()->rcInterpolationChannels);
+#if defined(USE_RC_SMOOTHING_FILTER)
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_type);
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_input_type);
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_input_cutoff);
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_derivative_type);
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_derivative_cutoff);
+        sbufWriteU8(dst, rxConfig()->rc_smoothing_auto_factor);
+#else
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
+#endif
 #ifdef USE_RX_SPI
         sbufWriteU8(dst, rxSpiConfig()->rx_spi_protocol);
         sbufWriteU32(dst, rxSpiConfig()->rx_spi_id);
@@ -1424,33 +1440,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, 0);
         sbufWriteU8(dst, 0);
 #endif
-        sbufWriteU8(dst, 0); // was rxConfig()->fpvCamAngleDegrees
-        sbufWriteU8(dst, rxConfig()->rcInterpolationChannels);
-#if defined(USE_RC_SMOOTHING_FILTER)
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_type);
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_input_cutoff);
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_derivative_cutoff);
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_input_type);
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_derivative_type);
-#else
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-#endif
-#if defined(USE_USB_CDC_HID)
-        sbufWriteU8(dst, usbDevConfig()->type);
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        // Added in MSP API 1.42
-#if defined(USE_RC_SMOOTHING_FILTER)
-        sbufWriteU8(dst, rxConfig()->rc_smoothing_auto_factor);
-#else
-        sbufWriteU8(dst, 0);
-#endif
         break;
+
     case MSP_FAILSAFE_CONFIG:
         sbufWriteU8(dst, failsafeConfig()->failsafe_delay);
         sbufWriteU8(dst, failsafeConfig()->failsafe_off_delay);
@@ -1469,6 +1460,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RSSI_CONFIG:
         sbufWriteU8(dst, rxConfig()->rssi_channel);
+        sbufWriteU8(dst, rxConfig()->rssi_scale);
+        sbufWriteU8(dst, rxConfig()->rssi_invert);
+        sbufWriteU8(dst, rxConfig()->rssi_offset);
         break;
 
     case MSP_RX_MAP:
@@ -2977,73 +2971,42 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_RX_CONFIG:
         rxConfigMutable()->serialrx_provider = sbufReadU8(src);
+        rxConfigMutable()->serialrx_inverted = sbufReadU8(src);
+        rxConfigMutable()->halfDuplex = sbufReadU8(src);
         rxConfigMutable()->maxcheck = sbufReadU16(src);
         rxConfigMutable()->midrc = sbufReadU16(src);
         rxConfigMutable()->mincheck = sbufReadU16(src);
-        rxConfigMutable()->spektrum_sat_bind = sbufReadU8(src);
-        if (sbufBytesRemaining(src) >= 4) {
-            rxConfigMutable()->rx_min_usec = sbufReadU16(src);
-            rxConfigMutable()->rx_max_usec = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 4) {
-            rxConfigMutable()->rcInterpolation = sbufReadU8(src);
-            rxConfigMutable()->rcInterpolationInterval = sbufReadU8(src);
-            sbufReadU16(src); // was rxConfigMutable()->airModeActivateThreshold
-        }
-        if (sbufBytesRemaining(src) >= 6) {
+        rxConfigMutable()->rx_min_usec = sbufReadU16(src);
+        rxConfigMutable()->rx_max_usec = sbufReadU16(src);
+        rxConfigMutable()->rcInterpolation = sbufReadU8(src);
+        rxConfigMutable()->rcInterpolationInterval = sbufReadU8(src);
+        rxConfigMutable()->rcInterpolationChannels = sbufReadU8(src);
+#if defined(USE_RC_SMOOTHING_FILTER)
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_type, sbufReadU8(src));
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_input_type, sbufReadU8(src));
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_input_cutoff, sbufReadU8(src));
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_derivative_type, sbufReadU8(src));
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_derivative_cutoff, sbufReadU8(src));
+        configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_auto_factor, sbufReadU8(src));
+#else
+        sbufReadU8(src);
+        sbufReadU8(src);
+        sbufReadU8(src);
+        sbufReadU8(src);
+        sbufReadU8(src);
+        sbufReadU8(src);
+#endif
 #ifdef USE_RX_SPI
-            rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
-            rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
-            rxSpiConfigMutable()->rx_spi_rf_channel_count = sbufReadU8(src);
+        rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
+        rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
+        rxSpiConfigMutable()->rx_spi_rf_channel_count = sbufReadU8(src);
 #else
-            sbufReadU8(src);
-            sbufReadU32(src);
-            sbufReadU8(src);
+        sbufReadU8(src);
+        sbufReadU32(src);
+        sbufReadU8(src);
 #endif
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            sbufReadU8(src); // was rxConfigMutable()->fpvCamAngleDegrees
-        }
-        if (sbufBytesRemaining(src) >= 6) {
-            // Added in MSP API 1.40
-            rxConfigMutable()->rcInterpolationChannels = sbufReadU8(src);
-#if defined(USE_RC_SMOOTHING_FILTER)
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_type, sbufReadU8(src));
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_input_cutoff, sbufReadU8(src));
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_derivative_cutoff, sbufReadU8(src));
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_input_type, sbufReadU8(src));
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_derivative_type, sbufReadU8(src));
-#else
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-#endif
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            // Added in MSP API 1.40
-            // Kept separate from the section above to work around missing Configurator support in version < 10.4.2
-#if defined(USE_USB_CDC_HID)
-            usbDevConfigMutable()->type = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-#endif
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            // Added in MSP API 1.42
-#if defined(USE_RC_SMOOTHING_FILTER)
-            // Added extra validation/range constraint for rc_smoothing_auto_factor as a workaround for a bug in
-            // the 10.6 configurator where it was possible to submit an invalid out-of-range value. We might be
-            // able to remove the constraint at some point in the future once the affected versions are deprecated
-            // enough that the risk is low.
-            configRebootUpdateCheckU8(&rxConfigMutable()->rc_smoothing_auto_factor, constrain(sbufReadU8(src), RC_SMOOTHING_AUTO_FACTOR_MIN, RC_SMOOTHING_AUTO_FACTOR_MAX));
-#else
-            sbufReadU8(src);
-#endif
-        }
-
         break;
+
     case MSP_SET_FAILSAFE_CONFIG:
         failsafeConfigMutable()->failsafe_delay = sbufReadU8(src);
         failsafeConfigMutable()->failsafe_off_delay = sbufReadU8(src);
@@ -3065,6 +3028,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_RSSI_CONFIG:
         rxConfigMutable()->rssi_channel = sbufReadU8(src);
+        rxConfigMutable()->rssi_scale = sbufReadU8(src);
+        rxConfigMutable()->rssi_invert = sbufReadU8(src);
+        rxConfigMutable()->rssi_offset = sbufReadU8(src);
         break;
 
     case MSP_SET_RX_MAP:
