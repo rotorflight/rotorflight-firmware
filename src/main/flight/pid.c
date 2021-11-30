@@ -158,7 +158,7 @@ static FAST_RAM_ZERO_INIT pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
 
-static FAST_RAM_ZERO_INIT biquadFilter_t errorFilter[XYZ_AXIS_COUNT];
+static FAST_RAM_ZERO_INIT pt1Filter_t errorFilter[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT float pidHeadspeedRatio;
 
@@ -259,8 +259,9 @@ float pidGetStabilizedCollective(void)
 void pidInitFilters(const pidProfile_t *pidProfile)
 {
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        if (pidProfile->error_filter_hz[i])
-            biquadFilterInitBessel(&errorFilter[i], pidProfile->error_filter_hz[i], pidLooptime);
+        if (pidProfile->error_filter_hz[i]) {
+            pt1FilterInit(&errorFilter[i], pt1FilterGain(pidProfile->error_filter_hz[i], dT));
+        }
     }
 
 #ifdef USE_ITERM_RELAX
@@ -728,7 +729,7 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 
     // Extra error filtering
     if (pidProfile->error_filter_hz[axis])
-        ptermErrorRate = biquadFilterApply(&errorFilter[axis], ptermErrorRate);
+        ptermErrorRate = pt1FilterApply(&errorFilter[axis], ptermErrorRate);
 
     // Extra stop gain
     float Ks;
