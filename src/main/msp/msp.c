@@ -2030,6 +2030,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         uint8_t srcProfileIndex = sbufReadU8(src);
         if (value == 0) {
             pidCopyProfile(dstProfileIndex, srcProfileIndex);
+            if (dstProfileIndex == getCurrentPidProfileIndex()) {
+              pidInitProfile(currentPidProfile);
+            }
         }
         else if (value == 1) {
             copyControlRateProfile(dstProfileIndex, srcProfileIndex);
@@ -2393,7 +2396,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->gov_cyclic_ff_weight = sbufReadU8(src);
         currentPidProfile->gov_collective_ff_weight = sbufReadU8(src);
 
-        pidInit(currentPidProfile);
+        pidInitProfile(currentPidProfile);
         break;
 
     case MSP_SET_HELI_CONFIG:

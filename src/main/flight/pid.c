@@ -362,6 +362,9 @@ void pidInitProfile(const pidProfile_t *pidProfile)
 
     // Governor profile
     governorInitProfile(pidProfile);
+
+    // PID filters
+    pidInitFilters(pidProfile);
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -369,7 +372,6 @@ void pidInit(const pidProfile_t *pidProfile)
     pidSetLooptime(gyro.targetLooptime);
 
     pidInitProfile(pidProfile);
-    pidInitFilters(pidProfile);
 }
 
 static void pidReset(void)
