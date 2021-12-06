@@ -1359,11 +1359,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_MIXER_INPUTS:
-        sbufWriteData(dst, mixerInputs(0), sizeof(mixerInput_t) * MIXER_INPUT_COUNT);
+        for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
+          sbufWriteU16(dst, mixerInputs(i)->rate);
+          sbufWriteU16(dst, mixerInputs(i)->min);
+          sbufWriteU16(dst, mixerInputs(i)->max);
+        }
         break;
 
     case MSP_MIXER_RULES:
-        sbufWriteData(dst, mixerRules(0), sizeof(mixerRule_t) * MIXER_RULE_COUNT);
+        for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+          sbufWriteU32(dst, mixerRules(i)->mode);
+          sbufWriteU8(dst, mixerRules(i)->oper);
+          sbufWriteU8(dst, mixerRules(i)->input);
+          sbufWriteU8(dst, mixerRules(i)->output);
+          sbufWriteU16(dst, mixerRules(i)->offset);
+          sbufWriteU16(dst, mixerRules(i)->weight);
+        }
         break;
 
     case MSP_MIXER_OVERRIDE:
@@ -2718,12 +2729,27 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_ring = sbufReadU8(src);
         break;
 
-    case MSP_SET_MIXER_INPUTS:
-        sbufReadData(src, mixerInputsMutable(0), sizeof(mixerInput_t) * MIXER_INPUT_COUNT);
+    case MSP_SET_MIXER_INPUT:
+        i = sbufReadU8(src);
+        if (i >= MIXER_INPUT_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        mixerInputsMutable(i)->rate = sbufReadU16(src);
+        mixerInputsMutable(i)->min = sbufReadU16(src);
+        mixerInputsMutable(i)->max = sbufReadU16(src);
         break;
 
-    case MSP_SET_MIXER_RULES:
-        sbufReadData(src, mixerRulesMutable(0), sizeof(mixerRule_t) * MIXER_RULE_COUNT);
+    case MSP_SET_MIXER_RULE:
+        i = sbufReadU8(src);
+        if (i >= MIXER_RULE_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        mixerRulesMutable(i)->mode = sbufReadU32(src);
+        mixerRulesMutable(i)->oper = sbufReadU8(src);
+        mixerRulesMutable(i)->input = sbufReadU8(src);
+        mixerRulesMutable(i)->output = sbufReadU8(src);
+        mixerRulesMutable(i)->offset = sbufReadU16(src);
+        mixerRulesMutable(i)->weight = sbufReadU16(src);
         break;
 
     case MSP_SET_MIXER_OVERRIDE:
