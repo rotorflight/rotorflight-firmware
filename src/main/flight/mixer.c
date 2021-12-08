@@ -54,7 +54,16 @@ PG_REGISTER(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
 
-PG_REGISTER_ARRAY(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs, PG_GENERIC_MIXER_INPUTS, 0);
+PG_REGISTER_ARRAY_WITH_RESET_FN(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs, PG_GENERIC_MIXER_INPUTS, 0);
+
+void pgResetFn_mixerInputs(mixerInput_t *input)
+{
+    for (int i = MIXER_IN_STABILIZED_ROLL; i <= MIXER_IN_STABILIZED_THROTTLE; i++) {
+        input[i].rate =  1000;
+        input[i].min  = -1000;
+        input[i].max  =  1000;
+    }
+}
 
 
 static FAST_RAM_ZERO_INIT mixerRule_t rules[MIXER_RULE_COUNT];
