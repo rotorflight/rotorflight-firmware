@@ -78,6 +78,7 @@ static FAST_RAM_ZERO_INIT float     cyclicTotal;
 static FAST_RAM_ZERO_INIT float     cyclicLimit;
 
 static FAST_RAM_ZERO_INIT float     tailMotorIdle;
+static FAST_RAM_ZERO_INIT int8_t    tailMotorDirection;
 
 
 static inline void mixerSetInput(int index, float value)
@@ -161,6 +162,11 @@ void mixerInit(void)
         cyclicLimit = 0;
 }
 
+static inline int signf(float x)
+{
+    return (x < 0) ? -1 : 1;
+}
+
 static void mixerUpdateInputs(void)
 {
     // Flight Dynamics
@@ -201,20 +207,49 @@ static void mixerUpdateInputs(void)
     mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
     // Motorized tail control
-    if (mixerMotorizedTail()) {
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
+        // Yaw input value
+        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
 
         // Thrust linearization
-        mixInput[MIXER_IN_STABILIZED_YAW] = sqrtf(constrainf(mixInput[MIXER_IN_STABILIZED_YAW], 0, 1));
+        float throttle = sqrtf(MAX(yaw,0));
 
-        // Spoolup follows main rotor
+        // Apply minimum throttle
         if (isSpooledUp()) {
-            mixInput[MIXER_IN_STABILIZED_YAW] = constrainf(mixInput[MIXER_IN_STABILIZED_YAW], tailMotorIdle, 1);
+            throttle = MAX(throttle, tailMotorIdle);
         } else {
             if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
-                mixInput[MIXER_IN_STABILIZED_YAW] = 0;
+                throttle = 0;
             else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
-                mixInput[MIXER_IN_STABILIZED_YAW] *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
+                throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
         }
+
+        // Yaw is now tail motor throttle
+        mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
+    }
+    else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
+	// Yaw input value
+	const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
+
+	// Thrust linearization
+	float throttle = signf(yaw) * sqrtf(fabsf(yaw));
+
+	// Apply minimum throttle
+	if (isSpooledUp()) {
+	    if (throttle > -tailMotorIdle && throttle < tailMotorIdle)
+		throttle = tailMotorDirection * tailMotorIdle;
+	} else {
+	    if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+		throttle = 0;
+	    else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
+		throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
+	}
+
+	// Direction sign
+	tailMotorDirection = signf(throttle);
+
+	// Yaw is now tail motor throttle
+	mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
     }
 }
 
