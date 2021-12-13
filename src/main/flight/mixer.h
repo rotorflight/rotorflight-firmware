@@ -41,6 +41,7 @@ typedef enum {
 typedef enum {
     TAIL_MODE_VARIABLE,
     TAIL_MODE_MOTORIZED,
+    TAIL_MODE_BIDIRECTIONAL,
 } tail_mode_e;
 
 enum {
@@ -178,5 +179,7 @@ static inline void mixerSaturateMotorOutput(uint8_t index) { mixerSaturateOutput
 
 static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1; }
 
-static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode == TAIL_MODE_MOTORIZED); }
+static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode != TAIL_MODE_VARIABLE); }
+
+static inline bool mixerIsTailMode(int mode) { return (mixerConfig()->tail_rotor_mode == mode); }
 

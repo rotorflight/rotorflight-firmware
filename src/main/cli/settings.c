@@ -470,7 +470,7 @@ static const char * const lookupTableRotationDir[] = {
 };
 
 static const char * const lookupTableTailMode[] = {
-    "VARIABLE", "MOTORIZED",
+    "VARIABLE", "MOTORIZED", "BIDIRECTIONAL",
 };
 
 static const char * const lookupTableGovernorMode[] = {
