@@ -80,7 +80,7 @@ void pidLevelInit(const pidProfile_t *pidProfile)
 FAST_CODE void pidRescueUpdate(void)
 {
     if (FLIGHT_MODE(RESCUE_MODE)) {
-        rescueInverted = cmp32(millis(), rescueStart) < rescueDelay;
+        rescueInverted = (rescueDelay > 25000 || cmp32(millis(), rescueStart) < rescueDelay);
     }
     else {
         rescueStart = millis();
