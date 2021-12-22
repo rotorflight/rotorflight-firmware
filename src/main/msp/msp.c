@@ -2359,13 +2359,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_RPM_FILTER:
-        for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
-            rpmFilterConfigMutable()->filter_bank_motor_index[i] = sbufReadU8(src);
-            rpmFilterConfigMutable()->filter_bank_gear_ratio[i] = sbufReadU16(src);
-            rpmFilterConfigMutable()->filter_bank_notch_q[i] = sbufReadU16(src);
-            rpmFilterConfigMutable()->filter_bank_min_hz[i] = sbufReadU16(src);
-            rpmFilterConfigMutable()->filter_bank_max_hz[i] = sbufReadU16(src);
+        i = sbufReadU8(src);
+        if (i >= RPM_FILTER_BANK_COUNT) {
+            return MSP_RESULT_ERROR;
         }
+        rpmFilterConfigMutable()->filter_bank_motor_index[i] = sbufReadU8(src);
+        rpmFilterConfigMutable()->filter_bank_gear_ratio[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_notch_q[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_min_hz[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_max_hz[i] = sbufReadU16(src);
         break;
 
     case MSP_SET_PID_ADVANCED:
