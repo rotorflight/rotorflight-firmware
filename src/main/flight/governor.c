@@ -208,7 +208,7 @@ float getHeadSpeed(void)
 
 float getHeadSpeedRatio(void)
 {
-    if (govMode) {
+    if (govMode > GM_PASSTHROUGH) {
         switch (govState)
         {
             case GS_ACTIVE:
@@ -232,7 +232,7 @@ float getHeadSpeedRatio(void)
 
 bool isSpooledUp(void)
 {
-    if (govMode) {
+    if (govMode > GM_OFF) {
         switch (govState)
         {
             case GS_ACTIVE:
