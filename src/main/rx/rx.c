@@ -683,11 +683,14 @@ bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs)
 
 void parseRcChannels(const char *input, rxConfig_t *rxConfig)
 {
-    for (const char *c = input; *c; c++) {
-        const char *s = strchr(rcChannelLetters, *c);
-        if (s && (s < rcChannelLetters + RX_MAPPABLE_CHANNEL_COUNT)) {
-            rxConfig->rcmap[s - rcChannelLetters] = c - input;
-        }
+    for (int i=0; i<RX_MAPPABLE_CHANNEL_COUNT; i++) {
+	rxConfig->rcmap[i] = i;
+	for (int j=0; input[j]; j++) {
+	    if (rcChannelLetters[i] == input[j]) {
+		rxConfig->rcmap[i] = j;
+		break;
+	    }
+	}
     }
 }
 
