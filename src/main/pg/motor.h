@@ -61,7 +61,7 @@ typedef struct motorConfig_s {
     uint16_t mincommand;                    // This is the value for the ESCs when they are not armed. In some cases, this value must be lowered down to 900 for some specific ESCs
 
     uint8_t motorPoleCount[MAX_SUPPORTED_MOTORS]; // Magnetic poles in the motors for calculating actual RPM from eRPM provided by ESC telemetry
-    uint16_t motorRpmLpf[MAX_SUPPORTED_MOTORS];   // RPM low pass filter
+    uint8_t motorRpmLpf[MAX_SUPPORTED_MOTORS];    // RPM low pass filter cutoff frequency
 
     uint16_t mainRotorGearRatio[2];         // Main motor to main rotor gear ratio [N,D]
     uint16_t tailRotorGearRatio[2];         // Main rotor to tail rotor gear ratio [N,D]

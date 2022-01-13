@@ -1254,6 +1254,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
         for (int i = 0; i < 4; i++)
             sbufWriteU8(dst, motorConfig()->motorPoleCount[i]);
+        for (int i = 0; i < 4; i++)
+            sbufWriteU8(dst, motorConfig()->motorRpmLpf[i]);
 
         break;
 
@@ -2174,6 +2176,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
         for (int i = 0; i < 4; i++)
             motorConfigMutable()->motorPoleCount[i] = sbufReadU8(src);
+        for (int i = 0; i < 4; i++)
+            motorConfigMutable()->motorRpmLpf[i] = sbufReadU8(src);
 
         break;
 

@@ -205,7 +205,7 @@ void rpmSourceInit(void)
 
         motorRpmDiv[i] = constrain(motorConfig()->motorPoleCount[i] / 2, 1, 100);
 
-        int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 1000);
+        int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 250);
         biquadFilterInitLPF(&motorRpmFilter[i], freq, gyro.targetLooptime);
     }
 }
