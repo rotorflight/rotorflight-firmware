@@ -112,14 +112,12 @@ CMS_Menu cmsx_menuRcPreview = {
 };
 
 static uint16_t motorConfig_minthrottle;
-static uint8_t motorConfig_digitalIdleOffsetValue;
 
 static const void *cmsx_menuMiscOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
     motorConfig_minthrottle = motorConfig()->minthrottle;
-    motorConfig_digitalIdleOffsetValue = motorConfig()->digitalIdleOffsetValue / 10;
 
     return NULL;
 }
@@ -130,7 +128,6 @@ static const void *cmsx_menuMiscOnExit(displayPort_t *pDisp, const OSD_Entry *se
     UNUSED(self);
 
     motorConfigMutable()->minthrottle = motorConfig_minthrottle;
-    motorConfigMutable()->digitalIdleOffsetValue = 10 * motorConfig_digitalIdleOffsetValue;
 
     return NULL;
 }
@@ -140,7 +137,6 @@ static const OSD_Entry menuMiscEntries[]=
     { "-- MISC --", OME_Label, NULL, NULL, 0 },
 
     { "MIN THR",       OME_UINT16,  NULL,          &(OSD_UINT16_t){ &motorConfig_minthrottle,            1000, 2000, 1 }, REBOOT_REQUIRED },
-    { "DIGITAL IDLE",  OME_UINT8,   NULL,          &(OSD_UINT8_t) { &motorConfig_digitalIdleOffsetValue,    0,  200, 1 }, REBOOT_REQUIRED },
     { "RC PREV",       OME_Submenu, cmsMenuChange, &cmsx_menuRcPreview, 0},
 
     { "BACK", OME_Back, NULL, NULL, 0},
