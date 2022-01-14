@@ -67,7 +67,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CO
 
 PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_mode = GM_PASSTHROUGH,
-    .gov_gear_ratio = 1000,
     .gov_spoolup_time = 100,
     .gov_tracking_time = 20,
     .gov_recovery_time = 20,

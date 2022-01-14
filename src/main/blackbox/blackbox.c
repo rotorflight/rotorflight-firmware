@@ -1425,7 +1425,6 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("gov_collective_ff_weight", "%d",        currentPidProfile->gov_collective_ff_weight);
 
         BLACKBOX_PRINT_HEADER_LINE("gov_mode", "%d",                        governorConfig()->gov_mode);
-        BLACKBOX_PRINT_HEADER_LINE("gov_gear_ratio", "%d",                  governorConfig()->gov_gear_ratio);
         BLACKBOX_PRINT_HEADER_LINE("gov_spoolup_time", "%d",                governorConfig()->gov_spoolup_time);
         BLACKBOX_PRINT_HEADER_LINE("gov_tracking_time", "%d",               governorConfig()->gov_tracking_time);
         BLACKBOX_PRINT_HEADER_LINE("gov_recovery_time", "%d",               governorConfig()->gov_recovery_time);
