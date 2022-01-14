@@ -1257,6 +1257,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < 4; i++)
             sbufWriteU8(dst, motorConfig()->motorRpmLpf[i]);
 
+        sbufWriteU16(dst, motorConfig()->mainRotorGearRatio[0]);
+        sbufWriteU16(dst, motorConfig()->mainRotorGearRatio[1]);
+        sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[0]);
+        sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[1]);
         break;
 
 #ifdef USE_MAG
@@ -2179,6 +2183,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         for (int i = 0; i < 4; i++)
             motorConfigMutable()->motorRpmLpf[i] = sbufReadU8(src);
 
+        motorConfigMutable()->mainRotorGearRatio[0] = sbufReadU16(src);
+        motorConfigMutable()->mainRotorGearRatio[1] = sbufReadU16(src);
+        motorConfigMutable()->tailRotorGearRatio[0] = sbufReadU16(src);
+        motorConfigMutable()->tailRotorGearRatio[1] = sbufReadU16(src);
         break;
 
 #ifdef USE_GPS
