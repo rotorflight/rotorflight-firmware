@@ -1605,6 +1605,8 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_DSHOT_TELEMETRY
         BLACKBOX_PRINT_HEADER_LINE("dshot_bidir", "%d",                     motorConfig()->dev.useDshotTelemetry);
 #endif
+        BLACKBOX_PRINT_HEADER_LINE("main_rotor_gear_ratio", "%d/%d",        motorConfig()->mainRotorGearRatio[0], motorConfig()->mainRotorGearRatio[1]);
+        BLACKBOX_PRINT_HEADER_LINE("tail_rotor_gear_ratio", "%d/%d",        motorConfig()->tailRotorGearRatio[0], motorConfig()->tailRotorGearRatio[1]);
 
         default:
             return true;
