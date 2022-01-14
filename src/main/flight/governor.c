@@ -330,7 +330,7 @@ static void govUpdateInputs(void)
     float filteredRPM = biquadFilterApply(&govMotorRPMFilter, govMotorRPM);
 
     // Calculate headspeed from filtered motor speed
-    govHeadSpeed = filteredRPM / govGearRatio;
+    govHeadSpeed = filteredRPM * govGearRatio;
 
     // Calculate HS vs MaxHS ratio
     govHeadSpeedRatio = govHeadSpeed / govFullHeadSpeed;
@@ -963,7 +963,9 @@ void governorInit(const pidProfile_t *pidProfile)
                 break;
         }
 
-        govGearRatio    = governorConfig()->gov_gear_ratio / 1000.0f;
+        govGearRatio    = constrainf(motorConfig()->mainRotorGearRatio[0], 1, 50000) /
+                          constrainf(motorConfig()->mainRotorGearRatio[1], 1, 50000);
+
         govFFexponent   = governorConfig()->gov_ff_exponent / 100.0f;
         govBatOffset    = governorConfig()->gov_vbat_offset / 100.0f;
 
