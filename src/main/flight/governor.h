@@ -45,7 +45,6 @@ typedef enum {
 
 typedef struct governorConfig_s {
     uint8_t  gov_mode;
-    uint16_t gov_gear_ratio;
     uint16_t gov_spoolup_time;
     uint16_t gov_tracking_time;
     uint16_t gov_recovery_time;
