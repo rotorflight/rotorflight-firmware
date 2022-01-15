@@ -121,6 +121,10 @@
 #define USE_DMA_RAM
 #endif
 
+#ifdef SIMULATOR_BUILD
+#define USE_RPM_FILTER
+#endif
+
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
 #define TASK_GYROPID_DESIRED_PERIOD     125 // 125us = 8kHz
 #define SCHEDULER_DELAY_LIMIT           10

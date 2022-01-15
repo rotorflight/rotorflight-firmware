@@ -1,0 +1,77 @@
+# 
+
+# diff
+
+# version
+# Rotorflight / SITL (SITL) 4.2.12 Jan 19 2022 / 02:36:51 (7da8237cb) MSP API: 11.1
+
+# start the command batch
+batch start
+
+board_name SITL
+manufacturer_id FOSS
+
+# feature
+feature -GPS
+feature GOVERNOR
+
+# mixer input
+mixer input ST 0 1000 1000
+
+# mixer rule
+mixer rule 0 set SR S1 1000 0 
+mixer rule 1 set SP S2 1000 0 
+mixer rule 2 set SC S3 1000 0 
+mixer rule 3 set SY S4 -1000 0 
+mixer rule 4 set ST M1 1000 0 
+
+# aux
+aux 0 0 0 1700 2100 0 0
+
+# master
+set mag_bustype = I2C
+set mag_i2c_device = 2
+set baro_bustype = I2C
+set baro_i2c_device = 2
+set min_check = 1200
+set max_check = 1825
+set rc_interp_ch = OFF
+set blackbox_device = NONE
+set motor_pwm_protocol = PWM
+set motor_pwm_inversion = ON
+set motor_rpm_lpf = 0,20,0,20
+set pid_process_denom = 16
+set gyro_1_bustype = SPI
+set gyro_1_spibus = 1
+set gyro_1_sensor_align = CW270
+set gyro_1_align_yaw = 2700
+
+profile 0
+
+# profile 0
+set iterm_rotation = OFF
+set iterm_relax_cutoff = 5,5,5
+set p_pitch = 250
+set i_pitch = 0
+set p_roll = 250
+set i_roll = 0
+set p_yaw = 40
+set i_yaw = 60
+set yaw_cyclic_ff_gain = 80
+set yaw_collective_ff_gain = 120
+set yaw_collective_ff_impulse_gain = 50
+
+rateprofile 0
+
+# rateprofile 0
+set roll_rc_rate = 20
+set pitch_rc_rate = 20
+set yaw_rc_rate = 60
+set roll_srate = 24
+set pitch_srate = 24
+set yaw_srate = 70
+
+# end the command batch
+batch end
+
+# 

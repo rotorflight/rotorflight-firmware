@@ -108,10 +108,13 @@ void servoInit(void)
 {
     const ioTag_t *ioTags = servoConfig()->dev.ioTags;
 
+#ifndef SIMULATOR_MULTITHREAD
     for (servoCount = 0;
          servoCount < MAX_SUPPORTED_SERVOS && ioTags[servoCount] != IO_TAG_NONE;
          servoCount++);
-
+#else
+    servoCount = MAX_SUPPORTED_SERVOS; //In simulator we only accept 2 motor, one of main rotor one for tail.
+#endif
     servoDevInit(&servoConfig()->dev, servoCount);
 
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {

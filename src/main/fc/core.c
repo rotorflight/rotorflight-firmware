@@ -152,6 +152,9 @@ void resetArmingDisabled(void)
 #ifdef USE_ACC
 static bool accNeedsCalibration(void)
 {
+#ifdef SIMULATOR_MULTITHREAD
+    return false;
+#endif
     if (sensors(SENSOR_ACC)) {
 
         // Check to see if the ACC has already been calibrated
@@ -200,7 +203,7 @@ void updateArmingStatus(void)
 {
     if (ARMING_FLAG(ARMED)) {
         LED0_ON;
-    } else {
+    } else {        
         // Check if the power on arming grace time has elapsed
         if ((getArmingDisableFlags() & ARMING_DISABLED_BOOT_GRACE_TIME) && (millis() >= systemConfig()->powerOnArmingGraceTime * 1000)
 #ifdef USE_DSHOT
@@ -382,7 +385,7 @@ void tryArm(void)
     }
 
     updateArmingStatus();
-
+    
     if (!isArmingDisabled()) {
         if (ARMING_FLAG(ARMED)) {
             return;
@@ -403,13 +406,16 @@ void tryArm(void)
         osdSuppressStats(false);
 #endif
         ENABLE_ARMING_FLAG(ARMED);
-
+        
         resetTryingToArm();
 
 #ifdef USE_ACRO_TRAINER
         acroTrainerReset();
 #endif
 
+#ifdef SIMULATOR_MULTITHREAD
+        printf("[SITL] Armed\n");
+#endif
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
         }

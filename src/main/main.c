@@ -29,6 +29,18 @@
 
 void run(void);
 
+#ifdef SIMULATOR_MULTITHREAD
+int main(int argc, char * argv[])
+{
+    sitl_parse_argc(argc, argv);
+    
+    init();
+
+    run();
+
+    return 0;
+}
+#else
 int main(void)
 {
     init();
@@ -37,6 +49,7 @@ int main(void)
 
     return 0;
 }
+#endif
 
 void FAST_CODE FAST_CODE_NOINLINE run(void)
 {

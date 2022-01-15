@@ -215,10 +215,13 @@ void motorInit(void)
 {
     const ioTag_t *ioTags = motorConfig()->dev.ioTags;
 
+#ifndef SIMULATOR_MULTITHREAD
     for (motorCount = 0;
          motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
          motorCount++);
-
+#else
+    motorCount = 2; //In simulator we only accept 2 motor, one of main rotor one for tail.
+#endif
     motorDevInit(&motorConfig()->dev, motorCount);
 }
 

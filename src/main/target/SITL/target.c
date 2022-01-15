@@ -60,15 +60,20 @@ const timerHardware_t timerHardware[1]; // unused
 uint32_t SystemCoreClock;
 
 static fdm_packet fdmPkt;
-static servo_packet pwmPkt;
+static rc_packet rcPkt;
+static servo_packet_raw pwmRawPkt;
+
+static bool rc_received = false;
+static bool fdm_received = false;
 
 static struct timespec start_time;
 static double simRate = 1.0;
-static pthread_t tcpWorker, udpWorker;
+static pthread_t tcpWorker, udpWorker, udpWorkerRC;
 static bool workerRunning = true;
-static udpLink_t stateLink, pwmLink;
+static udpLink_t stateLink, pwmRawLink, rcLink;
 static pthread_mutex_t updateLock;
 static pthread_mutex_t mainLoopLock;
+static char simulator_ip[1024] = "127.0.0.1";
 
 int timeval_sub(struct timespec *result, struct timespec *x, struct timespec *y);
 
@@ -79,9 +84,23 @@ int lockMainPID(void) {
 #define RAD2DEG (180.0 / M_PI)
 #define ACC_SCALE (256 / 9.80665)
 #define GYRO_SCALE (16.4)
-void sendMotorUpdate() {
-    udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
+
+#define PORT_OUT_PWM_RAW 9001
+#define PORT_OUT_PWM 9002
+#define PORT_IN_STATE 9003
+#define PORT_IN_RC 9004
+
+int sitl_parse_argc(int argc, char * argv[]) {
+    //The first argument should be target IP.
+    if (argc > 1) {
+        strcpy(simulator_ip, argv[1]);
+    }
+
+    printf("[SITL] The SITL will output to IP %s:%d (Gazebo) and %s:%d (RealFlightBridge)\n", 
+            simulator_ip, PORT_OUT_PWM, simulator_ip, PORT_OUT_PWM_RAW);
+    return 0;
 }
+
 void updateState(const fdm_packet* pkt) {
     static double last_timestamp = 0; // in seconds
     static uint64_t last_realtime = 0; // in uS
@@ -94,7 +113,6 @@ void updateState(const fdm_packet* pkt) {
     if (realtime_now > last_realtime + 500*1e3) { // 500ms timeout
         last_timestamp = pkt->timestamp;
         last_realtime = realtime_now;
-        sendMotorUpdate();
         return;
     }
 
@@ -181,12 +199,53 @@ static void* udpThread(void* data) {
     while (workerRunning) {
         n = udpRecv(&stateLink, &fdmPkt, sizeof(fdm_packet), 100);
         if (n == sizeof(fdm_packet)) {
-//            printf("[data]new fdm %d\n", n);
+            if (!fdm_received) {
+                printf("[SITL] new fdm %d t:%f from %s:%d\n", n, fdmPkt.timestamp, inet_ntoa(stateLink.recv.sin_addr), stateLink.recv.sin_port);
+                fdm_received = true;
+            }
             updateState(&fdmPkt);
         }
     }
 
-    printf("udpThread end!!\n");
+    printf("[SITL] udpThread end!!\n");
+    return NULL;
+}
+
+static uint16_t readRCSITL(const rxRuntimeState_t *rxRuntimeState, uint8_t channel) {
+    UNUSED(rxRuntimeState);
+    return rcPkt.channels[channel];
+}
+
+static uint8_t rxRCFrameStatus(rxRuntimeState_t *rxRuntimeState)
+{
+    UNUSED(rxRuntimeState);
+    return RX_FRAME_COMPLETE;
+}
+
+static void* udpRCThread(void* data) {
+    UNUSED(data);
+    int n = 0;
+
+    while (workerRunning) {
+        n = udpRecv(&rcLink, &rcPkt, sizeof(rc_packet), 100);
+        if (n == sizeof(rc_packet)) {
+            if (!rc_received) {
+                printf("[SITL] new rc %d: t:%f AETR: %d %d %d %d AUX1-4: %d %d %d %d\n", n, rcPkt.timestamp,
+                    rcPkt.channels[0], rcPkt.channels[1],rcPkt.channels[2],rcPkt.channels[3],
+                    rcPkt.channels[4], rcPkt.channels[5],rcPkt.channels[6],rcPkt.channels[7]);
+                
+                rxRuntimeState.channelCount = SIMULATOR_MAX_RC_CHANNELS;
+                rxRuntimeState.rcReadRawFn = readRCSITL;
+                rxRuntimeState.rcFrameStatusFn = rxRCFrameStatus;
+
+                rxRuntimeState.rxRefreshRate = 20000;
+                rxRuntimeState.rxProvider = RX_PROVIDER_UDP;
+                rc_received = true;
+            }
+        }
+    }
+
+    printf("udpRCThread end!!\n");
     return NULL;
 }
 
@@ -211,41 +270,46 @@ void systemInit(void) {
     int ret;
 
     clock_gettime(CLOCK_MONOTONIC, &start_time);
-    printf("[system]Init...\n");
+    printf("[SITL][system]Init...\n");
 
     SystemCoreClock = 500 * 1e6; // fake 500MHz
 
     if (pthread_mutex_init(&updateLock, NULL) != 0) {
-        printf("Create updateLock error!\n");
+        printf("[SITL] Create updateLock error!\n");
         exit(1);
     }
 
     if (pthread_mutex_init(&mainLoopLock, NULL) != 0) {
-        printf("Create mainLoopLock error!\n");
+        printf("[SITL] Create mainLoopLock error!\n");
         exit(1);
     }
 
     ret = pthread_create(&tcpWorker, NULL, tcpThread, NULL);
     if (ret != 0) {
-        printf("Create tcpWorker error!\n");
+        printf("[SITL] Create tcpWorker error!\n");
         exit(1);
     }
 
-    ret = udpInit(&pwmLink, "127.0.0.1", 9002, false);
-    printf("init PwmOut UDP link...%d\n", ret);
+    ret = udpInit(&pwmRawLink, simulator_ip, PORT_OUT_PWM_RAW, false);
+    printf("[SITL] init PwmOut UDP link to RF9 %s:%d...%d\n", simulator_ip, PORT_OUT_PWM_RAW, ret);
 
-    ret = udpInit(&stateLink, NULL, 9003, true);
-    printf("start UDP server...%d\n", ret);
+    ret = udpInit(&stateLink, NULL, PORT_IN_STATE, true);
+    printf("[SITL] start UDP server @%d...%d\n", PORT_IN_STATE, ret);
+
+    ret = udpInit(&rcLink, NULL, PORT_IN_RC, true);
+    printf("[SITL] start UDP server for RC input @%d...%d\n", PORT_IN_RC, ret);
 
     ret = pthread_create(&udpWorker, NULL, udpThread, NULL);
+    ret = pthread_create(&udpWorkerRC, NULL, udpRCThread, NULL);
     if (ret != 0) {
-        printf("Create udpWorker error!\n");
+        printf("[SITL] Create udpWorker error!\n");
         exit(1);
     }
 
-    // serial can't been slow down
+    rescheduleTask(TASK_RX, 1);
     rescheduleTask(TASK_SERIAL, 1);
 }
+
 
 void systemReset(void){
     printf("[system]Reset!\n");
@@ -385,13 +449,13 @@ pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 static pwmOutputPort_t servos[MAX_SUPPORTED_SERVOS];
 
 // real value to send
-static int16_t motorsPwm[MAX_SUPPORTED_MOTORS];
-static int16_t servosPwm[MAX_SUPPORTED_SERVOS];
-static int16_t idlePulse;
+static int16_t idlePulse = 1000;
 
-void servoDevInit(const servoDevConfig_t *servoConfig) {
+void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount) {
+    printf("[SITL] Init servos num %d rate %d\n", servoCount, 
+            servoConfig->servoPwmRate);
     UNUSED(servoConfig);
-    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS; servoIndex++) {
+    for (uint8_t servoIndex = 0; servoIndex < servoCount; servoIndex++) {
         servos[servoIndex].enabled = true;
     }
 }
@@ -400,16 +464,6 @@ static motorDevice_t motorPwmDevice; // Forward
 
 pwmOutputPort_t *pwmGetMotors(void) {
     return motors;
-}
-
-static float pwmConvertFromExternal(uint16_t externalValue)
-{
-    return (float)externalValue;
-}
-
-static uint16_t pwmConvertToExternal(float motorValue)
-{
-    return (uint16_t)motorValue;
 }
 
 static void pwmDisableMotors(void)
@@ -426,7 +480,9 @@ static bool pwmEnableMotors(void)
 
 static void pwmWriteMotor(uint8_t index, float value)
 {
-    motorsPwm[index] = value - idlePulse;
+    if (index < pwmRawPkt.motorCount) {
+        pwmRawPkt.pwm_output_raw[index] = value;
+    }
 }
 
 static void pwmWriteMotorInt(uint8_t index, uint16_t value)
@@ -450,26 +506,33 @@ static void pwmCompleteMotorUpdate(void)
 
     double outScale = 1000.0;
 
-    pwmPkt.motor_speed[3] = motorsPwm[0] / outScale;
-    pwmPkt.motor_speed[0] = motorsPwm[1] / outScale;
-    pwmPkt.motor_speed[1] = motorsPwm[2] / outScale;
-    pwmPkt.motor_speed[2] = motorsPwm[3] / outScale;
-
-    // get one "fdm_packet" can only send one "servo_packet"!!
     if (pthread_mutex_trylock(&updateLock) != 0) return;
-    udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
-//    printf("[pwm]%u:%u,%u,%u,%u\n", idlePulse, motorsPwm[0], motorsPwm[1], motorsPwm[2], motorsPwm[3]);
+    udpSend(&pwmRawLink, &pwmRawPkt, sizeof(servo_packet_raw));
+    // static int c = 0;
+    // if (c++%50 == 1) 
+    //     printf("[SITL][pwm]%u:%07.1f,%07.1f,%07.1f,%07.1f\n", idlePulse, pwmRawPkt.pwm_output_raw[0], 
+    //         pwmRawPkt.pwm_output_raw[1], pwmRawPkt.pwm_output_raw[2], pwmRawPkt.pwm_output_raw[3]);
 }
 
 void pwmWriteServo(uint8_t index, float value) {
-    servosPwm[index] = value;
+    if (index + pwmRawPkt.motorCount < SIMULATOR_MAX_PWM_CHANNELS) {
+        pwmRawPkt.pwm_output_raw[index + pwmRawPkt.motorCount] = value; // In pwmRawPkt, we put servo right after the motors.
+    }
+}
+
+static uint16_t SITLConvertToInternal(float motorValue) {
+    uint16_t internalValue;
+    if (motorValue > 0)
+        internalValue = scaleRangef(motorValue, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    else
+        internalValue = motorConfig()->mincommand;
+
+    return internalValue;
 }
 
 static motorDevice_t motorPwmDevice = {
     .vTable = {
         .postInit = motorPostInitNull,
-        .convertExternalToMotor = pwmConvertFromExternal,
-        .convertMotorToExternal = pwmConvertToExternal,
         .enable = pwmEnableMotors,
         .disable = pwmDisableMotors,
         .isMotorEnabled = pwmIsMotorEnabled,
@@ -478,19 +541,17 @@ static motorDevice_t motorPwmDevice = {
         .writeInt = pwmWriteMotorInt,
         .updateComplete = pwmCompleteMotorUpdate,
         .shutdown = pwmShutdownPulsesForAllMotors,
+        .convertMotorToInternal = SITLConvertToInternal
     }
 };
 
-motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t _idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
 {
     UNUSED(motorConfig);
-    UNUSED(useUnsyncedPwm);
 
-    if (motorCount > 4) {
-        return NULL;
-    }
+    printf("[SITL] Initialized motor count %d\n", motorCount);
 
-    idlePulse = _idlePulse;
+    pwmRawPkt.motorCount = motorCount;
 
     for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS && motorIndex < motorCount; motorIndex++) {
         motors[motorIndex].enabled = true;
