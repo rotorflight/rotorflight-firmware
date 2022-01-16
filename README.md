@@ -62,12 +62,8 @@ An absolute minimum is a STM32F4 based board, but it probably won't be able to r
 
 ## Installation
 
-Please see the "Releases" page on this Github repo to download the latest official release for your FC board:
-* [Click here to go to Releases](https://github.com/rotorflight/rotorflight/releases)
-
-**Ignore** any snapshots on this page (github is showing them automatically).
-
-Eventually Rotorflight firmware will be available directly via the Configurator.
+Please see the "Releases" page on the Wiki to download the latest official release:
+* [Click here to go to Releases](https://github.com/rotorflight/rotorflight/wiki/releases)
 
 
 ## Contributing
