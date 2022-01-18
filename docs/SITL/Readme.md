@@ -6,13 +6,13 @@ ArduPilot also offers [RealFlight SITL](https://ardupilot.org/dev/docs/sitl-with
 To use it you may need to purchase it on [Steam](https://store.steampowered.com/app/1070820/RealFlight_95S/) or [offical website](https://www.realflight.com/).
 
 ### Setup
-To let BetaFlight SITL work with RealFlight, you need Windows 10 or Windows 11 with WSL. 
+To let rotorflight SITL work with RealFlight, you need Windows 10 or Windows 11 with WSL. 
 Ubuntu 20.04 in WSL2 on Windows 11 x64 is tested.
 [RealFlightBridge](https://github.com/xuhao1/RealFlightBridge) is also required.
 
-On WSL2, you need to configure the BetaFlight following [document here](https://github.com/betaflight/betaflight/blob/master/docs/development/Building%20in%20Windows.md).
+On WSL2, you need to configure the rotorflight following [document here](https://github.com/rotorflight/rotorflight/blob/master/docs/development/Building%20in%20Windows.md).
 
-Build BetaFlight with
+Build rotorflight with
 
 ```bash
 $ make TARGET=SITL
@@ -24,7 +24,7 @@ On Windows, download RealFlightBridge by
 $ git clone https://github.com/xuhao1/RealFlightBridge.git
 ```
 
-Import the quadcopter for RealFlight and BetaFlight at __models/Quadcopter X Betaflight - flightaxis_AV.RFX__ in RealFlightBridge. A detailed guide for improtanting can be found [here](https://ardupilot.org/dev/docs/sitl-with-realflight.html).
+Import the quadcopter for RealFlight and rotorflight at __models/Raptor720-rotorflight-flightaxis_AV.RFX__ or __models/SAB GOBLIN 570 (Lighthorse)_EA__ in RealFlightBridge. A detailed guide for improtanting can be found [here](https://ardupilot.org/dev/docs/sitl-with-realflight.html).
 Moreover, update the setting of RealFlight to allow API.
 ![](./imgs/rf_settings.jpg)
 
@@ -34,7 +34,7 @@ I recommend to use transmitter with OpenTX/EdgeTX as a game controller. In addit
 
 ### SITL
 To running SITL, you may need to:
-1. Open and select the newly improted model __Quadcopter X Betaflight - flightaxis__ in RealFlight.
+1. Open and select the newly improted model __Raptor720-rotorflight-flightaxis_AV__ in RealFlight.
     ![](./imgs/select.jpg)
 
     You need to restart RealFlight after you *edit* the model in RealFlight!
@@ -45,9 +45,9 @@ To running SITL, you may need to:
     $ python betaflight_bridge.py
     ```
 
-    You must start RealFlightBridge in Windows **before**  start the betaflight SITL.
+    You must start RealFlightBridge in Windows **before**  start the rotorflight SITL.
 
-3. Start BetaFlight SITL.
+3. Start rotorflight SITL.
     First you need to get the Windows' IP in WSL.
     In WSL entering
     ```bash
@@ -65,10 +65,10 @@ To running SITL, you may need to:
     ```
     172.19.32.1 is the example output of your Windows IP and 172.19.41.192 is your WSL IP. **These IPs change everytime you reboot the computer.**
 
-    Then go to the BetaFlight root and start SITL with this IP.
+    Then go to the rotorflight root and start SITL with this IP.
     ```bash
-    $ cd ~/develop/betaflight/
-    $ ./obj/main/betaflight_SITL.elf 172.19.32.1
+    $ cd ~/develop/rotorflight/
+    $ ./obj/main/rotorflight_SITL.elf 172.19.32.1
     The SITL will output to IP 172.19.32.1:9002 (Gazebo) and 172.19.32.1:9001 (RealFlightBridge)
     [system]Init...
     init PwmOut UDP link to gazebo 172.19.32.1:9002...0
@@ -82,13 +82,13 @@ To running SITL, you may need to:
     bind port 5761 for UART1
     unusedPinsInit
     ```
-    Then you can open BetaFlight configurator on **Windows** to connect to RealFlight via **WSL IP**.
-    ![](./imgs/betaflight.jpg)
+    Then you can open rotorflight configurator on **Windows** to connect to RealFlight via **WSL IP**.
+    ![](./imgs/rotorflight.jpg)
 
-    After connect to BetaFlight you need to set the arming switch with your controller.
+    After connect to rotorflight you need to set the arming switch with your controller.
 
 
-4. Finally, you can arm and take-off the Quadcopter with BetaFlight SITL in RealFlight with your controller.
+4. Finally, you can arm and take-off the Quadcopter with rotorflight SITL in RealFlight with your controller.
 
 ![](./imgs/SITL_RF.jpg)
 

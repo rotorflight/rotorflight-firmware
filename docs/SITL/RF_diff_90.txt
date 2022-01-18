@@ -3,7 +3,7 @@
 # diff
 
 # version
-# Rotorflight / SITL (SITL) 4.2.12 Jan 19 2022 / 02:36:51 (7da8237cb) MSP API: 11.1
+# Rotorflight / SITL (SITL) 4.2.12 Jan 19 2022 / 04:05:20 (161a52a40) MSP API: 11.1
 
 # start the command batch
 batch start
@@ -50,25 +50,32 @@ profile 0
 
 # profile 0
 set iterm_rotation = OFF
+set iterm_relax = OFF
 set iterm_relax_cutoff = 5,5,5
 set p_pitch = 250
+###ERROR: diff: CORRUPTED CONFIG: p_pitch = 250###
 set i_pitch = 0
+set d_pitch = 80
+set f_pitch = 40
 set p_roll = 250
+###ERROR: diff: CORRUPTED CONFIG: p_roll = 250###
 set i_roll = 0
+set d_roll = 80
+set f_roll = 40
 set p_yaw = 40
-set i_yaw = 60
+set i_yaw = 40
 set yaw_cyclic_ff_gain = 80
-set yaw_collective_ff_gain = 120
+set yaw_collective_ff_gain = 40
 set yaw_collective_ff_impulse_gain = 50
 
 rateprofile 0
 
 # rateprofile 0
-set roll_rc_rate = 20
-set pitch_rc_rate = 20
-set yaw_rc_rate = 60
-set roll_srate = 24
-set pitch_srate = 24
+set roll_rc_rate = 27
+set pitch_rc_rate = 27
+set yaw_rc_rate = 40
+set roll_srate = 33
+set pitch_srate = 33
 set yaw_srate = 70
 
 # end the command batch
