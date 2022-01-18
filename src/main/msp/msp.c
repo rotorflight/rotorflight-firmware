@@ -2678,7 +2678,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ARMING_DISABLED:
         {
+#ifdef SIMULATOR_BUILD
+            // In simulator mode we can safely arm with MSP link
+            // Remove this #ifdef once the Configurator is fixed
+            const uint8_t command = 0;
+#else
             const uint8_t command = sbufReadU8(src);
+#endif
             if (command) {
                 mspArmingDisableByDescriptor(srcDesc);
                 setArmingDisabled(ARMING_DISABLED_MSP);

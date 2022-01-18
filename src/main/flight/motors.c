@@ -215,9 +215,13 @@ void motorInit(void)
 {
     const ioTag_t *ioTags = motorConfig()->dev.ioTags;
 
+#ifndef SIMULATOR_BUILD
     for (motorCount = 0;
          motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
          motorCount++);
+#else
+    motorCount = 2;
+#endif
 
     motorDevInit(&motorConfig()->dev, motorCount);
 }

@@ -108,9 +108,13 @@ void servoInit(void)
 {
     const ioTag_t *ioTags = servoConfig()->dev.ioTags;
 
+#ifndef SIMULATOR_BUILD
     for (servoCount = 0;
          servoCount < MAX_SUPPORTED_SERVOS && ioTags[servoCount] != IO_TAG_NONE;
          servoCount++);
+#else
+    servoCount = MAX_SUPPORTED_SERVOS;
+#endif
 
     servoDevInit(&servoConfig()->dev, servoCount);
 
