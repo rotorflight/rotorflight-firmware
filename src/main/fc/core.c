@@ -152,6 +152,9 @@ void resetArmingDisabled(void)
 #ifdef USE_ACC
 static bool accNeedsCalibration(void)
 {
+#ifdef SIMULATOR_BUILD
+    return false;
+#endif
     if (sensors(SENSOR_ACC)) {
 
         // Check to see if the ACC has already been calibrated
@@ -364,6 +367,10 @@ void disarm(flightLogDisarmReason_e reason)
 #endif
         BEEP_OFF;
 
+#ifdef SIMULATOR_BUILD
+        printf("[SITL] Disarmed\n");
+#endif
+
 #ifdef USE_PERSISTENT_STATS
         statsOnDisarm();
 #endif
@@ -382,7 +389,7 @@ void tryArm(void)
     }
 
     updateArmingStatus();
-
+    
     if (!isArmingDisabled()) {
         if (ARMING_FLAG(ARMED)) {
             return;
@@ -410,6 +417,9 @@ void tryArm(void)
         acroTrainerReset();
 #endif
 
+#ifdef SIMULATOR_BUILD
+        printf("[SITL] Armed\n");
+#endif
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
         }
