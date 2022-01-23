@@ -150,17 +150,16 @@ typedef enum
     Mode_Out_PP = 0x10
 } GPIO_Mode;
 
-typedef enum {RESET = 0, SET = !RESET} FlagStatus, ITStatus;
-typedef enum {DISABLE = 0, ENABLE = !DISABLE} FunctionalState;
-typedef enum {TEST_IRQ = 0 } IRQn_Type;
+typedef enum { RESET = 0, SET = !RESET } FlagStatus, ITStatus;
+typedef enum { DISABLE = 0, ENABLE = !DISABLE } FunctionalState;
+typedef enum { TEST_IRQ = 0 } IRQn_Type;
 typedef enum {
     EXTI_Trigger_Rising = 0x08,
     EXTI_Trigger_Falling = 0x0C,
     EXTI_Trigger_Rising_Falling = 0x10
 } EXTITrigger_TypeDef;
 
-typedef struct
-{
+typedef struct {
   uint32_t IDR;
   uint32_t ODR;
   uint32_t BSRR;
@@ -169,13 +168,11 @@ typedef struct
 
 #define GPIOA_BASE ((intptr_t)0x0001)
 
-typedef struct
-{
+typedef struct {
     void* test;
 } TIM_TypeDef;
 
-typedef struct
-{
+typedef struct {
     void* test;
 } TIM_OCInitTypeDef;
 
@@ -191,13 +188,11 @@ uint8_t DMA_GetFlagStatus(void *);
 void DMA_Cmd(DMA_Channel_TypeDef*, FunctionalState );
 void DMA_ClearFlag(uint32_t);
 
-typedef struct
-{
+typedef struct {
     void* test;
 } SPI_TypeDef;
 
-typedef struct
-{
+typedef struct {
     void* test;
 } USART_TypeDef;
 
@@ -218,13 +213,11 @@ typedef struct
 #define SIMULATOR_MAX_RC_CHANNELS 16
 #define SIMULATOR_MAX_PWM_CHANNELS 16
 
-typedef struct
-{
+typedef struct {
     void* test;
 } I2C_TypeDef;
 
-typedef enum
-{
+typedef enum {
   FLASH_BUSY = 1,
   FLASH_ERROR_PG,
   FLASH_ERROR_WRP,
@@ -257,6 +250,7 @@ typedef struct {
 
 void FLASH_Unlock(void);
 void FLASH_Lock(void);
+
 FLASH_Status FLASH_ErasePage(uintptr_t Page_Address);
 FLASH_Status FLASH_ProgramWord(uintptr_t addr, uint32_t Data);
 
@@ -264,9 +258,9 @@ uint64_t nanos64_real(void);
 uint64_t micros64_real(void);
 uint64_t millis64_real(void);
 void delayMicroseconds_real(uint32_t us);
+
 uint64_t micros64(void);
 uint64_t millis64(void);
 
 int lockMainPID(void);
-
 
