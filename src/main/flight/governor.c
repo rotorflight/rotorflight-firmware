@@ -322,6 +322,10 @@ static void govDebugStats(void)
 
 static void govUpdateInputs(void)
 {
+    // Update throttle state
+    govThrottle = (float)(rcCommand[THROTTLE] - PWM_RANGE_MIN) / (PWM_RANGE_MAX - PWM_RANGE_MIN);
+    govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
+
     // Assume motor[0]
     govMotorRPM = getMotorRawRPMf(0);
 
@@ -361,10 +365,6 @@ static void govUpdateInputs(void)
 
 static void govUpdateData(void)
 {
-    // Update throttle state
-    govThrottle = (float)(rcCommand[THROTTLE] - PWM_RANGE_MIN) / (PWM_RANGE_MAX - PWM_RANGE_MIN);
-    govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
-
     // Update headspeed target
     govTargetHeadSpeed = govThrottle * govFullHeadSpeed;
 
@@ -891,6 +891,14 @@ void governorUpdate(void)
 
         // Run state machine
         govStateUpdate();
+    }
+    else
+    {
+        // Straight passthrough
+        if (govThrottleLow)
+            govOutput = 0;
+        else
+            govOutput = govThrottle;
     }
 }
 
