@@ -981,8 +981,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, getRebootRequired() << 0 );
 
             sbufWriteU8(dst, getMotorCount());
+#ifdef USE_SERVOS
             sbufWriteU8(dst, getServoCount());
-
+#else
+            sbufWriteU8(dst, 0);
+#endif
             sbufWriteU8(dst, PID_PROFILE_COUNT);
             sbufWriteU8(dst, getCurrentPidProfileIndex());
             sbufWriteU8(dst, CONTROL_RATE_PROFILE_COUNT);
@@ -1669,6 +1672,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
         break;
 
+#ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER:
         for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
             sbufWriteU8(dst, rpmFilterConfig()->filter_bank_motor_index[i]);
@@ -1678,6 +1682,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, rpmFilterConfig()->filter_bank_max_hz[i]);
         }
         break;
+#endif
 
     case MSP_PID_ADVANCED:
         sbufWriteU16(dst, currentPidProfile->iterm_limit[0]);
@@ -2372,6 +2377,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gyroInitFilters();
         break;
 
+#ifdef USE_RPM_FILTER
     case MSP_SET_RPM_FILTER:
         i = sbufReadU8(src);
         if (i >= RPM_FILTER_BANK_COUNT) {
@@ -2383,6 +2389,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         rpmFilterConfigMutable()->filter_bank_min_hz[i] = sbufReadU16(src);
         rpmFilterConfigMutable()->filter_bank_max_hz[i] = sbufReadU16(src);
         break;
+#endif
 
     case MSP_SET_PID_ADVANCED:
         currentPidProfile->iterm_limit[0] = sbufReadU16(src);
