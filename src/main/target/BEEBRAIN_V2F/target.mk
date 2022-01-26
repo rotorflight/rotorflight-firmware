@@ -11,5 +11,6 @@ TARGET_SRC = \
             drivers/max7456.c
 
 ifneq ($(TARGET), BEESTORM)
+TARGET_SRC += drivers/vtx_rtc6705.c
 TARGET_SRC += drivers/vtx_rtc6705_soft_spi.c
 endif
