@@ -42,7 +42,7 @@ void targetBusInit(void)
         spiPinConfigure(spiPinConfig(0));
         sensorsPreInit();
         spiPreinit();
-        spiInit(SPIDEV_3);
+        spiInit(SPIDEV_3, false);
     }
     i2cHardwareConfigure(i2cConfig(0));
     i2cInit(I2CDEV_2);
