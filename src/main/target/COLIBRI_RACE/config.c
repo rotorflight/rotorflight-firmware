@@ -37,7 +37,7 @@ void targetBusInit(void)
 #ifdef USE_SPI
     spiPinConfigure(spiPinConfig(0));
 #ifdef USE_SPI_DEVICE_1
-    spiInit(SPIDEV_1);
+    spiInit(SPIDEV_1, false);
 #endif
 #endif
 
