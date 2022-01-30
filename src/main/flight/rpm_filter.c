@@ -1,21 +1,18 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include <math.h>
@@ -69,7 +66,7 @@ void pgResetFn_rpmFilterConfig(rpmFilterConfig_t *config)
 {
     for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
         config->filter_bank_motor_index[i] = 0;
-        config->filter_bank_gear_ratio[i]  = 1000;
+        config->filter_bank_gear_ratio[i]  = 0;
         config->filter_bank_notch_q[i]     = 250;
         config->filter_bank_min_hz[i]      = 20;
         config->filter_bank_max_hz[i]      = 4000;
@@ -78,36 +75,97 @@ void pgResetFn_rpmFilterConfig(rpmFilterConfig_t *config)
 
 void rpmFilterInit(const rpmFilterConfig_t *config)
 {
-    for (int bank = 0; bank < RPM_FILTER_BANK_COUNT; bank++) {
-        if (config->filter_bank_motor_index[bank] > 0 && config->filter_bank_motor_index[bank] <= getMotorCount()) {
-            rpmFilterBank_t *filt = &filterBank[bank];
+    const int mainMotorIndex = 1;
+    const int tailMotorIndex = mixerMotorizedTail() ? 2 : 1;
 
-            // Force bank config into reasonable limits
-            filt->motorIndex = config->filter_bank_motor_index[bank];
-            filt->rpmRatio   = constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 1000 * 60;
+    float mainGearRatio = constrainf(motorConfig()->mainRotorGearRatio[0], 1, 50000) /
+                          constrainf(motorConfig()->mainRotorGearRatio[1], 1, 50000);
+
+    float tailGearRatio = constrainf(motorConfig()->tailRotorGearRatio[0], 1, 50000) /
+                          constrainf(motorConfig()->tailRotorGearRatio[1], 1, 50000);
+
+    const bool enable1x = (getMotorCount() >= mainMotorIndex);
+    const bool enable10 = (enable1x && mainGearRatio != 1.0f);
+    const bool enable2x = (getMotorCount() >= tailMotorIndex);
+    const bool enable20 = (enable2x && tailGearRatio != 1.0f);
+
+    if (!mixerMotorizedTail())
+        tailGearRatio = mainGearRatio / tailGearRatio;
+
+    activeBankCount = 0;
+
+    for (int bank = 0; bank < RPM_FILTER_BANK_COUNT; bank++)
+    {
+        unsigned index = config->filter_bank_motor_index[bank];
+
+        // For index=10..28 min_hz and max_hz are in RPM
+        float minHz = config->filter_bank_min_hz[bank] / 60.0f;
+        float maxHz = config->filter_bank_max_hz[bank] / 60.0f;
+
+        rpmFilterBank_t *filt = &filterBank[activeBankCount];
+
+        if (config->filter_bank_motor_index[bank] == 0 ||
+            config->filter_bank_gear_ratio[bank] == 0 ||
+            config->filter_bank_notch_q[bank] == 0)
+            continue;
+
+        if (index >= 1 && index <= getMotorCount()) {
+            filt->motorIndex = index;
+            filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 1000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
-            filt->minHz      = constrainf(config->filter_bank_min_hz[bank], 20, 1000);
-            filt->maxHz      = constrainf(config->filter_bank_max_hz[bank], 100, 0.45e6 / gyro.targetLooptime);
-
-            // Init all filters @minHz. As soon as the motor is running, the filters are updated to the real RPM.
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                biquadFilterInit(&filt->notch[axis], filt->minHz, gyro.targetLooptime, filt->Q, FILTER_NOTCH);
-            }
-
-            currentBank = bank;
+            filt->minHz      = constrainf(config->filter_bank_min_hz[bank], 10, 1000);
+            filt->maxHz      = constrainf(config->filter_bank_max_hz[bank], 100, 0.45e6f / gyro.targetLooptime);
             activeBankCount++;
+        }
+        else if (index == 10 && enable10) {
+            filt->motorIndex = mainMotorIndex;
+            filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
+            filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
+            filt->minHz      = constrainf(minHz / mainGearRatio, 10, 1000);
+            filt->maxHz      = constrainf(maxHz / mainGearRatio, 100, 0.45e6f / gyro.targetLooptime);
+            activeBankCount++;
+        }
+        else if (index >= 11 && index <= 18 && enable1x) {
+            unsigned harmonic = index - 10;
+            filt->motorIndex = mainMotorIndex;
+            filt->rpmRatio   = mainGearRatio * harmonic / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
+            filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
+            filt->minHz      = constrainf(minHz * harmonic, 10, 1000);
+            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.targetLooptime);
+            activeBankCount++;
+        }
+        else if (index == 20 && enable20) {
+            filt->motorIndex = tailMotorIndex;
+            filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
+            filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
+            filt->minHz      = constrainf(minHz / tailGearRatio, 10, 1000);
+            filt->maxHz      = constrainf(maxHz / tailGearRatio, 100, 0.45e6f / gyro.targetLooptime);
+            activeBankCount++;
+        }
+        else if (index >= 21 && index <= 28 && enable2x) {
+            unsigned harmonic = index - 20;
+            filt->motorIndex = tailMotorIndex;
+            filt->rpmRatio   = tailGearRatio * harmonic / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
+            filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
+            filt->minHz      = constrainf(minHz * harmonic, 10, 1000);
+            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.targetLooptime);
+            activeBankCount++;
+        }
+    }
+
+    // Init all filters @minHz. As soon as the motor is running, the filters are updated to the real RPM.
+    for (int bank = 0; bank < activeBankCount; bank++) {
+        rpmFilterBank_t *filt = &filterBank[bank];
+        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            biquadFilterInit(&filt->notch[axis], filt->minHz, gyro.targetLooptime, filt->Q, FILTER_NOTCH);
         }
     }
 }
 
 FAST_CODE_NOINLINE float rpmFilterGyro(int axis, float value)
 {
-    if (activeBankCount > 0) {
-        for (int bank=0; bank<RPM_FILTER_BANK_COUNT; bank++) {
-            if (filterBank[bank].motorIndex) {
-                value = biquadFilterApplyDF1(&filterBank[bank].notch[axis], value);
-            }
-        }
+    for (int bank=0; bank<activeBankCount; bank++) {
+        value = biquadFilterApplyDF1(&filterBank[bank].notch[axis], value);
     }
     return value;
 }
@@ -121,7 +179,7 @@ void rpmFilterUpdate()
 
         // Calculate filter frequency
         float rpm  = getMotorRPM(filt->motorIndex - 1);
-        float freq = constrainf(rpm / filt->rpmRatio, filt->minHz, filt->maxHz);
+        float freq = constrainf(rpm * filt->rpmRatio, filt->minHz, filt->maxHz);
 
         // Notches for Roll,Pitch,Yaw
         biquadFilter_t *R = &filt->notch[0];
@@ -141,12 +199,10 @@ void rpmFilterUpdate()
         DEBUG_SET(DEBUG_RPM_FILTER, 0, currentBank);
         DEBUG_SET(DEBUG_RPM_FILTER, 1, filt->motorIndex);
         DEBUG_SET(DEBUG_RPM_FILTER, 2, rpm);
-        DEBUG_SET(DEBUG_RPM_FILTER, 3, freq);
+        DEBUG_SET(DEBUG_RPM_FILTER, 3, freq * 10);
 
         // Find next active bank - there must be at least one
-        do {
-            currentBank = (currentBank + 1) % RPM_FILTER_BANK_COUNT;
-        } while (filterBank[currentBank].motorIndex == 0);
+        currentBank = (currentBank + 1) % activeBankCount;
     }
 }
 
