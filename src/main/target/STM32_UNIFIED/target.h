@@ -303,7 +303,6 @@
 
 #define USE_CUSTOM_DEFAULTS
 
-#if 0
 #define USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D
 #define USE_RX_FRSKY_SPI_X
@@ -314,7 +313,6 @@
 #define USE_RX_CC2500_SPI_DIVERSITY
 #define USE_RX_FLYSKY
 #define USE_RX_FLYSKY_SPI_LED
-#endif
 
 #undef  USE_OSD
 #undef  USE_CMS
