@@ -537,7 +537,7 @@ static void bbWriteInt(uint8_t motorIndex, uint16_t value)
 
 static void bbWrite(uint8_t motorIndex, float value)
 {
-    bbWriteInt(motorIndex, value);
+    bbWriteInt(motorIndex, dshotConvertToInternal(motorIndex,value));
 }
 
 static void bbUpdateComplete(void)
@@ -625,8 +625,6 @@ static motorVTable_t bbVTable = {
     .write = bbWrite,
     .writeInt = bbWriteInt,
     .updateComplete = bbUpdateComplete,
-    .convertInternalToMotor = dshotConvertFromInternal,
-    .convertMotorToInternal = dshotConvertToInternal,
     .shutdown = bbShutdown,
 };
 

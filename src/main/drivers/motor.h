@@ -51,8 +51,6 @@ typedef struct motorVTable_s {
     void (*write)(uint8_t index, float value);
     void (*writeInt)(uint8_t index, uint16_t value);
     void (*updateComplete)(void);
-    float (*convertInternalToMotor)(uint16_t internalValue);
-    uint16_t (*convertMotorToInternal)(float motorValue);
 } motorVTable_t;
 
 typedef struct motorDevice_s {

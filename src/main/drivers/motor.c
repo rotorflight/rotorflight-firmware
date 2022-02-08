@@ -94,18 +94,6 @@ void motorShutdownNull(void)
 {
 }
 
-float motorConvertFromInternalNull(uint16_t value)
-{
-    UNUSED(value);
-    return 0;
-}
-
-uint16_t motorConvertToInternalNull(float value)
-{
-    UNUSED(value);
-    return 0;
-}
-
 static const motorVTable_t motorNullVTable = {
     .postInit = motorPostInitNull,
     .enable = motorEnableNull,
@@ -115,8 +103,6 @@ static const motorVTable_t motorNullVTable = {
     .write = motorWriteNull,
     .writeInt = motorWriteIntNull,
     .updateComplete = motorUpdateCompleteNull,
-    .convertInternalToMotor = motorConvertFromInternalNull,
-    .convertMotorToInternal = motorConvertToInternalNull,
     .shutdown = motorShutdownNull,
 };
 
@@ -179,16 +165,6 @@ bool checkMotorProtocolDshot(const motorDevConfig_t *motorDevConfig)
     return false;
 }
 
-float motorConvertFromInternal(uint16_t internalValue)
-{
-    return motorDevice->vTable.convertInternalToMotor(internalValue);
-}
-
-uint16_t motorConvertToInternal(float motorValue)
-{
-    return motorDevice->vTable.convertMotorToInternal(motorValue);
-}
-
 void motorShutdown(void)
 {
     motorDevice->vTable.shutdown();
@@ -209,7 +185,7 @@ void motorWriteAll(float *values)
         }
 #endif
         for (int i = 0; i < motorDevice->count; i++) {
-            motorDevice->vTable.write(i, motorConvertToInternal(values[i]));
+            motorDevice->vTable.write(i, values[i]);
         }
         motorDevice->vTable.updateComplete();
     }
