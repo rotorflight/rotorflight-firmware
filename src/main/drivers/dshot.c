@@ -47,28 +47,16 @@
 
 #include "dshot.h"
 
-float dshotConvertFromInternal(uint16_t internalValue)
+uint16_t dshotConvertToInternal(uint8_t index, float throttle)
 {
-    float motorValue;
+    UNUSED(index);
 
-    if (internalValue == DSHOT_CMD_MOTOR_STOP)
-        motorValue = 0.0f;
-    else
-        motorValue = scaleRangef(internalValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, 0, 1);
+    uint16_t value = DSHOT_CMD_MOTOR_STOP;
 
-    return motorValue;
-}
+    if (throttle > 0)
+        value = scaleRangef(throttle, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
 
-uint16_t dshotConvertToInternal(float motorValue)
-{
-    uint16_t internalValue;
-
-    if (motorValue > 0)
-        internalValue = scaleRangef(motorValue, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
-    else
-        internalValue = DSHOT_CMD_MOTOR_STOP;
-
-    return internalValue;
+    return value;
 }
 
 FAST_CODE uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb)

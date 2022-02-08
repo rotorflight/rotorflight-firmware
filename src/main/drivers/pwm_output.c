@@ -118,10 +118,24 @@ static void pwmWriteUnused(uint8_t index, float value)
     UNUSED(value);
 }
 
-static void pwmWriteStandard(uint8_t index, float value)
+static float pwmConvertToInternal(uint8_t index, float throttle)
 {
-    /* TODO: move value to be a number between 0-1 (i.e. percent throttle from mixer) */
-    *motors[index].channel.ccr = lrintf((value * motors[index].pulseScale) + motors[index].pulseOffset);
+    UNUSED(index);
+
+    float value = motorConfig()->mincommand;
+
+    if (throttle > 0)
+        value = scaleRangef(throttle, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+
+    return value;
+}
+
+static void pwmWriteStandard(uint8_t index, float throttle)
+{
+    float value = pwmConvertToInternal(index,throttle);
+    float pulse = value * motors[index].pulseScale + motors[index].pulseOffset;
+
+    *motors[index].channel.ccr = lrintf(pulse);
 }
 
 void pwmShutdownPulsesForAllMotors(void)
@@ -163,38 +177,12 @@ static void pwmCompleteOneshotMotorUpdate(void)
     }
 }
 
-static float pwmConvertFromInternal(uint16_t internalValue)
-{
-    float motorValue;
-
-    if (internalValue <= motorConfig()->mincommand)
-        motorValue = 0.0f;
-    else
-        motorValue = scaleRangef(internalValue, motorConfig()->minthrottle, motorConfig()->maxthrottle, 0, 1);
-
-    return motorValue;
-}
-
-static uint16_t pwmConvertToInternal(float motorValue)
-{
-    uint16_t internalValue;
-
-    if (motorValue > 0)
-        internalValue = scaleRangef(motorValue, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
-    else
-        internalValue = motorConfig()->mincommand;
-
-    return internalValue;
-}
-
 static motorVTable_t motorPwmVTable = {
     .postInit = motorPostInitNull,
     .enable = pwmEnableMotors,
     .disable = pwmDisableMotors,
     .isMotorEnabled = pwmIsMotorEnabled,
     .shutdown = pwmShutdownPulsesForAllMotors,
-    .convertInternalToMotor = pwmConvertFromInternal,
-    .convertMotorToInternal = pwmConvertToInternal,
 };
 
 motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
