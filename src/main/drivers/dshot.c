@@ -47,14 +47,22 @@
 
 #include "dshot.h"
 
-uint16_t dshotConvertToInternal(uint8_t index, float throttle)
+uint16_t dshotConvertToInternal(uint8_t index, uint8_t mode, float throttle)
 {
     UNUSED(index);
 
     uint16_t value = DSHOT_CMD_MOTOR_STOP;
 
-    if (throttle > 0)
-        value = scaleRangef(throttle, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    if (mode == MOTOR_CONTROL_BIDIR) {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, DSHOT_FORWARD_MIN_THROTTLE, DSHOT_FORWARD_MAX_THROTTLE);
+        else if (throttle < 0)
+            value = scaleRangef(throttle, -1, 0, DSHOT_REVERSE_MAX_THROTTLE, DSHOT_REVERSE_MIN_THROTTLE);
+    }
+    else {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    }
 
     return value;
 }

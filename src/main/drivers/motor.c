@@ -74,9 +74,10 @@ bool motorUpdateStartNull(void)
     return true;
 }
 
-void motorWriteNull(uint8_t index, float value)
+void motorWriteNull(uint8_t index, uint8_t mode, float value)
 {
     UNUSED(index);
+    UNUSED(mode);
     UNUSED(value);
 }
 
@@ -185,7 +186,7 @@ void motorWriteAll(float *values)
         }
 #endif
         for (int i = 0; i < motorDevice->count; i++) {
-            motorDevice->vTable.write(i, values[i]);
+            motorDevice->vTable.write(i, motorDevice->motorControlMode[i], values[i]);
         }
         motorDevice->vTable.updateComplete();
     }
@@ -228,6 +229,8 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
         motorDevice->initialized = true;
         motorDevice->enabled = false;
         motorDevice->motorEnableTimeMs = 0;
+        for (int motorIndex = 0; motorIndex < motorCount; motorIndex++)
+            motorDevice->motorControlMode[motorIndex] = motorDevConfig->motorControlMode[motorIndex];
     }
     else {
         motorNullDevice.vTable = motorNullVTable;

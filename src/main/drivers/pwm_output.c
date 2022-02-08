@@ -112,27 +112,34 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
 
 static FAST_RAM_ZERO_INIT motorDevice_t motorPwmDevice;
 
-static void pwmWriteUnused(uint8_t index, float value)
+static void pwmWriteUnused(uint8_t index, uint8_t mode, float value)
 {
     UNUSED(index);
+    UNUSED(mode);
     UNUSED(value);
 }
 
-static float pwmConvertToInternal(uint8_t index, float throttle)
+static float pwmConvertToInternal(uint8_t index, uint8_t mode, float throttle)
 {
     UNUSED(index);
 
     float value = motorConfig()->mincommand;
 
-    if (throttle > 0)
-        value = scaleRangef(throttle, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    if (mode == MOTOR_CONTROL_BIDIR) {
+        if (throttle != 0)
+            value = scaleRangef(throttle, -1, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    }
+    else {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    }
 
     return value;
 }
 
-static void pwmWriteStandard(uint8_t index, float throttle)
+static void pwmWriteStandard(uint8_t index, uint8_t mode, float throttle)
 {
-    float value = pwmConvertToInternal(index,throttle);
+    float value = pwmConvertToInternal(index,mode,throttle);
     float pulse = value * motors[index].pulseScale + motors[index].pulseOffset;
 
     *motors[index].channel.ccr = lrintf(pulse);

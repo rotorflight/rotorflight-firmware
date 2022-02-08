@@ -24,8 +24,13 @@
 
 #include "pg/motor.h"
 
-#define DSHOT_MIN_THROTTLE    48
-#define DSHOT_MAX_THROTTLE    2047
+#define DSHOT_MIN_THROTTLE              48
+#define DSHOT_MAX_THROTTLE            2047
+
+#define DSHOT_FORWARD_MIN_THROTTLE    1048
+#define DSHOT_FORWARD_MAX_THROTTLE    2047
+#define DSHOT_REVERSE_MIN_THROTTLE      48
+#define DSHOT_REVERSE_MAX_THROTTLE    1047
 
 #define MIN_GCR_EDGES         7
 #define MAX_GCR_EDGES         22
@@ -54,7 +59,7 @@ typedef struct dshotProtocolControl_s {
     bool requestTelemetry;
 } dshotProtocolControl_t;
 
-uint16_t dshotConvertToInternal(uint8_t index, float throttle);
+uint16_t dshotConvertToInternal(uint8_t index, uint8_t mode, float throttle);
 
 uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb);
 
