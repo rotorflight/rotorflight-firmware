@@ -43,6 +43,8 @@ typedef struct motorDevConfig_s {
     uint8_t  motorPwmInversion;             // Active-High vs Active-Low. Useful for brushed FCs converted for brushless operation
     uint8_t  motorTransportProtocol;
 
+    uint8_t  motorControlMode[MAX_SUPPORTED_MOTORS];
+
     uint8_t  useUnsyncedPwm;
     uint8_t  useBurstDshot;
     uint8_t  useDshotTelemetry;

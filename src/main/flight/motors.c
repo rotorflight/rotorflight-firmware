@@ -69,7 +69,7 @@ typedef enum {
 static FAST_RAM_ZERO_INIT uint8_t        motorCount;
 
 static FAST_RAM_ZERO_INIT float          motorOutput[MAX_SUPPORTED_MOTORS];
-static FAST_RAM_ZERO_INIT uint16_t       motorOverride[MAX_SUPPORTED_MOTORS];
+static FAST_RAM_ZERO_INIT int16_t        motorOverride[MAX_SUPPORTED_MOTORS];
 
 static FAST_RAM_ZERO_INIT float          motorRpm[MAX_SUPPORTED_MOTORS];
 static FAST_RAM_ZERO_INIT float          motorRpmRaw[MAX_SUPPORTED_MOTORS];
@@ -83,7 +83,7 @@ uint8_t getMotorCount(void)
     return motorCount;
 }
 
-uint16_t getMotorOutput(uint8_t motor)
+int16_t getMotorOutput(uint8_t motor)
 {
     return lrintf(motorOutput[motor] * 1000);
 }
@@ -93,12 +93,12 @@ bool hasMotorOverride(uint8_t motor)
     return (motorOverride[motor] != MOTOR_OVERRIDE_OFF);
 }
 
-uint16_t getMotorOverride(uint8_t motor)
+int16_t getMotorOverride(uint8_t motor)
 {
     return motorOverride[motor];
 }
 
-uint16_t setMotorOverride(uint8_t motor, uint16_t value)
+int16_t setMotorOverride(uint8_t motor, int16_t value)
 {
     return motorOverride[motor] = value;
 }
@@ -106,7 +106,7 @@ uint16_t setMotorOverride(uint8_t motor, uint16_t value)
 void resetMotorOverride(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++)
-        motorOverride[i] = 0;
+        motorOverride[i] = MOTOR_OVERRIDE_OFF;
 }
 
 bool areMotorsRunning(void)
@@ -115,7 +115,7 @@ bool areMotorsRunning(void)
         return true;
 
     for (int i = 0; i < motorCount; i++)
-        if (motorOutput[i] > 0)
+        if (motorOutput[i] != 0)
             return true;
 
     return false;
@@ -237,7 +237,7 @@ void motorUpdate(void)
         else
             output = motorOverride[i] / 1000.0f;
 
-        motorOutput[i] = constrainf(output, 0, 1);
+        motorOutput[i] = constrainf(output, -1, 1);
     }
 
     motorWriteAll(motorOutput);

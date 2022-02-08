@@ -130,9 +130,9 @@ static FAST_CODE void dshotWriteInt(uint8_t index, uint16_t value)
     pwmWriteDshotInt(index, value);
 }
 
-static FAST_CODE void dshotWrite(uint8_t index, float value)
+static FAST_CODE void dshotWrite(uint8_t index, uint8_t mode, float value)
 {
-    pwmWriteDshotInt(index, dshotConvertToInternal(index,value));
+    pwmWriteDshotInt(index, dshotConvertToInternal(index,mode,value));
 }
 
 static motorVTable_t dshotPwmVTable = {

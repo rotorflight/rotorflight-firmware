@@ -40,6 +40,10 @@ typedef enum {
     PWM_TYPE_MAX
 } motorPwmProtocolTypes_e;
 
+typedef enum {
+    MOTOR_CONTROL_UNIDIR = 0,
+    MOTOR_CONTROL_BIDIR,
+} motorControlMode_e;
 
 typedef struct motorVTable_s {
     void (*postInit)(void);
@@ -48,7 +52,7 @@ typedef struct motorVTable_s {
     void (*shutdown)(void);
     bool (*isMotorEnabled)(uint8_t index);
     bool (*updateStart)(void);
-    void (*write)(uint8_t index, float value);
+    void (*write)(uint8_t index, uint8_t mode, float value);
     void (*writeInt)(uint8_t index, uint16_t value);
     void (*updateComplete)(void);
 } motorVTable_t;
@@ -59,11 +63,12 @@ typedef struct motorDevice_s {
     bool          initialized;
     bool          enabled;
     timeMs_t      motorEnableTimeMs;
+    uint8_t       motorControlMode[MAX_SUPPORTED_MOTORS];
 } motorDevice_t;
 
 
 void motorPostInitNull();
-void motorWriteNull(uint8_t index, float value);
+void motorWriteNull(uint8_t index, uint8_t mode, float value);
 bool motorUpdateStartNull(void);
 void motorUpdateCompleteNull(void);
 

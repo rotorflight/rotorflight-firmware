@@ -986,7 +986,7 @@ static void osdElementMotorDiagnostics(osdElementParms_t *element)
     const bool motorsRunning = areMotorsRunning();
     for (; i < getMotorCount(); i++) {
         if (motorsRunning) {
-            element->buff[i] =  0x88 - getMotorOutput(i) / 125;  // 0x80..0x88
+            element->buff[i] =  0x88 - constrain(getMotorOutput(i) / 125, 0, 8);  // 0x80..0x88
         } else {
             element->buff[i] =  0x88;
         }

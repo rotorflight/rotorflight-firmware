@@ -1105,7 +1105,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->setpoint[3] = lrintf(mixerGetThrottle() * 1000);
 
     for (int i = 0; i < getMotorCount(); i++) {
-        blackboxCurrent->motor[i] = getMotorOutput(i);
+        blackboxCurrent->motor[i] = constrain(getMotorOutput(i), 0, 1000); // FIXME BiDir
     }
 
     blackboxCurrent->vbatLatest = getBatteryVoltageLatest();

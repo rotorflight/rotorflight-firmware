@@ -20,16 +20,16 @@
 #include "platform.h"
 
 #define MOTOR_OVERRIDE_OFF      0
-#define MOTOR_OVERRIDE_MIN      0
+#define MOTOR_OVERRIDE_MIN  -1000
 #define MOTOR_OVERRIDE_MAX   1000
 
 
 uint8_t getMotorCount(void);
 
-uint16_t getMotorOutput(uint8_t motor);
+int16_t getMotorOutput(uint8_t motor);
 
-uint16_t getMotorOverride(uint8_t motor);
-uint16_t setMotorOverride(uint8_t motor, uint16_t value);
+int16_t getMotorOverride(uint8_t motor);
+int16_t setMotorOverride(uint8_t motor, int16_t value);
 
 bool hasMotorOverride(uint8_t motor);
 void resetMotorOverride(void);
