@@ -146,12 +146,12 @@ float calcMotorRPMf(uint8_t motor, int erpm)
 
 int getMotorRPM(uint8_t motor)
 {
-    return lrintf(motorRpm[motor]);
+    return lrintf(fmaxf(motorRpm[motor], 0));
 }
 
 float getMotorRPMf(uint8_t motor)
 {
-    return motorRpm[motor];
+    return fmaxf(motorRpm[motor], 0);
 }
 
 int getMotorRawRPM(uint8_t motor)
@@ -211,7 +211,7 @@ void rpmSourceInit(void)
         motorRpmDiv[i] = constrain(motorConfig()->motorPoleCount[i] / 2, 1, 100);
 
         int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 250);
-        biquadFilterInitLPF(&motorRpmFilter[i], freq, gyro.targetLooptime);
+        biquadFilterInitBessel(&motorRpmFilter[i], freq, gyro.targetLooptime);
     }
 }
 
