@@ -1092,7 +1092,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
-    // Added in API version 1.42
     case MSP_MOTOR_TELEMETRY:
         sbufWriteU8(dst, getMotorCount());
         for (unsigned i = 0; i < getMotorCount(); i++) {
@@ -1130,6 +1129,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
                 motorRpm = calcMotorRPM(i, getFreqSensorRPM(i));
             }
 #endif
+
+            if (isMotorRpmSourceActive(i))
+                motorRpm = getMotorRPM(i);
 
             sbufWriteU32(dst, motorRpm);
             sbufWriteU16(dst, errorRatio);
