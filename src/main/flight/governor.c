@@ -231,6 +231,9 @@ float getHeadSpeedRatio(void)
 
 bool isSpooledUp(void)
 {
+    if (!ARMING_FLAG(ARMED))
+        return false;
+
     if (govMode > GM_OFF) {
         switch (govState)
         {
@@ -249,9 +252,12 @@ bool isSpooledUp(void)
         }
         return false;
     }
+    else {
+        if (govThrottle > 0.25f)
+            return true;
+    }
 
-    // Governor not used - assume spooled up
-    return true;
+    return false;
 }
 
 
