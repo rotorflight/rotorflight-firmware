@@ -35,7 +35,9 @@ bool hasMotorOverride(uint8_t motor);
 void resetMotorOverride(void);
 
 bool areMotorsRunning(void);
+
 bool isRpmSourceActive(void);
+bool isMotorRpmSourceActive(uint8_t motor);
 
 int getMotorRPM(uint8_t motor);
 float getMotorRPMf(uint8_t motor);

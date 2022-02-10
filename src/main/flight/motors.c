@@ -121,6 +121,11 @@ bool areMotorsRunning(void)
     return false;
 }
 
+bool isMotorRpmSourceActive(uint8_t motor)
+{
+    return (motorRpmSource[motor] != RPM_SRC_NONE);
+}
+
 bool isRpmSourceActive(void)
 {
     for (int i = 0; i < getMotorCount(); i++)
