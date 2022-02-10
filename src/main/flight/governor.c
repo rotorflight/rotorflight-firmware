@@ -921,7 +921,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         govCycWeight = pidProfile->gov_cyclic_ff_weight / 100.0f;
         govColWeight = pidProfile->gov_collective_ff_weight / 100.0f;
 
-        govFullHeadSpeed = constrainf(pidProfile->gov_headspeed, 100, 10000);
+        govFullHeadSpeed = constrainf(pidProfile->gov_headspeed, 100, 50000);
 
         govSetpointSpoolupRate  = govThrottleSpoolupRate  * govFullHeadSpeed;
         govSetpointTrackingRate = govThrottleTrackingRate * govFullHeadSpeed;
