@@ -964,6 +964,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_STATUS:
         {
+            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_PID));
+            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_GYRO));
+
             sbufWriteU16(dst, sensors(SENSOR_ACC) << 0 |
                               sensors(SENSOR_BARO) << 1 |
                               sensors(SENSOR_MAG) << 2 |
@@ -990,9 +993,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, getCurrentPidProfileIndex());
             sbufWriteU8(dst, CONTROL_RATE_PROFILE_COUNT);
             sbufWriteU8(dst, getCurrentControlRateProfileIndex());
-
-            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_PID));
-            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_GYRO));
 
             sbufWriteU8(dst, getAverageSystemLoadPercent());
             sbufWriteU8(dst, getAverageCPULoadPercent());
@@ -1073,11 +1073,16 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_MOTOR:
         for (int i = 0; i < 8; i++) {
 #ifdef USE_MOTOR
-            if (i < getMotorCount() && motorIsEnabled() && motorIsMotorEnabled(i))
-                sbufWriteU16(dst, getMotorOutput(i));
+            if (i < getMotorCount() && motorIsEnabled() && motorIsMotorEnabled(i)) {
+                const int16_t throttle = getMotorOutput(i);
+                if (throttle < 0)
+                    sbufWriteU16(dst, throttle - 1000);
+                else
+                    sbufWriteU16(dst, throttle + 1000); // compat: BLHeli
+            }
             else
 #endif
-                sbufWriteU16(dst, 0);
+                sbufWriteU16(dst, 0); // zero means motor disabled
         }
         break;
 
@@ -1244,9 +1249,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_MOTOR_CONFIG:
-        sbufWriteU16(dst, motorConfig()->mincommand);
         sbufWriteU16(dst, motorConfig()->minthrottle);
         sbufWriteU16(dst, motorConfig()->maxthrottle);
+        sbufWriteU16(dst, motorConfig()->mincommand);
+
+        sbufWriteU8(dst, MAX_SUPPORTED_MOTORS); // compat: BLHeli
 
         sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
@@ -2172,9 +2179,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MOTOR_CONFIG:
-        motorConfigMutable()->mincommand = sbufReadU16(src);
         motorConfigMutable()->minthrottle = sbufReadU16(src);
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
+        motorConfigMutable()->mincommand = sbufReadU16(src);
+
+        sbufReadU8(src); // compat: BLHeli
 
         motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
         motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
