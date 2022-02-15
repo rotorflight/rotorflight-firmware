@@ -98,7 +98,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .iterm_limit = { 500, 500, 500 },
         .iterm_decay = 25,
         .iterm_rotation = true,
-        .iterm_relax = ITERM_RELAX_RP,
+        .iterm_relax = ITERM_RELAX_RPY,
         .iterm_relax_type = ITERM_RELAX_SETPOINT,
         .iterm_relax_cutoff = { 10, 10, 10 },
         .acro_trainer_gain = 75,
