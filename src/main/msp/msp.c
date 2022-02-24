@@ -978,10 +978,23 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             packFlightModeFlags(&flightModeFlags);
             sbufWriteData(dst, &flightModeFlags, 4);
 
+            sbufWriteU8(dst, 0); // compat: profile number
+
+            sbufWriteU16(dst, getAverageSystemLoadPercent());
+            sbufWriteU16(dst, getAverageCPULoadPercent());
+
+            sbufWriteU8(dst, 0); // compat: extra flight mode flags count
+
             sbufWriteU8(dst, ARMING_DISABLE_FLAGS_COUNT);
             sbufWriteU32(dst, getArmingDisableFlags());
 
-            sbufWriteU8(dst, getRebootRequired() << 0 );
+            sbufWriteU8(dst, getRebootRequired());
+            sbufWriteU8(dst, systemConfig()->configurationState);
+
+            sbufWriteU8(dst, getCurrentPidProfileIndex());
+            sbufWriteU8(dst, PID_PROFILE_COUNT);
+            sbufWriteU8(dst, getCurrentControlRateProfileIndex());
+            sbufWriteU8(dst, CONTROL_RATE_PROFILE_COUNT);
 
             sbufWriteU8(dst, getMotorCount());
 #ifdef USE_SERVOS
@@ -989,13 +1002,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
             sbufWriteU8(dst, 0);
 #endif
-            sbufWriteU8(dst, PID_PROFILE_COUNT);
-            sbufWriteU8(dst, getCurrentPidProfileIndex());
-            sbufWriteU8(dst, CONTROL_RATE_PROFILE_COUNT);
-            sbufWriteU8(dst, getCurrentControlRateProfileIndex());
-
-            sbufWriteU8(dst, getAverageSystemLoadPercent());
-            sbufWriteU8(dst, getAverageCPULoadPercent());
         }
         break;
 
@@ -1253,17 +1259,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, motorConfig()->maxthrottle);
         sbufWriteU16(dst, motorConfig()->mincommand);
 
-        sbufWriteU8(dst, MAX_SUPPORTED_MOTORS); // compat: BLHeli
+        sbufWriteU8(dst, getMotorCount()); // compat: BLHeliSuite
+        sbufWriteU8(dst, motorConfig()->motorPoleCount[0]); // compat: BLHeliSuite
 
-        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
-        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
-        sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
-        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
 #ifdef USE_DSHOT_TELEMETRY
         sbufWriteU8(dst, motorConfig()->dev.useDshotTelemetry);
 #else
         sbufWriteU8(dst, 0);
 #endif
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
+        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
+        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
+
         for (int i = 0; i < 4; i++)
             sbufWriteU8(dst, motorConfig()->motorPoleCount[i]);
         for (int i = 0; i < 4; i++)
@@ -1632,7 +1640,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     }
 
     case MSP_ADVANCED_CONFIG:
+        sbufWriteU8(dst, 1); // compat: gyro denom
         sbufWriteU8(dst, pidConfig()->pid_process_denom);
+        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
+        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
+        sbufWriteU32(dst, 0); // compat: deprecated
         sbufWriteU8(dst, gyroConfig()->gyro_to_use);
         sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
         sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
@@ -2183,17 +2196,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
         motorConfigMutable()->mincommand = sbufReadU16(src);
 
-        sbufReadU8(src); // compat: BLHeli
+        sbufReadU8(src); // compat: motorPoleCount
 
-        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
-        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
-        motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
-        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
 #if defined(USE_DSHOT_TELEMETRY)
         motorConfigMutable()->dev.useDshotTelemetry = sbufReadU8(src);
 #else
         sbufReadU8(src);
 #endif
+        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
+        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
+        motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
+        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
+
         for (int i = 0; i < 4; i++)
             motorConfigMutable()->motorPoleCount[i] = sbufReadU8(src);
         for (int i = 0; i < 4; i++)
@@ -2336,7 +2350,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     }
 
     case MSP_SET_ADVANCED_CONFIG:
+        sbufReadU8(src);  // compat: gyro denom
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
+        sbufReadU32(src); // compat: deprecated
+        sbufReadU32(src);
         gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
         gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
         gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
