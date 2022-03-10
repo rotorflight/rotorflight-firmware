@@ -1002,6 +1002,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
             sbufWriteU8(dst, 0);
 #endif
+            sbufWriteU8(dst, getGyroDetectionFlags());
         }
         break;
 
@@ -1600,44 +1601,20 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
 
-    case MSP_SENSOR_ALIGNMENT: {
-        uint8_t gyroAlignment;
+    case MSP_SENSOR_ALIGNMENT:
 #ifdef USE_MULTI_GYRO
-        switch (gyroConfig()->gyro_to_use) {
-        case GYRO_CONFIG_USE_GYRO_2:
-            gyroAlignment = gyroDeviceConfig(1)->alignment;
-            break;
-        case GYRO_CONFIG_USE_GYRO_BOTH:
-            // for dual-gyro in "BOTH" mode we only read/write gyro 0
-        default:
-            gyroAlignment = gyroDeviceConfig(0)->alignment;
-            break;
-        }
+        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
+        sbufWriteU8(dst, gyroDeviceConfig(1)->alignment);
 #else
-        gyroAlignment = gyroDeviceConfig(0)->alignment;
+        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
+        sbufWriteU8(dst, ALIGN_DEFAULT);
 #endif
-        sbufWriteU8(dst, gyroAlignment);
-        sbufWriteU8(dst, gyroAlignment);  // Starting with 4.0 gyro and acc alignment are the same
 #if defined(USE_MAG)
         sbufWriteU8(dst, compassConfig()->mag_alignment);
 #else
         sbufWriteU8(dst, 0);
 #endif
-
-        // API 1.41 - Add multi-gyro indicator, selected gyro, and support for separate gyro 1 & 2 alignment
-        sbufWriteU8(dst, getGyroDetectionFlags());
-#ifdef USE_MULTI_GYRO
-        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
-        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
-        sbufWriteU8(dst, gyroDeviceConfig(1)->alignment);
-#else
-        sbufWriteU8(dst, GYRO_CONFIG_USE_GYRO_1);
-        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
-        sbufWriteU8(dst, ALIGN_DEFAULT);
-#endif
-
         break;
-    }
 
     case MSP_ADVANCED_CONFIG:
         sbufWriteU8(dst, 1); // compat: gyro denom
@@ -1646,12 +1623,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
         sbufWriteU32(dst, 0); // compat: deprecated
-        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
-        sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
-        sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
-        sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
-        sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
-        sbufWriteU8(dst, gyroConfig()->checkOverflow);
+        sbufWriteU32(dst, 0);
+        sbufWriteU32(dst, 0);
         break;
 
     case MSP_FILTER_CONFIG:
@@ -1765,6 +1738,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
         sbufWriteU8(dst, MAG_NONE);
 #endif
+        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
+        sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
+        sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
+        sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
+        sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
+        sbufWriteU8(dst, gyroConfig()->checkOverflow);
         break;
 
 #if defined(USE_VTX_COMMON)
@@ -2308,44 +2287,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_SENSOR_ALIGNMENT: {
-        // maintain backwards compatibility for API < 1.41
-        const uint8_t gyroAlignment = sbufReadU8(src);
-        sbufReadU8(src);  // discard deprecated acc_align
+        gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
+        gyroDeviceConfigMutable(1)->alignment = sbufReadU8(src);
 #if defined(USE_MAG)
         compassConfigMutable()->mag_alignment = sbufReadU8(src);
 #else
         sbufReadU8(src);
 #endif
-
-        if (sbufBytesRemaining(src) >= 3) {
-            // API >= 1.41 - support the gyro_to_use and alignment for gyros 1 & 2
-#ifdef USE_MULTI_GYRO
-            gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
-            gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
-            gyroDeviceConfigMutable(1)->alignment = sbufReadU8(src);
-#else
-            sbufReadU8(src);  // unused gyro_to_use
-            gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
-            sbufReadU8(src);  // unused gyro_2_sensor_align
-#endif
-        } else {
-            // maintain backwards compatibility for API < 1.41
-#ifdef USE_MULTI_GYRO
-            switch (gyroConfig()->gyro_to_use) {
-            case GYRO_CONFIG_USE_GYRO_2:
-                gyroDeviceConfigMutable(1)->alignment = gyroAlignment;
-                break;
-            case GYRO_CONFIG_USE_GYRO_BOTH:
-                // For dual-gyro in "BOTH" mode we'll only update gyro 0
-            default:
-                gyroDeviceConfigMutable(0)->alignment = gyroAlignment;
-                break;
-            }
-#else
-            gyroDeviceConfigMutable(0)->alignment = gyroAlignment;
-#endif
-
-        }
         break;
     }
 
@@ -2354,13 +2302,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
         sbufReadU32(src); // compat: deprecated
         sbufReadU32(src);
-        gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
-        gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
-        gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
-        gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
-        gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
-        gyroConfigMutable()->checkOverflow = sbufReadU8(src);
-        validateAndFixGyroConfig();
+        sbufReadU32(src);
+        sbufReadU32(src);
         break;
 
     case MSP_SET_FILTER_CONFIG:
@@ -2480,6 +2423,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #else
         sbufReadU8(src);
 #endif
+        gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
+        gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
+        gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
+        gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
+        gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
+        gyroConfigMutable()->checkOverflow = sbufReadU8(src);
+        validateAndFixGyroConfig();
         break;
 
 #ifdef USE_ACC
