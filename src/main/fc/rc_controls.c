@@ -118,6 +118,8 @@ throttleStatus_e calculateThrottleStatus(void)
 
 void processRcStickPositions()
 {
+    // Use collective instead of throttle
+    static const uint8_t chMap[] = { ROLL, PITCH, YAW, COLLECTIVE };
     // time the sticks are maintained
     static int16_t rcDelayMs;
     // hold sticks position for command combos
@@ -129,11 +131,12 @@ void processRcStickPositions()
     // checking sticks positions
     uint8_t stTmp = 0;
     for (int i = 0; i < 4; i++) {
+        const uint8_t ch = chMap[i];
         stTmp >>= 2;
-        if (rcData[i] > rxConfig()->mincheck) {
+        if (rcData[ch] > rxConfig()->mincheck) {
             stTmp |= 0x80;  // check for MIN
         }
-        if (rcData[i] < rxConfig()->maxcheck) {
+        if (rcData[ch] < rxConfig()->maxcheck) {
             stTmp |= 0x40;  // check for MAX
         }
     }
