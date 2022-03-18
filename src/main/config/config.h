@@ -58,6 +58,7 @@ typedef struct systemConfig_s {
     uint8_t configurationState; // The state of the configuration (defaults / configured)
     uint8_t schedulerOptimizeRate;
     uint8_t enableStickArming; // boolean that determines whether stick arming can be used
+    uint8_t enableStickCommands; // boolean that determines whether stick commands can be used
 } systemConfig_t;
 
 PG_DECLARE(systemConfig_t, systemConfig);

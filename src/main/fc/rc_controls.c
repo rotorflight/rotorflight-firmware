@@ -67,7 +67,8 @@
 #include "rc_controls.h"
 
 // true if arming is done via the sticks (as opposed to a switch)
-static bool isUsingSticksToArm = true;
+static bool isUsingStickArming = true;
+static bool isUsingStickCommands = true;
 
 float rcCommand[5];           // interval [1000;2000] for THROTTLE and [-500;+500] for ROLL/PITCH/YAW/COLLECTIVE
 
@@ -90,7 +91,7 @@ PG_RESET_TEMPLATE(armingConfig_t, armingConfig,
 
 bool isUsingSticksForArming(void)
 {
-    return isUsingSticksToArm;
+    return isUsingStickArming;
 }
 
 bool areSticksInApModePosition(uint16_t ap_mode)
@@ -147,7 +148,7 @@ void processRcStickPositions()
     rcSticks = stTmp;
 
     // perform actions
-    if (!isUsingSticksToArm) {
+    if (!isUsingStickArming) {
         if (IS_RC_MODE_ACTIVE(BOXARM)) {
             rcDisarmTicks = 0;
             // Arming via ARM BOX
@@ -201,6 +202,10 @@ void processRcStickPositions()
     }
     doNotRepeat = true;
 
+    // Stick commands in use
+    if (!isUsingStickCommands)
+        return;
+
     // actions during not armed
 
     if (rcSticks == THR_LO + YAW_LO + PIT_LO + ROL_CE) {
@@ -218,7 +223,6 @@ void processRcStickPositions()
             baroSetGroundLevel();
         }
 #endif
-
         return;
     }
 
@@ -260,7 +264,6 @@ void processRcStickPositions()
     if (rcSticks == THR_HI + YAW_HI + PIT_LO + ROL_CE) {
         // Calibrating Mag
         compassStartCalibration();
-
         return;
     }
 #endif
@@ -362,5 +365,6 @@ int32_t getRcStickDeflection(int32_t axis, uint16_t midrc) {
 void rcControlsInit(void)
 {
     analyzeModeActivationConditions();
-    isUsingSticksToArm = !isModeActivationConditionPresent(BOXARM) && systemConfig()->enableStickArming;
+    isUsingStickArming = !isModeActivationConditionPresent(BOXARM) && systemConfig()->enableStickArming;
+    isUsingStickCommands = systemConfig()->enableStickCommands;
 }
