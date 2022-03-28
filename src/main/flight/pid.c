@@ -639,6 +639,14 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     DEBUG_SET(DEBUG_YAW_PRECOMP, 1, lrintf(tailCollectiveFF));
     DEBUG_SET(DEBUG_YAW_PRECOMP, 2, lrintf(tailCollectiveImpulseFF));
     DEBUG_SET(DEBUG_YAW_PRECOMP, 3, lrintf(tailPrecomp));
+
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 0, cyclicDeflection * 1000);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 1, tailCyclicFF * 10);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 2, collectiveDeflection * 1000);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 3, tailCollectiveFF * 10);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 4, collectiveDeflectionHPF * 1000);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 5, tailCollectiveImpulseFF * 10);
+    DEBUG32_SET(DEBUG_YAW_PRECOMP, 6, tailPrecomp * 10);
 }
 
 static FAST_CODE void pidNormaliseCollective(void)
