@@ -1210,10 +1210,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_PID:
         for (int i = 0; i < PID_ITEM_COUNT; i++) {
-            sbufWriteU8(dst, currentPidProfile->pid[i].P);
-            sbufWriteU8(dst, currentPidProfile->pid[i].I);
-            sbufWriteU8(dst, currentPidProfile->pid[i].D);
-            sbufWriteU8(dst, currentPidProfile->pid[i].F);
+            sbufWriteU16(dst, currentPidProfile->pid[i].P);
+            sbufWriteU16(dst, currentPidProfile->pid[i].I);
+            sbufWriteU16(dst, currentPidProfile->pid[i].D);
+            sbufWriteU16(dst, currentPidProfile->pid[i].F);
         }
         break;
 
@@ -1699,9 +1699,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, currentPidProfile->yaw_center_offset);
         sbufWriteU8(dst, currentPidProfile->yaw_cw_stop_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_ccw_stop_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_cyclic_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
         sbufWriteU8(dst, currentPidProfile->cyclic_normalization);
         sbufWriteU8(dst, currentPidProfile->collective_normalization);
@@ -2099,10 +2099,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_PID:
         for (int i = 0; i < PID_ITEM_COUNT; i++) {
-            currentPidProfile->pid[i].P = sbufReadU8(src);
-            currentPidProfile->pid[i].I = sbufReadU8(src);
-            currentPidProfile->pid[i].D = sbufReadU8(src);
-            currentPidProfile->pid[i].F = sbufReadU8(src);
+            currentPidProfile->pid[i].P = sbufReadU16(src);
+            currentPidProfile->pid[i].I = sbufReadU16(src);
+            currentPidProfile->pid[i].D = sbufReadU16(src);
+            currentPidProfile->pid[i].F = sbufReadU16(src);
         }
         pidInitProfile(currentPidProfile);
         break;
@@ -2380,9 +2380,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->yaw_center_offset = sbufReadU16(src);
         currentPidProfile->yaw_cw_stop_gain = sbufReadU8(src);
         currentPidProfile->yaw_ccw_stop_gain = sbufReadU8(src);
-        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
-        currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
-        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU8(src);
+        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU16(src);
         currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU8(src);
         currentPidProfile->cyclic_normalization = sbufReadU8(src);
         currentPidProfile->collective_normalization = sbufReadU8(src);
