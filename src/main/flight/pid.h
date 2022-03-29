@@ -96,10 +96,10 @@ typedef enum {
 } normalization_e;
 
 typedef struct pidf_s {
-    uint8_t P;
-    uint8_t I;
-    uint8_t D;
-    uint8_t F;
+    uint16_t P;
+    uint16_t I;
+    uint16_t D;
+    uint16_t F;
 } pidf_t;
 
 typedef struct pidCoefficient_s {
@@ -176,9 +176,9 @@ typedef struct pidProfile_s
     int16_t   yaw_center_offset;              // Yaw zero offset
     uint8_t   yaw_cw_stop_gain;               // Yaw clockwise stop gain
     uint8_t   yaw_ccw_stop_gain;              // Yaw counter-clockwise stop gain
-    uint8_t   yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
-    uint8_t   yaw_collective_ff_gain;         // Feedforward for collective into Yaw
-    uint8_t   yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
+    uint16_t  yaw_cyclic_ff_gain;             // Feedforward for cyclic into Yaw
+    uint16_t  yaw_collective_ff_gain;         // Feedforward for collective into Yaw
+    uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
     uint8_t   yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
 
     uint8_t   cyclic_normalization;           // Type of pitch/roll rate normalization
