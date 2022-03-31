@@ -95,7 +95,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .horizon_transition = 75,
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
-        .iterm_limit = { 500, 500, 500 },
+        .iterm_limit = { 400, 400, 400 },
         .iterm_decay = 25,
         .iterm_rotation = true,
         .iterm_relax = ITERM_RELAX_RPY,
