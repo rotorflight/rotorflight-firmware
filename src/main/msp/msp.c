@@ -1830,6 +1830,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_lost_headspeed_timeout);
         sbufWriteU16(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU16(dst, governorConfig()->gov_rpm_filter);
+        sbufWriteU16(dst, governorConfig()->gov_tta_filter);
 
         break;
 
@@ -3026,6 +3027,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_lost_headspeed_timeout = sbufReadU16(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU16(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU16(src);
+        governorConfigMutable()->gov_tta_filter = sbufReadU16(src);
         break;
 
     default:

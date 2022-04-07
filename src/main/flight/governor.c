@@ -77,6 +77,7 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_min_entry_time = 10,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
+    .gov_tta_filter = 200,
     .gov_ff_exponent = 150,
     .gov_vbat_offset = 0,
 );
@@ -157,6 +158,7 @@ static FAST_RAM_ZERO_INIT float govBatOffset;
 static FAST_RAM_ZERO_INIT float govTTAMull;
 static FAST_RAM_ZERO_INIT float govTTAGain;
 static FAST_RAM_ZERO_INIT float govTTALimit;
+static FAST_RAM_ZERO_INIT biquadFilter_t govTTAFilter;
 
 
 //// Prototypes
@@ -385,7 +387,7 @@ static void govUpdateData(void)
 
     // Tail Torque Assist
     if (mixerMotorizedTail() && govTTAGain != 0) {
-        float TTA = govTTAGain * mixerGetInput(MIXER_IN_STABILIZED_YAW);
+        float TTA = govTTAGain * biquadFilterApply(&govTTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
         govTTAMull = constrainf(TTA, 0, govTTALimit) + 1.0f;
     }
     else {
@@ -995,9 +997,12 @@ void governorInit(const pidProfile_t *pidProfile)
         govLostThrottleTimeout  = governorConfig()->gov_lost_throttle_timeout * 100;
         govLostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
-        biquadFilterInitBessel(&govVoltageFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
-        biquadFilterInitBessel(&govCurrentFilter, governorConfig()->gov_pwr_filter, pidGetLooptime());
-        biquadFilterInitBessel(&govMotorRPMFilter, governorConfig()->gov_rpm_filter, pidGetLooptime());
+        const float maxFreq = pidGetPidFrequency() / 4;
+
+        biquadFilterInitBessel(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), pidGetLooptime());
+        biquadFilterInitBessel(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), pidGetLooptime());
+        biquadFilterInitBessel(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), pidGetLooptime());
+        biquadFilterInitBessel(&govTTAFilter, constrainf(governorConfig()->gov_tta_filter, 1, maxFreq), pidGetLooptime());
 
         governorInitProfile(pidProfile);
     }
