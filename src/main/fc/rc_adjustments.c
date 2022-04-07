@@ -127,9 +127,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(GOV_COLLECTIVE_FF,  GOV,   0, 200),
 
     ADJ_CONFIG(OSD_PROFILE,        NONE,  1,  3),
-    ADJ_CONFIG(LED_PROFILE,        NONE,  0,  2),
-    ADJ_CONFIG(PID_PROFILE,        NONE,  0,  5),
-    ADJ_CONFIG(RATE_PROFILE,       NONE,  0,  5),
+    ADJ_CONFIG(LED_PROFILE,        NONE,  1,  3),
+    ADJ_CONFIG(PID_PROFILE,        NONE,  1,  6),
+    ADJ_CONFIG(RATE_PROFILE,       NONE,  1,  6),
 };
 
 
@@ -259,10 +259,10 @@ static int getAdjustmentValue(uint8_t adjFunc)
         value = currentPidProfile->gov_collective_ff_weight;
         break;
     case ADJUSTMENT_RATE_PROFILE:
-        value = getCurrentControlRateProfileIndex();
+        value = getCurrentControlRateProfileIndex() + 1;
         break;
     case ADJUSTMENT_PID_PROFILE:
-        value = getCurrentPidProfileIndex();
+        value = getCurrentPidProfileIndex() + 1;
         break;
     case ADJUSTMENT_OSD_PROFILE:
 #ifdef USE_OSD_PROFILES
@@ -271,7 +271,7 @@ static int getAdjustmentValue(uint8_t adjFunc)
         break;
     case ADJUSTMENT_LED_PROFILE:
 #ifdef USE_LED_STRIP
-        value = getLedProfile();
+        value = getLedProfile() + 1;
 #endif
         break;
     }
@@ -403,10 +403,10 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         currentPidProfile->gov_collective_ff_weight = value;
         break;
     case ADJUSTMENT_RATE_PROFILE:
-        changeControlRateProfile(value);
+        changeControlRateProfile(value - 1);
         break;
     case ADJUSTMENT_PID_PROFILE:
-        changePidProfile(value);
+        changePidProfile(value - 1);
         break;
     case ADJUSTMENT_OSD_PROFILE:
 #ifdef USE_OSD_PROFILES
@@ -415,7 +415,7 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         break;
     case ADJUSTMENT_LED_PROFILE:
 #ifdef USE_LED_STRIP
-        setLedProfile(value);
+        setLedProfile(value - 1);
 #endif
         break;
     }
