@@ -74,7 +74,7 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_lost_headspeed_timeout = 10,
     .gov_autorotation_timeout = 0,
     .gov_autorotation_bailout_time = 0,
-    .gov_autorotation_min_entry_time = 10,
+    .gov_autorotation_min_entry_time = 50,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
     .gov_tta_filter = 200,
@@ -987,7 +987,7 @@ void governorInit(const pidProfile_t *pidProfile)
         govAutoEnabled  = (governorConfig()->gov_autorotation_timeout > 0 &&
                            governorConfig()->gov_autorotation_bailout_time > 0);
         govAutoTimeout  = governorConfig()->gov_autorotation_timeout * 100;
-        govAutoMinEntry = governorConfig()->gov_autorotation_min_entry_time * 1000;
+        govAutoMinEntry = governorConfig()->gov_autorotation_min_entry_time * 100;
 
         govThrottleSpoolupRate  = govCalcRate(governorConfig()->gov_spoolup_time, 1, 600);
         govThrottleTrackingRate = govCalcRate(governorConfig()->gov_tracking_time, 1, 100);
