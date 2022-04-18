@@ -556,11 +556,16 @@ int getAdjustmentsRangeValue(void)
 
 void adjustmentRangeInit(void)
 {
-    memset(adjustmentStates, 0, sizeof(adjustmentStates));
+    for (int index = 0; index < MAX_ADJUSTMENT_RANGE_COUNT; index++) {
+        adjustmentRangeReset(index);
+    }
 }
 
 void adjustmentRangeReset(int index)
 {
-    memset(&adjustmentStates[index], 0, sizeof(adjustmentState_t));
+    const adjustmentRange_t *adjRange = adjustmentRanges(index);
+
+    adjustmentStates[index].timer = 0;
+    adjustmentStates[index].value = getAdjustmentValue(adjRange->adjFunction);
 }
 
