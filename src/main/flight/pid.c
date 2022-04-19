@@ -769,7 +769,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     UNUSED(currentTimeUs);
 
     // Headspeed ratio for normalization
-    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), 0.7f, 1.25f);
+    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), 0.5f, 1.25f);
 
     // Rotate error around yaw axis
 #ifdef USE_ITERM_ROTATION
