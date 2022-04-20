@@ -50,7 +50,14 @@
 #include "sensors/gyro.h"
 
 
-PG_REGISTER(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
+
+PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
+    .main_rotor_dir = DIR_CW,
+    .tail_rotor_mode = TAIL_MODE_VARIABLE,
+    .tail_motor_idle = 0,
+    .swash_ring = 0,
+);
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
 
@@ -111,8 +118,8 @@ static void mixerCyclicLimit(void)
         const float maxP = ABS((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
 
         // Stretch the limits to the unit circle
-        SR /= MAX(maxR, 0.001f) * cyclicLimit;
-        SP /= MAX(maxP, 0.001f) * cyclicLimit;
+        SR /= fmaxf(maxR, 0.001f) * cyclicLimit;
+        SP /= fmaxf(maxP, 0.001f) * cyclicLimit;
 
         // Stretched cyclic deflection
         const float cyclic = sqrtf(sq(SR) + sq(SP));
@@ -133,38 +140,53 @@ static void mixerCyclicLimit(void)
                         sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
 }
 
-
-void mixerInit(void)
+static void mixerUpdateMotorizedTail(void)
 {
-    for (int i = 0; i < MIXER_RULE_COUNT; i++)
-    {
-        const mixerRule_t *rule = mixerRules(i);
+    // Motorized tail control
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
+        // Yaw input value
+        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
 
-        if (rule->oper) {
-            rules[i].mode    = rule->mode;
-            rules[i].oper    = constrain(rule->oper, 0, MIXER_OP_COUNT - 1);
-            rules[i].input   = constrain(rule->input, 0, MIXER_INPUT_COUNT - 1);
-            rules[i].output  = constrain(rule->output, 0, MIXER_OUTPUT_COUNT - 1);
-            rules[i].offset  = constrain(rule->offset, MIXER_INPUT_MIN, MIXER_INPUT_MAX);
-            rules[i].weight  = constrain(rule->weight, MIXER_WEIGHT_MIN, MIXER_WEIGHT_MAX);
+        // Thrust linearization
+        float throttle = sqrtf(fmaxf(yaw,0));
+
+        // Apply minimum throttle
+        if (isSpooledUp()) {
+            throttle = fmaxf(throttle, tailMotorIdle);
+        } else {
+            if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+                throttle = 0;
+            else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
+                throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
         }
+
+        // Yaw is now tail motor throttle
+        mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
     }
+    else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
+        // Yaw input value
+        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
 
-    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
-        mixOverride[i] = MIXER_OVERRIDE_OFF;
+        // Thrust linearization
+        float throttle = copysignf(sqrtf(fabsf(yaw)),yaw);
+
+        // Apply minimum throttle
+        if (isSpooledUp()) {
+            if (throttle > -tailMotorIdle && throttle < tailMotorIdle)
+                throttle = tailMotorDirection * tailMotorIdle;
+        } else {
+            if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+                throttle = 0;
+            else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
+                throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
+        }
+
+        // Direction sign
+        tailMotorDirection = (throttle < 0) ? -1 : 1;
+
+        // Yaw is now tail motor throttle
+        mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
     }
-
-    tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
-
-    if (mixerConfig()->swash_ring)
-        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
-    else
-        cyclicLimit = 0;
-}
-
-static inline int signf(float x)
-{
-    return signbit(x) ? -1 : 1;
 }
 
 static void mixerUpdateInputs(void)
@@ -206,51 +228,9 @@ static void mixerUpdateInputs(void)
     // Update throttle from governor
     mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
-    // Motorized tail control
-    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        // Yaw input value
-        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
-
-        // Thrust linearization
-        float throttle = sqrtf(fmaxf(yaw,0));
-
-        // Apply minimum throttle
-        if (isSpooledUp()) {
-            throttle = MAX(throttle, tailMotorIdle);
-        } else {
-            if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
-                throttle = 0;
-            else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
-                throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
-        }
-
-        // Yaw is now tail motor throttle
-        mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
-    }
-    else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
-        // Yaw input value
-        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
-
-        // Thrust linearization
-        float throttle = copysignf(sqrtf(fabsf(yaw)),yaw);
-
-        // Apply minimum throttle
-        if (isSpooledUp()) {
-            if (throttle > -tailMotorIdle && throttle < tailMotorIdle)
-                throttle = tailMotorDirection * tailMotorIdle;
-        } else {
-            if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
-                throttle = 0;
-            else if (mixInput[MIXER_IN_STABILIZED_THROTTLE] < 0.25f)
-                throttle *= mixInput[MIXER_IN_STABILIZED_THROTTLE] / 0.25f;
-        }
-
-        // Direction sign
-        tailMotorDirection = signf(throttle);
-
-        // Yaw is now tail motor throttle
-        mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
-    }
+    // Update motorized tail
+    if (mixerMotorizedTail())
+        mixerUpdateMotorizedTail();
 }
 
 void mixerUpdate(void)
@@ -299,6 +279,35 @@ void mixerUpdate(void)
         }
     }
 }
+
+void mixerInit(void)
+{
+    for (int i = 0; i < MIXER_RULE_COUNT; i++)
+    {
+        const mixerRule_t *rule = mixerRules(i);
+
+        if (rule->oper) {
+            rules[i].mode    = rule->mode;
+            rules[i].oper    = constrain(rule->oper, 0, MIXER_OP_COUNT - 1);
+            rules[i].input   = constrain(rule->input, 0, MIXER_INPUT_COUNT - 1);
+            rules[i].output  = constrain(rule->output, 0, MIXER_OUTPUT_COUNT - 1);
+            rules[i].offset  = constrain(rule->offset, MIXER_INPUT_MIN, MIXER_INPUT_MAX);
+            rules[i].weight  = constrain(rule->weight, MIXER_WEIGHT_MIN, MIXER_WEIGHT_MAX);
+        }
+    }
+
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
+        mixOverride[i] = MIXER_OVERRIDE_OFF;
+    }
+
+    tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
+
+    if (mixerConfig()->swash_ring)
+        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
+    else
+        cyclicLimit = 0;
+}
+
 
 bool mixerSaturated(uint8_t index)
 {
