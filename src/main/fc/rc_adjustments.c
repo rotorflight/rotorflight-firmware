@@ -497,6 +497,8 @@ void processRcAdjustments(void)
                         steps = adjRange->adjStep;
                     else if (delta < -200)
                         steps = -adjRange->adjStep;
+                    else
+                        continue;
 
                     newValue = getAdjustmentValue(adjFunc) + steps;
                 }
