@@ -123,6 +123,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_impulse_freq = 100,
         .cyclic_normalization = NORM_ABSOLUTE,
         .collective_normalization = NORM_NATURAL,
+        .normalization_min_ratio = 50,
         .rescue_collective = 0,
         .rescue_boost = 0,
         .rescue_delay = 35,
@@ -179,6 +180,7 @@ static FAST_RAM_ZERO_INIT float collectiveCommand;
 
 static FAST_RAM_ZERO_INIT uint8_t cyclicNormalization;
 static FAST_RAM_ZERO_INIT uint8_t collectiveNormalization;
+static FAST_RAM_ZERO_INIT float normalizationMinRatio;
 
 #ifdef USE_ITERM_RELAX
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
@@ -348,6 +350,7 @@ void pidInitProfile(const pidProfile_t *pidProfile)
     // Normalization mode
     cyclicNormalization = pidProfile->cyclic_normalization;
     collectiveNormalization = pidProfile->collective_normalization;
+    normalizationMinRatio = pidProfile->normalization_min_ratio / 100.0f;
 
     // Collective impulse high-pass filter
     collectiveImpulseFilterGain = pt1FilterGain(pidProfile->yaw_collective_ff_impulse_freq / 100.0f, dT);
@@ -769,7 +772,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     UNUSED(currentTimeUs);
 
     // Headspeed ratio for normalization
-    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), 0.5f, 1.25f);
+    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), normalizationMinRatio, 1.25f);
 
     // Rotate error around yaw axis
 #ifdef USE_ITERM_ROTATION

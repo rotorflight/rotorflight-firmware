@@ -183,6 +183,7 @@ typedef struct pidProfile_s
 
     uint8_t   cyclic_normalization;           // Type of pitch/roll rate normalization
     uint8_t   collective_normalization;       // Type of collective normalization
+    uint8_t   normalization_min_ratio;        // Minimum headspeed ratio for normalization
 
     uint16_t  rescue_collective;              // Collective value for rescue
     uint16_t  rescue_boost;                   // Add  boost to rescue_collective until delay has expired

@@ -995,6 +995,7 @@ const clivalue_t valueTable[] = {
 
     { "cyclic_normalization",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_NORMALIZATION }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_normalization) },
     { "collective_normalization",   VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_NORMALIZATION }, PG_PID_PROFILE, offsetof(pidProfile_t, collective_normalization) },
+    { "normalization_min_ratio",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, normalization_min_ratio) },
 
     { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_strength) },
     { "angle_level_limit",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle_level_limit) },
