@@ -63,6 +63,7 @@
 #define JEDEC_ID_WINBOND_W25Q16        0xEF4015
 #define JEDEC_ID_WINBOND_W25Q32        0xEF4016
 #define JEDEC_ID_WINBOND_W25Q64        0xEF4017
+#define JEDEC_ID_WINBOND_W25Q64_DTR    0xEF7017
 #define JEDEC_ID_WINBOND_W25Q128       0xEF4018
 #define JEDEC_ID_WINBOND_W25Q128_DTR   0xEF7018
 #define JEDEC_ID_CYPRESS_S25FL128L     0x016018
@@ -196,6 +197,7 @@ bool m25p16_detect(flashDevice_t *fdevice, uint32_t chipID)
         break;
     case JEDEC_ID_MICRON_N25Q064:
     case JEDEC_ID_WINBOND_W25Q64:
+    case JEDEC_ID_WINBOND_W25Q64_DTR:
     case JEDEC_ID_MACRONIX_MX25L6406E:
         fdevice->geometry.sectors = 128;
         fdevice->geometry.pagesPerSector = 256;
