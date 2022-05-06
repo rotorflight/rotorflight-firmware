@@ -28,9 +28,6 @@
 typedef struct mixerRuntime_s {
     uint8_t motorCount;
     motorMixer_t currentMixer[MAX_SUPPORTED_MOTORS];
-#ifdef USE_LAUNCH_CONTROL
-    motorMixer_t launchControlMixer[MAX_SUPPORTED_MOTORS];
-#endif
     bool feature3dEnabled;
     float motorOutputLow;
     float motorOutputHigh;
