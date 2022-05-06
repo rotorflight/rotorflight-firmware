@@ -336,7 +336,7 @@ FAST_CODE_NOINLINE void failsafeUpdateState(void)
                     if (armed) {
                         beeperMode = BEEPER_RX_LOST_LANDING;
                     }
-                    if (failsafeShouldHaveCausedLandingByNow() || crashRecoveryModeActive() || !armed) {
+                    if (failsafeShouldHaveCausedLandingByNow() || !armed) {
                         // to manually disarm while Landing, aux channels must be enabled
                         failsafeState.phase = FAILSAFE_LANDED;
                         reprocessState = true;

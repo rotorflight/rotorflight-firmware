@@ -793,50 +793,6 @@ static void osdBackgroundCraftName(osdElementParms_t *element)
     }
 }
 
-#ifdef USE_ACC
-static void osdElementCrashFlipArrow(osdElementParms_t *element)
-{
-    int rollAngle = attitude.values.roll / 10;
-    const int pitchAngle = attitude.values.pitch / 10;
-    if (abs(rollAngle) > 90) {
-        rollAngle = (rollAngle < 0 ? -180 : 180) - rollAngle;
-    }
-
-    if ((isFlipOverAfterCrashActive() || (!ARMING_FLAG(ARMED) && !isUpright())) && !((imuConfig()->small_angle < 180 && isUpright()) || (rollAngle == 0 && pitchAngle == 0))) {
-        if (abs(pitchAngle) < 2 * abs(rollAngle) && abs(rollAngle) < 2 * abs(pitchAngle)) {
-            if (pitchAngle > 0) {
-                if (rollAngle > 0) {
-                    element->buff[0] = SYM_ARROW_WEST + 2;
-                } else {
-                    element->buff[0] = SYM_ARROW_EAST - 2;
-                }
-            } else {
-                if (rollAngle > 0) {
-                    element->buff[0] = SYM_ARROW_WEST - 2;
-                } else {
-                    element->buff[0] = SYM_ARROW_EAST + 2;
-                }
-            }
-        } else {
-            if (abs(pitchAngle) > abs(rollAngle)) {
-                if (pitchAngle > 0) {
-                    element->buff[0] = SYM_ARROW_SOUTH;
-                } else {
-                    element->buff[0] = SYM_ARROW_NORTH;
-                }
-            } else {
-                if (rollAngle > 0) {
-                    element->buff[0] = SYM_ARROW_WEST;
-                } else {
-                    element->buff[0] = SYM_ARROW_EAST;
-                }
-            }
-        }
-        element->buff[1] = '\0';
-    }
-}
-#endif // USE_ACC
-
 static void osdElementCrosshairs(osdElementParms_t *element)
 {
     element->buff[0] = SYM_AH_CENTER_LINE;
@@ -1628,9 +1584,6 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_MOTOR_DIAG]              = osdElementMotorDiagnostics,
 #ifdef USE_BLACKBOX
     [OSD_LOG_STATUS]              = osdElementLogStatus,
-#endif
-#ifdef USE_ACC
-    [OSD_FLIP_ARROW]              = osdElementCrashFlipArrow,
 #endif
 #ifdef USE_RX_LINK_QUALITY_INFO
     [OSD_LINK_QUALITY]            = osdElementLinkQuality,
