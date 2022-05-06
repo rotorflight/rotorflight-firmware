@@ -138,8 +138,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .feedforward_transition = 0,
         .yawRateAccelLimit = 0,
         .rateAccelLimit = 0,
-        .itermThrottleThreshold = 250,
-        .itermAcceleratorGain = 3500,
         .crash_time = 500,          // ms
         .crash_delay = 0,           // ms
         .crash_recovery_angle = 10, // degrees
@@ -166,7 +164,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 90,
         .abs_control_error_limit = 20,
         .abs_control_cutoff = 11,
-        .antiGravityMode = ANTI_GRAVITY_SMOOTH,
         .dterm_lpf1_static_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT,
             // NOTE: dynamic lpf is enabled by default so this setting is actually
             // overridden and the static lowpass 1 is disabled. We can't set this
@@ -231,16 +228,6 @@ void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
 #define D_LPF_FILT_SCALE 22
 
 
-void pidSetItermAccelerator(float newItermAccelerator)
-{
-    pidRuntime.itermAccelerator = newItermAccelerator;
-}
-
-bool pidOsdAntiGravityActive(void)
-{
-    return (pidRuntime.itermAccelerator > pidRuntime.antiGravityOsdCutoff);
-}
-
 void pidStabilisationState(pidStabilisationState_e pidControllerState)
 {
     pidRuntime.pidStabilisationEnabled = (pidControllerState == PID_STABILISATION_ON) ? true : false;
@@ -292,29 +279,6 @@ void pidUpdateTpaFactor(float throttle)
         tpaRate = 0.0f;
     }
     pidRuntime.tpaFactor = 1.0f - tpaRate;
-}
-
-void pidUpdateAntiGravityThrottleFilter(float throttle)
-{
-    if (pidRuntime.antiGravityMode == ANTI_GRAVITY_SMOOTH) {
-        // calculate a boost factor for P in the same way as for I when throttle changes quickly
-        const float antiGravityThrottleLpf = pt1FilterApply(&pidRuntime.antiGravityThrottleLpf, throttle);
-        // focus P boost on low throttle range only
-        if (throttle < 0.5f) {
-            pidRuntime.antiGravityPBoost = 0.5f - throttle;
-        } else {
-            pidRuntime.antiGravityPBoost = 0.0f;
-        }
-        // use lowpass to identify start of a throttle up, use this to reduce boost at start by half
-        if (antiGravityThrottleLpf < throttle) {
-            pidRuntime.antiGravityPBoost *= 0.5f;
-        }
-        // high-passed throttle focuses boost on faster throttle changes
-        pidRuntime.antiGravityThrottleHpf = fabsf(throttle - antiGravityThrottleLpf);
-        pidRuntime.antiGravityPBoost = pidRuntime.antiGravityPBoost * pidRuntime.antiGravityThrottleHpf;
-        // smooth the P boost at 3hz to remove the jagged edges and prolong the effect after throttle stops
-        pidRuntime.antiGravityPBoost = pt1FilterApply(&pidRuntime.antiGravitySmoothLpf, pidRuntime.antiGravityPBoost);
-    }
 }
 
 #ifdef USE_ACRO_TRAINER
@@ -819,24 +783,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     gpsRescuePreviousState = gpsRescueIsActive;
 #endif
 
-    // Dynamic i component,
-    if ((pidRuntime.antiGravityMode == ANTI_GRAVITY_SMOOTH) && pidRuntime.antiGravityEnabled) {
-        // traditional itermAccelerator factor for iTerm
-        pidRuntime.itermAccelerator = pidRuntime.antiGravityThrottleHpf * 0.01f * pidRuntime.itermAcceleratorGain;
-        DEBUG_SET(DEBUG_ANTI_GRAVITY, 1, lrintf(pidRuntime.itermAccelerator * 1000));
-        // users AG Gain changes P boost
-        pidRuntime.antiGravityPBoost *= pidRuntime.itermAcceleratorGain;
-        // add some percentage of that slower, longer acting P boost factor to prolong AG effect on iTerm
-        pidRuntime.itermAccelerator += pidRuntime.antiGravityPBoost * 0.05f;
-        // set the final P boost amount
-        pidRuntime.antiGravityPBoost *= 0.02f;
-    } else {
-        pidRuntime.antiGravityPBoost = 0.0f;
-    }
-    DEBUG_SET(DEBUG_ANTI_GRAVITY, 0, lrintf(pidRuntime.itermAccelerator * 1000));
-
-    float agGain = pidRuntime.dT * pidRuntime.itermAccelerator * AG_KI;
-
     // gradually scale back integration when above windup point
     float dynCi = pidRuntime.dT;
     if (pidRuntime.itermWindupPointInv > 1.0f) {
@@ -968,7 +914,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             axisDynCi = (axis == FD_YAW) ? dynCi : pidRuntime.dT; // only apply windup protection to yaw
         }
 
-        pidData[axis].I = constrainf(previousIterm + (Ki * axisDynCi + agGain) * itermErrorRate, -pidRuntime.itermLimit, pidRuntime.itermLimit);
+        pidData[axis].I = constrainf(previousIterm + (Ki * axisDynCi) * itermErrorRate, -pidRuntime.itermLimit, pidRuntime.itermLimit);
 
         // -----calculate pidSetpointDelta
         float pidSetpointDelta = 0;
@@ -1079,17 +1025,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #endif // USE_YAW_SPIN_RECOVERY
 
         // calculating the PID sum
-
-        // P boost at the end of throttle chop
-        // attenuate effect if turning more than 50 deg/s, half at 100 deg/s
-        float agBoostAttenuator = fabsf(currentPidSetpoint) / 50.0f;
-        agBoostAttenuator = MAX(agBoostAttenuator, 1.0f);
-        const float agBoost = 1.0f + (pidRuntime.antiGravityPBoost / agBoostAttenuator);
-        if (axis != FD_YAW) {
-            pidData[axis].P *= agBoost;
-            DEBUG_SET(DEBUG_ANTI_GRAVITY, axis + 2, lrintf(agBoost * 1000));
-        }
-
         const float pidSum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
 #ifdef USE_INTEGRATED_YAW_CONTROL
         if (axis == FD_YAW && pidRuntime.useIntegratedYaw) {
@@ -1134,20 +1069,6 @@ void pidSetAcroTrainerState(bool newState)
     }
 }
 #endif // USE_ACRO_TRAINER
-
-void pidSetAntiGravityState(bool newState)
-{
-    if (newState != pidRuntime.antiGravityEnabled) {
-        // reset the accelerator on state changes
-        pidRuntime.itermAccelerator = 0.0f;
-    }
-    pidRuntime.antiGravityEnabled = newState;
-}
-
-bool pidAntiGravityEnabled(void)
-{
-    return pidRuntime.antiGravityEnabled;
-}
 
 #ifdef USE_DYN_LPF
 void dynLpfDTermUpdate(float throttle)
