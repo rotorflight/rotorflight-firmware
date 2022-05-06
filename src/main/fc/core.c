@@ -1009,8 +1009,6 @@ void processRxModes(timeUs_t currentTimeUs)
         beeper(BEEPER_RC_SMOOTHING_INIT_FAIL);
     }
 #endif
-
-    pidSetAntiGravityState(IS_RC_MODE_ACTIVE(BOXANTIGRAVITY) || featureIsEnabled(FEATURE_ANTI_GRAVITY));
 }
 
 static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)

@@ -508,9 +508,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         throttle = applyThrottleLimit(throttle);
     }
 
-    // use scaled throttle, without dynamic idle throttle offset, as the input to antigravity
-    pidUpdateAntiGravityThrottleFilter(throttle);
-
     // and for TPA
     pidUpdateTpaFactor(throttle);
 
