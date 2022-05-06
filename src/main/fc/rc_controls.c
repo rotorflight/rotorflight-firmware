@@ -195,13 +195,6 @@ void processRcStickPositions()
                 beeper(BEEPER_DISARM_REPEAT);     // sound tone while stick held
                 repeatAfter(STICK_AUTOREPEAT_MS); // disarm tone will repeat
 
-#ifdef USE_RUNAWAY_TAKEOFF
-                // Unset the ARMING_DISABLED_RUNAWAY_TAKEOFF arming disabled flag that might have been set
-                // by a runaway pidSum detection auto-disarm.
-                // This forces the pilot to explicitly perform a disarm sequence (even though we're implicitly disarmed)
-                // before they're able to rearm
-                unsetArmingDisabled(ARMING_DISABLED_RUNAWAY_TAKEOFF);
-#endif
                 unsetArmingDisabled(ARMING_DISABLED_CRASH_DETECTED);
             }
         }
@@ -225,7 +218,7 @@ void processRcStickPositions()
         resetTryingToArm();
     }
 
-    if (ARMING_FLAG(ARMED) || doNotRepeat || rcDelayMs <= STICK_DELAY_MS || (getArmingDisableFlags() & (ARMING_DISABLED_RUNAWAY_TAKEOFF | ARMING_DISABLED_CRASH_DETECTED))) {
+    if (ARMING_FLAG(ARMED) || doNotRepeat || rcDelayMs <= STICK_DELAY_MS || (getArmingDisableFlags() & ARMING_DISABLED_CRASH_DETECTED)) {
         return;
     }
     doNotRepeat = true;
