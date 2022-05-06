@@ -242,7 +242,6 @@ typedef struct pidRuntime_s {
     bool itermRotation;
     bool zeroThrottleItermReset;
     bool levelRaceMode;
-    float tpaFactor;
 
 #ifdef USE_ITERM_RELAX
     pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
@@ -327,7 +326,6 @@ void pidResetIterm(void);
 void pidStabilisationState(pidStabilisationState_e pidControllerState);
 void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
-void pidUpdateTpaFactor(float throttle);
 
 #ifdef USE_THRUST_LINEARIZATION
 float pidApplyThrustLinearization(float motorValue);
