@@ -116,6 +116,11 @@ SECTIONS
     PROVIDE_HIDDEN (__pg_resetdata_end = .);
   } >FLASH1
 
+  .flash_config :
+  {
+    KEEP (*(.flash_config))
+  } >FLASH_CONFIG
+
   /* Storage for the address for the configuration section so we can grab it out of the hex file */
   .custom_defaults :
   {
