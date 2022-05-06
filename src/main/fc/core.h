@@ -38,7 +38,7 @@ typedef enum {
     DISARM_REASON_THROTTLE_TIMEOUT  = 2,
     DISARM_REASON_STICKS            = 3,
     DISARM_REASON_SWITCH            = 4,
-    DISARM_REASON_CRASH_PROTECTION  = 5,
+    //DISARM_REASON_CRASH_PROTECTION  = 5,
     //DISARM_REASON_RUNAWAY_TAKEOFF   = 6,
     DISARM_REASON_GPS_RESCUE        = 7,
     DISARM_REASON_SERIAL_COMMAND    = 8,
@@ -67,7 +67,6 @@ bool pidLoopReady(void);
 void taskFiltering(timeUs_t currentTimeUs);
 void taskMainPidLoop(timeUs_t currentTimeUs);
 
-bool isFlipOverAfterCrashActive(void);
 int8_t calculateThrottlePercent(void);
 uint8_t calculateThrottlePercentAbs(void);
 bool areSticksActive(uint8_t stickPercentLimit);
