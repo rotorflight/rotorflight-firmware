@@ -101,8 +101,6 @@ void targetConfiguration(void)
 
     systemConfigMutable()->cpu_overclock = 2; //216MHZ
 
-    featureConfigSet((FEATURE_AIRMODE) ^ FEATURE_RX_PARALLEL_PWM);
-
     /* AlienWhoop PIDs tested with 6mm and 7mm motors on most frames */
     for (uint8_t pidProfileIndex = 0; pidProfileIndex < PID_PROFILE_COUNT; pidProfileIndex++) {
         pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);

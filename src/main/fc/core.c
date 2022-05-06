@@ -587,13 +587,6 @@ uint8_t calculateThrottlePercentAbs(void)
     return ABS(calculateThrottlePercent());
 }
 
-static bool airmodeIsActivated;
-
-bool isAirmodeActivated()
-{
-    return airmodeIsActivated;
-}
-
 
 /*
  * processRx called from taskUpdateRxMain
@@ -619,19 +612,10 @@ bool processRx(timeUs_t currentTimeUs)
     }
 
     const throttleStatus_e throttleStatus = calculateThrottleStatus();
-    const uint8_t throttlePercent = calculateThrottlePercentAbs();
 
-    if (airmodeIsEnabled() && ARMING_FLAG(ARMED)) {
-        if (throttlePercent >= rxConfig()->airModeActivateThreshold) {
-            airmodeIsActivated = true; // Prevent iterm from being reset
-        }
-    } else {
-        airmodeIsActivated = false;
-    }
-
-    /* In airmode iterm should be prevented to grow when Low thottle and Roll + Pitch Centered.
+    /* iterm should be prevented to grow when Low thottle and Roll + Pitch Centered.
      This is needed to prevent iterm winding on the ground, but keep full stabilisation on 0 throttle while in air */
-    if (throttleStatus == THROTTLE_LOW && !airmodeIsActivated) {
+    if (throttleStatus == THROTTLE_LOW) {
         pidSetItermReset(true);
         if (currentPidProfile->pidAtMinThrottle)
             pidStabilisationState(PID_STABILISATION_ON);
@@ -661,7 +645,6 @@ void processRxModes(timeUs_t currentTimeUs)
         && featureIsEnabled(FEATURE_MOTOR_STOP)
         && !isFixedWing()
         && !featureIsEnabled(FEATURE_3D)
-        && !airmodeIsEnabled()
         && !FLIGHT_MODE(GPS_RESCUE_MODE)  // disable auto-disarm when GPS Rescue is active
     ) {
         if (isUsingSticksForArming()) {
