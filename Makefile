@@ -11,7 +11,7 @@
 #
 ###############################################################################
 
-
+#
 # Things that the user might override on the commandline
 #
 
@@ -49,7 +49,9 @@ FLASH_SIZE ?=
 # Release file naming (no revision to be present if this is 'yes')
 RELEASE ?= no
 
+
 ###############################################################################
+#
 # Things that need to be maintained as the source changes
 #
 
@@ -199,7 +201,9 @@ VPATH           := $(VPATH):$(TARGET_DIR)
 
 include $(ROOT)/make/source.mk
 
+
 ###############################################################################
+#
 # Things that might need changing to use different tools
 #
 
@@ -281,6 +285,7 @@ LD_FLAGS     = -lm \
                $(EXTRA_LD_FLAGS)
 endif
 
+
 ###############################################################################
 # No user-serviceable parts below
 ###############################################################################
@@ -328,6 +333,7 @@ $(TARGET_LST): $(TARGET_ELF)
 	$(V0) $(OBJDUMP) -S --disassemble $< > $@
 
 ifeq ($(EXST),no)
+
 $(TARGET_BIN): $(TARGET_ELF)
 	@echo "Creating BIN $(TARGET_BIN)" "$(STDOUT)"
 	$(V1) $(OBJCOPY) -O binary $< $@
@@ -341,6 +347,7 @@ $(TARGET_DFU): $(TARGET_HEX)
 	$(V1) $(PYTHON) $(DFUSE-PACK) -i $< $@
 
 else
+
 CLEAN_ARTIFACTS += $(TARGET_UNPATCHED_BIN) $(TARGET_EXST_HASH_SECTION_FILE) $(TARGET_EXST_ELF)
 
 $(TARGET_UNPATCHED_BIN): $(TARGET_ELF)
@@ -374,7 +381,7 @@ $(TARGET_BIN): $(TARGET_UNPATCHED_BIN)
 	$(V1) cat $(TARGET_UNPATCHED_BIN).md5 | awk '{printf("%08x: %s",64-16,$$2);}' | xxd -r - $(TARGET_EXST_HASH_SECTION_FILE)
 
 # For some currently unknown reason, OBJCOPY, with only input/output files, will generate a file around 2GB for the H730 unless we remove an unused-section
-# As a workaround drop the ._user_heap_stack section, which is only used during build to show errors if there's not enough space for the heap/stack. 
+# As a workaround drop the ._user_heap_stack section, which is only used during build to show errors if there's not enough space for the heap/stack.
 # The issue can be seen with `readelf -S $(TARGET_EXST_ELF)' vs `readelf -S $(TARGET_ELF)`
 	$(V1) @echo "Patching updated HASH section into $(TARGET_EXST_ELF)" "$(STDOUT)"
 	$(OBJCOPY) $(TARGET_ELF) $(TARGET_EXST_ELF) --remove-section ._user_heap_stack --update-section .exst_hash=$(TARGET_EXST_HASH_SECTION_FILE)
@@ -441,7 +448,7 @@ $(OBJECT_DIR)/$(TARGET)/%.o: %.S
 	$(V1) $(CROSS_CC) -c -o $@ $(ASFLAGS) $<
 
 
-## all               : Build all currently built targets
+## all : Build all currently built targets
 all: $(CI_TARGETS)
 
 ## all_all : Build all targets (including legacy / unsupported)
