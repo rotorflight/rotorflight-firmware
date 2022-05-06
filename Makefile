@@ -46,8 +46,6 @@ SERIAL_DEVICE   ?= $(firstword $(wildcard /dev/ttyACM*) $(firstword $(wildcard /
 # Flash size (KB).  Some low-end chips actually have more flash than advertised, use this to override.
 FLASH_SIZE ?=
 
-# Release file naming (no revision to be present if this is 'yes')
-RELEASE ?= no
 
 
 ###############################################################################
@@ -119,7 +117,11 @@ FC_VER_MAJOR := $(shell grep " FC_VERSION_MAJOR" src/main/build/version.h | awk 
 FC_VER_MINOR := $(shell grep " FC_VERSION_MINOR" src/main/build/version.h | awk '{print $$3}' )
 FC_VER_PATCH := $(shell grep " FC_VERSION_PATCH" src/main/build/version.h | awk '{print $$3}' )
 
+ifneq ($(FC_VER_SUFFIX),)
+FC_VER := $(FC_VER_MAJOR).$(FC_VER_MINOR).$(FC_VER_PATCH)-$(FC_VER_SUFFIX)
+else
 FC_VER := $(FC_VER_MAJOR).$(FC_VER_MINOR).$(FC_VER_PATCH)
+endif
 
 # Search path for sources
 VPATH           := $(SRC_DIR):$(SRC_DIR)/startup
@@ -189,6 +191,10 @@ TARGET_DIR_SRC = $(notdir $(wildcard $(TARGET_DIR)/*.c))
 ifeq ($(CUSTOM_DEFAULTS_EXTENDED),yes)
 TARGET_FLAGS += -DUSE_CUSTOM_DEFAULTS=
 EXTRA_LD_FLAGS += -Wl,--defsym=USE_CUSTOM_DEFAULTS_EXTENDED=1
+endif
+
+ifneq ($(FC_VER_SUFFIX),)
+TARGET_FLAGS += -DFC_VERSION_SUFFIX="$(FC_VER_SUFFIX)"
 endif
 
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
@@ -298,11 +304,8 @@ CPPCHECK        = cppcheck $(CSOURCES) --enable=all --platform=unix64 \
                   $(addprefix -I,$(INCLUDE_DIRS)) \
                   -I/usr/include -I/usr/include/linux
 
-ifeq ($(RELEASE),yes)
+
 TARGET_BASENAME = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET)
-else
-TARGET_BASENAME = $(BIN_DIR)/$(FORKNAME)_$(FC_VER)_$(TARGET)_$(REVISION)
-endif
 
 #
 # Things we will build
