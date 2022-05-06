@@ -25,7 +25,6 @@
 
 #include "drivers/light_led.h"
 #include "drivers/time.h"
-#include "drivers/transponder_ir.h"
 
 #include "fc/init.h"
 
@@ -41,14 +40,6 @@ void MemManage_Handler(void)
     if ((systemState & requiredStateForMotors) == requiredStateForMotors) {
         stopMotors();
     }
-
-#ifdef USE_TRANSPONDER
-    // prevent IR LEDs from burning out.
-    uint8_t requiredStateForTransponder = SYSTEM_STATE_CONFIG_LOADED | SYSTEM_STATE_TRANSPONDER_ENABLED;
-    if ((systemState & requiredStateForTransponder) == requiredStateForTransponder) {
-        transponderIrDisable();
-    }
-#endif
 
     LED1_OFF;
     LED0_OFF;
@@ -134,14 +125,6 @@ void HardFault_Handler(void)
     if ((systemState & requiredStateForMotors) == requiredStateForMotors) {
         stopMotors();
     }
-
-#ifdef USE_TRANSPONDER
-    // prevent IR LEDs from burning out.
-    uint8_t requiredStateForTransponder = SYSTEM_STATE_CONFIG_LOADED | SYSTEM_STATE_TRANSPONDER_ENABLED;
-    if ((systemState & requiredStateForTransponder) == requiredStateForTransponder) {
-        transponderIrDisable();
-    }
-#endif
 
     LED0_OFF;
     LED1_OFF;
