@@ -53,11 +53,6 @@
 #define ITERM_RELAX_SETPOINT_THRESHOLD 40.0f
 #define ITERM_RELAX_CUTOFF_DEFAULT 15
 
-// Anti gravity I constant
-#define AG_KI 21.586988f;
-
-#define ITERM_ACCELERATOR_GAIN_OFF 0
-#define ITERM_ACCELERATOR_GAIN_MAX 30000
 #define PID_ROLL_DEFAULT  { 45, 80, 40, 120 }
 #define PID_PITCH_DEFAULT { 47, 84, 46, 125 }
 #define PID_YAW_DEFAULT   { 45, 80,  0, 120 }
@@ -102,11 +97,6 @@ typedef struct pidf_s {
 } pidf_t;
 
 typedef enum {
-    ANTI_GRAVITY_SMOOTH,
-    ANTI_GRAVITY_STEP
-} antiGravityMode_e;
-
-typedef enum {
     ITERM_RELAX_OFF,
     ITERM_RELAX_RP,
     ITERM_RELAX_RPY,
@@ -149,9 +139,6 @@ typedef struct pidProfile_s {
     uint8_t horizon_tilt_expert_mode;       // OFF or ON
 
     // Betaflight PID controller parameters
-    uint8_t  antiGravityMode;             // type of anti gravity method
-    uint16_t itermThrottleThreshold;        // max allowed throttle delta before iterm accelerated in ms
-    uint16_t itermAcceleratorGain;          // Iterm Accelerator Gain when itermThrottlethreshold is hit
     uint16_t yawRateAccelLimit;             // yaw accel limiter for deg/sec/ms
     uint16_t rateAccelLimit;                // accel limiter roll/pitch deg/sec/ms
     uint16_t crash_dthreshold;              // dterm crash value
@@ -273,15 +260,6 @@ typedef struct pidRuntime_s {
     dtermLowpass_t dtermLowpass2[XYZ_AXIS_COUNT];
     filterApplyFnPtr ptermYawLowpassApplyFn;
     pt1Filter_t ptermYawLowpass;
-    bool antiGravityEnabled;
-    uint8_t antiGravityMode;
-    pt1Filter_t antiGravityThrottleLpf;
-    pt1Filter_t antiGravitySmoothLpf;
-    float antiGravityOsdCutoff;
-    float antiGravityThrottleHpf;
-    float antiGravityPBoost;
-    float itermAccelerator;
-    uint16_t itermAcceleratorGain;
     pidCoefficient_t pidCoefficient[XYZ_AXIS_COUNT];
     float levelGain;
     float horizonGain;
@@ -397,16 +375,10 @@ void resetPidProfile(pidProfile_t *profile);
 
 void pidResetIterm(void);
 void pidStabilisationState(pidStabilisationState_e pidControllerState);
-void pidSetItermAccelerator(float newItermAccelerator);
 bool crashRecoveryModeActive(void);
 void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
 void pidUpdateTpaFactor(float throttle);
-void pidUpdateAntiGravityThrottleFilter(float throttle);
-bool pidOsdAntiGravityActive(void);
-bool pidOsdAntiGravityMode(void);
-void pidSetAntiGravityState(bool newState);
-bool pidAntiGravityEnabled(void);
 
 #ifdef USE_THRUST_LINEARIZATION
 float pidApplyThrustLinearization(float motorValue);
