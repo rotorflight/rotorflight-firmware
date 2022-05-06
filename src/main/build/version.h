@@ -29,7 +29,11 @@
 #define FC_VERSION_MINOR            3  // increment when a minor release is made (small new feature, change etc)
 #define FC_VERSION_PATCH_LEVEL      0  // increment when a bug is fixed
 
+#ifdef FC_VERSION_SUFFIX
+#define FC_VERSION_STRING STR(FC_VERSION_MAJOR) "." STR(FC_VERSION_MINOR) "." STR(FC_VERSION_PATCH_LEVEL) "-" STR(FC_VERSION_SUFFIX)
+#else
 #define FC_VERSION_STRING STR(FC_VERSION_MAJOR) "." STR(FC_VERSION_MINOR) "." STR(FC_VERSION_PATCH_LEVEL)
+#endif
 
 extern const char* const targetName;
 
