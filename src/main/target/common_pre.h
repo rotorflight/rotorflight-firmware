@@ -269,7 +269,6 @@ extern uint8_t _dmaram_end__;
 
 #if (TARGET_FLASH_SIZE > 128)
 #define USE_GYRO_OVERFLOW_CHECK
-#define USE_YAW_SPIN_RECOVERY
 #define USE_DSHOT_DMAR
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_TELEMETRY_CRSF
