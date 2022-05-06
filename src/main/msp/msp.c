@@ -3372,12 +3372,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_ARMING_DISABLED:
         {
             const uint8_t command = sbufReadU8(src);
-            uint8_t disableRunawayTakeoff = 0;
-#ifndef USE_RUNAWAY_TAKEOFF
-            UNUSED(disableRunawayTakeoff);
-#endif
             if (sbufBytesRemaining(src)) {
-                disableRunawayTakeoff = sbufReadU8(src);
+                sbufReadU8(src); // was disableRunawayTakeoff
             }
             if (command) {
                 mspArmingDisableByDescriptor(srcDesc);
@@ -3385,16 +3381,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 if (ARMING_FLAG(ARMED)) {
                     disarm(DISARM_REASON_ARMING_DISABLED);
                 }
-#ifdef USE_RUNAWAY_TAKEOFF
-                runawayTakeoffTemporaryDisable(false);
-#endif
             } else {
                 mspArmingEnableByDescriptor(srcDesc);
                 if (mspIsMspArmingEnabled()) {
                     unsetArmingDisabled(ARMING_DISABLED_MSP);
-#ifdef USE_RUNAWAY_TAKEOFF
-                    runawayTakeoffTemporaryDisable(disableRunawayTakeoff);
-#endif
                 }
             }
         }

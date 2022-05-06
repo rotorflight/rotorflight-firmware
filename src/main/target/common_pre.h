@@ -261,7 +261,6 @@ extern uint8_t _dmaram_end__;
 #define USE_BLACKBOX
 #define USE_CLI_BATCH
 #define USE_RESOURCE_MGMT
-#define USE_RUNAWAY_TAKEOFF     // Runaway Takeoff Prevention (anti-taz)
 #define USE_SERVOS
 #define USE_TELEMETRY
 #define USE_TELEMETRY_FRSKY_HUB
