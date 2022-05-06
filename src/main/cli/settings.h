@@ -115,9 +115,6 @@ typedef enum {
 #ifdef USE_SDCARD
     TABLE_SDCARD_MODE,
 #endif
-#ifdef USE_TPA_MODE
-    TABLE_TPA_MODE,
-#endif
 #ifdef USE_LED_STRIP
     TABLE_LED_PROFILE,
     TABLE_LEDSTRIP_COLOR,

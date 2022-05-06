@@ -298,9 +298,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         throttle = applyThrottleLimit(throttle);
     }
 
-    // and for TPA
-    pidUpdateTpaFactor(throttle);
-
 #ifdef USE_DYN_LPF
     // keep the changes to dynamic lowpass clean, without unnecessary dynamic changes
     updateDynLpfCutoffs(currentTimeUs, throttle);

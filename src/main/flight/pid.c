@@ -234,20 +234,6 @@ void pidResetIterm(void)
     }
 }
 
-void pidUpdateTpaFactor(float throttle)
-{
-    const float tpaBreakpoint = (currentControlRateProfile->tpa_breakpoint - 1000) / 1000.0f;
-    float tpaRate = currentControlRateProfile->tpa_rate / 100.0f;
-    if (throttle > tpaBreakpoint) {
-        if (throttle < 1.0f) {
-            tpaRate *= (throttle - tpaBreakpoint) / (1.0f - tpaBreakpoint);
-        }
-    } else {
-        tpaRate = 0.0f;
-    }
-    pidRuntime.tpaFactor = 1.0f - tpaRate;
-}
-
 #ifdef USE_ACRO_TRAINER
 void pidAcroTrainerInit(void)
 {
@@ -604,12 +590,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 #endif
 
-#ifdef USE_TPA_MODE
-    const float tpaFactorKp = (currentControlRateProfile->tpaMode == TPA_MODE_PD) ? pidRuntime.tpaFactor : 1.0f;
-#else
-    const float tpaFactorKp = pidRuntime.tpaFactor;
-#endif
-
 #if defined(USE_ACC)
     const bool gpsRescueIsActive = FLIGHT_MODE(GPS_RESCUE_MODE);
     levelMode_e levelMode;
@@ -729,7 +709,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // b = 1 and only c (feedforward weight) can be tuned (amount derivative on measurement or error).
 
         // -----calculate P component
-        pidData[axis].P = pidRuntime.pidCoefficient[axis].Kp * errorRate * tpaFactorKp;
+        pidData[axis].P = pidRuntime.pidCoefficient[axis].Kp * errorRate;
         if (axis == FD_YAW) {
             pidData[axis].P = pidRuntime.ptermYawLowpassApplyFn((filter_t *) &pidRuntime.ptermYawLowpass, pidData[axis].P);
         }
@@ -785,9 +765,9 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             // Apply the dMinFactor
             preTpaD *= dMinFactor;
 #endif
-            pidData[axis].D = preTpaD * pidRuntime.tpaFactor;
+            pidData[axis].D = preTpaD;
 
-            // Log the value of D pre application of TPA
+            // Log the value of D
             preTpaD *= D_LPF_FILT_SCALE;
 
             if (axis == FD_ROLL) {
