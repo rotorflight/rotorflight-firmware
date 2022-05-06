@@ -137,9 +137,6 @@ typedef enum {
 #ifdef USE_LED_STRIP
     TASK_LEDSTRIP,
 #endif
-#ifdef USE_TRANSPONDER
-    TASK_TRANSPONDER,
-#endif
 #ifdef USE_STACK_CHECK
     TASK_STACK_CHECK,
 #endif

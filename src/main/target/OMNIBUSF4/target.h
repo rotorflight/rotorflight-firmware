@@ -274,8 +274,6 @@
 #define RSSI_ADC_PIN            PA0  // Direct from RSSI pad
 #endif
 
-#define USE_TRANSPONDER
-
 #define USE_RANGEFINDER
 #define USE_RANGEFINDER_HCSR04
 #define RANGEFINDER_HCSR04_TRIGGER_PIN     PA1
