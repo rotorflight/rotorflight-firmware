@@ -38,8 +38,6 @@
 #include "drivers/dshot_bitbang.h"
 #include "drivers/dshot_dpwm.h"
 
-#include "fc/rc_controls.h" // for flight3DConfig_t
-
 #include "motor.h"
 
 static FAST_DATA_ZERO_INIT motorDevice_t *motorDevice;
@@ -85,18 +83,11 @@ motorVTable_t motorGetVTable(void)
 
 // This is not motor generic anymore; should be moved to analog pwm module
 static void analogInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
-    if (featureIsEnabled(FEATURE_3D)) {
-        float outputLimitOffset = (flight3DConfig()->limit3d_high - flight3DConfig()->limit3d_low) * (1 - outputLimit) / 2;
-        *disarm = flight3DConfig()->neutral3d;
-        *outputLow = flight3DConfig()->limit3d_low + outputLimitOffset;
-        *outputHigh = flight3DConfig()->limit3d_high - outputLimitOffset;
-        *deadbandMotor3dHigh = flight3DConfig()->deadband3d_high;
-        *deadbandMotor3dLow = flight3DConfig()->deadband3d_low;
-    } else {
-        *disarm = motorConfig->mincommand;
-        *outputLow = motorConfig->minthrottle;
-        *outputHigh = motorConfig->maxthrottle - ((motorConfig->maxthrottle - motorConfig->minthrottle) * (1 - outputLimit));
-    }
+    UNUSED(deadbandMotor3dHigh);
+    UNUSED(deadbandMotor3dLow);
+    *disarm = motorConfig->mincommand;
+    *outputLow = motorConfig->minthrottle;
+    *outputHigh = motorConfig->maxthrottle - ((motorConfig->maxthrottle - motorConfig->minthrottle) * (1 - outputLimit));
 }
 
 bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig, bool *isProtocolDshot)

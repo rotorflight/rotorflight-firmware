@@ -382,8 +382,6 @@ void mixerInit(mixerMode_e mixerMode)
 {
     currentMixerMode = mixerMode;
 
-    mixerRuntime.feature3dEnabled = featureIsEnabled(FEATURE_3D);
-
     initEscEndpoints();
 #ifdef USE_SERVOS
     if (mixerIsTricopter()) {
