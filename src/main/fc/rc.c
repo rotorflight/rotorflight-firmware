@@ -727,11 +727,6 @@ void initRcProcessing(void)
 
         break;
     }
-
-#ifdef USE_YAW_SPIN_RECOVERY
-    const int maxYawRate = (int)applyRates(FD_YAW, 1.0f, 1.0f);
-    initYawSpinRecovery(maxYawRate);
-#endif
 }
 
 // send rc smoothing details to blackbox
