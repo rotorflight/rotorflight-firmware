@@ -52,9 +52,6 @@
 #define D_MIN_SETPOINT_GAIN_FACTOR 0.00008f
 #endif
 
-#define ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF 15  // The anti gravity throttle highpass filter cutoff
-#define ANTI_GRAVITY_SMOOTH_FILTER_CUTOFF 3  // The anti gravity P smoothing filter cutoff
-
 static void pidSetTargetLooptime(uint32_t pidLooptime)
 {
     targetPidLooptime = pidLooptime;
@@ -235,9 +232,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pt1FilterInit(&pidRuntime.airmodeThrottleLpf2, pt1FilterGain(20.0f, pidRuntime.dT));
     }
 #endif
-
-    pt1FilterInit(&pidRuntime.antiGravityThrottleLpf, pt1FilterGain(ANTI_GRAVITY_THROTTLE_FILTER_CUTOFF, pidRuntime.dT));
-    pt1FilterInit(&pidRuntime.antiGravitySmoothLpf, pt1FilterGain(ANTI_GRAVITY_SMOOTH_FILTER_CUTOFF, pidRuntime.dT));
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -299,7 +293,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         const float itermWindupPoint = pidProfile->itermWindupPointPercent / 100.0f;
         pidRuntime.itermWindupPointInv = 1.0f / (1.0f - itermWindupPoint);
     }
-    pidRuntime.itermAcceleratorGain = pidProfile->itermAcceleratorGain;
     pidRuntime.crashTimeLimitUs = pidProfile->crash_time * 1000;
     pidRuntime.crashTimeDelayUs = pidProfile->crash_delay * 1000;
     pidRuntime.crashRecoveryAngleDeciDegrees = pidProfile->crash_recovery_angle * 10;
@@ -313,17 +306,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     throttleBoost = pidProfile->throttle_boost * 0.1f;
 #endif
     pidRuntime.itermRotation = pidProfile->iterm_rotation;
-    pidRuntime.antiGravityMode = pidProfile->antiGravityMode;
-
-    // Calculate the anti-gravity value that will trigger the OSD display.
-    // For classic AG it's either 1.0 for off and > 1.0 for on.
-    // For the new AG it's a continuous floating value so we want to trigger the OSD
-    // display when it exceeds 25% of its possible range. This gives a useful indication
-    // of AG activity without excessive display.
-    pidRuntime.antiGravityOsdCutoff = 0.0f;
-    if (pidRuntime.antiGravityMode == ANTI_GRAVITY_SMOOTH) {
-        pidRuntime.antiGravityOsdCutoff += (pidRuntime.itermAcceleratorGain / 1000.0f) * 0.25f;
-    }
 
 #if defined(USE_ITERM_RELAX)
     pidRuntime.itermRelax = pidProfile->iterm_relax;

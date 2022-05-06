@@ -103,7 +103,7 @@ void targetConfiguration(void)
 
     pidConfigMutable()->runaway_takeoff_prevention = false;
 
-    featureConfigSet((FEATURE_AIRMODE | FEATURE_ANTI_GRAVITY) ^ FEATURE_RX_PARALLEL_PWM);
+    featureConfigSet((FEATURE_AIRMODE) ^ FEATURE_RX_PARALLEL_PWM);
 
     /* AlienWhoop PIDs tested with 6mm and 7mm motors on most frames */
     for (uint8_t pidProfileIndex = 0; pidProfileIndex < PID_PROFILE_COUNT; pidProfileIndex++) {
@@ -132,12 +132,7 @@ void targetConfiguration(void)
         pidProfile->pid[PID_PITCH].F = 100;
         pidProfile->pid[PID_ROLL].F = 100;
         pidProfile->feedforward_transition = 0;
-
-    /* Anti-Gravity */
-    pidProfile->itermThrottleThreshold = 500;
-    pidProfile->itermAcceleratorGain = 5000;
-
-    pidProfile->levelAngleLimit = 65;
+        pidProfile->levelAngleLimit = 65;
     }
 
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {
