@@ -219,7 +219,7 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 
 #ifdef USE_DYN_IDLE
         if (mixerRuntime.dynIdleMinRps > 0.0f) {
-            const float maxIncrease = isAirmodeActivated() ? mixerRuntime.dynIdleMaxIncrease : 0.05f;
+            const float maxIncrease = 0.05f;
             float minRps = rpmMinMotorFrequency();
             DEBUG_SET(DEBUG_DYN_IDLE, 3, (minRps * 10));
             float rpsError = mixerRuntime.dynIdleMinRps - minRps;
@@ -344,12 +344,12 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
-static void applyMixerAdjustmentLinear(float *motorMix, const bool airmodeEnabled) {
+static void applyMixerAdjustmentLinear(float *motorMix) {
     const float motorMixNormalizationFactor = motorMixRange > 1.0f ? motorMixRange : 1.0f;
     const float motorMixDelta = 0.5f * motorMixRange;
 
     for (int i = 0; i < mixerRuntime.motorCount; ++i) {
-        if (airmodeEnabled || throttle > 0.5f) {
+        if (throttle > 0.5f) {
             if (mixerConfig()->mixer_type == MIXER_LINEAR) {
                 motorMix[i] = scaleRangef(throttle, 0.0f, 1.0f, motorMix[i] + motorMixDelta, motorMix[i] - motorMixDelta);
             } else {
@@ -360,33 +360,16 @@ static void applyMixerAdjustmentLinear(float *motorMix, const bool airmodeEnable
     }
 }
 
-static void applyMixerAdjustment(float *motorMix, const float motorMixMin, const float motorMixMax, const bool airmodeEnabled) {
-#ifdef USE_AIRMODE_LPF
-    const float unadjustedThrottle = throttle;
-    throttle += pidGetAirmodeThrottleOffset();
-    float airmodeThrottleChange = 0;
-#endif
-
+static void applyMixerAdjustment(float *motorMix, const float motorMixMin, const float motorMixMax) {
     if (motorMixRange > 1.0f) {
         for (int i = 0; i < mixerRuntime.motorCount; i++) {
             motorMix[i] /= motorMixRange;
         }
-        // Get the maximum correction by setting offset to center when airmode enabled
-        if (airmodeEnabled) {
-            throttle = 0.5f;
-        }
     } else {
-        if (airmodeEnabled || throttle > 0.5f) {
+        if (throttle > 0.5f) {
             throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
-#ifdef USE_AIRMODE_LPF
-            airmodeThrottleChange = constrainf(unadjustedThrottle, -motorMixMin, 1.0f - motorMixMax) - unadjustedThrottle;
-#endif
         }
     }
-
-#ifdef USE_AIRMODE_LPF
-    pidUpdateAirmodeLpf(airmodeThrottleChange);
-#endif
 }
 
 FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
@@ -432,7 +415,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     }
 #endif
 
-    // send throttle value to blackbox, including scaling and throttle boost, but not TL compensation, dyn idle or airmode 
+    // send throttle value to blackbox, including scaling and throttle boost, but not TL compensation, dyn idle
     mixerThrottle = throttle;
 
 #ifdef USE_DYN_IDLE
@@ -467,8 +450,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     }
 
     //  The following fixed throttle values will not be shown in the blackbox log
-    // ?? Should they be influenced by airmode?  If not, should go after the apply airmode code.
-    const bool airmodeEnabled = airmodeIsEnabled();
 
 #ifdef USE_GPS_RESCUE
     // If gps rescue is active then override the throttle. This prevents things
@@ -480,15 +461,14 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 
     motorMixRange = motorMixMax - motorMixMin;
     if (mixerConfig()->mixer_type > MIXER_LEGACY) {
-        applyMixerAdjustmentLinear(motorMix, airmodeEnabled);
+        applyMixerAdjustmentLinear(motorMix);
     } else {
-        applyMixerAdjustment(motorMix, motorMixMin, motorMixMax, airmodeEnabled);
+        applyMixerAdjustment(motorMix, motorMixMin, motorMixMax);
     }
 
     if (featureIsEnabled(FEATURE_MOTOR_STOP)
         && ARMING_FLAG(ARMED)
         && !mixerRuntime.feature3dEnabled
-        && !airmodeEnabled
         && !FLIGHT_MODE(GPS_RESCUE_MODE)   // disable motor_stop while GPS Rescue is active
         && (rcData[THROTTLE] < rxConfig()->mincheck)) {
         // motor_stop handling
