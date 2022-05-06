@@ -214,6 +214,9 @@ ifneq ($(RESULT),0)
 CCACHE :=
 endif
 
+# Make parallelism
+JFLAG ?= -j 4
+
 # Tool names
 CROSS_CC    := $(CCACHE) $(ARM_SDK_PREFIX)gcc
 CROSS_CXX   := $(CCACHE) $(ARM_SDK_PREFIX)g++
@@ -482,7 +485,7 @@ $(VALID_TARGETS):
 	echo "Building $@ succeeded."
 
 $(NOBUILD_TARGETS):
-	$(MAKE) TARGET=$@
+	$(MAKE) $(JFLAG) TARGET=$@
 
 TARGETS_CLEAN = $(addsuffix _clean,$(VALID_TARGETS))
 
@@ -502,7 +505,7 @@ test_clean:
 
 ## <TARGET>_clean    : clean up one specific target (alias for above)
 $(TARGETS_CLEAN):
-	$(V0) $(MAKE) -j TARGET=$(subst _clean,,$@) clean
+	$(V0) $(MAKE) $(JFLAG) TARGET=$(subst _clean,,$@) clean
 
 ## clean_all         : clean all valid targets
 clean_all: $(TARGETS_CLEAN) test_clean
@@ -511,7 +514,7 @@ TARGETS_FLASH = $(addsuffix _flash,$(VALID_TARGETS))
 
 ## <TARGET>_flash    : build and flash a target
 $(TARGETS_FLASH):
-	$(V0) $(MAKE) hex TARGET=$(subst _flash,,$@)
+	$(V0) $(MAKE) $(JFLAG) hex TARGET=$(subst _flash,,$@)
 ifneq (,$(findstring /dev/ttyUSB,$(SERIAL_DEVICE)))
 	$(V0) $(MAKE) tty_flash TARGET=$(subst _flash,,$@)
 else
@@ -526,6 +529,7 @@ tty_flash:
 
 ## dfu_flash         : flash firmware (.bin) onto flight controller via a DFU mode
 dfu_flash:
+	$(V0) $(MAKE) $(JFLAG) $(TARGET_DFU)
 ifneq (no-port-found,$(SERIAL_DEVICE))
 	# potentially this is because the MCU already is in DFU mode, try anyway
 	$(V0) echo -n 'R' > $(SERIAL_DEVICE)
@@ -546,10 +550,10 @@ openocd-gdb: $(TARGET_ELF)
 endif
 
 binary:
-	$(V0) $(MAKE) -j $(TARGET_BIN)
+	$(V0) $(MAKE) $(JFLAG) $(TARGET_BIN)
 
 hex:
-	$(V0) $(MAKE) -j $(TARGET_HEX)
+	$(V0) $(MAKE) $(JFLAG) $(TARGET_HEX)
 
 unbrick_$(TARGET): $(TARGET_HEX)
 	$(V0) stty -F $(SERIAL_DEVICE) raw speed 115200 -crtscts cs8 -parenb -cstopb -ixon
@@ -618,7 +622,7 @@ targets-by-mcu:
 		if [ "$${TARGET_MCU_TYPE}" = "$${MCU_TYPE}" ]; then \
 			if [ "$${DO_BUILD}" = 1 ]; then \
 				echo "Building target $${target}..."; \
-				$(MAKE) TARGET=$${target}; \
+				$(MAKE) $(JFLAG) TARGET=$${target}; \
 				if [ $$? -ne 0 ]; then \
 					echo "Building target $${target} failed, aborting."; \
 					exit 1; \
