@@ -43,24 +43,17 @@
 #include "drivers/nvic.h"
 #include "drivers/pwm_output.h" // for PWM_TYPE_* and others
 
-#include "fc/rc_controls.h" // for flight3DConfig_t
-
 #include "rx/rx.h"
 
 #include "dshot.h"
 
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
+    UNUSED(deadbandMotor3dHigh);
+    UNUSED(deadbandMotor3dLow);
     float outputLimitOffset = DSHOT_RANGE * (1 - outputLimit);
     *disarm = DSHOT_CMD_MOTOR_STOP;
-    if (featureIsEnabled(FEATURE_3D)) {
-        *outputLow = DSHOT_MIN_THROTTLE + getDigitalIdleOffset(motorConfig) * (DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - DSHOT_MIN_THROTTLE);
-        *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset / 2;
-        *deadbandMotor3dHigh = DSHOT_3D_FORWARD_MIN_THROTTLE + getDigitalIdleOffset(motorConfig) * (DSHOT_MAX_THROTTLE - DSHOT_3D_FORWARD_MIN_THROTTLE);
-        *deadbandMotor3dLow = DSHOT_3D_FORWARD_MIN_THROTTLE - 1 - outputLimitOffset / 2;
-    } else {
-        *outputLow = DSHOT_MIN_THROTTLE + getDigitalIdleOffset(motorConfig) * DSHOT_RANGE;
-        *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
-    }
+    *outputLow = DSHOT_MIN_THROTTLE + getDigitalIdleOffset(motorConfig) * DSHOT_RANGE;
+    *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
 }
 
 float dshotConvertFromExternal(uint16_t externalValue)
@@ -68,18 +61,7 @@ float dshotConvertFromExternal(uint16_t externalValue)
     float motorValue;
 
     externalValue = constrain(externalValue, PWM_RANGE_MIN, PWM_RANGE_MAX);
-
-    if (featureIsEnabled(FEATURE_3D)) {
-        if (externalValue == PWM_RANGE_MIDDLE) {
-            motorValue = DSHOT_CMD_MOTOR_STOP;
-        } else if (externalValue < PWM_RANGE_MIDDLE) {
-            motorValue = scaleRangef(externalValue, PWM_RANGE_MIN, PWM_RANGE_MIDDLE - 1, DSHOT_3D_FORWARD_MIN_THROTTLE - 1, DSHOT_MIN_THROTTLE);
-        } else {
-            motorValue = scaleRangef(externalValue, PWM_RANGE_MIDDLE + 1, PWM_RANGE_MAX, DSHOT_3D_FORWARD_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
-        }
-    } else {
-        motorValue = (externalValue == PWM_RANGE_MIN) ? DSHOT_CMD_MOTOR_STOP : scaleRangef(externalValue, PWM_RANGE_MIN + 1, PWM_RANGE_MAX, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
-    }
+    motorValue = (externalValue == PWM_RANGE_MIN) ? DSHOT_CMD_MOTOR_STOP : scaleRangef(externalValue, PWM_RANGE_MIN + 1, PWM_RANGE_MAX, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
 
     return motorValue;
 }
@@ -88,17 +70,7 @@ uint16_t dshotConvertToExternal(float motorValue)
 {
     float externalValue;
 
-    if (featureIsEnabled(FEATURE_3D)) {
-        if (motorValue == DSHOT_CMD_MOTOR_STOP || motorValue < DSHOT_MIN_THROTTLE) {
-            externalValue = PWM_RANGE_MIDDLE;
-        } else if (motorValue <= DSHOT_3D_FORWARD_MIN_THROTTLE - 1) {
-            externalValue = scaleRangef(motorValue, DSHOT_MIN_THROTTLE, DSHOT_3D_FORWARD_MIN_THROTTLE - 1, PWM_RANGE_MIDDLE - 1, PWM_RANGE_MIN);
-        } else {
-            externalValue = scaleRangef(motorValue, DSHOT_3D_FORWARD_MIN_THROTTLE, DSHOT_MAX_THROTTLE, PWM_RANGE_MIDDLE + 1, PWM_RANGE_MAX);
-        }
-    } else {
-        externalValue = (motorValue < DSHOT_MIN_THROTTLE) ? PWM_RANGE_MIN : scaleRangef(motorValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, PWM_RANGE_MIN + 1, PWM_RANGE_MAX);
-    }
+    externalValue = (motorValue < DSHOT_MIN_THROTTLE) ? PWM_RANGE_MIN : scaleRangef(motorValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, PWM_RANGE_MIN + 1, PWM_RANGE_MAX);
 
     return lrintf(externalValue);
 }
