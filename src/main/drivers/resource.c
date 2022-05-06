@@ -71,7 +71,6 @@ const char * const ownerNames[OWNER_TOTAL_COUNT] = {
     "RX_BIND",
     "INVERTER",
     "LED_STRIP",
-    "TRANSPONDER",
     "VTX_POWER",
     "VTX_CS",
     "VTX_DATA",

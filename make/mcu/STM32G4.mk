@@ -174,7 +174,6 @@ MCU_COMMON_SRC = \
             drivers/pwm_output_dshot_hal.c \
             drivers/timer_hal.c \
             drivers/timer_stm32g4xx.c \
-            drivers/transponder_ir_io_hal.c \
             drivers/system_stm32g4xx.c \
             drivers/serial_uart_stm32g4xx.c \
             drivers/serial_uart_hal.c \

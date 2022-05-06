@@ -466,10 +466,6 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_SERVO_TILT | FEATURE_CHANNEL_FORWARDING);
 #endif
 
-#ifndef USE_TRANSPONDER
-    featureDisableImmediate(FEATURE_TRANSPONDER);
-#endif
-
 #ifndef USE_RX_SPI
     featureDisableImmediate(FEATURE_RX_SPI);
 #endif

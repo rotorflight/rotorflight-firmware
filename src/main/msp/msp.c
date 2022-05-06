@@ -67,7 +67,6 @@
 #include "drivers/serial.h"
 #include "drivers/serial_escserial.h"
 #include "drivers/system.h"
-#include "drivers/transponder_ir.h"
 #include "drivers/usb_msc.h"
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
@@ -101,7 +100,6 @@
 #include "io/serial.h"
 #include "io/serial_4way.h"
 #include "io/servos.h"
-#include "io/transponder_ir.h"
 #include "io/usb_msc.h"
 #include "io/vtx_control.h"
 #include "io/vtx.h"
@@ -910,32 +908,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage);
         sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
         break;
-
-    case MSP_TRANSPONDER_CONFIG: {
-#ifdef USE_TRANSPONDER
-        // Backward compatibility to BFC 3.1.1 is lost for this message type
-        sbufWriteU8(dst, TRANSPONDER_PROVIDER_COUNT);
-        for (unsigned int i = 0; i < TRANSPONDER_PROVIDER_COUNT; i++) {
-            sbufWriteU8(dst, transponderRequirements[i].provider);
-            sbufWriteU8(dst, transponderRequirements[i].dataLength);
-        }
-
-        uint8_t provider = transponderConfig()->provider;
-        sbufWriteU8(dst, provider);
-
-        if (provider) {
-            uint8_t requirementIndex = provider - 1;
-            uint8_t providerDataLength = transponderRequirements[requirementIndex].dataLength;
-
-            for (unsigned int i = 0; i < providerDataLength; i++) {
-                sbufWriteU8(dst, transponderConfig()->data[i]);
-            }
-        }
-#else
-        sbufWriteU8(dst, 0); // no providers
-#endif
-        break;
-    }
 
     case MSP_OSD_CONFIG: {
 #define OSD_FLAGS_OSD_FEATURE           (1 << 0)
@@ -3786,44 +3758,6 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     UNUSED(dataSize); // maybe unused due to compiler options
 
     switch (cmdMSP) {
-#ifdef USE_TRANSPONDER
-    case MSP_SET_TRANSPONDER_CONFIG: {
-        // Backward compatibility to BFC 3.1.1 is lost for this message type
-
-        uint8_t provider = sbufReadU8(src);
-        uint8_t bytesRemaining = dataSize - 1;
-
-        if (provider > TRANSPONDER_PROVIDER_COUNT) {
-            return MSP_RESULT_ERROR;
-        }
-
-        const uint8_t requirementIndex = provider - 1;
-        const uint8_t transponderDataSize = transponderRequirements[requirementIndex].dataLength;
-
-        transponderConfigMutable()->provider = provider;
-
-        if (provider == TRANSPONDER_NONE) {
-            break;
-        }
-
-        if (bytesRemaining != transponderDataSize) {
-            return MSP_RESULT_ERROR;
-        }
-
-        if (provider != transponderConfig()->provider) {
-            transponderStopRepeating();
-        }
-
-        memset(transponderConfigMutable()->data, 0, sizeof(transponderConfig()->data));
-
-        for (unsigned int i = 0; i < transponderDataSize; i++) {
-            transponderConfigMutable()->data[i] = sbufReadU8(src);
-        }
-        transponderUpdateData();
-        break;
-    }
-#endif
-
     case MSP_SET_VOLTAGE_METER_CONFIG: {
         int8_t id = sbufReadU8(src);
 
