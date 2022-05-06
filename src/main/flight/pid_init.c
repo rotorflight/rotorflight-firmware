@@ -376,16 +376,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dynLpfCurveExpo = pidProfile->dterm_lpf1_dyn_expo;
 #endif
 
-#ifdef USE_LAUNCH_CONTROL
-    pidRuntime.launchControlMode = pidProfile->launchControlMode;
-    if (sensors(SENSOR_ACC)) {
-        pidRuntime.launchControlAngleLimit = pidProfile->launchControlAngleLimit;
-    } else {
-        pidRuntime.launchControlAngleLimit = 0;
-    }
-    pidRuntime.launchControlKi = ITERM_SCALE * pidProfile->launchControlGain;
-#endif
-
 #ifdef USE_INTEGRATED_YAW_CONTROL
     pidRuntime.useIntegratedYaw = pidProfile->use_integrated_yaw;
     pidRuntime.integratedYawRelax = pidProfile->integrated_yaw_relax;
