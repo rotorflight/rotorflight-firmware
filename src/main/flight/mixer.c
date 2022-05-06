@@ -479,14 +479,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         return;
     }
 
-    const bool launchControlActive = isLaunchControlActive();
-
     motorMixer_t * activeMixer = &mixerRuntime.currentMixer[0];
-#ifdef USE_LAUNCH_CONTROL
-    if (launchControlActive && (currentPidProfile->launchControlMode == LAUNCH_CONTROL_MODE_PITCHONLY)) {
-        activeMixer = &mixerRuntime.launchControlMixer[0];
-    }
-#endif
 
     // Calculate and Limit the PID sum
     const float scaledAxisPidRoll =
@@ -570,7 +563,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 
     //  The following fixed throttle values will not be shown in the blackbox log
     // ?? Should they be influenced by airmode?  If not, should go after the apply airmode code.
-    const bool airmodeEnabled = airmodeIsEnabled() || launchControlActive;
+    const bool airmodeEnabled = airmodeIsEnabled();
 #ifdef USE_YAW_SPIN_RECOVERY
     // 50% throttle provides the maximum authority for yaw recovery when airmode is not active.
     // When airmode is active the throttle setting doesn't impact recovery authority.
@@ -578,14 +571,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         throttle = 0.5f;
     }
 #endif // USE_YAW_SPIN_RECOVERY
-
-#ifdef USE_LAUNCH_CONTROL
-    // While launch control is active keep the throttle at minimum.
-    // Once the pilot triggers the launch throttle control will be reactivated.
-    if (launchControlActive) {
-        throttle = 0.0f;
-    }
-#endif
 
 #ifdef USE_GPS_RESCUE
     // If gps rescue is active then override the throttle. This prevents things
