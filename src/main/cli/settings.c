@@ -168,10 +168,6 @@ const char * const lookupTableOffOn[] = {
     "OFF", "ON"
 };
 
-static const char * const lookupTableCrashRecovery[] = {
-    "OFF", "ON" ,"BEEP", "DISARM"
-};
-
 static const char * const lookupTableUnit[] = {
     "IMPERIAL", "METRIC", "BRITISH"
 };
@@ -564,7 +560,6 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableDtermLowpassType),
     LOOKUP_TABLE_ENTRY(lookupTableFailsafe),
     LOOKUP_TABLE_ENTRY(lookupTableFailsafeSwitchMode),
-    LOOKUP_TABLE_ENTRY(lookupTableCrashRecovery),
 #ifdef USE_CAMERA_CONTROL
     LOOKUP_TABLE_ENTRY(lookupTableCameraControlMode),
 #endif
@@ -927,8 +922,6 @@ const clivalue_t valueTable[] = {
 // PG_MIXER_CONFIG
     { "yaw_motors_reversed",        VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, yaw_motors_reversed) },
     { "mixer_type",                 VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_MIXER_TYPE }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, mixer_type) },
-    { "crashflip_motor_percent",    VAR_UINT8 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, crashflip_motor_percent) },
-    { "crashflip_expo",    VAR_UINT8 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_MIXER_CONFIG, offsetof(mixerConfig_t, crashflip_expo) },
 
 // PG_MOTOR_3D_CONFIG
     { "3d_deadband_low",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { PWM_PULSE_MIN, PWM_RANGE_MIDDLE }, PG_MOTOR_3D_CONFIG, offsetof(flight3DConfig_t, deadband3d_low) },
@@ -1065,15 +1058,6 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_PID_AT_MIN_THROTTLE,    VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, pidAtMinThrottle) },
     { PARAM_NAME_ACC_LIMIT_YAW,     VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yawRateAccelLimit) },
     { PARAM_NAME_ACC_LIMIT,         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, rateAccelLimit) },
-    { "crash_dthreshold",           VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_dthreshold) },
-    { "crash_gthreshold",           VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 100, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_gthreshold) },
-    { "crash_setpoint_threshold",   VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 50, 2000 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_setpoint_threshold) },
-    { "crash_time",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 100, 5000 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_time) },
-    { "crash_delay",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_delay) },
-    { "crash_recovery_angle",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 5, 30 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_recovery_angle) },
-    { "crash_recovery_rate",        VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 50, 255 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_recovery_rate) },
-    { "crash_limit_yaw",            VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_limit_yaw) },
-    { "crash_recovery",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRASH_RECOVERY }, PG_PID_PROFILE, offsetof(pidProfile_t, crash_recovery) },
 
     { "iterm_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_rotation) },
 #if defined(USE_ITERM_RELAX)
@@ -1283,7 +1267,6 @@ const clivalue_t valueTable[] = {
     { "osd_warn_batt_warning",      VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_BATTERY_WARNING,  PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
     { "osd_warn_batt_critical",     VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_BATTERY_CRITICAL, PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
     { "osd_warn_visual_beeper",     VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_VISUAL_BEEPER,    PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
-    { "osd_warn_crash_flip",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_CRASH_FLIP,       PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
     { "osd_warn_esc_fail",          VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_ESC_FAIL,         PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},
 #ifdef USE_ADC_INTERNAL
     { "osd_warn_core_temp",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = OSD_WARNING_CORE_TEMPERATURE, PG_OSD_CONFIG, offsetof(osdConfig_t, enabledWarnings)},

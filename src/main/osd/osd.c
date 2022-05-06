@@ -1018,10 +1018,6 @@ static timeDelta_t osdShowArmed(void)
     }
     displayWrite(osdDisplayPort, 12, 7, DISPLAYPORT_ATTR_NONE, "ARMED");
 
-    if (isFlipOverAfterCrashActive()) {
-        displayWrite(osdDisplayPort, 8, 8, DISPLAYPORT_ATTR_NONE, CRASH_FLIP_WARNING);
-    }
-
     return ret;
 }
 
@@ -1045,8 +1041,7 @@ STATIC_UNIT_TESTED bool osdProcessStats1(timeUs_t currentTimeUs)
         } else if (isSomeStatEnabled()
                    && !suppressStatsDisplay
                    && !failsafeIsActive()
-                   && (!(getArmingDisableFlags() & ARMING_DISABLED_CRASH_DETECTED)
-                       || !VISIBLE(osdElementConfig()->item_pos[OSD_WARNINGS]))) {
+                   && !VISIBLE(osdElementConfig()->item_pos[OSD_WARNINGS])) {
             osdStatsEnabled = true;
             resumeRefreshAt = currentTimeUs + (60 * REFRESH_1S);
             stats.end_voltage = getStatsVoltage();
@@ -1093,9 +1088,8 @@ void osdProcessStats2(timeUs_t currentTimeUs)
 
     if (resumeRefreshAt) {
         if (cmp32(currentTimeUs, resumeRefreshAt) < 0) {
-            // in timeout period, check sticks for activity or CRASH FLIP switch to resume display.
-            if (!ARMING_FLAG(ARMED) &&
-                (IS_HI(THROTTLE) || IS_HI(PITCH) || IS_RC_MODE_ACTIVE(BOXFLIPOVERAFTERCRASH))) {
+            // in timeout period, check sticks for activity
+            if (!ARMING_FLAG(ARMED) && (IS_HI(THROTTLE) || IS_HI(PITCH))) {
                 resumeRefreshAt = currentTimeUs;
             }
             return;

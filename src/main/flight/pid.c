@@ -104,8 +104,6 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
 #define ACRO_TRAINER_SETPOINT_LIMIT       1000.0f // Limit the correcting setpoint
 #endif // USE_ACRO_TRAINER
 
-#define CRASH_RECOVERY_DETECTION_DELAY_US 1000000  // 1 second delay before crash recovery detection is active after entering a self-level mode
-
 PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 3);
 
 void resetPidProfile(pidProfile_t *pidProfile)
@@ -129,17 +127,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .feedforward_transition = 0,
         .yawRateAccelLimit = 0,
         .rateAccelLimit = 0,
-        .crash_time = 500,          // ms
-        .crash_delay = 0,           // ms
-        .crash_recovery_angle = 10, // degrees
-        .crash_recovery_rate = 100, // degrees/second
-        .crash_dthreshold = 50,     // degrees/second/second
-        .crash_gthreshold = 400,    // degrees/second
-        .crash_setpoint_threshold = 350, // degrees/second
-        .crash_recovery = PID_CRASH_RECOVERY_OFF, // off by default
         .horizon_tilt_effect = 75,
         .horizon_tilt_expert_mode = false,
-        .crash_limit_yaw = 200,
         .itermLimit = 400,
         .throttle_boost = 5,
         .throttle_boost_cutoff = 15,
@@ -396,79 +385,6 @@ STATIC_UNIT_TESTED FAST_CODE_NOINLINE float pidLevel(int axis, const pidProfile_
     return currentPidSetpoint;
 }
 
-static void handleCrashRecovery(
-    const pidCrashRecovery_e crash_recovery, const rollAndPitchTrims_t *angleTrim,
-    const int axis, const timeUs_t currentTimeUs, const float gyroRate, float *currentPidSetpoint, float *errorRate)
-{
-    if (pidRuntime.inCrashRecoveryMode && cmpTimeUs(currentTimeUs, pidRuntime.crashDetectedAtUs) > pidRuntime.crashTimeDelayUs) {
-        if (crash_recovery == PID_CRASH_RECOVERY_BEEP) {
-            BEEP_ON;
-        }
-        if (axis == FD_YAW) {
-            *errorRate = constrainf(*errorRate, -pidRuntime.crashLimitYaw, pidRuntime.crashLimitYaw);
-        } else {
-            // on roll and pitch axes calculate currentPidSetpoint and errorRate to level the aircraft to recover from crash
-            if (sensors(SENSOR_ACC)) {
-                // errorAngle is deviation from horizontal
-                const float errorAngle =  -(attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
-                *currentPidSetpoint = errorAngle * pidRuntime.levelGain;
-                *errorRate = *currentPidSetpoint - gyroRate;
-            }
-        }
-        // reset iterm, since accumulated error before crash is now meaningless
-        // and iterm windup during crash recovery can be extreme, especially on yaw axis
-        pidData[axis].I = 0.0f;
-        if (cmpTimeUs(currentTimeUs, pidRuntime.crashDetectedAtUs) > pidRuntime.crashTimeLimitUs
-            || (getMotorMixRange() < 1.0f
-                   && fabsf(gyro.gyroADCf[FD_ROLL]) < pidRuntime.crashRecoveryRate
-                   && fabsf(gyro.gyroADCf[FD_PITCH]) < pidRuntime.crashRecoveryRate
-                   && fabsf(gyro.gyroADCf[FD_YAW]) < pidRuntime.crashRecoveryRate)) {
-            if (sensors(SENSOR_ACC)) {
-                // check aircraft nearly level
-                if (ABS(attitude.raw[FD_ROLL] - angleTrim->raw[FD_ROLL]) < pidRuntime.crashRecoveryAngleDeciDegrees
-                   && ABS(attitude.raw[FD_PITCH] - angleTrim->raw[FD_PITCH]) < pidRuntime.crashRecoveryAngleDeciDegrees) {
-                    pidRuntime.inCrashRecoveryMode = false;
-                    BEEP_OFF;
-                }
-            } else {
-                pidRuntime.inCrashRecoveryMode = false;
-                BEEP_OFF;
-            }
-        }
-    }
-}
-
-static void detectAndSetCrashRecovery(
-    const pidCrashRecovery_e crash_recovery, const int axis,
-    const timeUs_t currentTimeUs, const float delta, const float errorRate)
-{
-    // if crash recovery is on and accelerometer enabled and there is no gyro overflow, then check for a crash
-    // no point in trying to recover if the crash is so severe that the gyro overflows
-    if ((crash_recovery || FLIGHT_MODE(GPS_RESCUE_MODE)) && !gyroOverflowDetected()) {
-        if (ARMING_FLAG(ARMED)) {
-            if (getMotorMixRange() >= 1.0f && !pidRuntime.inCrashRecoveryMode
-                && fabsf(delta) > pidRuntime.crashDtermThreshold
-                && fabsf(errorRate) > pidRuntime.crashGyroThreshold
-                && fabsf(getSetpointRate(axis)) < pidRuntime.crashSetpointThreshold) {
-                if (crash_recovery == PID_CRASH_RECOVERY_DISARM) {
-                    setArmingDisabled(ARMING_DISABLED_CRASH_DETECTED);
-                    disarm(DISARM_REASON_CRASH_PROTECTION);
-                } else {
-                    pidRuntime.inCrashRecoveryMode = true;
-                    pidRuntime.crashDetectedAtUs = currentTimeUs;
-                }
-            }
-            if (pidRuntime.inCrashRecoveryMode && cmpTimeUs(currentTimeUs, pidRuntime.crashDetectedAtUs) < pidRuntime.crashTimeDelayUs && (fabsf(errorRate) < pidRuntime.crashGyroThreshold
-                || fabsf(getSetpointRate(axis)) > pidRuntime.crashSetpointThreshold)) {
-                pidRuntime.inCrashRecoveryMode = false;
-                BEEP_OFF;
-            }
-        } else if (pidRuntime.inCrashRecoveryMode) {
-            pidRuntime.inCrashRecoveryMode = false;
-            BEEP_OFF;
-        }
-    }
-}
 #endif // USE_ACC
 
 #ifdef USE_ACRO_TRAINER
@@ -723,19 +639,16 @@ float pidGetAirmodeThrottleOffset()
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
+#if !defined(USE_ACC)
+    UNUSED(pidProfile);
+#endif
+    UNUSED(currentTimeUs);
+
     static float previousGyroRateDterm[XYZ_AXIS_COUNT];
     static float previousRawGyroRateDterm[XYZ_AXIS_COUNT];
 
 #if defined(USE_ACC)
-    static timeUs_t levelModeStartTimeUs = 0;
-    static bool gpsRescuePreviousState = false;
-#endif
-
-#if defined(USE_ACC)
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
-#else
-    UNUSED(pidProfile);
-    UNUSED(currentTimeUs);
 #endif
 
 #ifdef USE_TPA_MODE
@@ -760,18 +673,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     } else {
         levelMode = LEVEL_MODE_OFF;
     }
-
-    // Keep track of when we entered a self-level mode so that we can
-    // add a guard time before crash recovery can activate.
-    // Also reset the guard time whenever GPS Rescue is activated.
-    if (levelMode) {
-        if ((levelModeStartTimeUs == 0) || (gpsRescueIsActive && !gpsRescuePreviousState)) {
-            levelModeStartTimeUs = currentTimeUs;
-        }
-    } else {
-        levelModeStartTimeUs = 0;
-    }
-    gpsRescuePreviousState = gpsRescueIsActive;
 #endif
 
     // gradually scale back integration when above windup point
@@ -849,7 +750,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #endif
 
 #ifdef USE_ACRO_TRAINER
-        if ((axis != FD_YAW) && pidRuntime.acroTrainerActive && !pidRuntime.inCrashRecoveryMode) {
+        if ((axis != FD_YAW) && pidRuntime.acroTrainerActive) {
             currentPidSetpoint = applyAcroTrainer(axis, angleTrim, currentPidSetpoint);
         }
 #endif // USE_ACRO_TRAINER
@@ -865,11 +766,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         // -----calculate error rate
         const float gyroRate = gyro.gyroADCf[axis]; // Process variable from gyro output in deg/sec
         float errorRate = currentPidSetpoint - gyroRate; // r - y
-#if defined(USE_ACC)
-        handleCrashRecovery(
-            pidProfile->crash_recovery, angleTrim, axis, currentTimeUs, gyroRate,
-            &currentPidSetpoint, &errorRate);
-#endif
 
         const float previousIterm = pidData[axis].I;
         float itermErrorRate = errorRate;
@@ -878,7 +774,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #endif
 
 #if defined(USE_ITERM_RELAX)
-        if (!pidRuntime.inCrashRecoveryMode) {
+        {
             applyItermRelax(axis, previousIterm, gyroRate, &itermErrorRate, &currentPidSetpoint);
             errorRate = currentPidSetpoint - gyroRate;
         }
@@ -925,12 +821,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             const float delta =
                 - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidRuntime.pidFrequency;
             float preTpaD = pidRuntime.pidCoefficient[axis].Kd * delta;
-
-#if defined(USE_ACC)
-            if (cmpTimeUs(currentTimeUs, levelModeStartTimeUs) > CRASH_RECOVERY_DETECTION_DELAY_US) {
-                detectAndSetCrashRecovery(pidProfile->crash_recovery, axis, currentTimeUs, delta, errorRate);
-            }
-#endif
 
 #if defined(USE_D_MIN)
             float dMinFactor = 1.0f;
@@ -1042,11 +932,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     } else if (pidRuntime.zeroThrottleItermReset) {
         pidResetIterm();
     }
-}
-
-bool crashRecoveryModeActive(void)
-{
-    return pidRuntime.inCrashRecoveryMode;
 }
 
 #ifdef USE_ACRO_TRAINER
