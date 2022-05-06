@@ -329,16 +329,9 @@ void updateArmingStatus(void)
             bool ignoreGyro = armingConfig()->gyro_cal_on_first_arm
                 && !(getArmingDisableFlags() & ~(ARMING_DISABLED_ARM_SWITCH | ARMING_DISABLED_CALIBRATING));
 
-            /* Ignore ARMING_DISABLED_THROTTLE (once arm switch is on) if we are in 3D mode */
-            bool ignoreThrottle = featureIsEnabled(FEATURE_3D)
-                 && !IS_RC_MODE_ACTIVE(BOX3D)
-                 && !flight3DConfig()->switched_mode3d
-                 && !(getArmingDisableFlags() & ~(ARMING_DISABLED_ARM_SWITCH | ARMING_DISABLED_THROTTLE));
-
             // If arming is disabled and the ARM switch is on
             if (isArmingDisabled()
                 && !ignoreGyro
-                && !ignoreThrottle
                 && IS_RC_MODE_ACTIVE(BOXARM)) {
                 setArmingDisabled(ARMING_DISABLED_ARM_SWITCH);
             } else if (!IS_RC_MODE_ACTIVE(BOXARM)) {
@@ -555,31 +548,10 @@ bool areSticksActive(uint8_t stickPercentLimit)
 
 
 // calculate the throttle stick percent - integer math is good enough here.
-// returns negative values for reversed thrust in 3D mode
 int8_t calculateThrottlePercent(void)
 {
-    uint8_t ret = 0;
     int channelData = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX);
-
-    if (featureIsEnabled(FEATURE_3D)
-        && !IS_RC_MODE_ACTIVE(BOX3D)
-        && !flight3DConfig()->switched_mode3d) {
-
-        if (channelData > (rxConfig()->midrc + flight3DConfig()->deadband3d_throttle)) {
-            ret = ((channelData - rxConfig()->midrc - flight3DConfig()->deadband3d_throttle) * 100) / (PWM_RANGE_MAX - rxConfig()->midrc - flight3DConfig()->deadband3d_throttle);
-        } else if (channelData < (rxConfig()->midrc - flight3DConfig()->deadband3d_throttle)) {
-            ret = -((rxConfig()->midrc - flight3DConfig()->deadband3d_throttle - channelData) * 100) / (rxConfig()->midrc - flight3DConfig()->deadband3d_throttle - PWM_RANGE_MIN);
-        }
-    } else {
-        ret = constrain(((channelData - rxConfig()->mincheck) * 100) / (PWM_RANGE_MAX - rxConfig()->mincheck), 0, 100);
-        if (featureIsEnabled(FEATURE_3D)
-            && IS_RC_MODE_ACTIVE(BOX3D)
-            && flight3DConfig()->switched_mode3d) {
-
-            ret = -ret;  // 3D on a switch is active
-        }
-    }
-    return ret;
+    return constrain(((channelData - rxConfig()->mincheck) * 100) / (PWM_RANGE_MAX - rxConfig()->mincheck), 0, 100);
 }
 
 uint8_t calculateThrottlePercentAbs(void)
@@ -598,12 +570,6 @@ bool processRx(timeUs_t currentTimeUs)
     }
 
     updateRcRefreshRate(currentTimeUs);
-
-    // in 3D mode, we need to be able to disarm by switch at any time
-    if (featureIsEnabled(FEATURE_3D)) {
-        if (!IS_RC_MODE_ACTIVE(BOXARM))
-            disarm(DISARM_REASON_SWITCH);
-    }
 
     updateRSSI(currentTimeUs);
 
@@ -644,7 +610,6 @@ void processRxModes(timeUs_t currentTimeUs)
     if (ARMING_FLAG(ARMED)
         && featureIsEnabled(FEATURE_MOTOR_STOP)
         && !isFixedWing()
-        && !featureIsEnabled(FEATURE_3D)
         && !FLIGHT_MODE(GPS_RESCUE_MODE)  // disable auto-disarm when GPS Rescue is active
     ) {
         if (isUsingSticksForArming()) {

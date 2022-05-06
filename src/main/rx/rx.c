@@ -284,7 +284,7 @@ void rxInit(void)
         validRxSignalTimeout[i] = millis() + MAX_INVALID_PULSE_TIME_MS;
     }
 
-    rcData[THROTTLE] = (featureIsEnabled(FEATURE_3D)) ? rxConfig()->midrc : rxConfig()->rx_min_usec;
+    rcData[THROTTLE] = rxConfig()->rx_min_usec;
 
     // Initialize ARM switch to OFF position when arming via switch is defined
     // TODO - move to rc_mode.c
@@ -578,11 +578,7 @@ static uint16_t getRxfailValue(uint8_t channel)
         case YAW:
             return rxConfig()->midrc;
         case THROTTLE:
-            if (featureIsEnabled(FEATURE_3D) && !IS_RC_MODE_ACTIVE(BOX3D) && !flight3DConfig()->switched_mode3d) {
-                return rxConfig()->midrc;
-            } else {
-                return rxConfig()->rx_min_usec;
-            }
+            return rxConfig()->rx_min_usec;
         }
 
     FALLTHROUGH;
