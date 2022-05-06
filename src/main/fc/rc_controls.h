@@ -51,8 +51,6 @@ typedef enum {
     THROTTLE_HIGH
 } throttleStatus_e;
 
-#define AIRMODEDEADBAND 12
-
 typedef enum {
     NOT_CENTERED = 0,
     CENTERED
