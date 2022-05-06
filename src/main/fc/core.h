@@ -70,7 +70,6 @@ void taskMainPidLoop(timeUs_t currentTimeUs);
 int8_t calculateThrottlePercent(void);
 uint8_t calculateThrottlePercentAbs(void);
 bool areSticksActive(uint8_t stickPercentLimit);
-bool isAirmodeActivated();
 timeUs_t getLastDisarmTimeUs(void);
 bool isTryingToArm();
 void resetTryingToArm();

@@ -125,7 +125,7 @@ typedef struct pidProfile_s {
     uint8_t itermWindupPointPercent;        // iterm windup threshold, percent motor saturation
     uint16_t pidSumLimit;
     uint16_t pidSumLimitYaw;
-    uint8_t pidAtMinThrottle;               // Disable/Enable pids on zero throttle. Normally even without airmode P and D would be active.
+    uint8_t pidAtMinThrottle;               // Disable/Enable pids on zero throttle.
     uint8_t levelAngleLimit;                // Max angle in degrees in level mode
 
     uint8_t horizon_tilt_effect;            // inclination factor for Horizon mode
@@ -161,7 +161,6 @@ typedef struct pidProfile_s {
     uint8_t d_min_advance;                  // Percentage multiplier for setpoint input to boost algorithm
     uint8_t motor_output_limit;             // Upper limit of the motor output (percent)
     int8_t auto_profile_cell_count;         // Cell count for this profile to be used with if auto PID profile switching is used
-    uint8_t transient_throttle_limit;       // Maximum DC component of throttle change to mix into throttle to prevent airmode mirroring noise
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
 
     uint8_t dyn_idle_min_rpm;                   // minimum motor speed enforced by the dynamic idle controller
@@ -269,11 +268,6 @@ typedef struct pidRuntime_s {
     float dMinSetpointGain;
 #endif
 
-#ifdef USE_AIRMODE_LPF
-    pt1Filter_t airmodeThrottleLpf1;
-    pt1Filter_t airmodeThrottleLpf2;
-#endif
-
 #ifdef USE_RC_SMOOTHING_FILTER
     pt3Filter_t feedforwardPt3[XYZ_AXIS_COUNT];
     bool feedforwardLpfInitialized;
@@ -307,10 +301,6 @@ typedef struct pidRuntime_s {
     float throttleCompensateAmount;
 #endif
 
-#ifdef USE_AIRMODE_LPF
-    float airmodeThrottleOffsetLimit;
-#endif
-
 #ifdef USE_FEEDFORWARD
     float feedforwardTransitionFactor;
     feedforwardAveraging_t feedforwardAveraging;
@@ -342,11 +332,6 @@ void pidUpdateTpaFactor(float throttle);
 #ifdef USE_THRUST_LINEARIZATION
 float pidApplyThrustLinearization(float motorValue);
 float pidCompensateThrustLinearization(float throttle);
-#endif
-
-#ifdef USE_AIRMODE_LPF
-void pidUpdateAirmodeLpf(float currentOffset);
-float pidGetAirmodeThrottleOffset();
 #endif
 
 #ifdef UNIT_TEST
