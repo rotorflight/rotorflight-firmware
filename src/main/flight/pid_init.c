@@ -225,13 +225,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pt2FilterInit(&pidRuntime.dMinLowpass[axis], pt2FilterGain(D_MIN_LOWPASS_HZ, pidRuntime.dT));
      }
 #endif
-
-#if defined(USE_AIRMODE_LPF)
-    if (pidProfile->transient_throttle_limit) {
-        pt1FilterInit(&pidRuntime.airmodeThrottleLpf1, pt1FilterGain(7.0f, pidRuntime.dT));
-        pt1FilterInit(&pidRuntime.airmodeThrottleLpf2, pt1FilterGain(20.0f, pidRuntime.dT));
-    }
-#endif
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -372,10 +365,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dMinGyroGain = pidProfile->d_min_gain * D_MIN_GAIN_FACTOR / D_MIN_LOWPASS_HZ;
     pidRuntime.dMinSetpointGain = pidProfile->d_min_gain * D_MIN_SETPOINT_GAIN_FACTOR * pidProfile->d_min_advance * pidRuntime.pidFrequency / (100 * D_MIN_LOWPASS_HZ);
     // lowpass included inversely in gain since stronger lowpass decreases peak effect
-#endif
-
-#if defined(USE_AIRMODE_LPF)
-    pidRuntime.airmodeThrottleOffsetLimit = pidProfile->transient_throttle_limit / 100.0f;
 #endif
 
 #ifdef USE_FEEDFORWARD
