@@ -36,7 +36,6 @@ float getRcDeflectionAbs(int axis);
 void updateRcCommands(void);
 void resetYawAxis(void);
 void initRcProcessing(void);
-bool isMotorsReversed(void);
 rcSmoothingFilter_t *getRcSmoothingData(void);
 bool rcSmoothingAutoCalculate(void);
 bool rcSmoothingInitializationComplete(void);

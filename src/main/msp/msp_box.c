@@ -76,7 +76,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXBLACKBOX, "BLACKBOX", 26 },
     { BOXFAILSAFE, "FAILSAFE", 27 },
 //    { BOXAIRMODE, "AIR MODE", 28 },
-    { BOX3D, "3D DISABLE / SWITCH", 29},
+//    { BOX3D, "3D DISABLE / SWITCH", 29},
     { BOXFPVANGLEMIX, "FPV ANGLE MIX", 30},
     { BOXBLACKBOXERASE, "BLACKBOX ERASE (>30s)", 31 },
     { BOXCAMERA1, "CAMERA CONTROL 1", 32},
@@ -203,7 +203,7 @@ void initActiveBoxIds(void)
 #ifdef USE_GPS
     if (featureIsEnabled(FEATURE_GPS)) {
 #ifdef USE_GPS_RESCUE
-        if (!featureIsEnabled(FEATURE_3D) && !isFixedWing()) {
+        if (!isFixedWing()) {
             BME(BOXGPSRESCUE);
         }
 #endif
@@ -234,10 +234,6 @@ void initActiveBoxIds(void)
 #endif
 
     BME(BOXFPVANGLEMIX);
-
-    if (featureIsEnabled(FEATURE_3D)) {
-        BME(BOX3D);
-    }
 
     if (featureIsEnabled(FEATURE_SERVO_TILT)) {
         BME(BOXCAMSTAB);

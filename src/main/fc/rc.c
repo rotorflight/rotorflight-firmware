@@ -64,7 +64,6 @@ float rcCommandDelta[XYZ_AXIS_COUNT];
 #endif
 static float rawSetpoint[XYZ_AXIS_COUNT];
 static float setpointRate[3], rcDeflection[3], rcDeflectionAbs[3];
-static bool reverseMotors = false;
 static applyRatesFn *applyRates;
 static uint16_t currentRxRefreshRate;
 static bool isRxDataNew = false;
@@ -626,13 +625,8 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
     }
 
     int32_t tmp;
-    if (featureIsEnabled(FEATURE_3D)) {
-        tmp = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX);
-        tmp = (uint32_t)(tmp - PWM_RANGE_MIN);
-    } else {
-        tmp = constrain(rcData[THROTTLE], rxConfig()->mincheck, PWM_RANGE_MAX);
-        tmp = (uint32_t)(tmp - rxConfig()->mincheck) * PWM_RANGE_MIN / (PWM_RANGE_MAX - rxConfig()->mincheck);
-    }
+    tmp = constrain(rcData[THROTTLE], rxConfig()->mincheck, PWM_RANGE_MAX);
+    tmp = (uint32_t)(tmp - rxConfig()->mincheck) * PWM_RANGE_MIN / (PWM_RANGE_MAX - rxConfig()->mincheck);
 
     if (getLowVoltageCutoff()->enabled) {
         tmp = tmp * getLowVoltageCutoff()->percentage / 100;
@@ -640,24 +634,6 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
 
     rcCommand[THROTTLE] = rcLookupThrottle(tmp);
 
-    if (featureIsEnabled(FEATURE_3D) && !failsafeIsActive()) {
-        if (!flight3DConfig()->switched_mode3d) {
-            if (IS_RC_MODE_ACTIVE(BOX3D)) {
-                fix12_t throttleScaler = qConstruct(rcCommand[THROTTLE] - 1000, 1000);
-                rcCommand[THROTTLE] = rxConfig()->midrc + qMultiply(throttleScaler, PWM_RANGE_MAX - rxConfig()->midrc);
-            }
-        } else {
-            if (IS_RC_MODE_ACTIVE(BOX3D)) {
-                reverseMotors = true;
-                fix12_t throttleScaler = qConstruct(rcCommand[THROTTLE] - 1000, 1000);
-                rcCommand[THROTTLE] = rxConfig()->midrc + qMultiply(throttleScaler, PWM_RANGE_MIN - rxConfig()->midrc);
-            } else {
-                reverseMotors = false;
-                fix12_t throttleScaler = qConstruct(rcCommand[THROTTLE] - 1000, 1000);
-                rcCommand[THROTTLE] = rxConfig()->midrc + qMultiply(throttleScaler, PWM_RANGE_MAX - rxConfig()->midrc);
-            }
-        }
-    }
     if (FLIGHT_MODE(HEADFREE_MODE)) {
         static t_fp_vector_def  rcCommandBuff;
 
@@ -681,11 +657,6 @@ void resetYawAxis(void)
 {
     rcCommand[YAW] = 0;
     setpointRate[YAW] = 0;
-}
-
-bool isMotorsReversed(void)
-{
-    return reverseMotors;
 }
 
 void initRcProcessing(void)

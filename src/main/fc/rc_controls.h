@@ -118,18 +118,6 @@ typedef struct rcControlsConfig_s {
 
 PG_DECLARE(rcControlsConfig_t, rcControlsConfig);
 
-typedef struct flight3DConfig_s {
-    uint16_t deadband3d_low;                // min 3d value
-    uint16_t deadband3d_high;               // max 3d value
-    uint16_t neutral3d;                     // center 3d value
-    uint16_t deadband3d_throttle;           // default throttle deadband from MIDRC
-    uint16_t limit3d_low;                   // pwm output value for max negative thrust
-    uint16_t limit3d_high;                  // pwm output value for max positive thrust
-    uint8_t switched_mode3d;                // enable '3D Switched Mode'
-} flight3DConfig_t;
-
-PG_DECLARE(flight3DConfig_t, flight3DConfig);
-
 typedef struct armingConfig_s {
     uint8_t gyro_cal_on_first_arm;          // allow disarm/arm on throttle down + roll left/right
     uint8_t auto_disarm_delay;              // allow automatically disarming multicopters after auto_disarm_delay seconds of zero throttle. Disabled when 0
