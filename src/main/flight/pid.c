@@ -156,9 +156,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .use_integrated_yaw = false,
         .integrated_yaw_relax = 200,
         .thrustLinearization = 0,
-        .d_min = D_MIN_DEFAULT,
-        .d_min_gain = 37,
-        .d_min_advance = 20,
         .motor_output_limit = 100,
         .auto_profile_cell_count = AUTO_PROFILE_CELL_COUNT_STAY,
         .profileName = { 0 },
@@ -176,11 +173,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .level_race_mode = false,
         .vbat_sag_compensation = 0,
     );
-
-#ifndef USE_D_MIN
-    pidProfile->pid[PID_ROLL].D = 30;
-    pidProfile->pid[PID_PITCH].D = 32;
-#endif
 }
 
 void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
@@ -743,28 +735,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
                 - (gyroRateDterm[axis] - previousGyroRateDterm[axis]) * pidRuntime.pidFrequency;
             float preTpaD = pidRuntime.pidCoefficient[axis].Kd * delta;
 
-#if defined(USE_D_MIN)
-            float dMinFactor = 1.0f;
-            if (pidRuntime.dMinPercent[axis] > 0) {
-                float dMinGyroFactor = pt2FilterApply(&pidRuntime.dMinRange[axis], delta);
-                dMinGyroFactor = fabsf(dMinGyroFactor) * pidRuntime.dMinGyroGain;
-                const float dMinSetpointFactor = (fabsf(pidSetpointDelta)) * pidRuntime.dMinSetpointGain;
-                dMinFactor = MAX(dMinGyroFactor, dMinSetpointFactor);
-                dMinFactor = pidRuntime.dMinPercent[axis] + (1.0f - pidRuntime.dMinPercent[axis]) * dMinFactor;
-                dMinFactor = pt2FilterApply(&pidRuntime.dMinLowpass[axis], dMinFactor);
-                dMinFactor = MIN(dMinFactor, 1.0f);
-                if (axis == FD_ROLL) {
-                    DEBUG_SET(DEBUG_D_MIN, 0, lrintf(dMinGyroFactor * 100));
-                    DEBUG_SET(DEBUG_D_MIN, 1, lrintf(dMinSetpointFactor * 100));
-                    DEBUG_SET(DEBUG_D_MIN, 2, lrintf(pidRuntime.pidCoefficient[axis].Kd * dMinFactor * 10 / DTERM_SCALE));
-                } else if (axis == FD_PITCH) {
-                    DEBUG_SET(DEBUG_D_MIN, 3, lrintf(pidRuntime.pidCoefficient[axis].Kd * dMinFactor * 10 / DTERM_SCALE));
-                }
-            }
-
-            // Apply the dMinFactor
-            preTpaD *= dMinFactor;
-#endif
             pidData[axis].D = preTpaD;
 
             // Log the value of D

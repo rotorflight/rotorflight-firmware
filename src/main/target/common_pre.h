@@ -304,7 +304,6 @@ extern uint8_t _dmaram_end__;
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 8))
 #define USE_DYN_LPF
-#define USE_D_MIN
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 7))

@@ -1347,13 +1347,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_LEVEL].I,
                                                                             currentPidProfile->pid[PID_LEVEL].D);
         BLACKBOX_PRINT_HEADER_LINE("magPID", "%d",                          currentPidProfile->pid[PID_MAG].P);
-#ifdef USE_D_MIN
-        BLACKBOX_PRINT_HEADER_LINE("d_min", "%d,%d,%d",                     currentPidProfile->d_min[ROLL],
-                                                                            currentPidProfile->d_min[PITCH],
-                                                                            currentPidProfile->d_min[YAW]);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_D_MAX_GAIN, "%d",             currentPidProfile->d_min_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_D_MAX_ADVANCE, "%d",          currentPidProfile->d_min_advance);
-#endif
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DTERM_LPF1_TYPE, "%d",        currentPidProfile->dterm_lpf1_type);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DTERM_LPF1_STATIC_HZ, "%d",   currentPidProfile->dterm_lpf1_static_hz);
 #ifdef USE_DYN_LPF
