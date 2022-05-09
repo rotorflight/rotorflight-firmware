@@ -1364,7 +1364,6 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ITERM_RELAX_TYPE, "%d",       currentPidProfile->iterm_relax_type);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ITERM_RELAX_CUTOFF, "%d",     currentPidProfile->iterm_relax_cutoff);
 #endif
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_PID_AT_MIN_THROTTLE, "%d",    currentPidProfile->pidAtMinThrottle);
 
         // Betaflight PID controller parameters
 #ifdef USE_ABSOLUTE_CONTROL
