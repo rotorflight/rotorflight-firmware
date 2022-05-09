@@ -307,7 +307,6 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 7))
-#define USE_THROTTLE_BOOST
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 6))
