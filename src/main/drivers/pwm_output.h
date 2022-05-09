@@ -33,9 +33,6 @@
 
 #define ALL_MOTORS 255
 
-#define MOTOR_OUTPUT_LIMIT_PERCENT_MIN 1
-#define MOTOR_OUTPUT_LIMIT_PERCENT_MAX 100
-
 #define PWM_TIMER_1MHZ        MHZ_TO_HZ(1)
 
 struct timerHardware_s;
