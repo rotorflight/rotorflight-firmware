@@ -128,8 +128,6 @@ typedef struct pidProfile_s {
     uint16_t rateAccelLimit;                // accel limiter roll/pitch deg/sec/ms
     uint16_t itermLimit;
     uint16_t dterm_lpf2_static_hz;          // Static Dterm lowpass 2 filter cutoff value in hz
-    uint8_t throttle_boost;                 // how much should throttle be boosted during transient changes 0-100, 100 adds 10x hpf filtered throttle
-    uint8_t throttle_boost_cutoff;          // Which cutoff frequency to use for throttle boost. higher cutoffs keep the boost on for shorter. Specified in hz.
     uint8_t iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
     uint8_t iterm_relax_type;               // Specifies type of relax algorithm
     uint8_t iterm_relax_cutoff;             // This cutoff frequency specifies a low pass filter which predicts average response of the quad to setpoint
@@ -287,7 +285,6 @@ extern pidAxisData_t pidData[3];
 
 extern uint32_t targetPidLooptime;
 
-extern float throttleBoost;
 extern pt1Filter_t throttleLpf;
 
 void resetPidProfile(pidProfile_t *profile);
