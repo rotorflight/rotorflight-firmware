@@ -40,7 +40,6 @@
 #include "common/utils.h"
 
 #include "config/feature.h"
-#include "config/simplified_tuning.h"
 
 #include "drivers/pwm_output.h"
 
@@ -199,20 +198,20 @@ static OSD_Entry cmsx_menuPidEntries[] =
 {
     { "-- PID --", OME_Label, NULL, pidProfileIndexString},
 
-    { "ROLL  P", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][0],  0, 200, 1 }},
-    { "ROLL  I", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][1],  0, 200, 1 }},
-    { "ROLL  D", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][2],  0, 200, 1 }},
-    { "ROLL  F", OME_UINT16 | SLIDER_RP, NULL, &(OSD_UINT16_t){ &tempPidF[PID_ROLL],  0, 2000, 1 }},
+    { "ROLL  P", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][0],  0, 200, 1 }},
+    { "ROLL  I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][1],  0, 200, 1 }},
+    { "ROLL  D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][2],  0, 200, 1 }},
+    { "ROLL  F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_ROLL],  0, 2000, 1 }},
 
-    { "PITCH P", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][0], 0, 200, 1 }},
-    { "PITCH I", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][1], 0, 200, 1 }},
-    { "PITCH D", OME_UINT8 | SLIDER_RP, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][2], 0, 200, 1 }},
-    { "PITCH F", OME_UINT16 | SLIDER_RP, NULL, &(OSD_UINT16_t){ &tempPidF[PID_PITCH], 0, 2000, 1 }},
+    { "PITCH P", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][0], 0, 200, 1 }},
+    { "PITCH I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][1], 0, 200, 1 }},
+    { "PITCH D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][2], 0, 200, 1 }},
+    { "PITCH F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_PITCH], 0, 2000, 1 }},
 
-    { "YAW   P", OME_UINT8 | SLIDER_RPY, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][0],   0, 200, 1 }},
-    { "YAW   I", OME_UINT8 | SLIDER_RPY, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][1],   0, 200, 1 }},
-    { "YAW   D", OME_UINT8 | SLIDER_RPY, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][2],   0, 200, 1 }},
-    { "YAW   F", OME_UINT16 | SLIDER_RPY, NULL, &(OSD_UINT16_t){ &tempPidF[PID_YAW],   0, 2000, 1 }},
+    { "YAW   P", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][0],   0, 200, 1 }},
+    { "YAW   I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][1],   0, 200, 1 }},
+    { "YAW   D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][2],   0, 200, 1 }},
+    { "YAW   F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_YAW],   0, 2000, 1 }},
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
@@ -228,138 +227,6 @@ static CMS_Menu cmsx_menuPid = {
     .onDisplayUpdate = NULL,
     .entries = cmsx_menuPidEntries
 };
-
-#ifdef USE_SIMPLIFIED_TUNING
-static uint8_t cmsx_simplified_pids_mode;
-static uint8_t cmsx_simplified_master_multiplier;
-static uint8_t cmsx_simplified_roll_pitch_ratio;
-static uint8_t cmsx_simplified_i_gain;
-static uint8_t cmsx_simplified_d_gain;
-static uint8_t cmsx_simplified_pi_gain;
-#ifdef USE_D_MIN
-static uint8_t cmsx_simplified_dmin_ratio;
-#endif
-static uint8_t cmsx_simplified_feedforward_gain;
-static uint8_t cmsx_simplified_pitch_pi_gain;
-
-static uint8_t cmsx_simplified_dterm_filter;
-static uint8_t cmsx_simplified_dterm_filter_multiplier;
-static uint8_t cmsx_simplified_gyro_filter;
-static uint8_t cmsx_simplified_gyro_filter_multiplier;
-
-static const void *cmsx_simplifiedTuningOnEnter(displayPort_t *pDisp)
-{
-    UNUSED(pDisp);
-
-    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
-
-    cmsx_simplified_pids_mode = pidProfile->simplified_pids_mode;
-    cmsx_simplified_master_multiplier = pidProfile->simplified_master_multiplier;
-    cmsx_simplified_roll_pitch_ratio = pidProfile->simplified_roll_pitch_ratio;
-    cmsx_simplified_i_gain = pidProfile->simplified_i_gain;
-    cmsx_simplified_d_gain = pidProfile->simplified_d_gain;
-    cmsx_simplified_pi_gain = pidProfile->simplified_pi_gain;
-#ifdef USE_D_MIN
-    cmsx_simplified_dmin_ratio = pidProfile->simplified_dmin_ratio;
-#endif
-    cmsx_simplified_feedforward_gain = pidProfile->simplified_feedforward_gain;
-    cmsx_simplified_pitch_pi_gain = pidProfile->simplified_pitch_pi_gain;
-
-    cmsx_simplified_dterm_filter = pidProfile->simplified_dterm_filter;
-    cmsx_simplified_dterm_filter_multiplier = pidProfile->simplified_dterm_filter_multiplier;
-    cmsx_simplified_gyro_filter = gyroConfig()->simplified_gyro_filter;
-    cmsx_simplified_gyro_filter_multiplier = gyroConfig()->simplified_gyro_filter_multiplier;
-
-    return 0;
-}
-
-static const void *cmsx_simplifiedTuningOnExit(displayPort_t *pDisp, const OSD_Entry *self)
-{
-    UNUSED(pDisp);
-    UNUSED(self);
-
-    pidProfile_t *pidProfile = currentPidProfile;
-
-    const bool anySettingChanged = pidProfile->simplified_pids_mode != cmsx_simplified_pids_mode
-        || pidProfile->simplified_master_multiplier != cmsx_simplified_master_multiplier
-        || pidProfile->simplified_roll_pitch_ratio != cmsx_simplified_roll_pitch_ratio
-        || pidProfile->simplified_i_gain != cmsx_simplified_i_gain
-        || pidProfile->simplified_d_gain != cmsx_simplified_d_gain
-        || pidProfile->simplified_pi_gain != cmsx_simplified_pi_gain
-#ifdef USE_D_MIN
-        || pidProfile->simplified_dmin_ratio != cmsx_simplified_dmin_ratio
-#endif
-        || pidProfile->simplified_feedforward_gain != cmsx_simplified_feedforward_gain
-        || pidProfile->simplified_pitch_pi_gain != cmsx_simplified_pitch_pi_gain
-        || pidProfile->simplified_dterm_filter != cmsx_simplified_dterm_filter
-        || pidProfile->simplified_dterm_filter_multiplier != cmsx_simplified_dterm_filter_multiplier
-        || gyroConfigMutable()->simplified_gyro_filter != cmsx_simplified_gyro_filter
-        || gyroConfigMutable()->simplified_gyro_filter_multiplier != cmsx_simplified_gyro_filter_multiplier;
-
-    if (anySettingChanged) {
-        pidProfile->simplified_pids_mode = cmsx_simplified_pids_mode;
-        pidProfile->simplified_master_multiplier = cmsx_simplified_master_multiplier;
-        pidProfile->simplified_roll_pitch_ratio = cmsx_simplified_roll_pitch_ratio;
-        pidProfile->simplified_i_gain = cmsx_simplified_i_gain;
-        pidProfile->simplified_d_gain = cmsx_simplified_d_gain;
-        pidProfile->simplified_pi_gain = cmsx_simplified_pi_gain;
-#ifdef USE_D_MIN
-        pidProfile->simplified_dmin_ratio = cmsx_simplified_dmin_ratio;
-#endif
-        pidProfile->simplified_feedforward_gain = cmsx_simplified_feedforward_gain;
-        pidProfile->simplified_pitch_pi_gain = cmsx_simplified_pitch_pi_gain;
-
-        pidProfile->simplified_dterm_filter = cmsx_simplified_dterm_filter;
-        pidProfile->simplified_dterm_filter_multiplier = cmsx_simplified_dterm_filter_multiplier;
-        gyroConfigMutable()->simplified_gyro_filter = cmsx_simplified_gyro_filter;
-        gyroConfigMutable()->simplified_gyro_filter_multiplier = cmsx_simplified_gyro_filter_multiplier;
-
-        applySimplifiedTuning(currentPidProfile, gyroConfigMutable());
-    }
-
-    return 0;
-}
-
-static const OSD_Entry cmsx_menuSimplifiedTuningEntries[] =
-{
-    { "-- SIMPLIFIED PID --", OME_Label, NULL, NULL},
-    { "PID TUNING",        OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_pids_mode, PID_SIMPLIFIED_TUNING_MODE_COUNT - 1, lookupTableSimplifiedTuningPidsMode } },
-
-    { "-- BASIC --",       OME_Label, NULL, NULL},
-    { "D GAINS",           OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_d_gain,            SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "P&I GAINS",         OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_pi_gain,           SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "FF GAINS",          OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_feedforward_gain,  SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-
-    { "-- EXPERT --",      OME_Label, NULL, NULL},
-#ifdef USE_D_MIN
-    { "D MAX",             OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_dmin_ratio,        SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-#endif
-    { "I GAINS",           OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_i_gain,            SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-
-    { "PITCH:ROLL D",      OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_roll_pitch_ratio,  SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "PITCH:ROLL P,I&FF", OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_pitch_pi_gain,     SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "MASTER MULT",       OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_master_multiplier, SIMPLIFIED_TUNING_PIDS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-
-    { "-- SIMPLIFIED FILTER --", OME_Label, NULL, NULL},
-    { "GYRO TUNING",       OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_gyro_filter,  1, lookupTableOffOn } },
-    { "GYRO MULT",         OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_gyro_filter_multiplier,  SIMPLIFIED_TUNING_FILTERS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-    { "DTERM TUNING",      OME_TAB,   NULL, &(OSD_TAB_t)   { &cmsx_simplified_dterm_filter, 1, lookupTableOffOn } },
-    { "DTERM MULT",        OME_FLOAT, NULL, &(OSD_FLOAT_t) { &cmsx_simplified_dterm_filter_multiplier, SIMPLIFIED_TUNING_FILTERS_MIN, SIMPLIFIED_TUNING_MAX, 5, 10 } },
-
-    { "BACK", OME_Back, NULL, NULL },
-    { NULL, OME_END, NULL, NULL}
-};
-
-static CMS_Menu cmsx_menuSimplifiedTuning = {
-#ifdef CMS_MENU_DEBUG
-    .GUARD_text = "XSIMPLIFIED",
-    .GUARD_type = OME_MENU,
-#endif
-    .onEnter = cmsx_simplifiedTuningOnEnter,
-    .onExit = cmsx_simplifiedTuningOnExit,
-    .entries = cmsx_menuSimplifiedTuningEntries,
-};
-#endif // USE_SIMPLIFIED_TUNING
 
 //
 // Rate & Expo
@@ -587,9 +454,9 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "AUTO CELL CNT", OME_INT8, NULL, &(OSD_INT8_t) { &cmsx_autoProfileCellCount, AUTO_PROFILE_CELL_COUNT_CHANGE, MAX_AUTO_DETECT_CELL_COUNT, 1} },
 
 #ifdef USE_D_MIN
-    { "D_MIN ROLL",  OME_UINT8 | SLIDER_RP,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_ROLL],      0, 100, 1 } },
-    { "D_MIN PITCH", OME_UINT8 | SLIDER_RP,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_PITCH],     0, 100, 1 } },
-    { "D_MIN YAW",   OME_UINT8 | SLIDER_RPY,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_YAW],       0, 100, 1 } },
+    { "D_MIN ROLL",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_ROLL],      0, 100, 1 } },
+    { "D_MIN PITCH", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_PITCH],     0, 100, 1 } },
+    { "D_MIN YAW",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min[FD_YAW],       0, 100, 1 } },
     { "D_MIN GAIN",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min_gain,          0, 100, 1 } },
     { "D_MIN ADV",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_d_min_advance,       0, 200, 1 } },
 #endif
@@ -657,9 +524,9 @@ static const OSD_Entry cmsx_menuFilterGlobalEntries[] =
 {
     { "-- FILTER GLB  --", OME_Label, NULL, NULL },
 
-    { "GYRO LPF1",  OME_UINT16 | SLIDER_GYRO, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_lpf1_static_hz, 0, LPF_MAX_HZ, 1 } },
+    { "GYRO LPF1",  OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_lpf1_static_hz, 0, LPF_MAX_HZ, 1 } },
 #ifdef USE_GYRO_LPF2
-    { "GYRO LPF2",  OME_UINT16 | SLIDER_GYRO, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_lpf2_static_hz,  0, LPF_MAX_HZ, 1 } },
+    { "GYRO LPF2",  OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_lpf2_static_hz,  0, LPF_MAX_HZ, 1 } },
 #endif
     { "GYRO NF1",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_soft_notch_hz_1,     0, 500, 1 } },
     { "GYRO NF1C",  OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroConfig_gyro_soft_notch_cutoff_1, 0, 500, 1 } },
@@ -760,11 +627,11 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
 #endif
 
 #ifdef USE_DYN_LPF
-    { "GYRO DLPF MIN",   OME_UINT16 | SLIDER_GYRO, NULL, &(OSD_UINT16_t) { &gyroLpfDynMin,  0, 1000, 1 } },
-    { "GYRO DLPF MAX",   OME_UINT16 | SLIDER_GYRO, NULL, &(OSD_UINT16_t) { &gyroLpfDynMax,  0, 1000, 1 } },
+    { "GYRO DLPF MIN",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMin,  0, 1000, 1 } },
+    { "GYRO DLPF MAX",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMax,  0, 1000, 1 } },
     { "GYRO DLPF EXPO",  OME_UINT8, NULL, &(OSD_UINT8_t) { &gyroLpfDynExpo,   0, 10, 1 } },
-    { "DTERM DLPF MIN",  OME_UINT16 | SLIDER_DTERM, NULL, &(OSD_UINT16_t) { &dtermLpfDynMin, 0, 1000, 1 } },
-    { "DTERM DLPF MAX",  OME_UINT16 | SLIDER_DTERM, NULL, &(OSD_UINT16_t) { &dtermLpfDynMax, 0, 1000, 1 } },
+    { "DTERM DLPF MIN",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMin, 0, 1000, 1 } },
+    { "DTERM DLPF MAX",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMax, 0, 1000, 1 } },
     { "DTERM DLPF EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &dtermLpfDynExpo,  0, 10, 1 } },
 #endif
 
@@ -826,8 +693,8 @@ static const OSD_Entry cmsx_menuFilterPerProfileEntries[] =
 {
     { "-- FILTER PP  --", OME_Label, NULL, NULL },
 
-    { "DTERM LPF1", OME_UINT16 | SLIDER_DTERM, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf1_static_hz, 0, LPF_MAX_HZ, 1 } },
-    { "DTERM LPF2", OME_UINT16 | SLIDER_DTERM, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf2_static_hz, 0, LPF_MAX_HZ, 1 } },
+    { "DTERM LPF1", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf1_static_hz, 0, LPF_MAX_HZ, 1 } },
+    { "DTERM LPF2", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf2_static_hz, 0, LPF_MAX_HZ, 1 } },
     { "DTERM NF",   OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_notch_hz,       0, LPF_MAX_HZ, 1 } },
     { "DTERM NFCO", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_notch_cutoff,   0, LPF_MAX_HZ, 1 } },
     { "YAW LPF",    OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_yaw_lowpass_hz,       0, 500, 1 } },
@@ -928,9 +795,6 @@ static const OSD_Entry cmsx_menuImuEntries[] =
 
     {"PID PROF",  OME_UINT8,   cmsx_profileIndexOnChange,     &(OSD_UINT8_t){ &tmpPidProfileIndex, 1, PID_PROFILE_COUNT, 1}},
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
-#ifdef USE_SIMPLIFIED_TUNING
-    {"SIMPLIFIED TUNING",   OME_Submenu, cmsMenuChange,                 &cmsx_menuSimplifiedTuning},
-#endif
     {"MISC PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileOther},
     {"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 

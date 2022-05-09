@@ -33,7 +33,6 @@
 #include "common/filter.h"
 
 #include "config/feature.h"
-#include "config/simplified_tuning.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -122,8 +121,6 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
     gyroConfig->gyro_filter_debug_axis = FD_ROLL;
     gyroConfig->gyro_lpf1_dyn_expo = 5;
-    gyroConfig->simplified_gyro_filter = true;
-    gyroConfig->simplified_gyro_filter_multiplier = SIMPLIFIED_TUNING_DEFAULT;
 }
 
 FAST_CODE bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
