@@ -344,8 +344,7 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
         applyMixerAdjustment(motorMix, motorMixMin, motorMixMax);
     }
 
-    if (featureIsEnabled(FEATURE_MOTOR_STOP)
-        && ARMING_FLAG(ARMED)
+    if (ARMING_FLAG(ARMED)
         && !mixerRuntime.feature3dEnabled
         && !FLIGHT_MODE(GPS_RESCUE_MODE)   // disable motor_stop while GPS Rescue is active
         && (rcData[THROTTLE] < rxConfig()->mincheck)) {
