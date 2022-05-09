@@ -1484,22 +1484,6 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_MAX_INCREASE, "%d",   currentPidProfile->dyn_idle_max_increase);
 #endif
 
-#ifdef USE_SIMPLIFIED_TUNING
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_PIDS_MODE, "%d",            currentPidProfile->simplified_pids_mode);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_MASTER_MULTIPLIER, "%d",    currentPidProfile->simplified_master_multiplier);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_I_GAIN, "%d",               currentPidProfile->simplified_i_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_D_GAIN, "%d",               currentPidProfile->simplified_d_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_PI_GAIN, "%d",              currentPidProfile->simplified_pi_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_DMAX_GAIN, "%d",            currentPidProfile->simplified_dmin_ratio);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_FEEDFORWARD_GAIN, "%d",     currentPidProfile->simplified_feedforward_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_PITCH_D_GAIN, "%d",         currentPidProfile->simplified_roll_pitch_ratio);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_PITCH_PI_GAIN, "%d",        currentPidProfile->simplified_pitch_pi_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_DTERM_FILTER, "%d",         currentPidProfile->simplified_dterm_filter);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_DTERM_FILTER_MULTIPLIER, "%d", currentPidProfile->simplified_dterm_filter_multiplier);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_GYRO_FILTER, "%d",             gyroConfig()->simplified_gyro_filter);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_SIMPLIFIED_GYRO_FILTER_MULTIPLIER, "%d",  gyroConfig()->simplified_gyro_filter_multiplier);
-#endif
-
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_OUTPUT_LIMIT, "%d",        currentPidProfile->motor_output_limit);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THROTTLE_LIMIT_TYPE, "%d",       currentControlRateProfile->throttle_limit_type);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THROTTLE_LIMIT_PERCENT, "%d",    currentControlRateProfile->throttle_limit_percent);
