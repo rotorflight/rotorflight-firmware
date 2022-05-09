@@ -1883,19 +1883,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, currentPidProfile->pid[PID_YAW].F);
 
         sbufWriteU8(dst, 0); // was currentPidProfile->antiGravityMode
-#if defined(USE_D_MIN)
-        sbufWriteU8(dst, currentPidProfile->d_min[PID_ROLL]);
-        sbufWriteU8(dst, currentPidProfile->d_min[PID_PITCH]);
-        sbufWriteU8(dst, currentPidProfile->d_min[PID_YAW]);
-        sbufWriteU8(dst, currentPidProfile->d_min_gain);
-        sbufWriteU8(dst, currentPidProfile->d_min_advance);
-#else
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
-#endif
 #if defined(USE_INTEGRATED_YAW_CONTROL)
         sbufWriteU8(dst, currentPidProfile->use_integrated_yaw);
         sbufWriteU8(dst, currentPidProfile->integrated_yaw_relax);
@@ -2771,19 +2763,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if (sbufBytesRemaining(src) >= 7) {
             // Added in MSP API 1.41
-#if defined(USE_D_MIN)
-            currentPidProfile->d_min[PID_ROLL] = sbufReadU8(src);
-            currentPidProfile->d_min[PID_PITCH] = sbufReadU8(src);
-            currentPidProfile->d_min[PID_YAW] = sbufReadU8(src);
-            currentPidProfile->d_min_gain = sbufReadU8(src);
-            currentPidProfile->d_min_advance = sbufReadU8(src);
-#else
             sbufReadU8(src);
             sbufReadU8(src);
             sbufReadU8(src);
             sbufReadU8(src);
             sbufReadU8(src);
-#endif
 #if defined(USE_INTEGRATED_YAW_CONTROL)
             currentPidProfile->use_integrated_yaw = sbufReadU8(src);
             currentPidProfile->integrated_yaw_relax = sbufReadU8(src);
