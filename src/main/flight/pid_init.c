@@ -45,13 +45,6 @@
 
 #include "pid_init.h"
 
-#if defined(USE_D_MIN)
-#define D_MIN_RANGE_HZ 85    // PT2 lowpass input cutoff to peak D around propwash frequencies
-#define D_MIN_LOWPASS_HZ 35  // PT2 lowpass cutoff to smooth the boost effect
-#define D_MIN_GAIN_FACTOR 0.00008f
-#define D_MIN_SETPOINT_GAIN_FACTOR 0.00008f
-#endif
-
 static void pidSetTargetLooptime(uint32_t pidLooptime)
 {
     targetPidLooptime = pidLooptime;
@@ -215,16 +208,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
     }
 #endif
 
-#if defined(USE_D_MIN)
-    // Initialize the filters for all axis even if the d_min[axis] value is 0
-    // Otherwise if the pidProfile->d_min_xxx parameters are ever added to
-    // in-flight adjustments and transition from 0 to > 0 in flight the feature
-    // won't work because the filter wasn't initialized.
-    for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-        pt2FilterInit(&pidRuntime.dMinRange[axis], pt2FilterGain(D_MIN_RANGE_HZ, pidRuntime.dT));
-        pt2FilterInit(&pidRuntime.dMinLowpass[axis], pt2FilterGain(D_MIN_LOWPASS_HZ, pidRuntime.dT));
-     }
-#endif
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -351,20 +334,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
 #ifdef USE_THRUST_LINEARIZATION
     pidRuntime.thrustLinearization = pidProfile->thrustLinearization / 100.0f;
     pidRuntime.throttleCompensateAmount = pidRuntime.thrustLinearization - 0.5f * powf(pidRuntime.thrustLinearization, 2);
-#endif
-
-#if defined(USE_D_MIN)
-    for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
-        const uint8_t dMin = pidProfile->d_min[axis];
-        if ((dMin > 0) && (dMin < pidProfile->pid[axis].D)) {
-            pidRuntime.dMinPercent[axis] = dMin / (float)(pidProfile->pid[axis].D);
-        } else {
-            pidRuntime.dMinPercent[axis] = 0;
-        }
-    }
-    pidRuntime.dMinGyroGain = pidProfile->d_min_gain * D_MIN_GAIN_FACTOR / D_MIN_LOWPASS_HZ;
-    pidRuntime.dMinSetpointGain = pidProfile->d_min_gain * D_MIN_SETPOINT_GAIN_FACTOR * pidProfile->d_min_advance * pidRuntime.pidFrequency / (100 * D_MIN_LOWPASS_HZ);
-    // lowpass included inversely in gain since stronger lowpass decreases peak effect
 #endif
 
 #ifdef USE_FEEDFORWARD
