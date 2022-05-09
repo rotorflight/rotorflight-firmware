@@ -433,10 +433,10 @@ void batteryUpdateCurrentMeter(timeUs_t currentTimeUs)
         case CURRENT_METER_VIRTUAL: {
 #ifdef USE_VIRTUAL_CURRENT_METER
             throttleStatus_e throttleStatus = calculateThrottleStatus();
-            bool throttleLowAndMotorStop = (throttleStatus == THROTTLE_LOW && featureIsEnabled(FEATURE_MOTOR_STOP));
+            bool throttleLow = (throttleStatus == THROTTLE_LOW);
             const int32_t throttleOffset = lrintf(mixerGetThrottle() * 1000);
 
-            currentMeterVirtualRefresh(lastUpdateAt, ARMING_FLAG(ARMED), throttleLowAndMotorStop, throttleOffset);
+            currentMeterVirtualRefresh(lastUpdateAt, ARMING_FLAG(ARMED), throttleLow, throttleOffset);
             currentMeterVirtualRead(&currentMeter);
 #endif
             break;
