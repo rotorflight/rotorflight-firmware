@@ -196,21 +196,6 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     }
 }
 
-static float applyThrottleLimit(float throttle)
-{
-    if (currentControlRateProfile->throttle_limit_percent < 100) {
-        const float throttleLimitFactor = currentControlRateProfile->throttle_limit_percent / 100.0f;
-        switch (currentControlRateProfile->throttle_limit_type) {
-            case THROTTLE_LIMIT_TYPE_SCALE:
-                return throttle * throttleLimitFactor;
-            case THROTTLE_LIMIT_TYPE_CLIP:
-                return MIN(throttle, throttleLimitFactor);
-        }
-    }
-
-    return throttle;
-}
-
 static void applyMotorStop(void)
 {
     for (int i = 0; i < mixerRuntime.motorCount; i++) {
@@ -286,11 +271,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 
     if (!mixerConfig()->yaw_motors_reversed) {
         scaledAxisPidYaw = -scaledAxisPidYaw;
-    }
-
-    // Apply the throttle_limit_percent to scale or limit the throttle based on throttle_limit_type
-    if (currentControlRateProfile->throttle_limit_type != THROTTLE_LIMIT_TYPE_OFF) {
-        throttle = applyThrottleLimit(throttle);
     }
 
 #ifdef USE_DYN_LPF
