@@ -75,10 +75,6 @@ typedef struct
 #define OPTSTRING        0x0100  // (Temporary) Flag for OME_Submenu, indicating func should be called to get a string to display.
 #define REBOOT_REQUIRED  0x0200  // Reboot is required if the value is changed
 #define SCROLLING_TICKER 0x0400  // Long values are displayed as horizontally scrolling tickers (OME_TAB only)
-#define SLIDER_RP        0x0800  // Value should be read only if simplified RP slider is enabled
-#define SLIDER_RPY       0x1000  // Value should be read only if simplified RPY slider is enabled
-#define SLIDER_GYRO      0x2000  // Value should be read only if simplified gyro slider is enabled
-#define SLIDER_DTERM     0x4000  // Value should be read only if simplified D term slider is enabled
 
 #define IS_PRINTVALUE(x) ((x) & PRINT_VALUE)
 #define SET_PRINTVALUE(x) do { (x) |= PRINT_VALUE; } while (0)

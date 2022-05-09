@@ -50,7 +50,6 @@
 
 #include "config/config.h"
 #include "config/feature.h"
-#include "config/simplified_tuning.h"
 
 #include "drivers/motor.h"
 #include "drivers/osd_symbols.h"
@@ -655,24 +654,7 @@ STATIC_UNIT_TESTED const void *cmsMenuBack(displayPort_t *pDisplay)
 // Check if overridden by slider
 static bool rowSliderOverride(const uint16_t flags)
 {
-#ifdef UNIT_TEST
     UNUSED(flags);
-#else
-    pidSimplifiedTuningMode_e simplified_pids_mode = currentPidProfile->simplified_pids_mode;
-
-    bool slider_flags_mode_rpy = (simplified_pids_mode == PID_SIMPLIFIED_TUNING_RPY);
-    bool slider_flags_mode_rp = slider_flags_mode_rpy || (simplified_pids_mode == PID_SIMPLIFIED_TUNING_RP);
-
-    bool simplified_gyro_filter = gyroConfig()->simplified_gyro_filter;
-    bool simplified_dterm_filter = currentPidProfile->simplified_dterm_filter;
-
-    if (((flags & SLIDER_RP) && slider_flags_mode_rp) ||
-        ((flags & SLIDER_RPY) && slider_flags_mode_rpy) ||
-        ((flags & SLIDER_GYRO) && simplified_gyro_filter) ||
-        ((flags & SLIDER_DTERM) && simplified_dterm_filter)) {
-        return true;
-    }
-#endif
 
     return false;
 }
