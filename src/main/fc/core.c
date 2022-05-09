@@ -73,7 +73,6 @@
 
 #include "io/beeper.h"
 #include "io/gps.h"
-#include "io/pidaudio.h"
 #include "io/serial.h"
 #include "io/servos.h"
 #include "io/statusindicator.h"
@@ -792,12 +791,6 @@ static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)
     // PID - note this is function pointer set by setPIDController()
     pidController(currentPidProfile, currentTimeUs);
     DEBUG_SET(DEBUG_PIDLOOP, 1, micros() - startTime);
-
-#ifdef USE_PID_AUDIO
-    if (isModeActivationConditionPresent(BOXPIDAUDIO)) {
-        pidAudioUpdate();
-    }
-#endif
 }
 
 static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
