@@ -148,8 +148,6 @@ void targetConfiguration(void)
         controlRateConfig->rates[FD_ROLL] = 0;
         controlRateConfig->rates[FD_PITCH] = 0;
         controlRateConfig->rates[FD_YAW] = 0;
-
-        controlRateConfig->thrExpo8 = 20; // 20% throttle expo
     }
 }
 #endif
