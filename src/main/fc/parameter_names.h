@@ -52,8 +52,6 @@
 #define PARAM_NAME_THR_MID "thr_mid"
 #define PARAM_NAME_THR_EXPO "thr_expo"
 #define PARAM_NAME_RATES_TYPE "rates_type"
-#define PARAM_NAME_THROTTLE_LIMIT_TYPE "throttle_limit_type"
-#define PARAM_NAME_THROTTLE_LIMIT_PERCENT "throttle_limit_percent"
 #define PARAM_NAME_GYRO_CAL_ON_FIRST_ARM "gyro_cal_on_first_arm"
 #define PARAM_NAME_DEADBAND "deadband"
 #define PARAM_NAME_YAW_DEADBAND "yaw_deadband"
