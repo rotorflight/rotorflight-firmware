@@ -340,8 +340,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.feedforwardBoostFactor = (float)pidProfile->feedforward_boost / 10.0f;
     feedforwardInit(pidProfile);
 #endif
-
-    pidRuntime.levelRaceMode = pidProfile->level_race_mode;
 }
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
