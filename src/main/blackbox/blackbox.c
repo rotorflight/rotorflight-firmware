@@ -1320,8 +1320,6 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("looptime", "%d",                        gyro.sampleLooptime);
         BLACKBOX_PRINT_HEADER_LINE("gyro_sync_denom", "%d",                 1);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_PID_PROCESS_DENOM, "%d",      activePidLoopDenom);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THR_MID, "%d",                currentControlRateProfile->thrMid8);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_THR_EXPO, "%d",               currentControlRateProfile->thrExpo8);
         BLACKBOX_PRINT_HEADER_LINE("rc_rates", "%d,%d,%d",                  currentControlRateProfile->rcRates[ROLL],
                                                                             currentControlRateProfile->rcRates[PITCH],
                                                                             currentControlRateProfile->rcRates[YAW]);
