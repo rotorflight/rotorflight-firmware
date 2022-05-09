@@ -91,8 +91,6 @@ float accAverage[XYZ_AXIS_COUNT];
 
 bool canUseGPSHeading = true;
 
-static float throttleAngleScale;
-static int throttleAngleValue;
 static float fc_acc;
 static float smallAngleCosZ = 0;
 
@@ -163,12 +161,7 @@ static float calculateAccZLowPassFilterRCTimeConstant(float accz_lpf_cutoff)
     return 0.5f / (M_PIf * accz_lpf_cutoff);
 }
 
-static float calculateThrottleAngleScale(uint16_t throttle_correction_angle)
-{
-    return (1800.0f / M_PIf) * (900.0f / throttle_correction_angle);
-}
-
-void imuConfigure(uint16_t throttle_correction_angle, uint8_t throttle_correction_value)
+void imuConfigure(void)
 {
     imuRuntimeConfig.dcm_kp = imuConfig()->dcm_kp / 10000.0f;
     imuRuntimeConfig.dcm_ki = imuConfig()->dcm_ki / 10000.0f;
@@ -176,9 +169,6 @@ void imuConfigure(uint16_t throttle_correction_angle, uint8_t throttle_correctio
     smallAngleCosZ = cos_approx(degreesToRadians(imuConfig()->small_angle));
 
     fc_acc = calculateAccZLowPassFilterRCTimeConstant(5.0f); // Set to fix value
-    throttleAngleScale = calculateThrottleAngleScale(throttle_correction_angle);
-
-    throttleAngleValue = throttle_correction_value;
 }
 
 void imuInit(void)
@@ -552,22 +542,6 @@ static void imuCalculateEstimatedAttitude(timeUs_t currentTimeUs)
 #endif
 }
 
-static int calculateThrottleAngleCorrection(void)
-{
-    /*
-    * Use 0 as the throttle angle correction if we are inverted, vertical or with a
-    * small angle < 0.86 deg
-    * TODO: Define this small angle in config.
-    */
-    if (getCosTiltAngle() <= 0.015f) {
-        return 0;
-    }
-    int angle = lrintf(acos_approx(getCosTiltAngle()) * throttleAngleScale);
-    if (angle > 900)
-        angle = 900;
-    return lrintf(throttleAngleValue * sin_approx(angle / (900.0f * M_PIf / 2.0f)));
-}
-
 void imuUpdateAttitude(timeUs_t currentTimeUs)
 {
     if (sensors(SENSOR_ACC) && acc.isAccelUpdatedAtLeastOnce) {
@@ -581,14 +555,6 @@ void imuUpdateAttitude(timeUs_t currentTimeUs)
 #endif
         imuCalculateEstimatedAttitude(currentTimeUs);
         IMU_UNLOCK;
-
-        // Update the throttle correction for angle and supply it to the mixer
-        int throttleAngleCorrection = 0;
-        if (throttleAngleValue && (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE)) && ARMING_FLAG(ARMED)) {
-            throttleAngleCorrection = calculateThrottleAngleCorrection();
-        }
-        mixerSetThrottleAngleCorrection(throttleAngleCorrection);
-
     } else {
         acc.accADC[X] = 0;
         acc.accADC[Y] = 0;

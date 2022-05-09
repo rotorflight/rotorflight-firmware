@@ -129,13 +129,6 @@ static int lastArmingDisabledReason = 0;
 static timeUs_t lastDisarmTimeUs;
 static int tryingToArm = ARMING_DELAYED_DISARMED;
 
-PG_REGISTER_WITH_RESET_TEMPLATE(throttleCorrectionConfig_t, throttleCorrectionConfig, PG_THROTTLE_CORRECTION_CONFIG, 0);
-
-PG_RESET_TEMPLATE(throttleCorrectionConfig_t, throttleCorrectionConfig,
-    .throttle_correction_value = 0,      // could 10 with althold or 40 for fpv
-    .throttle_correction_angle = 800     // could be 80.0 deg with atlhold or 45.0 for fpv
-);
-
 static bool isCalibrating(void)
 {
     return (sensors(SENSOR_GYRO) && !gyroIsCalibrationComplete())
