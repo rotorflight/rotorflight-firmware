@@ -1888,13 +1888,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
-#if defined(USE_INTEGRATED_YAW_CONTROL)
-        sbufWriteU8(dst, currentPidProfile->use_integrated_yaw);
-        sbufWriteU8(dst, currentPidProfile->integrated_yaw_relax);
-#else
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
-#endif
 #if defined(USE_ITERM_RELAX)
         // Added in MSP API 1.42
         sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff);
@@ -2768,13 +2763,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             sbufReadU8(src);
             sbufReadU8(src);
             sbufReadU8(src);
-#if defined(USE_INTEGRATED_YAW_CONTROL)
-            currentPidProfile->use_integrated_yaw = sbufReadU8(src);
-            currentPidProfile->integrated_yaw_relax = sbufReadU8(src);
-#else
             sbufReadU8(src);
             sbufReadU8(src);
-#endif
         }
         if(sbufBytesRemaining(src) >= 1) {
             // Added in MSP API 1.42
