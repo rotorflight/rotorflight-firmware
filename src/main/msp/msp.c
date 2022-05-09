@@ -1300,8 +1300,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->rates[i]); // R,P,Y see flight_dynamics_index_t
         }
         sbufWriteU8(dst, 0); // was currentControlRateProfile->tpa_rate
-        sbufWriteU8(dst, currentControlRateProfile->thrMid8);
-        sbufWriteU8(dst, currentControlRateProfile->thrExpo8);
+        sbufWriteU8(dst, 0); // was currentControlRateProfile->thrMid8
+        sbufWriteU8(dst, 0); // was currentControlRateProfile->thrExpo8
         sbufWriteU16(dst, 0); // was currentControlRateProfile->tpa_breakpoint
         sbufWriteU8(dst, currentControlRateProfile->rcExpo[FD_YAW]);
         sbufWriteU8(dst, currentControlRateProfile->rcRates[FD_YAW]);
@@ -2354,8 +2354,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             }
 
             sbufReadU8(src); // was currentControlRateProfile->tpa_rate
-            currentControlRateProfile->thrMid8 = sbufReadU8(src);
-            currentControlRateProfile->thrExpo8 = sbufReadU8(src);
+            sbufReadU8(src); // was currentControlRateProfile->thrMid8
+            sbufReadU8(src); // was currentControlRateProfile->thrExpo8
             sbufReadU16(src); // was currentControlRateProfile->tpa_breakpoint
 
             if (sbufBytesRemaining(src) >= 1) {

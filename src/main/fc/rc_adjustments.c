@@ -99,10 +99,6 @@ static const adjustmentConfig_t defaultAdjustmentConfigs[ADJUSTMENT_FUNCTION_COU
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
     }, {
-        .adjustmentFunction = ADJUSTMENT_THROTTLE_EXPO,
-        .mode = ADJUSTMENT_MODE_STEP,
-        .data = { .step = 1 }
-    }, {
         .adjustmentFunction = ADJUSTMENT_PITCH_ROLL_RATE,
         .mode = ADJUSTMENT_MODE_STEP,
         .data = { .step = 1 }
@@ -285,12 +281,6 @@ static int applyStepAdjustment(controlRateConfig_t *controlRateConfig, uint8_t a
         controlRateConfig->rcExpo[FD_PITCH] = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_PITCH_RC_EXPO, newValue);
         break;
-    case ADJUSTMENT_THROTTLE_EXPO:
-        newValue = constrain((int)controlRateConfig->thrExpo8 + delta, 0, 100); // FIXME magic numbers repeated in cli.c
-        controlRateConfig->thrExpo8 = newValue;
-        initRcProcessing();
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_THROTTLE_EXPO, newValue);
-        break;
     case ADJUSTMENT_PITCH_ROLL_RATE:
     case ADJUSTMENT_PITCH_RATE:
         newValue = constrain((int)controlRateConfig->rates[FD_PITCH] + delta, 0, CONTROL_RATE_CONFIG_RATE_MAX);
@@ -447,12 +437,6 @@ static int applyAbsoluteAdjustment(controlRateConfig_t *controlRateConfig, adjus
         newValue = constrain(value, 0, CONTROL_RATE_CONFIG_RC_EXPO_MAX);
         controlRateConfig->rcExpo[FD_PITCH] = newValue;
         blackboxLogInflightAdjustmentEvent(ADJUSTMENT_PITCH_RC_EXPO, newValue);
-        break;
-    case ADJUSTMENT_THROTTLE_EXPO:
-        newValue = constrain(value, 0, 100); // FIXME magic numbers repeated in cli.c
-        controlRateConfig->thrExpo8 = newValue;
-        initRcProcessing();
-        blackboxLogInflightAdjustmentEvent(ADJUSTMENT_THROTTLE_EXPO, newValue);
         break;
     case ADJUSTMENT_PITCH_ROLL_RATE:
     case ADJUSTMENT_PITCH_RATE:
