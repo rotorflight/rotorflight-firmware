@@ -60,12 +60,6 @@
 
 #include "pid.h"
 
-typedef enum {
-    LEVEL_MODE_OFF = 0,
-    LEVEL_MODE_R,
-    LEVEL_MODE_RP,
-} levelMode_e;
-
 const char pidNames[] =
     "ROLL;"
     "PITCH;"
@@ -168,7 +162,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .feedforward_jitter_factor = 7,
         .feedforward_boost = 15,
         .dterm_lpf1_dyn_expo = 5,
-        .level_race_mode = false,
         .vbat_sag_compensation = 0,
     );
 }
@@ -580,20 +573,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 #endif
 
-#if defined(USE_ACC)
-    const bool gpsRescueIsActive = FLIGHT_MODE(GPS_RESCUE_MODE);
-    levelMode_e levelMode;
-    if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE) || gpsRescueIsActive) {
-        if (pidRuntime.levelRaceMode && !gpsRescueIsActive) {
-            levelMode = LEVEL_MODE_R;
-        } else {
-            levelMode = LEVEL_MODE_RP;
-        }
-    } else {
-        levelMode = LEVEL_MODE_OFF;
-    }
-#endif
-
     // gradually scale back integration when above windup point
     float dynCi = pidRuntime.dT;
     if (pidRuntime.itermWindupPointInv > 1.0f) {
@@ -647,23 +626,9 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (pidRuntime.maxVelocity[axis]) {
             currentPidSetpoint = accelerationLimit(axis, currentPidSetpoint);
         }
-        // Yaw control is GYRO based, direct sticks control is applied to rate PID
-        // When Race Mode is active PITCH control is also GYRO based in level or horizon mode
+
 #if defined(USE_ACC)
-        switch (levelMode) {
-        case LEVEL_MODE_OFF:
-
-            break;
-        case LEVEL_MODE_R:
-            if (axis == FD_PITCH) {
-                break;
-            }
-
-            FALLTHROUGH;
-        case LEVEL_MODE_RP:
-            if (axis == FD_YAW) {
-                break;
-            }
+        if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
             currentPidSetpoint = pidLevel(axis, pidProfile, angleTrim, currentPidSetpoint);
         }
 #endif
