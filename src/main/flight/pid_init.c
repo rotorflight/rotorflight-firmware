@@ -250,12 +250,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         pidRuntime.pidCoefficient[axis].Kd = DTERM_SCALE * pidProfile->pid[axis].D;
         pidRuntime.pidCoefficient[axis].Kf = FEEDFORWARD_SCALE * (pidProfile->pid[axis].F / 100.0f);
     }
-#ifdef USE_INTEGRATED_YAW_CONTROL
-    if (!pidProfile->use_integrated_yaw)
-#endif
-    {
-        pidRuntime.pidCoefficient[FD_YAW].Ki *= 2.5f;
-    }
     pidRuntime.levelGain = pidProfile->pid[PID_LEVEL].P / 10.0f;
     pidRuntime.horizonGain = pidProfile->pid[PID_LEVEL].I / 10.0f;
     pidRuntime.horizonTransition = (float)pidProfile->pid[PID_LEVEL].D;
@@ -324,11 +318,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dynLpfMin = pidProfile->dterm_lpf1_dyn_min_hz;
     pidRuntime.dynLpfMax = pidProfile->dterm_lpf1_dyn_max_hz;
     pidRuntime.dynLpfCurveExpo = pidProfile->dterm_lpf1_dyn_expo;
-#endif
-
-#ifdef USE_INTEGRATED_YAW_CONTROL
-    pidRuntime.useIntegratedYaw = pidProfile->use_integrated_yaw;
-    pidRuntime.integratedYawRelax = pidProfile->integrated_yaw_relax;
 #endif
 
 #ifdef USE_THRUST_LINEARIZATION
