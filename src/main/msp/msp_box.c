@@ -91,7 +91,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXUSER2, "USER2", 41 },
     { BOXUSER3, "USER3", 42 },
     { BOXUSER4, "USER4", 43 },
-    { BOXPIDAUDIO, "PID AUDIO", 44 },
+//    { BOXPIDAUDIO, "PID AUDIO", 44 },
     { BOXPARALYZE, "PARALYZE", 45 },
     { BOXGPSRESCUE, "GPS RESCUE", 46 },
     { BOXACROTRAINER, "ACRO TRAINER", 47 },
@@ -292,10 +292,6 @@ void initActiveBoxIds(void)
             }
         }
     }
-#endif
-
-#if defined(USE_PID_AUDIO)
-    BME(BOXPIDAUDIO);
 #endif
 
 #if defined(USE_ACRO_TRAINER) && defined(USE_ACC)
