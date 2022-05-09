@@ -168,9 +168,6 @@ static void applyMixToMotors(float motorMix[MAX_SUPPORTED_MOTORS], motorMixer_t 
     // roll/pitch/yaw. This could move throttle down, but also up for those low throttle flips.
     for (int i = 0; i < mixerRuntime.motorCount; i++) {
         float motorOutput = motorOutputMixSign * motorMix[i] + throttle * activeMixer[i].throttle;
-#ifdef USE_THRUST_LINEARIZATION
-        motorOutput = pidApplyThrustLinearization(motorOutput);
-#endif
         motorOutput = motorOutputMin + motorOutputRange * motorOutput;
 
 #ifdef USE_SERVOS
@@ -309,11 +306,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     if (mixerRuntime.dynIdleMinRps > 0.0f) {
         throttle = MAX(throttle, 0.01f);
     }
-#endif
-
-#ifdef USE_THRUST_LINEARIZATION
-    // reduce throttle to offset additional motor output
-    throttle = pidCompensateThrustLinearization(throttle);
 #endif
 
     // Find roll/pitch/yaw desired output

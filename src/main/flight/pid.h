@@ -143,7 +143,6 @@ typedef struct pidProfile_s {
     uint8_t dterm_lpf2_type;                // Filter type for 2nd dterm lowpass
     uint16_t dterm_lpf1_dyn_min_hz;         // Dterm lowpass filter 1 min hz when in dynamic mode
     uint16_t dterm_lpf1_dyn_max_hz;         // Dterm lowpass filter 1 max hz when in dynamic mode
-    uint8_t thrustLinearization;            // Compensation factor for pid linearization
     uint8_t motor_output_limit;             // Upper limit of the motor output (percent)
     int8_t auto_profile_cell_count;         // Cell count for this profile to be used with if auto PID profile switching is used
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
@@ -263,11 +262,6 @@ typedef struct pidRuntime_s {
     uint8_t dynLpfCurveExpo;
 #endif
 
-#ifdef USE_THRUST_LINEARIZATION
-    float thrustLinearization;
-    float throttleCompensateAmount;
-#endif
-
 #ifdef USE_FEEDFORWARD
     float feedforwardTransitionFactor;
     feedforwardAveraging_t feedforwardAveraging;
@@ -292,11 +286,6 @@ void resetPidProfile(pidProfile_t *profile);
 void pidResetIterm(void);
 void pidAcroTrainerInit(void);
 void pidSetAcroTrainerState(bool newState);
-
-#ifdef USE_THRUST_LINEARIZATION
-float pidApplyThrustLinearization(float motorValue);
-float pidCompensateThrustLinearization(float throttle);
-#endif
 
 #ifdef UNIT_TEST
 #include "sensors/acceleration.h"

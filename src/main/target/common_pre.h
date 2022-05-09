@@ -312,7 +312,6 @@ extern uint8_t _dmaram_end__;
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 6))
 #define USE_ITERM_RELAX
 #define USE_RC_SMOOTHING_FILTER
-#define USE_THRUST_LINEARIZATION
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 5))

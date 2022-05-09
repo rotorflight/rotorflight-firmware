@@ -313,11 +313,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dynLpfCurveExpo = pidProfile->dterm_lpf1_dyn_expo;
 #endif
 
-#ifdef USE_THRUST_LINEARIZATION
-    pidRuntime.thrustLinearization = pidProfile->thrustLinearization / 100.0f;
-    pidRuntime.throttleCompensateAmount = pidRuntime.thrustLinearization - 0.5f * powf(pidRuntime.thrustLinearization, 2);
-#endif
-
 #ifdef USE_FEEDFORWARD
     if (pidProfile->feedforward_transition == 0) {
         pidRuntime.feedforwardTransitionFactor = 0;
