@@ -139,7 +139,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_lpf2_type = FILTER_PT1,
         .dterm_lpf1_dyn_min_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT,
         .dterm_lpf1_dyn_max_hz = DTERM_LPF1_DYN_MAX_HZ_DEFAULT,
-        .thrustLinearization = 0,
         .motor_output_limit = 100,
         .auto_profile_cell_count = AUTO_PROFILE_CELL_COUNT_STAY,
         .profileName = { 0 },
@@ -211,29 +210,6 @@ void pidAcroTrainerInit(void)
     pidRuntime.acroTrainerAxisState[FD_PITCH] = 0;
 }
 #endif // USE_ACRO_TRAINER
-
-#ifdef USE_THRUST_LINEARIZATION
-float pidCompensateThrustLinearization(float throttle)
-{
-    if (pidRuntime.thrustLinearization != 0.0f) {
-        // for whoops where a lot of TL is needed, allow more throttle boost
-        const float throttleReversed = (1.0f - throttle);
-        throttle /= 1.0f + pidRuntime.throttleCompensateAmount * powf(throttleReversed, 2);
-    }
-    return throttle;
-}
-
-float pidApplyThrustLinearization(float motorOutput)
-{
-    if (pidRuntime.thrustLinearization != 0.0f) {
-        if (motorOutput > 0.0f) {
-            const float motorOutputReversed = (1.0f - motorOutput);
-            motorOutput *= 1.0f + powf(motorOutputReversed, 2) * pidRuntime.thrustLinearization;
-        }
-    }
-    return motorOutput;
-}
-#endif
 
 #if defined(USE_ACC)
 // calculate the stick deflection while applying level mode expo
