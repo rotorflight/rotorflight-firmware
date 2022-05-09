@@ -132,7 +132,6 @@ typedef enum {
     TABLE_OSD_LOGO_ON_ARMING,
 #endif
     TABLE_MIXER_TYPE,
-    TABLE_SIMPLIFIED_TUNING_PIDS_MODE,
 #ifdef USE_OSD
     TABLE_CMS_BACKGROUND,
 #endif
@@ -259,7 +258,5 @@ extern const char * const lookupTableOsdDisplayPortDevice[];
 extern const char * const lookupTableFeedforwardAveraging[];
 
 extern const char * const lookupTableOffOn[];
-
-extern const char * const lookupTableSimplifiedTuningPidsMode[];
 
 extern const char * const lookupTableCMSMenuBackgroundType[];
