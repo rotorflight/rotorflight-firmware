@@ -292,7 +292,6 @@ static CMS_Menu cmsx_menuRateProfile = {
 static uint8_t  cmsx_angleStrength;
 static uint8_t  cmsx_horizonStrength;
 static uint8_t  cmsx_horizonTransition;
-static int8_t   cmsx_autoProfileCellCount;
 
 #ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
 static uint8_t  cmsx_vbat_sag_compensation;
@@ -323,8 +322,6 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_angleStrength =     pidProfile->pid[PID_LEVEL].P;
     cmsx_horizonStrength =   pidProfile->pid[PID_LEVEL].I;
     cmsx_horizonTransition = pidProfile->pid[PID_LEVEL].D;
-
-    cmsx_autoProfileCellCount = pidProfile->auto_profile_cell_count;
 
 #ifdef USE_ITERM_RELAX
     cmsx_iterm_relax = pidProfile->iterm_relax;
@@ -358,8 +355,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->pid[PID_LEVEL].P = cmsx_angleStrength;
     pidProfile->pid[PID_LEVEL].I = cmsx_horizonStrength;
     pidProfile->pid[PID_LEVEL].D = cmsx_horizonTransition;
-
-    pidProfile->auto_profile_cell_count = cmsx_autoProfileCellCount;
 
 #ifdef USE_ITERM_RELAX
     pidProfile->iterm_relax = cmsx_iterm_relax;
@@ -401,7 +396,6 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "I_RELAX TYPE",    OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax_type,   ITERM_RELAX_TYPE_COUNT - 1, lookupTableItermRelaxType   } },
     { "I_RELAX CUTOFF",  OME_UINT8,  NULL, &(OSD_UINT8_t)   { &cmsx_iterm_relax_cutoff, 1, 50, 1 } },
 #endif
-    { "AUTO CELL CNT", OME_INT8, NULL, &(OSD_INT8_t) { &cmsx_autoProfileCellCount, AUTO_PROFILE_CELL_COUNT_CHANGE, MAX_AUTO_DETECT_CELL_COUNT, 1} },
 
 #ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
     { "VBAT_SAG_COMP", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_vbat_sag_compensation, 0, 150, 1 } },

@@ -1050,8 +1050,6 @@ const clivalue_t valueTable[] = {
     { "abs_control_cutoff",         VAR_UINT8 | PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 45 }, PG_PID_PROFILE, offsetof(pidProfile_t, abs_control_cutoff) },
 #endif
 
-    { "auto_profile_cell_count",     VAR_INT8 | PROFILE_VALUE,  .config.minmax = { AUTO_PROFILE_CELL_COUNT_CHANGE, MAX_AUTO_DETECT_CELL_COUNT }, PG_PID_PROFILE, offsetof(pidProfile_t, auto_profile_cell_count) },
-
 #ifdef USE_FEEDFORWARD
     { PARAM_NAME_FEEDFORWARD_TRANSITION,     VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, feedforward_transition) },
     { PARAM_NAME_FEEDFORWARD_AVERAGING,      VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_FEEDFORWARD_AVERAGING }, PG_PID_PROFILE, offsetof(pidProfile_t, feedforward_averaging) },

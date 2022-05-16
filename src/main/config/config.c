@@ -274,10 +274,6 @@ static void validateAndFixConfig(void)
         }
 #endif
 
-        if (pidProfilesMutable(i)->auto_profile_cell_count > MAX_AUTO_DETECT_CELL_COUNT || pidProfilesMutable(i)->auto_profile_cell_count < AUTO_PROFILE_CELL_COUNT_CHANGE) {
-            pidProfilesMutable(i)->auto_profile_cell_count = AUTO_PROFILE_CELL_COUNT_STAY;
-        }
-
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         if (batteryConfig()->voltageMeterSource != VOLTAGE_METER_ADC) {
             pidProfilesMutable(i)->vbat_sag_compensation = 0;
@@ -784,31 +780,6 @@ void setConfigDirty(void)
 bool isConfigDirty(void)
 {
     return configIsDirty;
-}
-
-void changePidProfileFromCellCount(uint8_t cellCount)
-{
-    if (currentPidProfile->auto_profile_cell_count == cellCount || currentPidProfile->auto_profile_cell_count == AUTO_PROFILE_CELL_COUNT_STAY) {
-        return;
-    }
-
-    unsigned profileIndex = (systemConfig()->pidProfileIndex + 1) % PID_PROFILE_COUNT;
-    int matchingProfileIndex = -1;
-    while (profileIndex != systemConfig()->pidProfileIndex) {
-        if (pidProfiles(profileIndex)->auto_profile_cell_count == cellCount) {
-            matchingProfileIndex = profileIndex;
-
-            break;
-        } else if (matchingProfileIndex < 0 && pidProfiles(profileIndex)->auto_profile_cell_count == AUTO_PROFILE_CELL_COUNT_STAY) {
-            matchingProfileIndex = profileIndex;
-        }
-
-        profileIndex = (profileIndex + 1) % PID_PROFILE_COUNT;
-    }
-
-    if (matchingProfileIndex >= 0) {
-        changePidProfile(matchingProfileIndex);
-    }
 }
 
 void changePidProfile(uint8_t pidProfileIndex)

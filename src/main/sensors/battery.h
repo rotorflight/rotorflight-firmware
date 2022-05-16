@@ -39,11 +39,6 @@
 
 #define GET_BATTERY_LPF_FREQUENCY(period) (1 / (period / 10.0f))
 
-enum {
-    AUTO_PROFILE_CELL_COUNT_STAY = 0, // Stay on this profile irrespective of the detected cell count. Use this profile if no other profile matches (default, i.e. auto profile switching is off)
-    AUTO_PROFILE_CELL_COUNT_CHANGE = -1, // Always switch to a profile with matching cell count if there is one
-};
-
 typedef struct batteryConfig_s {
     // voltage
     uint16_t vbatmaxcellvoltage;            // maximum voltage per cell, used for auto-detecting battery voltage in 0.01V units, default is 430 (4.30V)
