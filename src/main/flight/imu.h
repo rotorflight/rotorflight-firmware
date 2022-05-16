@@ -56,7 +56,6 @@ extern float rMat[3][3];
 typedef struct imuConfig_s {
     uint16_t dcm_kp;                        // DCM filter proportional gain ( x 10000)
     uint16_t dcm_ki;                        // DCM filter integral gain ( x 10000)
-    uint8_t small_angle;
 } imuConfig_t;
 
 PG_DECLARE(imuConfig_t, imuConfig);

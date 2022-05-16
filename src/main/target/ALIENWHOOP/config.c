@@ -85,8 +85,6 @@ void targetConfiguration(void)
     rxConfigMutable()->mincheck = 1025;
     parseRcChannels("TAER1234", rxConfigMutable());
 
-    imuConfigMutable()->small_angle = 180;
-
     blackboxConfigMutable()->sample_rate = 1; // sample_rate is half of PID loop frequency
 
     /* Breadboard-specific settings for development purposes only

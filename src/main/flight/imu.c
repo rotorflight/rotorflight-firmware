@@ -92,7 +92,6 @@ float accAverage[XYZ_AXIS_COUNT];
 bool canUseGPSHeading = true;
 
 static float fc_acc;
-static float smallAngleCosZ = 0;
 
 static imuRuntimeConfig_t imuRuntimeConfig;
 
@@ -115,7 +114,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(imuConfig_t, imuConfig, PG_IMU_CONFIG, 1);
 PG_RESET_TEMPLATE(imuConfig_t, imuConfig,
     .dcm_kp = 2500,                // 1.0 * 10000
     .dcm_ki = 0,                   // 0.003 * 10000
-    .small_angle = 25,
 );
 
 static void imuQuaternionComputeProducts(quaternion *quat, quaternionProducts *quatProd)
@@ -165,8 +163,6 @@ void imuConfigure(void)
 {
     imuRuntimeConfig.dcm_kp = imuConfig()->dcm_kp / 10000.0f;
     imuRuntimeConfig.dcm_ki = imuConfig()->dcm_ki / 10000.0f;
-
-    smallAngleCosZ = cos_approx(degreesToRadians(imuConfig()->small_angle));
 
     fc_acc = calculateAccZLowPassFilterRCTimeConstant(5.0f); // Set to fix value
 }
@@ -684,7 +680,7 @@ void imuQuaternionHeadfreeTransformVectorEarthToBody(t_fp_vector_def *v)
 bool isUpright(void)
 {
 #ifdef USE_ACC
-    return !sensors(SENSOR_ACC) || (attitudeIsEstablished && getCosTiltAngle() > smallAngleCosZ);
+    return !sensors(SENSOR_ACC) || attitudeIsEstablished;
 #else
     return true;
 #endif
