@@ -293,10 +293,6 @@ static uint8_t  cmsx_angleStrength;
 static uint8_t  cmsx_horizonStrength;
 static uint8_t  cmsx_horizonTransition;
 
-#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
-static uint8_t  cmsx_vbat_sag_compensation;
-#endif
-
 #ifdef USE_ITERM_RELAX
 static uint8_t cmsx_iterm_relax;
 static uint8_t cmsx_iterm_relax_type;
@@ -337,10 +333,6 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_feedforward_jitter_factor = pidProfile->feedforward_jitter_factor;
 #endif
 
-#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
-    cmsx_vbat_sag_compensation = pidProfile->vbat_sag_compensation;
-#endif
-
     return NULL;
 }
 
@@ -370,10 +362,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->feedforward_jitter_factor = cmsx_feedforward_jitter_factor;
 #endif
 
-#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
-    pidProfile->vbat_sag_compensation = cmsx_vbat_sag_compensation;
-#endif
-
     initEscEndpoints();
     return NULL;
 }
@@ -395,10 +383,6 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "I_RELAX",         OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax,        ITERM_RELAX_COUNT - 1,      lookupTableItermRelax       } },
     { "I_RELAX TYPE",    OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax_type,   ITERM_RELAX_TYPE_COUNT - 1, lookupTableItermRelaxType   } },
     { "I_RELAX CUTOFF",  OME_UINT8,  NULL, &(OSD_UINT8_t)   { &cmsx_iterm_relax_cutoff, 1, 50, 1 } },
-#endif
-
-#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
-    { "VBAT_SAG_COMP", OME_UINT8,  NULL, &(OSD_UINT8_t) { &cmsx_vbat_sag_compensation, 0, 150, 1 } },
 #endif
 
     { "BACK", OME_Back, NULL, NULL },

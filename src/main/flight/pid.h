@@ -158,8 +158,6 @@ typedef struct pidProfile_s {
     uint8_t feedforward_boost;              // amount of setpoint acceleration to add to feedforward, 10 means 100% added
     uint8_t feedforward_max_rate_limit;     // Maximum setpoint rate percentage for feedforward
 
-    uint8_t vbat_sag_compensation;          // Reduce motor output by this percentage of the maximum compensation amount
-
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
