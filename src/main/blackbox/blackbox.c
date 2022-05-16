@@ -1407,10 +1407,6 @@ static bool blackboxWriteSysinfo(void)
 
         BLACKBOX_PRINT_HEADER_LINE("fields_disabled_mask", "%d",            blackboxConfig()->fields_disabled_mask);
 
-#ifdef USE_BATTERY_VOLTAGE_SAG_COMPENSATION
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_VBAT_SAG_COMPENSATION, "%d",   currentPidProfile->vbat_sag_compensation);
-#endif
-
 #if defined(USE_DYN_IDLE)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_MIN_RPM, "%d",        currentPidProfile->dyn_idle_min_rpm);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_P_GAIN, "%d",         currentPidProfile->dyn_idle_p_gain);
