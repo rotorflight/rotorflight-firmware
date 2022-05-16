@@ -865,32 +865,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
         break;
     case MSP_CURRENT_METER_CONFIG: {
-        // the ADC and VIRTUAL sensors have the same configuration requirements, however this API reflects
-        // that this situation may change and allows us to support configuration of any current sensor with
-        // specialist configuration requirements.
-
-        int currentMeterCount = 1;
-
-#ifdef USE_VIRTUAL_CURRENT_METER
-        currentMeterCount++;
-#endif
-        sbufWriteU8(dst, currentMeterCount);
-
-        const uint8_t adcSensorSubframeLength = 1 + 1 + 2 + 2; // length of id, type, scale, offset, in bytes
-        sbufWriteU8(dst, adcSensorSubframeLength);
+        sbufWriteU8(dst, 1);
+        sbufWriteU8(dst, 1 + 1 + 2 + 2); // length of id, type, scale, offset, in bytes
         sbufWriteU8(dst, CURRENT_METER_ID_BATTERY_1); // the id of the meter
         sbufWriteU8(dst, CURRENT_SENSOR_ADC); // indicate the type of sensor that the next part of the payload is for
         sbufWriteU16(dst, currentSensorADCConfig()->scale);
         sbufWriteU16(dst, currentSensorADCConfig()->offset);
-
-#ifdef USE_VIRTUAL_CURRENT_METER
-        const int8_t virtualSensorSubframeLength = 1 + 1 + 2 + 2; // length of id, type, scale, offset, in bytes
-        sbufWriteU8(dst, virtualSensorSubframeLength);
-        sbufWriteU8(dst, CURRENT_METER_ID_VIRTUAL_1); // the id of the meter
-        sbufWriteU8(dst, CURRENT_SENSOR_VIRTUAL); // indicate the type of sensor that the next part of the payload is for
-        sbufWriteU16(dst, currentSensorVirtualConfig()->scale);
-        sbufWriteU16(dst, currentSensorVirtualConfig()->offset);
-#endif
 
         // if we had any other current sensors, this is where we would output any needed configuration
         break;
@@ -3506,12 +3486,6 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                 currentSensorADCConfigMutable()->scale = sbufReadU16(src);
                 currentSensorADCConfigMutable()->offset = sbufReadU16(src);
                 break;
-#ifdef USE_VIRTUAL_CURRENT_METER
-            case CURRENT_METER_ID_VIRTUAL_1:
-                currentSensorVirtualConfigMutable()->scale = sbufReadU16(src);
-                currentSensorVirtualConfigMutable()->offset = sbufReadU16(src);
-                break;
-#endif
             default:
                 sbufReadU16(src);
                 sbufReadU16(src);
