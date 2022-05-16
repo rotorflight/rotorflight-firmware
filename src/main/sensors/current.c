@@ -43,14 +43,11 @@
 #include "current.h"
 
 const char * const currentMeterSourceNames[CURRENT_METER_COUNT] = {
-    "NONE", "ADC", "VIRTUAL", "ESC", "MSP"
+    "NONE", "ADC", "ESC", "MSP"
 };
 
 const uint8_t currentMeterIds[] = {
     CURRENT_METER_ID_BATTERY_1,
-#ifdef USE_VIRTUAL_CURRENT_METER
-    CURRENT_METER_ID_VIRTUAL_1,
-#endif
 #ifdef USE_ESC_SENSOR
     CURRENT_METER_ID_ESC_COMBINED_1,
     CURRENT_METER_ID_ESC_MOTOR_1,
@@ -74,7 +71,7 @@ const uint8_t currentMeterIds[] = {
 const uint8_t supportedCurrentMeterCount = ARRAYLEN(currentMeterIds);
 
 //
-// ADC/Virtual/ESC/MSP shared
+// ADC/ESC/MSP shared
 //
 
 void currentMeterReset(currentMeter_t *meter)
@@ -83,10 +80,6 @@ void currentMeterReset(currentMeter_t *meter)
     meter->amperageLatest = 0;
     meter->mAhDrawn = 0;
 }
-
-//
-// ADC/Virtual shared
-//
 
 static pt1Filter_t adciBatFilter;
 
@@ -105,10 +98,6 @@ PG_RESET_TEMPLATE(currentSensorADCConfig_t, currentSensorADCConfig,
     .offset = CURRENT_METER_OFFSET_DEFAULT,
 );
 
-#ifdef USE_VIRTUAL_CURRENT_METER
-PG_REGISTER(currentSensorVirtualConfig_t, currentSensorVirtualConfig, PG_CURRENT_SENSOR_VIRTUAL_CONFIG, 0);
-#endif
-
 static int32_t currentMeterADCToCentiamps(const uint16_t src)
 {
 
@@ -124,7 +113,7 @@ static int32_t currentMeterADCToCentiamps(const uint16_t src)
     return centiAmps; // Returns Centiamps to maintain compatability with the rest of the code
 }
 
-#if defined(USE_ADC) || defined(USE_VIRTUAL_CURRENT_METER)
+#if defined(USE_ADC)
 static void updateCurrentmAhDrawnState(currentMeterMAhDrawnState_t *state, int32_t amperageLatest, int32_t lastUpdateAt)
 {
     state->mAhDrawnF = state->mAhDrawnF + (amperageLatest * lastUpdateAt / (100.0f * 1000 * 3600));
@@ -171,39 +160,6 @@ void currentMeterADCRead(currentMeter_t *meter)
     DEBUG_SET(DEBUG_CURRENT_SENSOR, 3, meter->mAhDrawn);
 }
 
-//
-// VIRTUAL
-//
-
-#ifdef USE_VIRTUAL_CURRENT_METER
-currentSensorVirtualState_t currentMeterVirtualState;
-
-void currentMeterVirtualInit(void)
-{
-    memset(&currentMeterVirtualState, 0, sizeof(currentSensorVirtualState_t));
-}
-
-void currentMeterVirtualRefresh(int32_t lastUpdateAt, bool armed, bool throttleLowAndMotorStop, int32_t throttleOffset)
-{
-    currentMeterVirtualState.amperage = (int32_t)currentSensorVirtualConfig()->offset;
-    if (armed) {
-        if (throttleLowAndMotorStop) {
-            throttleOffset = 0;
-        }
-
-        int throttleFactor = throttleOffset + (throttleOffset * throttleOffset / 50); // FIXME magic number 50. Possibly use thrustLinearization if configured.
-        currentMeterVirtualState.amperage += throttleFactor * (int32_t)currentSensorVirtualConfig()->scale / 1000;
-    }
-    updateCurrentmAhDrawnState(&currentMeterVirtualState.mahDrawnState, currentMeterVirtualState.amperage, lastUpdateAt);
-}
-
-void currentMeterVirtualRead(currentMeter_t *meter)
-{
-    meter->amperageLatest = currentMeterVirtualState.amperage;
-    meter->amperage = currentMeterVirtualState.amperage;
-    meter->mAhDrawn = currentMeterVirtualState.mahDrawnState.mAhDrawn;
-}
-#endif
 
 //
 // ESC
@@ -302,11 +258,6 @@ void currentMeterRead(currentMeterId_e id, currentMeter_t *meter)
     if (id == CURRENT_METER_ID_BATTERY_1) {
         currentMeterADCRead(meter);
     }
-#ifdef USE_VIRTUAL_CURRENT_METER
-    else if (id == CURRENT_METER_ID_VIRTUAL_1) {
-        currentMeterVirtualRead(meter);
-    }
-#endif
 #ifdef USE_MSP_CURRENT_METER
     else if (id == CURRENT_METER_ID_MSP_1) {
         currentMeterMSPRead(meter);
