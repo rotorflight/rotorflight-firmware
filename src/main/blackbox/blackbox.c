@@ -467,7 +467,7 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return (batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE) && isFieldEnabled(FIELD_SELECT(BATTERY));
 
     case CONDITION(AMPERAGE_ADC):
-        return (batteryConfig()->currentMeterSource != CURRENT_METER_NONE) && (batteryConfig()->currentMeterSource != CURRENT_METER_VIRTUAL) && isFieldEnabled(FIELD_SELECT(BATTERY));
+        return (batteryConfig()->currentMeterSource != CURRENT_METER_NONE) && isFieldEnabled(FIELD_SELECT(BATTERY));
 
     case CONDITION(RANGEFINDER):
 #ifdef USE_RANGEFINDER

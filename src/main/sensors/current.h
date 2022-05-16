@@ -26,7 +26,6 @@
 typedef enum {
     CURRENT_METER_NONE = 0,
     CURRENT_METER_ADC,
-    CURRENT_METER_VIRTUAL,
     CURRENT_METER_ESC,
     CURRENT_METER_MSP,
     CURRENT_METER_COUNT
@@ -52,7 +51,7 @@ typedef struct currentMeterMAhDrawnState_s {
 //
 
 typedef enum {
-    CURRENT_SENSOR_VIRTUAL = 0,
+    CURRENT_SENSOR_NONE = 0,
     CURRENT_SENSOR_ADC,
     CURRENT_SENSOR_ESC,
     CURRENT_SENSOR_MSP
@@ -76,21 +75,6 @@ typedef struct currentSensorADCConfig_s {
 
 PG_DECLARE(currentSensorADCConfig_t, currentSensorADCConfig);
 
-//
-// Virtual
-//
-
-typedef struct currentMeterVirtualState_s {
-    currentMeterMAhDrawnState_t mahDrawnState;
-    int32_t amperage;           // current read by current sensor in centiamperes (1/100th A)
-} currentSensorVirtualState_t;
-
-typedef struct currentSensorVirtualConfig_s {
-    int16_t scale;              // scale the throttle to centiamperes, using a hardcoded thrust linearization function (see Battery.md)
-    uint16_t offset;            // offset of the current sensor in centiamperes (1/100th A)
-} currentSensorVirtualConfig_t;
-
-PG_DECLARE(currentSensorVirtualConfig_t, currentSensorVirtualConfig);
 
 //
 // ESC
@@ -121,10 +105,6 @@ void currentMeterReset(currentMeter_t *meter);
 void currentMeterADCInit(void);
 void currentMeterADCRefresh(int32_t lastUpdateAt);
 void currentMeterADCRead(currentMeter_t *meter);
-
-void currentMeterVirtualInit(void);
-void currentMeterVirtualRefresh(int32_t lastUpdateAt, bool armed, bool throttleLowAndMotorStop, int32_t throttleOffset);
-void currentMeterVirtualRead(currentMeter_t *meter);
 
 void currentMeterESCInit(void);
 void currentMeterESCRefresh(int32_t lastUpdateAt);

@@ -51,11 +51,6 @@ uint8_t voltageSensorADCConfig_vbatscale;
 int16_t currentSensorADCConfig_scale;
 int16_t currentSensorADCConfig_offset;
 
-#ifdef USE_VIRTUAL_CURRENT_METER
-int16_t currentSensorVirtualConfig_scale;
-uint16_t currentSensorVirtualConfig_offset;
-#endif
-
 static const void *cmsx_Power_onEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
@@ -71,11 +66,6 @@ static const void *cmsx_Power_onEnter(displayPort_t *pDisp)
 
     currentSensorADCConfig_scale = currentSensorADCConfig()->scale;
     currentSensorADCConfig_offset = currentSensorADCConfig()->offset;
-
-#ifdef USE_VIRTUAL_CURRENT_METER
-    currentSensorVirtualConfig_scale = currentSensorVirtualConfig()->scale;
-    currentSensorVirtualConfig_offset = currentSensorVirtualConfig()->offset;
-#endif
 
     return NULL;
 }
@@ -97,11 +87,6 @@ static const void *cmsx_Power_onExit(displayPort_t *pDisp, const OSD_Entry *self
     currentSensorADCConfigMutable()->scale = currentSensorADCConfig_scale;
     currentSensorADCConfigMutable()->offset = currentSensorADCConfig_offset;
 
-#ifdef USE_VIRTUAL_CURRENT_METER
-    currentSensorVirtualConfigMutable()->scale = currentSensorVirtualConfig_scale;
-    currentSensorVirtualConfigMutable()->offset = currentSensorVirtualConfig_offset;
-#endif
-
     return NULL;
 }
 
@@ -120,11 +105,6 @@ static const OSD_Entry cmsx_menuPowerEntries[] =
 
     { "IBAT SCALE", OME_INT16, NULL, &(OSD_INT16_t){ &currentSensorADCConfig_scale, -16000, 16000, 5 } },
     { "IBAT OFFSET", OME_INT16, NULL, &(OSD_INT16_t){ &currentSensorADCConfig_offset, -32000, 32000, 5 } },
-
-#ifdef USE_VIRTUAL_CURRENT_METER
-    { "IBAT VIRT SCALE", OME_INT16, NULL, &(OSD_INT16_t){ &currentSensorVirtualConfig_scale, -16000, 16000, 5 } },
-    { "IBAT VIRT OFFSET", OME_UINT16, NULL, &(OSD_UINT16_t){ &currentSensorVirtualConfig_offset, 0, 16000, 5 } },
-#endif
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
