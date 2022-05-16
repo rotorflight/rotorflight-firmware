@@ -60,7 +60,6 @@
 #define PARAM_NAME_DTERM_LPF2_STATIC_HZ "dterm_lpf2_static_hz"
 #define PARAM_NAME_DTERM_NOTCH_HZ "dterm_notch_hz"
 #define PARAM_NAME_DTERM_NOTCH_CUTOFF "dterm_notch_cutoff"
-#define PARAM_NAME_VBAT_SAG_COMPENSATION "vbat_sag_compensation"
 #define PARAM_NAME_PID_AT_MIN_THROTTLE "pid_at_min_throttle"
 #define PARAM_NAME_ACC_LIMIT_YAW "acc_limit_yaw"
 #define PARAM_NAME_ACC_LIMIT "acc_limit"

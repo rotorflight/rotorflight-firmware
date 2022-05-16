@@ -273,12 +273,6 @@ static void validateAndFixConfig(void)
             pidProfilesMutable(i)->dterm_lpf1_dyn_min_hz = 0;
         }
 #endif
-
-#if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-        if (batteryConfig()->voltageMeterSource != VOLTAGE_METER_ADC) {
-            pidProfilesMutable(i)->vbat_sag_compensation = 0;
-        }
-#endif
     }
 
     if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > BRUSHLESS_MOTORS_PWM_RATE)) {

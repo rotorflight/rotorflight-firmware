@@ -43,9 +43,6 @@ extern const char * const voltageMeterSourceNames[VOLTAGE_METER_COUNT];
 typedef struct voltageMeter_s {
     uint16_t displayFiltered;                      // voltage in 0.01V steps
     uint16_t unfiltered;                    // voltage in 0.01V steps
-#if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
-    uint16_t sagFiltered;                   // voltage in 0.01V steps
-#endif
     bool lowVoltageCutoff;
 } voltageMeter_t;
 
@@ -120,5 +117,3 @@ extern const uint8_t voltageMeterADCtoIDMap[MAX_VOLTAGE_SENSOR_ADC];
 extern const uint8_t supportedVoltageMeterCount;
 extern const uint8_t voltageMeterIds[];
 void voltageMeterRead(voltageMeterId_e id, voltageMeter_t *voltageMeter);
-
-bool isSagCompensationConfigured(void);
