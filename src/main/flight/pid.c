@@ -161,8 +161,6 @@ static FAST_RAM_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
 
 static FAST_RAM_ZERO_INIT pt1Filter_t errorFilter[XYZ_AXIS_COUNT];
 
-static FAST_RAM_ZERO_INIT float pidHeadspeedRatio;
-
 static FAST_RAM_ZERO_INIT float tailCWStopGain;
 static FAST_RAM_ZERO_INIT float tailCCWStopGain;
 
@@ -177,10 +175,6 @@ static FAST_RAM_ZERO_INIT float collectiveDeflectionHPF;
 static FAST_RAM_ZERO_INIT float collectiveImpulseFilterGain;
 
 static FAST_RAM_ZERO_INIT float collectiveCommand;
-
-static FAST_RAM_ZERO_INIT uint8_t cyclicNormalization;
-static FAST_RAM_ZERO_INIT uint8_t collectiveNormalization;
-static FAST_RAM_ZERO_INIT float normalizationMinRatio;
 
 #ifdef USE_ITERM_RELAX
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
@@ -346,11 +340,6 @@ void pidInitProfile(const pidProfile_t *pidProfile)
     spInterpolation = (pidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF);
     interpolatedSpInit(pidProfile);
 #endif
-
-    // Normalization mode
-    cyclicNormalization = pidProfile->cyclic_normalization;
-    collectiveNormalization = pidProfile->collective_normalization;
-    normalizationMinRatio = pidProfile->normalization_min_ratio / 100.0f;
 
     // Collective impulse high-pass filter
     collectiveImpulseFilterGain = pt1FilterGain(pidProfile->yaw_collective_ff_impulse_freq / 100.0f, dT);
@@ -570,51 +559,10 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
 #endif
 
 
-static inline float getPIDNormalizationGain(uint8_t axis, float hsRatio)
-{
-    if (axis == FD_YAW && mixerMotorizedTail())
-        return 1.0f;
-    else
-        return 1.0f / (hsRatio * hsRatio);
-}
-
-static inline float getRateNormalizationGain(uint8_t axis, float hsRatio)
-{
-    if (axis == FD_ROLL || axis == FD_PITCH) {
-        if (cyclicNormalization == NORM_NATURAL)
-            return hsRatio * hsRatio;
-        else if (cyclicNormalization == NORM_LINEAR)
-            return hsRatio;
-        else
-            return 1.0f;
-    }
-
-    return 1.0f;
-}
-
-static inline float getCollectiveNormalizationGain(float hsRatio)
-{
-    if (collectiveNormalization == NORM_NATURAL)
-        return hsRatio * hsRatio;
-    else if (collectiveNormalization == NORM_LINEAR)
-        return hsRatio;
-
-    return 1.0f;
-}
-
-static inline float getYawPrecompGain(float hsRatio)
-{
-    if (mixerMotorizedTail())
-        return hsRatio * hsRatio;
-    else
-        return 1.0f;
-}
-
-
 static FAST_CODE void pidApplyYawPrecomp(void)
 {
-    // Yaw precompensation gain and direction
-    float Kc = getYawPrecompGain(pidHeadspeedRatio) * mixerRotationSign();
+    // Yaw precompensation direction
+    float rotSign = mixerRotationSign();
 
     // Get stick throws (from previous cycle)
     float cyclicDeflection = getCyclicDeflection();
@@ -632,7 +580,7 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     float tailCyclicFF = fabsf(cyclicDeflection) * tailCyclicFFGain;
 
     // Calculate total precompensation
-    float tailPrecomp = (tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset) * Kc;
+    float tailPrecomp = (tailCollectiveFF + tailCollectiveImpulseFF + tailCyclicFF + tailCenterOffset) * rotSign;
 
     // Add to YAW feedforward
     pidData[FD_YAW].F   += tailPrecomp;
@@ -652,26 +600,18 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     DEBUG32_SET(DEBUG_YAW_PRECOMP, 6, tailPrecomp * 10);
 }
 
-static FAST_CODE void pidNormaliseCollective(void)
+static FAST_CODE void pidApplyCollective(void)
 {
-    float command;
-
     if (FLIGHT_MODE(RESCUE_MODE))
-        command = pidRescueCollective();
+        collectiveCommand = pidRescueCollective();
     else
-        command = rcCommand[COLLECTIVE] * MIXER_RC_SCALING * getCollectiveNormalizationGain(pidHeadspeedRatio);
-
-    collectiveCommand = command * getPIDNormalizationGain(FD_COLL, pidHeadspeedRatio);
+        collectiveCommand = rcCommand[COLLECTIVE] * MIXER_RC_SCALING;
 }
-
 
 static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 {
-    // Normalised Setpoint rate
-    float pidSetpoint = getRateNormalizationGain(axis, pidHeadspeedRatio) * getSetpointRate(axis);
-
-    // PID normalisation gain
-    float Kn = getPIDNormalizationGain(axis, pidHeadspeedRatio);
+    // Rate setpoint
+    float pidSetpoint = getSetpointRate(axis);
 
 #ifdef USE_ACC
     // Apply leveling
@@ -735,7 +675,7 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 
     // Calculate I-component
     pidData[axis].Ierror = constrainf(pidData[axis].Ierror + itermDelta, -itermLimit[axis], itermLimit[axis]);
-    pidData[axis].I = Kn * pidCoefficient[axis].Ki * pidData[axis].Ierror;
+    pidData[axis].I = pidCoefficient[axis].Ki * pidData[axis].Ierror;
 
     // Calculate P-term error rate after modifications
     float ptermErrorRate = pidSetpoint - gyroRate;
@@ -753,14 +693,14 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 
     // Calculate P-component
     pidData[axis].Perror = ptermErrorRate;
-    pidData[axis].P = Ks * Kn * pidCoefficient[axis].Kp * ptermErrorRate;
+    pidData[axis].P = Ks * pidCoefficient[axis].Kp * ptermErrorRate;
 
     // Calculate D-component
     pidData[axis].Derror = dtermErrorRate;
-    pidData[axis].D = Ks * Kn * pidCoefficient[axis].Kd * dtermDelta;
+    pidData[axis].D = Ks * pidCoefficient[axis].Kd * dtermDelta;
 
     // Calculate feedforward component
-    pidData[axis].F = Kn * pidCoefficient[axis].Kf * pidSetpoint;
+    pidData[axis].F = pidCoefficient[axis].Kf * pidSetpoint;
 
     // Calculate PID sum
     pidData[axis].Sum = pidData[axis].P + pidData[axis].I + pidData[axis].D + pidData[axis].F;
@@ -770,9 +710,6 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
-
-    // Headspeed ratio for normalization
-    pidHeadspeedRatio = constrainf(getHeadSpeedRatio(), normalizationMinRatio, 1.25f);
 
     // Rotate error around yaw axis
 #ifdef USE_ITERM_ROTATION
@@ -794,7 +731,7 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     pidApplyYawPrecomp();
 
     // Calculate stabilized collective
-    pidNormaliseCollective();
+    pidApplyCollective();
 
     // Reset PID control if gyro overflow detected
     if (gyroOverflowDetected())
