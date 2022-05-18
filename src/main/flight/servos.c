@@ -47,8 +47,6 @@
 #include "flight/pid.h"
 #include "flight/servos.h"
 
-#include "io/gimbal.h"
-
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 #include "pg/rx.h"
@@ -87,9 +85,6 @@ void pgResetFn_servoParams(servoParam_t *instance)
         );
     }
 }
-
-// no template required since default is zero
-PG_REGISTER(gimbalConfig_t, gimbalConfig, PG_GIMBAL_CONFIG, 0);
 
 int16_t servo[MAX_SUPPORTED_SERVOS];
 
@@ -162,18 +157,13 @@ static const servoMixer_t servoMixerHeli[] = {
 #define servoMixerHeli NULL
 #endif // USE_UNCOMMON_MIXERS
 
-static const servoMixer_t servoMixerGimbal[] = {
-    { SERVO_GIMBAL_PITCH, INPUT_GIMBAL_PITCH, 125, 0, 0, 100, 0 },
-    { SERVO_GIMBAL_ROLL, INPUT_GIMBAL_ROLL,  125, 0, 0, 100, 0 },
-};
-
 const mixerRules_t servoMixers[] = {
     { 0, NULL },                // entry 0
     { COUNT_SERVO_RULES(servoMixerTri), servoMixerTri },       // MULTITYPE_TRI
     { 0, NULL },                // MULTITYPE_QUADP
     { 0, NULL },                // MULTITYPE_QUADX
     { COUNT_SERVO_RULES(servoMixerBI), servoMixerBI },        // MULTITYPE_BI
-    { COUNT_SERVO_RULES(servoMixerGimbal), servoMixerGimbal },    // * MULTITYPE_GIMBAL
+    { 0, NULL },                // * MULTITYPE_GIMBAL
     { 0, NULL },                // MULTITYPE_Y6
     { 0, NULL },                // MULTITYPE_HEX6
     { COUNT_SERVO_RULES(servoMixerFlyingWing), servoMixerFlyingWing },// * MULTITYPE_FLYING_WING
@@ -313,12 +303,6 @@ static void writeServoWithTracking(uint8_t index, servoIndex_e servoname)
     servoWritten |= (1 << servoname);
 }
 
-static void updateGimbalServos(uint8_t firstServoIndex)
-{
-    writeServoWithTracking(firstServoIndex + 0, SERVO_GIMBAL_PITCH);
-    writeServoWithTracking(firstServoIndex + 1, SERVO_GIMBAL_ROLL);
-}
-
 static void servoTable(void);
 static void filterServos(void);
 
@@ -379,12 +363,6 @@ void writeServos(void)
         break;
     }
 
-    // Two servos for GIMBAL, if enabled
-    if (getMixerMode() == MIXER_GIMBAL) {
-        updateGimbalServos(servoIndex);
-        servoIndex += 2;
-    }
-
     // Scan servos and write those marked forwarded and not written yet
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
         const uint8_t channelToForwardFrom = servoParams(i)->forwardFromChannel;
@@ -416,9 +394,6 @@ void servoMixer(void)
         input[INPUT_STABILIZED_PITCH] = pidData[FD_PITCH].Sum * PID_SERVO_MIXER_SCALING;
         input[INPUT_STABILIZED_YAW] = pidData[FD_YAW].Sum * PID_SERVO_MIXER_SCALING;
     }
-
-    input[INPUT_GIMBAL_PITCH] = scaleRange(attitude.values.pitch, -1800, 1800, -500, +500);
-    input[INPUT_GIMBAL_ROLL] = scaleRange(attitude.values.roll, -1800, 1800, -500, +500);
 
     input[INPUT_STABILIZED_THROTTLE] = motor[0] - 1000 - 500;  // Since it derives from rcCommand or mincommand and must be [-500:+500]
 
@@ -491,13 +466,6 @@ static void servoTable(void)
     case MIXER_GIMBAL:
         servoMixer();
         break;
-
-    /*
-    case MIXER_GIMBAL:
-        servo[SERVO_GIMBAL_PITCH] = (((int32_t)servoParams(SERVO_GIMBAL_PITCH)->rate * attitude.values.pitch) / 50) + determineServoMiddleOrForwardFromChannel(SERVO_GIMBAL_PITCH);
-        servo[SERVO_GIMBAL_ROLL] = (((int32_t)servoParams(SERVO_GIMBAL_ROLL)->rate * attitude.values.roll) / 50) + determineServoMiddleOrForwardFromChannel(SERVO_GIMBAL_ROLL);
-        break;
-    */
 
     default:
         break;
