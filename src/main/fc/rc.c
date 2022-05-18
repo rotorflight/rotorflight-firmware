@@ -235,25 +235,6 @@ float applyCurve(int axis, float deflection)
     return applyRates(axis, deflection, fabsf(deflection));
 }
 
-static void scaleRawSetpointToFpvCamAngle(void)
-{
-    //recalculate sin/cos only when rxConfig()->fpvCamAngleDegrees changed
-    static uint8_t lastFpvCamAngleDegrees = 0;
-    static float cosFactor = 1.0;
-    static float sinFactor = 0.0;
-
-    if (lastFpvCamAngleDegrees != rxConfig()->fpvCamAngleDegrees) {
-        lastFpvCamAngleDegrees = rxConfig()->fpvCamAngleDegrees;
-        cosFactor = cos_approx(rxConfig()->fpvCamAngleDegrees * RAD);
-        sinFactor = sin_approx(rxConfig()->fpvCamAngleDegrees * RAD);
-    }
-
-    float roll = rawSetpoint[ROLL];
-    float yaw = rawSetpoint[YAW];
-    rawSetpoint[ROLL] = constrainf(roll * cosFactor -  yaw * sinFactor, -SETPOINT_RATE_LIMIT * 1.0f, SETPOINT_RATE_LIMIT * 1.0f);
-    rawSetpoint[YAW]  = constrainf(yaw  * cosFactor + roll * sinFactor, -SETPOINT_RATE_LIMIT * 1.0f, SETPOINT_RATE_LIMIT * 1.0f);
-}
-
 void updateRcRefreshRate(timeUs_t currentTimeUs)
 {
     static timeUs_t lastRxTimeUs;
@@ -572,10 +553,6 @@ FAST_CODE void processRcCommand(void)
             }
             rawSetpoint[axis] = constrainf(angleRate, -1.0f * currentControlRateProfile->rate_limit[axis], 1.0f * currentControlRateProfile->rate_limit[axis]);
             DEBUG_SET(DEBUG_ANGLERATE, axis, angleRate);
-        }
-        // adjust raw setpoint steps to camera angle (mixing Roll and Yaw)
-        if (rxConfig()->fpvCamAngleDegrees && IS_RC_MODE_ACTIVE(BOXFPVANGLEMIX) && !FLIGHT_MODE(HEADFREE_MODE)) {
-            scaleRawSetpointToFpvCamAngle();
         }
     }
 
