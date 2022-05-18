@@ -104,7 +104,6 @@
 #include "io/displayport_max7456.h"
 #include "io/displayport_msp.h"
 #include "io/flashfs.h"
-#include "io/gimbal.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/piniobox.h"
@@ -775,9 +774,7 @@ void init(void)
 #endif
 
 #ifdef USE_ACC
-    if (mixerConfig()->mixerMode == MIXER_GIMBAL) {
-        accStartCalibration();
-    }
+    accStartCalibration();
 #endif
     gyroStartCalibration(false);
 #ifdef USE_BARO
