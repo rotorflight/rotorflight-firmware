@@ -108,7 +108,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .pidSumLimitYaw = PIDSUM_LIMIT_YAW,
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
-        .itermWindupPointPercent = 85,
         .levelAngleLimit = 55,
         .feedforward_transition = 0,
         .yawRateAccelLimit = 0,
@@ -514,12 +513,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
 #endif
 
-    // gradually scale back integration when above windup point
-    float dynCi = pidRuntime.dT;
-    if (pidRuntime.itermWindupPointInv > 1.0f) {
-        dynCi *= constrainf((1.0f - getMotorMixRange()) * pidRuntime.itermWindupPointInv, 0.0f, 1.0f);
-    }
-
     // Precalculate gyro deta for D-term here, this allows loop unrolling
     float gyroRateDterm[XYZ_AXIS_COUNT];
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
@@ -608,14 +601,8 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].P = pidRuntime.pidCoefficient[axis].Kp * errorRate;
 
         // -----calculate I component
-        float Ki;
-        float axisDynCi;
-        {
-            Ki = pidRuntime.pidCoefficient[axis].Ki;
-            axisDynCi = (axis == FD_YAW) ? dynCi : pidRuntime.dT; // only apply windup protection to yaw
-        }
-
-        pidData[axis].I = constrainf(previousIterm + (Ki * axisDynCi) * itermErrorRate, -pidRuntime.itermLimit, pidRuntime.itermLimit);
+        float Ki = pidRuntime.pidCoefficient[axis].Ki;
+        pidData[axis].I = constrainf(previousIterm + Ki * itermErrorRate * pidRuntime.dT, -pidRuntime.itermLimit, pidRuntime.itermLimit);
 
         // -----calculate pidSetpointDelta
         float pidSetpointDelta = 0;

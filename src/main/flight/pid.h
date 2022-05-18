@@ -114,7 +114,6 @@ typedef struct pidProfile_s {
     pidf_t  pid[PID_ITEM_COUNT];
 
     uint8_t dterm_lpf1_type;                // Filter type for dterm lowpass 1
-    uint8_t itermWindupPointPercent;        // iterm windup threshold, percent motor saturation
     uint16_t pidSumLimit;
     uint16_t pidSumLimitYaw;
     uint8_t levelAngleLimit;                // Max angle in degrees in level mode
@@ -211,7 +210,6 @@ typedef struct pidRuntime_s {
     float horizonFactorRatio;
     uint8_t horizonTiltExpertMode;
     float maxVelocity[XYZ_AXIS_COUNT];
-    float itermWindupPointInv;
     float itermLimit;
     bool itermRotation;
 

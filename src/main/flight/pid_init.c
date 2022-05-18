@@ -224,11 +224,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
     pidRuntime.maxVelocity[FD_ROLL] = pidRuntime.maxVelocity[FD_PITCH] = pidProfile->rateAccelLimit * 100 * pidRuntime.dT;
     pidRuntime.maxVelocity[FD_YAW] = pidProfile->yawRateAccelLimit * 100 * pidRuntime.dT;
-    pidRuntime.itermWindupPointInv = 1.0f;
-    if (pidProfile->itermWindupPointPercent < 100) {
-        const float itermWindupPoint = pidProfile->itermWindupPointPercent / 100.0f;
-        pidRuntime.itermWindupPointInv = 1.0f / (1.0f - itermWindupPoint);
-    }
     pidRuntime.itermLimit = pidProfile->itermLimit;
     pidRuntime.itermRotation = pidProfile->iterm_rotation;
 
