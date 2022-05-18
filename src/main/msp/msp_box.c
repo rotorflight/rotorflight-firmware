@@ -55,7 +55,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
     { BOXMAG, "MAG", 5 },
     { BOXHEADFREE, "HEADFREE", 6 },
     { BOXHEADADJ, "HEADADJ", 7 },
-    { BOXCAMSTAB, "CAMSTAB", 8 },
+//    { BOXCAMSTAB, "CAMSTAB", 8 },
 //    { BOXCAMTRIG, "CAMTRIG", 9 },
 //    { BOXGPSHOME, "GPS HOME", 10 },
 //    { BOXGPSHOLD, "GPS HOLD", 11 },
@@ -234,10 +234,6 @@ void initActiveBoxIds(void)
 #endif
 
     BME(BOXFPVANGLEMIX);
-
-    if (featureIsEnabled(FEATURE_SERVO_TILT)) {
-        BME(BOXCAMSTAB);
-    }
 
     BME(BOXOSD);
 
