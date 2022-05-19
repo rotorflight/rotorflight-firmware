@@ -121,7 +121,6 @@ PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
 typedef struct servoConfig_s {
     servoDevConfig_t dev;
     uint16_t servo_lowpass_freq;            // lowpass servo filter frequency selection; 1/1000ths of loop freq
-    uint8_t tri_unarmed_servo;              // send tail servo correction pulses even when unarmed
 } servoConfig_t;
 
 PG_DECLARE(servoConfig_t, servoConfig);
@@ -140,7 +139,3 @@ int servoDirection(int servoIndex, int fromChannel);
 void servosInit(void);
 void servosFilterInit(void);
 void servoMixer(void);
-// tricopter specific
-void servosTricopterInit(void);
-void servosTricopterMixer(void);
-bool servosTricopterIsEnabledServoUnarmed(void);
