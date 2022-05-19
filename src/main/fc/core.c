@@ -404,7 +404,6 @@ void tryArm(void)
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
         }
-        imuQuaternionHeadfreeOffsetSet();
 
 #if defined(USE_DYN_NOTCH_FILTER)
         resetMaxFFT();
@@ -656,24 +655,8 @@ void processRxModes(timeUs_t currentTimeUs)
             DISABLE_FLIGHT_MODE(MAG_MODE);
         }
 #endif
-        if (IS_RC_MODE_ACTIVE(BOXHEADFREE) && !FLIGHT_MODE(GPS_RESCUE_MODE)) {
-            if (!FLIGHT_MODE(HEADFREE_MODE)) {
-                ENABLE_FLIGHT_MODE(HEADFREE_MODE);
-            }
-        } else {
-            DISABLE_FLIGHT_MODE(HEADFREE_MODE);
-        }
-        if (IS_RC_MODE_ACTIVE(BOXHEADADJ) && !FLIGHT_MODE(GPS_RESCUE_MODE)) {
-            if (imuQuaternionHeadfreeOffsetSet()) {
-               beeper(BEEPER_RX_SET);
-            }
-        }
     }
 #endif
-
-    if (mixerConfig()->mixerMode == MIXER_FLYING_WING || mixerConfig()->mixerMode == MIXER_AIRPLANE) {
-        DISABLE_FLIGHT_MODE(HEADFREE_MODE);
-    }
 
 #ifdef USE_TELEMETRY
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
