@@ -137,7 +137,6 @@ void setDefaultTestSettings(void) {
     pidProfile->itermWindupPointPercent = 50;
     pidProfile->pidAtMinThrottle = PID_STABILISATION_ON;
     pidProfile->levelAngleLimit = 55;
-    pidProfile->feedforward_transition = 100;
     pidProfile->yawRateAccelLimit = 100;
     pidProfile->rateAccelLimit = 0;
     pidProfile->antiGravityMode = ANTI_GRAVITY_SMOOTH;

@@ -1315,15 +1315,6 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("ff_weight", "%d,%d,%d",                 currentPidProfile->pid[PID_ROLL].F,
                                                                             currentPidProfile->pid[PID_PITCH].F,
                                                                             currentPidProfile->pid[PID_YAW].F);
-#ifdef USE_FEEDFORWARD
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_TRANSITION, "%d",     currentPidProfile->feedforward_transition);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_AVERAGING, "%d",      currentPidProfile->feedforward_averaging);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_SMOOTH_FACTOR, "%d",  currentPidProfile->feedforward_smooth_factor);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_JITTER_FACTOR, "%d",  currentPidProfile->feedforward_jitter_factor);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_BOOST, "%d",          currentPidProfile->feedforward_boost);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_FEEDFORWARD_MAX_RATE_LIMIT, "%d", currentPidProfile->feedforward_max_rate_limit);
-#endif
-
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LIMIT_YAW, "%d",          currentPidProfile->yawRateAccelLimit);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LIMIT, "%d",              currentPidProfile->rateAccelLimit);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_PIDSUM_LIMIT, "%d",           currentPidProfile->pidSumLimit);
