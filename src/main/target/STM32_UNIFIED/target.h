@@ -218,6 +218,8 @@
 // to be supplied when the board is configured for the first time
 #define USE_UNIFIED_TARGET
 
+#define USE_CUSTOM_DEFAULTS
+
 #define USE_BEEPER
 
 // MPU interrupt
@@ -305,8 +307,19 @@
 
 #define USE_ADC
 
-#define USE_RX_SPI
+#ifdef DISABLE_OSD_VIDEO
+#undef USE_OSD
+#undef USE_CMS
+#undef USE_MAX7456
+#undef USE_RCDEVICE
+#undef USE_VTX_CONTROL
+#undef USE_CAMERA_CONTROL
+#endif
 
+// SPI RX is not supported in Rotorflight
+#undef  USE_RX_SPI
+
+#ifdef USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D
 #define USE_RX_FRSKY_SPI_X
 #define USE_RX_SFHSS_SPI
@@ -314,31 +327,39 @@
 #define USE_RX_FRSKY_SPI_TELEMETRY
 #define USE_RX_CC2500_SPI_PA_LNA
 #define USE_RX_CC2500_SPI_DIVERSITY
-
 #define USE_RX_FLYSKY
 #define USE_RX_FLYSKY_SPI_LED
-
 #define USE_RX_SPEKTRUM
 #define USE_RX_SPEKTRUM_TELEMETRY
-
-#define USE_CUSTOM_DEFAULTS
+#endif
 
 // Additional drivers included for targets with > 512KB of flash
 #if (TARGET_FLASH_SIZE > 512)
+
+#ifdef USE_ACC
 #define USE_ACC_MPU6050
+#endif
+#ifdef USE_GYRO
 #define USE_GYRO_MPU6050
-
+#endif
+#ifdef USE_BARO
 #define USE_BARO_BMP085
+#endif
 
+#ifdef USE_VTX_CONTROL
 #define USE_VTX_RTC6705
 #define USE_VTX_RTC6705_SOFTSPI
+#endif
 
-#define USE_RANGEFINDER
+#ifdef USE_RANGEFINDER
 #define USE_RANGEFINDER_HCSR04
 #define USE_RANGEFINDER_TF
+#endif
 
+#ifdef USE_RX_SPI
 #define USE_RX_EXPRESSLRS
 #define USE_RX_SX1280
 #define USE_RX_SX127X
+#endif
 
 #endif
