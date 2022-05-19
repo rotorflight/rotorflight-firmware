@@ -398,7 +398,6 @@ pid_unittest_DEFINES := \
 		USE_ITERM_RELAX= \
 		USE_ABSOLUTE_CONTROL= \
 		USE_LAUNCH_CONTROL= \
-		USE_FEEDFORWARD=
 
 rcdevice_unittest_DEFINES := \
 		USE_RCDEVICE=
