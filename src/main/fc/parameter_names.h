@@ -35,7 +35,6 @@
 #define PARAM_NAME_MAG_HARDWARE "mag_hardware"
 #define PARAM_NAME_BARO_HARDWARE "baro_hardware"
 #define PARAM_NAME_SERIAL_RX_PROVIDER "serialrx_provider"
-#define PARAM_NAME_DSHOT_IDLE_VALUE "dshot_idle_value"
 #define PARAM_NAME_DSHOT_BIDIR "dshot_bidir"
 #define PARAM_NAME_USE_UNSYNCED_PWM "use_unsynced_pwm"
 #define PARAM_NAME_MOTOR_PWM_PROTOCOL "motor_pwm_protocol"
