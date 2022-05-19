@@ -48,11 +48,12 @@
 #include "dshot.h"
 
 void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
+    UNUSED(motorConfig);
     UNUSED(deadbandMotor3dHigh);
     UNUSED(deadbandMotor3dLow);
     float outputLimitOffset = DSHOT_RANGE * (1 - outputLimit);
     *disarm = DSHOT_CMD_MOTOR_STOP;
-    *outputLow = DSHOT_MIN_THROTTLE + getDigitalIdleOffset(motorConfig) * DSHOT_RANGE;
+    *outputLow = DSHOT_MIN_THROTTLE;
     *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
 }
 
