@@ -60,7 +60,6 @@ void pgResetFn_servoConfig(servoConfig_t *servoConfig)
 {
     servoConfig->dev.servoCenterPulse = 1500;
     servoConfig->dev.servoPwmRate = 50;
-    servoConfig->tri_unarmed_servo = 1;
     servoConfig->servo_lowpass_freq = 0;
 
     for (unsigned servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS; servoIndex++) {
@@ -256,10 +255,6 @@ void servosInit(void)
         servo[i] = DEFAULT_SERVO_MIDDLE;
     }
 
-    if (mixerIsTricopter()) {
-        servosTricopterInit();
-    }
-
     servoConfigureOutput();
 }
 
@@ -301,7 +296,7 @@ void writeServos(void)
     case MIXER_TRI:
     case MIXER_CUSTOM_TRI:
         // We move servo if unarmed flag set or armed
-        if (!(servosTricopterIsEnabledServoUnarmed() || ARMING_FLAG(ARMED))) {
+        if (!ARMING_FLAG(ARMED)) {
             servo[SERVO_RUDDER] = 0; // kill servo signal completely.
         }
         writeServoWithTracking(servoIndex++, SERVO_RUDDER);
@@ -426,8 +421,6 @@ static void servoTable(void)
     switch (getMixerMode()) {
     case MIXER_CUSTOM_TRI:
     case MIXER_TRI:
-        servosTricopterMixer();
-        break;
     case MIXER_CUSTOM_AIRPLANE:
     case MIXER_FLYING_WING:
     case MIXER_AIRPLANE:

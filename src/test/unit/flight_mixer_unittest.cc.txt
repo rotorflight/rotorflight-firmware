@@ -201,46 +201,6 @@ protected:
     }
 };
 
-TEST_F(BasicMixerIntegrationTest, TestTricopterServo)
-{
-    // given
-    rxConfig.midrc = 1500;
-
-    mixerConfig.tri_unarmed_servo = 1;
-
-    withDefaultEscAndServoConfiguration();
-    withDefaultRxConfig();
-
-    servoConf[5].min = DEFAULT_SERVO_MIN;
-    servoConf[5].max = DEFAULT_SERVO_MAX;
-    servoConf[5].middle = DEFAULT_SERVO_MIDDLE;
-    servoConf[5].rate = 100;
-    servoConf[5].forwardFromChannel = CHANNEL_FORWARDING_DISABLED;
-
-    configureMixer();
-
-    mixerInit(MIXER_TRI, customMotorMixer, customServoMixer);
-
-    // and
-    pwmOutputConfiguration_t pwmOutputConfiguration = {
-            .servoCount = 1,
-            .motorCount = 3
-    };
-
-    mixerUsePWMOutputConfiguration(&pwmOutputConfiguration);
-
-    // and
-    axisPID[YAW] = 0;
-
-    // when
-    mixTable();
-    writeServos();
-
-    // then
-    EXPECT_EQ(1, updatedServoCount);
-    EXPECT_EQ(TEST_SERVO_MID, servos[0].value);
-}
-
 TEST_F(BasicMixerIntegrationTest, TestQuadMotors)
 {
     // given
