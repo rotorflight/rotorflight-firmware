@@ -780,10 +780,6 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     tmpi += 100;
                 }
 
-                if (FLIGHT_MODE(HEADFREE_MODE)) {
-                    tmpi += 4000;
-                }
-
                 smartPortSendPackage(id, (uint32_t)tmpi);
                 *clearToSend = false;
                 break;

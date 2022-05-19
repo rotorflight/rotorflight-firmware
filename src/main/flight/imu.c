@@ -102,9 +102,6 @@ STATIC_UNIT_TESTED bool attitudeIsEstablished = false;
 // quaternion of sensor frame relative to earth frame
 STATIC_UNIT_TESTED quaternion q = QUATERNION_INITIALIZE;
 STATIC_UNIT_TESTED quaternionProducts qP = QUATERNION_PRODUCTS_INITIALIZE;
-// headfree quaternions
-quaternion headfree = QUATERNION_INITIALIZE;
-quaternion offset = QUATERNION_INITIALIZE;
 
 // absolute angle inclination in multiple of 0.1 degree    180 deg = 1800
 attitudeEulerAngles_t attitude = EULER_INITIALIZE;
@@ -318,19 +315,9 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
 
 STATIC_UNIT_TESTED void imuUpdateEulerAngles(void)
 {
-    quaternionProducts buffer;
-
-    if (FLIGHT_MODE(HEADFREE_MODE)) {
-       imuQuaternionComputeProducts(&headfree, &buffer);
-
-       attitude.values.roll = lrintf(atan2_approx((+2.0f * (buffer.wx + buffer.yz)), (+1.0f - 2.0f * (buffer.xx + buffer.yy))) * (1800.0f / M_PIf));
-       attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(+2.0f * (buffer.wy - buffer.xz))) * (1800.0f / M_PIf));
-       attitude.values.yaw = lrintf((-atan2_approx((+2.0f * (buffer.wz + buffer.xy)), (+1.0f - 2.0f * (buffer.yy + buffer.zz))) * (1800.0f / M_PIf)));
-    } else {
-       attitude.values.roll = lrintf(atan2_approx(rMat[2][1], rMat[2][2]) * (1800.0f / M_PIf));
-       attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(-rMat[2][0])) * (1800.0f / M_PIf));
-       attitude.values.yaw = lrintf((-atan2_approx(rMat[1][0], rMat[0][0]) * (1800.0f / M_PIf)));
-    }
+    attitude.values.roll = lrintf(atan2_approx(rMat[2][1], rMat[2][2]) * (1800.0f / M_PIf));
+    attitude.values.pitch = lrintf(((0.5f * M_PIf) - acos_approx(-rMat[2][0])) * (1800.0f / M_PIf));
+    attitude.values.yaw = lrintf((-atan2_approx(rMat[1][0], rMat[0][0]) * (1800.0f / M_PIf)));
 
     if (attitude.values.yaw < 0) {
         attitude.values.yaw += 3600;
@@ -628,22 +615,6 @@ void imuSetHasNewData(uint32_t dt)
 }
 #endif
 
-bool imuQuaternionHeadfreeOffsetSet(void)
-{
-    if ((ABS(attitude.values.roll) < 450)  && (ABS(attitude.values.pitch) < 450)) {
-        const float yaw = -atan2_approx((+2.0f * (qP.wz + qP.xy)), (+1.0f - 2.0f * (qP.yy + qP.zz)));
-
-        offset.w = cos_approx(yaw/2);
-        offset.x = 0;
-        offset.y = 0;
-        offset.z = sin_approx(yaw/2);
-
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void imuQuaternionMultiplication(quaternion *q1, quaternion *q2, quaternion *result)
 {
     const float A = (q1->w + q1->x) * (q2->w + q2->x);
@@ -659,22 +630,6 @@ void imuQuaternionMultiplication(quaternion *q1, quaternion *q2, quaternion *res
     result->x = A - (+ E + F + G + H) / 2.0f;
     result->y = C + (+ E - F + G - H) / 2.0f;
     result->z = D + (+ E - F - G + H) / 2.0f;
-}
-
-void imuQuaternionHeadfreeTransformVectorEarthToBody(t_fp_vector_def *v)
-{
-    quaternionProducts buffer;
-
-    imuQuaternionMultiplication(&offset, &q, &headfree);
-    imuQuaternionComputeProducts(&headfree, &buffer);
-
-    const float x = (buffer.ww + buffer.xx - buffer.yy - buffer.zz) * v->X + 2.0f * (buffer.xy + buffer.wz) * v->Y + 2.0f * (buffer.xz - buffer.wy) * v->Z;
-    const float y = 2.0f * (buffer.xy - buffer.wz) * v->X + (buffer.ww - buffer.xx + buffer.yy - buffer.zz) * v->Y + 2.0f * (buffer.yz + buffer.wx) * v->Z;
-    const float z = 2.0f * (buffer.xz + buffer.wy) * v->X + 2.0f * (buffer.yz - buffer.wx) * v->Y + (buffer.ww - buffer.xx - buffer.yy + buffer.zz) * v->Z;
-
-    v->X = x;
-    v->Y = y;
-    v->Z = z;
 }
 
 bool isUpright(void)

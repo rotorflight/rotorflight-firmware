@@ -1082,7 +1082,6 @@ extern "C" {
     void changeControlRateProfile(uint8_t) {}
     void dashboardEnablePageCycling(void) {}
     void dashboardDisablePageCycling(void) {}
-    bool imuQuaternionHeadfreeOffsetSet(void) { return true; }
     void rescheduleTask(taskId_e, timeDelta_t) {}
     bool usbCableIsInserted(void) { return false; }
     bool usbVcpIsConnected(void) { return false; }

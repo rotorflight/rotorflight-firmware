@@ -193,14 +193,6 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 
 #endif // USE_GPS_RESCUE
 
-    // Show warning if in HEADFREE flight mode
-    if (FLIGHT_MODE(HEADFREE_MODE)) {
-        tfp_sprintf(warningText, "HEADFREE");
-        *displayAttr = DISPLAYPORT_ATTR_WARNING;
-        *blinking = true;;
-        return;
-    }
-
 #ifdef USE_ADC_INTERNAL
     const int16_t coreTemperature = getCoreTemperatureCelsius();
     if (osdWarnGetState(OSD_WARNING_CORE_TEMPERATURE) && coreTemperature >= osdConfig()->core_temp_alarm) {
