@@ -258,7 +258,7 @@ static const char * const featureNames[] = {
     "", "SOFTSERIAL", "GPS", "",
     "RANGEFINDER", "TELEMETRY", "", "3D", "RX_PARALLEL_PWM",
     "RX_MSP", "RSSI_ADC", "LED_STRIP", "DISPLAY", "OSD",
-    "", "CHANNEL_FORWARDING", "", "",
+    "", "", "", "",
     "", "", "RX_SPI", "", "ESC_SENSOR", "", "", NULL
 };
 

@@ -431,10 +431,6 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_OSD);
 #endif
 
-#ifndef USE_SERVOS
-    featureDisableImmediate(FEATURE_CHANNEL_FORWARDING);
-#endif
-
 #ifndef USE_RX_SPI
     featureDisableImmediate(FEATURE_RX_SPI);
 #endif

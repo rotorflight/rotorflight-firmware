@@ -62,7 +62,6 @@ void pgResetFn_servoConfig(servoConfig_t *servoConfig)
     servoConfig->dev.servoPwmRate = 50;
     servoConfig->tri_unarmed_servo = 1;
     servoConfig->servo_lowpass_freq = 0;
-    servoConfig->channelForwardingStartChannel = AUX1;
 
     for (unsigned servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS; servoIndex++) {
         servoConfig->dev.ioTags[servoIndex] = timerioTagGetByUsage(TIM_USE_SERVO, servoIndex);
@@ -251,10 +250,6 @@ void servosInit(void)
 {
     // enable servos for mixes that require them. note, this shifts motor counts.
     useServo = mixers[getMixerMode()].useServo;
-    // if we want camstab/trig, that also enables servos, even if mixer doesn't
-    if (featureIsEnabled(FEATURE_CHANNEL_FORWARDING)) {
-        useServo = 1;
-    }
 
     // give all servos a default command
     for (uint8_t i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
@@ -278,16 +273,6 @@ void servoMixerLoadMix(int index)
     }
     for (int i = 0; i < servoMixers[index].servoRuleCount; i++) {
         *customServoMixersMutable(i) = servoMixers[index].rule[i];
-    }
-}
-
-STATIC_UNIT_TESTED void forwardAuxChannelsToServos(uint8_t firstServoIndex)
-{
-    // start forwarding from this channel
-    int channelOffset = servoConfig()->channelForwardingStartChannel;
-    const int maxAuxChannelCount = MIN(MAX_AUX_CHANNEL_COUNT, rxConfig()->max_aux_channel);
-    for (int servoOffset = 0; servoOffset < maxAuxChannelCount && channelOffset < MAX_SUPPORTED_RC_CHANNEL_COUNT; servoOffset++) {
-        pwmWriteServo(firstServoIndex + servoOffset, rcData[channelOffset++]);
     }
 }
 
@@ -369,12 +354,6 @@ void writeServos(void)
         if ((channelToForwardFrom != CHANNEL_FORWARDING_DISABLED) && !(servoWritten & (1 << i))) {
             pwmWriteServo(servoIndex++, servo[i]);
         }
-    }
-
-    // forward AUX to remaining servo outputs (not constrained)
-    if (featureIsEnabled(FEATURE_CHANNEL_FORWARDING)) {
-        forwardAuxChannelsToServos(servoIndex);
-        servoIndex += MAX_AUX_CHANNEL_COUNT;
     }
 }
 
