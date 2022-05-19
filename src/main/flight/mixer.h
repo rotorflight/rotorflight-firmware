@@ -112,8 +112,6 @@ void mixTable(timeUs_t currentTimeUs);
 void stopMotors(void);
 void writeMotors(void);
 
-bool mixerIsTricopter(void);
-
 float mixerGetThrottle(void);
 mixerMode_e getMixerMode(void);
 bool mixerModeIsFixedWing(mixerMode_e mixerMode);

@@ -741,12 +741,8 @@ static FAST_CODE_NOINLINE void subTaskRcCommand(timeUs_t currentTimeUs)
     // If we're armed, at minimum throttle, and we do arming via the
     // sticks, do not process yaw input from the rx.  We do this so the
     // motors do not spin up while we are trying to arm or disarm.
-    // Allow yaw control for tricopters if the user wants the servo to move even when unarmed.
     if (isUsingSticksForArming() && rcData[THROTTLE] <= rxConfig()->mincheck
 #ifndef USE_QUAD_MIXER_ONLY
-#ifdef USE_SERVOS
-                && !((mixerConfig()->mixerMode == MIXER_TRI || mixerConfig()->mixerMode == MIXER_CUSTOM_TRI) && servoConfig()->tri_unarmed_servo)
-#endif
                 && mixerConfig()->mixerMode != MIXER_AIRPLANE
                 && mixerConfig()->mixerMode != MIXER_FLYING_WING
 #endif
