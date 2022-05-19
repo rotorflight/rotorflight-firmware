@@ -97,13 +97,6 @@ typedef enum {
     ITERM_RELAX_TYPE_COUNT,
 } itermRelaxType_e;
 
-typedef enum feedforwardAveraging_e {
-    FEEDFORWARD_AVERAGING_OFF,
-    FEEDFORWARD_AVERAGING_2_POINT,
-    FEEDFORWARD_AVERAGING_3_POINT,
-    FEEDFORWARD_AVERAGING_4_POINT,
-} feedforwardAveraging_t;
-
 #define MAX_PROFILE_NAME_LENGTH 8u
 
 typedef struct pidProfile_s {
@@ -142,13 +135,6 @@ typedef struct pidProfile_s {
     uint16_t dterm_lpf1_dyn_min_hz;         // Dterm lowpass filter 1 min hz when in dynamic mode
     uint16_t dterm_lpf1_dyn_max_hz;         // Dterm lowpass filter 1 max hz when in dynamic mode
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
-
-    uint8_t feedforward_transition;         // Feedforward attenuation around centre sticks
-    uint8_t feedforward_averaging;          // Number of packets to average when averaging is on
-    uint8_t feedforward_smooth_factor;      // Amount of lowpass type smoothing for feedforward steps
-    uint8_t feedforward_jitter_factor;      // Number of RC steps below which to attenuate feedforward
-    uint8_t feedforward_boost;              // amount of setpoint acceleration to add to feedforward, 10 means 100% added
-    uint8_t feedforward_max_rate_limit;     // Maximum setpoint rate percentage for feedforward
 
 } pidProfile_t;
 
@@ -238,13 +224,6 @@ typedef struct pidRuntime_s {
     uint16_t dynLpfMax;
 #endif
 
-#ifdef USE_FEEDFORWARD
-    float feedforwardTransitionFactor;
-    feedforwardAveraging_t feedforwardAveraging;
-    float feedforwardSmoothFactor;
-    float feedforwardJitterFactor;
-    float feedforwardBoostFactor;
-#endif
 } pidRuntime_t;
 
 extern pidRuntime_t pidRuntime;
@@ -278,7 +257,3 @@ void dynLpfDTermUpdate(float throttle);
 float pidGetPreviousSetpoint(int axis);
 float pidGetDT();
 float pidGetPidFrequency();
-float pidGetFeedforwardBoostFactor();
-float pidGetFeedforwardSmoothFactor();
-float pidGetFeedforwardJitterFactor();
-float pidGetFeedforwardTransitionFactor();

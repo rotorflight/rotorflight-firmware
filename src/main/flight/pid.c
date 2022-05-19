@@ -47,7 +47,6 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/rpm_filter.h"
-#include "flight/feedforward.h"
 
 #include "io/gps.h"
 
@@ -109,7 +108,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_notch_hz = 0,
         .dterm_notch_cutoff = 0,
         .levelAngleLimit = 55,
-        .feedforward_transition = 0,
         .yawRateAccelLimit = 0,
         .rateAccelLimit = 0,
         .horizon_tilt_effect = 75,
@@ -138,11 +136,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_lpf1_dyn_min_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT,
         .dterm_lpf1_dyn_max_hz = DTERM_LPF1_DYN_MAX_HZ_DEFAULT,
         .profileName = { 0 },
-        .feedforward_averaging = FEEDFORWARD_AVERAGING_OFF,
-        .feedforward_max_rate_limit = 90,
-        .feedforward_smooth_factor = 25,
-        .feedforward_jitter_factor = 7,
-        .feedforward_boost = 15,
     );
 }
 
@@ -159,28 +152,6 @@ void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
 
 
 const angle_index_t rcAliasToAngleIndexMap[] = { AI_ROLL, AI_PITCH };
-
-#ifdef USE_FEEDFORWARD
-float pidGetFeedforwardTransitionFactor()
-{
-    return pidRuntime.feedforwardTransitionFactor;
-}
-
-float pidGetFeedforwardSmoothFactor()
-{
-    return pidRuntime.feedforwardSmoothFactor;
-}
-
-float pidGetFeedforwardJitterFactor()
-{
-    return pidRuntime.feedforwardJitterFactor;
-}
-
-float pidGetFeedforwardBoostFactor()
-{
-    return pidRuntime.feedforwardBoostFactor;
-}
-#endif
 
 void pidResetIterm(void)
 {
@@ -541,13 +512,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     rpmFilterUpdate();
 #endif
 
-#ifdef USE_FEEDFORWARD
-    bool newRcFrame = false;
-    if (getShouldUpdateFeedforward()) {
-        newRcFrame = true;
-    }
-#endif
-
     // ----------PID controller----------
     for (int axis = FD_ROLL; axis <= FD_YAW; ++axis) {
 
@@ -600,10 +564,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         pidData[axis].I = constrainf(previousIterm + Ki * itermErrorRate * pidRuntime.dT, -pidRuntime.itermLimit, pidRuntime.itermLimit);
 
         // -----calculate pidSetpointDelta
-        float pidSetpointDelta = 0;
-#ifdef USE_FEEDFORWARD
-        pidSetpointDelta = feedforwardApply(axis, newRcFrame, pidRuntime.feedforwardAveraging);
-#endif
+        float pidSetpointDelta = 0; // FIXME: Calculate setpoint delta here
         pidRuntime.previousPidSetpoint[axis] = currentPidSetpoint;
 
         // -----calculate D component
@@ -653,13 +614,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
             feedforwardGain *= FLIGHT_MODE(ANGLE_MODE) ? 0.5f : 1.0f;
             // transition now calculated in feedforward.c when new RC data arrives
             float feedForward = feedforwardGain * pidSetpointDelta * pidRuntime.pidFrequency;
-
-#ifdef USE_FEEDFORWARD
-            pidData[axis].F = shouldApplyFeedforwardLimits(axis) ?
-                applyFeedforwardLimit(axis, feedForward, pidRuntime.pidCoefficient[axis].Kp, currentPidSetpoint) : feedForward;
-#else
             pidData[axis].F = feedForward;
-#endif
         } else {
             pidData[axis].F = 0;
         }
