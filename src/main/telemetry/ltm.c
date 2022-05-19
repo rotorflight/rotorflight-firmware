@@ -159,7 +159,7 @@ static void ltm_gframe(void)
  *     0: Manual, 1: Rate, 2: Attitude/Angle, 3: Horizon,
  *     4: Acro, 5: Stabilized1, 6: Stabilized2, 7: Stabilized3,
  *     8: Altitude Hold, 9: Loiter/GPS Hold, 10: Auto/Waypoints,
- *     11: Heading Hold / headFree, 12: Circle, 13: RTH, 14: FollowMe,
+ *     11: Heading Hold, 12: Circle, 13: RTH, 14: FollowMe,
  *     15: LAND, 16:FlybyWireA, 17: FlybywireB, 18: Cruise, 19: Unknown
  */
 
@@ -167,9 +167,7 @@ static void ltm_sframe(void)
 {
     uint8_t lt_flightmode;
     uint8_t lt_statemode;
-    if (FLIGHT_MODE(HEADFREE_MODE))
-        lt_flightmode = 4;
-    else if (FLIGHT_MODE(ANGLE_MODE))
+    if (FLIGHT_MODE(ANGLE_MODE))
         lt_flightmode = 2;
     else if (FLIGHT_MODE(HORIZON_MODE))
         lt_flightmode = 3;
