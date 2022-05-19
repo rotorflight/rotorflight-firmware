@@ -36,7 +36,6 @@
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
 
-#include "flight/feedforward.h"
 #include "flight/pid.h"
 #include "flight/rpm_filter.h"
 
@@ -277,21 +276,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.dynLpfMax = pidProfile->dterm_lpf1_dyn_max_hz;
 #endif
 
-#ifdef USE_FEEDFORWARD
-    if (pidProfile->feedforward_transition == 0) {
-        pidRuntime.feedforwardTransitionFactor = 0;
-    } else {
-        pidRuntime.feedforwardTransitionFactor = 100.0f / pidProfile->feedforward_transition;
-    }
-    pidRuntime.feedforwardAveraging = pidProfile->feedforward_averaging;
-    pidRuntime.feedforwardSmoothFactor = 1.0f;
-    if (pidProfile->feedforward_smooth_factor) {
-        pidRuntime.feedforwardSmoothFactor = 1.0f - ((float)pidProfile->feedforward_smooth_factor) / 100.0f;
-    }
-    pidRuntime.feedforwardJitterFactor = pidProfile->feedforward_jitter_factor;
-    pidRuntime.feedforwardBoostFactor = (float)pidProfile->feedforward_boost / 10.0f;
-    feedforwardInit(pidProfile);
-#endif
 }
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)

@@ -385,7 +385,6 @@ extern uint8_t _dmaram_end__;
 #define USE_PERSISTENT_STATS
 #define USE_PROFILE_NAMES
 #define USE_SERIALRX_SRXL2     // Spektrum SRXL2 protocol
-#define USE_FEEDFORWARD
 #define USE_CUSTOM_BOX_NAMES
 #define USE_RX_MSP_OVERRIDE
 #define USE_RX_LINK_UPLINK_POWER

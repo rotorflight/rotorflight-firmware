@@ -299,14 +299,6 @@ static uint8_t cmsx_iterm_relax_type;
 static uint8_t cmsx_iterm_relax_cutoff;
 #endif
 
-#ifdef USE_FEEDFORWARD
-static uint8_t cmsx_feedforward_transition;
-static uint8_t cmsx_feedforward_boost;
-static uint8_t cmsx_feedforward_averaging;
-static uint8_t cmsx_feedforward_smooth_factor;
-static uint8_t cmsx_feedforward_jitter_factor;
-#endif
-
 static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
@@ -323,14 +315,6 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_iterm_relax = pidProfile->iterm_relax;
     cmsx_iterm_relax_type = pidProfile->iterm_relax_type;
     cmsx_iterm_relax_cutoff = pidProfile->iterm_relax_cutoff;
-#endif
-
-#ifdef USE_FEEDFORWARD
-    cmsx_feedforward_transition  = pidProfile->feedforward_transition;
-    cmsx_feedforward_averaging = pidProfile->feedforward_averaging;
-    cmsx_feedforward_boost = pidProfile->feedforward_boost;
-    cmsx_feedforward_smooth_factor = pidProfile->feedforward_smooth_factor;
-    cmsx_feedforward_jitter_factor = pidProfile->feedforward_jitter_factor;
 #endif
 
     return NULL;
@@ -354,28 +338,12 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->iterm_relax_cutoff = cmsx_iterm_relax_cutoff;
 #endif
 
-#ifdef USE_FEEDFORWARD
-    pidProfile->feedforward_transition = cmsx_feedforward_transition;
-    pidProfile->feedforward_averaging = cmsx_feedforward_averaging;
-    pidProfile->feedforward_boost = cmsx_feedforward_boost;
-    pidProfile->feedforward_smooth_factor = cmsx_feedforward_smooth_factor;
-    pidProfile->feedforward_jitter_factor = cmsx_feedforward_jitter_factor;
-#endif
-
     initEscEndpoints();
     return NULL;
 }
 
 static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "-- OTHER PP --", OME_Label, NULL, pidProfileIndexString },
-
-#ifdef USE_FEEDFORWARD
-    { "FF TRANSITION", OME_FLOAT,  NULL, &(OSD_FLOAT_t)  { &cmsx_feedforward_transition,        0,    100,   1, 10 } },
-    { "FF AVERAGING",  OME_TAB,    NULL, &(OSD_TAB_t)    { &cmsx_feedforward_averaging,         4, lookupTableFeedforwardAveraging} },
-    { "FF SMOOTHNESS", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_feedforward_smooth_factor,     0,     75,   1  }    },
-    { "FF JITTER",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_feedforward_jitter_factor,     0,     20,   1  }    },
-    { "FF BOOST",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_feedforward_boost,             0,     50,   1  }    },
-#endif
     { "ANGLE STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleStrength,          0,    200,   1  }    },
     { "HORZN STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonStrength,        0,    200,   1  }    },
     { "HORZN TRS",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonTransition,      0,    200,   1  }    },
