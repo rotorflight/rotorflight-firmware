@@ -85,7 +85,6 @@ void targetConfiguration(void)
     rxConfigMutable()->mincheck = 1025;
     parseRcChannels("TAER1234", rxConfigMutable());
 
-    mixerConfigMutable()->yaw_motors_reversed = true;
     imuConfigMutable()->small_angle = 180;
 
     blackboxConfigMutable()->sample_rate = 1; // sample_rate is half of PID loop frequency

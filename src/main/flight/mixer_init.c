@@ -48,7 +48,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_MIXER_CONFIG, 0);
 
 PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .mixerMode = DEFAULT_MIXER,
-    .yaw_motors_reversed = false,
     .mixer_type = MIXER_LEGACY,
 );
 
