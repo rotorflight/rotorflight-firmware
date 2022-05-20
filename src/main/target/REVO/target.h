@@ -240,7 +240,6 @@
 #define PINIO1_PIN              PC13
 #define PINIO2_PIN              PC14
 
-#define DEFAULT_MIXER           MIXER_QUADX
 #define ENABLE_DSHOT_DMAR       DSHOT_DMAR_ON
 #define USE_TARGET_CONFIG
 #define SOFTSERIAL1_TX_PIN      PC9
