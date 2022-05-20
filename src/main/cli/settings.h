@@ -117,7 +117,6 @@ typedef enum {
 #ifdef USE_OSD
     TABLE_OSD_LOGO_ON_ARMING,
 #endif
-    TABLE_MIXER_TYPE,
 #ifdef USE_OSD
     TABLE_CMS_BACKGROUND,
 #endif
