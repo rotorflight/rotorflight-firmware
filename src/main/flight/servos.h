@@ -133,7 +133,6 @@ extern int16_t servo[MAX_SUPPORTED_SERVOS];
 
 bool isMixerUsingServos(void);
 void writeServos(void);
-void servoMixerLoadMix(int index);
 void loadCustomServoMixer(void);
 int servoDirection(int servoIndex, int fromChannel);
 void servosInit(void);

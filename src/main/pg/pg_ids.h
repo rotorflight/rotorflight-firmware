@@ -24,7 +24,7 @@
 #define PG_FAILSAFE_CONFIG 1 // struct OK
 #define PG_BOARD_ALIGNMENT 2 // struct OK
 //#define PG_GIMBAL_CONFIG 3 // struct OK
-#define PG_MOTOR_MIXER 4 // two structs mixerConfig_t servoMixerConfig_t
+//#define PG_MOTOR_MIXER 4 // two structs mixerConfig_t servoMixerConfig_t
 #define PG_BLACKBOX_CONFIG 5 // struct OK
 #define PG_MOTOR_CONFIG 6 // struct OK
 #define PG_SENSOR_SELECTION_CONFIG 7 // struct OK

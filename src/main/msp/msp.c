@@ -1462,7 +1462,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
     case MSP_MIXER_CONFIG:
-        sbufWriteU8(dst, mixerConfig()->mixerMode);
+        sbufWriteU8(dst, 0); // was mixerConfig()->mixerMode
         sbufWriteU8(dst, 0); // was mixerConfig()->yaw_motors_reversed
         break;
 
@@ -3026,11 +3026,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_CONFIG:
-#ifndef USE_QUAD_MIXER_ONLY
-        mixerConfigMutable()->mixerMode = sbufReadU8(src);
-#else
-        sbufReadU8(src);
-#endif
+        sbufReadU8(src); // was mixerConfigMutable()->mixerMode
         if (sbufBytesRemaining(src) >= 1) {
             sbufReadU8(src); // was mixerConfigMutable()->yaw_motors_reversed
         }

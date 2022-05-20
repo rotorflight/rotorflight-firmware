@@ -218,23 +218,6 @@ static void validateAndFixPositionConfig(void)
 
 static void validateAndFixConfig(void)
 {
-#if !defined(USE_QUAD_MIXER_ONLY)
-    // Reset unsupported mixer mode to default.
-    // This check will be gone when motor/servo mixers are loaded dynamically
-    // by configurator as a part of configuration procedure.
-
-    mixerMode_e mixerMode = mixerConfigMutable()->mixerMode;
-
-    if (!(mixerMode == MIXER_CUSTOM || mixerMode == MIXER_CUSTOM_AIRPLANE || mixerMode == MIXER_CUSTOM_TRI)) {
-        if (mixers[mixerMode].motorCount && mixers[mixerMode].motor == NULL)
-            mixerConfigMutable()->mixerMode = MIXER_CUSTOM;
-#ifdef USE_SERVOS
-        if (mixers[mixerMode].useServo && servoMixers[mixerMode].servoRuleCount == 0)
-            mixerConfigMutable()->mixerMode = MIXER_CUSTOM_AIRPLANE;
-#endif
-    }
-#endif
-
     if (!isSerialConfigValid(serialConfig())) {
         pgResetFn_serialConfig(serialConfigMutable());
     }
@@ -336,7 +319,7 @@ static void validateAndFixConfig(void)
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
-    if (!featureIsConfigured(FEATURE_GPS) || mixerModeIsFixedWing(mixerConfig()->mixerMode)
+    if (!featureIsConfigured(FEATURE_GPS)
 #if !defined(USE_GPS) || !defined(USE_GPS_RESCUE)
         || true
 #endif

@@ -516,7 +516,7 @@ void init(void)
     serialInit(featureIsEnabled(FEATURE_SOFTSERIAL), SERIAL_PORT_NONE);
 #endif
 
-    mixerInit(mixerConfig()->mixerMode);
+    mixerInit();
 
 #ifdef USE_MOTOR
     /* Motors needs to be initialized soon as posible because hardware initialization
