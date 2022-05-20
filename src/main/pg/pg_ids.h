@@ -40,7 +40,7 @@
 #define PG_SYSTEM_CONFIG 18 // just has i2c_highspeed
 #define PG_FEATURE_CONFIG 19 // just has enabledFeatures
 #define PG_MIXER_CONFIG 20 // Cleanflight has single struct mixerConfig_t, betaflight has mixerConfig_t and servoMixerConfig_t
-#define PG_SERVO_MIXER 21 // Cleanflight has servoParam_t for each servo, betaflight has single servoParam_t
+//#define PG_SERVO_MIXER 21 // Cleanflight has servoParam_t for each servo, betaflight has single servoParam_t
 #define PG_IMU_CONFIG 22 // Cleanflight has imuConfig_t, betaflight has imuRuntimeConfig_t with additional parameters
 #define PG_PROFILE_SELECTION 23 // just contains current_profile_index
 #define PG_RX_CONFIG 24 // betaflight rxConfig_t contains different values
