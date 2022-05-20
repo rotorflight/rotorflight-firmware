@@ -179,34 +179,6 @@ static void updateDynLpfCutoffs(timeUs_t currentTimeUs, float throttle)
 }
 #endif
 
-static void applyMixerAdjustmentLinear(float *motorMix) {
-    const float motorMixNormalizationFactor = motorMixRange > 1.0f ? motorMixRange : 1.0f;
-    const float motorMixDelta = 0.5f * motorMixRange;
-
-    for (int i = 0; i < mixerRuntime.motorCount; ++i) {
-        if (throttle > 0.5f) {
-            if (mixerConfig()->mixer_type == MIXER_LINEAR) {
-                motorMix[i] = scaleRangef(throttle, 0.0f, 1.0f, motorMix[i] + motorMixDelta, motorMix[i] - motorMixDelta);
-            } else {
-                motorMix[i] = scaleRangef(throttle, 0.0f, 1.0f, motorMix[i] + ABS(motorMix[i]), motorMix[i] - ABS(motorMix[i]));
-            }
-        }
-        motorMix[i] /= motorMixNormalizationFactor;
-    }
-}
-
-static void applyMixerAdjustment(float *motorMix, const float motorMixMin, const float motorMixMax) {
-    if (motorMixRange > 1.0f) {
-        for (int i = 0; i < mixerRuntime.motorCount; i++) {
-            motorMix[i] /= motorMixRange;
-        }
-    } else {
-        if (throttle > 0.5f) {
-            throttle = constrainf(throttle, -motorMixMin, 1.0f - motorMixMax);
-        }
-    }
-}
-
 FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 {
     // Find min and max throttle based on conditions. Throttle has to be known before mixing
@@ -263,11 +235,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 #endif
 
     motorMixRange = motorMixMax - motorMixMin;
-    if (mixerConfig()->mixer_type > MIXER_LEGACY) {
-        applyMixerAdjustmentLinear(motorMix);
-    } else {
-        applyMixerAdjustment(motorMix, motorMixMin, motorMixMax);
-    }
 
     if (ARMING_FLAG(ARMED)
         && !mixerRuntime.feature3dEnabled

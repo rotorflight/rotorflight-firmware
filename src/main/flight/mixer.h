@@ -60,13 +60,6 @@ typedef enum mixerMode
     MIXER_QUADX_1234 = 26
 } mixerMode_e;
 
-typedef enum mixerType
-{
-    MIXER_LEGACY = 0,
-    MIXER_LINEAR = 1,
-    MIXER_DYNAMIC = 2,
-} mixerType_e;
-
 // Custom mixer data per motor
 typedef struct motorMixer_s {
     float throttle;
@@ -86,7 +79,6 @@ typedef struct mixer_s {
 
 typedef struct mixerConfig_s {
     uint8_t mixerMode;
-    uint8_t mixer_type;
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
