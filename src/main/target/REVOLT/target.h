@@ -30,10 +30,6 @@
 #endif
 
 
-#define DEFAULT_MIXER           MIXER_QUADX_1234
-
-
-
 #define LED0_PIN                PB5  
 
 #define USE_BEEPER
