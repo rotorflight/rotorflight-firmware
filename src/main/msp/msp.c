@@ -1111,18 +1111,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU32(dst, servoParams(i)->reversedSources);
         }
         break;
-
-    case MSP_SERVO_MIX_RULES:
-        for (int i = 0; i < MAX_SERVO_RULES; i++) {
-            sbufWriteU8(dst, customServoMixers(i)->targetChannel);
-            sbufWriteU8(dst, customServoMixers(i)->inputSource);
-            sbufWriteU8(dst, customServoMixers(i)->rate);
-            sbufWriteU8(dst, customServoMixers(i)->speed);
-            sbufWriteU8(dst, customServoMixers(i)->min);
-            sbufWriteU8(dst, customServoMixers(i)->max);
-            sbufWriteU8(dst, customServoMixers(i)->box);
-        }
-        break;
 #endif
 
     case MSP_MOTOR:
@@ -2400,24 +2388,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             servoParamsMutable(i)->rate = sbufReadU8(src);
             servoParamsMutable(i)->forwardFromChannel = sbufReadU8(src);
             servoParamsMutable(i)->reversedSources = sbufReadU32(src);
-        }
-#endif
-        break;
-
-    case MSP_SET_SERVO_MIX_RULE:
-#ifdef USE_SERVOS
-        i = sbufReadU8(src);
-        if (i >= MAX_SERVO_RULES) {
-            return MSP_RESULT_ERROR;
-        } else {
-            customServoMixersMutable(i)->targetChannel = sbufReadU8(src);
-            customServoMixersMutable(i)->inputSource = sbufReadU8(src);
-            customServoMixersMutable(i)->rate = sbufReadU8(src);
-            customServoMixersMutable(i)->speed = sbufReadU8(src);
-            customServoMixersMutable(i)->min = sbufReadU8(src);
-            customServoMixersMutable(i)->max = sbufReadU8(src);
-            customServoMixersMutable(i)->box = sbufReadU8(src);
-            loadCustomServoMixer();
         }
 #endif
         break;
