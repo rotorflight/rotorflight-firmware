@@ -86,7 +86,6 @@ typedef struct mixer_s {
 
 typedef struct mixerConfig_s {
     uint8_t mixerMode;
-    bool yaw_motors_reversed;
     uint8_t mixer_type;
 } mixerConfig_t;
 
