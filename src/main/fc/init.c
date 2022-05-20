@@ -536,7 +536,7 @@ void init(void)
     serialInit(featureIsEnabled(FEATURE_SOFTSERIAL), SERIAL_PORT_NONE);
 #endif
 
-    mixerInit(mixerConfig()->mixerMode);
+    mixerInit();
 
     uint16_t idlePulse = motorConfig()->mincommand;
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
