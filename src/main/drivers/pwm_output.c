@@ -291,9 +291,9 @@ void pwmWriteServo(uint8_t index, float value)
     }
 }
 
-void servoDevInit(const servoDevConfig_t *servoConfig)
+void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount)
 {
-    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS; servoIndex++) {
+    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS && servoIndex < servoCount; servoIndex++) {
         const ioTag_t tag = servoConfig->ioTags[servoIndex];
 
         if (!tag) {
@@ -313,7 +313,8 @@ void servoDevInit(const servoDevConfig_t *servoConfig)
 
         IOConfigGPIOAF(servos[servoIndex].io, IOCFG_AF_PP, timer->alternateFunction);
 
-        pwmOutConfig(&servos[servoIndex].channel, timer, PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / servoConfig->servoPwmRate, servoConfig->servoCenterPulse, 0);
+        // Initialize with zero output to support servos with different center pulse widths
+        pwmOutConfig(&servos[servoIndex].channel, timer, PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / servoConfig->servoPwmRate, 0, 0);
         servos[servoIndex].enabled = true;
     }
 }

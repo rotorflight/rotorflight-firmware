@@ -677,9 +677,6 @@ void init(void)
 
 #ifdef USE_SERVOS
     servosInit();
-    if (isMixerUsingServos()) {
-        servoDevInit(&servoConfig()->dev);
-    }
     servosFilterInit();
 #endif
 
