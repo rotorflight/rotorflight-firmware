@@ -3708,7 +3708,7 @@ static void cliMotor(const char *cmdName, char *cmdline)
         if (motorValue < PWM_RANGE_MIN || motorValue > PWM_RANGE_MAX) {
             cliShowArgumentRangeError(cmdName, "VALUE", 1000, 2000);
         } else {
-            uint32_t motorOutputValue = motorConvertFromExternal(motorValue);
+            uint32_t motorOutputValue = 0;
 
             if (motorIndex != ALL_MOTORS) {
                 motor_disarmed[motorIndex] = motorOutputValue;

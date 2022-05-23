@@ -85,8 +85,7 @@ bool areMotorsRunning(void)
 // DSHOT scaling is done to the actual dshot range
 void initEscEndpoints(void)
 {
-    float motorOutputLimit = 1.0f;
-    motorInitEndpoints(motorConfig(), motorOutputLimit, &mixerRuntime.motorOutputLow, &mixerRuntime.motorOutputHigh, &mixerRuntime.disarmMotorOutput, &mixerRuntime.deadbandMotor3dHigh, &mixerRuntime.deadbandMotor3dLow);
+    //motorInitEndpoints(motorConfig(), motorOutputLimit, &mixerRuntime.motorOutputLow, &mixerRuntime.motorOutputHigh, &mixerRuntime.disarmMotorOutput, &mixerRuntime.deadbandMotor3dHigh, &mixerRuntime.deadbandMotor3dLow);
 }
 
 // Initialize pidProfile related mixer settings

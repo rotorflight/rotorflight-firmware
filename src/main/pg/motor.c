@@ -36,8 +36,9 @@ PG_REGISTER_WITH_RESET_FN(motorConfig_t, motorConfig, PG_MOTOR_CONFIG, 1);
 
 void pgResetFn_motorConfig(motorConfig_t *motorConfig)
 {
-    motorConfig->dev.motorPwmRate = BRUSHLESS_MOTORS_PWM_RATE;
     motorConfig->dev.motorPwmProtocol = PWM_TYPE_DISABLED;
+    motorConfig->dev.motorPwmRate = 250;
+    motorConfig->dev.useUnsyncedPwm = true;
     motorConfig->minthrottle = 1070;
     motorConfig->maxthrottle = 2000;
     motorConfig->mincommand = 1000;
