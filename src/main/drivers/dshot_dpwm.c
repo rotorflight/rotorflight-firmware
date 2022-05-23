@@ -130,32 +130,27 @@ static FAST_CODE void dshotWriteInt(uint8_t index, uint16_t value)
     pwmWriteDshotInt(index, value);
 }
 
-static FAST_CODE void dshotWrite(uint8_t index, float value)
+static FAST_CODE void dshotWrite(uint8_t index, uint8_t mode, float value)
 {
-    pwmWriteDshotInt(index, lrintf(value));
+    pwmWriteDshotInt(index, dshotConvertToInternal(index,mode,value));
 }
 
 static motorVTable_t dshotPwmVTable = {
     .postInit = motorPostInitNull,
     .enable = dshotPwmEnableMotors,
     .disable = dshotPwmDisableMotors,
-    .isMotorEnabled = dshotPwmIsMotorEnabled,
-    .updateStart = motorUpdateStartNull, // May be updated after copying
+    .shutdown = dshotPwmShutdown,
+    .updateStart = motorUpdateStartNull,
+    .updateComplete = pwmCompleteDshotMotorUpdate,
     .write = dshotWrite,
     .writeInt = dshotWriteInt,
-    .updateComplete = pwmCompleteDshotMotorUpdate,
-    .convertExternalToMotor = dshotConvertFromExternal,
-    .convertMotorToExternal = dshotConvertToExternal,
-    .shutdown = dshotPwmShutdown,
+    .isMotorEnabled = dshotPwmIsMotorEnabled,
 };
 
 FAST_DATA_ZERO_INIT motorDevice_t dshotPwmDevice;
 
-motorDevice_t *dshotPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+motorDevice_t *dshotPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
 {
-    UNUSED(idlePulse);
-    UNUSED(useUnsyncedPwm);
-
     dshotPwmDevice.vTable = dshotPwmVTable;
 
 #ifdef USE_DSHOT_TELEMETRY

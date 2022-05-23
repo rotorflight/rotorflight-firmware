@@ -597,9 +597,9 @@ static void bbWriteInt(uint8_t motorIndex, uint16_t value)
     }
 }
 
-static void bbWrite(uint8_t motorIndex, float value)
+static void bbWrite(uint8_t motorIndex, uint8_t mode, float value)
 {
-    bbWriteInt(motorIndex, lrintf(value));
+    bbWriteInt(motorIndex, dshotConvertToInternal(motorIndex,mode,value));
 }
 
 static void bbUpdateComplete(void)
@@ -703,14 +703,12 @@ static motorVTable_t bbVTable = {
     .postInit = bbPostInit,
     .enable = bbEnableMotors,
     .disable = bbDisableMotors,
-    .isMotorEnabled = bbIsMotorEnabled,
+    .shutdown = bbShutdown,
     .updateStart = bbUpdateStart,
+    .updateComplete = bbUpdateComplete,
     .write = bbWrite,
     .writeInt = bbWriteInt,
-    .updateComplete = bbUpdateComplete,
-    .convertExternalToMotor = dshotConvertFromExternal,
-    .convertMotorToExternal = dshotConvertToExternal,
-    .shutdown = bbShutdown,
+    .isMotorEnabled = bbIsMotorEnabled,
 };
 
 dshotBitbangStatus_e dshotBitbangGetStatus()

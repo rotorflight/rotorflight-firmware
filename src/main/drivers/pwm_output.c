@@ -27,6 +27,8 @@
 
 #ifdef USE_PWM_OUTPUT
 
+#include "common/maths.h"
+
 #include "drivers/io.h"
 #include "drivers/motor.h"
 #include "drivers/pwm_output.h"
@@ -110,16 +112,37 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
 
 static FAST_DATA_ZERO_INIT motorDevice_t motorPwmDevice;
 
-static void pwmWriteUnused(uint8_t index, float value)
+static void pwmWriteUnused(uint8_t index, uint8_t mode, float value)
 {
     UNUSED(index);
+    UNUSED(mode);
     UNUSED(value);
 }
 
-static void pwmWriteStandard(uint8_t index, float value)
+static float pwmConvertToInternal(uint8_t index, uint8_t mode, float throttle)
 {
-    /* TODO: move value to be a number between 0-1 (i.e. percent throttle from mixer) */
-    *motors[index].channel.ccr = lrintf((value * motors[index].pulseScale) + motors[index].pulseOffset);
+    UNUSED(index);
+
+    float value = motorConfig()->mincommand;
+
+    if (mode == MOTOR_CONTROL_BIDIR) {
+        if (throttle != 0)
+            value = scaleRangef(throttle, -1, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    }
+    else {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
+    }
+
+    return value;
+}
+
+static void pwmWriteStandard(uint8_t index, uint8_t mode, float throttle)
+{
+    float value = pwmConvertToInternal(index,mode,throttle);
+    float pulse = value * motors[index].pulseScale + motors[index].pulseOffset;
+
+    *motors[index].channel.ccr = lrintf(pulse);
 }
 
 void pwmShutdownPulsesForAllMotors(void)
@@ -161,28 +184,18 @@ static void pwmCompleteOneshotMotorUpdate(void)
     }
 }
 
-static float pwmConvertFromExternal(uint16_t externalValue)
-{
-    return (float)externalValue;
-}
-
-static uint16_t pwmConvertToExternal(float motorValue)
-{
-    return (uint16_t)motorValue;
-}
-
 static motorVTable_t motorPwmVTable = {
     .postInit = motorPostInitNull,
     .enable = pwmEnableMotors,
     .disable = pwmDisableMotors,
     .isMotorEnabled = pwmIsMotorEnabled,
     .shutdown = pwmShutdownPulsesForAllMotors,
-    .convertExternalToMotor = pwmConvertFromExternal,
-    .convertMotorToExternal = pwmConvertToExternal,
 };
 
-motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idlePulse, uint8_t motorCount, bool useUnsyncedPwm)
+motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t motorCount)
 {
+    bool useUnsyncedPwm = motorConfig->useUnsyncedPwm;
+
     motorPwmDevice.vTable = motorPwmVTable;
 
     float sMin = 0;
@@ -205,7 +218,6 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         sMin = 1e-3f;
         sLen = 1e-3f;
         useUnsyncedPwm = true;
-        idlePulse = 0;
         break;
     }
 
@@ -248,7 +260,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         motors[motorIndex].pulseScale = (sLen * hz) / 1000.0f;
         motors[motorIndex].pulseOffset = (sMin * hz) - (motors[motorIndex].pulseScale * 1000);
 
-        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, idlePulse, 0);
+        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, 0, 0);
 
         bool timerAlreadyUsed = false;
         for (int i = 0; i < motorIndex; i++) {
