@@ -47,33 +47,24 @@
 
 #include "dshot.h"
 
-void dshotInitEndpoints(const motorConfig_t *motorConfig, float outputLimit, float *outputLow, float *outputHigh, float *disarm, float *deadbandMotor3dHigh, float *deadbandMotor3dLow) {
-    UNUSED(motorConfig);
-    UNUSED(deadbandMotor3dHigh);
-    UNUSED(deadbandMotor3dLow);
-    float outputLimitOffset = DSHOT_RANGE * (1 - outputLimit);
-    *disarm = DSHOT_CMD_MOTOR_STOP;
-    *outputLow = DSHOT_MIN_THROTTLE;
-    *outputHigh = DSHOT_MAX_THROTTLE - outputLimitOffset;
-}
-
-float dshotConvertFromExternal(uint16_t externalValue)
+uint16_t dshotConvertToInternal(uint8_t index, uint8_t mode, float throttle)
 {
-    float motorValue;
+    UNUSED(index);
 
-    externalValue = constrain(externalValue, PWM_RANGE_MIN, PWM_RANGE_MAX);
-    motorValue = (externalValue == PWM_RANGE_MIN) ? DSHOT_CMD_MOTOR_STOP : scaleRangef(externalValue, PWM_RANGE_MIN + 1, PWM_RANGE_MAX, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    uint16_t value = DSHOT_CMD_MOTOR_STOP;
 
-    return motorValue;
-}
+    if (mode == MOTOR_CONTROL_BIDIR) {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, DSHOT_FORWARD_MIN_THROTTLE, DSHOT_FORWARD_MAX_THROTTLE);
+        else if (throttle < 0)
+            value = scaleRangef(throttle, -1, 0, DSHOT_REVERSE_MAX_THROTTLE, DSHOT_REVERSE_MIN_THROTTLE);
+    }
+    else {
+        if (throttle > 0)
+            value = scaleRangef(throttle, 0, 1, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE);
+    }
 
-uint16_t dshotConvertToExternal(float motorValue)
-{
-    float externalValue;
-
-    externalValue = (motorValue < DSHOT_MIN_THROTTLE) ? PWM_RANGE_MIN : scaleRangef(motorValue, DSHOT_MIN_THROTTLE, DSHOT_MAX_THROTTLE, PWM_RANGE_MIN + 1, PWM_RANGE_MAX);
-
-    return lrintf(externalValue);
+    return value;
 }
 
 FAST_CODE uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb)
