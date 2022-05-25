@@ -56,20 +56,20 @@
 const uint8_t hidChannelMapping[] = {
     ROLL,     // X
     PITCH,    // Y
-    AUX3,     // Z
+    AUX2,     // Z
     YAW,      // X Rotation
-    AUX1,     // Z Rotation
+    COLLECTIVE,// Z Rotation
     THROTTLE, // Y Rotation
-    AUX4,     // Slider
-    AUX2,     // Dial
-    AUX5,     // Button 1
-    AUX6,     // Button 2
-    AUX7,     // Button 3
-    AUX8,     // Button 4
-    AUX9,     // Button 5
-    AUX10,    // Button 6
-    AUX11,    // Button 7
-    AUX12     // Button 8
+    AUX3,     // Slider
+    AUX1,     // Dial
+    AUX4,     // Button 1
+    AUX5,     // Button 2
+    AUX6,     // Button 3
+    AUX7,     // Button 4
+    AUX8,     // Button 5
+    AUX9,     // Button 6
+    AUX10,    // Button 7
+    AUX11     // Button 8
 };
 
 void sendRcDataToHid(void)
