@@ -331,6 +331,8 @@
 
 #define USE_ADC
 
+#define USE_FREQ_SENSOR
+
 // Features not needed in Rotorflight
 #undef  USE_OSD
 #undef  USE_CMS
