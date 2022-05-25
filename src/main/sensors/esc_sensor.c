@@ -152,6 +152,11 @@ bool isEscSensorActive(void)
     return escSensorPort != NULL;
 }
 
+uint16_t getEscSensorRPM(uint8_t motorNumber)
+{
+    return escSensorData[motorNumber].rpm;
+}
+
 escSensorData_t *getEscSensorData(uint8_t motorNumber)
 {
     if (!featureIsEnabled(FEATURE_ESC_SENSOR)) {
@@ -161,7 +166,7 @@ escSensorData_t *getEscSensorData(uint8_t motorNumber)
     if (motorNumber < getMotorCount()) {
         return &escSensorData[motorNumber];
     } else if (motorNumber == ESC_SENSOR_COMBINED) {
-        if (combinedDataNeedsUpdate) {
+        if (combinedDataNeedsUpdate && getMotorCount() > 0) {
             combinedEscSensorData.dataAge = 0;
             combinedEscSensorData.temperature = 0;
             combinedEscSensorData.voltage = 0;
@@ -271,7 +276,7 @@ static uint8_t decodeEscFrame(void)
         frameStatus = ESC_SENSOR_FRAME_COMPLETE;
 
         if (escSensorMotor < 4) {
-            DEBUG_SET(DEBUG_ESC_SENSOR_RPM, escSensorMotor, calcEscRpm(escSensorData[escSensorMotor].rpm) / 10); // output actual rpm/10 to fit in 16bit signed.
+            DEBUG_SET(DEBUG_ESC_SENSOR_RPM, escSensorMotor, calcMotorRPM(escSensorMotor, escSensorData[escSensorMotor].rpm) / 10); // output actual rpm/10 to fit in 16bit signed.
             DEBUG_SET(DEBUG_ESC_SENSOR_TMP, escSensorMotor, escSensorData[escSensorMotor].temperature);
         }
     } else {
@@ -361,8 +366,4 @@ void escSensorProcess(timeUs_t currentTimeUs)
     }
 }
 
-int calcEscRpm(int erpm)
-{
-    return (erpm * 100) / (motorConfig()->motorPoleCount / 2);
-}
 #endif

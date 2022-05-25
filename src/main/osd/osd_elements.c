@@ -159,7 +159,6 @@
 #include "sensors/adcinternal.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
-#include "sensors/esc_sensor.h"
 #include "sensors/sensors.h"
 
 #ifdef USE_GPS_PLUS_CODES
@@ -257,17 +256,7 @@ typedef int (*getEscRpmOrFreqFnPtr)(int i);
 
 static int getEscRpm(int i)
 {
-#ifdef USE_DSHOT_TELEMETRY
-    if (motorConfig()->dev.useDshotTelemetry) {
-        return 100.0f / (motorConfig()->motorPoleCount / 2.0f) * getDshotTelemetry(i);
-    }
-#endif
-#ifdef USE_ESC_SENSOR
-    if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-        return calcEscRpm(getEscSensorData(i)->rpm);
-    }
-#endif
-    return 0;
+    return getMotorRPM(i);
 }
 
 static int getEscRpmFreq(int i)
@@ -1190,7 +1179,7 @@ static void osdElementMotorDiagnostics(osdElementParms_t *element)
     const bool motorsRunning = areMotorsRunning();
     for (; i < getMotorCount(); i++) {
         if (motorsRunning) {
-            element->buff[i] =  0x88 - scaleRange(motor[i], getMotorOutputLow(), getMotorOutputHigh(), 0, 8);
+            element->buff[i] =  0x88 - getMotorOutput(i) / 125;  // 0x80..0x88
 #if defined(USE_ESC_SENSOR) || defined(USE_DSHOT_TELEMETRY)
             if (getEscRpm(i) < MOTOR_STOPPED_THRESHOLD_RPM) {
                 // Motor is not spinning properly. Mark as Stopped

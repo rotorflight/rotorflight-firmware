@@ -27,22 +27,10 @@
 #include "drivers/io_types.h"
 #include "drivers/pwm_output.h"
 
-#define QUAD_MOTOR_COUNT 4
+#include "flight/motors.h"
+#include "flight/servos.h"
 
-// Custom mixer data per motor
-typedef struct motorMixer_s {
-    float throttle;
-    float roll;
-    float pitch;
-    float yaw;
-} motorMixer_t;
-
-// Custom mixer configuration
-typedef struct mixer_s {
-    uint8_t motorCount;
-    uint8_t useServo;
-    const motorMixer_t *motor;
-} mixer_t;
+#include "flight/mixer_init.h"
 
 typedef struct mixerConfig_s {
     uint8_t unused;
@@ -53,23 +41,12 @@ PG_DECLARE(mixerConfig_t, mixerConfig);
 #define CHANNEL_FORWARDING_DISABLED (uint8_t)0xFF
 
 extern float motor[MAX_SUPPORTED_MOTORS];
-extern float motor_disarmed[MAX_SUPPORTED_MOTORS];
-struct rxConfig_s;
 
-uint8_t getMotorCount(void);
-float getMotorMixRange(void);
-bool areMotorsRunning(void);
-
-void initEscEndpoints(void);
 void mixerInit(void);
 void mixerInitProfile(void);
 
-void mixerResetDisarmedMotors(void);
-void mixTable(timeUs_t currentTimeUs);
-void stopMotors(void);
-void writeMotors(void);
+void mixerUpdate(void);
+
+float mixerGetMotorOutput(uint8_t motor);
 
 float mixerGetThrottle(void);
-
-float getMotorOutputLow(void);
-float getMotorOutputHigh(void);

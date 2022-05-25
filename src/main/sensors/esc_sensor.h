@@ -48,6 +48,9 @@ void escSensorProcess(timeUs_t currentTime);
 
 #define ESC_SENSOR_COMBINED 255
 
+bool isEscSensorActive(void);
+
+uint16_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
 
 void startEscDataRead(uint8_t *frameBuffer, uint8_t frameLength);
@@ -55,4 +58,3 @@ uint8_t getNumberEscBytesRead(void);
 
 uint8_t calculateCrc8(const uint8_t *Buf, const uint8_t BufLen);
 
-int calcEscRpm(int erpm);
