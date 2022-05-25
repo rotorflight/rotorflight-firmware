@@ -20,8 +20,14 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include "common/time.h"
 #include "current_ids.h"
+
+#ifndef CURRENT_TASK_FREQ_HZ
+#define CURRENT_TASK_FREQ_HZ 50
+#endif
 
 typedef enum {
     CURRENT_METER_NONE = 0,

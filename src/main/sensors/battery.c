@@ -118,6 +118,9 @@ PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .ibatLpfPeriod = 10,
     .vbatDurationForWarning = 0,
     .vbatDurationForCritical = 0,
+
+    .vbatUpdateHz = VOLTAGE_TASK_FREQ_HZ,
+    .ibatUpdateHz = CURRENT_TASK_FREQ_HZ,
 );
 
 void batteryUpdateVoltage(timeUs_t currentTimeUs)
