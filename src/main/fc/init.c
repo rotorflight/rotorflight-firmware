@@ -676,8 +676,7 @@ void init(void)
     mixerInitProfile();
 
 #ifdef USE_SERVOS
-    servosInit();
-    servosFilterInit();
+    servoInit();
 #endif
 
 #ifdef USE_PINIO

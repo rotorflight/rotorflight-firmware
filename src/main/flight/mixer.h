@@ -48,5 +48,8 @@ void mixerInitProfile(void);
 void mixerUpdate(void);
 
 float mixerGetMotorOutput(uint8_t motor);
+float mixerGetServoOutput(uint8_t servo);
+
+void mixerSaturateServoOutput(uint8_t servo);
 
 float mixerGetThrottle(void);
