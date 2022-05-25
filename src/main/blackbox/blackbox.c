@@ -1386,14 +1386,6 @@ static bool blackboxWriteSysinfo(void)
 
         BLACKBOX_PRINT_HEADER_LINE("fields_disabled_mask", "%d",            blackboxConfig()->fields_disabled_mask);
 
-#if defined(USE_DYN_IDLE)
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_MIN_RPM, "%d",        currentPidProfile->dyn_idle_min_rpm);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_P_GAIN, "%d",         currentPidProfile->dyn_idle_p_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_I_GAIN, "%d",         currentPidProfile->dyn_idle_i_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_D_GAIN, "%d",         currentPidProfile->dyn_idle_d_gain);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DYN_IDLE_MAX_INCREASE, "%d",   currentPidProfile->dyn_idle_max_increase);
-#endif
-
         default:
             return true;
     }
