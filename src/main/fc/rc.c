@@ -57,21 +57,15 @@
 
 typedef float (applyRatesFn)(const int axis, float rcCommandf, const float rcCommandfAbs);
 
-static float rawSetpoint[XYZ_AXIS_COUNT];
-static float setpointRate[3], rcDeflection[3], rcDeflectionAbs[3];
+static float rawSetpoint[4];
+static float setpointRate[4];
+static float rcDeflection[4], rcDeflectionAbs[4];
 static applyRatesFn *applyRates;
 static uint16_t currentRxRefreshRate;
 static bool isRxDataNew = false;
 static bool isRxRateValid = false;
 static float rcCommandDivider = 500.0f;
 static float rcCommandYawDivider = 500.0f;
-
-enum {
-    ROLL_FLAG = 1 << ROLL,
-    PITCH_FLAG = 1 << PITCH,
-    YAW_FLAG = 1 << YAW,
-    THROTTLE_FLAG = 1 << THROTTLE,
-};
 
 #define RC_RX_RATE_MIN_US                       950   // 0.950ms to fit 1kHz without an issue
 #define RC_RX_RATE_MAX_US                       65500 // 65.5ms or 15.26hz
@@ -247,9 +241,7 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
 {
     isRxDataNew = true;
 
-    for (int axis = 0; axis < 3; axis++) {
-        // non coupled PID reduction scaler used in PID controller 1 and PID controller 2.
-
+    for (int axis = 0; axis < 4; axis++) {
         float tmp = MIN(ABS(rcData[axis] - rxConfig()->midrc), 500);
         if (axis == ROLL || axis == PITCH) {
             if (tmp > rcControlsConfig()->deadband) {
@@ -258,29 +250,22 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
                 tmp = 0;
             }
             rcCommand[axis] = tmp;
-        } else {
+        } else if (axis == YAW) {
             if (tmp > rcControlsConfig()->yaw_deadband) {
                 tmp -= rcControlsConfig()->yaw_deadband;
             } else {
                 tmp = 0;
             }
             rcCommand[axis] = -tmp; // Yaw CW rate is negative
-
+        } else {
+            rcCommand[axis] = tmp;
         }
         if (rcData[axis] < rxConfig()->midrc) {
             rcCommand[axis] = -rcCommand[axis];
         }
     }
 
-    int32_t tmp;
-    tmp = constrain(rcData[THROTTLE], rxConfig()->mincheck, PWM_RANGE_MAX);
-    tmp = (uint32_t)(tmp - rxConfig()->mincheck) * PWM_RANGE_MIN / (PWM_RANGE_MAX - rxConfig()->mincheck);
-
-    if (getLowVoltageCutoff()->enabled) {
-        tmp = tmp * getLowVoltageCutoff()->percentage / 100;
-    }
-
-    rcCommand[THROTTLE] = tmp;
+    rcCommand[THROTTLE] = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX) - PWM_RANGE_MIN;
 }
 
 void resetYawAxis(void)
