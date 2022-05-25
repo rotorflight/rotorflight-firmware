@@ -334,6 +334,8 @@
 
 #define USE_ADC
 
+#define USE_FREQ_SENSOR
+
 #ifdef DISABLE_OSD_VIDEO
 #undef USE_OSD
 #undef USE_CMS

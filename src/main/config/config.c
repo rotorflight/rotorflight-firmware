@@ -79,6 +79,7 @@
 #include "pg/rx_spi.h"
 #include "pg/sdcard.h"
 #include "pg/vtx_table.h"
+#include "pg/freq.h"
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -424,6 +425,10 @@ static void validateAndFixConfig(void)
 
 #ifndef USE_ESC_SENSOR
     featureDisableImmediate(FEATURE_ESC_SENSOR);
+#endif
+
+#ifndef USE_FREQ_SENSOR
+    featureDisableImmediate(FEATURE_FREQ_SENSOR);
 #endif
 
 #if !defined(USE_ADC)

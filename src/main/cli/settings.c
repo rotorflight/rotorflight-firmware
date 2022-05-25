@@ -103,6 +103,7 @@
 #include "pg/rcdevice.h"
 #include "pg/stats.h"
 #include "pg/board.h"
+#include "pg/freq.h"
 
 #include "rx/a7105_flysky.h"
 #include "rx/cc2500_frsky_common.h"

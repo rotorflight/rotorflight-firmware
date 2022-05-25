@@ -58,7 +58,7 @@ typedef enum {
     FEATURE_RX_SPI                 = BIT(25),
     FEATURE_UNUSED_26              = BIT(26),
     FEATURE_ESC_SENSOR             = BIT(27),
-    FEATURE_UNUSED_28              = BIT(28),
+    FEATURE_FREQ_SENSOR            = BIT(28),
     FEATURE_UNUSED_29              = BIT(29),
     FEATURE_UNUSED_30              = BIT(30),
 } features_e;
@@ -78,7 +78,6 @@ typedef enum {
     FEATURE_UNUSED_23 | \
     FEATURE_UNUSED_24 | \
     FEATURE_UNUSED_26 | \
-    FEATURE_UNUSED_28 | \
     FEATURE_UNUSED_29 | \
     FEATURE_UNUSED_30 | \
     0)

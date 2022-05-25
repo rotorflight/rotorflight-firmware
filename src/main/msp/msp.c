@@ -69,6 +69,7 @@
 #include "drivers/usb_msc.h"
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
+#include "drivers/freq.h"
 
 #include "fc/board_info.h"
 #include "fc/controlrate_profile.h"

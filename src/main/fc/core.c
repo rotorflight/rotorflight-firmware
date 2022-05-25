@@ -49,6 +49,7 @@
 #include "drivers/sound_beeper.h"
 #include "drivers/system.h"
 #include "drivers/time.h"
+#include "drivers/freq.h"
 
 #include "fc/controlrate_profile.h"
 #include "fc/rc.h"

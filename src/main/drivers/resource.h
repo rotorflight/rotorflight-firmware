@@ -108,6 +108,7 @@ typedef enum {
     OWNER_SWD,
     OWNER_RX_SPI_EXPRESSLRS_RESET,
     OWNER_RX_SPI_EXPRESSLRS_BUSY,
+    OWNER_FREQ,
     OWNER_TOTAL_COUNT
 } resourceOwner_e;
 
