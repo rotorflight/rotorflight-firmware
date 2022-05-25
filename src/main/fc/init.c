@@ -74,6 +74,7 @@
 #include "drivers/system.h"
 #include "drivers/time.h"
 #include "drivers/timer.h"
+#include "drivers/freq.h"
 #include "drivers/usb_io.h"
 #ifdef USE_USB_MSC
 #include "drivers/usb_msc.h"
@@ -145,6 +146,7 @@
 #include "pg/sdcard.h"
 #include "pg/vcd.h"
 #include "pg/vtx_io.h"
+#include "pg/freq.h"
 
 #include "rx/rx.h"
 #include "rx/spektrum.h"
@@ -733,6 +735,12 @@ void init(void)
 #ifdef USE_ESC_SENSOR
     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
         escSensorInit();
+    }
+#endif
+
+#ifdef USE_FREQ_SENSOR
+    if (featureIsEnabled(FEATURE_FREQ_SENSOR)) {
+        freqInit(freqConfig());
     }
 #endif
 

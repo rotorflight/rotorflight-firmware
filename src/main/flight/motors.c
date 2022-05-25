@@ -37,6 +37,7 @@
 #include "drivers/dshot_command.h"
 #include "drivers/dshot.h"
 #include "drivers/motor.h"
+#include "drivers/freq.h"
 #include "drivers/time.h"
 #include "drivers/io.h"
 
