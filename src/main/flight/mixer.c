@@ -39,5 +39,16 @@ float mixerGetMotorOutput(uint8_t motor)
     return 0;
 }
 
+float mixerGetServoOutput(uint8_t servo)
+{
+    UNUSED(servo);
+    return 0;
+}
+
+void mixerSaturateServoOutput(uint8_t servo)
+{
+    UNUSED(servo);
+}
+
 float mixerGetThrottle(void) { return 0; }
 
