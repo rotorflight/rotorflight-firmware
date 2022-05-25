@@ -477,6 +477,14 @@ static const char* const lookupTableSwitchMode[] = {
 };
 #endif
 
+static const char * const lookupTableRotationDir[] = {
+    "CW", "CCW",
+};
+
+static const char * const lookupTableTailMode[] = {
+    "VARIABLE", "MOTORIZED", "BIDIRECTIONAL",
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -582,6 +590,9 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableFreqDomain),
     LOOKUP_TABLE_ENTRY(lookupTableSwitchMode),
 #endif
+
+    LOOKUP_TABLE_ENTRY(lookupTableRotationDir),
+    LOOKUP_TABLE_ENTRY(lookupTableTailMode),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -836,6 +847,11 @@ const clivalue_t valueTable[] = {
 #endif // USE_BEEPER
 
 // PG_MIXER_CONFIG
+    { "main_rotor_dir",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ROTATION_DIR }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, main_rotor_dir) },
+    { "tail_rotor_mode",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TAIL_MODE }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, tail_rotor_mode) },
+    { "tail_motor_idle",            VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, tail_motor_idle) },
+    { "swash_ring",                 VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_ring) },
+    { "swash_phase",                VAR_INT16  | MASTER_VALUE,  .config.minmax = { -1800, 1800 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_phase) },
 
 // PG_SERVO_CONFIG
 #ifdef USE_SERVOS
