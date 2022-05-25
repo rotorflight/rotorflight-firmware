@@ -57,6 +57,7 @@ typedef enum {
     TIM_USE_TRANSPONDER    = 0x20, // RTFL: Config compat
     TIM_USE_BEEPER         = 0x40,
     TIM_USE_CAMERA_CONTROL = 0x80,
+    TIM_USE_FREQ           = 0x100,
 } timerUsageFlag_e;
 
 // use different types from capture and overflow - multiple overflow handlers are implemented as linked list
@@ -259,6 +260,7 @@ uint32_t timerClock(TIM_TypeDef *tim);
 
 void configTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz);  // TODO - just for migration
 void timerReconfigureTimeBase(TIM_TypeDef *tim, uint16_t period, uint32_t hz);
+void timerNVICConfigure(uint8_t irq);
 
 rccPeriphTag_t timerRCC(TIM_TypeDef *tim);
 uint8_t timerInputIrq(TIM_TypeDef *tim);
