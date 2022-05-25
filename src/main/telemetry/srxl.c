@@ -180,31 +180,13 @@ typedef struct
 
 uint16_t getMotorAveragePeriod(void)
 {
+    uint16_t period_us;
+    float rpm = 0;
 
-#if defined( USE_ESC_SENSOR_TELEMETRY) || defined( USE_DSHOT_TELEMETRY)
-    uint32_t rpm = 0;
-    uint16_t period_us = SPEKTRUM_RPM_UNUSED;
-
-#if defined( USE_ESC_SENSOR_TELEMETRY)
-    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
-    if (escData != NULL) {
-        rpm = escData->rpm;
+    if (!isRpmSourceActive()) {
+        return SPEKTRUM_RPM_UNUSED;
     }
-#endif
-
-#if defined(USE_DSHOT_TELEMETRY)
-    if (useDshotTelemetry) {
-        uint16_t motors = getMotorCount();
-
-        if (motors > 0) {
-            for (int motor = 0; motor < motors; motor++) {
-                rpm += getDshotTelemetry(motor);
-            }
-            rpm = 100.0f / (motorConfig()->motorPoleCount / 2.0f) * rpm;  // convert erpm freq to RPM.
-            rpm /= motors;           // Average combined rpm
-        }
-    }
-#endif
+    rpm = getHeadSpeed();
 
     if (rpm > SPEKTRUM_MIN_RPM && rpm < SPEKTRUM_MAX_RPM) {
         period_us = MICROSEC_PER_MINUTE / rpm; // revs/minute -> microSeconds
@@ -213,9 +195,6 @@ uint16_t getMotorAveragePeriod(void)
     }
 
     return period_us;
-#else
-    return SPEKTRUM_RPM_UNUSED;
-#endif
 }
 
 bool srxlFrameRpm(sbuf_t *dst, timeUs_t currentTimeUs)

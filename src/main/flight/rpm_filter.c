@@ -138,7 +138,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
         pt1FilterInit(&rpmFilters[i], pt1FilterGain(config->rpm_filter_lpf_hz, pidLooptime * 1e-6f));
     }
 
-    erpmToHz = ERPM_PER_LSB / SECONDS_PER_MINUTE  / (motorConfig()->motorPoleCount / 2.0f);
+    erpmToHz = ERPM_PER_LSB / SECONDS_PER_MINUTE  / (motorConfig()->motorPoleCount[0] / 2.0f);
 
     const float loopIterationsPerUpdate = MIN_UPDATE_T / (pidLooptime * 1e-6f);
     numberFilters = getMotorCount() * (filters[0].harmonics + filters[1].harmonics);
