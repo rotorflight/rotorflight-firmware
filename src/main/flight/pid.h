@@ -143,12 +143,6 @@ typedef struct pidProfile_s {
     uint16_t dterm_lpf1_dyn_max_hz;         // Dterm lowpass filter 1 max hz when in dynamic mode
     char profileName[MAX_PROFILE_NAME_LENGTH + 1]; // Descriptive name for profile
 
-    uint8_t dyn_idle_min_rpm;                   // minimum motor speed enforced by the dynamic idle controller
-    uint8_t dyn_idle_p_gain;                // P gain during active control of rpm
-    uint8_t dyn_idle_i_gain;                // I gain during active control of rpm
-    uint8_t dyn_idle_d_gain;                // D gain for corrections around rapid changes in rpm
-    uint8_t dyn_idle_max_increase;          // limit on maximum possible increase in motor idle drive during active control
-
     uint8_t feedforward_transition;         // Feedforward attenuation around centre sticks
     uint8_t feedforward_averaging;          // Number of packets to average when averaging is on
     uint8_t feedforward_smooth_factor;      // Amount of lowpass type smoothing for feedforward steps
