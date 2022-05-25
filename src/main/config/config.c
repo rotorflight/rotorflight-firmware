@@ -53,6 +53,7 @@
 #include "flight/pid.h"
 #include "flight/pid_init.h"
 #include "flight/rpm_filter.h"
+#include "flight/motors.h"
 #include "flight/servos.h"
 #include "flight/position.h"
 
@@ -769,7 +770,6 @@ void changePidProfile(uint8_t pidProfileIndex)
         loadPidProfile();
 
         pidInit(currentPidProfile);
-        initEscEndpoints();
         mixerInitProfile();
     }
 
