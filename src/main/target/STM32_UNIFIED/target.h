@@ -51,6 +51,10 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 
+#define VOLTAGE_TASK_FREQ_HZ     100
+#define CURRENT_TASK_FREQ_HZ     100
+#define ESC_SENSOR_TASK_FREQ_HZ  100
+
 #elif defined(STM32F411)
 #define TARGET_BOARD_IDENTIFIER "S411"
 
@@ -77,6 +81,10 @@
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
+
+#define VOLTAGE_TASK_FREQ_HZ     100
+#define CURRENT_TASK_FREQ_HZ     100
+#define ESC_SENSOR_TASK_FREQ_HZ  100
 
 #elif defined(STM32F7X2)
 #define TARGET_BOARD_IDENTIFIER "S7X2"
@@ -106,6 +114,10 @@
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
+
+#define VOLTAGE_TASK_FREQ_HZ     200
+#define CURRENT_TASK_FREQ_HZ     200
+#define ESC_SENSOR_TASK_FREQ_HZ  200
 
 #elif defined(STM32F745)
 #define TARGET_BOARD_IDENTIFIER "S745"
@@ -140,6 +152,10 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 
+#define VOLTAGE_TASK_FREQ_HZ     200
+#define CURRENT_TASK_FREQ_HZ     200
+#define ESC_SENSOR_TASK_FREQ_HZ  200
+
 #elif defined(STM32G47X)
 #define TARGET_BOARD_IDENTIFIER "SG47"
 
@@ -170,6 +186,10 @@
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
+
+#define VOLTAGE_TASK_FREQ_HZ     100
+#define CURRENT_TASK_FREQ_HZ     100
+#define ESC_SENSOR_TASK_FREQ_HZ  100
 
 #elif defined(STM32H743)
 #define TARGET_BOARD_IDENTIFIER "SH74"
@@ -207,6 +227,10 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 #define TARGET_IO_PORTG 0xffff
+
+#define VOLTAGE_TASK_FREQ_HZ     250
+#define CURRENT_TASK_FREQ_HZ     250
+#define ESC_SENSOR_TASK_FREQ_HZ  250
 
 #elif !defined(UNIT_TEST)
 
