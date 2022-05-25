@@ -90,7 +90,6 @@ COMMON_SRC = \
             flight/dyn_notch_filter.c \
             flight/imu.c \
             flight/mixer.c \
-            flight/mixer_init.c \
             flight/pid.c \
             flight/pid_init.c \
             flight/rpm_filter.c \

@@ -155,6 +155,10 @@
 #define PG_SCHEDULER_CONFIG         556
 #define PG_BETAFLIGHT_END           556
 
+// Rotorflight configuration
+#define PG_GENERIC_MIXER_CONFIG    1002
+#define PG_GENERIC_MIXER_RULES     1003
+#define PG_GENERIC_MIXER_INPUTS    1004
 
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047

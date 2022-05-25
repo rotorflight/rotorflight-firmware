@@ -236,7 +236,7 @@ INIT_CODE void motorInit(void)
     tailGearRatio = fmaxf(motorConfig()->tailRotorGearRatio[0], 1) /
                     fmaxf(motorConfig()->tailRotorGearRatio[1], 1);
 
-    //if (!mixerMotorizedTail()) FIXME
+    if (!mixerMotorizedTail())
         tailGearRatio = mainGearRatio / tailGearRatio;
 }
 
