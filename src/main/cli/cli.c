@@ -108,6 +108,7 @@ bool cliMode = false;
 #include "flight/pid.h"
 #include "flight/position.h"
 #include "flight/servos.h"
+#include "flight/motors.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -3298,8 +3299,8 @@ static void cliExit(const char *cmdName, char *cmdline)
     *cliBuffer = '\0';
     bufferIndex = 0;
     cliMode = false;
-    // incase a motor was left running during motortest, clear it here
-    mixerResetDisarmedMotors();
+
+    resetMotorOverride();
     cliReboot();
 }
 
@@ -3344,17 +3345,15 @@ static void cliDumpGyroRegisters(const char *cmdName, char *cmdline)
 
 static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     int outputIndex = atoi(pch);
-    if ((outputIndex >= 0) && (outputIndex < getMotorCount())) {
+    if (outputIndex > 0 && outputIndex <= getMotorCount()) {
         cliPrintLinef("Using output %d.", outputIndex);
     } else if (allowAllEscs && outputIndex == ALL_MOTORS) {
         cliPrintLinef("Using all outputs.");
     } else {
-        cliPrintErrorLinef(cmdName, "INVALID OUTPUT NUMBER. RANGE: 0 - %d.", getMotorCount() - 1);
-
+        cliPrintErrorLinef(cmdName, "INVALID OUTPUT NUMBER. RANGE: 1 - %d.", getMotorCount());
         return -1;
     }
-
-    return outputIndex;
+    return outputIndex - 1;
 }
 
 #if defined(USE_DSHOT)
@@ -3672,58 +3671,92 @@ static void cliEscPassthrough(const char *cmdName, char *cmdline)
 }
 #endif
 
+static inline void printMotorStatus(uint8_t motor)
+{
+    if (hasMotorOverride(motor))
+        cliPrintLinef("motor %d: %d [%d]", motor+1, getMotorOutput(motor), getMotorOverride(motor));
+    else
+        cliPrintLinef("motor %d: %d", motor+1, getMotorOutput(motor));
+}
+
+static inline void printMotorOverride(uint8_t motor)
+{
+    if (hasMotorOverride(motor))
+        cliPrintLinef("motor override %d %d", motor+1, getMotorOverride(motor));
+    else
+        cliPrintLinef("motor override %d off", motor+1);
+}
+
 static void cliMotor(const char *cmdName, char *cmdline)
 {
-    if (isEmpty(cmdline)) {
-        cliShowInvalidArgumentCountError(cmdName);
+    enum { FUNC=0, ARGS_MAX=4 };
+    char *args[ARGS_MAX];
+    char *saveptr, *ptr;
+    int count = 0;
 
-        return;
+    ptr = strtok_r(cmdline, " ", &saveptr);
+    while (ptr && count < ARGS_MAX) {
+        args[count++] = ptr;
+        ptr = strtok_r(NULL, " ", &saveptr);
     }
 
-    int motorIndex = 0;
-    int motorValue = 0;
-
-    char *saveptr;
-    char *pch = strtok_r(cmdline, " ", &saveptr);
-    int index = 0;
-    while (pch != NULL) {
-        switch (index) {
-        case 0:
-            motorIndex = parseOutputIndex(cmdName, pch, true);
-            if (motorIndex == -1) {
+    if (count == 0) {
+        for (int i=0; i<getMotorCount(); i++) {
+            printMotorStatus(i);
+        }
+    }
+    else if (strcasecmp(args[FUNC], "status") == 0) {
+        for (int i=0; i<getMotorCount(); i++) {
+            printMotorStatus(i);
+        }
+    }
+    else if (strcasecmp(args[FUNC], "override") == 0) {
+        if (count == 1) {
+            for (int i=0; i<getMotorCount(); i++) {
+                printMotorOverride(i);
+            }
+        }
+        else if (count == 2) {
+            enum { FUNC=0, CMD };
+            if (strcasecmp(args[CMD], "off") == 0 || strcasecmp(args[CMD], "reset") == 0) {
+                resetMotorOverride();
+            }
+        }
+        else if (count == 3) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, value;
+            if (strcasecmp(args[INDEX], "all") == 0)
+                index = 0;
+            else
+                index = atoi(args[INDEX]);
+            if (strcasecmp(args[VALUE], "off") == 0 || strcasecmp(args[VALUE], "reset") == 0)
+                value = MOTOR_OVERRIDE_OFF;
+            else
+                value = atoi(args[VALUE]);
+            if (index < 0 || index > getMotorCount()) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
                 return;
             }
-
-            break;
-        case 1:
-            motorValue = atoi(pch);
-
-            break;
-        }
-        index++;
-        pch = strtok_r(NULL, " ", &saveptr);
-    }
-
-    if (index == 2) {
-        if (motorValue < PWM_RANGE_MIN || motorValue > PWM_RANGE_MAX) {
-            cliShowArgumentRangeError(cmdName, "VALUE", 1000, 2000);
-        } else {
-            uint32_t motorOutputValue = 0;
-
-            if (motorIndex != ALL_MOTORS) {
-                motor_disarmed[motorIndex] = motorOutputValue;
-
-                cliPrintLinef("motor %d: %d", motorIndex, motorOutputValue);
-            } else  {
-                for (int i = 0; i < getMotorCount(); i++) {
-                    motor_disarmed[i] = motorOutputValue;
+            if ((value < MOTOR_OVERRIDE_MIN || value > MOTOR_OVERRIDE_MAX) && value != MOTOR_OVERRIDE_OFF) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            if (index == 0) {
+                for (int i=0; i<getMotorCount(); i++) {
+                    setMotorOverride(i, value);
+                    printMotorOverride(i);
                 }
-
-                cliPrintLinef("all motors: %d", motorOutputValue);
+            } else {
+                setMotorOverride(index - 1, value);
+                printMotorOverride(index - 1);
             }
         }
-    } else {
-        cliShowInvalidArgumentCountError(cmdName);
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
+    else {
+        cliShowParseError(cmdName);
     }
 }
 
@@ -5783,9 +5816,9 @@ static void cliDshotTelemetryInfo(const char *cmdName, char *cmdline)
 #endif
         for (uint8_t i = 0; i < getMotorCount(); i++) {
             cliPrintf("%5d   %7d   %6d   %5d   ", i,
-                      (int)getDshotTelemetry(i) * 100,
-                      (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount,
-                      (int)getDshotTelemetry(i) * 100 * 2 / motorConfig()->motorPoleCount / 60);
+                      getDshotTelemetry(i) * 100,
+                      calcMotorRPM(i,getDshotTelemetry(i)),
+                      calcMotorRPM(i,getDshotTelemetry(i)) / 60);
 #ifdef USE_DSHOT_TELEMETRY_STATS
             if (isDshotMotorTelemetryActive(i)) {
                 const int calcPercent = getDshotTelemetryMotorInvalidPercent(i);
@@ -6159,7 +6192,12 @@ const clicmd_t cmdTable[] = {
 #ifdef USE_LED_STRIP_STATUS_MODE
     CLI_COMMAND_DEF("mode_color", "configure mode and special colors", NULL, cliModeColor),
 #endif
-    CLI_COMMAND_DEF("motor",  "get/set motor", "<index> [<value>]", cliMotor),
+    CLI_COMMAND_DEF("motor",  "configure motors",
+                    "status\r\n\t"
+                    "override\r\n\t"
+                    "override off\r\n\t"
+                    "override <index> <value>|off",
+                    cliMotor),
 #ifdef USE_USB_MSC
 #ifdef USE_RTC_TIME
     CLI_COMMAND_DEF("msc", "switch into msc mode", "[<timezone offset minutes>]", cliMsc),

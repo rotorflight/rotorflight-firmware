@@ -183,28 +183,9 @@ static void sendAccel(void)
 }
 #endif
 
-static void sendThrottleOrBatterySizeAsRpm(void)
+static void sendHeadSpeed(void)
 {
-    int16_t data = 0;
-#if defined(USE_ESC_SENSOR_TELEMETRY)
-    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
-    if (escData) {
-        data = escData->dataAge < ESC_DATA_INVALID ? (calcEscRpm(escData->rpm) / 10) : 0;
-    }
-#else
-    if (ARMING_FLAG(ARMED)) {
-        const throttleStatus_e throttleStatus = calculateThrottleStatus();
-        uint16_t throttleForRPM = rcCommand[THROTTLE] / BLADE_NUMBER_DIVIDER;
-        if (throttleStatus == THROTTLE_LOW) {
-            throttleForRPM = 0;
-        }
-        data = throttleForRPM;
-    } else {
-        data = (batteryConfig()->batteryCapacity / BLADE_NUMBER_DIVIDER);
-    }
-#endif
-
-    frSkyHubWriteFrame(ID_RPM, data);
+    frSkyHubWriteFrame(ID_RPM, getHeadSpeed());
 }
 
 static void sendTemperature1(void)
@@ -567,7 +548,7 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
     // Sent every 1s
     if ((cycleNum % 8) == 0) {
         sendTemperature1();
-        sendThrottleOrBatterySizeAsRpm();
+        sendHeadSpeed();
 
         if (isBatteryVoltageConfigured()) {
             if (telemetryIsSensorEnabled(SENSOR_VOLTAGE)) {

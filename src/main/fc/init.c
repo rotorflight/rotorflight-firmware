@@ -520,7 +520,7 @@ void init(void)
     mixerInit();
 
 #ifdef USE_MOTOR
-    motorDevInit(&motorConfig()->dev, getMotorCount());
+    motorInit();
     systemState |= SYSTEM_STATE_MOTORS_READY;
 #endif
 
@@ -738,6 +738,8 @@ void init(void)
         escSensorInit();
     }
 #endif
+
+    rpmSourceInit();
 
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
