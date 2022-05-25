@@ -34,17 +34,6 @@ typedef struct mixerRuntime_s {
     float disarmMotorOutput;
     float deadbandMotor3dHigh;
     float deadbandMotor3dLow;
-#ifdef USE_DYN_IDLE
-    float dynIdleMaxIncrease;
-    float idleThrottleOffset;
-    float dynIdleMinRps;
-    float dynIdlePGain;
-    float prevMinRps;
-    float dynIdleIGain;
-    float dynIdleDGain;
-    float dynIdleI;
-    float minRpsDelayK;
-#endif
 } mixerRuntime_t;
 
 extern mixerRuntime_t mixerRuntime;

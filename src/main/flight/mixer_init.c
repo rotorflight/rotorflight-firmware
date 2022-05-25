@@ -289,21 +289,7 @@ void initEscEndpoints(void)
 
 void mixerInitProfile(void)
 {
-#ifdef USE_DYN_IDLE
-    if (motorConfigMutable()->dev.useDshotTelemetry) {
-        mixerRuntime.dynIdleMinRps = currentPidProfile->dyn_idle_min_rpm * 100.0f / 60.0f;
-    } else {
-        mixerRuntime.dynIdleMinRps = 0.0f;
-    }
-    mixerRuntime.dynIdlePGain = currentPidProfile->dyn_idle_p_gain * 0.00015f;
-    mixerRuntime.dynIdleIGain = currentPidProfile->dyn_idle_i_gain * 0.01f * pidGetDT();
-    mixerRuntime.dynIdleDGain = currentPidProfile->dyn_idle_d_gain * 0.0000003f * pidGetPidFrequency();
-    mixerRuntime.dynIdleMaxIncrease = currentPidProfile->dyn_idle_max_increase * 0.001f;
-    mixerRuntime.minRpsDelayK = 800 * pidGetDT() / 20.0f; //approx 20ms D delay, arbitrarily suits many motors
-    if (!mixerRuntime.feature3dEnabled && mixerRuntime.dynIdleMinRps) {
-        mixerRuntime.motorOutputLow = DSHOT_MIN_THROTTLE; // Override value set by initEscEndpoints to allow zero motor drive
-    }
-#endif
+
 }
 
 #ifndef USE_QUAD_MIXER_ONLY
@@ -371,11 +357,6 @@ void mixerInit(mixerMode_e mixerMode)
     if (mixerIsTricopter()) {
         mixerTricopterInit();
     }
-#endif
-
-#ifdef USE_DYN_IDLE
-    mixerRuntime.dynIdleI = 0.0f;
-    mixerRuntime.prevMinRps = 0.0f;
 #endif
 
     mixerConfigureOutput();

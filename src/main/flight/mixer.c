@@ -114,29 +114,6 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
         throttle = rcCommand[THROTTLE] - PWM_RANGE_MIN;
         currentThrottleInputRange = PWM_RANGE;
 
-#ifdef USE_DYN_IDLE
-        if (mixerRuntime.dynIdleMinRps > 0.0f) {
-            const float maxIncrease = 0.05f;
-            float minRps = rpmMinMotorFrequency();
-            DEBUG_SET(DEBUG_DYN_IDLE, 3, (minRps * 10));
-            float rpsError = mixerRuntime.dynIdleMinRps - minRps;
-            // PT1 type lowpass delay and smoothing for D
-            minRps = mixerRuntime.prevMinRps + mixerRuntime.minRpsDelayK * (minRps - mixerRuntime.prevMinRps);
-            float dynIdleD = (mixerRuntime.prevMinRps - minRps) * mixerRuntime.dynIdleDGain;
-            mixerRuntime.prevMinRps = minRps;
-            float dynIdleP = rpsError * mixerRuntime.dynIdlePGain;
-            rpsError = MAX(-0.1f, rpsError); //I rises fast, falls slowly
-            mixerRuntime.dynIdleI += rpsError * mixerRuntime.dynIdleIGain;
-            mixerRuntime.dynIdleI = constrainf(mixerRuntime.dynIdleI, 0.0f, maxIncrease);
-            motorRangeMinIncrease = constrainf((dynIdleP + mixerRuntime.dynIdleI + dynIdleD), 0.0f, maxIncrease);
-            DEBUG_SET(DEBUG_DYN_IDLE, 0, (MAX(-1000.0f, dynIdleP * 10000)));
-            DEBUG_SET(DEBUG_DYN_IDLE, 1, (mixerRuntime.dynIdleI * 10000));
-            DEBUG_SET(DEBUG_DYN_IDLE, 2, (dynIdleD * 10000));
-        } else {
-            motorRangeMinIncrease = 0;
-        }
-#endif
-
         motorRangeMax = mixerRuntime.motorOutputHigh;
         motorRangeMin = mixerRuntime.motorOutputLow + motorRangeMinIncrease * (mixerRuntime.motorOutputHigh - mixerRuntime.motorOutputLow);
         motorOutputMin = motorRangeMin;
@@ -261,13 +238,6 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
 
     // send throttle value to blackbox, including scaling and throttle boost, but not TL compensation, dyn idle
     mixerThrottle = throttle;
-
-#ifdef USE_DYN_IDLE
-    // Set min throttle offset of 1% when stick is at zero and dynamic idle is active
-    if (mixerRuntime.dynIdleMinRps > 0.0f) {
-        throttle = MAX(throttle, 0.01f);
-    }
-#endif
 
     // Find roll/pitch/yaw desired output
     // ??? Where is the optimal location for this code?
