@@ -73,7 +73,7 @@
 #include "rx/msp_override.h"
 
 
-const char rcChannelLetters[] = "AERT12345678abcdefgh";
+const char rcChannelLetters[] = "AERCT12345678";
 
 static uint16_t rssi = 0;                  // range: [0;1023]
 static int16_t rssiDbm = CRSF_RSSI_MIN;    // range: [-130,20]
@@ -576,6 +576,7 @@ static uint16_t getRxfailValue(uint8_t channel)
         case ROLL:
         case PITCH:
         case YAW:
+        case COLLECTIVE:
             return rxConfig()->midrc;
         case THROTTLE:
             return rxConfig()->rx_min_usec;
@@ -743,10 +744,13 @@ bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs)
 
 void parseRcChannels(const char *input, rxConfig_t *rxConfig)
 {
-    for (const char *c = input; *c; c++) {
-        const char *s = strchr(rcChannelLetters, *c);
-        if (s && (s < rcChannelLetters + RX_MAPPABLE_CHANNEL_COUNT)) {
-            rxConfig->rcmap[s - rcChannelLetters] = c - input;
+    for (int i=0; i<RX_MAPPABLE_CHANNEL_COUNT; i++) {
+        rxConfig->rcmap[i] = i;
+        for (int j=0; input[j]; j++) {
+            if (rcChannelLetters[i] == input[j]) {
+                rxConfig->rcmap[i] = j;
+                break;
+            }
         }
     }
 }

@@ -29,6 +29,7 @@ typedef enum rc_alias {
     ROLL = 0,
     PITCH,
     YAW,
+    COLLECTIVE,
     THROTTLE,
     AUX1,
     AUX2,
@@ -44,7 +45,7 @@ typedef enum rc_alias {
     AUX12
 } rc_alias_e;
 
-#define PRIMARY_CHANNEL_COUNT (THROTTLE + 1)
+#define PRIMARY_CHANNEL_COUNT 5
 
 typedef enum {
     THROTTLE_LOW = 0,
@@ -56,19 +57,19 @@ typedef enum {
     CENTERED
 } rollPitchStatus_e;
 
-#define ROL_LO (1 << (2 * ROLL))
-#define ROL_CE (3 << (2 * ROLL))
-#define ROL_HI (2 << (2 * ROLL))
-#define PIT_LO (1 << (2 * PITCH))
-#define PIT_CE (3 << (2 * PITCH))
-#define PIT_HI (2 << (2 * PITCH))
-#define YAW_LO (1 << (2 * YAW))
-#define YAW_CE (3 << (2 * YAW))
-#define YAW_HI (2 << (2 * YAW))
-#define THR_LO (1 << (2 * THROTTLE))
-#define THR_CE (3 << (2 * THROTTLE))
-#define THR_HI (2 << (2 * THROTTLE))
-#define THR_MASK (3 << (2 * THROTTLE))
+#define ROL_LO    (1 << 0)
+#define ROL_HI    (2 << 0)
+#define ROL_CE    (3 << 0)
+#define PIT_LO    (1 << 2)
+#define PIT_HI    (2 << 2)
+#define PIT_CE    (3 << 2)
+#define YAW_LO    (1 << 4)
+#define YAW_HI    (2 << 4)
+#define YAW_CE    (3 << 4)
+#define THR_LO    (1 << 6)
+#define THR_HI    (2 << 6)
+#define THR_CE    (3 << 6)
+#define THR_MASK  (3 << 6)
 
 #define CONTROL_RATE_CONFIG_RC_EXPO_MAX  100
 
@@ -80,7 +81,7 @@ typedef enum {
 // (Super) rates are constrained to [0, 100] for Betaflight rates, so values higher than 100 won't make a difference. Range extended for RaceFlight rates.
 #define CONTROL_RATE_CONFIG_RATE_MAX  255
 
-extern float rcCommand[4];
+extern float rcCommand[5];
 
 typedef struct rcControlsConfig_s {
     uint8_t deadband;                       // introduce a deadband around the stick center for pitch and roll axis. Must be greater than zero.
