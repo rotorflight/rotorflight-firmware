@@ -1,116 +1,68 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
 #include "pg/pg.h"
-#include "drivers/io_types.h"
-#include "drivers/pwm_output.h"
 
-// These must be consecutive, see 'reversedSources'
-enum {
-    INPUT_STABILIZED_ROLL = 0,
-    INPUT_STABILIZED_PITCH,
-    INPUT_STABILIZED_YAW,
-    INPUT_STABILIZED_THROTTLE,
-    INPUT_RC_ROLL,
-    INPUT_RC_PITCH,
-    INPUT_RC_YAW,
-    INPUT_RC_THROTTLE,
-    INPUT_RC_AUX1,
-    INPUT_RC_AUX2,
-    INPUT_RC_AUX3,
-    INPUT_RC_AUX4,
-    INPUT_SOURCE_COUNT
-};
+#define DEFAULT_SERVO_CENTER  1500
+#define DEFAULT_SERVO_MIN     -500
+#define DEFAULT_SERVO_MAX      500
+#define DEFAULT_SERVO_RATE     500
+#define DEFAULT_SERVO_TRIM       0
+#define DEFAULT_SERVO_SPEED      0
+#define DEFAULT_SERVO_UPDATE   333
 
-// target servo channels
-typedef enum {
-    SERVO_GIMBAL_PITCH = 0,
-    SERVO_GIMBAL_ROLL = 1,
-    SERVO_FLAPS = 2,
-    SERVO_FLAPPERON_1 = 3,
-    SERVO_FLAPPERON_2 = 4,
-    SERVO_RUDDER = 5,
-    SERVO_ELEVATOR = 6,
-    SERVO_THROTTLE = 7, // for internal combustion (IC) planes
-
-    SERVO_BICOPTER_LEFT = 4,
-    SERVO_BICOPTER_RIGHT = 5,
-
-    SERVO_DUALCOPTER_LEFT = 4,
-    SERVO_DUALCOPTER_RIGHT = 5,
-
-    SERVO_SINGLECOPTER_1 = 3,
-    SERVO_SINGLECOPTER_2 = 4,
-    SERVO_SINGLECOPTER_3 = 5,
-    SERVO_SINGLECOPTER_4 = 6,
-
-    SERVO_HELI_LEFT = 0,
-    SERVO_HELI_RIGHT = 1,
-    SERVO_HELI_TOP = 2,
-    SERVO_HELI_RUD = 3
-
-} servoIndex_e; // FIXME rename to servoChannel_e
-
-#define SERVO_PLANE_INDEX_MIN SERVO_FLAPS
-#define SERVO_PLANE_INDEX_MAX SERVO_THROTTLE
-
-#define SERVO_DUALCOPTER_INDEX_MIN SERVO_DUALCOPTER_LEFT
-#define SERVO_DUALCOPTER_INDEX_MAX SERVO_DUALCOPTER_RIGHT
-
-#define SERVO_SINGLECOPTER_INDEX_MIN SERVO_SINGLECOPTER_1
-#define SERVO_SINGLECOPTER_INDEX_MAX SERVO_SINGLECOPTER_4
-
-#define SERVO_FLAPPERONS_MIN SERVO_FLAPPERON_1
-#define SERVO_FLAPPERONS_MAX SERVO_FLAPPERON_2
-
-#define MAX_SERVO_SPEED UINT8_MAX
-#define MAX_SERVO_BOXES 3
+#define SERVO_RANGE_MIN      -1000
+#define SERVO_RANGE_MAX       1000
+#define SERVO_RATE_MIN       -2500
+#define SERVO_RATE_MAX        2500
+#define SERVO_TRIM_MIN        -250
+#define SERVO_TRIM_MAX         250
+#define SERVO_SPEED_MIN          0
+#define SERVO_SPEED_MAX      10000
+#define SERVO_OVERRIDE_MIN   -2000
+#define SERVO_OVERRIDE_MAX    2000
+#define SERVO_OVERRIDE_OFF   (SERVO_OVERRIDE_MAX + 1)
 
 typedef struct servoParam_s {
-    uint32_t reversedSources;               // the direction of servo movement for each input source of the servo mixer, bit set=inverted
-    int16_t min;                            // servo min
-    int16_t max;                            // servo max
-    int16_t middle;                         // servo middle
-    int8_t rate;                            // range [-125;+125] ; can be used to adjust a rate 0-125% and a direction
-    int8_t forwardFromChannel;              // RX channel index, 0 based.  See CHANNEL_FORWARDING_DISABLED
+    int16_t mid;    // center point
+    int16_t min;    // movement lower limit
+    int16_t max;    // movement upper limit
+    int16_t rate;   // scaling in microseconds. sign indicates direction
+    int16_t trim;   // center trim in microseconds
+    int16_t speed;  // speed limit (ms/60deg) ; 0 = disabled
 } servoParam_t;
 
 PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
 
 typedef struct servoConfig_s {
     servoDevConfig_t dev;
-    uint16_t servo_lowpass_freq;            // lowpass servo filter frequency selection; 1/1000ths of loop freq
 } servoConfig_t;
 
 PG_DECLARE(servoConfig_t, servoConfig);
 
-typedef struct servoProfile_s {
-    servoParam_t servoConf[MAX_SUPPORTED_SERVOS];
-} servoProfile_t;
+void servoInit(void);
+void servoUpdate(void);
 
-extern int16_t servo[MAX_SUPPORTED_SERVOS];
+uint8_t getServoCount(void);
+int16_t getServoOutput(uint8_t servo);
 
-bool isMixerUsingServos(void);
-void writeServos(void);
-int servoDirection(int servoIndex, int fromChannel);
-void servosInit(void);
-void servosFilterInit(void);
+int16_t getServoOverride(uint8_t servo);
+int16_t setServoOverride(uint8_t servo, int16_t val);
+bool    hasServoOverride(uint8_t servo);
+
