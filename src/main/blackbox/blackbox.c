@@ -41,6 +41,7 @@
 #include "common/maths.h"
 #include "common/time.h"
 #include "common/utils.h"
+#include "common/printf.h"
 
 #include "config/config.h"
 #include "config/feature.h"
@@ -1209,7 +1210,7 @@ static bool blackboxWriteSysinfo(void)
         return false;
     }
 
-    char buf[FORMATTED_DATE_TIME_BUFSIZE];
+    char buf[128];  // datetime and rpm filter
 
     const controlRateConfig_t *currentControlRateProfile = controlRateProfiles(systemConfig()->activeRateProfile);
     switch (xmitState.headerIndex) {
@@ -1327,11 +1328,51 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_POLES, "%d",            motorConfig()->motorPoleCount);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RPM_FILTER_HARMONICS, "%d",     rpmFilterConfig()->rpm_filter_harmonics);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RPM_FILTER_Q, "%d",             rpmFilterConfig()->rpm_filter_q);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RPM_FILTER_MIN_HZ, "%d",        rpmFilterConfig()->rpm_filter_min_hz);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RPM_FILTER_FADE_RANGE_HZ, "%d", rpmFilterConfig()->rpm_filter_fade_range_hz);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RPM_FILTER_LPF_HZ, "%d",        rpmFilterConfig()->rpm_filter_lpf_hz);
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_motor_index[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_motor_index", buf);
+        );
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_gear_ratio[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_gear_ratio", buf);
+        );
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_notch_q[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_notch_q", buf);
+        );
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_min_hz[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_min_hz", buf);
+        );
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_max_hz[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_max_hz", buf);
+        );
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LPF_HZ, "%d",        (int)(accelerometerConfig()->acc_lpf_hz * 100.0f));
