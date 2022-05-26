@@ -285,9 +285,7 @@ void updateArmingStatus(void)
 #endif
 
 #ifdef USE_RPM_FILTER
-        // USE_RPM_FILTER will only be defined if USE_DSHOT and USE_DSHOT_TELEMETRY are defined
-        // If the RPM filter is anabled and any motor isn't providing telemetry, then disable arming
-        if (isRpmFilterEnabled() && !isDshotTelemetryActive()) {
+        if (featureIsEnabled(FEATURE_RPM_FILTER) && !isRpmSourceActive()) {
             setArmingDisabled(ARMING_DISABLED_RPMFILTER);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_RPMFILTER);
@@ -672,6 +670,10 @@ static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
     if (debugMode == DEBUG_PIDLOOP) {
         startTime = micros();
     }
+
+#ifdef USE_RPM_FILTER
+    rpmFilterUpdate();
+#endif
 
 #ifdef USE_BLACKBOX
     if (!cliMode && blackboxConfig()->device) {

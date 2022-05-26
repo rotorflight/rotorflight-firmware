@@ -97,6 +97,7 @@
 #include "flight/pid.h"
 #include "flight/pid_init.h"
 #include "flight/servos.h"
+#include "flight/rpm_filter.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -745,6 +746,12 @@ void init(void)
 #endif
 
     rpmSourceInit();
+
+#ifdef USE_RPM_FILTER
+    if (featureIsEnabled(FEATURE_RPM_FILTER)) {
+        rpmFilterInit(rpmFilterConfig());
+    }
+#endif
 
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
