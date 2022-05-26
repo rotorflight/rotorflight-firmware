@@ -431,6 +431,10 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_FREQ_SENSOR);
 #endif
 
+#ifndef USE_RPM_FILTER
+    featureDisableImmediate(FEATURE_RPM_FILTER);
+#endif
+
 #if !defined(USE_ADC)
     featureDisableImmediate(FEATURE_RSSI_ADC);
 #endif
