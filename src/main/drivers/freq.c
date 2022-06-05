@@ -107,15 +107,9 @@ static inline void freqDebug(freqInputPort_t *input)
 {
 #ifdef FREQ_DEBUG
     DEBUG_SET(DEBUG_FREQ_SENSOR, 0, input->period);
-#ifdef USE_DSHOT_TELEMETRY
-    DEBUG_SET(DEBUG_FREQ_SENSOR, 1, getDshotTelemetry(0) * 100/6 - input->freq * 10);
-    DEBUG_SET(DEBUG_FREQ_SENSOR, 2, getDshotTelemetry(0) * 100/6);
-#else
     DEBUG_SET(DEBUG_FREQ_SENSOR, 1, input->percoef);
     DEBUG_SET(DEBUG_FREQ_SENSOR, 2, 32 - __builtin_clz(input->prescaler));
-#endif
     DEBUG_SET(DEBUG_FREQ_SENSOR, 3, input->freq * 10);
-
 #else
     UNUSED(input);
 #endif
@@ -272,8 +266,7 @@ void freqInit(const freqConfig_t *freqConfig)
             IOInit(io, OWNER_FREQ, RESOURCE_INDEX(port));
             IOConfigGPIOAF(io, IOCFG_AF_PP_PD, timer->alternateFunction);
 
-            configTimeBase(timer->tim, 0, timerClock(timer->tim));
-            timerNVICConfigure(timerInputIrq(timer->tim));
+            timerConfigure(timer, 0, timerClock(timer->tim));
 
             timerChCCHandlerInit(&input->edgeCb, freqEdgeCallback);
             timerChOvrHandlerInit(&input->overflowCb, freqOverflowCallback);
