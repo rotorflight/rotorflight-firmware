@@ -53,8 +53,9 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
 #endif // USE_BRUSHED_ESC_AUTODETECT
     {
         motorConfig->minthrottle = 1070;
-        motorConfig->dev.motorPwmRate = BRUSHLESS_MOTORS_PWM_RATE;
+        motorConfig->dev.motorPwmRate = 250;
         motorConfig->dev.motorPwmProtocol = PWM_TYPE_DISABLED;
+        motorConfig->dev.useUnsyncedPwm = true;
     }
 #endif // BRUSHED_MOTORS
 
