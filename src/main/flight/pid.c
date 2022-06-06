@@ -733,6 +733,12 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     // Calculate stabilized collective
     pidApplyCollective();
 
+    // Reset error if in passthrough mode
+    if (FLIGHT_MODE(PASSTHRU_MODE)) {
+        pidResetError(FD_ROLL);
+        pidResetError(FD_PITCH);
+    }
+
     // Reset PID control if gyro overflow detected
     if (gyroOverflowDetected())
         pidReset();
