@@ -229,10 +229,10 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"accSmooth",   2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_ACC},
 
     /* Helicopter motors */
-    {"motor",       0, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_1)},
-    {"motor",       1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_2)},
-    {"motor",       2, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_3)},
-    {"motor",       3, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_4)},
+    {"motor",       0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_1)},
+    {"motor",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_2)},
+    {"motor",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_3)},
+    {"motor",       3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_4)},
 
     /* Helicopter servos */
     {"servo",       0, UNSIGNED, .Ipredict = PREDICT(0),    .Iencode = ENCODING(UNSIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16), CONDITION(ALWAYS)},
@@ -325,7 +325,7 @@ typedef struct blackboxMainState_s {
     int16_t gyroADC[XYZ_AXIS_COUNT];
     int16_t accADC[XYZ_AXIS_COUNT];
 
-    uint16_t motor[MAX_SUPPORTED_MOTORS];
+    int16_t motor[MAX_SUPPORTED_MOTORS];
     uint16_t servo[MAX_SUPPORTED_SERVOS];
 
     uint16_t vbatLatest;
@@ -633,9 +633,9 @@ static void writeIntraframe(void)
         blackboxWriteSigned16VBArray(blackboxCurrent->accADC, XYZ_AXIS_COUNT);
     }
 
-    // Write the motor I frames as unsigned
+    // Write the motor I frames as signed
     for (int x = 0; x < getMotorCount(); x++) {
-        blackboxWriteUnsignedVB(blackboxCurrent->motor[x]);
+        blackboxWriteSignedVB(blackboxCurrent->motor[x]);
     }
 
     // Write the servo I frames as unsigned since they will always be somewhere between 0 and 2020
@@ -1105,7 +1105,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->setpoint[3] = lrintf(mixerGetThrottle() * 1000);
 
     for (int i = 0; i < getMotorCount(); i++) {
-        blackboxCurrent->motor[i] = constrain(getMotorOutput(i), 0, 1000); // FIXME BiDir
+        blackboxCurrent->motor[i] = getMotorOutput(i);
     }
 
     blackboxCurrent->vbatLatest = getBatteryVoltageLatest();
