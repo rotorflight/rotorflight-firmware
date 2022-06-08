@@ -34,8 +34,6 @@ typedef enum BlackboxDevice {
 
 typedef enum BlackboxMode {
     BLACKBOX_MODE_NORMAL = 0,
-    BLACKBOX_MODE_MOTOR_TEST,
-    BLACKBOX_MODE_ALWAYS_ON
 } BlackboxMode;
 
 typedef enum BlackboxSampleRate { // Sample rate is 1/(2^BlackboxSampleRate)
