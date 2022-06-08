@@ -958,55 +958,6 @@ void blackboxFinish(void)
     }
 }
 
-/**
- * Test Motors Blackbox Logging
- */
-static bool startedLoggingInTestMode = false;
-
-static void startInTestMode(void)
-{
-    if (!startedLoggingInTestMode) {
-        if (blackboxConfig()->device == BLACKBOX_DEVICE_SERIAL) {
-            serialPort_t *sharedBlackboxAndMspPort = findSharedSerialPort(FUNCTION_BLACKBOX, FUNCTION_MSP);
-            if (sharedBlackboxAndMspPort) {
-                return; // When in test mode, we cannot share the MSP and serial logger port!
-            }
-        }
-        blackboxStart();
-        startedLoggingInTestMode = true;
-    }
-}
-
-static void stopInTestMode(void)
-{
-    if (startedLoggingInTestMode) {
-        blackboxFinish();
-        startedLoggingInTestMode = false;
-    }
-}
-/**
- * We are going to monitor the MSP_SET_MOTOR target variables motor_disarmed[] for values other than minthrottle
- * on reading a value (i.e. the user is testing the motors), then we enable test mode logging;
- * we monitor when the values return to minthrottle and start a delay timer (5 seconds); if
- * the test motors are left at minimum throttle for this delay timer, then we assume we are done testing and
- * shutdown the logger.
- *
- * Of course, after the 5 seconds and shutdown of the logger, the system will be re-enabled to allow the
- * test mode to trigger again; its just that the data will be in a second, third, fourth etc log file.
- */
-static bool inMotorTestMode(void) {
-    static uint32_t resetTime = 0;
-
-    if (!ARMING_FLAG(ARMED) && areMotorsRunning()) {
-        resetTime = millis() + 5000; // add 5 seconds
-        return true;
-    } else {
-        // Monitor the duration at minimum
-        return (millis() < resetTime);
-    }
-    return false;
-}
-
 #ifdef USE_GPS
 static void writeGPSHomeFrame(void)
 {
@@ -1765,8 +1716,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
-        // Prevent the Pausing of the log on the mode switch if in Motor Test Mode
-        if (blackboxModeActivationConditionPresent && !IS_RC_MODE_ACTIVE(BOXBLACKBOX) && !startedLoggingInTestMode) {
+        if (blackboxModeActivationConditionPresent && !IS_RC_MODE_ACTIVE(BOXBLACKBOX)) {
             blackboxSetState(BLACKBOX_STATE_PAUSED);
         } else {
             blackboxLogIteration(currentTimeUs);
@@ -1818,36 +1768,6 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 #endif
         {
             blackboxSetState(BLACKBOX_STATE_STOPPED);
-            // ensure we reset the test mode flag if we stop due to full memory card
-            if (startedLoggingInTestMode) {
-                startedLoggingInTestMode = false;
-            }
-        }
-    } else { // Only log in test mode if there is room!
-        switch (blackboxConfig()->mode) {
-        case BLACKBOX_MODE_MOTOR_TEST:
-            // Handle Motor Test Mode
-            if (inMotorTestMode()) {
-                if (blackboxState==BLACKBOX_STATE_STOPPED) {
-                    startInTestMode();
-                }
-            } else {
-                if (blackboxState!=BLACKBOX_STATE_STOPPED) {
-                    stopInTestMode();
-                }
-            }
-
-            break;
-        case BLACKBOX_MODE_ALWAYS_ON:
-            if (blackboxState==BLACKBOX_STATE_STOPPED) {
-                startInTestMode();
-            }
-
-            break;
-        case BLACKBOX_MODE_NORMAL:
-        default:
-
-            break;
         }
     }
 }
