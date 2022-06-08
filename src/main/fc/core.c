@@ -353,7 +353,7 @@ void disarm(flightLogDisarmReason_e reason)
         eventData.reason = reason;
         blackboxLogEvent(FLIGHT_LOG_EVENT_DISARM, (flightLogEventData_t*)&eventData);
 
-        if (blackboxConfig()->device && blackboxConfig()->mode != BLACKBOX_MODE_ALWAYS_ON) { // Close the log upon disarm except when logging mode is ALWAYS ON
+        if (blackboxConfig()->device) {
             blackboxFinish();
         }
 #else
