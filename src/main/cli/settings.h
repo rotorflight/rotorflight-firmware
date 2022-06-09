@@ -94,10 +94,6 @@ typedef enum {
 #if defined(USE_MAX7456) || defined(USE_FRSKYOSD)
     TABLE_VIDEO_SYSTEM,
 #endif
-#if defined(USE_ITERM_RELAX)
-    TABLE_ITERM_RELAX,
-    TABLE_ITERM_RELAX_TYPE,
-#endif
 #ifdef USE_ACRO_TRAINER
     TABLE_ACRO_TRAINER_DEBUG,
 #endif // USE_ACRO_TRAINER
@@ -238,10 +234,6 @@ extern const char * const lookupTableRangefinderHardware[];
 extern const char * const lookupTableLedstripColors[];
 
 extern const char * const lookupTableRescueAltitudeMode[];
-
-extern const char * const lookupTableItermRelax[];
-
-extern const char * const lookupTableItermRelaxType[];
 
 extern const char * const lookupTableOsdDisplayPortDevice[];
 
