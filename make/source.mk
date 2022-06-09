@@ -97,6 +97,7 @@ COMMON_SRC = \
             flight/motors.c \
             flight/servos.c \
             flight/governor.c \
+            flight/trainer.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \

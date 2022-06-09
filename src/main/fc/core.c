@@ -69,6 +69,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/trainer.h"
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
@@ -398,8 +399,8 @@ void tryArm(void)
         resetTryingToArm();
 
 #ifdef USE_ACRO_TRAINER
-        pidAcroTrainerInit();
-#endif // USE_ACRO_TRAINER
+        acroTrainerReset();
+#endif
 
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
@@ -651,7 +652,7 @@ void processRxModes(timeUs_t currentTimeUs)
 #endif
 
 #ifdef USE_ACRO_TRAINER
-    pidSetAcroTrainerState(IS_RC_MODE_ACTIVE(BOXACROTRAINER) && sensors(SENSOR_ACC));
+    acroTrainerSetState(IS_RC_MODE_ACTIVE(BOXACROTRAINER) && sensors(SENSOR_ACC));
 #endif // USE_ACRO_TRAINER
 }
 
