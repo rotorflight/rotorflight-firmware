@@ -303,7 +303,6 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 6))
-#define USE_ITERM_RELAX
 #endif
 
 #if ((TARGET_FLASH_SIZE > 256) || (FEATURE_CUT_LEVEL < 5))
