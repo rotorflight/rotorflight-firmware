@@ -48,10 +48,6 @@
 // This value gives the same "feel" as the previous Kd default of 26 (26 * DTERM_SCALE)
 #define FEEDFORWARD_SCALE 0.013754f
 
-// Full iterm suppression in setpoint mode at high-passed setpoint rate > 40deg/sec
-#define ITERM_RELAX_SETPOINT_THRESHOLD 40.0f
-#define ITERM_RELAX_CUTOFF_DEFAULT 15
-
 #define PID_ROLL_DEFAULT  { 45, 80, 40, 120 }
 #define PID_PITCH_DEFAULT { 47, 84, 46, 125 }
 #define PID_YAW_DEFAULT   { 45, 80,  0, 120 }
@@ -82,21 +78,6 @@ typedef struct pidf_s {
     uint16_t F;
 } pidf_t;
 
-typedef enum {
-    ITERM_RELAX_OFF,
-    ITERM_RELAX_RP,
-    ITERM_RELAX_RPY,
-    ITERM_RELAX_RP_INC,
-    ITERM_RELAX_RPY_INC,
-    ITERM_RELAX_COUNT,
-} itermRelax_e;
-
-typedef enum {
-    ITERM_RELAX_GYRO,
-    ITERM_RELAX_SETPOINT,
-    ITERM_RELAX_TYPE_COUNT,
-} itermRelaxType_e;
-
 #define MAX_PROFILE_NAME_LENGTH 8u
 
 typedef struct pidProfile_s {
@@ -120,9 +101,6 @@ typedef struct pidProfile_s {
     uint16_t itermLimit;
     uint16_t dterm_lpf2_static_hz;          // Static Dterm lowpass 2 filter cutoff value in hz
     uint8_t iterm_rotation;                 // rotates iterm to translate world errors to local coordinate system
-    uint8_t iterm_relax_type;               // Specifies type of relax algorithm
-    uint8_t iterm_relax_cutoff;             // This cutoff frequency specifies a low pass filter which predicts average response of the quad to setpoint
-    uint8_t iterm_relax;                    // Enable iterm suppression during stick input
     uint8_t acro_trainer_angle_limit;       // Acro trainer roll/pitch angle limit in degrees
     uint8_t acro_trainer_debug_axis;        // The axis for which record debugging values are captured 0=roll, 1=pitch
     uint8_t acro_trainer_gain;              // The strength of the limiting. Raising may reduce overshoot but also lead to oscillation around the angle limit
@@ -189,13 +167,6 @@ typedef struct pidRuntime_s {
     float itermLimit;
     bool itermRotation;
 
-#ifdef USE_ITERM_RELAX
-    pt1Filter_t windupLpf[XYZ_AXIS_COUNT];
-    uint8_t itermRelax;
-    uint8_t itermRelaxType;
-    uint8_t itermRelaxCutoff;
-#endif
-
 #ifdef USE_ACRO_TRAINER
     float acroTrainerAngleLimit;
     float acroTrainerLookaheadTime;
@@ -232,8 +203,6 @@ void pidSetAcroTrainerState(bool newState);
 #ifdef UNIT_TEST
 #include "sensors/acceleration.h"
 extern float axisError[XYZ_AXIS_COUNT];
-void applyItermRelax(const int axis, const float iterm,
-    const float gyroRate, float *itermErrorRate, float *currentPidSetpoint);
 void rotateItermAndAxisError();
 float pidLevel(int axis, const pidProfile_t *pidProfile,
     const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint);
