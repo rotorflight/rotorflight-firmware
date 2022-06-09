@@ -378,12 +378,6 @@ static const char * const lookupTableVideoSystem[] = {
 };
 #endif
 
-#ifdef USE_ACRO_TRAINER
-static const char * const lookupTableAcroTrainerDebug[] = {
-    "ROLL", "PITCH"
-};
-#endif // USE_ACRO_TRAINER
-
 #ifdef USE_VTX_COMMON
 static const char * const lookupTableVtxLowPowerDisarm[] = {
     "OFF", "ON", "UNTIL_FIRST_ARM"
@@ -563,9 +557,6 @@ const lookupTableEntry_t lookupTables[] = {
 #if defined(USE_MAX7456) || defined(USE_FRSKYOSD)
     LOOKUP_TABLE_ENTRY(lookupTableVideoSystem),
 #endif
-#ifdef USE_ACRO_TRAINER
-    LOOKUP_TABLE_ENTRY(lookupTableAcroTrainerDebug),
-#endif // USE_ACRO_TRAINER
 #ifdef USE_VTX_COMMON
     LOOKUP_TABLE_ENTRY(lookupTableVtxLowPowerDisarm),
 #endif
@@ -1000,7 +991,6 @@ const clivalue_t valueTable[] = {
 #ifdef USE_ACRO_TRAINER
     { "acro_trainer_angle_limit",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 80 }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_angle_limit) },
     { "acro_trainer_lookahead_ms",  VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_lookahead_ms) },
-    { "acro_trainer_debug_axis",    VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ACRO_TRAINER_DEBUG }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_debug_axis) },
     { "acro_trainer_gain",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 255 }, PG_PID_PROFILE, offsetof(pidProfile_t, acro_trainer_gain) },
 #endif // USE_ACRO_TRAINER
 
