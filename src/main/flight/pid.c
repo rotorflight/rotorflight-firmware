@@ -47,6 +47,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/rpm_filter.h"
+#include "flight/trainer.h"
 
 #include "io/gps.h"
 
@@ -81,11 +82,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 3);
 PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .pid_process_denom = PID_PROCESS_DENOM_DEFAULT
 );
-
-#ifdef USE_ACRO_TRAINER
-#define ACRO_TRAINER_LOOKAHEAD_RATE_LIMIT 500.0f  // Max gyro rate for lookahead time scaling
-#define ACRO_TRAINER_SETPOINT_LIMIT       1000.0f // Limit the correcting setpoint
-#endif // USE_ACRO_TRAINER
 
 PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 3);
 
@@ -148,14 +144,6 @@ void pidResetIterm(void)
         pidData[axis].I = 0.0f;
     }
 }
-
-#ifdef USE_ACRO_TRAINER
-void pidAcroTrainerInit(void)
-{
-    pidRuntime.acroTrainerAxisState[FD_ROLL] = 0;
-    pidRuntime.acroTrainerAxisState[FD_PITCH] = 0;
-}
-#endif // USE_ACRO_TRAINER
 
 #if defined(USE_ACC)
 // calculate the stick deflection while applying level mode expo
@@ -251,80 +239,6 @@ STATIC_UNIT_TESTED FAST_CODE_NOINLINE float pidLevel(int axis, const pidProfile_
 }
 
 #endif // USE_ACC
-
-#ifdef USE_ACRO_TRAINER
-
-int acroTrainerSign(float x)
-{
-    return x > 0 ? 1 : -1;
-}
-
-// Acro Trainer - Manipulate the setPoint to limit axis angle while in acro mode
-// There are three states:
-// 1. Current angle has exceeded limit
-//    Apply correction to return to limit (similar to pidLevel)
-// 2. Future overflow has been projected based on current angle and gyro rate
-//    Manage the setPoint to control the gyro rate as the actual angle  approaches the limit (try to prevent overshoot)
-// 3. If no potential overflow is detected, then return the original setPoint
-
-// Use the FAST_CODE_NOINLINE directive to avoid this code from being inlined into ITCM RAM. We accept the
-// performance decrease when Acro Trainer mode is active under the assumption that user is unlikely to be
-// expecting ultimate flight performance at very high loop rates when in this mode.
-static FAST_CODE_NOINLINE float applyAcroTrainer(int axis, const rollAndPitchTrims_t *angleTrim, float setPoint)
-{
-    float ret = setPoint;
-
-    if (!FLIGHT_MODE(ANGLE_MODE) && !FLIGHT_MODE(HORIZON_MODE) && !FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        bool resetIterm = false;
-        float projectedAngle = 0;
-        const int setpointSign = acroTrainerSign(setPoint);
-        const float currentAngle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
-        const int angleSign = acroTrainerSign(currentAngle);
-
-        if ((pidRuntime.acroTrainerAxisState[axis] != 0) && (pidRuntime.acroTrainerAxisState[axis] != setpointSign)) {  // stick has reversed - stop limiting
-            pidRuntime.acroTrainerAxisState[axis] = 0;
-        }
-
-        // Limit and correct the angle when it exceeds the limit
-        if ((fabsf(currentAngle) > pidRuntime.acroTrainerAngleLimit) && (pidRuntime.acroTrainerAxisState[axis] == 0)) {
-            if (angleSign == setpointSign) {
-                pidRuntime.acroTrainerAxisState[axis] = angleSign;
-                resetIterm = true;
-            }
-        }
-
-        if (pidRuntime.acroTrainerAxisState[axis] != 0) {
-            ret = constrainf(((pidRuntime.acroTrainerAngleLimit * angleSign) - currentAngle) * pidRuntime.acroTrainerGain, -ACRO_TRAINER_SETPOINT_LIMIT, ACRO_TRAINER_SETPOINT_LIMIT);
-        } else {
-
-        // Not currently over the limit so project the angle based on current angle and
-        // gyro angular rate using a sliding window based on gyro rate (faster rotation means larger window.
-        // If the projected angle exceeds the limit then apply limiting to minimize overshoot.
-            // Calculate the lookahead window by scaling proportionally with gyro rate from 0-500dps
-            float checkInterval = constrainf(fabsf(gyro.gyroADCf[axis]) / ACRO_TRAINER_LOOKAHEAD_RATE_LIMIT, 0.0f, 1.0f) * pidRuntime.acroTrainerLookaheadTime;
-            projectedAngle = (gyro.gyroADCf[axis] * checkInterval) + currentAngle;
-            const int projectedAngleSign = acroTrainerSign(projectedAngle);
-            if ((fabsf(projectedAngle) > pidRuntime.acroTrainerAngleLimit) && (projectedAngleSign == setpointSign)) {
-                ret = ((pidRuntime.acroTrainerAngleLimit * projectedAngleSign) - projectedAngle) * pidRuntime.acroTrainerGain;
-                resetIterm = true;
-            }
-        }
-
-        if (resetIterm) {
-            pidData[axis].I = 0;
-        }
-
-        if (axis == pidRuntime.acroTrainerDebugAxis) {
-            DEBUG_SET(DEBUG_ACRO_TRAINER, 0, lrintf(currentAngle * 10.0f));
-            DEBUG_SET(DEBUG_ACRO_TRAINER, 1, pidRuntime.acroTrainerAxisState[axis]);
-            DEBUG_SET(DEBUG_ACRO_TRAINER, 2, lrintf(ret));
-            DEBUG_SET(DEBUG_ACRO_TRAINER, 3, lrintf(projectedAngle * 10.0f));
-        }
-    }
-
-    return ret;
-}
-#endif // USE_ACRO_TRAINER
 
 static float accelerationLimit(int axis, float currentPidSetpoint)
 {
@@ -437,10 +351,10 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #endif
 
 #ifdef USE_ACRO_TRAINER
-        if ((axis != FD_YAW) && pidRuntime.acroTrainerActive) {
-            currentPidSetpoint = applyAcroTrainer(axis, angleTrim, currentPidSetpoint);
+        if (!FLIGHT_MODE(ANGLE_MODE) && !FLIGHT_MODE(HORIZON_MODE) && !FLIGHT_MODE(GPS_RESCUE_MODE)) {
+            currentPidSetpoint = acroTrainerApply(axis, currentPidSetpoint);
         }
-#endif // USE_ACRO_TRAINER
+#endif
 
         // -----calculate error rate
         const float gyroRate = gyro.gyroADCf[axis]; // Process variable from gyro output in deg/sec
@@ -527,18 +441,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         }
     }
 }
-
-#ifdef USE_ACRO_TRAINER
-void pidSetAcroTrainerState(bool newState)
-{
-    if (pidRuntime.acroTrainerActive != newState) {
-        if (newState) {
-            pidAcroTrainerInit();
-        }
-        pidRuntime.acroTrainerActive = newState;
-    }
-}
-#endif // USE_ACRO_TRAINER
 
 #ifdef USE_DYN_LPF
 void dynLpfDTermUpdate(float throttle)
