@@ -179,14 +179,6 @@ void pidInitFilters(const pidProfile_t *pidProfile)
         pidRuntime.dtermLowpass2ApplyFn = nullFilterApply;
     }
 
-#if defined(USE_ITERM_RELAX)
-    if (pidRuntime.itermRelax) {
-        for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-            pt1FilterInit(&pidRuntime.windupLpf[i], pt1FilterGain(pidRuntime.itermRelaxCutoff, pidRuntime.dT));
-        }
-    }
-#endif
-
 }
 
 void pidInit(const pidProfile_t *pidProfile)
@@ -217,12 +209,6 @@ void pidInitConfig(const pidProfile_t *pidProfile)
     pidRuntime.maxVelocity[FD_YAW] = pidProfile->yawRateAccelLimit * 100 * pidRuntime.dT;
     pidRuntime.itermLimit = pidProfile->itermLimit;
     pidRuntime.itermRotation = pidProfile->iterm_rotation;
-
-#if defined(USE_ITERM_RELAX)
-    pidRuntime.itermRelax = pidProfile->iterm_relax;
-    pidRuntime.itermRelaxType = pidProfile->iterm_relax_type;
-    pidRuntime.itermRelaxCutoff = pidProfile->iterm_relax_cutoff;
-#endif
 
 #ifdef USE_ACRO_TRAINER
     pidRuntime.acroTrainerAngleLimit = pidProfile->acro_trainer_angle_limit;
