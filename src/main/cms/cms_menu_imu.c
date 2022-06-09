@@ -293,12 +293,6 @@ static uint8_t  cmsx_angleStrength;
 static uint8_t  cmsx_horizonStrength;
 static uint8_t  cmsx_horizonTransition;
 
-#ifdef USE_ITERM_RELAX
-static uint8_t cmsx_iterm_relax;
-static uint8_t cmsx_iterm_relax_type;
-static uint8_t cmsx_iterm_relax_cutoff;
-#endif
-
 static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
@@ -310,12 +304,6 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     cmsx_angleStrength =     pidProfile->pid[PID_LEVEL].P;
     cmsx_horizonStrength =   pidProfile->pid[PID_LEVEL].I;
     cmsx_horizonTransition = pidProfile->pid[PID_LEVEL].D;
-
-#ifdef USE_ITERM_RELAX
-    cmsx_iterm_relax = pidProfile->iterm_relax;
-    cmsx_iterm_relax_type = pidProfile->iterm_relax_type;
-    cmsx_iterm_relax_cutoff = pidProfile->iterm_relax_cutoff;
-#endif
 
     return NULL;
 }
@@ -332,12 +320,6 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->pid[PID_LEVEL].I = cmsx_horizonStrength;
     pidProfile->pid[PID_LEVEL].D = cmsx_horizonTransition;
 
-#ifdef USE_ITERM_RELAX
-    pidProfile->iterm_relax = cmsx_iterm_relax;
-    pidProfile->iterm_relax_type = cmsx_iterm_relax_type;
-    pidProfile->iterm_relax_cutoff = cmsx_iterm_relax_cutoff;
-#endif
-
     initEscEndpoints();
     return NULL;
 }
@@ -347,11 +329,6 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { "ANGLE STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleStrength,          0,    200,   1  }    },
     { "HORZN STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonStrength,        0,    200,   1  }    },
     { "HORZN TRS",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonTransition,      0,    200,   1  }    },
-#ifdef USE_ITERM_RELAX
-    { "I_RELAX",         OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax,        ITERM_RELAX_COUNT - 1,      lookupTableItermRelax       } },
-    { "I_RELAX TYPE",    OME_TAB,    NULL, &(OSD_TAB_t)     { &cmsx_iterm_relax_type,   ITERM_RELAX_TYPE_COUNT - 1, lookupTableItermRelaxType   } },
-    { "I_RELAX CUTOFF",  OME_UINT8,  NULL, &(OSD_UINT8_t)   { &cmsx_iterm_relax_cutoff, 1, 50, 1 } },
-#endif
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
