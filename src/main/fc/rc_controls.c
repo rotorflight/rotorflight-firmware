@@ -70,8 +70,6 @@
 // true if arming is done via the sticks (as opposed to a switch)
 static bool isUsingSticksToArm = true;
 
-float rcCommand[5];           // interval [-500;+500] for ROLL/PITCH/YAW/COLLECTIVE and [0;1000] for THROTTLE
-
 PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 
 PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
@@ -106,10 +104,11 @@ throttleStatus_e calculateThrottleStatus(void)
 #define ARM_DELAY_MS        500
 #define STICK_DELAY_MS      50
 #define STICK_AUTOREPEAT_MS 250
-#define repeatAfter(t) { \
+
+#define repeatAfter(t) do { \
     rcDelayMs -= (t); \
     doNotRepeat = false; \
-}
+} while (0)
 
 void processRcStickPositions()
 {
@@ -368,10 +367,6 @@ void processRcStickPositions()
         cameraControlKeyPress(CAMERA_CONTROL_KEY_UP, 2000);
     }
 #endif
-}
-
-int32_t getRcStickDeflection(int32_t axis, uint16_t midrc) {
-    return MIN(ABS(rcData[axis] - midrc), 500);
 }
 
 void rcControlsInit(void)
