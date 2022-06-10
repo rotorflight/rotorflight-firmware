@@ -38,6 +38,7 @@
 
 #include "flight/pid.h"
 #include "flight/trainer.h"
+#include "flight/leveling.h"
 #include "flight/rpm_filter.h"
 
 #include "sensors/gyro.h"
@@ -200,16 +201,15 @@ void pidInitConfig(const pidProfile_t *pidProfile)
         pidRuntime.pidCoefficient[axis].Kd = DTERM_SCALE * pidProfile->pid[axis].D;
         pidRuntime.pidCoefficient[axis].Kf = FEEDFORWARD_SCALE * (pidProfile->pid[axis].F / 100.0f);
     }
-    pidRuntime.levelGain = pidProfile->pid[PID_LEVEL].P / 10.0f;
-    pidRuntime.horizonGain = pidProfile->pid[PID_LEVEL].I / 10.0f;
-    pidRuntime.horizonTransition = (float)pidProfile->pid[PID_LEVEL].D;
-    pidRuntime.horizonTiltExpertMode = pidProfile->horizon_tilt_expert_mode;
-    pidRuntime.horizonCutoffDegrees = (175 - pidProfile->horizon_tilt_effect) * 1.8f;
-    pidRuntime.horizonFactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
+
     pidRuntime.maxVelocity[FD_ROLL] = pidRuntime.maxVelocity[FD_PITCH] = pidProfile->rateAccelLimit * 100 * pidRuntime.dT;
     pidRuntime.maxVelocity[FD_YAW] = pidProfile->yawRateAccelLimit * 100 * pidRuntime.dT;
     pidRuntime.itermLimit = pidProfile->itermLimit;
     pidRuntime.itermRotation = pidProfile->iterm_rotation;
+
+#ifdef USE_ACC
+    pidLevelInit(pidProfile);
+#endif
 
 #ifdef USE_ACRO_TRAINER
     acroTrainerInit(pidProfile);

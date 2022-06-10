@@ -48,6 +48,7 @@
 #include "flight/mixer.h"
 #include "flight/rpm_filter.h"
 #include "flight/trainer.h"
+#include "flight/leveling.h"
 
 #include "io/gps.h"
 
@@ -145,101 +146,6 @@ void pidResetIterm(void)
     }
 }
 
-#if defined(USE_ACC)
-// calculate the stick deflection while applying level mode expo
-static float getLevelModeRcDeflection(uint8_t axis)
-{
-    const float stickDeflection = getRcDeflection(axis);
-    if (axis < FD_YAW) {
-        const float expof = currentControlRateProfile->levelExpo[axis] / 100.0f;
-        return power3(stickDeflection) * expof + stickDeflection * (1 - expof);
-    } else {
-        return stickDeflection;
-    }
-}
-
-// calculates strength of horizon leveling; 0 = none, 1.0 = most leveling
-STATIC_UNIT_TESTED float calcHorizonLevelStrength(void)
-{
-    // start with 1.0 at center stick, 0.0 at max stick deflection:
-    float horizonLevelStrength = 1.0f - MAX(fabsf(getLevelModeRcDeflection(FD_ROLL)), fabsf(getLevelModeRcDeflection(FD_PITCH)));
-
-    // 0 at level, 90 at vertical, 180 at inverted (degrees):
-    const float currentInclination = MAX(ABS(attitude.values.roll), ABS(attitude.values.pitch)) / 10.0f;
-
-    // horizonTiltExpertMode:  0 = leveling always active when sticks centered,
-    //                         1 = leveling can be totally off when inverted
-    if (pidRuntime.horizonTiltExpertMode) {
-        if (pidRuntime.horizonTransition > 0 && pidRuntime.horizonCutoffDegrees > 0) {
-                    // if d_level > 0 and horizonTiltEffect < 175
-            // horizonCutoffDegrees: 0 to 125 => 270 to 90 (represents where leveling goes to zero)
-            // inclinationLevelRatio (0.0 to 1.0) is smaller (less leveling)
-            //  for larger inclinations; 0.0 at horizonCutoffDegrees value:
-            const float inclinationLevelRatio = constrainf((pidRuntime.horizonCutoffDegrees-currentInclination) / pidRuntime.horizonCutoffDegrees, 0, 1);
-            // apply configured horizon sensitivity:
-                // when stick is near center (horizonLevelStrength ~= 1.0)
-                //  H_sensitivity value has little effect,
-                // when stick is deflected (horizonLevelStrength near 0.0)
-                //  H_sensitivity value has more effect:
-            horizonLevelStrength = (horizonLevelStrength - 1) * 100 / pidRuntime.horizonTransition + 1;
-            // apply inclination ratio, which may lower leveling
-            //  to zero regardless of stick position:
-            horizonLevelStrength *= inclinationLevelRatio;
-        } else  { // d_level=0 or horizon_tilt_effect>=175 means no leveling
-          horizonLevelStrength = 0;
-        }
-    } else { // horizon_tilt_expert_mode = 0 (leveling always active when sticks centered)
-        float sensitFact;
-        if (pidRuntime.horizonFactorRatio < 1.0f) { // if horizonTiltEffect > 0
-            // horizonFactorRatio: 1.0 to 0.0 (larger means more leveling)
-            // inclinationLevelRatio (0.0 to 1.0) is smaller (less leveling)
-            //  for larger inclinations, goes to 1.0 at inclination==level:
-            const float inclinationLevelRatio = (180 - currentInclination) / 180 * (1.0f - pidRuntime.horizonFactorRatio) + pidRuntime.horizonFactorRatio;
-            // apply ratio to configured horizon sensitivity:
-            sensitFact = pidRuntime.horizonTransition * inclinationLevelRatio;
-        } else { // horizonTiltEffect=0 for "old" functionality
-            sensitFact = pidRuntime.horizonTransition;
-        }
-
-        if (sensitFact <= 0) {           // zero means no leveling
-            horizonLevelStrength = 0;
-        } else {
-            // when stick is near center (horizonLevelStrength ~= 1.0)
-            //  sensitFact value has little effect,
-            // when stick is deflected (horizonLevelStrength near 0.0)
-            //  sensitFact value has more effect:
-            horizonLevelStrength = ((horizonLevelStrength - 1) * (100 / sensitFact)) + 1;
-        }
-    }
-    return constrainf(horizonLevelStrength, 0, 1);
-}
-
-// Use the FAST_CODE_NOINLINE directive to avoid this code from being inlined into ITCM RAM to avoid overflow.
-// The impact is possibly slightly slower performance on F7/H7 but they have more than enough
-// processing power that it should be a non-issue.
-STATIC_UNIT_TESTED FAST_CODE_NOINLINE float pidLevel(int axis, const pidProfile_t *pidProfile, const rollAndPitchTrims_t *angleTrim, float currentPidSetpoint) {
-    // calculate error angle and limit the angle to the max inclination
-    // rcDeflection is in range [-1.0, 1.0]
-    float angle = pidProfile->levelAngleLimit * getLevelModeRcDeflection(axis);
-#ifdef USE_GPS_RESCUE
-    angle += gpsRescueAngle[axis] / 100; // ANGLE IS IN CENTIDEGREES
-#endif
-    angle = constrainf(angle, -pidProfile->levelAngleLimit, pidProfile->levelAngleLimit);
-    const float errorAngle = angle - ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
-    if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        // ANGLE mode - control is angle based
-        currentPidSetpoint = errorAngle * pidRuntime.levelGain;
-    } else {
-        // HORIZON mode - mix of ANGLE and ACRO modes
-        // mix in errorAngle to currentPidSetpoint to add a little auto-level feel
-        const float horizonLevelStrength = calcHorizonLevelStrength();
-        currentPidSetpoint = currentPidSetpoint + (errorAngle * pidRuntime.horizonGain * horizonLevelStrength);
-    }
-    return currentPidSetpoint;
-}
-
-#endif // USE_ACC
-
 static float accelerationLimit(int axis, float currentPidSetpoint)
 {
     static float previousSetpoint[XYZ_AXIS_COUNT];
@@ -291,17 +197,11 @@ STATIC_UNIT_TESTED void rotateItermAndAxisError()
 // Based on 2DOF reference design (matlab)
 void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
-#if !defined(USE_ACC)
     UNUSED(pidProfile);
-#endif
     UNUSED(currentTimeUs);
 
     static float previousGyroRateDterm[XYZ_AXIS_COUNT];
     static float previousRawGyroRateDterm[XYZ_AXIS_COUNT];
-
-#if defined(USE_ACC)
-    const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
-#endif
 
     // Precalculate gyro deta for D-term here, this allows loop unrolling
     float gyroRateDterm[XYZ_AXIS_COUNT];
@@ -346,7 +246,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 
 #if defined(USE_ACC)
         if (FLIGHT_MODE(ANGLE_MODE) || FLIGHT_MODE(HORIZON_MODE) || FLIGHT_MODE(GPS_RESCUE_MODE)) {
-            currentPidSetpoint = pidLevel(axis, pidProfile, angleTrim, currentPidSetpoint);
+            currentPidSetpoint = pidLevelApply(axis, currentPidSetpoint);
         }
 #endif
 
