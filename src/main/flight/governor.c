@@ -965,9 +965,9 @@ void governorInit(void)
 
         const float maxFreq = pidGetPidFrequency() / 4;
 
-        biquadFilterInitLPF(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), targetPidLooptime);
-        biquadFilterInitLPF(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), targetPidLooptime);
-        biquadFilterInitLPF(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), targetPidLooptime);
+        biquadFilterInitLPF(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);
     }
 }
 
