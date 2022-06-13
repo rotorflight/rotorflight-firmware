@@ -1767,7 +1767,7 @@ uint16_t blackboxGetPRatio(void) {
 }
 
 uint8_t blackboxCalculateSampleRate(uint16_t pRatio) {
-    return LOG2(32000 / (targetPidLooptime * pRatio));
+    return LOG2(32000 / (gyro.targetLooptime * pRatio));
 }
 
 /**
@@ -1780,7 +1780,7 @@ void blackboxInit(void)
     // an I-frame is written every 32ms
     // blackboxUpdate() is run in synchronisation with the PID loop
     // targetPidLooptime is 1000 for 1kHz loop, 500 for 2kHz loop etc, targetPidLooptime is rounded for short looptimes
-    blackboxIInterval = (uint16_t)(32 * 1000 / targetPidLooptime);
+    blackboxIInterval = (uint16_t)(32 * 1000 / gyro.targetLooptime);
 
     blackboxPInterval = 1 << blackboxConfig()->sample_rate;
     if (blackboxPInterval > blackboxIInterval) {

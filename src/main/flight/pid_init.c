@@ -48,17 +48,16 @@
 
 static void pidSetTargetLooptime(uint32_t pidLooptime)
 {
-    targetPidLooptime = pidLooptime;
-    pidRuntime.dT = targetPidLooptime * 1e-6f;
+    pidRuntime.dT = pidLooptime * 1e-6f;
     pidRuntime.pidFrequency = 1.0f / pidRuntime.dT;
 #ifdef USE_DSHOT
-    dshotSetPidLoopTime(targetPidLooptime);
+    dshotSetPidLoopTime(pidLooptime);
 #endif
 }
 
 void pidInit(const pidProfile_t *pidProfile)
 {
-    pidSetTargetLooptime(gyro.targetLooptime); // Initialize pid looptime
+    pidSetTargetLooptime(gyro.targetLooptime);
     pidInitConfig(pidProfile);
 #ifdef USE_RPM_FILTER
     rpmFilterInit(rpmFilterConfig());
