@@ -68,7 +68,6 @@ const char pidNames[] =
     "LEVEL;"
     "MAG;";
 
-FAST_DATA_ZERO_INIT uint32_t targetPidLooptime;
 FAST_DATA_ZERO_INIT pidAxisData_t pidData[XYZ_AXIS_COUNT];
 FAST_DATA_ZERO_INIT pidRuntime_t pidRuntime;
 
