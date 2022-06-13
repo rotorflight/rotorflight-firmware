@@ -109,7 +109,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
             filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 1000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
             filt->minHz      = constrainf(config->filter_bank_min_hz[bank], 10, 1000);
-            filt->maxHz      = constrainf(config->filter_bank_max_hz[bank], 100, 0.45e6f / gyro.targetLooptime);
+            filt->maxHz      = constrainf(config->filter_bank_max_hz[bank], 100, 0.45e6f / gyro.filterLooptime);
             activeBankCount++;
         }
         // Motor#1 (main)
@@ -118,7 +118,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
             filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
             filt->minHz      = constrainf(minHz / mainGearRatio, 10, 1000);
-            filt->maxHz      = constrainf(maxHz / mainGearRatio, 100, 0.45e6f / gyro.targetLooptime);
+            filt->maxHz      = constrainf(maxHz / mainGearRatio, 100, 0.45e6f / gyro.filterLooptime);
             activeBankCount++;
         }
         // Main rotor harmonics
@@ -128,7 +128,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
             filt->rpmRatio   = mainGearRatio * harmonic / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
             filt->minHz      = constrainf(minHz * harmonic, 10, 1000);
-            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.targetLooptime);
+            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.filterLooptime);
             activeBankCount++;
         }
         // Motor#2 (tail)
@@ -137,7 +137,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
             filt->rpmRatio   = 1.0f / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
             filt->minHz      = constrainf(minHz / tailGearRatio, 10, 1000);
-            filt->maxHz      = constrainf(maxHz / tailGearRatio, 100, 0.45e6f / gyro.targetLooptime);
+            filt->maxHz      = constrainf(maxHz / tailGearRatio, 100, 0.45e6f / gyro.filterLooptime);
             activeBankCount++;
         }
         // Tail rotor harmonics
@@ -147,7 +147,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
             filt->rpmRatio   = tailGearRatio * harmonic / ((constrainf(config->filter_bank_gear_ratio[bank], 1, 50000) / 10000) * 60);
             filt->Q          = constrainf(config->filter_bank_notch_q[bank], 10, 10000) / 100;
             filt->minHz      = constrainf(minHz * harmonic, 10, 1000);
-            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.targetLooptime);
+            filt->maxHz      = constrainf(maxHz * harmonic, 100, 0.45e6f / gyro.filterLooptime);
             activeBankCount++;
         }
     }
@@ -156,7 +156,7 @@ void rpmFilterInit(const rpmFilterConfig_t *config)
     for (int bank = 0; bank < activeBankCount; bank++) {
         rpmFilterBank_t *filt = &filterBank[bank];
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&filt->notch[axis], filt->minHz, gyro.targetLooptime, filt->Q, FILTER_NOTCH, 1);
+            biquadFilterInit(&filt->notch[axis], filt->minHz, gyro.filterLooptime, filt->Q, FILTER_NOTCH, 1);
         }
     }
 }
@@ -186,7 +186,7 @@ void rpmFilterUpdate()
         biquadFilter_t *Y = &filt->notch[2];
 
         // Update the filter coefficients
-        biquadFilterUpdate(R, freq, gyro.targetLooptime, filt->Q, FILTER_NOTCH, 1);
+        biquadFilterUpdate(R, freq, gyro.filterLooptime, filt->Q, FILTER_NOTCH, 1);
 
         // Transfer the filter coefficients from Roll axis filter into Pitch and Yaw
         P->b0 = Y->b0 = R->b0;

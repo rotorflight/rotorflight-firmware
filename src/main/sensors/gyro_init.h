@@ -23,7 +23,7 @@
 #include "pg/gyrodev.h"
 #include "sensors/gyro.h"
 
-void gyroSetTargetLooptime(uint8_t pidDenom);
+void gyroSetLooptime(uint8_t pidDenom, uint8_t filterDenom);
 void gyroPreInit(void);
 bool gyroInit(void);
 void gyroInitFilters(void);

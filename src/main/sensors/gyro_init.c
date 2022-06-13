@@ -87,7 +87,7 @@ static gyroDetectionFlags_t gyroDetectionFlags = GYRO_NONE_MASK;
 
 static uint16_t calculateNyquistAdjustedNotchHz(uint16_t notchHz, uint16_t notchCutoffHz)
 {
-    const uint32_t gyroFrequencyNyquist = 1000000 / 2 / gyro.targetLooptime;
+    const uint32_t gyroFrequencyNyquist = 1000000 / 2 / gyro.filterLooptime;
     if (notchHz > gyroFrequencyNyquist) {
         if (notchCutoffHz < gyroFrequencyNyquist) {
             notchHz = gyroFrequencyNyquist;
@@ -109,7 +109,7 @@ static void gyroInitFilterNotch1(uint16_t notchHz, uint16_t notchCutoffHz)
         gyro.notchFilter1ApplyFn = (filterApplyFnPtr)biquadFilterApply;
         const float notchQ = filterGetNotchQ(notchHz, notchCutoffHz);
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&gyro.notchFilter1[axis], notchHz, gyro.targetLooptime, notchQ, FILTER_NOTCH, 1.0f);
+            biquadFilterInit(&gyro.notchFilter1[axis], notchHz, gyro.filterLooptime, notchQ, FILTER_NOTCH, 1.0f);
         }
     }
 }
@@ -124,7 +124,7 @@ static void gyroInitFilterNotch2(uint16_t notchHz, uint16_t notchCutoffHz)
         gyro.notchFilter2ApplyFn = (filterApplyFnPtr)biquadFilterApply;
         const float notchQ = filterGetNotchQ(notchHz, notchCutoffHz);
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&gyro.notchFilter2[axis], notchHz, gyro.targetLooptime, notchQ, FILTER_NOTCH, 1.0f);
+            biquadFilterInit(&gyro.notchFilter2[axis], notchHz, gyro.filterLooptime, notchQ, FILTER_NOTCH, 1.0f);
         }
     }
 }
@@ -139,7 +139,7 @@ static void gyroInitDtermFilterNotch(uint16_t notchHz, uint16_t notchCutoffHz)
         gyro.dtermNotchApplyFn = (filterApplyFnPtr)biquadFilterApply;
         const float notchQ = filterGetNotchQ(notchHz, notchCutoffHz);
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&gyro.dtermNotch[axis], notchHz, gyro.targetLooptime, notchQ, FILTER_NOTCH, 1.0f);
+            biquadFilterInit(&gyro.dtermNotch[axis], notchHz, gyro.filterLooptime, notchQ, FILTER_NOTCH, 1.0f);
         }
     }
 }
@@ -302,7 +302,7 @@ void gyroInitFilters(void)
       FILTER_LPF1,
       gyroConfig()->gyro_lpf1_type,
       gyro_lpf1_init_hz,
-      gyro.targetLooptime
+      gyro.filterLooptime
     );
 
     gyro.downsampleFilterEnabled = gyroInitLowpassFilterLpf(
@@ -319,14 +319,14 @@ void gyroInitFilters(void)
       FILTER_DTERM_LPF1,
       gyroConfig()->dterm_lpf1_type,
       dterm_lpf1_init_hz,
-      gyro.targetLooptime
+      gyro.filterLooptime
     );
 
     gyroInitLowpassFilterLpf(
       FILTER_DTERM_LPF2,
       gyroConfig()->dterm_lpf2_type,
       gyroConfig()->dterm_lpf2_static_hz,
-      gyro.targetLooptime
+      gyro.filterLooptime
     );
 
     gyroInitDtermFilterNotch(gyroConfig()->dterm_notch_hz, gyroConfig()->dterm_notch_cutoff);
@@ -335,7 +335,7 @@ void gyroInitFilters(void)
     dynLpfFilterInit();
 #endif
 #ifdef USE_DYN_NOTCH_FILTER
-    dynNotchInit(dynNotchConfig(), gyro.targetLooptime);
+    dynNotchInit(dynNotchConfig(), gyro.filterLooptime);
 #endif
 }
 
@@ -765,15 +765,23 @@ gyroDetectionFlags_t getGyroDetectionFlags(void)
     return gyroDetectionFlags;
 }
 
-void gyroSetTargetLooptime(uint8_t pidDenom)
+void gyroSetLooptime(uint8_t pidDenom, uint8_t filterDenom)
 {
     activePidLoopDenom = pidDenom;
+    activeFilterLoopDenom = filterDenom;
+
     if (gyro.sampleRateHz) {
-        gyro.sampleLooptime = 1e6 / gyro.sampleRateHz;
-        gyro.targetLooptime = activePidLoopDenom * 1e6 / gyro.sampleRateHz;
+        gyro.sampleLooptime = 1000000 / gyro.sampleRateHz;
+        gyro.filterLooptime = activePidLoopDenom * 1000000 / gyro.sampleRateHz;
+        gyro.targetLooptime = activeFilterLoopDenom * 1000000 / gyro.sampleRateHz;
+        gyro.filterRateHz = gyro.sampleRateHz / activeFilterLoopDenom;
+        gyro.targetRateHz = gyro.sampleRateHz / activePidLoopDenom;
     } else {
         gyro.sampleLooptime = 0;
+        gyro.filterLooptime = 0;
         gyro.targetLooptime = 0;
+        gyro.filterRateHz = 0;
+        gyro.targetRateHz = 0;
     }
 }
 

@@ -125,7 +125,7 @@ enum {
 int16_t magHold;
 #endif
 
-static FAST_DATA_ZERO_INIT uint8_t pidUpdateCounter;
+static FAST_DATA_ZERO_INIT uint16_t pidUpdateCounter;
 
 static timeUs_t disarmAt;     // Time of automatic disarm when "Don't spin the motors when armed" is enabled and auto_disarm_delay is nonzero
 
@@ -716,7 +716,7 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
         static uint32_t previousUpdateTime;
         const uint32_t currentDeltaTime = startTime - previousUpdateTime;
         debug[2] = currentDeltaTime;
-        debug[3] = currentDeltaTime - targetPidLooptime;
+        debug[3] = currentDeltaTime - gyro.targetLooptime;
         previousUpdateTime = startTime;
     } else if (debugMode == DEBUG_PIDLOOP) {
         startTime = micros();
@@ -752,27 +752,18 @@ FAST_CODE void taskGyroSample(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
     gyroUpdate();
-    if (pidUpdateCounter % activePidLoopDenom == 0) {
-        pidUpdateCounter = 0;
-    }
-    pidUpdateCounter++;
+
+    pidUpdateCounter = (pidUpdateCounter + 1) % activePidLoopDenom;
 }
 
 FAST_CODE bool gyroFilterReady(void)
 {
-    if (pidUpdateCounter % activePidLoopDenom == 0) {
-        return true;
-    } else {
-        return false;
-    }
+    return ((pidUpdateCounter + 1) % activeFilterLoopDenom == 0);
 }
 
-FAST_CODE bool pidLoopReady(void)
+bool pidLoopReady(void)
 {
-    if ((pidUpdateCounter % activePidLoopDenom) == (activePidLoopDenom / 2)) {
-        return true;
-    }
-    return false;
+    return (pidUpdateCounter == 0);
 }
 
 FAST_CODE void taskFiltering(timeUs_t currentTimeUs)

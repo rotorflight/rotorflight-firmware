@@ -143,8 +143,6 @@ extern const char pidNames[];
 
 extern pidAxisData_t pidData[3];
 
-extern uint32_t targetPidLooptime;
-
 extern pt1Filter_t throttleLpf;
 
 void resetPidProfile(pidProfile_t *profile);

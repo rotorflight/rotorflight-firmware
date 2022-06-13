@@ -47,7 +47,7 @@
 
 #include "common/maths.h"
 
-#include "flight/pid.h"
+#include "sensors/gyro.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/flashfs.h"
@@ -332,7 +332,7 @@ bool blackboxDeviceOpen(void)
                 blackboxMaxHeaderBytesPerIteration = BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION;
                 break;
             default:
-                blackboxMaxHeaderBytesPerIteration = constrain((targetPidLooptime * 3) / 500, 1, BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION);
+                blackboxMaxHeaderBytesPerIteration = constrain((gyro.targetLooptime * 3) / 500, 1, BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION);
                 break;
             };
 
