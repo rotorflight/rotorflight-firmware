@@ -121,6 +121,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_gain = 100,
         .yaw_collective_ff_impulse_gain = 20,
         .yaw_collective_ff_impulse_freq = 100,
+        .pitch_collective_ff_gain = 20,
+        .pitch_collective_ff_impulse_gain = 0,
         .cyclic_normalization = NORM_ABSOLUTE,
         .collective_normalization = NORM_NATURAL,
         .normalization_min_ratio = 50,
@@ -175,6 +177,10 @@ static FAST_RAM_ZERO_INIT float collectiveDeflectionHPF;
 static FAST_RAM_ZERO_INIT float collectiveImpulseFilterGain;
 
 static FAST_RAM_ZERO_INIT float collectiveCommand;
+
+static FAST_RAM_ZERO_INIT float pitchCollectiveFFGain;
+static FAST_RAM_ZERO_INIT float pitchCollectiveImpulseFFGain;
+
 
 #ifdef USE_ITERM_RELAX
 static FAST_RAM_ZERO_INIT uint8_t itermRelax;
@@ -346,6 +352,10 @@ void pidInitProfile(const pidProfile_t *pidProfile)
     tailCyclicFFGain = pidProfile->yaw_cyclic_ff_gain;
     tailCollectiveFFGain = pidProfile->yaw_collective_ff_gain;
     tailCollectiveImpulseFFGain = pidProfile->yaw_collective_ff_impulse_gain;
+
+    // Pitch parameters
+    pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain;
+    pitchCollectiveImpulseFFGain = pidProfile->pitch_collective_ff_impulse_gain;
 
     // Governor profile
     governorInitProfile(pidProfile);
@@ -554,7 +564,7 @@ static FAST_CODE float applyItermRelax(const int axis, const float iterm,
 #endif
 
 
-static FAST_CODE void pidApplyYawPrecomp(void)
+static FAST_CODE void pidApplyPrecomp(void)
 {
     // Yaw precompensation direction
     float rotSign = mixerRotationSign();
@@ -566,6 +576,29 @@ static FAST_CODE void pidApplyYawPrecomp(void)
     // Collective pitch impulse filter
     collectiveDeflectionLPF += (collectiveDeflection - collectiveDeflectionLPF) * collectiveImpulseFilterGain;
     collectiveDeflectionHPF = collectiveDeflection - collectiveDeflectionLPF;
+
+    // Pitch precomp
+    float pitchCollectiveFF = collectiveDeflection * pitchCollectiveFFGain;
+    float pitchCollectiveImpulseFF = collectiveDeflectionHPF * pitchCollectiveImpulseFFGain;
+
+    // Total pitch precomp
+    float pitchPrecomp = pitchCollectiveFF + pitchCollectiveImpulseFF;
+
+    // Add to PITCH feedforward
+    pidData[FD_PITCH].F   += pitchPrecomp;
+    pidData[FD_PITCH].Sum += pitchPrecomp;
+
+    DEBUG_SET(DEBUG_PITCH_PRECOMP, 0, lrintf(collectiveDeflectionHPF * 1000));
+    DEBUG_SET(DEBUG_PITCH_PRECOMP, 1, lrintf(pitchCollectiveFF));
+    DEBUG_SET(DEBUG_PITCH_PRECOMP, 2, lrintf(pitchCollectiveImpulseFF));
+    DEBUG_SET(DEBUG_PITCH_PRECOMP, 3, lrintf(pitchPrecomp));
+
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 0, collectiveDeflection * 1000);
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 1, collectiveDeflectionLPF * 1000);
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 2, collectiveDeflectionHPF * 1000);
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 3, pitchCollectiveFF * 10);
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 4, pitchCollectiveImpulseFF * 10);
+    DEBUG32_SET(DEBUG_PITCH_PRECOMP, 5, pitchPrecomp * 10);
 
     // Collective components
     float tailCollectiveFF = fabsf(collectiveDeflection) * tailCollectiveFFGain;
@@ -722,8 +755,8 @@ FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
     pidApplyAxis(pidProfile, FD_PITCH);
     pidApplyAxis(pidProfile, FD_YAW);
 
-    // Calculate cyclic/collective precompensation for tail
-    pidApplyYawPrecomp();
+    // Calculate cyclic/collective precompensation
+    pidApplyPrecomp();
 
     // Calculate stabilized collective
     pidApplyCollective();

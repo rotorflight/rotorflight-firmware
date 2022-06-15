@@ -181,6 +181,9 @@ typedef struct pidProfile_s
     uint16_t  yaw_collective_ff_impulse_gain; // Feedforward for collective impulse into Yaw
     uint8_t   yaw_collective_ff_impulse_freq; // Collective input impulse high-pass filter cutoff frequency
 
+    uint16_t  pitch_collective_ff_gain;       // Collective to pitch feedforward gain
+    uint16_t  pitch_collective_ff_impulse_gain; // Collective to pitch feedforward impulse gain
+
     uint8_t   cyclic_normalization;           // Type of pitch/roll rate normalization
     uint8_t   collective_normalization;       // Type of collective normalization
     uint8_t   normalization_min_ratio;        // Minimum headspeed ratio for normalization
