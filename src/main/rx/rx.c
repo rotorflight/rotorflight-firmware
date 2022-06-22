@@ -101,7 +101,7 @@ static bool auxiliaryProcessingRequired = false;
 
 static bool rxSignalReceived = false;
 static bool rxFlightChannelsValid = false;
-static uint8_t rxChannelCount;
+static uint8_t rxChannelCount = 0;
 
 static timeUs_t needRxSignalBefore = 0;
 static timeUs_t suspendRxSignalUntil = 0;
@@ -277,6 +277,9 @@ void rxInit(void)
     rxRuntimeState.rcFrameStatusFn = nullFrameStatus;
     rxRuntimeState.rcProcessFrameFn = nullProcessFrame;
     rxRuntimeState.lastRcFrameTimeUs = 0;
+    rxRuntimeState.channelCount = MAX_SUPPORTED_RC_CHANNEL_COUNT;
+    rxRuntimeState.rxRefreshRate = 50000;
+
     rcSampleIndex = 0;
 
     for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++) {
