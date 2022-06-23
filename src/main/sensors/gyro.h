@@ -127,9 +127,11 @@ typedef struct gyro_s {
 
 #ifdef USE_DYN_LPF
     uint8_t dynLpfFilter;
+    uint16_t dynLpfHz;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
     uint8_t  dynLpfDtermFilter;
+    uint16_t dynLpfDtermHz;
     uint16_t dynLpfDtermMin;
     uint16_t dynLpfDtermMax;
 #endif
@@ -221,6 +223,6 @@ int16_t gyroGetTemperature(void);
 bool gyroOverflowDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 #ifdef USE_DYN_LPF
-void dynLpfGyroUpdate(float throttle);
-void dynLpfDTermUpdate(float throttle);
+void dynLpfGyroUpdate(float ratio);
+void dynLpfDTermUpdate(float ratio);
 #endif

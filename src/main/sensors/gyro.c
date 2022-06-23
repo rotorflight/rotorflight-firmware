@@ -551,15 +551,10 @@ uint16_t gyroAbsRateDps(int axis)
 
 #ifdef USE_DYN_LPF
 
-static inline float dynThrottle(float throttle)
-{
-    return throttle * (1 - (throttle * throttle) / 3.0f) * 1.5f;
-}
-
-void dynLpfGyroUpdate(float throttle)
+void dynLpfGyroUpdate(float ratio)
 {
     if (gyro.dynLpfFilter != DYN_LPF_NONE) {
-        float cutoffFreq = fmaxf(dynThrottle(throttle) * gyro.dynLpfMax, gyro.dynLpfMin);
+        const float cutoffFreq = constrainf(ratio * gyro.dynLpfHz, gyro.dynLpfMin, gyro.dynLpfMax);
         DEBUG_SET(DEBUG_DYN_LPF, 2, lrintf(cutoffFreq));
         const float gyroDt = gyro.targetLooptime * 1e-6f;
         switch (gyro.dynLpfFilter) {
@@ -587,10 +582,10 @@ void dynLpfGyroUpdate(float throttle)
     }
 }
 
-void dynLpfDTermUpdate(float throttle)
+void dynLpfDTermUpdate(float ratio)
 {
     if (gyro.dynLpfDtermFilter != DYN_LPF_NONE) {
-        float cutoffFreq = fmaxf(dynThrottle(throttle) * gyro.dynLpfDtermMax, gyro.dynLpfDtermMin);
+        const float cutoffFreq = constrainf(ratio * gyro.dynLpfDtermHz, gyro.dynLpfDtermMin, gyro.dynLpfDtermMax);
         const float gyroDt = gyro.targetLooptime * 1e-6f;
         switch (gyro.dynLpfDtermFilter) {
         case DYN_LPF_PT1:
