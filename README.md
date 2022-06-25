@@ -1,87 +1,89 @@
 
 # Rotorflight
 
-Rotorflight is a Flight Control software suite for single-rotor helicopters.
+**Rotorflight** is a _Flight Control_/_FBL_ Software Suite for traditional single-rotor RC helicopters. It is based on Betaflight 4.2, enjoying all the great features of the Betaflight platform, plus many new features added for helicopters. Rotorflight borrows ideas and code also from Heliflight3D, an earlier fork of Betaflight for helicopters.
 
-It is based on Betaflight 4.2, with many advanced features added for helicopters.
-Rotorflight does **NOT** support multi-rotor crafts, nor airplanes; it is only for traditinal RC helicopters.
-
-**WARNING!** Rotorflight is **WORK-IN-PROGRESS**. Please talk to the authors if you want to participate in the
-development effort!
+Rotorflight does **NOT** support multi-rotor 'drones', nor airplanes; it is only for traditinal RC helicopters, including co-axial and tandem helicopters.
 
 
 ## Information
 
-For latest information, please see [Rotorflight Wiki](https://github.com/rotorflight/rotorflight/wiki)
+For more information, please see our github space:
+
+ - [Main page](https://github.com/rotorflight)
+ - [Rotorflight Wiki](https://github.com/rotorflight/rotorflight/wiki)
 
 
 ## Features
 
 Rotorflight has many features:
 
-* PID control tuned for helicopter use
-* Fully customisable feedforward between collective/cyclic/yaw
-* Rotor speed governor
+* Great GUI application for setting up and configuration
+* Advanced PID control, tuned for helicopters
+* Main rotor speed governor
+* Precompensation between collective/cyclic/yaw
 * Advanced gyro filtering for helicopters
-  - Advanced dynamic LPF
   - Dynamic RPM based notch filter banks
+  - Advanced dynamic LPF
 * Fully customisable servo/motor mixer
 * Flexible servo configuration
-* Irrelevant (multi-rotor) features removed
+* Flight Profiles (Banks)
+* In-flight settings adjustment from RC channels
 
 Plus lots of features inherited from Betaflight:
 
-* Configuration profiles for changing various tuning parameters
+* Blackbox Flight logger
+* Multiple ESC protocols: DShot, Multishot, Oneshot, and traditional PWM
+* Multiple RX telemetry protocols: CSRF, FrSky, HoTT, MSP, etc.
+* Telemetry inputs for RSSI, battery voltage, current sensors, etc.
 * Multi-color RGB LEDs
 * Configurable buzzer sounds
-* Multiple ESC protocols: DShot (150,300,600), Multishot, Oneshot, and traditional PWM
-* Multiple ESC telemetry protocols: KISS, HW
-* Multiple RX telemetry protocols: CSRF, FrSky, HoTT, MSP, etc.
-* Voltage inputs for RSSI, battery voltage, current sensors, etc.
-* Fully integrated OSD
-* Fully integrated video TX control (Unify Pro, IRC Tramp, etc.)
+* GPS support
 
 And many more...
 
 
 ## Hardware support
 
-Generally speaking, Rotorflight supports all flight controller hardware that is supported by Betaflight.
-With a caveat that the flight controller must have enough suitable I/O pins for connecting all the servos
-and motors required by a collective pitch helicopter.
+Generally speaking, Rotorflight supports most flight controller hardware that is supported by Betaflight. With a caveat that the flight controller must have enough suitable I/O pins for connecting all the servos and motors required by a collective pitch helicopter.
 
-Also, the FC boards are typically labeled for multi-rotor use - thus the user needs to understand how these
-functions can be used for a different purpose with helicopters. Usually this is just about using some
-of the motor outputs for servos, but in some cases a more advanced remapping may be needed.
+Also, the FC boards are typically labeled for multi-rotor use - thus the user needs to understand how these functions can be used for a different purpose with helicopters. Usually this is just about using some of the motor outputs for servos, but in some cases a more advanced remapping may be needed.
 
-It is highly recommended to use a STM32F7 based flight controller, as Rotorflight greatly benefits from
-the latest filtering algorithms and other new features that are all CPU intensive.
-
-An absolute minimum is a STM32F4 based board, but it probably won't be able to run all the new features.
+It is highly recommended to use a STM32F7 or STM32F405 based FC board, as Rotorflight greatly benefits from the latest filtering algorithms and other new features that are all CPU intensive.
+An absolute minimum is a STM32F411 based board, but it probably won't be able to run all the new features.
 
 
 ## Installation
 
-Please see the "Releases" page on the Wiki to download the latest official release:
-* [Click here to go to Releases](https://github.com/rotorflight/rotorflight/wiki/releases)
+Please see the [Releases](https://github.com/rotorflight/rotorflight/wiki/releases) page on the Wiki to download the latest official release.
+
+Also read the installation instruction in the [Wiki](https://github.com/rotorflight/rotorflight/wiki/Installing-Rotorflight-Firmware).
 
 
 ## Contributing
 
 Contributions are welcome and encouraged. You can contribute in many ways:
 
-* testing Rotorflight with different types of helicopters
-* documentation updates and corrections
-* writing How-To guides
-* bug reports
-* new ideas & suggestions
-* provide a new translation for configurator
-* implement a new feature or a fix in the firmware
+ - testing Rotorflight with different types of helicopters
+ - improving the documentation in the Wiki
+ - writing How-To guides
+ - provide a new translation for the configurator
+ - implement new features or fix bugs
+ - reporting bugs
+ - new ideas & suggestions
+ - helping other users
+
+For reporting Rotorflight issues or bugs, please raise them here:
+
+ - [Feature requests](https://github.com/rotorflight/rotorflight/issues)
+ - [Configurator issue tracker](https://github.com/rotorflight/rotorflight-configurator/issues)
+ - [Blackbox issue tracker](https://github.com/rotorflight/rotorflight-blackbox/issues)
+ - [Firmware issue tracker](https://github.com/rotorflight/rotorflight-firmware/issues)
 
 
-## Open Source / Contributors
+## Credits
 
-Rotorflight is software that is **open source** and is available free of charge without warranty to all users.
+Rotorflight is Free Software. Meaning, it is available free of charge _without warranty_, the source code is available, and it is supported by the users themselves as a community. Rotorflight is under the GPLv3 license.
 
 Rotorflight is forked from Betaflight, which in turn is forked from Cleanflight.
 Rotorflight borrows ideas and code also from Heliflight-3D, another Betaflight fork for helis.
@@ -89,42 +91,17 @@ Rotorflight borrows ideas and code also from Heliflight-3D, another Betaflight f
 So thanks goes to all those whom have contributed along the way.
 
 Origins for Rotorflight:
-* **Dr.Rudder** (author, maintainer)
+ - **Petri Mattila** (Dr.Rudder) - author, maintainer
+ - **pkaig** - wiki, resource mapping, testing
+ - **egon** - wiki, Dutch translation, Lua Scripts, testing
+ - **mopatop** - wiki, testing
+ - **Mike_PSL** - wiki, testing
+ - **mattis** - German translation, testing
+ - **Simon Stummer** (simonsummer) - testing
 
 Origins for Heliflight-3D:
-* **James-T1** (author)
-* **Dr.Rudder**
-* **Westie**
-
-Origins for Betaflight:
-* **Alexinparis** (for MultiWii),
-* **timecop** (for Baseflight),
-* **Dominic Clifton** (for Cleanflight),
-* **borisbstyle** (for Betaflight), and
-* **Sambas** (for the original STM32F4 port).
-
-The Betaflight Configurator is forked from Cleanflight Configurator and its origins.
-
-Origins for Betaflight Configurator:
-* **Dominic Clifton** (for Cleanflight configurator), and
-* **ctn** (for the original Configurator).
-
-Big thanks to current and past contributors:
-* Budden, Martin (martinbudden)
-* Bardwell, Joshua (joshuabardwell)
-* Blackman, Jason (blckmn)
-* ctzsnooze
-* Höglund, Anders (andershoglund)
-* Ledvina, Petr (ledvinap) - **IO code awesomeness!**
-* kc10kevin
-* Keeble, Gary (MadmanK)
-* Keller, Michael (mikeller) - **Configurator brilliance**
-* Kravcov, Albert (skaman82) - **Configurator brilliance**
-* MJ666
-* Nathan (nathantsoi)
-* ravnav
-* sambas - **bringing us the F4**
-* savaga
-* Stålheim, Anton (KiteAnton)
+ - **James-T1** (author)
+ - **Dr.Rudder**
+ - **Westie**
 
 And many many others who haven't been mentioned....
