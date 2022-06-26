@@ -25,6 +25,8 @@
 #include "common/axis.h"
 #include "flight/pid.h"
 
+#ifdef USE_INTERPOLATED_SP
+
 typedef enum ffInterpolationType_e {
     FF_INTERPOLATE_OFF,
     FF_INTERPOLATE_ON,
@@ -38,3 +40,5 @@ float interpolatedSpApply(int axis);
 
 float applyFfLimit(int axis, float value, float Kp, float currentPidSetpoint);
 bool shouldApplyFfLimits(int axis);
+
+#endif

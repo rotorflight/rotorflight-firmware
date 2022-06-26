@@ -381,7 +381,9 @@ FAST_CODE_NOINLINE void rcSmoothingSetFilterCutoffs(rcSmoothingFilter_t *smoothi
     // update or initialize the derivative filter
     oldCutoff = smoothingData->derivativeCutoffFrequency;
     if ((rcSmoothingData.derivativeFilterType != RC_SMOOTHING_DERIVATIVE_OFF)
+#ifdef USE_INTERPOLATED_SP
         && (currentPidProfile->ff_interpolate_sp == FF_INTERPOLATE_OFF)
+#endif
         && (rcSmoothingData.derivativeCutoffSetting == 0)) {
         smoothingData->derivativeCutoffFrequency = calcRcSmoothingCutoff(smoothingData->averageFrameTimeUs, (smoothingData->derivativeFilterType == RC_SMOOTHING_DERIVATIVE_PT1), smoothingData->autoSmoothnessFactor);
     }
@@ -459,7 +461,9 @@ FAST_CODE_NOINLINE bool rcSmoothingAutoCalculate(void)
 
     // if the derivative type isn't OFF, and the cutoff is 0, and interpolated feedforward is not enabled then we need to calculate
     if ((rcSmoothingData.derivativeFilterType != RC_SMOOTHING_DERIVATIVE_OFF)
+#ifdef USE_INTERPOLATED_SP
         && (currentPidProfile->ff_interpolate_sp == FF_INTERPOLATE_OFF)
+#endif
         && (rcSmoothingData.derivativeCutoffSetting == 0)) {
         return true;
     }
@@ -486,11 +490,14 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
 
         rcSmoothingData.derivativeFilterTypeSetting = rxConfig()->rc_smoothing_derivative_type;
         if (rxConfig()->rc_smoothing_derivative_type == RC_SMOOTHING_DERIVATIVE_AUTO) {
+#ifdef USE_INTERPOLATED_SP
             // for derivative filter type "AUTO" set to BIQUAD for classic FF and PT1 for interpolated FF
-            if (currentPidProfile->ff_interpolate_sp == FF_INTERPOLATE_OFF) {
-                rcSmoothingData.derivativeFilterType = RC_SMOOTHING_DERIVATIVE_BIQUAD;
-            } else {
+            if (currentPidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF) {
                 rcSmoothingData.derivativeFilterType = RC_SMOOTHING_DERIVATIVE_PT1;
+            } else
+#endif
+            {
+                rcSmoothingData.derivativeFilterType = RC_SMOOTHING_DERIVATIVE_BIQUAD;
             }
         } else {
             rcSmoothingData.derivativeFilterType = rxConfig()->rc_smoothing_derivative_type;
@@ -502,6 +509,7 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
         rcSmoothingData.inputCutoffFrequency = rcSmoothingData.inputCutoffSetting;
 
         if (rcSmoothingData.derivativeFilterType != RC_SMOOTHING_DERIVATIVE_OFF) {
+#ifdef USE_INTERPOLATED_SP
             if ((currentPidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF) && (rcSmoothingData.derivativeCutoffSetting == 0)) {
                 // calculate the fixed derivative cutoff used for interpolated feedforward
                 const float cutoffFactor = (100 - rcSmoothingData.autoSmoothnessFactor) / 100.0f;
@@ -511,7 +519,9 @@ static FAST_CODE uint8_t processRcSmoothingFilter(void)
                     derivativeCutoff = sqrt(derivativeCutoff * RC_SMOOTHING_IDENTITY_FREQUENCY);
                 }
                 rcSmoothingData.derivativeCutoffFrequency = lrintf(derivativeCutoff);
-            } else {
+            } else
+#endif
+            {
                 rcSmoothingData.derivativeCutoffFrequency = rcSmoothingData.derivativeCutoffSetting;
             }
         }

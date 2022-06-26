@@ -109,7 +109,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .abs_control_limit = 120,
         .abs_control_error_limit = 45,
         .abs_control_cutoff = 6,
-        .ff_interpolate_sp = FF_INTERPOLATE_AVG2,
+        .ff_interpolate_sp = 0,
         .ff_spike_limit = 60,
         .ff_max_rate_limit = 100,
         .ff_smooth_factor = 37,
@@ -189,10 +189,6 @@ static FAST_RAM_ZERO_INIT float acError[XYZ_AXIS_COUNT];
 static FAST_RAM_ZERO_INIT float acErrorLimit;
 static FAST_RAM_ZERO_INIT float acLimit;
 static FAST_RAM_ZERO_INIT float acGain;
-#endif
-
-#ifdef USE_INTERPOLATED_SP
-static FAST_RAM_ZERO_INIT bool spInterpolation;
 #endif
 
 static FAST_RAM_ZERO_INIT float itermLimit[XYZ_AXIS_COUNT];
@@ -337,7 +333,6 @@ void pidInitProfile(const pidProfile_t *pidProfile)
 #endif
 
 #ifdef USE_INTERPOLATED_SP
-    spInterpolation = (pidProfile->ff_interpolate_sp != FF_INTERPOLATE_OFF);
     interpolatedSpInit(pidProfile);
 #endif
 
