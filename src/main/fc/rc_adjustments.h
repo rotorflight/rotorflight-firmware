@@ -71,6 +71,7 @@ typedef enum {
     ADJUSTMENT_LED_PROFILE,
     ADJUSTMENT_PITCH_COLL_FF,
     ADJUSTMENT_PITCH_IMPULSE_FF,
+    ADJUSTMENT_SWASH_PHASE,
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunction_e;
 
@@ -79,6 +80,7 @@ typedef enum {
     ADJUSTMENT_TYPE_RATE  = BIT(0),
     ADJUSTMENT_TYPE_PID   = BIT(1),
     ADJUSTMENT_TYPE_GOV   = BIT(2),
+    ADJUSTMENT_TYPE_MIX   = BIT(3),
 } adjustmentType_e;
 
 typedef struct {

@@ -57,6 +57,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .tail_rotor_mode = TAIL_MODE_VARIABLE,
     .tail_motor_idle = 0,
     .swash_ring = 0,
+    .swash_phase = 0,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
@@ -87,6 +88,8 @@ static FAST_RAM_ZERO_INIT float     cyclicLimit;
 static FAST_RAM_ZERO_INIT float     tailMotorIdle;
 static FAST_RAM_ZERO_INIT int8_t    tailMotorDirection;
 
+static FAST_RAM_ZERO_INIT float     phaseSin, phaseCos;
+
 
 static inline void mixerSetInput(int index, float value)
 {
@@ -104,6 +107,16 @@ static inline void mixerSetInput(int index, float value)
 
 static void mixerCyclicLimit(void)
 {
+    // Swash phasing
+    if (phaseSin != 0)
+    {
+        float SR = mixInput[MIXER_IN_STABILIZED_ROLL];
+        float SP = mixInput[MIXER_IN_STABILIZED_PITCH];
+
+        mixInput[MIXER_IN_STABILIZED_PITCH] = SP * phaseCos - SR * phaseSin;
+        mixInput[MIXER_IN_STABILIZED_ROLL]  = SP * phaseSin + SR * phaseCos;
+    }
+
     // Swashring enabled
     if (cyclicLimit > 0)
     {
@@ -280,6 +293,24 @@ void mixerUpdate(void)
     }
 }
 
+void mixerInitSwash(void)
+{
+    if (mixerConfig()->swash_phase) {
+        const float angle = DECIDEGREES_TO_RADIANS(mixerConfig()->swash_phase);
+        phaseSin = sin_approx(angle);
+        phaseCos = cos_approx(angle);
+    }
+    else {
+        phaseSin = 0;
+        phaseCos = 1;
+    }
+
+    if (mixerConfig()->swash_ring)
+        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
+    else
+        cyclicLimit = 0;
+}
+
 void mixerInit(void)
 {
     for (int i = 0; i < MIXER_RULE_COUNT; i++)
@@ -302,10 +333,7 @@ void mixerInit(void)
 
     tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
 
-    if (mixerConfig()->swash_ring)
-        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
-    else
-        cyclicLimit = 0;
+    mixerInitSwash();
 }
 
 

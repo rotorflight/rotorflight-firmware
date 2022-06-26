@@ -122,6 +122,7 @@ typedef struct
     int16_t   tail_motor_idle;  // Idle throttle for tail motor
 
     uint8_t   swash_ring;       // Swash ring size
+    int16_t   swash_phase;      // Swashplate phasing angle
 
 } mixerConfig_t;
 
@@ -150,6 +151,7 @@ PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
 
 
 void mixerInit(void);
+void mixerInitSwash(void);
 
 void mixerUpdate(void);
 

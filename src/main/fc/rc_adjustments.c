@@ -41,6 +41,7 @@
 #include "fc/rc.h"
 
 #include "flight/pid.h"
+#include "flight/mixer.h"
 #include "flight/governor.h"
 
 #include "io/beeper.h"
@@ -128,6 +129,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(GOV_TTA_GAIN,       GOV,   0, 200),
     ADJ_CONFIG(GOV_CYCLIC_FF,      GOV,   0, 200),
     ADJ_CONFIG(GOV_COLLECTIVE_FF,  GOV,   0, 200),
+
+    ADJ_CONFIG(SWASH_PHASE,        MIX,  -1800, 1800),
 
     ADJ_CONFIG(OSD_PROFILE,        NONE,  1,  3),
     ADJ_CONFIG(LED_PROFILE,        NONE,  1,  3),
@@ -266,6 +269,9 @@ static int getAdjustmentValue(uint8_t adjFunc)
         break;
     case ADJUSTMENT_GOV_COLLECTIVE_FF:
         value = currentPidProfile->gov_collective_ff_weight;
+        break;
+    case ADJUSTMENT_SWASH_PHASE:
+        value = mixerConfig()->swash_phase;
         break;
     case ADJUSTMENT_RATE_PROFILE:
         value = getCurrentControlRateProfileIndex() + 1;
@@ -417,6 +423,9 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
     case ADJUSTMENT_GOV_COLLECTIVE_FF:
         currentPidProfile->gov_collective_ff_weight = value;
         break;
+    case ADJUSTMENT_SWASH_PHASE:
+        mixerConfigMutable()->swash_phase = value;
+        break;
     case ADJUSTMENT_RATE_PROFILE:
         changeControlRateProfile(value - 1);
         break;
@@ -550,6 +559,9 @@ void processRcAdjustments(void)
     }
     if (changed & ADJUSTMENT_TYPE_GOV) {
         governorInitProfile(currentPidProfile);
+    }
+    if (changed & ADJUSTMENT_TYPE_MIX) {
+        mixerInitSwash();
     }
 
 #if defined(USE_OSD) && defined(USE_OSD_ADJUSTMENTS)
