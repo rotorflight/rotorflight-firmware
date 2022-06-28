@@ -243,6 +243,12 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     /* Helicopter headspeed */
     {"headspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),    .Iencode = ENCODING(UNSIGNED_VB),   .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 
+    /* Motor RPMs */
+    {"rpm",         0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_1)},
+    {"rpm",         1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_2)},
+    {"rpm",         2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_3)},
+    {"rpm",         3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB), .Ppredict = PREDICT(PREVIOUS),     .Pencode = ENCODING(SIGNED_VB), CONDITION(AT_LEAST_MOTORS_4)},
+
     /* Debug variables */
     {"debug",       0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
     {"debug",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_DEBUG},
@@ -327,6 +333,8 @@ typedef struct blackboxMainState_s {
 
     int16_t motor[MAX_SUPPORTED_MOTORS];
     uint16_t servo[MAX_SUPPORTED_SERVOS];
+
+    int32_t rpm[MAX_SUPPORTED_MOTORS];
 
     uint16_t vbatLatest;
     int32_t amperageLatest;
@@ -646,6 +654,11 @@ static void writeIntraframe(void)
     // Write helicopter headspeed
     blackboxWriteUnsignedVB(blackboxCurrent->headspeed);
 
+    // Write the RPM I frames as signed
+    for (int x = 0; x < getMotorCount(); x++) {
+        blackboxWriteSignedVB(blackboxCurrent->rpm[x]);
+    }
+
     if (testBlackboxCondition(FLIGHT_LOG_FIELD_CONDITION_DEBUG)) {
         blackboxWriteSigned16VBArray(blackboxCurrent->debug, DEBUG16_VALUE_COUNT);
     }
@@ -798,6 +811,12 @@ static void writeInterframe(void)
 
     // Write helicopter headspeed with delta from last frame
     blackboxWriteSignedVB(blackboxCurrent->headspeed - blackboxLast->headspeed);
+
+    // Calculate motor RPM deltas
+    for (int x = 0; x < getMotorCount(); x++) {
+        deltas[x] = blackboxCurrent->rpm[x] - blackboxLast->rpm[x];
+    }
+    blackboxWriteSignedVBArray(deltas, getMotorCount());
 
     if (testBlackboxCondition(FLIGHT_LOG_FIELD_CONDITION_DEBUG)) {
         blackboxWriteMainStateArrayUsingAveragePredictor(offsetof(blackboxMainState_t, debug), DEBUG16_VALUE_COUNT);
@@ -1106,6 +1125,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     for (int i = 0; i < getMotorCount(); i++) {
         blackboxCurrent->motor[i] = getMotorOutput(i);
+        blackboxCurrent->rpm[i] = getMotorRPM(i);
     }
 
     blackboxCurrent->vbatLatest = getBatteryVoltageLatest();
