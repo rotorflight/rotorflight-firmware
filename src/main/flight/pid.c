@@ -151,7 +151,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .feedforward_smooth_factor = 25,
         .feedforward_jitter_factor = 7,
         .feedforward_boost = 15,
-        .dterm_lpf1_dyn_expo = 5,
         .vbat_sag_compensation = 0,
     );
 }
@@ -743,12 +742,7 @@ void pidSetAcroTrainerState(bool newState)
 void dynLpfDTermUpdate(float throttle)
 {
     if (pidRuntime.dynLpfFilter != DYN_LPF_NONE) {
-        float cutoffFreq;
-        if (pidRuntime.dynLpfCurveExpo > 0) {
-            cutoffFreq = dynLpfCutoffFreq(throttle, pidRuntime.dynLpfMin, pidRuntime.dynLpfMax, pidRuntime.dynLpfCurveExpo);
-        } else {
-            cutoffFreq = fmaxf(dynThrottle(throttle) * pidRuntime.dynLpfMax, pidRuntime.dynLpfMin);
-        }
+        float cutoffFreq = fmaxf(dynThrottle(throttle) * pidRuntime.dynLpfMax, pidRuntime.dynLpfMin);
 
         switch (pidRuntime.dynLpfFilter) {
         case DYN_LPF_PT1:
@@ -775,13 +769,6 @@ void dynLpfDTermUpdate(float throttle)
     }
 }
 #endif
-
-float dynLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, uint8_t expo) {
-    const float expof = expo / 10.0f;
-    static float curve;
-    curve = throttle * (1 - throttle) * expof + throttle;
-    return (dynLpfMax - dynLpfMin) * curve + dynLpfMin;
-}
 
 float pidGetPreviousSetpoint(int axis)
 {
