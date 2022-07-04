@@ -86,6 +86,14 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
         GYRO_FILTER_DEBUG_SET(DEBUG_GYRO_FILTERED, axis, lrintf(gyroADCf));
 
         gyro.gyroADCf[axis] = gyroADCf;
+
+        // Further filtering for D-term
+        gyroADCf = gyro.dtermNotchApplyFn((filter_t *) &gyro.dtermNotch[axis], gyroADCf);
+        gyroADCf = gyro.dtermLowpassApplyFn((filter_t *) &gyro.dtermLowpassFilter[axis], gyroADCf);
+        gyroADCf = gyro.dtermLowpass2ApplyFn((filter_t *) &gyro.dtermLowpass2Filter[axis], gyroADCf);
+
+        gyro.gyroDtermADCf[axis] = gyroADCf;
+
     }
     gyro.sampleCount = 0;
 }

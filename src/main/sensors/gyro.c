@@ -120,6 +120,14 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
     gyroConfig->gyro_filter_debug_axis = FD_ROLL;
+    gyroConfig->dterm_lpf1_type = FILTER_PT1;
+    gyroConfig->dterm_lpf1_static_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT;
+    gyroConfig->dterm_lpf2_type = FILTER_PT1;
+    gyroConfig->dterm_lpf2_static_hz = DTERM_LPF2_HZ_DEFAULT;
+    gyroConfig->dterm_lpf1_dyn_min_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT;
+    gyroConfig->dterm_lpf1_dyn_max_hz = DTERM_LPF1_DYN_MAX_HZ_DEFAULT;
+    gyroConfig->dterm_notch_hz = 0;
+    gyroConfig->dterm_notch_cutoff = 0;
 }
 
 FAST_CODE bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
@@ -544,7 +552,8 @@ uint16_t gyroAbsRateDps(int axis)
 
 #ifdef USE_DYN_LPF
 
-float dynThrottle(float throttle) {
+static inline float dynThrottle(float throttle)
+{
     return throttle * (1 - (throttle * throttle) / 3.0f) * 1.5f;
 }
 
@@ -578,4 +587,35 @@ void dynLpfGyroUpdate(float throttle)
         }
     }
 }
-#endif
+
+void dynLpfDTermUpdate(float throttle)
+{
+    if (gyro.dynLpfDtermFilter != DYN_LPF_NONE) {
+        float cutoffFreq = fmaxf(dynThrottle(throttle) * gyro.dynLpfDtermMax, gyro.dynLpfDtermMin);
+        const float gyroDt = gyro.targetLooptime * 1e-6f;
+        switch (gyro.dynLpfDtermFilter) {
+        case DYN_LPF_PT1:
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                pt1FilterUpdateCutoff(&gyro.dtermLowpassFilter[axis].pt1FilterState, pt1FilterGain(cutoffFreq, gyroDt));
+            }
+            break;
+        case DYN_LPF_BIQUAD:
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                biquadFilterUpdateLPF(&gyro.dtermLowpassFilter[axis].biquadFilterState, cutoffFreq, gyro.targetLooptime);
+            }
+            break;
+        case DYN_LPF_PT2:
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                pt2FilterUpdateCutoff(&gyro.dtermLowpassFilter[axis].pt2FilterState, pt2FilterGain(cutoffFreq, gyroDt));
+            }
+            break;
+        case DYN_LPF_PT3:
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                pt3FilterUpdateCutoff(&gyro.dtermLowpassFilter[axis].pt3FilterState, pt3FilterGain(cutoffFreq, gyroDt));
+            }
+            break;
+        }
+    }
+}
+
+#endif // USE_DYN_LPF

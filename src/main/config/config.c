@@ -239,27 +239,6 @@ static void validateAndFixConfig(void)
         featureDisableImmediate(FEATURE_GPS);
     }
 
-    for (unsigned i = 0; i < PID_PROFILE_COUNT; i++) {
-        // Fix filter settings to handle cases where an older configurator was used that
-        // allowed higher cutoff limits from previous firmware versions.
-        adjustFilterLimit(&pidProfilesMutable(i)->dterm_lpf1_static_hz, LPF_MAX_HZ);
-        adjustFilterLimit(&pidProfilesMutable(i)->dterm_lpf2_static_hz, LPF_MAX_HZ);
-        adjustFilterLimit(&pidProfilesMutable(i)->dterm_notch_hz, LPF_MAX_HZ);
-        adjustFilterLimit(&pidProfilesMutable(i)->dterm_notch_cutoff, 0);
-
-        // Prevent invalid notch cutoff
-        if (pidProfilesMutable(i)->dterm_notch_cutoff >= pidProfilesMutable(i)->dterm_notch_hz) {
-            pidProfilesMutable(i)->dterm_notch_hz = 0;
-        }
-
-#ifdef USE_DYN_LPF
-        //Prevent invalid dynamic lowpass
-        if (pidProfilesMutable(i)->dterm_lpf1_dyn_min_hz > pidProfilesMutable(i)->dterm_lpf1_dyn_max_hz) {
-            pidProfilesMutable(i)->dterm_lpf1_dyn_min_hz = 0;
-        }
-#endif
-    }
-
     if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > BRUSHLESS_MOTORS_PWM_RATE)) {
         motorConfigMutable()->dev.motorPwmRate = BRUSHLESS_MOTORS_PWM_RATE;
     }
@@ -570,6 +549,10 @@ void validateAndFixGyroConfig(void)
     adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_1, 0);
     adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_2, LPF_MAX_HZ);
     adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_2, 0);
+    adjustFilterLimit(&gyroConfigMutable()->dterm_lpf1_static_hz, LPF_MAX_HZ);
+    adjustFilterLimit(&gyroConfigMutable()->dterm_lpf2_static_hz, LPF_MAX_HZ);
+    adjustFilterLimit(&gyroConfigMutable()->dterm_notch_hz, LPF_MAX_HZ);
+    adjustFilterLimit(&gyroConfigMutable()->dterm_notch_cutoff, 0);
 
     // Prevent invalid notch cutoff
     if (gyroConfig()->gyro_soft_notch_cutoff_1 >= gyroConfig()->gyro_soft_notch_hz_1) {
@@ -578,10 +561,16 @@ void validateAndFixGyroConfig(void)
     if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2) {
         gyroConfigMutable()->gyro_soft_notch_hz_2 = 0;
     }
+    if (gyroConfig()->dterm_notch_cutoff >= gyroConfig()->dterm_notch_hz) {
+        gyroConfigMutable()->dterm_notch_hz = 0;
+    }
 #ifdef USE_DYN_LPF
     //Prevent invalid dynamic lowpass filter
     if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_dyn_max_hz) {
         gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
+    }
+    if (gyroConfig()->dterm_lpf1_dyn_min_hz > gyroConfig()->dterm_lpf1_dyn_max_hz) {
+        gyroConfigMutable()->dterm_lpf1_dyn_min_hz = 0;
     }
 #endif
 
