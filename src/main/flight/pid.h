@@ -159,7 +159,6 @@ typedef struct pidProfile_s {
     uint8_t feedforward_boost;              // amount of setpoint acceleration to add to feedforward, 10 means 100% added
     uint8_t feedforward_max_rate_limit;     // Maximum setpoint rate percentage for feedforward
 
-    uint8_t dterm_lpf1_dyn_expo;            // set the curve for dynamic dterm lowpass filter
     uint8_t vbat_sag_compensation;          // Reduce motor output by this percentage of the maximum compensation amount
 
 } pidProfile_t;
@@ -258,7 +257,6 @@ typedef struct pidRuntime_s {
     uint8_t dynLpfFilter;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
-    uint8_t dynLpfCurveExpo;
 #endif
 
 #ifdef USE_FEEDFORWARD
@@ -305,4 +303,3 @@ float pidGetFeedforwardBoostFactor();
 float pidGetFeedforwardSmoothFactor();
 float pidGetFeedforwardJitterFactor();
 float pidGetFeedforwardTransitionFactor();
-float dynLpfCutoffFreq(float throttle, uint16_t dynLpfMin, uint16_t dynLpfMax, uint8_t expo);
