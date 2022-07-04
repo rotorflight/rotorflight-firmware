@@ -504,10 +504,8 @@ static uint16_t dynFiltNotchMinHz;
 #ifdef USE_DYN_LPF
 static uint16_t gyroLpfDynMin;
 static uint16_t gyroLpfDynMax;
-static uint8_t gyroLpfDynExpo;
 static uint16_t dtermLpfDynMin;
 static uint16_t dtermLpfDynMax;
-static uint8_t dtermLpfDynExpo;
 #endif
 
 static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
@@ -524,10 +522,8 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
     const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
     gyroLpfDynMin   = gyroConfig()->gyro_lpf1_dyn_min_hz;
     gyroLpfDynMax   = gyroConfig()->gyro_lpf1_dyn_max_hz;
-    gyroLpfDynExpo  = gyroConfig()->gyro_lpf1_dyn_expo;
     dtermLpfDynMin  = pidProfile->dterm_lpf1_dyn_min_hz;
     dtermLpfDynMax  = pidProfile->dterm_lpf1_dyn_max_hz;
-    dtermLpfDynExpo = pidProfile->dterm_lpf1_dyn_expo;
 #endif
 
     return NULL;
@@ -548,10 +544,8 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile_t *pidProfile = currentPidProfile;
     gyroConfigMutable()->gyro_lpf1_dyn_min_hz = gyroLpfDynMin;
     gyroConfigMutable()->gyro_lpf1_dyn_max_hz = gyroLpfDynMax;
-    gyroConfigMutable()->gyro_lpf1_dyn_expo   = gyroLpfDynExpo;
     pidProfile->dterm_lpf1_dyn_min_hz         = dtermLpfDynMin;
     pidProfile->dterm_lpf1_dyn_max_hz         = dtermLpfDynMax;
-    pidProfile->dterm_lpf1_dyn_expo           = dtermLpfDynExpo;
 #endif
 
     return NULL;
@@ -571,10 +565,8 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
 #ifdef USE_DYN_LPF
     { "GYRO DLPF MIN",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMin,  0, 1000, 1 } },
     { "GYRO DLPF MAX",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMax,  0, 1000, 1 } },
-    { "GYRO DLPF EXPO",  OME_UINT8, NULL, &(OSD_UINT8_t) { &gyroLpfDynExpo,   0, 10, 1 } },
     { "DTERM DLPF MIN",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMin, 0, 1000, 1 } },
     { "DTERM DLPF MAX",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMax, 0, 1000, 1 } },
-    { "DTERM DLPF EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &dtermLpfDynExpo,  0, 10, 1 } },
 #endif
 
     { "BACK", OME_Back, NULL, NULL },
