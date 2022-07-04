@@ -116,7 +116,6 @@ typedef struct gyro_s {
     uint8_t dynLpfFilter;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
-    uint8_t dynLpfCurveExpo;
 #endif
 
 #ifdef USE_GYRO_OVERFLOW_CHECK
@@ -179,7 +178,6 @@ typedef struct gyroConfig_s {
     uint8_t gyro_filter_debug_axis;
 
     uint8_t gyrosDetected; // What gyros should detection be attempted for on startup. Automatically set on first startup.
-    uint8_t gyro_lpf1_dyn_expo; // set the curve for dynamic gyro lowpass filter
 } gyroConfig_t;
 
 PG_DECLARE(gyroConfig_t, gyroConfig);
