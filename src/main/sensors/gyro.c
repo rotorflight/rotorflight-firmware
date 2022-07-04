@@ -120,7 +120,6 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
     gyroConfig->gyro_filter_debug_axis = FD_ROLL;
-    gyroConfig->gyro_lpf1_dyn_expo = 5;
 }
 
 FAST_CODE bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
@@ -552,12 +551,7 @@ float dynThrottle(float throttle) {
 void dynLpfGyroUpdate(float throttle)
 {
     if (gyro.dynLpfFilter != DYN_LPF_NONE) {
-        float cutoffFreq;
-        if (gyro.dynLpfCurveExpo > 0) {
-            cutoffFreq = dynLpfCutoffFreq(throttle, gyro.dynLpfMin, gyro.dynLpfMax, gyro.dynLpfCurveExpo);
-        } else {
-            cutoffFreq = fmaxf(dynThrottle(throttle) * gyro.dynLpfMax, gyro.dynLpfMin);
-        }
+        float cutoffFreq = fmaxf(dynThrottle(throttle) * gyro.dynLpfMax, gyro.dynLpfMin);
         DEBUG_SET(DEBUG_DYN_LPF, 2, lrintf(cutoffFreq));
         const float gyroDt = gyro.targetLooptime * 1e-6f;
         switch (gyro.dynLpfFilter) {
