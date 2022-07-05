@@ -24,13 +24,23 @@
 
 #include "pg/pg.h"
 
+#define CONTROL_RATE_CONFIG_RC_EXPO_MAX         100
+#define CONTROL_RATE_CONFIG_RC_RATES_MAX        255
+#define CONTROL_RATE_CONFIG_SUPER_RATE_MAX      255
+
+#define CONTROL_RATE_CONFIG_RATE_LIMIT_MIN      200
+#define CONTROL_RATE_CONFIG_RATE_LIMIT_MAX      2000
+
+#define SETPOINT_RATE_LIMIT 2000
+
 typedef enum {
-    RATES_TYPE_BETAFLIGHT = 0,
+    RATES_TYPE_NONE = 0,
+    RATES_TYPE_BETAFLIGHT,
     RATES_TYPE_RACEFLIGHT,
     RATES_TYPE_KISS,
     RATES_TYPE_ACTUAL,
     RATES_TYPE_QUICK,
-    RATES_TYPE_COUNT    // must be the final entry
+    RATES_TYPE_COUNT
 } ratesType_e;
 
 typedef struct ratesSettingsLimits_s {
@@ -39,25 +49,33 @@ typedef struct ratesSettingsLimits_s {
     uint8_t expo_limit;
 } ratesSettingsLimits_t;
 
-#define MAX_RATE_PROFILE_NAME_LENGTH 8u
+#define MAX_RATE_PROFILE_NAME_LENGTH 8
 
 typedef struct controlRateConfig_s {
+    char profileName[MAX_RATE_PROFILE_NAME_LENGTH + 1];
+
     uint8_t rates_type;
     uint8_t rcRates[3];
     uint8_t rcExpo[3];
     uint8_t rates[3];
+
     uint16_t rate_limit[3];                 // Sets the maximum rate for the axes
-    char profileName[MAX_RATE_PROFILE_NAME_LENGTH + 1]; // Descriptive name for rate profile
-    uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
+
     uint8_t levelExpo[2];                   // roll/pitch level mode expo
+    uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
+
 } controlRateConfig_t;
 
 PG_DECLARE_ARRAY(controlRateConfig_t, CONTROL_RATE_PROFILE_COUNT, controlRateProfiles);
 
-extern controlRateConfig_t *currentControlRateProfile;
+
+extern controlRateConfig_t * currentControlRateProfile;
 extern const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT];
 
+float applyRatesCurve(const int axis, float rcCommandf);
+
+void initControlRates(void);
 void loadControlRateProfile(void);
 void changeControlRateProfile(uint8_t controlRateProfileIndex);
+void copyControlRateProfile(uint8_t dstControlRateProfileIndex, uint8_t srcControlRateProfileIndex);
 
-void copyControlRateProfile(const uint8_t dstControlRateProfileIndex, const uint8_t srcControlRateProfileIndex);
