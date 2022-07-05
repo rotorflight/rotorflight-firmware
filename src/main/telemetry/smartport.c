@@ -47,7 +47,7 @@
 #include "drivers/time.h"
 
 #include "config/config.h"
-#include "fc/controlrate_profile.h"
+#include "fc/rc_rates.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
 
