@@ -72,7 +72,6 @@ COMMON_SRC = \
             sensors/voltage.c \
             target/config_helper.c \
             fc/init.c \
-            fc/controlrate_profile.c \
             drivers/camera_control.c \
             drivers/accgyro/gyro_sync.c \
             drivers/pwm_output.c \
@@ -85,6 +84,7 @@ COMMON_SRC = \
             fc/rc_adjustments.c \
             fc/rc_controls.c \
             fc/rc_modes.c \
+            fc/rc_rates.c \
             flight/position.c \
             flight/failsafe.c \
             flight/gps_rescue.c \

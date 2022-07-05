@@ -72,7 +72,7 @@
 #include "drivers/freq.h"
 
 #include "fc/board_info.h"
-#include "fc/controlrate_profile.h"
+#include "fc/rc_rates.h"
 #include "fc/core.h"
 #include "fc/dispatch.h"
 #include "fc/rc.h"
@@ -2292,7 +2292,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 currentControlRateProfile->rates_type = sbufReadU8(src);
             }
 
-            initRcProcessing();
+            loadControlRateProfile();
         } else {
             return MSP_RESULT_ERROR;
         }

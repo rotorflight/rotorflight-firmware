@@ -51,7 +51,7 @@
 #include "drivers/time.h"
 #include "drivers/freq.h"
 
-#include "fc/controlrate_profile.h"
+#include "fc/rc_rates.h"
 #include "fc/rc.h"
 #include "fc/rc_adjustments.h"
 #include "fc/rc_controls.h"

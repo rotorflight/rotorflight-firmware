@@ -32,12 +32,12 @@
 #include "config/config.h"
 #include "config/feature.h"
 
-#include "fc/controlrate_profile.h"
+#include "fc/runtime_config.h"
 #include "fc/core.h"
 #include "fc/rc.h"
 #include "fc/rc_controls.h"
 #include "fc/rc_modes.h"
-#include "fc/runtime_config.h"
+#include "fc/rc_rates.h"
 
 #include "flight/failsafe.h"
 #include "flight/imu.h"
@@ -54,12 +54,9 @@
 #include "rc.h"
 
 
-typedef float (applyRatesFn)(const int axis, float rcCommandf, const float rcCommandfAbs);
-
 static float rawSetpoint[4];
 static float setpointRate[4];
 static float rcDeflection[4], rcDeflectionAbs[4];
-static applyRatesFn *applyRates;
 static uint16_t currentRxRefreshRate;
 static bool isRxDataNew = false;
 static bool isRxRateValid = false;
@@ -82,94 +79,6 @@ float getRcDeflection(int axis)
 float getRcDeflectionAbs(int axis)
 {
     return rcDeflectionAbs[axis];
-}
-
-#define SETPOINT_RATE_LIMIT 1998
-STATIC_ASSERT(CONTROL_RATE_CONFIG_RATE_LIMIT_MAX <= SETPOINT_RATE_LIMIT, CONTROL_RATE_CONFIG_RATE_LIMIT_MAX_too_large);
-
-#define RC_RATE_INCREMENTAL 14.54f
-
-float applyBetaflightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
-{
-    if (currentControlRateProfile->rcExpo[axis]) {
-        const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
-        rcCommandf = rcCommandf * power3(rcCommandfAbs) * expof + rcCommandf * (1 - expof);
-    }
-
-    float rcRate = currentControlRateProfile->rcRates[axis] / 100.0f;
-    if (rcRate > 2.0f) {
-        rcRate += RC_RATE_INCREMENTAL * (rcRate - 2.0f);
-    }
-    float angleRate = 200.0f * rcRate * rcCommandf;
-    if (currentControlRateProfile->rates[axis]) {
-        const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
-        angleRate *= rcSuperfactor;
-    }
-
-    return angleRate;
-}
-
-float applyRaceFlightRates(const int axis, float rcCommandf, const float rcCommandfAbs)
-{
-    // -1.0 to 1.0 ranged and curved
-    rcCommandf = ((1.0f + 0.01f * currentControlRateProfile->rcExpo[axis] * (rcCommandf * rcCommandf - 1.0f)) * rcCommandf);
-    // convert to -2000 to 2000 range using acro+ modifier
-    float angleRate = 10.0f * currentControlRateProfile->rcRates[axis] * rcCommandf;
-    angleRate = angleRate * (1 + rcCommandfAbs * (float)currentControlRateProfile->rates[axis] * 0.01f);
-
-    return angleRate;
-}
-
-float applyKissRates(const int axis, float rcCommandf, const float rcCommandfAbs)
-{
-    const float rcCurvef = currentControlRateProfile->rcExpo[axis] / 100.0f;
-
-    float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
-    float kissRcCommandf = (power3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (currentControlRateProfile->rcRates[axis] / 1000.0f);
-    float kissAngle = constrainf(((2000.0f * kissRpyUseRates) * kissRcCommandf), -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
-
-    return kissAngle;
-}
-
-float applyActualRates(const int axis, float rcCommandf, const float rcCommandfAbs)
-{
-    float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    expof = rcCommandfAbs * (powf(rcCommandf, 5) * expof + rcCommandf * (1 - expof));
-
-    const float centerSensitivity = currentControlRateProfile->rcRates[axis] * 10.0f;
-    const float stickMovement = MAX(0, currentControlRateProfile->rates[axis] * 10.0f - centerSensitivity);
-    const float angleRate = rcCommandf * centerSensitivity + stickMovement * expof;
-
-    return angleRate;
-}
-
-float applyQuickRates(const int axis, float rcCommandf, const float rcCommandfAbs)
-{
-    const uint16_t rcRate = currentControlRateProfile->rcRates[axis] * 2;
-    const uint16_t maxDPS = MAX(currentControlRateProfile->rates[axis] * 10, rcRate);
-    const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float superFactorConfig = ((float)maxDPS / rcRate - 1) / ((float)maxDPS / rcRate);
-
-    float curve;
-    float superFactor;
-    float angleRate;
-
-    if (currentControlRateProfile->quickRatesRcExpo) {
-        curve = power3(rcCommandf) * expof + rcCommandf * (1 - expof);
-        superFactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * superFactorConfig), 0.01f, 1.00f));
-        angleRate = constrainf(curve * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
-    } else {
-        curve = power3(rcCommandfAbs) * expof + rcCommandfAbs * (1 - expof);
-        superFactor = 1.0f / (constrainf(1.0f - (curve * superFactorConfig), 0.01f, 1.00f));
-        angleRate = constrainf(rcCommandf * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
-    }
-
-    return angleRate;
-}
-
-float applyCurve(int axis, float deflection)
-{
-    return applyRates(axis, deflection, fabsf(deflection));
 }
 
 void updateRcRefreshRate(timeUs_t currentTimeUs)
@@ -225,7 +134,7 @@ FAST_CODE void processRcCommand(void)
                 const float rcCommandfAbs = fabsf(rcCommandf);
                 rcDeflectionAbs[axis] = rcCommandfAbs;
 
-                angleRate = applyRates(axis, rcCommandf, rcCommandfAbs);
+                angleRate = applyRatesCurve(axis, rcCommandf);
 
             }
             rawSetpoint[axis] = constrainf(angleRate, -1.0f * currentControlRateProfile->rate_limit[axis], 1.0f * currentControlRateProfile->rate_limit[axis]);
@@ -277,28 +186,4 @@ void initRcProcessing(void)
 {
     rcCommandDivider = 500.0f - rcControlsConfig()->deadband;
     rcCommandYawDivider = 500.0f - rcControlsConfig()->yaw_deadband;
-
-    switch (currentControlRateProfile->rates_type) {
-    case RATES_TYPE_BETAFLIGHT:
-    default:
-        applyRates = applyBetaflightRates;
-
-        break;
-    case RATES_TYPE_RACEFLIGHT:
-        applyRates = applyRaceFlightRates;
-
-        break;
-    case RATES_TYPE_KISS:
-        applyRates = applyKissRates;
-
-        break;
-    case RATES_TYPE_ACTUAL:
-        applyRates = applyActualRates;
-
-        break;
-    case RATES_TYPE_QUICK:
-        applyRates = applyQuickRates;
-
-        break;
-    }
 }
