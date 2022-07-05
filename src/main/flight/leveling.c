@@ -34,7 +34,7 @@
 #include "common/axis.h"
 #include "common/filter.h"
 
-#include "fc/controlrate_profile.h"
+#include "fc/rc_rates.h"
 #include "fc/core.h"
 #include "fc/rc.h"
 #include "fc/rc_controls.h"
