@@ -221,9 +221,7 @@ FAST_CODE void dynNotchUpdate(void)
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             sampleAvg[axis] = sampleAccumulator[axis] * sampleCountRcp;
             sampleAccumulator[axis] = 0;
-            if (axis == gyro.gyroDebugAxis) {
-                DEBUG_SET(DEBUG_FFT, 2, lrintf(sampleAvg[axis]));
-            }
+            DEBUG_AXIS(FFT, axis, 2, sampleAvg[axis]);
         }
 
         // We need DYN_NOTCH_CALC_TICKS ticks to update all axes with newly sampled value
@@ -371,7 +369,7 @@ static FAST_CODE_NOINLINE void dynNotchProcess(void)
                 }
             }
 
-            if (state.axis == gyro.gyroDebugAxis) {
+            if (state.axis == debugAxis) {
                 for (int p = 0; p < dynNotch.count && p < 3; p++) {
                     DEBUG_SET(DEBUG_FFT_FREQ, p, lrintf(dynNotch.centerFreq[state.axis][p]));
                 }
