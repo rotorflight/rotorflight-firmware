@@ -46,6 +46,8 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
             gyro.sampleSum[axis] = 0;
         }
 
+        gyro.gyroADCd[axis] = gyroADCf;
+
         // DEBUG_GYRO_SAMPLE(1) Record the post-downsample value for the selected debug axis
         GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 1, lrintf(gyroADCf));
 
