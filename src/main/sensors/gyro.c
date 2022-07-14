@@ -120,7 +120,6 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyro_offset_yaw = 0;
     gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
-    gyroConfig->gyro_filter_debug_axis = FD_ROLL;
     gyroConfig->dterm_lpf1_type = FILTER_PT1;
     gyroConfig->dterm_lpf1_static_hz = DTERM_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->dterm_lpf2_type = FILTER_PT1;
@@ -403,16 +402,16 @@ FAST_CODE void gyroUpdate(void)
 }
 
 #define GYRO_FILTER_FUNCTION_NAME filterGyro
-#define GYRO_FILTER_DEBUG_SET(mode, index, value) do { UNUSED(mode); UNUSED(index); UNUSED(value); } while (0)
-#define GYRO_FILTER_AXIS_DEBUG_SET(axis, mode, index, value) do { UNUSED(axis); UNUSED(mode); UNUSED(index); UNUSED(value); } while (0)
+#define GYRO_FILTER_DEBUG_SET(mode, index, value)
+#define GYRO_FILTER_AXIS_DEBUG_SET(axis, mode, index, value)
 #include "gyro_filter_impl.c"
 #undef GYRO_FILTER_FUNCTION_NAME
 #undef GYRO_FILTER_DEBUG_SET
 #undef GYRO_FILTER_AXIS_DEBUG_SET
 
 #define GYRO_FILTER_FUNCTION_NAME filterGyroDebug
-#define GYRO_FILTER_DEBUG_SET DEBUG_SET
-#define GYRO_FILTER_AXIS_DEBUG_SET(axis, mode, index, value) if (axis == (int)gyro.gyroDebugAxis) DEBUG_SET(mode, index, value)
+#define GYRO_FILTER_DEBUG_SET(mode, index, value) DEBUG_SET((mode), (index), (value))
+#define GYRO_FILTER_AXIS_DEBUG_SET(axis, mode, index, value) DEBUG_AXIS_SET((mode), (axis), (index), (value))
 #include "gyro_filter_impl.c"
 #undef GYRO_FILTER_FUNCTION_NAME
 #undef GYRO_FILTER_DEBUG_SET
