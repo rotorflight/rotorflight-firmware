@@ -66,7 +66,7 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
 
 #ifdef USE_DYN_NOTCH_FILTER
         if (isDynNotchActive()) {
-            if (axis == gyro.gyroDebugAxis) {
+            if (axis == debugAxis) {
                 GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 0, lrintf(gyroADCf));
                 GYRO_FILTER_DEBUG_SET(DEBUG_FFT_FREQ, 3, lrintf(gyroADCf));
                 GYRO_FILTER_DEBUG_SET(DEBUG_DYN_LPF, 0, lrintf(gyroADCf));
@@ -75,7 +75,7 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
             dynNotchPush(axis, gyroADCf);
             gyroADCf = dynNotchFilter(axis, gyroADCf);
 
-            if (axis == gyro.gyroDebugAxis) {
+            if (axis == debugAxis) {
                 GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroADCf));
                 GYRO_FILTER_DEBUG_SET(DEBUG_DYN_LPF, 3, lrintf(gyroADCf));
             }
