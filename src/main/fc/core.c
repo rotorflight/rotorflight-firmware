@@ -354,10 +354,6 @@ void disarm(flightLogDisarmReason_e reason)
         flightLogEvent_disarm_t eventData;
         eventData.reason = reason;
         blackboxLogEvent(FLIGHT_LOG_EVENT_DISARM, (flightLogEventData_t*)&eventData);
-
-        if (blackboxConfig()->device) {
-            blackboxFinish();
-        }
 #else
         UNUSED(reason);
 #endif
