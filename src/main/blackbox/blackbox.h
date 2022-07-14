@@ -33,7 +33,10 @@ typedef enum BlackboxDevice {
 } BlackboxDevice_e;
 
 typedef enum BlackboxMode {
-    BLACKBOX_MODE_NORMAL = 0,
+    BLACKBOX_MODE_OFF = 0,
+    BLACKBOX_MODE_NORMAL,
+    BLACKBOX_MODE_ARMED,
+    BLACKBOX_MODE_SWITCH,
 } BlackboxMode;
 
 typedef enum BlackboxSampleRate { // Sample rate is 1/(2^BlackboxSampleRate)
@@ -57,9 +60,9 @@ typedef enum FlightLogEvent {
 } FlightLogEvent;
 
 typedef struct blackboxConfig_s {
-    uint8_t sample_rate; // sample rate
+    uint8_t sample_rate;
     uint8_t device;
-    uint32_t fields_disabled_mask;
+    uint32_t fields;
     uint8_t mode;
 } blackboxConfig_t;
 
@@ -76,7 +79,6 @@ uint8_t blackboxGetRateDenom(void);
 uint16_t blackboxGetPRatio(void);
 uint8_t blackboxCalculateSampleRate(uint16_t pRatio);
 void blackboxValidateConfig(void);
-void blackboxFinish(void);
 bool blackboxMayEditConfig(void);
 #ifdef UNIT_TEST
 STATIC_UNIT_TESTED void blackboxLogIteration(timeUs_t currentTimeUs);
