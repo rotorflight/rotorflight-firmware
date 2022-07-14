@@ -419,10 +419,6 @@ const char * const lookupTableLedstripColors[COLOR_COUNT] = {
     "DEEP_PINK"
 };
 
-static const char * const lookupTableGyroFilterDebug[] = {
-    "ROLL", "PITCH", "YAW"
-};
-
 static const char * const lookupTablePositionAltSource[] = {
     "DEFAULT", "BARO_ONLY", "GPS_ONLY"
 };
@@ -569,8 +565,6 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableLedstripColors),
 #endif
 
-    LOOKUP_TABLE_ENTRY(lookupTableGyroFilterDebug),
-
     LOOKUP_TABLE_ENTRY(lookupTablePositionAltSource),
     LOOKUP_TABLE_ENTRY(lookupTableOffOnAuto),
     LOOKUP_TABLE_ENTRY(lookupTableFeedforwardAveraging),
@@ -643,7 +637,6 @@ const clivalue_t valueTable[] = {
     { "dterm_lpf1_dyn_min_hz",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_lpf1_dyn_min_hz) },
     { "dterm_lpf1_dyn_max_hz",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, DYN_LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, dterm_lpf1_dyn_max_hz) },
 #endif
-    { "gyro_filter_debug_axis",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GYRO_FILTER_DEBUG }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_filter_debug_axis) },
 
 // PG_ACCELEROMETER_CONFIG
 #if defined(USE_ACC)
