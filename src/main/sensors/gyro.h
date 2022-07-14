@@ -131,7 +131,6 @@ typedef struct gyro_s {
     uint8_t gyroDebugMode;
     bool gyroHasOverflowProtection;
     bool useDualGyroDebugging;
-    flight_dynamics_index_t gyroDebugAxis;
 
 #ifdef USE_DYN_LPF
     uint8_t dynLpfFilter;
@@ -203,8 +202,6 @@ typedef struct gyroConfig_s {
 
     uint16_t gyro_lpf1_dyn_min_hz;
     uint16_t gyro_lpf1_dyn_max_hz;
-
-    uint8_t gyro_filter_debug_axis;
 
     uint8_t gyrosDetected; // What gyros should detection be attempted for on startup. Automatically set on first startup.
 

@@ -664,7 +664,6 @@ bool gyroInit(void)
     uint8_t gyrosToScan = gyroConfig()->gyrosDetected;
 
     gyro.gyroToUse = gyroConfig()->gyro_to_use;
-    gyro.gyroDebugAxis = gyroConfig()->gyro_filter_debug_axis;
 
     if ((!gyrosToScan || (gyrosToScan & GYRO_1_MASK)) && gyroDetectSensor(&gyro.gyroSensor1, gyroDeviceConfig(0))) {
         gyroDetectionFlags |= GYRO_1_MASK;
