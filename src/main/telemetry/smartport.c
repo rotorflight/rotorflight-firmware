@@ -775,9 +775,6 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 if (FLIGHT_MODE(HORIZON_MODE)) {
                     tmpi += 20;
                 }
-                if (FLIGHT_MODE(PASSTHRU_MODE)) {
-                    tmpi += 40;
-                }
 
                 if (FLIGHT_MODE(MAG_MODE)) {
                     tmpi += 100;
