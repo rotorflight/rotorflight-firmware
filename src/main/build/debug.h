@@ -117,6 +117,7 @@ typedef enum {
     DEBUG_RX_STATE_TIME,
     DEBUG_PITCH_PRECOMP,
     DEBUG_YAW_PRECOMP,
+    DEBUG_RESCUE,
     DEBUG_COUNT
 } debugType_e;
 

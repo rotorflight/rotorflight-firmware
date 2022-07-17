@@ -106,4 +106,5 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(RX_STATE_TIME),
     DEBUG_NAME(PITCH_PRECOMP),
     DEBUG_NAME(YAW_PRECOMP),
+    DEBUG_NAME(RESCUE),
 };
