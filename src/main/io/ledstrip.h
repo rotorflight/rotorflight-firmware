@@ -30,7 +30,7 @@
 
 #define LED_MAX_STRIP_LENGTH           32
 #define LED_CONFIGURABLE_COLOR_COUNT   16
-#define LED_MODE_COUNT                  3
+#define LED_MODE_COUNT                  4
 #define LED_DIRECTION_COUNT             6
 #define LED_BASEFUNCTION_COUNT          7
 #define LED_OVERLAY_COUNT               6
@@ -99,6 +99,7 @@ typedef enum {
     LED_MODE_ORIENTATION = 0,
     LED_MODE_HORIZON,
     LED_MODE_ANGLE,
+    LED_MODE_RESCUE,
     LED_SPECIAL,
     LED_AUX_CHANNEL
 } ledModeIndex_e;
