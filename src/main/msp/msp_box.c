@@ -59,7 +59,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] = {
 //    { BOXCAMTRIG, "CAMTRIG", 9 },
 //    { BOXGPSHOME, "GPS HOME", 10 },
 //    { BOXGPSHOLD, "GPS HOLD", 11 },
-    { BOXPASSTHRU, "PASSTHRU", 12 },
+//    { BOXPASSTHRU, "PASSTHRU", 12 },
     { BOXBEEPERON, "BEEPER", 13 },
 //    { BOXLEDMAX, "LEDMAX", 14 }, (removed)
     { BOXLEDLOW, "LEDLOW", 15 },
@@ -212,10 +212,6 @@ void initActiveBoxIds(void)
 #endif
 
     BME(BOXFAILSAFE);
-
-    if (mixerConfig()->mixerMode == MIXER_FLYING_WING || mixerConfig()->mixerMode == MIXER_AIRPLANE || mixerConfig()->mixerMode == MIXER_CUSTOM_AIRPLANE) {
-        BME(BOXPASSTHRU);
-    }
 
     BME(BOXBEEPERON);
     BME(BOXBEEPERMUTE);

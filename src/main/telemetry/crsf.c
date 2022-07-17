@@ -366,8 +366,6 @@ void crsfFrameFlightMode(sbuf_t *dst)
         flightMode = "!FS!";
     } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
         flightMode = "RTH";
-    } else if (FLIGHT_MODE(PASSTHRU_MODE)) {
-        flightMode = "MANU";
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
         flightMode = "STAB";
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
