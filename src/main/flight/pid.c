@@ -119,7 +119,6 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 #ifdef USE_ACC
     pidLevelInit(pidProfile);
 #endif
-
 #ifdef USE_ACRO_TRAINER
     acroTrainerInit(pidProfile);
 #endif

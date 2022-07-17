@@ -170,7 +170,7 @@ FAST_CODE float pidLevelApply(int axis, float pidSetpoint)
     {
         float errorAngle = calcLevelErrorAngle(axis);
 
-        if (FLIGHT_MODE(ANGLE_MODE | GPS_RESCUE_MODE)) {
+        if (FLIGHT_MODE(ANGLE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
             // Angle based control
             pidSetpoint = errorAngle * level.Gain;
         }
