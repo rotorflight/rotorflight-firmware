@@ -100,6 +100,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXMSPOVERRIDE, "MSP OVERRIDE", 50),
     BOXITEM(BOXSTICKCOMMANDDISABLE, "STICK COMMANDS DISABLE", 51),
     BOXITEM(BOXBEEPERMUTE, "BEEPER MUTE", 52),
+    BOXITEM(BOXRESCUE, "RESCUE", 53),
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
