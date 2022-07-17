@@ -363,13 +363,15 @@ void crsfFrameFlightMode(sbuf_t *dst)
 
     // Flight modes in decreasing order of importance
     if (FLIGHT_MODE(FAILSAFE_MODE)) {
-        flightMode = "!FS!";
+        flightMode = "FAIL";
     } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        flightMode = "RTH";
+        flightMode = "HOLD";
+    } else if (FLIGHT_MODE(RESCUE_MODE)) {
+        flightMode = "SAVE";
     } else if (FLIGHT_MODE(ANGLE_MODE)) {
-        flightMode = "STAB";
+        flightMode = "ANGL";
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
-        flightMode = "HOR";
+        flightMode = "HORZ";
     }
 
     sbufWriteString(dst, flightMode);
