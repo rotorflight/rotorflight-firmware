@@ -671,12 +671,6 @@ void processRxModes(timeUs_t currentTimeUs)
     }
 #endif
 
-    if (IS_RC_MODE_ACTIVE(BOXPASSTHRU)) {
-        ENABLE_FLIGHT_MODE(PASSTHRU_MODE);
-    } else {
-        DISABLE_FLIGHT_MODE(PASSTHRU_MODE);
-    }
-
     if (mixerConfig()->mixerMode == MIXER_FLYING_WING || mixerConfig()->mixerMode == MIXER_AIRPLANE) {
         DISABLE_FLIGHT_MODE(HEADFREE_MODE);
     }
