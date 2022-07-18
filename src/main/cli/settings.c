@@ -214,7 +214,7 @@ static const char * const lookupTableBlackboxDevice[] = {
 };
 
 static const char * const lookupTableBlackboxMode[] = {
-    "NORMAL"
+    "OFF", "NORMAL", "ARMED", "ALWAYS"
 };
 
 static const char * const lookupTableBlackboxSampleRate[] = {

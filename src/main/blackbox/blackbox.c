@@ -436,7 +436,6 @@ static blackboxMainState_t blackboxHistoryRing[3];
 // These point into blackboxHistoryRing, use them to know where to store history of a given age (0, 1 or 2 generations old)
 static blackboxMainState_t* blackboxHistory[3];
 
-static bool blackboxModeActivationConditionPresent = false;
 
 /**
  * Return true if it is safe to edit the Blackbox configuration.
@@ -446,9 +445,19 @@ bool blackboxMayEditConfig(void)
     return blackboxState <= BLACKBOX_STATE_STOPPED;
 }
 
+static bool blackboxIsLoggingEnabled(void)
+{
+    return (blackboxConfig()->device && blackboxConfig()->mode && (blackboxConfig()->mode == BLACKBOX_MODE_ALWAYS || ARMING_FLAG(ARMED)));
+}
+
+static bool blackboxIsLoggingRunning(void)
+{
+    return (blackboxConfig()->mode && (blackboxConfig()->mode != BLACKBOX_MODE_NORMAL || IS_RC_MODE_ACTIVE(BOXBLACKBOX)));
+}
+
 static bool blackboxIsOnlyLoggingIntraframes(void)
 {
-    return blackboxPInterval == 0;
+    return (blackboxPInterval == 0);
 }
 
 static bool isFieldEnabled(FlightLogFieldSelect_e field)
@@ -556,14 +565,14 @@ static void blackboxBuildConditionCache(void)
     blackboxConditionCache = 0;
     for (FlightLogFieldCondition cond = FLIGHT_LOG_FIELD_CONDITION_FIRST; cond <= FLIGHT_LOG_FIELD_CONDITION_LAST; cond++) {
         if (testBlackboxConditionUncached(cond)) {
-            blackboxConditionCache |= 1 << cond;
+            blackboxConditionCache |= BIT(cond);
         }
     }
 }
 
 static bool testBlackboxCondition(FlightLogFieldCondition condition)
 {
-    return (blackboxConditionCache & (1 << condition)) != 0;
+    return (blackboxConditionCache & BIT(condition));
 }
 
 static void blackboxSetState(BlackboxState newState)
@@ -956,9 +965,6 @@ static void blackboxStart(void)
      * cache those now.
      */
     blackboxBuildConditionCache();
-
-    blackboxModeActivationConditionPresent = isModeActivationConditionPresent(BOXBLACKBOX);
-
     blackboxResetIterationTimers();
 
     /*
@@ -976,18 +982,20 @@ static void blackboxStart(void)
  */
 void blackboxFinish(void)
 {
-    switch (blackboxState) {
-    case BLACKBOX_STATE_DISABLED:
-    case BLACKBOX_STATE_STOPPED:
-    case BLACKBOX_STATE_SHUTTING_DOWN:
-        // We're already stopped/shutting down
-        break;
-    case BLACKBOX_STATE_RUNNING:
-    case BLACKBOX_STATE_PAUSED:
-        blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
-        FALLTHROUGH;
-    default:
-        blackboxSetState(BLACKBOX_STATE_SHUTTING_DOWN);
+    if (!blackboxIsLoggingEnabled()) {
+        switch (blackboxState) {
+        case BLACKBOX_STATE_DISABLED:
+        case BLACKBOX_STATE_STOPPED:
+        case BLACKBOX_STATE_SHUTTING_DOWN:
+            // We're already stopped/shutting down
+            break;
+        case BLACKBOX_STATE_RUNNING:
+        case BLACKBOX_STATE_PAUSED:
+            blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
+            FALLTHROUGH;
+        default:
+            blackboxSetState(BLACKBOX_STATE_SHUTTING_DOWN);
+        }
     }
 }
 
@@ -1612,7 +1620,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
-        if (ARMING_FLAG(ARMED)) {
+        if (blackboxIsLoggingEnabled()) {
             blackboxOpen();
             blackboxStart();
         }
@@ -1710,7 +1718,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_PAUSED:
         // Only allow resume to occur during an I-frame iteration, so that we have an "I" base to work from
-        if (IS_RC_MODE_ACTIVE(BOXBLACKBOX) && blackboxShouldLogIFrame()) {
+        if (blackboxIsLoggingRunning() && blackboxShouldLogIFrame()) {
             // Write a log entry so the decoder is aware that our large time/iteration skip is intended
             flightLogEvent_loggingResume_t resume;
 
@@ -1727,7 +1735,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
-        if (blackboxModeActivationConditionPresent && !IS_RC_MODE_ACTIVE(BOXBLACKBOX)) {
+        if (!blackboxIsLoggingRunning()) {
             blackboxSetState(BLACKBOX_STATE_PAUSED);
         } else {
             blackboxLogIteration(currentTimeUs);
