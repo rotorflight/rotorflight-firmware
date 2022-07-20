@@ -118,6 +118,7 @@ uint8_t icm42605SpiDetect(const busDevice_t *bus)
         const uint8_t whoAmI = spiBusReadRegister(bus, MPU_RA_WHO_AM_I);
         switch (whoAmI) {
         case ICM42605_WHO_AM_I_CONST:
+        case ICM42688P_WHO_AM_I_CONST:
             icmDetected = ICM_42605_SPI;
             break;
         default:
