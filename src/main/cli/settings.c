@@ -251,6 +251,8 @@ static const char * const lookupTableRxSpi[] = {
 
 static const char * const lookupTableGyroHardwareLpf[] = {
     "NORMAL",
+    "OPTION_1",
+    "OPTION_2",
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
     "EXPERIMENTAL"
 #endif

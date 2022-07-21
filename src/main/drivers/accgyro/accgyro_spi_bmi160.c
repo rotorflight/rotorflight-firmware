@@ -46,6 +46,8 @@
 #include "drivers/sensor.h"
 #include "drivers/time.h"
 
+#include "sensors/gyro.h"
+
 #include "accgyro.h"
 #include "accgyro_spi_bmi160.h"
 
@@ -80,6 +82,9 @@
 #define BMI160_REG_STATUS_NVM_RDY 0x10
 #define BMI160_REG_STATUS_FOC_RDY 0x08
 #define BMI160_REG_CONF_NVM_PROG_EN 0x02
+#define BMI160_VAL_GYRO_CONF_BWP_OSR4 0x00
+#define BMI160_VAL_GYRO_CONF_BWP_OSR2 0x10
+#define BMI160_VAL_GYRO_CONF_BWP_NORM 0x20
 
 ///* Global Variables */
 static volatile bool BMI160InitDone = false;
@@ -111,7 +116,6 @@ uint8_t bmi160Detect(const busDevice_t *bus)
     return BMI_160_SPI;
 }
 
-
 /**
  * @brief Initialize the BMI160 6-axis sensor.
  * @return 0 for success, -1 for failure to allocate, -10 for failure to get irq
@@ -137,6 +141,20 @@ static void BMI160_Init(const busDevice_t *bus)
     BMI160InitDone = true;
 }
 
+static uint8_t getBmiOsrMode()
+{
+    switch(gyroConfig()->gyro_hardware_lpf) {
+        case GYRO_HARDWARE_LPF_NORMAL:
+            return BMI160_VAL_GYRO_CONF_BWP_OSR4;
+        case GYRO_HARDWARE_LPF_OPTION_1:
+            return BMI160_VAL_GYRO_CONF_BWP_OSR2;
+        case GYRO_HARDWARE_LPF_OPTION_2:
+            return BMI160_VAL_GYRO_CONF_BWP_NORM;
+        case GYRO_HARDWARE_LPF_EXPERIMENTAL:
+            return BMI160_VAL_GYRO_CONF_BWP_NORM;
+    }
+    return 0;
+}
 
 /**
  * @brief Configure the sensor
@@ -163,7 +181,7 @@ static int32_t BMI160_Config(const busDevice_t *bus)
     delay(1);
 
     // Set gyr_bwp = 0b010 so only the first filter stage is used
-    spiBusWriteRegister(bus, BMI160_REG_GYR_CONF, 0x20 | BMI160_ODR_3200_Hz);
+    spiBusWriteRegister(bus, BMI160_REG_GYR_CONF, getBmiOsrMode() | BMI160_ODR_3200_Hz);
     delay(1);
 
     spiBusWriteRegister(bus, BMI160_REG_ACC_RANGE, BMI160_RANGE_8G);
