@@ -50,15 +50,19 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .rcRates[FD_ROLL] = 24,
             .rcRates[FD_PITCH] = 24,
             .rcRates[FD_YAW] = 36,
+            .rcRates[FD_COLL] = 100,
             .rcExpo[FD_ROLL] = 0,
             .rcExpo[FD_PITCH] = 0,
             .rcExpo[FD_YAW] = 0,
+            .rcExpo[FD_COLL] = 0,
             .rates[FD_ROLL] = 24,
             .rates[FD_PITCH] = 24,
             .rates[FD_YAW] = 48,
+            .rates[FD_COLL] = 100,
             .rate_limit[FD_ROLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .rate_limit[FD_PITCH] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .rate_limit[FD_YAW] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
+            .rate_limit[FD_COLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .levelExpo[FD_ROLL] = 0,
             .levelExpo[FD_PITCH] = 0,
             .quickRatesRcExpo = 0,
@@ -183,8 +187,7 @@ float applyRatesCurve(const int axis, float rcCommandf)
 {
     float rate = applyRatesFn(axis, rcCommandf);
 
-    if (axis < 3)
-        rate = constrainf(rate, -currentControlRateProfile->rate_limit[axis], currentControlRateProfile->rate_limit[axis]);
+    rate = constrainf(rate, -currentControlRateProfile->rate_limit[axis], currentControlRateProfile->rate_limit[axis]);
 
     return rate;
 }

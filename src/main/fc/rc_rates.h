@@ -55,11 +55,11 @@ typedef struct controlRateConfig_s {
     char profileName[MAX_RATE_PROFILE_NAME_LENGTH + 1];
 
     uint8_t rates_type;
-    uint8_t rcRates[3];
-    uint8_t rcExpo[3];
-    uint8_t rates[3];
+    uint8_t rcRates[4];
+    uint8_t rcExpo[4];
+    uint8_t rates[4];
 
-    uint16_t rate_limit[3];                 // Sets the maximum rate for the axes
+    uint16_t rate_limit[4];                 // Sets the maximum for the axes
 
     uint8_t levelExpo[2];                   // roll/pitch level mode expo
     uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
