@@ -89,6 +89,7 @@
 #define USE_RPM_FILTER
 #define USE_DYN_IDLE
 #define USE_DYN_NOTCH_FILTER
+#define USE_OVERCLOCK
 #define USE_ADC_INTERNAL
 #define USE_USB_CDC_HID
 #define USE_DMA_SPEC
