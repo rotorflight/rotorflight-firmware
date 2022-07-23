@@ -71,6 +71,9 @@
 
 #include "drivers/memprot.h"
 #include "drivers/system.h"
+#include "drivers/persistent.h"
+
+#include "system_stm32h7xx.h"
 
 
 #if !defined  (HSE_VALUE)
@@ -144,6 +147,10 @@
   */
   uint32_t SystemCoreClock = 64000000;
   uint32_t SystemD2Clock = 64000000;
+#ifdef USE_OVERCLOCK
+  uint32_t SystemCoreClockLevel = 0;
+#endif
+
   const  uint8_t D1CorePrescTable[16] = {0, 0, 0, 0, 1, 2, 3, 4, 1, 2, 3, 4, 6, 7, 8, 9};
 
 /**
@@ -192,8 +199,9 @@ typedef struct pllConfig_s {
     uint8_t p;
     uint8_t q;
     uint8_t r;
+    uint32_t vco;
+    uint32_t rge;
     uint32_t vos;
-    uint32_t vciRange;
 } pllConfig_t;
 
 #if defined(STM32H743xx) || defined(STM32H750xx)
@@ -211,29 +219,188 @@ typedef struct pllConfig_s {
         400 420 440 460 (Rev.Y & V ends here) 480 500 520 540
  */
 
-// 400MHz for Rev.Y (and Rev.X)
-pllConfig_t pll1ConfigRevY = {
-    .clockMhz = 400,
-    .m = 4,
-    .n = 400,
-    .p = 2,
-    .q = 8,
-    .r = 5,
+const pllConfig_t pll1Configs743[] =
+{
+  {
+    .clockMhz = 240,
+    .m = 4,   // 2MHz
+    .n = 240, // 480MHz
+    .p = 2,   // 240MHz
+    .q = 5,   // 96MHz
+    .r = 3,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE2,
+  },
+  {
+    .clockMhz = 320,
+    .m = 4,   // 2MHz
+    .n = 320, // 640MHz
+    .p = 2,   // 320MHz
+    .q = 6,   // 106MHz
+    .r = 4,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
     .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
-    .vciRange = RCC_PLL1VCIRANGE_2,
+  },
+  {
+    .clockMhz = 400,
+    .m = 4,   // 2MHz
+    .n = 400, // 800MHz
+    .p = 2,   // 400MHz
+    .q = 8,   // 100MHz
+    .r = 5,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
+  },
+  {
+    .clockMhz = 420,
+    .m = 4,   // 2MHz
+    .n = 210, // 420MHz
+    .p = 1,   // 420MHz
+    .q = 4,   // 105MHz
+    .r = 3,   // 140MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
+  },
+  {
+    .clockMhz = 440,
+    .m = 4,   // 2MHz
+    .n = 220, // 440MHz
+    .p = 1,   // 440MHz
+    .q = 4,   // 110MHz
+    .r = 3,   // 147MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 460,
+    .m = 4,   // 2MHz
+    .n = 230, // 460MHz
+    .p = 1,   // 460MHz
+    .q = 4,   // 115MHz
+    .r = 3,   // 153MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 480,
+    .m = 4,   // 2MHz
+    .n = 240, // 480MHz
+    .p = 1,   // 480MHz
+    .q = 4,   // 120MHz
+    .r = 3,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 500,
+    .m = 4,   // 2MHz
+    .n = 250, // 500MHz
+    .p = 1,   // 500MHz
+    .q = 4,   // 125MHz
+    .r = 3,   // 167MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 510,
+    .m = 4,   // 2MHz
+    .n = 255, // 510MHz
+    .p = 1,   // 510MHz
+    .q = 5,   // 102MHz
+    .r = 3,   // 170MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 520,
+    .m = 4,   // 2MHz
+    .n = 260, // 520MHz
+    .p = 1,   // 520MHz
+    .q = 5,   // 104MHz
+    .r = 3,   // 173MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 530,
+    .m = 4,   // 2MHz
+    .n = 265, // 530MHz
+    .p = 1,   // 530MHz
+    .q = 5,   // 106MHz
+    .r = 3,   // 177MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 540,
+    .m = 4,   // 2MHz
+    .n = 270, // 540MHz
+    .p = 1,   // 540MHz
+    .q = 5,   // 108MHz
+    .r = 3,   // 180MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 550,
+    .m = 4,   // 2MHz
+    .n = 275, // 550MHz
+    .p = 1,   // 550MHz
+    .q = 5,   // 110MHz
+    .r = 3,   // 183MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 560,
+    .m = 4,   // 2MHz
+    .n = 280, // 560MHz
+    .p = 1,   // 560MHz
+    .q = 5,   // 112MHz
+    .r = 3,   // 187MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_1,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
 };
 
-// 480MHz for Rev.V
-pllConfig_t pll1ConfigRevV = {
-    .clockMhz = 480,
-    .m = 4,
-    .n = 480,
-    .p = 2,
-    .q = 8,
-    .r = 5,
-    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
-    .vciRange = RCC_PLL1VCIRANGE_2,
-};
+#ifdef USE_OVERCLOCK
+void SystemCoreClockInitLevel(void)
+{
+    uint32_t clockLevel = persistentObjectRead(PERSISTENT_OBJECT_OVERCLOCK_LEVEL);
+
+    if (clockLevel > ARRAYLEN(pll1Configs743))
+        return;
+
+    /* PLL setting for overclocking */
+    SystemCoreClockLevel = clockLevel;
+}
+
+void OverclockRebootIfNecessary(uint32_t clockLevel)
+{
+    if (clockLevel > ARRAYLEN(pll1Configs743))
+        return;
+
+    if (SystemCoreClockLevel != clockLevel) {
+        persistentObjectWrite(PERSISTENT_OBJECT_OVERCLOCK_LEVEL, clockLevel);
+        __disable_irq();
+        NVIC_SystemReset();
+    }
+}
+#endif
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
 
@@ -269,8 +436,9 @@ pllConfig_t pll1Config7A3 = {
     .p = 2,
     .q = 8,
     .r = 5,
+    .vco = RCC_PLL1VCOWIDE,
     .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
-    .vciRange = RCC_PLL1VCIRANGE_1,
+    .rge = RCC_PLL1VCIRANGE_1,
 };
 
 // Unlike H743/H750, HCLK can be directly fed with SYSCLK.
@@ -295,8 +463,9 @@ pllConfig_t pll1Config72x = {
     .p = 1,
     .q = 2,
     .r = 2,
+    .vco = RCC_PLL1VCOWIDE,
     .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
-    .vciRange = RCC_PLL1VCIRANGE_1,
+    .rge = RCC_PLL1VCIRANGE_1,
 };
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
@@ -322,8 +491,9 @@ pllConfig_t pll1Config73x = {
     .p = 1,
     .q = 4,
     .r = 2,
+    .vco = RCC_PLL1VCOWIDE,
     .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
-    .vciRange = RCC_PLL1VCIRANGE_1,
+    .rge = RCC_PLL1VCIRANGE_1,
 };
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
@@ -345,6 +515,10 @@ static void SystemClockHSE_Config(void)
     RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
 
+#ifdef USE_OVERCLOCK
+    SystemCoreClockInitLevel();
+#endif
+
 #ifdef notdef
     // CSI has been disabled at SystemInit().
     // HAL_RCC_ClockConfig() will fail because CSIRDY is off.
@@ -359,10 +533,22 @@ static void SystemClockHSE_Config(void)
     }
 #endif
 
-    pllConfig_t *pll1Config;
+    const pllConfig_t *pll1Config;
 
-#if defined(STM32H743xx) || defined(STM32H750xx)
-    pll1Config = (HAL_GetREVID() == REV_ID_V) ? &pll1ConfigRevV : &pll1ConfigRevY;
+#if defined(STM32H743xx)
+    int level = 0; // 240MHz
+
+#ifdef USE_OVERCLOCK
+    if (SystemCoreClockLevel)
+        level = SystemCoreClockLevel - 1;
+    else
+#endif
+        level = (HAL_GetREVID() == REV_ID_V) ? 6 : 2; // 480MHz or 400MHz
+
+    pll1Config = &pll1Configs743[level];
+
+#elif defined(STM32H750xx)
+    pll1Config = &pll1Configs743[6];
 #elif defined(STM32H7A3xx) || defined(STM32H7A3xxQ)
     pll1Config = &pll1Config7A3;
 #elif defined(STM32H723xx) || defined(STM32H725xx)
@@ -414,8 +600,9 @@ static void SystemClockHSE_Config(void)
     RCC_OscInitStruct.PLL.PLLQ = pll1Config->q;
     RCC_OscInitStruct.PLL.PLLR = pll1Config->r;
 
-    RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-    RCC_OscInitStruct.PLL.PLLRGE = pll1Config->vciRange;
+    RCC_OscInitStruct.PLL.PLLVCOSEL = pll1Config->vco;
+    RCC_OscInitStruct.PLL.PLLRGE = pll1Config->rge;
+
     HAL_StatusTypeDef status = HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
 #ifdef USE_H7_HSE_TIMEOUT_WORKAROUND
