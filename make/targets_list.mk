@@ -14,44 +14,17 @@ VALID_TARGETS     = $(sort $(filter-out $(NOBUILD_TARGETS),$(BASE_TARGETS) $(ALT
 find_target_pair  = $(filter %/$(1),$(BASE_ALT_PAIRS))
 get_base_target   = $(if $(call find_target_pair,$(1)),$(patsubst %/,%,$(dir $(call find_target_pair,$(1)))),$(1))
 
-UNSUPPORTED_TARGETS := \
-    AFROMINI \
-    BEEBRAIN \
-    CJMCU \
-    MICROSCISKY \
-    AIR32 \
-    BEEBRAIN_V2D \
-    BEEBRAIN_V2F \
-    BEESTORM \
-    COLIBRI_RACE \
-    FF_ACROWHOOPSP \
-    FF_KOMBINI \
-    FF_PIKOBLX \
-    FF_RADIANCE \
-    KISSCC \
-    KISSFC \
-    LUXV2_RACE \
-    LUX_RACE \
-    MOTOLAB \
-    MULTIFLITEPICO \
-    OMNIBUS \
-    RACEBASE \
-    RMDO \
-    SINGULARITY \
-    SIRINFPV \
-    SPARKY \
-    TINYFISH \
-    X_RACERSPI
-
-UNIFIED_TARGETS := STM32F405 \
-	STM32F411 \
-	STM32F7X2 \
-	STM32F745 \
-	STM32G47X \
-	STM32H743
+UNIFIED_TARGETS := \
+	STM32F405  \
+	STM32F411  \
+	STM32F7X2  \
+	STM32F745  \
+	STM32G47X  \
+	STM32H743  \
 
 # Legacy targets are targets that have been replaced by Unified Target configurations
-LEGACY_TARGETS := MATEKF405 \
+LEGACY_TARGETS := \
+    MATEKF405 \
     AIKONF4 \
     ALIENFLIGHTF4 \
     BEEROTORF4 \
@@ -170,7 +143,7 @@ LEGACY_TARGETS := MATEKF405 \
 # Temporarily excluded to get CI coverage for USE_SPI_TRANSACTION
 #    STM32F4DISCOVERY \
 
-CI_TARGETS := $(filter-out $(LEGACY_TARGETS) $(UNSUPPORTED_TARGETS), $(VALID_TARGETS))
+CI_TARGETS := $(filter-out $(LEGACY_TARGETS), $(VALID_TARGETS))
 
 TARGETS_TOTAL := $(words $(CI_TARGETS))
 TARGET_GROUPS := 3
