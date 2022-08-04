@@ -659,19 +659,16 @@ void processRxModes(timeUs_t currentTimeUs)
 
 static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)
 {
-    uint32_t startTime = 0;
-    if (debugMode == DEBUG_PIDLOOP) {startTime = micros();}
-    // PID - note this is function pointer set by setPIDController()
+    DEBUG_TIME_START(PIDLOOP, 1);
+
     pidController(currentPidProfile, currentTimeUs);
-    DEBUG_SET(DEBUG_PIDLOOP, 1, micros() - startTime);
+
+    DEBUG_TIME_END(PIDLOOP, 1);
 }
 
 static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
 {
-    uint32_t startTime = 0;
-    if (debugMode == DEBUG_PIDLOOP) {
-        startTime = micros();
-    }
+    DEBUG_TIME_START(PIDLOOP, 3);
 
 #ifdef USE_DYN_LPF
     dynLpfUpdate(currentTimeUs, getHeadSpeedRatio());
@@ -689,7 +686,7 @@ static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
     UNUSED(currentTimeUs);
 #endif
 
-    DEBUG_SET(DEBUG_PIDLOOP, 3, micros() - startTime);
+    DEBUG_TIME_END(PIDLOOP, 3);
 }
 
 #ifdef USE_TELEMETRY
@@ -710,16 +707,15 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
-    uint32_t startTime = 0;
+    DEBUG_TIME_START(PIDLOOP, 2);
+
     if (debugMode == DEBUG_CYCLETIME) {
-        startTime = micros();
+        uint32_t startTime = micros();
         static uint32_t previousUpdateTime;
         const uint32_t currentDeltaTime = startTime - previousUpdateTime;
         debug[2] = currentDeltaTime;
         debug[3] = currentDeltaTime - gyro.targetLooptime;
         previousUpdateTime = startTime;
-    } else if (debugMode == DEBUG_PIDLOOP) {
-        startTime = micros();
     }
 
     mixerUpdate();
@@ -731,7 +727,7 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
     motorUpdate();
 #endif
 
-    DEBUG_SET(DEBUG_PIDLOOP, 2, micros() - startTime);
+    DEBUG_TIME_END(PIDLOOP, 2);
 }
 
 static FAST_CODE_NOINLINE void subTaskRcCommand(timeUs_t currentTimeUs)
