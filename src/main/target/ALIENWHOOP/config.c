@@ -102,9 +102,6 @@ void targetConfiguration(void)
     for (uint8_t pidProfileIndex = 0; pidProfileIndex < PID_PROFILE_COUNT; pidProfileIndex++) {
         pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
 
-    pidProfile->pidSumLimit = 1000;
-    pidProfile->pidSumLimitYaw = 1000;
-
         /* AlienWhoop PIDs tested with 6mm and 7mm motors on most frames */
         pidProfile->pid[PID_PITCH].P = 115;
         pidProfile->pid[PID_PITCH].I = 75;
@@ -115,16 +112,12 @@ void targetConfiguration(void)
         pidProfile->pid[PID_YAW].P = 220;
         pidProfile->pid[PID_YAW].I = 75;
         pidProfile->pid[PID_YAW].D = 20;
-        pidProfile->pid[PID_LEVEL].P = 65;
-        pidProfile->pid[PID_LEVEL].I = 65;
-        pidProfile->pid[PID_LEVEL].D = 55;
 
         /* Setpoints */
         pidProfile->dterm_lpf1_type = FILTER_BIQUAD;
         pidProfile->dterm_notch_hz = 0;
         pidProfile->pid[PID_PITCH].F = 100;
         pidProfile->pid[PID_ROLL].F = 100;
-        pidProfile->levelAngleLimit = 65;
     }
 
     for (uint8_t rateProfileIndex = 0; rateProfileIndex < CONTROL_RATE_PROFILE_COUNT; rateProfileIndex++) {
