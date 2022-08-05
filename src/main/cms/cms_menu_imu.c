@@ -51,7 +51,6 @@
 
 #include "flight/mixer.h"
 #include "flight/pid.h"
-#include "flight/pid_init.h"
 
 #include "pg/pg.h"
 
@@ -185,7 +184,7 @@ static const void *cmsx_PidWriteback(displayPort_t *pDisp, const OSD_Entry *self
         pidProfile->pid[i].D = tempPid[i][2];
         pidProfile->pid[i].F = tempPidF[i];
     }
-    pidInitConfig(currentPidProfile);
+    pidInitProfile(currentPidProfile);
 
     return NULL;
 }
@@ -301,9 +300,9 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
 
     const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
 
-    cmsx_angleStrength =     pidProfile->pid[PID_LEVEL].P;
-    cmsx_horizonStrength =   pidProfile->pid[PID_LEVEL].I;
-    cmsx_horizonTransition = pidProfile->pid[PID_LEVEL].D;
+    cmsx_angleStrength =     pidProfile->angle.level_strength;
+    cmsx_horizonStrength =   pidProfile->horizon.level_strength;
+    cmsx_horizonTransition = pidProfile->horizon.transition;
 
     return NULL;
 }
@@ -314,11 +313,11 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     UNUSED(self);
 
     pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
-    pidInitConfig(currentPidProfile);
+    pidInitProfile(currentPidProfile);
 
-    pidProfile->pid[PID_LEVEL].P = cmsx_angleStrength;
-    pidProfile->pid[PID_LEVEL].I = cmsx_horizonStrength;
-    pidProfile->pid[PID_LEVEL].D = cmsx_horizonTransition;
+    pidProfile->angle.level_strength = cmsx_angleStrength;
+    pidProfile->horizon.level_strength = cmsx_horizonStrength;
+    pidProfile->horizon.transition = cmsx_horizonTransition;
 
     return NULL;
 }

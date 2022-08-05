@@ -95,7 +95,6 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
-#include "flight/pid_init.h"
 #include "flight/servos.h"
 #include "flight/governor.h"
 #include "flight/rpm_filter.h"
@@ -675,6 +674,7 @@ void init(void)
     // Finally initialize the gyro filtering
     gyroInitFilters();
 
+    // Initialize PID control
     pidInit(currentPidProfile);
 
 #ifdef USE_SERVOS
