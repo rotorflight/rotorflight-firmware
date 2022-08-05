@@ -63,9 +63,9 @@ static FAST_DATA_ZERO_INIT acroTrainer_t acroTrainer;
 
 INIT_CODE void acroTrainerInit(const pidProfile_t *pidProfile)
 {
-    acroTrainer.Gain = pidProfile->acro_trainer_gain / 10.0f;
-    acroTrainer.AngleLimit = pidProfile->acro_trainer_angle_limit;
-    acroTrainer.LookaheadTime = pidProfile->acro_trainer_lookahead_ms / 1000.0f;
+    acroTrainer.Gain = pidProfile->trainer.gain / 10.0f;
+    acroTrainer.AngleLimit = pidProfile->trainer.angle_limit;
+    acroTrainer.LookaheadTime = pidProfile->trainer.lookahead_ms / 1000.0f;
 }
 
 void acroTrainerReset(void)
@@ -142,9 +142,8 @@ FAST_CODE float acroTrainerApply(int axis, float setPoint)
             }
         }
 
-        if (resetIterm) {
-            pidData[axis].I = 0;
-        }
+        if (resetIterm)
+            pidResetIterm(axis);
 
         DEBUG_AXIS(ACRO_TRAINER, axis, 0, currentAngle * 10);
         DEBUG_AXIS(ACRO_TRAINER, axis, 1, acroTrainer.AxisState[axis]);

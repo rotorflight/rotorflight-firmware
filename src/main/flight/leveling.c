@@ -67,14 +67,14 @@ static FAST_DATA_ZERO_INIT horizon_t horizon;
 
 INIT_CODE void pidLevelInit(const pidProfile_t *pidProfile)
 {
-    level.Gain = pidProfile->pid[PID_LEVEL].P / 10.0f; // FIXME
-    level.AngleLimit = pidProfile->levelAngleLimit;
+    level.Gain = pidProfile->angle.level_strength / 10.0f;
+    level.AngleLimit = pidProfile->angle.level_limit;
 
-    horizon.Gain = pidProfile->pid[PID_LEVEL].I / 10.0f; // FIXME
-    horizon.Transition = pidProfile->pid[PID_LEVEL].D; // FIXME
-    horizon.TiltExpertMode = pidProfile->horizon_tilt_expert_mode;
-    horizon.CutoffDegrees = (175 - pidProfile->horizon_tilt_effect) * 1.8f;
-    horizon.FactorRatio = (100 - pidProfile->horizon_tilt_effect) * 0.01f;
+    horizon.Gain = pidProfile->horizon.level_strength;
+    horizon.Transition = pidProfile->horizon.transition;
+    horizon.TiltExpertMode = pidProfile->horizon.tilt_expert_mode;
+    horizon.CutoffDegrees = (175 - pidProfile->horizon.tilt_effect) * 1.8f;
+    horizon.FactorRatio = (100 - pidProfile->horizon.tilt_effect) * 0.01f;
 }
 
 // calculate the stick deflection while applying level mode expo
