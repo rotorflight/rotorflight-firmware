@@ -105,8 +105,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(YAW_CENTER,         PID,  -250, 250),
 
-    ADJ_CONFIG(YAW_CW_GAIN,        PID,  50, 200),
-    ADJ_CONFIG(YAW_CCW_GAIN,       PID,  50, 200),
+    ADJ_CONFIG(YAW_CW_GAIN,        PID,  25, 250),
+    ADJ_CONFIG(YAW_CCW_GAIN,       PID,  25, 250),
     ADJ_CONFIG(YAW_CYCLIC_FF,      PID,   0, 2500),
     ADJ_CONFIG(YAW_COLLECTIVE_FF,  PID,   0, 2500),
     ADJ_CONFIG(YAW_IMPULSE_FF,     PID,   0, 2500),
