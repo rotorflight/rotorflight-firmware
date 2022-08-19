@@ -33,6 +33,21 @@
 
 #define PID_GAIN_MAX                2500
 
+#define ROLL_P_TERM_SCALE           (0.0033333333f / 500)
+#define ROLL_I_TERM_SCALE           (0.0500000000f / 500)
+#define ROLL_D_TERM_SCALE           (0.0000500000f / 500)
+#define ROLL_F_TERM_SCALE           (0.0125000000f / 500)
+
+#define PITCH_P_TERM_SCALE          (0.0033333333f / 500)
+#define PITCH_I_TERM_SCALE          (0.0500000000f / 500)
+#define PITCH_D_TERM_SCALE          (0.0000500000f / 500)
+#define PITCH_F_TERM_SCALE          (0.0125000000f / 500)
+
+#define YAW_P_TERM_SCALE            (0.0333333333f / 500)
+#define YAW_I_TERM_SCALE            (0.2500000000f / 500)
+#define YAW_D_TERM_SCALE            (0.0005000000f / 500)
+#define YAW_F_TERM_SCALE            (0.0125000000f / 500)
+
 #define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, }
 #define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, }
 #define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, }
@@ -48,7 +63,8 @@ typedef struct {
     float pidSum;
     float setPoint;
     float gyroRate;
-    float gyroDterm;
+    float prevError;
+    float axisError;
 } pidAxisData_t;
 
 typedef struct {
@@ -56,14 +72,50 @@ typedef struct {
     float Ki;
     float Kd;
     float Kf;
-} pidAxisConfig_t;
+} pidAxisCoef_t;
+
+typedef struct {
+
+    float collectiveDeflectionLPF;
+
+    float collectiveImpulseFilterGain;
+    float pitchCollectiveFFGain;
+    float pitchCollectiveImpulseFFGain;
+
+    float yawCyclicFFGain;
+    float yawCollectiveFFGain;
+    float yawCollectiveImpulseFFGain;
+} pidPrecomp_t;
 
 typedef struct pid_s {
     float dT;
     float freq;
 
-    pidAxisData_t data[XYZ_AXIS_COUNT];
-    pidAxisConfig_t conf[XYZ_AXIS_COUNT];
+    uint8_t pidMode;
+
+    uint8_t itermRelaxType;
+    uint8_t itermRelaxLevel[PID_AXIS_COUNT];
+
+    uint8_t errorRotation;
+
+    float errorDecay;
+    float errorLimit[PID_AXIS_COUNT];
+
+    float yawCWStopGain;
+    float yawCCWStopGain;
+
+    float collective;
+
+    pidPrecomp_t precomp;
+
+    pidAxisCoef_t coef[PID_ITEM_COUNT];
+    pidAxisData_t data[PID_AXIS_COUNT];
+
+    pt1Filter_t gyrorFilter[PID_AXIS_COUNT];
+    pt1Filter_t errorFilter[PID_AXIS_COUNT];
+    pt1Filter_t dtermFilter[PID_AXIS_COUNT];
+    pt1Filter_t ftermFilter[PID_AXIS_COUNT];
+    pt1Filter_t relaxFilter[PID_AXIS_COUNT];
 
 } pid_t;
 
@@ -72,7 +124,8 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs);
 
 void resetPidProfile(pidProfile_t *profile);
 
-void pidResetIterm(int axis);
+void pidResetAxisErrors(void);
+void pidResetAxisError(int axis);
 
 void pidInit(const pidProfile_t *pidProfile);
 void pidInitProfile(const pidProfile_t *pidProfile);
@@ -82,7 +135,9 @@ float pidGetDT();
 float pidGetPidFrequency();
 
 float pidGetSetpoint(int axis);
-float pidGetPidSum(int axis);
+float pidGetOutput(int axis);
+
+float pidGetCollective();
 
 const pidAxisData_t * pidGetAxisData(void);
 
