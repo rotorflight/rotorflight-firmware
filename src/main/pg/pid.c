@@ -37,7 +37,7 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .pid_process_denom = PID_PROCESS_DENOM_DEFAULT
 );
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 3);
+PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 0);
 
 void resetPidProfile(pidProfile_t *pidProfile)
 {
@@ -47,8 +47,28 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_ROLL]  = PID_ROLL_DEFAULT,
             [PID_PITCH] = PID_PITCH_DEFAULT,
             [PID_YAW]   = PID_YAW_DEFAULT,
+            [PID_WAY]   = PID_YAW_DEFAULT,
         },
-        .iterm_rotation = false,
+        .pid_mode = 2,
+        .dterm_mode = 0,
+        .error_decay = 25,
+        .error_rotation = true,
+        .iterm_relax_type = ITERM_RELAX_OFF,
+        .iterm_relax_level = { 40, 40, 40 },
+        .iterm_relax_cutoff = { 10, 10, 15 },
+        .error_limit = { 90, 90, 90 },
+        .error_cutoff = { 0, 0, 0 },
+        .dterm_cutoff = { 15, 15, 20 },
+        .fterm_cutoff = { 0, 0, 0 },
+        .gyro_cutoff = { 50, 50, 50 },
+        .yaw_cw_stop_gain = 100,
+        .yaw_ccw_stop_gain = 100,
+        .yaw_cyclic_ff_gain = 0,
+        .yaw_collective_ff_gain = 0,
+        .yaw_collective_ff_impulse_gain = 0,
+        .yaw_collective_ff_impulse_freq = 50,
+        .pitch_collective_ff_gain = 0,
+        .pitch_collective_ff_impulse_gain = 0,
         .angle.level_strength = 50,
         .angle.level_limit = 55,
         .horizon.level_strength = 50,

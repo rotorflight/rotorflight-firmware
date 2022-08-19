@@ -176,7 +176,3 @@ static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir ==
 
 static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode != TAIL_MODE_VARIABLE); }
 static inline bool mixerIsTailMode(int mode) { return (mixerConfig()->tail_rotor_mode == mode); }
-
-// TODO remove
-static inline float pidGetOutput(int axis) { UNUSED(axis); return 0; }
-static inline float pidGetCollective(void) { return 0; }
