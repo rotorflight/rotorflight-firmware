@@ -38,8 +38,17 @@ typedef enum {
     PID_ROLL,
     PID_PITCH,
     PID_YAW,
+    PID_WAY,
     PID_ITEM_COUNT
 } pidIndex_e;
+
+#define PID_AXIS_COUNT 3
+
+enum {
+    ITERM_RELAX_OFF,
+    ITERM_RELAX_RP,
+    ITERM_RELAX_RPY,
+};
 
 typedef struct {
     uint16_t P;
@@ -75,7 +84,33 @@ typedef struct pidProfile_s {
 
     pidf_t              pid[PID_ITEM_COUNT];
 
-    uint8_t             iterm_rotation;
+    uint8_t             pid_mode;
+    uint8_t             dterm_mode;
+
+    uint8_t             error_decay;
+    uint8_t             error_rotation;
+
+    uint8_t             iterm_relax_type;
+    uint8_t             iterm_relax_level[PID_AXIS_COUNT];
+    uint8_t             iterm_relax_cutoff[PID_AXIS_COUNT];
+
+    uint16_t            error_limit[PID_AXIS_COUNT];
+
+    uint8_t             error_cutoff[PID_AXIS_COUNT];
+    uint8_t             dterm_cutoff[PID_AXIS_COUNT];
+    uint8_t             fterm_cutoff[PID_AXIS_COUNT];
+    uint8_t             gyro_cutoff[PID_AXIS_COUNT];
+
+    uint16_t            yaw_cw_stop_gain;
+    uint16_t            yaw_ccw_stop_gain;
+
+    uint16_t            yaw_cyclic_ff_gain;
+    uint16_t            yaw_collective_ff_gain;
+    uint16_t            yaw_collective_ff_impulse_gain;
+    uint8_t             yaw_collective_ff_impulse_freq;
+
+    uint16_t            pitch_collective_ff_gain;
+    uint16_t            pitch_collective_ff_impulse_gain;
 
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;

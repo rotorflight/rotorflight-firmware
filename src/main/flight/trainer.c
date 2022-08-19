@@ -108,7 +108,7 @@ FAST_CODE float acroTrainerApply(int axis, float setPoint)
         const sign_t angleSign = Sign(currentAngle);
         const sign_t setpointSign = Sign(setPoint);
         float projectedAngle = 0;
-        bool resetIterm = false;
+        bool resetAxis = false;
 
         // stick has reversed - stop limiting
         if ((acroTrainer.AxisState[axis] != 0) && (acroTrainer.AxisState[axis] != setpointSign)) {  // stick has reversed - stop limiting
@@ -119,7 +119,7 @@ FAST_CODE float acroTrainerApply(int axis, float setPoint)
         if ((fabsf(currentAngle) > acroTrainer.AngleLimit) && (acroTrainer.AxisState[axis] == 0)) {
             if (angleSign == setpointSign) {
                 acroTrainer.AxisState[axis] = angleSign;
-                resetIterm = true;
+                resetAxis = true;
             }
         }
 
@@ -138,12 +138,12 @@ FAST_CODE float acroTrainerApply(int axis, float setPoint)
             const sign_t projectedAngleSign = Sign(projectedAngle);
             if ((fabsf(projectedAngle) > acroTrainer.AngleLimit) && (projectedAngleSign == setpointSign)) {
                 setPoint = ((acroTrainer.AngleLimit * projectedAngleSign) - projectedAngle) * acroTrainer.Gain;
-                resetIterm = true;
+                resetAxis = true;
             }
         }
 
-        if (resetIterm)
-            pidResetIterm(axis);
+        if (resetAxis)
+            pidResetAxisError(axis);
 
         DEBUG_AXIS(ACRO_TRAINER, axis, 0, currentAngle * 10);
         DEBUG_AXIS(ACRO_TRAINER, axis, 1, acroTrainer.AxisState[axis]);
