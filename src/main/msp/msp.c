@@ -1285,7 +1285,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_PID:
-        for (int i = 0; i < PID_ITEM_COUNT; i++) {
+        for (int i = 0; i < PID_AXIS_COUNT; i++) {
             sbufWriteU8(dst, currentPidProfile->pid[i].P);
             sbufWriteU8(dst, currentPidProfile->pid[i].I);
             sbufWriteU8(dst, currentPidProfile->pid[i].D);
@@ -2184,7 +2184,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_PID:
-        for (int i = 0; i < PID_ITEM_COUNT; i++) {
+        for (int i = 0; i < PID_AXIS_COUNT; i++) {
             currentPidProfile->pid[i].P = sbufReadU8(src);
             currentPidProfile->pid[i].I = sbufReadU8(src);
             currentPidProfile->pid[i].D = sbufReadU8(src);
