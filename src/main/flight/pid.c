@@ -309,7 +309,7 @@ void pidInitProfile(const pidProfile_t *pidProfile)
     itermRotation = pidProfile->iterm_rotation;
 #endif
 #ifdef USE_ITERM_DECAY
-    itermDecay = dT * 10.0f / pidProfile->iterm_decay;
+    itermDecay = (pidProfile->iterm_decay) ? (dT * 10.0f / pidProfile->iterm_decay) : 0;
 #endif
 #ifdef USE_ITERM_RELAX
     itermRelax = pidProfile->iterm_relax;
