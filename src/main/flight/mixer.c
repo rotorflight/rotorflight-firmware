@@ -39,6 +39,7 @@
 
 #include "flight/pid.h"
 #include "flight/imu.h"
+#include "flight/agc.h"
 #include "flight/mixer.h"
 #include "flight/governor.h"
 
@@ -294,6 +295,9 @@ void FAST_CODE mixerUpdate(void)
 
     // Fetch input values
     mixerUpdateInputs();
+
+    // Update AGC
+    agcUpdateGains();
 
     // Calculate mixer outputs
     for (int i = 0; i < MIXER_RULE_COUNT; i++) {
