@@ -49,6 +49,7 @@
 #include "fc/runtime_config.h"
 #include "fc/rc_rates.h"
 
+#include "flight/agc.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/trainer.h"
@@ -125,6 +126,7 @@ void INIT_CODE pidInit(const pidProfile_t *pidProfile)
 {
     pidSetLooptime(gyro.targetLooptime);
     pidInitProfile(pidProfile);
+    agcInit();
 }
 
 void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
@@ -202,6 +204,8 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 #ifdef USE_ACRO_TRAINER
     acroTrainerInit(pidProfile);
 #endif
+
+    agcInitProfile(pidProfile);
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)

@@ -76,6 +76,13 @@ typedef struct {
 } pidTrainerMode_t;
 
 typedef struct {
+    uint16_t    lpf;
+    uint16_t    hpf;
+    uint16_t    rate;
+    uint16_t    delay;
+} agc_t;
+
+typedef struct {
     uint16_t    headspeed;
     uint8_t     gain;
     uint8_t     p_gain;
@@ -125,6 +132,7 @@ typedef struct pidProfile_s {
     uint16_t            pitch_collective_ff_gain;
     uint16_t            pitch_collective_ff_impulse_gain;
 
+    agc_t               agc;
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;
     pidTrainerMode_t    trainer;

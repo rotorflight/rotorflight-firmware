@@ -1046,6 +1046,13 @@ const clivalue_t valueTable[] = {
     { "iterm_relax_level",          VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_level) },
     { "iterm_relax_cutoff",         VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_cutoff) },
 
+#ifdef USE_AUTOMATIC_GAIN_CONTROL
+    { "agc_lpf",                    VAR_UINT16 |  PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, agc.lpf) },
+    { "agc_hpf",                    VAR_UINT16 |  PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, agc.hpf) },
+    { "agc_rate",                   VAR_UINT16 |  PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 50000 }, PG_PID_PROFILE, offsetof(pidProfile_t, agc.rate) },
+    { "agc_delay",                  VAR_UINT16 |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, agc.delay) },
+#endif
+
     { "angle_level_strength",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle.level_strength) },
     { "angle_level_limit",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 90 }, PG_PID_PROFILE, offsetof(pidProfile_t, angle.level_limit) },
 
