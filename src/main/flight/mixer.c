@@ -101,8 +101,22 @@ static inline void mixerSetInput(int index, float value)
             value = mixOverride[index] / 1000.0f;
     }
 
-    // Constrain
-    mixInput[index] = constrainf(value, in->min / 1000.0f, in->max / 1000.0f);
+    // Input limits
+    const float imin = in->min / 1000.0f;
+    const float imax = in->max / 1000.0f;
+
+    // Constrain and saturate
+    if (value > imax) {
+        mixInput[index] = imax;
+        mixerSaturateInput(index);
+    }
+    else if (value < imin) {
+        mixInput[index] = imin;
+        mixerSaturateInput(index);
+    }
+    else {
+        mixInput[index] = value;
+    }
 }
 
 static void mixerCyclicLimit(void)
@@ -206,6 +220,12 @@ static void mixerUpdateMotorizedTail(void)
 
 static void mixerUpdateInputs(void)
 {
+    // Update saturation
+    for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
+        if (mixSaturated[i])
+            mixSaturated[i]--;
+    }
+
     // Flight Dynamics
     mixerSetInput(MIXER_IN_RC_COMMAND_ROLL,rcCommand[ROLL] * MIXER_RC_SCALING);
     mixerSetInput(MIXER_IN_RC_COMMAND_PITCH, rcCommand[PITCH] * MIXER_RC_SCALING);
@@ -250,20 +270,14 @@ static void mixerUpdateInputs(void)
 
 void mixerUpdate(void)
 {
-    // Reset mixer inputs
-    for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
-        mixInput[i] = 0;
-        if (mixSaturated[i])
-            mixSaturated[i]--;
-    }
+    // Fetch input values
+    mixerUpdateInputs();
+
     // Reset mixer outputs
     for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
         mixOutput[i] = 0;
         mixOutputMap[i] = 0;
     }
-
-    // Fetch input values
-    mixerUpdateInputs();
 
     // Current flight mode bitmap
     uint32_t flightModeMask = ((uint32_t)(~flightModeFlags)) << 16 | flightModeFlags;
