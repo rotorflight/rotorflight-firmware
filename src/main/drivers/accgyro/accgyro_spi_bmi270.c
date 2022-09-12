@@ -25,6 +25,8 @@
 
 #ifdef USE_ACCGYRO_BMI270
 
+#undef USE_GYRO_DLPF_EXPERIMENTAL
+
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/accgyro_spi_bmi270.h"
 #include "drivers/bus_spi.h"
@@ -192,8 +194,10 @@ static uint8_t getBmiOsrMode(void)
             return BMI270_VAL_GYRO_CONF_BWP_OSR2;
         case GYRO_HARDWARE_LPF_OPTION_2:
             return BMI270_VAL_GYRO_CONF_BWP_NORM;
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
         case GYRO_HARDWARE_LPF_EXPERIMENTAL:
             return BMI270_VAL_GYRO_CONF_BWP_NORM;
+#endif
     }
     return 0;
 }
