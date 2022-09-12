@@ -26,8 +26,6 @@
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F405"
 
 // Additional drivers included for targets with > 512KB of flash
-#define USE_ACCGYRO_BMI270
-#define USE_BARO_BMP085
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -127,10 +125,6 @@
 #define TARGET_BOARD_IDENTIFIER "S745"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F745"
-
-// Additional drivers included for targets with > 512KB of flash
-#define USE_ACCGYRO_BMI270
-#define USE_BARO_BMP085
 
 #define USE_I2C_DEVICE_1
 #define USE_I2C_DEVICE_2
@@ -238,6 +232,7 @@
 #define USE_GYRO_SPI_ICM20689
 #define USE_ACC_SPI_ICM42605
 #define USE_GYRO_SPI_ICM42605
+#define USE_ACCGYRO_BMI270
 
 #define USE_MAG
 #define USE_MAG_DATA_READY_SIGNAL
@@ -260,6 +255,7 @@
 #define USE_BARO_SPI_LPS
 #define USE_BARO_QMP6988
 #define USE_BARO_SPI_QMP6988
+#define USE_BARO_BMP085
 
 #define USE_SDCARD
 #define USE_SDCARD_SPI
