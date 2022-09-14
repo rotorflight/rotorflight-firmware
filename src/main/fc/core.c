@@ -617,7 +617,7 @@ void processRxModes(timeUs_t currentTimeUs)
     updateActivatedModes();
 
     if (!cliMode && !(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED))) {
-        processRcAdjustments(currentControlRateProfile);
+        processRcAdjustments();
     }
 
     if (sensors(SENSOR_ACC)) {
