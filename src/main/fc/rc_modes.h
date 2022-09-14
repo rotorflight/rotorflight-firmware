@@ -22,6 +22,9 @@
 
 #include <stdbool.h>
 
+#include "common/maths.h"
+#include "fc/rc_controls.h"
+#include "rx/rx.h"
 #include "pg/pg.h"
 
 #define BOXID_NONE 255
@@ -83,22 +86,20 @@ typedef struct boxBitmask_s { uint32_t bits[(CHECKBOX_ITEM_COUNT + 31) / 32]; } 
 
 #define MAX_MODE_ACTIVATION_CONDITION_COUNT 20
 
-#define CHANNEL_RANGE_MIN 900
-#define CHANNEL_RANGE_MAX 2100
+// steps are 5 apart
+// a value of 0 corresponds to a channel value of 1500
+// a value of 100 corresponds to a channel value of 2000
+// a value of -100 corresponds to a channel value of 1000
 
-#define MODE_STEP_TO_CHANNEL_VALUE(step) (CHANNEL_RANGE_MIN + 25 * step)
-#define CHANNEL_VALUE_TO_STEP(channelValue) ((constrain(channelValue, CHANNEL_RANGE_MIN, CHANNEL_RANGE_MAX) - CHANNEL_RANGE_MIN) / 25)
+#define MIN_MODE_RANGE_STEP -125
+#define MAX_MODE_RANGE_STEP  125
 
-#define MIN_MODE_RANGE_STEP 0
-#define MAX_MODE_RANGE_STEP ((CHANNEL_RANGE_MAX - CHANNEL_RANGE_MIN) / 25)
+#define STEP_TO_CHANNEL_VALUE(step)   (1500 + 5 * (step))
+#define CHANNEL_VALUE_TO_STEP(value)  (((value) - 1500) / 5)
 
-// steps are 25 apart
-// a value of 0 corresponds to a channel value of 900 or less
-// a value of 48 corresponds to a channel value of 2100 or more
-// 48 steps between 900 and 2100
 typedef struct channelRange_s {
-    uint8_t startStep;
-    uint8_t endStep;
+    int8_t startStep;
+    int8_t endStep;
 } channelRange_t;
 
 typedef struct modeActivationCondition_s {
@@ -129,15 +130,31 @@ typedef struct modeActivationProfile_s {
     modeActivationCondition_t modeActivationConditions[MAX_MODE_ACTIVATION_CONDITION_COUNT];
 } modeActivationProfile_t;
 
-#define IS_RANGE_USABLE(range) ((range)->startStep < (range)->endStep)
-
 bool IS_RC_MODE_ACTIVE(boxId_e boxId);
 void rcModeUpdate(boxBitmask_t *newState);
 
-bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range);
 void updateActivatedModes(void);
 bool isModeActivationConditionPresent(boxId_e modeId);
 bool isModeActivationConditionLinked(boxId_e modeId);
 void removeModeActivationCondition(boxId_e modeId);
 bool isModeActivationConditionConfigured(const modeActivationCondition_t *mac, const modeActivationCondition_t *emptyMac);
 void analyzeModeActivationConditions(void);
+
+
+static inline bool isRangeUsable(const channelRange_t *range)
+{
+    return
+        range->startStep >= MIN_MODE_RANGE_STEP &&
+        range->endStep <= MAX_MODE_RANGE_STEP &&
+        range->startStep < range->endStep;
+}
+
+static inline bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range)
+{
+    if (isRangeUsable(range)) {
+        const uint16_t channelValue = rcData[auxChannelIndex + NON_AUX_CHANNEL_COUNT];
+        return (channelValue >= STEP_TO_CHANNEL_VALUE(range->startStep) && channelValue < STEP_TO_CHANNEL_VALUE(range->endStep));
+    }
+
+    return false;
+}
