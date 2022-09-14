@@ -78,6 +78,14 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .trainer.gain = 75,
         .trainer.angle_limit = 20,
         .trainer.lookahead_ms = 50,
+        .governor.headspeed = 1000,
+        .governor.gain = 100,
+        .governor.p_gain = 20,
+        .governor.i_gain = 20,
+        .governor.d_gain = 0,
+        .governor.f_gain = 0,
+        .governor.cyclic_ff_weight = 40,
+        .governor.collective_ff_weight = 100,
     );
 }
 
