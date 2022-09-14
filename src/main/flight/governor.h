@@ -21,6 +21,7 @@
 
 #include "pg/pg.h"
 
+#include "flight/pid.h"
 
 typedef enum {
     GM_OFF = 0,
@@ -44,7 +45,6 @@ typedef enum {
 
 typedef struct governorConfig_s {
     uint8_t  gov_mode;
-    uint16_t gov_headspeed;
     uint16_t gov_spoolup_time;
     uint16_t gov_tracking_time;
     uint16_t gov_recovery_time;
@@ -55,13 +55,6 @@ typedef struct governorConfig_s {
     uint16_t gov_autorotation_min_entry_time;
     uint16_t gov_pwr_filter;
     uint16_t gov_rpm_filter;
-    uint16_t gov_gain;
-    uint16_t gov_p_gain;
-    uint16_t gov_i_gain;
-    uint16_t gov_d_gain;
-    uint16_t gov_f_gain;
-    uint16_t gov_cyclic_ff_weight;
-    uint16_t gov_collective_ff_weight;
     uint16_t gov_ff_exponent;
     uint16_t gov_vbat_offset;
 } governorConfig_t;
@@ -69,7 +62,9 @@ typedef struct governorConfig_s {
 PG_DECLARE(governorConfig_t, governorConfig);
 
 
-void governorInit();
+void governorInit(const pidProfile_t *pidProfile);
+void governorInitProfile(const pidProfile_t *pidProfile);
+
 void governorUpdate();
 
 uint8_t getGovernorState();

@@ -68,7 +68,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CO
 
 PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_mode = GM_PASSTHROUGH,
-    .gov_headspeed = 2000,
     .gov_spoolup_time = 100,
     .gov_tracking_time = 20,
     .gov_recovery_time = 20,
@@ -79,13 +78,6 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_min_entry_time = 50,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
-    .gov_gain = 100,
-    .gov_p_gain = 20,
-    .gov_i_gain = 20,
-    .gov_d_gain = 0,
-    .gov_f_gain = 0,
-    .gov_cyclic_ff_weight = 40,
-    .gov_collective_ff_weight = 100,
     .gov_ff_exponent = 150,
     .gov_vbat_offset = 0,
 );
@@ -890,7 +882,29 @@ void governorUpdate(void)
     }
 }
 
-void governorInit(void)
+void governorInitProfile(const pidProfile_t *pidProfile)
+{
+    if (getMotorCount() > 0)
+    {
+        govK  = pidProfile->governor.gain / 100.0f;
+        govKp = pidProfile->governor.p_gain / 10.0f;
+        govKi = pidProfile->governor.i_gain / 10.0f;
+        govKd = pidProfile->governor.d_gain / 1000.0f;
+        govKf = pidProfile->governor.f_gain / 100.0f;
+
+        govCycWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
+        govColWeight = pidProfile->governor.collective_ff_weight / 100.0f;
+
+        govFullHeadSpeed = constrainf(pidProfile->governor.headspeed, 100, 50000);
+
+        govSetpointSpoolupRate  = govThrottleSpoolupRate  * govFullHeadSpeed;
+        govSetpointTrackingRate = govThrottleTrackingRate * govFullHeadSpeed;
+        govSetpointRecoveryRate = govThrottleRecoveryRate * govFullHeadSpeed;
+        govSetpointBailoutRate  = govThrottleBailoutRate  * govFullHeadSpeed;
+    }
+}
+
+void governorInit(const pidProfile_t *pidProfile)
 {
     // Must have at least one motor
     if (getMotorCount() > 0)
@@ -930,16 +944,6 @@ void governorInit(void)
                 break;
         }
 
-        govK            = governorConfig()->gov_gain / 100.0f;
-        govKp           = governorConfig()->gov_p_gain / 10.0f;
-        govKi           = governorConfig()->gov_i_gain / 10.0f;
-        govKd           = governorConfig()->gov_d_gain / 1000.0f;
-        govKf           = governorConfig()->gov_f_gain / 100.0f;
-        govCycWeight    = governorConfig()->gov_cyclic_ff_weight / 100.0f;
-        govColWeight    = governorConfig()->gov_collective_ff_weight / 100.0f;
-
-        govFullHeadSpeed = constrainf(governorConfig()->gov_headspeed, 100, 10000);
-
         govGearRatio    = getMainGearRatio();
 
         govFFexponent   = governorConfig()->gov_ff_exponent / 100.0f;
@@ -968,6 +972,7 @@ void governorInit(void)
         biquadFilterInitLPF(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
         biquadFilterInitLPF(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
         biquadFilterInitLPF(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);
+
+        governorInitProfile(pidProfile);
     }
 }
-
