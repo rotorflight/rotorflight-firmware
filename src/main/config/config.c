@@ -171,7 +171,7 @@ static void activateConfig(void)
 
     initRcProcessing();
 
-    activeAdjustmentRangeReset();
+    adjustmentRangeInit();
 
     pidInitProfile(currentPidProfile);
 
