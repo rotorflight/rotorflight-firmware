@@ -1326,6 +1326,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+#if 0
     case MSP_ADJUSTMENT_RANGES:
         for (int i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
             const adjustmentRange_t *adjRange = adjustmentRanges(i);
@@ -1337,6 +1338,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, adjRange->auxSwitchChannelIndex);
         }
         break;
+#endif
 
     case MSP_MOTOR_CONFIG:
         sbufWriteU16(dst, motorConfig()->minthrottle);
@@ -2218,6 +2220,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
 
+#if 0
     case MSP_SET_ADJUSTMENT_RANGE:
         i = sbufReadU8(src);
         if (i < MAX_ADJUSTMENT_RANGE_COUNT) {
@@ -2234,6 +2237,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             return MSP_RESULT_ERROR;
         }
         break;
+#endif
 
     case MSP_SET_RC_TUNING:
         if (sbufBytesRemaining(src) >= 10) {
