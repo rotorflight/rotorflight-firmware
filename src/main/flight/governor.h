@@ -55,6 +55,7 @@ typedef struct governorConfig_s {
     uint16_t gov_autorotation_min_entry_time;
     uint16_t gov_pwr_filter;
     uint16_t gov_rpm_filter;
+    uint16_t gov_tta_filter;
     uint16_t gov_ff_exponent;
     uint16_t gov_vbat_offset;
 } governorConfig_t;

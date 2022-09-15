@@ -84,6 +84,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.i_gain = 20,
         .governor.d_gain = 0,
         .governor.f_gain = 0,
+        .governor.tta_gain = 0,
+        .governor.tta_limit = 0,
         .governor.cyclic_ff_weight = 40,
         .governor.collective_ff_weight = 100,
     );
