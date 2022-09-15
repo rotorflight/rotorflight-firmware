@@ -97,6 +97,7 @@
 #include "flight/pid.h"
 #include "flight/pid_init.h"
 #include "flight/servos.h"
+#include "flight/governor.h"
 #include "flight/rpm_filter.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
@@ -752,6 +753,10 @@ void init(void)
         rpmFilterInit(rpmFilterConfig());
     }
 #endif
+
+    if (featureIsEnabled(FEATURE_GOVERNOR)) {
+        governorInit();
+    }
 
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
