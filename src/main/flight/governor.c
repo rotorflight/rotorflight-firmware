@@ -78,6 +78,7 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_min_entry_time = 50,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
+    .gov_tta_filter = 250,
     .gov_ff_exponent = 150,
     .gov_vbat_offset = 0,
 );
@@ -153,8 +154,12 @@ static FAST_DATA_ZERO_INIT float govCyclicFF;
 static FAST_DATA_ZERO_INIT float govCollectiveFF;
 static FAST_DATA_ZERO_INIT float govFeedForward;
 static FAST_DATA_ZERO_INIT float govFFexponent;
-
 static FAST_DATA_ZERO_INIT float govBatOffset;
+
+static FAST_DATA_ZERO_INIT float govTTAMull;
+static FAST_DATA_ZERO_INIT float govTTAGain;
+static FAST_DATA_ZERO_INIT float govTTALimit;
+static FAST_DATA_ZERO_INIT biquadFilter_t govTTAFilter;
 
 
 //// Prototypes
@@ -366,8 +371,17 @@ static void govUpdateData(void)
     // Angle-of-attack vs. FeedForward curve
     govFeedForward = powf(govCollectiveFF + govCyclicFF, govFFexponent);
 
+    // Tail Torque Assist
+    if (mixerMotorizedTail() && govTTAGain != 0 && isSpooledUp()) {
+        float TTA = govTTAGain * biquadFilterApply(&govTTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
+        govTTAMull = constrainf(TTA, 0, govTTALimit) + 1.0f;
+    }
+    else {
+        govTTAMull = 1.0f;
+    }
+
     // Normalized RPM error
-    float newError = (govSetpoint - govHeadSpeed) / govFullHeadSpeed;
+    float newError = (govSetpoint * govTTAMull - govHeadSpeed) / govFullHeadSpeed;
 
     // Update PIDF terms
     govP = govK * govKp * newError;
@@ -432,7 +446,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to LOST_THROTTLE
             //  -- If throttle <20%, move to AUTO or SPOOLING_UP
             case GS_ACTIVE:
-                govMain = govThrottle;
+                govMain = govThrottle * govTTAMull;
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
                 else if (govMain < GOV_THROTTLE_IDLE_LIMIT) {
@@ -892,6 +906,12 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         govKd = pidProfile->governor.d_gain / 1000.0f;
         govKf = pidProfile->governor.f_gain / 100.0f;
 
+        govTTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -250.0f;
+        govTTALimit  = pidProfile->governor.tta_limit / 100.0f;
+
+        if (govMode >= GM_STANDARD)
+            govTTAGain /= govK * govKp;
+
         govCycWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
         govColWeight = pidProfile->governor.collective_ff_weight / 100.0f;
 
@@ -969,6 +989,7 @@ void governorInit(const pidProfile_t *pidProfile)
 
         const float maxFreq = pidGetPidFrequency() / 4;
 
+        biquadFilterInitLPF(&govTTAFilter, constrainf(governorConfig()->gov_tta_filter, 1, maxFreq), gyro.targetLooptime);
         biquadFilterInitLPF(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
         biquadFilterInitLPF(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
         biquadFilterInitLPF(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);

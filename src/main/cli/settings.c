@@ -877,6 +877,7 @@ const clivalue_t valueTable[] = {
     { "gov_ff_exponent",            VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_ff_exponent) },
     { "gov_pwr_filter",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_pwr_filter) },
     { "gov_rpm_filter",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_rpm_filter) },
+    { "gov_tta_filter",             VAR_UINT16 |  MASTER_VALUE,  .config.minmaxUnsigned = { 1, 1000 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_tta_filter) },
 
 // PG_SERVO_CONFIG
 #ifdef USE_SERVOS
@@ -1054,6 +1055,8 @@ const clivalue_t valueTable[] = {
     { "gov_i_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.i_gain) },
     { "gov_d_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.d_gain) },
     { "gov_f_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.f_gain) },
+    { "gov_tta_gain",               VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.tta_gain) },
+    { "gov_tta_limit",              VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.tta_limit) },
     { "gov_cyclic_ff_weight",       VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.cyclic_ff_weight) },
     { "gov_collective_ff_weight",   VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.collective_ff_weight) },
 
