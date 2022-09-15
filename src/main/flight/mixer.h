@@ -180,4 +180,3 @@ static inline bool mixerIsTailMode(int mode) { return (mixerConfig()->tail_rotor
 // TODO remove
 static inline float pidGetOutput(int axis) { UNUSED(axis); return 0; }
 static inline float pidGetCollective(void) { return 0; }
-static inline bool isSpooledUp(void) { return false; }

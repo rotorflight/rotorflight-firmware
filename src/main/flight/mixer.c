@@ -41,6 +41,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/governor.h"
 
 #include "rx/rx.h"
 
@@ -243,10 +244,10 @@ static FAST_CODE void mixerUpdateInputs(void)
     mixerCyclicUpdate();
 
     // Update governor sub-mixer
-    // TODO governorUpdate();
+    governorUpdate();
 
     // Update throttle from governor
-    mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, 0); // TODO getGovernorOutput());
+    mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
     // Update motorized tail
     if (mixerMotorizedTail())
