@@ -1137,7 +1137,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
-    // Added in API version 1.42
+    case MSP_MOTOR_OVERRIDE:
+        for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+#ifdef USE_MOTOR
+            if (i < getMotorCount())
+                sbufWriteU16(dst, getMotorOverride(i));
+            else
+#endif
+                sbufWriteU16(dst, 0);
+        }
+        break;
+
     case MSP_MOTOR_TELEMETRY:
         sbufWriteU8(dst, getMotorCount());
         for (unsigned i = 0; i < getMotorCount(); i++) {
