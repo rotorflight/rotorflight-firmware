@@ -1450,8 +1450,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
     case MSP_MIXER_CONFIG:
-        sbufWriteU8(dst, 0); // was mixerConfig()->mixerMode
-        sbufWriteU8(dst, 0); // was mixerConfig()->yaw_motors_reversed
+        sbufWriteU8(dst, mixerConfig()->main_rotor_dir);
+        sbufWriteU8(dst, mixerConfig()->tail_rotor_mode);
+        sbufWriteU8(dst, mixerConfig()->tail_motor_idle);
+        sbufWriteU8(dst, mixerConfig()->swash_ring);
+        sbufWriteU8(dst, mixerConfig()->swash_phase);
         break;
 
     case MSP_RX_CONFIG:
