@@ -1521,6 +1521,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RSSI_CONFIG:
         sbufWriteU8(dst, rxConfig()->rssi_channel);
+        sbufWriteU8(dst, rxConfig()->rssi_scale);
+        sbufWriteU8(dst, rxConfig()->rssi_invert);
+        sbufWriteU8(dst, rxConfig()->rssi_offset);
         break;
 
     case MSP_RX_MAP:
