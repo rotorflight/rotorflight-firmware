@@ -1484,15 +1484,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RX_CONFIG:
         sbufWriteU8(dst, rxConfig()->serialrx_provider);
+        sbufWriteU8(dst, rxConfig()->serialrx_inverted);
+        sbufWriteU8(dst, rxConfig()->halfDuplex);
         sbufWriteU16(dst, rxConfig()->maxcheck);
         sbufWriteU16(dst, rxConfig()->midrc);
         sbufWriteU16(dst, rxConfig()->mincheck);
-        sbufWriteU8(dst, rxConfig()->spektrum_sat_bind);
         sbufWriteU16(dst, rxConfig()->rx_min_usec);
         sbufWriteU16(dst, rxConfig()->rx_max_usec);
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rcInterpolation
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rcInterpolationInterval
-        sbufWriteU16(dst, 0); // was rxConfig()->airModeActivateThreshold
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rcInterpolation
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rcInterpolationInterval
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rcInterpolationChannels
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rc_smoothing_mode
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rc_smoothing_input_type
+        sbufWriteU8(dst, 0); // RF TODO  rxConfig()->rc_smoothing_input_cutoff
+        sbufWriteU8(dst, 0); // RF TODO  rxConfig()->rc_smoothing_derivative_type
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rc_smoothing_derivative_cutoff
+        sbufWriteU8(dst, 0); // RF TODO rxConfig()->rc_smoothing_factor
 #ifdef USE_RX_SPI
         sbufWriteU8(dst, rxSpiConfig()->rx_spi_protocol);
         sbufWriteU32(dst, rxSpiConfig()->rx_spi_id);
@@ -1502,24 +1509,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, 0);
         sbufWriteU8(dst, 0);
 #endif
-        sbufWriteU8(dst, 0); // was rxConfig()->fpvCamAngleDegrees
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rcSmoothingChannels
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rc_smoothing_type
-        sbufWriteU8(dst, 0); // was rxConfig()->rc_smoothing_setpoint_cutoff
-        sbufWriteU8(dst, 0); // was rxConfig()->rc_smoothing_feedforward_cutoff
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rc_smoothing_input_type
-        sbufWriteU8(dst, 0); // not required in API 1.44, was rxConfig()->rc_smoothing_derivative_type
-#if defined(USE_USB_CDC_HID)
-        sbufWriteU8(dst, usbDevConfig()->type);
-#else
-        sbufWriteU8(dst, 0);
-#endif
-        // Added in MSP API 1.42
-        sbufWriteU8(dst, 0); // was rxConfig()->rc_smoothing_auto_factor_rpy
-
-        // Added in MSP API 1.44
-        sbufWriteU8(dst, 0); // was rxConfig()->rc_smoothing_mode
         break;
+
     case MSP_FAILSAFE_CONFIG:
         sbufWriteU8(dst, failsafeConfig()->failsafe_delay);
         sbufWriteU8(dst, failsafeConfig()->failsafe_off_delay);
