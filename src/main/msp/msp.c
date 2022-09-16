@@ -1254,6 +1254,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, boardAlignment()->yawDegrees);
         break;
 
+    case MSP_DEBUG_CONFIG:
+        sbufWriteU8(dst, DEBUG_COUNT);
+        sbufWriteU8(dst, systemConfig()->debug_mode);
+        sbufWriteU8(dst, systemConfig()->debug_axis);
+        break;
+
     case MSP_ARMING_CONFIG:
         sbufWriteU8(dst, armingConfig()->auto_disarm_delay);
         sbufWriteU8(dst, 0);
