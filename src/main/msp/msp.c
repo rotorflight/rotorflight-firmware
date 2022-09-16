@@ -1012,46 +1012,47 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     bool unsupportedCommand = false;
 
     switch (cmdMSP) {
-    case MSP_STATUS_EX:
     case MSP_STATUS:
         {
-            boxBitmask_t flightModeFlags;
-            const int flagBits = packFlightModeFlags(&flightModeFlags);
-
             sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_PID));
-#ifdef USE_I2C
-            sbufWriteU16(dst, i2cGetErrorCounter());
-#else
-            sbufWriteU16(dst, 0);
-#endif
-            sbufWriteU16(dst, sensors(SENSOR_ACC) | sensors(SENSOR_BARO) << 1 | sensors(SENSOR_MAG) << 2 | sensors(SENSOR_GPS) << 3 | sensors(SENSOR_RANGEFINDER) << 4 | sensors(SENSOR_GYRO) << 5);
-            sbufWriteData(dst, &flightModeFlags, 4);        // unconditional part of flags, first 32 bits
-            sbufWriteU8(dst, getCurrentPidProfileIndex());
-            sbufWriteU16(dst, constrain(getAverageSystemLoadPercent(), 0, LOAD_PERCENTAGE_ONE));
-            if (cmdMSP == MSP_STATUS_EX) {
-                sbufWriteU8(dst, PID_PROFILE_COUNT);
-                sbufWriteU8(dst, getCurrentControlRateProfileIndex());
-            } else {  // MSP_STATUS
-                sbufWriteU16(dst, 0); // gyro cycle time
-            }
+            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_GYRO));
 
-            // write flightModeFlags header. Lowest 4 bits contain number of bytes that follow
-            // header is emited even when all bits fit into 32 bits to allow future extension
-            int byteCount = (flagBits - 32 + 7) / 8;        // 32 already stored, round up
-            byteCount = constrain(byteCount, 0, 15);        // limit to 16 bytes (128 bits)
-            sbufWriteU8(dst, byteCount);
-            sbufWriteData(dst, ((uint8_t*)&flightModeFlags) + 4, byteCount);
+            sbufWriteU16(dst, sensors(SENSOR_ACC) << 0 |
+                              sensors(SENSOR_BARO) << 1 |
+                              sensors(SENSOR_MAG) << 2 |
+                              sensors(SENSOR_GPS) << 3 |
+                              sensors(SENSOR_RANGEFINDER) << 4 |
+                              sensors(SENSOR_GYRO) << 5);
 
-            // Write arming disable flags
-            // 1 byte, flag count
+            boxBitmask_t flightModeFlags;
+            packFlightModeFlags(&flightModeFlags);
+            sbufWriteData(dst, &flightModeFlags, 4);
+
+            sbufWriteU8(dst, 0); // compat: profile number
+
+            sbufWriteU16(dst, getAverageSystemLoadPercent());
+            sbufWriteU16(dst, 0); // getAverageCPULoadPercent());
+
+            sbufWriteU8(dst, 0); // compat: extra flight mode flags count
+
             sbufWriteU8(dst, ARMING_DISABLE_FLAGS_COUNT);
-            // 4 bytes, flags
-            const uint32_t armingDisableFlags = getArmingDisableFlags();
-            sbufWriteU32(dst, armingDisableFlags);
+            sbufWriteU32(dst, getArmingDisableFlags());
 
-            // config state flags - bits to indicate the state of the configuration, reboot required, etc.
-            // other flags can be added as needed
-            sbufWriteU8(dst, (getRebootRequired() << 0));
+            sbufWriteU8(dst, getRebootRequired());
+            sbufWriteU8(dst, systemConfig()->configurationState);
+
+            sbufWriteU8(dst, getCurrentPidProfileIndex());
+            sbufWriteU8(dst, PID_PROFILE_COUNT);
+            sbufWriteU8(dst, getCurrentControlRateProfileIndex());
+            sbufWriteU8(dst, CONTROL_RATE_PROFILE_COUNT);
+
+            sbufWriteU8(dst, getMotorCount());
+#ifdef USE_SERVOS
+            sbufWriteU8(dst, getServoCount());
+#else
+            sbufWriteU8(dst, 0);
+#endif
+            sbufWriteU8(dst, getGyroDetectionFlags());
         }
         break;
 
