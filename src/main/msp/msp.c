@@ -752,6 +752,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteData(dst, buildDate, BUILD_DATE_LENGTH);
         sbufWriteData(dst, buildTime, BUILD_TIME_LENGTH);
         sbufWriteData(dst, shortGitRevision, GIT_SHORT_REVISION_LENGTH);
+        const char *version = FC_VERSION_STRING;
+        sbufWriteU8(dst, strlen(version));
+        sbufWriteString(dst, version);
         break;
 
     case MSP_ANALOG:
