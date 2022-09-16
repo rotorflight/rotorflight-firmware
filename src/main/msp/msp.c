@@ -1694,25 +1694,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
     }
     case MSP_ADVANCED_CONFIG:
-        sbufWriteU8(dst, 1);  // was gyroConfig()->gyro_sync_denom - removed in API 1.43
+        sbufWriteU8(dst, 1); // compat: gyro denom
         sbufWriteU8(dst, pidConfig()->pid_process_denom);
         sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
         sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
-        sbufWriteU16(dst, 0); // was motorConfig()->digitalIdleOffsetValue
-        sbufWriteU8(dst, 0); // DEPRECATED: gyro_use_32kHz
-        sbufWriteU8(dst, 0); // was motorConfig()->dev.motorPwmInversion
-        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
-        sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
-        sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
-        sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
-        sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
-        sbufWriteU8(dst, gyroConfig()->checkOverflow);
-        //Added in MSP API 1.42
-        sbufWriteU8(dst, systemConfig()->debug_mode);
-        sbufWriteU8(dst, DEBUG_COUNT);
-
         break;
+
     case MSP_FILTER_CONFIG :
         sbufWriteU8(dst, gyroConfig()->gyro_lpf1_static_hz);
         sbufWriteU16(dst, gyroConfig()->dterm_lpf1_static_hz);
