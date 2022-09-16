@@ -317,3 +317,23 @@
 #define MSP_RTC                  247    //out message         Gets the RTC clock
 #define MSP_SET_BOARD_INFO       248    //in message          Sets the board information for this board
 #define MSP_SET_SIGNATURE        249    //in message          Sets the signature of the board and serial number
+
+// Rotorflight commands
+#define MSP_HELI_CONFIG          140    //out message         Gets the helicopter configuration
+#define MSP_SET_HELI_CONFIG      141    //in message          Sets the helicopter configuration
+#define MSP_GOVERNOR             142    //out message         Gets the governor configuration
+#define MSP_SET_GOVERNOR         143    //in message          Sets the governor configuration
+#define MSP_RPM_FILTER           144    //out message         Gets RPM filter configuration
+#define MSP_SET_RPM_FILTER       145    //in message          Sets RPM filter configuration
+
+#define MSP_MIXER_INPUTS         170    //out message         Gets the generic mixer inputs
+#define MSP_SET_MIXER_INPUT      171    //in message          Sets one generic mixer input
+#define MSP_MIXER_RULES          172    //out message         Gets the generic mixer rules
+#define MSP_SET_MIXER_RULE       173    //in message          Sets one generic mixer rule
+
+#define MSP_MIXER_OVERRIDE       190    //out message         Gets mixer input override values
+#define MSP_SET_MIXER_OVERRIDE   191    //in message          Sets mixer input override value
+#define MSP_SERVO_OVERRIDE       192    //out message         Gets servo output override values
+#define MSP_SET_SERVO_OVERRIDE   193    //in message          Sets servo output override value
+#define MSP_MOTOR_OVERRIDE       194    //out message         Gets motor override values
+#define MSP_SET_MOTOR_OVERRIDE   195    //in message          Sets motor override value
