@@ -1119,6 +1119,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, servoParams(i)->speed);
         }
         break;
+
+    case MSP_SERVO_OVERRIDE:
+        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+            sbufWriteU16(dst, getServoOverride(i));
+        }
+        break;
 #endif
 
     case MSP_MOTOR:
