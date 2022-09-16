@@ -1287,12 +1287,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
-    case MSP_PIDNAMES:
-        for (const char *c = PID_NAMES; *c; c++) {
-            sbufWriteU8(dst, *c);
-        }
-        break;
-
     case MSP_MODE_RANGES:
         for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {
             const modeActivationCondition_t *mac = modeActivationConditions(i);
