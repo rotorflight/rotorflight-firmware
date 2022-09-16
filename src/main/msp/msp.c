@@ -1315,20 +1315,27 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, motorConfig()->maxthrottle);
         sbufWriteU16(dst, motorConfig()->mincommand);
 
-        // API 1.42
-        sbufWriteU8(dst, getMotorCount());
-        sbufWriteU8(dst, motorConfig()->motorPoleCount[0]);
+        sbufWriteU8(dst, getMotorCount()); // compat: BLHeliSuite
+        sbufWriteU8(dst, motorConfig()->motorPoleCount[0]); // compat: BLHeliSuite
+
 #ifdef USE_DSHOT_TELEMETRY
         sbufWriteU8(dst, motorConfig()->dev.useDshotTelemetry);
 #else
         sbufWriteU8(dst, 0);
 #endif
+        sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
+        sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
+        sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
 
-#ifdef USE_ESC_SENSOR
-        sbufWriteU8(dst, featureIsEnabled(FEATURE_ESC_SENSOR)); // ESC sensor available
-#else
-        sbufWriteU8(dst, 0);
-#endif
+        for (int i = 0; i < 4; i++)
+            sbufWriteU8(dst, motorConfig()->motorPoleCount[i]);
+        for (int i = 0; i < 4; i++)
+            sbufWriteU8(dst, motorConfig()->motorRpmLpf[i]);
+
+        sbufWriteU16(dst, motorConfig()->mainRotorGearRatio[0]);
+        sbufWriteU16(dst, motorConfig()->mainRotorGearRatio[1]);
+        sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[0]);
+        sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[1]);
         break;
 
 #if defined(USE_ESC_SENSOR)
