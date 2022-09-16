@@ -1116,19 +1116,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
 
     case MSP_MOTOR:
-        for (unsigned i = 0; i < 8; i++) {
+        for (int i = 0; i < 8; i++) {
 #ifdef USE_MOTOR
-            if (!motorIsEnabled() || i >= MAX_SUPPORTED_MOTORS || !motorIsMotorEnabled(i)) {
-                sbufWriteU16(dst, 0);
-                continue;
+            if (i < getMotorCount() && motorIsEnabled() && motorIsMotorEnabled(i)) {
+                const int16_t throttle = getMotorOutput(i);
+                if (throttle < 0)
+                    sbufWriteU16(dst, throttle - 1000);
+                else
+                    sbufWriteU16(dst, throttle + 1000); // compat: BLHeli
             }
-
-            sbufWriteU16(dst, 0); // motorConvertToExternal(motor[i]));
-#else
-            sbufWriteU16(dst, 0);
+            else
 #endif
+                sbufWriteU16(dst, 0); // zero means motor disabled
         }
-
         break;
 
     // Added in API version 1.42
