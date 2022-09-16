@@ -1262,8 +1262,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_ARMING_CONFIG:
         sbufWriteU8(dst, armingConfig()->auto_disarm_delay);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0); // was imuConfig()->small_angle
         break;
 
     case MSP_RC_TUNING:
