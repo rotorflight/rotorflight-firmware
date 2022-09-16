@@ -50,9 +50,6 @@
 #define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, }
 #define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, }
 
-#define PID_NAMES                   "ROLL;PITCH;YAW;"
-
-
 typedef struct {
     float P;
     float I;
