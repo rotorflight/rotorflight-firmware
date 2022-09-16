@@ -26,8 +26,6 @@
 #include "pg/pid.h"
 
 
-#define PID_CONTROLLER_BETAFLIGHT   1
-
 #define PID_PROCESS_DENOM_DEFAULT   8
 #define MAX_PID_PROCESS_DENOM       16
 
