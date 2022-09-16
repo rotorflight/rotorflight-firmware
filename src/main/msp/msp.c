@@ -1275,10 +1275,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_PID:
-        for (int i = 0; i < PID_ITEM_COUNT; i++) {
-            sbufWriteU8(dst, currentPidProfile->pid[i].P);
-            sbufWriteU8(dst, currentPidProfile->pid[i].I);
-            sbufWriteU8(dst, currentPidProfile->pid[i].D);
+        for (int i = 0; i < PID_AXIS_COUNT; i++) {
+            sbufWriteU16(dst, currentPidProfile->pid[i].P);
+            sbufWriteU16(dst, currentPidProfile->pid[i].I);
+            sbufWriteU16(dst, currentPidProfile->pid[i].D);
+            sbufWriteU16(dst, currentPidProfile->pid[i].F);
         }
         break;
 
