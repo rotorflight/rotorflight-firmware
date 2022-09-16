@@ -182,8 +182,6 @@
 #define MSP_RPM_FILTER                       144
 #define MSP_SET_RPM_FILTER                   145
 
-#define MSP_STATUS_EX                        150
-
 #define MSP_UID                              160
 
 #define MSP_GPSSVINFO                        164
