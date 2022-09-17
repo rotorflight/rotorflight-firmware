@@ -3022,6 +3022,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_RSSI_CONFIG:
         rxConfigMutable()->rssi_channel = sbufReadU8(src);
+        rxConfigMutable()->rssi_scale = sbufReadU8(src);
+        rxConfigMutable()->rssi_invert = sbufReadU8(src);
+        rxConfigMutable()->rssi_offset = sbufReadU8(src);
         break;
 
     case MSP_SET_RX_MAP:
