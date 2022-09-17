@@ -3201,6 +3201,23 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 #endif
+
+    case MSP_SET_GOVERNOR:
+        governorConfigMutable()->gov_mode = sbufReadU8(src);
+        governorConfigMutable()->gov_startup_time = sbufReadU16(src);
+        governorConfigMutable()->gov_spoolup_time = sbufReadU16(src);
+        governorConfigMutable()->gov_tracking_time = sbufReadU16(src);
+        governorConfigMutable()->gov_recovery_time = sbufReadU16(src);
+        governorConfigMutable()->gov_zero_throttle_timeout = sbufReadU16(src);
+        governorConfigMutable()->gov_lost_headspeed_timeout = sbufReadU16(src);
+        governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
+        governorConfigMutable()->gov_autorotation_bailout_time = sbufReadU16(src);
+        governorConfigMutable()->gov_autorotation_min_entry_time = sbufReadU16(src);
+        governorConfigMutable()->gov_pwr_filter = sbufReadU16(src);
+        governorConfigMutable()->gov_rpm_filter = sbufReadU16(src);
+        governorConfigMutable()->gov_tta_filter = sbufReadU16(src);
+        break;
+
     default:
         // we do not know how to handle the (valid) message, indicate error MSP $M!
         return MSP_RESULT_ERROR;
