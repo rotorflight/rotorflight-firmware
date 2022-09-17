@@ -2256,24 +2256,29 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
 
-#if 0
     case MSP_SET_ADJUSTMENT_RANGE:
         i = sbufReadU8(src);
         if (i < MAX_ADJUSTMENT_RANGE_COUNT) {
             adjustmentRange_t *adjRange = adjustmentRangesMutable(i);
-            sbufReadU8(src); // was adjRange->adjustmentIndex
-            adjRange->auxChannelIndex = sbufReadU8(src);
-            adjRange->range.startStep = sbufReadU8(src);
-            adjRange->range.endStep = sbufReadU8(src);
-            adjRange->adjustmentConfig = sbufReadU8(src);
-            adjRange->auxSwitchChannelIndex = sbufReadU8(src);
-
-            activeAdjustmentRangeReset();
+            // RF TODO fix for new adjustments
+            //adjRange->function = sbufReadU8(src);
+            adjRange->enaChannel = sbufReadU8(src);
+            adjRange->enaRange.startStep = sbufReadU8(src);
+            adjRange->enaRange.endStep = sbufReadU8(src);
+            adjRange->function = sbufReadU8(src);
+            adjRange->adjChannel = sbufReadU8(src);
+            //adjRange->adjRange1.startStep = sbufReadU8(src);
+            //adjRange->adjRange1.endStep = sbufReadU8(src);
+            //adjRange->adjRange2.startStep = sbufReadU8(src);
+            //adjRange->adjRange2.endStep = sbufReadU8(src);
+            adjRange->adjStep = sbufReadU8(src);
+            adjRange->adjMin = sbufReadU16(src);
+            adjRange->adjMax = sbufReadU16(src);
+            adjustmentRangeReset(i);
         } else {
             return MSP_RESULT_ERROR;
         }
         break;
-#endif
 
     case MSP_SET_RC_TUNING:
         currentControlRateProfile->rates_type = sbufReadU8(src);
