@@ -89,6 +89,7 @@
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/governor.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -1900,6 +1901,23 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
         break;
 #endif
+
+    case MSP_GOVERNOR:
+        sbufWriteU8(dst, governorConfig()->gov_mode);
+        sbufWriteU16(dst, governorConfig()->gov_startup_time);
+        sbufWriteU16(dst, governorConfig()->gov_spoolup_time);
+        sbufWriteU16(dst, governorConfig()->gov_tracking_time);
+        sbufWriteU16(dst, governorConfig()->gov_recovery_time);
+        sbufWriteU16(dst, governorConfig()->gov_zero_throttle_timeout);
+        sbufWriteU16(dst, governorConfig()->gov_lost_headspeed_timeout);
+        sbufWriteU16(dst, governorConfig()->gov_autorotation_timeout);
+        sbufWriteU16(dst, governorConfig()->gov_autorotation_bailout_time);
+        sbufWriteU16(dst, governorConfig()->gov_autorotation_min_entry_time);
+        sbufWriteU16(dst, governorConfig()->gov_pwr_filter);
+        sbufWriteU16(dst, governorConfig()->gov_rpm_filter);
+        sbufWriteU16(dst, governorConfig()->gov_tta_filter);
+        break;
+
     default:
         unsupportedCommand = true;
     }
