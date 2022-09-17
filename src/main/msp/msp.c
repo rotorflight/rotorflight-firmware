@@ -2350,12 +2350,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 #endif
 
-    case MSP_SET_MOTOR:
-        for (int i = 0; i < getMotorCount(); i++) {
-            //motor_disarmed[i] = motorConvertFromExternal(sbufReadU16(src));
-        }
-        break;
-
 #ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
         if (dataSize != 1 + 12) {
