@@ -66,34 +66,10 @@
 
 #define API_VERSION_LENGTH                  2
 
-#define MULTIWII_IDENTIFIER "MWII";
-#define BASEFLIGHT_IDENTIFIER "BAFL";
-//#define BETAFLIGHT_IDENTIFIER "BTFL" Actual value stored in FC_FIRMWARE_IDENTIFIER in build/version.h
-#define CLEANFLIGHT_IDENTIFIER "CLFL"
-#define INAV_IDENTIFIER "INAV"
-#define RACEFLIGHT_IDENTIFIER "RCFL"
-
 #define FLIGHT_CONTROLLER_IDENTIFIER_LENGTH 4
-#define FLIGHT_CONTROLLER_VERSION_LENGTH    3
-#define FLIGHT_CONTROLLER_VERSION_MASK      0xFFF
 
 #define BOARD_IDENTIFIER_LENGTH             4 // 4 UPPER CASE alpha numeric characters that identify the board being used.
 #define BOARD_HARDWARE_REVISION_LENGTH      2
-
-// These are baseflight specific flags but they are useless now since MW 2.3 uses the upper 4 bits for the navigation version.
-#define CAP_PLATFORM_32BIT          ((uint32_t)1 << 31)
-#define CAP_BASEFLIGHT_CONFIG       ((uint32_t)1 << 30)
-
-// MW 2.3 stores NAVI_VERSION in the top 4 bits of the capability mask.
-#define CAP_NAVI_VERSION_BIT_4_MSB  ((uint32_t)1 << 31)
-#define CAP_NAVI_VERSION_BIT_3      ((uint32_t)1 << 30)
-#define CAP_NAVI_VERSION_BIT_2      ((uint32_t)1 << 29)
-#define CAP_NAVI_VERSION_BIT_1_LSB  ((uint32_t)1 << 28)
-
-#define CAP_DYNBALANCE              ((uint32_t)1 << 2)
-#define CAP_FLAPS                   ((uint32_t)1 << 3)
-#define CAP_NAVCAP                  ((uint32_t)1 << 4)
-#define CAP_EXTAUX                  ((uint32_t)1 << 5)
 
 #define MSP_API_VERSION                 1    //out message
 #define MSP_FC_VARIANT                  2    //out message
