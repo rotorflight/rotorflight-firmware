@@ -2256,6 +2256,40 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_ADJUSTMENT_RANGE:
+        i = sbufReadU8(src);
+        if (i < MAX_ADJUSTMENT_RANGE_COUNT) {
+            adjustmentRange_t *adjRange = adjustmentRangesMutable(i);
+            // RF TODO fix for new adjustments
+            //adjRange->function = sbufReadU8(src);
+            adjRange->enaChannel = sbufReadU8(src);
+            adjRange->enaRange.startStep = sbufReadU8(src);
+            adjRange->enaRange.endStep = sbufReadU8(src);
+            adjRange->function = sbufReadU8(src);
+            adjRange->adjChannel = sbufReadU8(src);
+            //adjRange->adjRange1.startStep = sbufReadU8(src);
+            //adjRange->adjRange1.endStep = sbufReadU8(src);
+            //adjRange->adjRange2.startStep = sbufReadU8(src);
+            //adjRange->adjRange2.endStep = sbufReadU8(src);
+            adjRange->adjStep = sbufReadU8(src);
+            adjRange->adjMin = sbufReadU16(src);
+            adjRange->adjMax = sbufReadU16(src);
+            // RF TODO Remove
+            if (adjRange->adjStep) {
+                adjRange->adjRange1.startStep = -105;
+                adjRange->adjRange1.endStep = -40;
+                adjRange->adjRange2.startStep = 40;
+                adjRange->adjRange2.endStep = 105;
+            }
+            else {
+                adjRange->adjRange1.startStep = -105;
+                adjRange->adjRange1.endStep = 105;
+                adjRange->adjRange2.startStep = -105;
+                adjRange->adjRange2.endStep = 105;
+            }
+            adjustmentRangeReset(i);
+        } else {
+            return MSP_RESULT_ERROR;
+        }
         break;
 
     case MSP_SET_RC_TUNING:
