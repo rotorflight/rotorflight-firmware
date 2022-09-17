@@ -2962,6 +2962,19 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
 
+    case MSP_SET_MIXER_RULE:
+        i = sbufReadU8(src);
+        if (i >= MIXER_RULE_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        sbufReadU32(src); // RF TODO remove me
+        mixerRulesMutable(i)->oper = sbufReadU8(src);
+        mixerRulesMutable(i)->input = sbufReadU8(src);
+        mixerRulesMutable(i)->output = sbufReadU8(src);
+        mixerRulesMutable(i)->offset = sbufReadU16(src);
+        mixerRulesMutable(i)->weight = sbufReadU16(src);
+        break;
+
     case MSP_SET_RX_CONFIG:
         rxConfigMutable()->serialrx_provider = sbufReadU8(src);
         rxConfigMutable()->maxcheck = sbufReadU16(src);
