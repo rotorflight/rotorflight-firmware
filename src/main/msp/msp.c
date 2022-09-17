@@ -2186,66 +2186,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_RC_TUNING:
-        if (sbufBytesRemaining(src) >= 10) {
-            value = sbufReadU8(src);
-            if (currentControlRateProfile->rcRates[FD_PITCH] == currentControlRateProfile->rcRates[FD_ROLL]) {
-                currentControlRateProfile->rcRates[FD_PITCH] = value;
-            }
-            currentControlRateProfile->rcRates[FD_ROLL] = value;
-
-            value = sbufReadU8(src);
-            if (currentControlRateProfile->rcExpo[FD_PITCH] == currentControlRateProfile->rcExpo[FD_ROLL]) {
-                currentControlRateProfile->rcExpo[FD_PITCH] = value;
-            }
-            currentControlRateProfile->rcExpo[FD_ROLL] = value;
-
-            for (int i = 0; i < 3; i++) {
-                currentControlRateProfile->rates[i] = sbufReadU8(src);
-            }
-
-            sbufReadU8(src); // was currentControlRateProfile->tpa_rate
-            sbufReadU8(src); // was currentControlRateProfile->thrMid8
-            sbufReadU8(src); // was currentControlRateProfile->thrExpo8
-            sbufReadU16(src); // was currentControlRateProfile->tpa_breakpoint
-
-            if (sbufBytesRemaining(src) >= 1) {
-                currentControlRateProfile->rcExpo[FD_YAW] = sbufReadU8(src);
-            }
-
-            if (sbufBytesRemaining(src) >= 1) {
-                currentControlRateProfile->rcRates[FD_YAW] = sbufReadU8(src);
-            }
-
-            if (sbufBytesRemaining(src) >= 1) {
-                currentControlRateProfile->rcRates[FD_PITCH] = sbufReadU8(src);
-            }
-
-            if (sbufBytesRemaining(src) >= 1) {
-                currentControlRateProfile->rcExpo[FD_PITCH] = sbufReadU8(src);
-            }
-
-            // version 1.41
-            if (sbufBytesRemaining(src) >= 2) {
-                sbufReadU8(src); // was currentControlRateProfile->throttle_limit_type
-                sbufReadU8(src); // was currentControlRateProfile->throttle_limit_percent
-            }
-
-            // version 1.42
-            if (sbufBytesRemaining(src) >= 6) {
-                currentControlRateProfile->rate_limit[FD_ROLL] = sbufReadU16(src);
-                currentControlRateProfile->rate_limit[FD_PITCH] = sbufReadU16(src);
-                currentControlRateProfile->rate_limit[FD_YAW] = sbufReadU16(src);
-            }
-
-            // version 1.43
-            if (sbufBytesRemaining(src) >= 1) {
-                currentControlRateProfile->rates_type = sbufReadU8(src);
-            }
-
-            loadControlRateProfile();
-        } else {
-            return MSP_RESULT_ERROR;
+        currentControlRateProfile->rates_type = sbufReadU8(src);
+        for (int i = 0; i < 3; i++) {
+            currentControlRateProfile->rcRates[i] = sbufReadU8(src);
+            currentControlRateProfile->rcExpo[i] = sbufReadU8(src);
+            currentControlRateProfile->rates[i] = sbufReadU8(src);
+            currentControlRateProfile->rate_limit[i] = sbufReadU16(src);
         }
+        loadControlRateProfile();
         break;
 
     case MSP_SET_MOTOR_CONFIG:
