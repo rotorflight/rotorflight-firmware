@@ -2222,15 +2222,27 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
         motorConfigMutable()->mincommand = sbufReadU16(src);
 
-        // version 1.42
-        if (sbufBytesRemaining(src) >= 2) {
-            motorConfigMutable()->motorPoleCount[0] = sbufReadU8(src);
+        // sbufReadU8(src); MSP_MOTOR_CONFIG has motorCount here
+        sbufReadU8(src); // compat: motorPoleCount
+
 #if defined(USE_DSHOT_TELEMETRY)
-            motorConfigMutable()->dev.useDshotTelemetry = sbufReadU8(src);
+        motorConfigMutable()->dev.useDshotTelemetry = sbufReadU8(src);
 #else
-            sbufReadU8(src);
+        sbufReadU8(src);
 #endif
-        }
+        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
+        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
+        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
+
+        for (int i = 0; i < 4; i++)
+            motorConfigMutable()->motorPoleCount[i] = sbufReadU8(src);
+        for (int i = 0; i < 4; i++)
+            motorConfigMutable()->motorRpmLpf[i] = sbufReadU8(src);
+
+        motorConfigMutable()->mainRotorGearRatio[0] = sbufReadU16(src);
+        motorConfigMutable()->mainRotorGearRatio[1] = sbufReadU16(src);
+        motorConfigMutable()->tailRotorGearRatio[0] = sbufReadU16(src);
+        motorConfigMutable()->tailRotorGearRatio[1] = sbufReadU16(src);
         break;
 
 #ifdef USE_GPS
