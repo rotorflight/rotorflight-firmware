@@ -2338,6 +2338,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
         break;
+
+    case MSP_SET_SERVO_OVERRIDE:
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_SERVOS) {
+            return MSP_RESULT_ERROR;
+        }
+        setServoOverride(i, sbufReadU16(src));
+        break;
 #endif
 
     case MSP_SET_RC_DEADBAND:
