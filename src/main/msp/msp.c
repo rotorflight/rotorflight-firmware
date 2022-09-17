@@ -2341,12 +2341,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
-    case MSP_SET_MOTOR_3D_CONFIG:
-        sbufReadU16(src); // was flight3DConfigMutable()->deadband3d_low
-        sbufReadU16(src); // was flight3DConfigMutable()->deadband3d_high
-        sbufReadU16(src); // was flight3DConfigMutable()->neutral3d
-        break;
-
     case MSP_SET_RC_DEADBAND:
         rcControlsConfigMutable()->deadband = sbufReadU8(src);
         rcControlsConfigMutable()->yaw_deadband = sbufReadU8(src);
