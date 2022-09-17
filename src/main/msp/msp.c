@@ -2663,6 +2663,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #else
         sbufReadU8(src);
 #endif
+        gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
+        gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
+        gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
+        gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
+        gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
+        gyroConfigMutable()->checkOverflow = sbufReadU8(src);
+        validateAndFixGyroConfig();
         break;
 
 #ifdef USE_ACC
