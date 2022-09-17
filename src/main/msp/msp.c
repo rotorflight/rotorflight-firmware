@@ -2414,36 +2414,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     }
 
     case MSP_SET_ADVANCED_CONFIG:
-        sbufReadU8(src); // was gyroConfigMutable()->gyro_sync_denom - removed in API 1.43
+        sbufReadU8(src);  // compat: gyro denom
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
-        motorConfigMutable()->dev.useUnsyncedPwm = sbufReadU8(src);
-        motorConfigMutable()->dev.motorPwmProtocol = sbufReadU8(src);
-        motorConfigMutable()->dev.motorPwmRate = sbufReadU16(src);
-        if (sbufBytesRemaining(src) >= 2) {
-            sbufReadU16(src); // was motorConfigMutable()->digitalIdleOffsetValue
-        }
-        if (sbufBytesRemaining(src)) {
-            sbufReadU8(src); // DEPRECATED: gyro_use_32khz
-        }
-        if (sbufBytesRemaining(src)) {
-            sbufReadU8(src); // was motorConfigMutable()->dev.motorPwmInversion
-        }
-        if (sbufBytesRemaining(src) >= 8) {
-            gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
-            gyroConfigMutable()->gyro_high_fsr = sbufReadU8(src);
-            gyroConfigMutable()->gyroMovementCalibrationThreshold = sbufReadU8(src);
-            gyroConfigMutable()->gyroCalibrationDuration = sbufReadU16(src);
-            gyroConfigMutable()->gyro_offset_yaw = sbufReadU16(src);
-            gyroConfigMutable()->checkOverflow = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            //Added in MSP API 1.42
-            systemConfigMutable()->debug_mode = sbufReadU8(src);
-        }
-
-        validateAndFixGyroConfig();
-
+        sbufReadU32(src); // compat: deprecated
+        servoConfigMutable()->dev.servoPwmRate = sbufReadU16(src);
         break;
+
     case MSP_SET_FILTER_CONFIG:
         gyroConfigMutable()->gyro_lpf1_static_hz = sbufReadU8(src);
         gyroConfigMutable()->dterm_lpf1_static_hz = sbufReadU16(src);
