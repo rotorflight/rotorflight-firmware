@@ -2458,6 +2458,20 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gyroInitFilters();
         break;
 
+#ifdef USE_RPM_FILTER
+    case MSP_SET_RPM_FILTER:
+        i = sbufReadU8(src);
+        if (i >= RPM_FILTER_BANK_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        rpmFilterConfigMutable()->filter_bank_motor_index[i] = sbufReadU8(src);
+        rpmFilterConfigMutable()->filter_bank_gear_ratio[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_notch_q[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_min_hz[i] = sbufReadU16(src);
+        rpmFilterConfigMutable()->filter_bank_max_hz[i] = sbufReadU16(src);
+        break;
+#endif
+
     case MSP_SET_PID_ADVANCED:
         currentPidProfile->pid_mode = sbufReadU8(src);
         currentPidProfile->error_decay = sbufReadU8(src);
