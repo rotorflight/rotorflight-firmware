@@ -1748,6 +1748,18 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
         break;
 
+#ifdef USE_RPM_FILTER
+    case MSP_RPM_FILTER:
+        for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
+            sbufWriteU8(dst, rpmFilterConfig()->filter_bank_motor_index[i]);
+            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_gear_ratio[i]);
+            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_notch_q[i]);
+            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_min_hz[i]);
+            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_max_hz[i]);
+        }
+        break;
+#endif
+
     case MSP_PID_ADVANCED:
         sbufWriteU16(dst, currentPidProfile->error_limit[0]);
         sbufWriteU16(dst, currentPidProfile->error_limit[1]);
