@@ -2422,47 +2422,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         resetPidProfile(currentPidProfile);
         break;
 
-    case MSP_SET_SENSOR_ALIGNMENT: {
-        // maintain backwards compatibility for API < 1.41
-        const uint8_t gyroAlignment = sbufReadU8(src);
-        sbufReadU8(src);  // discard deprecated acc_align
+    case MSP_SET_SENSOR_ALIGNMENT:
+        gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
+        gyroDeviceConfigMutable(1)->alignment = sbufReadU8(src);
 #if defined(USE_MAG)
         compassConfigMutable()->mag_alignment = sbufReadU8(src);
 #else
         sbufReadU8(src);
 #endif
-
-        if (sbufBytesRemaining(src) >= 3) {
-            // API >= 1.41 - support the gyro_to_use and alignment for gyros 1 & 2
-#ifdef USE_MULTI_GYRO
-            gyroConfigMutable()->gyro_to_use = sbufReadU8(src);
-            gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
-            gyroDeviceConfigMutable(1)->alignment = sbufReadU8(src);
-#else
-            sbufReadU8(src);  // unused gyro_to_use
-            gyroDeviceConfigMutable(0)->alignment = sbufReadU8(src);
-            sbufReadU8(src);  // unused gyro_2_sensor_align
-#endif
-        } else {
-            // maintain backwards compatibility for API < 1.41
-#ifdef USE_MULTI_GYRO
-            switch (gyroConfig()->gyro_to_use) {
-            case GYRO_CONFIG_USE_GYRO_2:
-                gyroDeviceConfigMutable(1)->alignment = gyroAlignment;
-                break;
-            case GYRO_CONFIG_USE_GYRO_BOTH:
-                // For dual-gyro in "BOTH" mode we'll only update gyro 0
-            default:
-                gyroDeviceConfigMutable(0)->alignment = gyroAlignment;
-                break;
-            }
-#else
-            gyroDeviceConfigMutable(0)->alignment = gyroAlignment;
-#endif
-
-        }
         break;
-    }
 
     case MSP_SET_ADVANCED_CONFIG:
         sbufReadU8(src);  // compat: gyro denom
