@@ -1708,26 +1708,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, 0);
         break;
 
-    case MSP_FILTER_CONFIG :
-        sbufWriteU8(dst, gyroConfig()->gyro_lpf1_static_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf1_static_hz);
-        sbufWriteU16(dst, 0); // was currentPidProfile->yaw_lowpass_hz
+    case MSP_FILTER_CONFIG:
+        sbufWriteU8(dst, gyroConfig()->gyro_hardware_lpf);
+        sbufWriteU8(dst, gyroConfig()->gyro_lpf1_type);
+        sbufWriteU16(dst, gyroConfig()->gyro_lpf1_static_hz);
+        sbufWriteU8(dst, gyroConfig()->gyro_lpf2_type);
+        sbufWriteU16(dst, gyroConfig()->gyro_lpf2_static_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_1);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_1);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_cutoff);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_2);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_2);
         sbufWriteU8(dst, gyroConfig()->dterm_lpf1_type);
-        sbufWriteU8(dst, gyroConfig()->gyro_hardware_lpf);
-        sbufWriteU8(dst, 0); // DEPRECATED: gyro_32khz_hardware_lpf
-        sbufWriteU16(dst, gyroConfig()->gyro_lpf1_static_hz);
-        sbufWriteU16(dst, gyroConfig()->gyro_lpf2_static_hz);
-        sbufWriteU8(dst, gyroConfig()->gyro_lpf1_type);
-        sbufWriteU8(dst, gyroConfig()->gyro_lpf2_type);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf2_static_hz);
-        // Added in MSP API 1.41
+        sbufWriteU16(dst, gyroConfig()->dterm_lpf1_static_hz);
         sbufWriteU8(dst, gyroConfig()->dterm_lpf2_type);
+        sbufWriteU16(dst, gyroConfig()->dterm_lpf2_static_hz);
+        sbufWriteU16(dst, gyroConfig()->dterm_notch_hz);
+        sbufWriteU16(dst, gyroConfig()->dterm_notch_cutoff);
 #if defined(USE_DYN_LPF)
         sbufWriteU16(dst, gyroConfig()->gyro_lpf1_dyn_min_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_lpf1_dyn_max_hz);
@@ -1739,34 +1735,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
-        // Added in MSP API 1.42
-#if defined(USE_DYN_NOTCH_FILTER)
-        sbufWriteU8(dst, 0);  // DEPRECATED 1.43: dyn_notch_range
-        sbufWriteU8(dst, 0);  // DEPRECATED 1.44: dyn_notch_width_percent
-        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_q);
-        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_min_hz);
-#else
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0);
-#endif
-        sbufWriteU8(dst, 0); // was rpmFilterConfig()->rpm_filter_harmonics
-        sbufWriteU8(dst, 0); // was rpmFilterConfig()->rpm_filter_min_hz
-#if defined(USE_DYN_NOTCH_FILTER)
-        // Added in MSP API 1.43
-        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_max_hz);
-#else
-        sbufWriteU16(dst, 0);
-#endif
-        sbufWriteU8(dst, 0); // was currentPidProfile->dterm_lpf1_dyn_expo
 #if defined(USE_DYN_NOTCH_FILTER)
         sbufWriteU8(dst, dynNotchConfig()->dyn_notch_count);
+        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_q);
+        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_min_hz);
+        sbufWriteU16(dst, dynNotchConfig()->dyn_notch_max_hz);
 #else
         sbufWriteU8(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU16(dst, 0);
 #endif
-
         break;
+
     case MSP_PID_ADVANCED:
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
