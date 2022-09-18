@@ -1465,6 +1465,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_MIXER_RULES:
+        for (int i = 0; i < MIXER_RULE_COUNT; i++) {
+          sbufWriteU32(dst, 0); // RF TODO remove me
+          sbufWriteU8(dst, mixerRules(i)->oper);
+          sbufWriteU8(dst, mixerRules(i)->input);
+          sbufWriteU8(dst, mixerRules(i)->output);
+          sbufWriteU16(dst, mixerRules(i)->offset);
+          sbufWriteU16(dst, mixerRules(i)->weight);
+        }
+        break;
+
     case MSP_RX_CONFIG:
         sbufWriteU8(dst, rxConfig()->serialrx_provider);
         sbufWriteU16(dst, rxConfig()->maxcheck);
