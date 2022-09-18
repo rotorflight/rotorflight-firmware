@@ -1735,57 +1735,69 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_PID_ADVANCED:
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0); // was pidProfile.yaw_p_limit
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // was vbatPidCompensation
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_transition
-        sbufWriteU8(dst, 0); // was low byte of currentPidProfile->dtermSetpointWeight
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU8(dst, 0); // reserved
-        sbufWriteU16(dst, 0); // was currentPidProfile->rateAccelLimit
-        sbufWriteU16(dst, 0); // was currentPidProfile->yawRateAccelLimit
-        sbufWriteU8(dst, 0); // was currentPidProfile->levelAngleLimit
-        sbufWriteU8(dst, 0); // was pidProfile.levelSensitivity
-        sbufWriteU16(dst, 0); // was currentPidProfile->itermThrottleThreshold
-        sbufWriteU16(dst, 0); // was currentPidProfile->itermAcceleratorGain
-        sbufWriteU16(dst, 0); // was currentPidProfile->dtermSetpointWeight
-        sbufWriteU8(dst, 0); // was currentPidProfile->iterm_rotation
-        sbufWriteU8(dst, 0); // was currentPidProfile->smart_feedforward
-        sbufWriteU8(dst, 0); // was currentPidProfile->iterm_relax
-        sbufWriteU8(dst, 0); // was urrentPidProfile->iterm_relax_type
-        sbufWriteU8(dst, 0); // was currentPidProfile->abs_control_gain
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0); // was currentPidProfile->acro_trainer_angle_limit
-        sbufWriteU16(dst, currentPidProfile->pid[PID_ROLL].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_PITCH].F);
-        sbufWriteU16(dst, currentPidProfile->pid[PID_YAW].F);
-
-        sbufWriteU8(dst, 0); // was currentPidProfile->antiGravityMode
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0); // was currentPidProfile->iterm_relax_cutoff
-        // Added in MSP API 1.43
-        sbufWriteU8(dst, 0); // was currentPidProfile->motor_output_limit
-        sbufWriteU8(dst, 0); // was currentPidProfile->auto_profile_cell_count
-        sbufWriteU8(dst, 0); // was currentPidProfile->dyn_idle_min_rpm
-
-        // Added in MSP API 1.44
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_averaging
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_smooth_factor
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_boost
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_max_rate_limit
-        sbufWriteU8(dst, 0); // was currentPidProfile->feedforward_jitter_factor
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, currentPidProfile->pid_mode);
+        sbufWriteU8(dst, currentPidProfile->error_decay);
+        sbufWriteU8(dst, currentPidProfile->error_rotation);
+        sbufWriteU16(dst, currentPidProfile->error_limit[0]);
+        sbufWriteU16(dst, currentPidProfile->error_limit[1]);
+        sbufWriteU16(dst, currentPidProfile->error_limit[2]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_type);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_level[0]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_level[1]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_level[2]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[0]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[1]);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[2]);
+        sbufWriteU8(dst, currentPidProfile->yaw_cw_stop_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_ccw_stop_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_cyclic_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->yaw_collective_ff_impulse_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_impulse_freq);
+        sbufWriteU16(dst, currentPidProfile->pitch_collective_ff_gain);
+        sbufWriteU16(dst, currentPidProfile->pitch_collective_ff_impulse_gain);
+        /* Angle mode */
+        sbufWriteU8(dst, currentPidProfile->angle.level_strength);
+        sbufWriteU8(dst, currentPidProfile->angle.level_limit);
+        /* Horizon mode */
+        sbufWriteU8(dst, currentPidProfile->horizon.level_strength);
+        /* Acro trainer */
+        sbufWriteU8(dst, currentPidProfile->trainer.gain);
+        sbufWriteU8(dst, currentPidProfile->trainer.angle_limit);
+        /* Rescue */
+        sbufWriteU8(dst, currentPidProfile->rescue.mode);
+        sbufWriteU8(dst, currentPidProfile->rescue.flip_mode);
+        sbufWriteU8(dst, currentPidProfile->rescue.flip_gain);
+        sbufWriteU8(dst, currentPidProfile->rescue.level_gain);
+        sbufWriteU8(dst, currentPidProfile->rescue.pull_up_time);
+        sbufWriteU8(dst, currentPidProfile->rescue.climb_time);
+        sbufWriteU8(dst, currentPidProfile->rescue.flip_time);
+        sbufWriteU8(dst, currentPidProfile->rescue.exit_time);
+        sbufWriteU16(dst, currentPidProfile->rescue.pull_up_collective);
+        sbufWriteU16(dst, currentPidProfile->rescue.climb_collective);
+        sbufWriteU16(dst, currentPidProfile->rescue.hover_collective);
+        sbufWriteU16(dst, currentPidProfile->rescue.hover_altitude);
+        sbufWriteU16(dst, currentPidProfile->rescue.alt_a_gain);
+        sbufWriteU16(dst, currentPidProfile->rescue.alt_p_gain);
+        sbufWriteU16(dst, currentPidProfile->rescue.alt_i_gain);
+        sbufWriteU16(dst, currentPidProfile->rescue.max_collective);
+        sbufWriteU16(dst, currentPidProfile->rescue.max_climb_rate);
+        sbufWriteU16(dst, currentPidProfile->rescue.max_setpoint_rate);
+        sbufWriteU16(dst, currentPidProfile->rescue.max_setpoint_accel);
+        /* Governor */
+        sbufWriteU16(dst, currentPidProfile->governor.headspeed);
+        sbufWriteU8(dst, currentPidProfile->governor.gain);
+        sbufWriteU8(dst, currentPidProfile->governor.p_gain);
+        sbufWriteU8(dst, currentPidProfile->governor.i_gain);
+        sbufWriteU8(dst, currentPidProfile->governor.d_gain);
+        sbufWriteU8(dst, currentPidProfile->governor.f_gain);
+        sbufWriteU8(dst, currentPidProfile->governor.tta_gain);
+        sbufWriteU8(dst, currentPidProfile->governor.tta_limit);
+        sbufWriteU8(dst, currentPidProfile->governor.yaw_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.cyclic_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.collective_ff_weight);
         break;
+
     case MSP_SENSOR_CONFIG:
 #if defined(USE_ACC)
         sbufWriteU8(dst, accelerometerConfig()->acc_hardware);
