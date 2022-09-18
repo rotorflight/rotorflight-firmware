@@ -2452,78 +2452,47 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_PID_ADVANCED:
-        sbufReadU16(src);
-        sbufReadU16(src);
-        sbufReadU16(src); // was pidProfile.yaw_p_limit
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // was vbatPidCompensation
-        sbufReadU8(src); // was currentPidProfile->feedforward_transition
-        sbufReadU8(src); // was low byte of currentPidProfile->dtermSetpointWeight
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // reserved
-        sbufReadU8(src); // reserved
-        sbufReadU16(src); // was currentPidProfile->rate_accel_limit
-        sbufReadU16(src); // was currentPidProfile->yaw_rate_accel_limit
-        if (sbufBytesRemaining(src) >= 2) {
-            sbufReadU8(src); // was currentPidProfile->levelAngleLimit
-            sbufReadU8(src); // was pidProfile.levelSensitivity
-        }
-        if (sbufBytesRemaining(src) >= 4) {
-            sbufReadU16(src); // was currentPidProfile->itermThrottleThreshold
-            sbufReadU16(src); // was currentPidProfile->itermAcceleratorGain
-        }
-        if (sbufBytesRemaining(src) >= 2) {
-            sbufReadU16(src); // was currentPidProfile->dtermSetpointWeight
-        }
-        if (sbufBytesRemaining(src) >= 14) {
-            // Added in MSP API 1.40
-            sbufReadU8(src); // was currentPidProfile->iterm_rotation
-            sbufReadU8(src); // was currentPidProfile->smart_feedforward
-            sbufReadU8(src); // was currentPidProfile->iterm_relax
-            sbufReadU8(src); // was currentPidProfile->iterm_relax_type
-            sbufReadU8(src); // was currentPidProfile->abs_control_gain
-            sbufReadU8(src);
-            sbufReadU8(src); // currentPidProfile->was acro_trainer_angle_limit
-            // PID controller feedforward terms
-            currentPidProfile->pid[PID_ROLL].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_PITCH].F = sbufReadU16(src);
-            currentPidProfile->pid[PID_YAW].F = sbufReadU16(src);
+        currentPidProfile->error_limit[0] = sbufReadU16(src);
+        currentPidProfile->error_limit[1] = sbufReadU16(src);
+        currentPidProfile->error_limit[2] = sbufReadU16(src);
+        currentPidProfile->error_decay = sbufReadU8(src);
+        currentPidProfile->error_rotation = sbufReadU8(src);
+        sbufReadU8(src); // RF TODO iterm_relax ON/OFF
+        currentPidProfile->iterm_relax_type = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[0] = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[1] = sbufReadU8(src);
+        currentPidProfile->iterm_relax_cutoff[2] = sbufReadU8(src);
+        currentPidProfile->angle.level_strength = sbufReadU8(src);
+        currentPidProfile->angle.level_limit = sbufReadU8(src);
+        currentPidProfile->horizon.level_strength = sbufReadU8(src);
+        currentPidProfile->trainer.gain = sbufReadU8(src);
+        currentPidProfile->trainer.angle_limit = sbufReadU8(src);
+        sbufReadU16(src); // RF TODO currentPidProfile->yaw_center_offset
+        currentPidProfile->yaw_cw_stop_gain = sbufReadU8(src);
+        currentPidProfile->yaw_ccw_stop_gain = sbufReadU8(src);
+        currentPidProfile->yaw_cyclic_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_impulse_gain = sbufReadU16(src);
+        currentPidProfile->yaw_collective_ff_impulse_freq = sbufReadU8(src);
+        sbufReadU8(src); // RF TODO currentPidProfile->cyclic_normalization
+        sbufReadU8(src); // RF TODO currentPidProfile->collective_normalization
+        sbufReadU16(src); // RF TODO currentPidProfile->rescue_collective
+        sbufReadU16(src); // RF TODO currentPidProfile->rescue_boost
+        sbufReadU8(src); // RF TODO currentPidProfile->rescue_delay
+        currentPidProfile->governor.headspeed = sbufReadU16(src);
+        currentPidProfile->governor.gain = sbufReadU8(src);
+        currentPidProfile->governor.p_gain = sbufReadU8(src);
+        currentPidProfile->governor.i_gain = sbufReadU8(src);
+        currentPidProfile->governor.d_gain = sbufReadU8(src);
+        currentPidProfile->governor.f_gain = sbufReadU8(src);
+        currentPidProfile->governor.tta_gain = sbufReadU8(src);
+        currentPidProfile->governor.tta_limit = sbufReadU8(src);
+        currentPidProfile->governor.cyclic_ff_weight = sbufReadU8(src);
+        currentPidProfile->governor.collective_ff_weight = sbufReadU8(src);
 
-            sbufReadU8(src); // was currentPidProfile->antiGravityMode
-        }
-        if (sbufBytesRemaining(src) >= 7) {
-            // Added in MSP API 1.41
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU8(src);
-        }
-        if(sbufBytesRemaining(src) >= 1) {
-            // Added in MSP API 1.42
-            sbufReadU8(src); // was currentPidProfile->iterm_relax_cutoff
-        }
-        if (sbufBytesRemaining(src) >= 3) {
-            // Added in MSP API 1.43
-            sbufReadU8(src); // was currentPidProfile->motor_output_limit
-            sbufReadU8(src); // was currentPidProfile->auto_profile_cell_count
-            sbufReadU8(src); // was currentPidProfile->dyn_idle_min_rpm
-        }
-        if (sbufBytesRemaining(src) >= 7) {
-            // Added in MSP API 1.44
-            sbufReadU8(src); // was currentPidProfile->feedforward_averaging
-            sbufReadU8(src); // was currentPidProfile->feedforward_smooth_factor
-            sbufReadU8(src); // was currentPidProfile->feedforward_boost
-            sbufReadU8(src); // was currentPidProfile->feedforward_max_rate_limit
-            sbufReadU8(src); // was currentPidProfile->feedforward_jitter_factor
-            sbufReadU8(src);
-            sbufReadU8(src);
-        }
         pidInitProfile(currentPidProfile);
-
         break;
+
     case MSP_SET_SENSOR_CONFIG:
 #if defined(USE_ACC)
         accelerometerConfigMutable()->acc_hardware = sbufReadU8(src);
