@@ -1671,44 +1671,21 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
 
-    case MSP_SENSOR_ALIGNMENT: {
-        uint8_t gyroAlignment;
+    case MSP_SENSOR_ALIGNMENT:
 #ifdef USE_MULTI_GYRO
-        switch (gyroConfig()->gyro_to_use) {
-        case GYRO_CONFIG_USE_GYRO_2:
-            gyroAlignment = gyroDeviceConfig(1)->alignment;
-            break;
-        case GYRO_CONFIG_USE_GYRO_BOTH:
-            // for dual-gyro in "BOTH" mode we only read/write gyro 0
-        default:
-            gyroAlignment = gyroDeviceConfig(0)->alignment;
-            break;
-        }
+        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
+        sbufWriteU8(dst, gyroDeviceConfig(1)->alignment);
 #else
-        gyroAlignment = gyroDeviceConfig(0)->alignment;
+        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
+        sbufWriteU8(dst, ALIGN_DEFAULT);
 #endif
-        sbufWriteU8(dst, gyroAlignment);
-        sbufWriteU8(dst, gyroAlignment);  // Starting with 4.0 gyro and acc alignment are the same
 #if defined(USE_MAG)
         sbufWriteU8(dst, compassConfig()->mag_alignment);
 #else
         sbufWriteU8(dst, 0);
 #endif
-
-        // API 1.41 - Add multi-gyro indicator, selected gyro, and support for separate gyro 1 & 2 alignment
-        sbufWriteU8(dst, getGyroDetectionFlags());
-#ifdef USE_MULTI_GYRO
-        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
-        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
-        sbufWriteU8(dst, gyroDeviceConfig(1)->alignment);
-#else
-        sbufWriteU8(dst, GYRO_CONFIG_USE_GYRO_1);
-        sbufWriteU8(dst, gyroDeviceConfig(0)->alignment);
-        sbufWriteU8(dst, ALIGN_DEFAULT);
-#endif
-
         break;
-    }
+
     case MSP_ADVANCED_CONFIG:
         sbufWriteU8(dst, 1); // compat: gyro denom
         sbufWriteU8(dst, pidConfig()->pid_process_denom);
