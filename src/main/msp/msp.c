@@ -2164,10 +2164,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ARMING_CONFIG:
         armingConfigMutable()->auto_disarm_delay = sbufReadU8(src);
-        sbufReadU8(src); // reserved
-        if (sbufBytesRemaining(src)) {
-            sbufReadU8(src); // was imuConfigMutable()->small_angle
-        }
         break;
 
     case MSP_SET_PID:
