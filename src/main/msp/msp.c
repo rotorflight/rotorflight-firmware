@@ -2966,6 +2966,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_phase = sbufReadU8(src);
         break;
 
+    case MSP_SET_MIXER_INPUT:
+        i = sbufReadU8(src);
+        if (i >= MIXER_INPUT_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        mixerInputsMutable(i)->rate = sbufReadU16(src);
+        mixerInputsMutable(i)->min = sbufReadU16(src);
+        mixerInputsMutable(i)->max = sbufReadU16(src);
+        break;
+
     case MSP_SET_MIXER_RULE:
         i = sbufReadU8(src);
         if (i >= MIXER_RULE_COUNT) {
