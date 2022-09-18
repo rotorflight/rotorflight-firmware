@@ -2421,85 +2421,48 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_FILTER_CONFIG:
-        gyroConfigMutable()->gyro_lpf1_static_hz = sbufReadU8(src);
+        gyroConfigMutable()->gyro_hardware_lpf = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lpf1_type = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lpf1_static_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_lpf2_type = sbufReadU8(src);
+        gyroConfigMutable()->gyro_lpf2_static_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_hz_1 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_hz_2 = sbufReadU16(src);
+        gyroConfigMutable()->gyro_soft_notch_cutoff_2 = sbufReadU16(src);
+        gyroConfigMutable()->dterm_lpf1_type = sbufReadU8(src);
         gyroConfigMutable()->dterm_lpf1_static_hz = sbufReadU16(src);
-        sbufReadU16(src); // was currentPidProfile->yaw_lowpass_hz
-        if (sbufBytesRemaining(src) >= 8) {
-            gyroConfigMutable()->gyro_soft_notch_hz_1 = sbufReadU16(src);
-            gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);
-            gyroConfigMutable()->dterm_notch_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_notch_cutoff = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 4) {
-            gyroConfigMutable()->gyro_soft_notch_hz_2 = sbufReadU16(src);
-            gyroConfigMutable()->gyro_soft_notch_cutoff_2 = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 1) {
-            gyroConfigMutable()->dterm_lpf1_type = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 10) {
-            gyroConfigMutable()->gyro_hardware_lpf = sbufReadU8(src);
-            sbufReadU8(src); // DEPRECATED: gyro_32khz_hardware_lpf
-            gyroConfigMutable()->gyro_lpf1_static_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_lpf2_static_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_lpf1_type = sbufReadU8(src);
-            gyroConfigMutable()->gyro_lpf2_type = sbufReadU8(src);
-            gyroConfigMutable()->dterm_lpf2_static_hz = sbufReadU16(src);
-        }
-        if (sbufBytesRemaining(src) >= 9) {
-            // Added in MSP API 1.41
-            gyroConfigMutable()->dterm_lpf2_type = sbufReadU8(src);
+        gyroConfigMutable()->dterm_lpf2_type = sbufReadU8(src);
+        gyroConfigMutable()->dterm_lpf2_static_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_notch_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_notch_cutoff = sbufReadU16(src);
 #if defined(USE_DYN_LPF)
-            gyroConfigMutable()->gyro_lpf1_dyn_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->gyro_lpf1_dyn_max_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_lpf1_dyn_min_hz = sbufReadU16(src);
-            gyroConfigMutable()->dterm_lpf1_dyn_max_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_lpf1_dyn_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->gyro_lpf1_dyn_max_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_lpf1_dyn_min_hz = sbufReadU16(src);
+        gyroConfigMutable()->dterm_lpf1_dyn_max_hz = sbufReadU16(src);
 #else
-            sbufReadU16(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
 #endif
-        }
-        if (sbufBytesRemaining(src) >= 8) {
-            // Added in MSP API 1.42
 #if defined(USE_DYN_NOTCH_FILTER)
-            sbufReadU8(src); // DEPRECATED 1.43: dyn_notch_range
-            sbufReadU8(src); // DEPRECATED 1.44: dyn_notch_width_percent
-            dynNotchConfigMutable()->dyn_notch_q = sbufReadU16(src);
-            dynNotchConfigMutable()->dyn_notch_min_hz = sbufReadU16(src);
+        dynNotchConfigMutable()->dyn_notch_count = sbufReadU8(src);
+        dynNotchConfigMutable()->dyn_notch_q = sbufReadU16(src);
+        dynNotchConfigMutable()->dyn_notch_min_hz = sbufReadU16(src);
+        dynNotchConfigMutable()->dyn_notch_max_hz = sbufReadU16(src);
 #else
-            sbufReadU8(src);
-            sbufReadU8(src);
-            sbufReadU16(src);
-            sbufReadU16(src);
+        sbufReadU8(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
+        sbufReadU16(src);
 #endif
-            sbufReadU8(src); // was rpmFilterConfigMutable()->rpm_filter_harmonics
-            sbufReadU8(src); // was rpmFilterConfigMutable()->rpm_filter_min_hz
-        }
-        if (sbufBytesRemaining(src) >= 2) {
-#if defined(USE_DYN_NOTCH_FILTER)
-            // Added in MSP API 1.43
-            dynNotchConfigMutable()->dyn_notch_max_hz = sbufReadU16(src);
-#else
-            sbufReadU16(src);
-#endif
-        }
-        if (sbufBytesRemaining(src) >= 2) {
-            // Added in MSP API 1.44
-            sbufReadU8(src); // was currentPidProfile->dterm_lpf1_dyn_expo
-#if defined(USE_DYN_NOTCH_FILTER)
-            dynNotchConfigMutable()->dyn_notch_count = sbufReadU8(src);
-#else
-            sbufReadU8(src);
-#endif
-        }
-
         // reinitialize the gyro filters with the new values
         validateAndFixGyroConfig();
         gyroInitFilters();
-
         break;
+
     case MSP_SET_PID_ADVANCED:
         sbufReadU16(src);
         sbufReadU16(src);
