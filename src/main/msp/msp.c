@@ -2975,6 +2975,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerRulesMutable(i)->weight = sbufReadU16(src);
         break;
 
+    case MSP_SET_MIXER_OVERRIDE:
+        i = sbufReadU8(src);
+        if (i >= MIXER_INPUT_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+        mixerSetOverride(i, sbufReadU16(src));
+        break;
+
     case MSP_SET_RX_CONFIG:
         rxConfigMutable()->serialrx_provider = sbufReadU8(src);
         rxConfigMutable()->maxcheck = sbufReadU16(src);
