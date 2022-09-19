@@ -1326,6 +1326,21 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_ADJUSTMENT_RANGES:
+        for (int i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
+            const adjustmentRange_t *adjRange = adjustmentRanges(i);
+            sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->enaChannel);
+            sbufWriteU8(dst, adjRange->enaRange.startStep);
+            sbufWriteU8(dst, adjRange->enaRange.endStep);
+            sbufWriteU8(dst, adjRange->adjChannel);
+            sbufWriteU8(dst, adjRange->adjRange1.startStep);
+            sbufWriteU8(dst, adjRange->adjRange1.endStep);
+            sbufWriteU8(dst, adjRange->adjRange2.startStep);
+            sbufWriteU8(dst, adjRange->adjRange2.endStep);
+            sbufWriteU16(dst, adjRange->adjMin);
+            sbufWriteU16(dst, adjRange->adjMax);
+            sbufWriteU8(dst, adjRange->adjStep);
+        }
         break;
 
     case MSP_MOTOR_CONFIG:
