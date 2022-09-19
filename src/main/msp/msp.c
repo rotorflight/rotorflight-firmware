@@ -1324,19 +1324,25 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
-#if 0
     case MSP_ADJUSTMENT_RANGES:
         for (int i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
             const adjustmentRange_t *adjRange = adjustmentRanges(i);
-            sbufWriteU8(dst, 0); // was adjRange->adjustmentIndex
-            sbufWriteU8(dst, adjRange->auxChannelIndex);
-            sbufWriteU8(dst, adjRange->range.startStep);
-            sbufWriteU8(dst, adjRange->range.endStep);
-            sbufWriteU8(dst, adjRange->adjustmentConfig);
-            sbufWriteU8(dst, adjRange->auxSwitchChannelIndex);
+            // TODO fixme for new adjustments
+            //sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->enaChannel);
+            sbufWriteU8(dst, adjRange->enaRange.startStep);
+            sbufWriteU8(dst, adjRange->enaRange.endStep);
+            sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->adjChannel);
+            //sbufWriteU8(dst, adjRange->adjRange1.startStep);
+            //sbufWriteU8(dst, adjRange->adjRange1.endStep);
+            //sbufWriteU8(dst, adjRange->adjRange2.startStep);
+            //sbufWriteU8(dst, adjRange->adjRange2.endStep);
+            sbufWriteU8(dst, adjRange->adjStep);
+            sbufWriteU16(dst, adjRange->adjMin);
+            sbufWriteU16(dst, adjRange->adjMax);
         }
         break;
-#endif
 
     case MSP_MOTOR_CONFIG:
         sbufWriteU16(dst, motorConfig()->minthrottle);
