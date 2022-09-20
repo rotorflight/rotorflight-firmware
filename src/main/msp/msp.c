@@ -1844,6 +1844,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #else
         sbufWriteU8(dst, MAG_NONE);
 #endif
+        sbufWriteU8(dst, gyroConfig()->gyro_to_use);
+        sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
+        sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
+        sbufWriteU16(dst, gyroConfig()->gyroCalibrationDuration);
+        sbufWriteU16(dst, gyroConfig()->gyro_offset_yaw);
+        sbufWriteU8(dst, gyroConfig()->checkOverflow);
         break;
 
 #if defined(USE_VTX_COMMON)
