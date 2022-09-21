@@ -2121,12 +2121,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SELECT_SETTING:
         value = sbufReadU8(src);
         if ((value & RATEPROFILE_MASK) == 0) {
-            if (!ARMING_FLAG(ARMED)) {
-                if (value >= PID_PROFILE_COUNT) {
-                    value = 0;
-                }
-                changePidProfile(value);
+            if (value >= PID_PROFILE_COUNT) {
+                value = 0;
             }
+            changePidProfile(value);
         } else {
             value = value & ~RATEPROFILE_MASK;
 
