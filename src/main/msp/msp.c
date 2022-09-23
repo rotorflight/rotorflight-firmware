@@ -2153,6 +2153,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 #endif
+
+    case MSP_SET_DEBUG_CONFIG:
+        systemConfigMutable()->debug_mode = sbufReadU8(src);
+        systemConfigMutable()->debug_axis = sbufReadU8(src);
+        break;
+
     case MSP_SET_ARMING_CONFIG:
         armingConfigMutable()->auto_disarm_delay = sbufReadU8(src);
         sbufReadU8(src); // reserved
