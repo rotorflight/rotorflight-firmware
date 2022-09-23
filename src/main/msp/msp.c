@@ -2594,8 +2594,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 // p_ratio not specified in MSP, so calculate it from old rateNum and rateDenom
                 pRatio = blackboxCalculatePDenom(rateNum, rateDenom);
             }
-
-            if (sbufBytesRemaining(src) >= 1) {
+            // RF TODO refactor
+            if (false && sbufBytesRemaining(src) >= 1) {
                 // sample_rate specified, so use it directly
                 blackboxConfigMutable()->sample_rate = sbufReadU8(src);
             } else {
