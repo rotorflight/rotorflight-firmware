@@ -216,28 +216,6 @@ void pidInit(const pidProfile_t *pidProfile)
 #endif
 }
 
-#ifdef USE_RC_SMOOTHING_FILTER
-void pidInitFeedforwardLpf(uint16_t filterCutoff, uint8_t debugAxis)
-{
-    pidRuntime.rcSmoothingDebugAxis = debugAxis;
-    if (filterCutoff > 0) {
-        pidRuntime.feedforwardLpfInitialized = true;
-        for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-            pt3FilterInit(&pidRuntime.feedforwardPt3[axis], pt3FilterGain(filterCutoff, pidRuntime.dT));
-        }
-    }
-}
-
-void pidUpdateFeedforwardLpf(uint16_t filterCutoff)
-{
-    if (filterCutoff > 0) {
-        for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
-            pt3FilterUpdateCutoff(&pidRuntime.feedforwardPt3[axis], pt3FilterGain(filterCutoff, pidRuntime.dT));
-        }
-    }
-}
-#endif // USE_RC_SMOOTHING_FILTER
-
 void pidInitConfig(const pidProfile_t *pidProfile)
 {
     for (int axis = FD_ROLL; axis <= FD_YAW; axis++) {
