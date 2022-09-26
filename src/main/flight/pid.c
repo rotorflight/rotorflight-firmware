@@ -432,23 +432,6 @@ STATIC_UNIT_TESTED void rotateItermAndAxisError()
     }
 }
 
-#ifdef USE_RC_SMOOTHING_FILTER
-float FAST_CODE applyRcSmoothingFeedforwardFilter(int axis, float pidSetpointDelta)
-{
-    float ret = pidSetpointDelta;
-    if (axis == pidRuntime.rcSmoothingDebugAxis) {
-        DEBUG_SET(DEBUG_RC_SMOOTHING, 1, lrintf(pidSetpointDelta * 100.0f));
-    }
-    if (pidRuntime.feedforwardLpfInitialized) {
-        ret = pt3FilterApply(&pidRuntime.feedforwardPt3[axis], pidSetpointDelta);
-        if (axis == pidRuntime.rcSmoothingDebugAxis) {
-            DEBUG_SET(DEBUG_RC_SMOOTHING, 2, lrintf(ret * 100.0f));
-        }
-    }
-    return ret;
-}
-#endif // USE_RC_SMOOTHING_FILTER
-
 #if defined(USE_ITERM_RELAX)
 #if defined(USE_ABSOLUTE_CONTROL)
 STATIC_UNIT_TESTED void applyAbsoluteControl(const int axis, const float gyroRate, float *currentPidSetpoint, float *itermErrorRate)
@@ -690,7 +673,7 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
         if (feedforwardGain > 0) {
             // halve feedforward in Level mode since stick sensitivity is weaker by about half
             feedforwardGain *= FLIGHT_MODE(ANGLE_MODE) ? 0.5f : 1.0f;
-            // transition now calculated in feedforward.c when new RC data arrives 
+            // transition now calculated in feedforward.c when new RC data arrives
             float feedForward = feedforwardGain * pidSetpointDelta * pidRuntime.pidFrequency;
 
 #ifdef USE_FEEDFORWARD
@@ -699,9 +682,6 @@ void FAST_CODE pidController(const pidProfile_t *pidProfile, timeUs_t currentTim
 #else
             pidData[axis].F = feedForward;
 #endif
-#ifdef USE_RC_SMOOTHING_FILTER
-            pidData[axis].F = applyRcSmoothingFeedforwardFilter(axis, pidData[axis].F);
-#endif // USE_RC_SMOOTHING_FILTER
         } else {
             pidData[axis].F = 0;
         }
