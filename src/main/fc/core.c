@@ -710,12 +710,6 @@ void processRxModes(timeUs_t currentTimeUs)
 #ifdef USE_ACRO_TRAINER
     pidSetAcroTrainerState(IS_RC_MODE_ACTIVE(BOXACROTRAINER) && sensors(SENSOR_ACC));
 #endif // USE_ACRO_TRAINER
-
-#ifdef USE_RC_SMOOTHING_FILTER
-    if (ARMING_FLAG(ARMED) && !rcSmoothingInitializationComplete()) {
-        beeper(BEEPER_RC_SMOOTHING_INIT_FAIL);
-    }
-#endif
 }
 
 static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)
