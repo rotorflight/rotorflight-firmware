@@ -44,6 +44,7 @@ typedef struct rxConfig_s {
     uint16_t maxcheck;                         // maximum rc end
     uint16_t rx_min_usec;
     uint16_t rx_max_usec;
+    uint8_t rx_smoothness;
     uint8_t max_aux_channel;
     uint8_t rssi_src_frame_errors;             // true to use frame drop flags in the rx protocol
     int8_t rssi_offset;                        // offset applied to the RSSI value before it is returned
