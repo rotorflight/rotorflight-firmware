@@ -285,7 +285,7 @@ static inline float pidApplySetpoint(const pidProfile_t *pidProfile, uint8_t axi
     UNUSED(pidProfile);
 
     // Rate setpoint
-    float setpoint = getRcSetpoint(axis);
+    float setpoint = getSetpoint(axis);
 
 #ifdef USE_ACC
     // Apply leveling
@@ -310,7 +310,7 @@ static inline void pidApplyCollective(const pidProfile_t *pidProfile)
 {
     UNUSED(pidProfile);
 
-    pid.collective = getRcSetpoint(FD_COLL) / 1000.0f;
+    pid.collective = getSetpoint(FD_COLL) / 1000.0f;
 }
 
 static FAST_CODE void pidApplyPrecomp(const pidProfile_t *pidProfile)

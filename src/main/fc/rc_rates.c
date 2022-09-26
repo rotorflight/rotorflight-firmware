@@ -59,13 +59,18 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .rates[FD_PITCH] = 24,
             .rates[FD_YAW] = 48,
             .rates[FD_COLL] = 100,
+            .levelExpo[FD_ROLL] = 0,
+            .levelExpo[FD_PITCH] = 0,
+            .quickRatesRcExpo = 0,
             .rate_limit[FD_ROLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .rate_limit[FD_PITCH] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .rate_limit[FD_YAW] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .rate_limit[FD_COLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
-            .levelExpo[FD_ROLL] = 0,
-            .levelExpo[FD_PITCH] = 0,
-            .quickRatesRcExpo = 0,
+            .accel_limit[FD_ROLL] = 0,
+            .accel_limit[FD_PITCH] = 0,
+            .accel_limit[FD_YAW] = 0,
+            .accel_limit[FD_COLL] = 0,
+            .rates_smoothness = 50,
         );
     }
 }
@@ -217,6 +222,8 @@ INIT_CODE void loadControlRateProfile(void)
             applyRatesFn = applyNullRates;
             break;
     }
+
+    setpointFilterInitProfile();
 }
 
 INIT_CODE void changeControlRateProfile(uint8_t controlRateProfileIndex)
