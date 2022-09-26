@@ -736,6 +736,8 @@ void init(void)
 
     imuInit();
 
+    setpointFilterInit();
+
     failsafeInit();
 
     rxInit();
