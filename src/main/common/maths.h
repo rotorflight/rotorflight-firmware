@@ -172,3 +172,14 @@ static inline float constrainf(float amt, float low, float high)
     else
         return amt;
 }
+
+static inline float slew_limit(float current, float target, float rate)
+{
+    if (rate > 0) {
+        if (target > current)
+            return MIN(current + rate, target);
+        else
+            return MAX(current - rate, target);
+    }
+    return target;
+}

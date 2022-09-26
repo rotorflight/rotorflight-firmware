@@ -26,18 +26,19 @@
 #include "fc/rc_rates.h"
 #include "fc/rc_modes.h"
 
+#include "flight/setpoint.h"
+
 extern float rcCommand[5];
 
 void initRcProcessing(void);
-void processRcCommand(void);
 void updateRcCommands(void);
 
 void resetYawAxis(void);
 
 float getRawSetpoint(int axis);
-float getRcSetpoint(int axis);
 float getRcDeflection(int axis);
 
 uint16_t getCurrentRxRefreshRate(void);
+float getAverageRxRefreshRate(void);
 
 void updateRcRefreshRate(timeUs_t currentTimeUs);
