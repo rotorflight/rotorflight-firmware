@@ -726,11 +726,11 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
     DEBUG_TIME_END(PIDLOOP, 2);
 }
 
-static FAST_CODE_NOINLINE void subTaskRcCommand(timeUs_t currentTimeUs)
+static FAST_CODE_NOINLINE void subTaskSetpoint(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
-    processRcCommand();
+    setpointUpdate();
 }
 
 FAST_CODE void taskGyroSample(timeUs_t currentTimeUs)
@@ -772,7 +772,7 @@ FAST_CODE void taskMainPidLoop(timeUs_t currentTimeUs)
     // 3 - subTaskPidSubprocesses()
     DEBUG_SET(DEBUG_PIDLOOP, 0, micros() - currentTimeUs);
 
-    subTaskRcCommand(currentTimeUs);
+    subTaskSetpoint(currentTimeUs);
     subTaskPidController(currentTimeUs);
     subTaskMixerUpdate(currentTimeUs);
     subTaskPidSubprocesses(currentTimeUs);

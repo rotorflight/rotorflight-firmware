@@ -5288,6 +5288,22 @@ static void cliVersion(const char *cmdName, char *cmdline)
     printVersion(cmdName, true);
 }
 
+static void cliSetpointInfo(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    UNUSED(cmdline);
+
+    cliPrint("# Setpoint Smoothing: ");
+    const uint16_t avgRxFrameUs = lrintf(getAverageRxRefreshRate());
+    cliPrint("# Detected RX frame rate: ");
+    if (rxIsReceivingSignal()) {
+        cliPrintLinef("%d.%03dms", avgRxFrameUs / 1000, avgRxFrameUs % 1000);
+    } else {
+        cliPrintLine("NO SIGNAL");
+    }
+    cliPrintf("# Active filter cutoff: %dHz ", setpointFilterGetCutoffFreq());
+}
+
 #if defined(USE_RESOURCE_MGMT)
 
 #define RESOURCE_VALUE_MAX_INDEX(x) ((x) == 0 ? 1 : (x))
@@ -6816,6 +6832,7 @@ const clicmd_t cmdTable[] = {
 #endif
     CLI_COMMAND_DEF("profile", "change profile", "[<index>]", cliProfile),
     CLI_COMMAND_DEF("rateprofile", "change rate profile", "[<index>]", cliRateProfile),
+    CLI_COMMAND_DEF("setpoint_info", "show setpoint smoothing operational settings", NULL,cliSetpointInfo),
 #ifdef USE_RESOURCE_MGMT
     CLI_COMMAND_DEF("resource", "show/set resources", "<> | <resource name> <index> [<pin>|none] | show [all]", cliResource),
 #endif

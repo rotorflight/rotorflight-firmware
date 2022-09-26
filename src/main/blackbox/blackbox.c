@@ -1058,7 +1058,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     }
 
     for (int i = 0; i < 4; i++) {
-        blackboxCurrent->setpoint[i] = lrintf(getRcSetpoint(i));
+        blackboxCurrent->setpoint[i] = lrintf(getSetpoint(i));
     }
 
     blackboxCurrent->mixer[0] = lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 1000);

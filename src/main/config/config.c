@@ -170,7 +170,6 @@ static void activateConfig(void)
     loadControlRateProfile();
 
     initRcProcessing();
-
     adjustmentRangeInit();
 
     pidInitProfile(currentPidProfile);
