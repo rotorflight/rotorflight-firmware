@@ -234,13 +234,6 @@ typedef struct pidRuntime_s {
     float oldSetpointCorrection[XYZ_AXIS_COUNT];
 #endif
 
-#ifdef USE_RC_SMOOTHING_FILTER
-    pt3Filter_t feedforwardPt3[XYZ_AXIS_COUNT];
-    bool feedforwardLpfInitialized;
-    uint8_t rcSmoothingDebugAxis;
-    uint8_t rcSmoothingFilterType;
-#endif // USE_RC_SMOOTHING_FILTER
-
 #ifdef USE_ACRO_TRAINER
     float acroTrainerAngleLimit;
     float acroTrainerLookaheadTime;

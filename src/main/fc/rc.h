@@ -24,11 +24,6 @@
 
 #include "fc/rc_controls.h"
 
-#ifdef USE_RC_SMOOTHING_FILTER
-#define RC_SMOOTHING_AUTO_FACTOR_MIN 0
-#define RC_SMOOTHING_AUTO_FACTOR_MAX 250
-#endif
-
 void processRcCommand(void);
 float getSetpointRate(int axis);
 float getRcDeflection(int axis);
@@ -36,9 +31,6 @@ float getRcDeflectionAbs(int axis);
 void updateRcCommands(void);
 void resetYawAxis(void);
 void initRcProcessing(void);
-rcSmoothingFilter_t *getRcSmoothingData(void);
-bool rcSmoothingAutoCalculate(void);
-bool rcSmoothingInitializationComplete(void);
 float getRawSetpoint(int axis);
 float getRcCommandDelta(int axis);
 float applyCurve(int axis, float deflection);
