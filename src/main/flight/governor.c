@@ -256,28 +256,6 @@ bool isSpooledUp(void)
 
 //// Internal functions
 
-static inline float rampUpLimit(float target, float current, float rate)
-{
-    if (rate > 0) {
-        if (target > current)
-            return MIN(current + rate, target);
-    }
-
-    return target;
-}
-
-static inline float rampLimit(float target, float current, float rate)
-{
-    if (rate > 0) {
-        if (target > current)
-            return MIN(current + rate, target);
-        else
-            return MAX(current - rate, target);
-    }
-
-    return target;
-}
-
 static inline float idleMap(float throttle)
 {
     // Map throttle in IDLE state
@@ -420,7 +398,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = rampUpLimit(govThrottle, govPrev, govThrottleTrackingRate);
+                govMain = slewLimit(govPrev, govThrottle, govThrottleTrackingRate);
                 if (govThrottleLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT)
@@ -432,7 +410,7 @@ static void governorUpdatePassthrough(void)
             //  -- If 0% < throttle < 20%, stay in spoolup
             //  -- Once throttle >20% and not ramping up, move to ACTIVE
             case GS_SPOOLING_UP:
-                govMain = rampUpLimit(govThrottle, govPrev, govThrottleSpoolupRate);
+                govMain = slewUpLimit(govPrev, govThrottle, govThrottleSpoolupRate);
                 if (govThrottleLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
@@ -471,7 +449,7 @@ static void governorUpdatePassthrough(void)
             //  -- If throttle is >20%, move to AUTOROTATION_BAILOUT
             //  -- If timer expires, move to IDLE
             case GS_AUTOROTATION:
-                govMain = rampUpLimit(govThrottle, govPrev, govThrottleTrackingRate);
+                govMain = slewUpLimit(govPrev, govThrottle, govThrottleTrackingRate);
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
                 else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT)
@@ -484,7 +462,7 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move back to AUTO
             case GS_AUTOROTATION_BAILOUT:
-                govMain = rampUpLimit(govThrottle, govPrev, govThrottleBailoutRate);
+                govMain = slewUpLimit(govPrev, govThrottle, govThrottleBailoutRate);
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
                 else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
@@ -497,7 +475,7 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move to IDLE
             case GS_RECOVERY:
-                govMain = rampUpLimit(govThrottle, govPrev, govThrottleRecoveryRate);
+                govMain = slewUpLimit(govPrev, govThrottle, govThrottleRecoveryRate);
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
                 else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
@@ -562,7 +540,7 @@ static void governorUpdateState(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = rampUpLimit(idleMap(govThrottle), govPrev, govThrottleSpoolupRate);
+                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleSpoolupRate);
                 govSetpoint = govHeadSpeed;
                 if (govThrottleLow)
                     govChangeState(GS_THROTTLE_OFF);
@@ -588,7 +566,7 @@ static void governorUpdateState(void)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = rampLimit(govTargetHeadSpeed, govSetpoint, govSetpointSpoolupRate);
+                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointSpoolupRate);
                 }
                 break;
 
@@ -609,7 +587,7 @@ static void governorUpdateState(void)
                         govChangeState(GS_THROTTLE_IDLE);
                 } else {
                     govMain = govActiveCalc();
-                    govSetpoint = rampLimit(govTargetHeadSpeed, govSetpoint, govSetpointTrackingRate);
+                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointTrackingRate);
                 }
                 break;
 
@@ -617,7 +595,7 @@ static void governorUpdateState(void)
             //  -- When throttle and *headspeed* returns, move to RECOVERY
             //  -- When timer expires, move to OFF
             case GS_LOST_THROTTLE:
-                govMain = rampUpLimit(idleMap(govThrottle), govPrev, govThrottleTrackingRate);
+                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleTrackingRate);
                 govSetpoint = govHeadSpeed;
                 if (govThrottle > GOV_THROTTLE_IDLE_LIMIT && govHeadSpeedPresent)
                     govEnterSpoolupState(GS_RECOVERY);
@@ -630,7 +608,7 @@ static void governorUpdateState(void)
             //  -- If headspeed recovers, move to RECOVERY or IDLE
             //  -- When timer expires, move to OFF
             case GS_LOST_HEADSPEED:
-                govMain = rampLimit(idleMap(govThrottle), govPrev, govThrottleSpoolupRate);
+                govMain = slewLimit(govPrev, idleMap(govThrottle), govThrottleSpoolupRate);
                 govSetpoint = govHeadSpeed;
                 if (govThrottleLow)
                     govChangeState(GS_LOST_THROTTLE);
@@ -650,7 +628,7 @@ static void governorUpdateState(void)
             //  -- If timer expires, move to IDLE
             //  -- Map throttle to motor output
             case GS_AUTOROTATION:
-                govMain = rampUpLimit(idleMap(govThrottle), govPrev, govThrottleTrackingRate);
+                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleTrackingRate);
                 govSetpoint = govHeadSpeed;
                 if (govThrottleLow)
                     govChangeState(GS_THROTTLE_OFF);
@@ -678,7 +656,7 @@ static void governorUpdateState(void)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = rampLimit(govTargetHeadSpeed, govSetpoint, govSetpointBailoutRate);
+                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointBailoutRate);
                 }
                 break;
 
@@ -700,7 +678,7 @@ static void governorUpdateState(void)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = rampLimit(govTargetHeadSpeed, govSetpoint, govSetpointRecoveryRate);
+                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointRecoveryRate);
                 }
                 break;
 
