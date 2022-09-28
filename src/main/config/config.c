@@ -127,6 +127,7 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .hseMhz = SYSTEM_HSE_VALUE,  // Only used for F4 and G4 targets
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
     .enableStickArming = false,
+    .enableStickCommands = false,
 );
 
 bool isEepromWriteInProgress(void)
