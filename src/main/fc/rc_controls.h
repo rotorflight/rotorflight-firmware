@@ -72,10 +72,10 @@ typedef enum {
 #define YAW_LO    (1 << 4)
 #define YAW_HI    (2 << 4)
 #define YAW_CE    (3 << 4)
-#define THR_LO    (1 << 6)
-#define THR_HI    (2 << 6)
-#define THR_CE    (3 << 6)
-#define THR_MASK  (3 << 6)
+#define COL_LO    (1 << 6)
+#define COL_HI    (2 << 6)
+#define COL_CE    (3 << 6)
+#define COL_MASK  (3 << 6)
 
 
 typedef struct rcControlsConfig_s {
