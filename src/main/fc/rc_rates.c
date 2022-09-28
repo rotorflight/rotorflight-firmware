@@ -106,7 +106,7 @@ static float applyBetaflightRates(const int axis, float rcCommandf)
 
     if (currentControlRateProfile->rcExpo[axis]) {
         const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
-        rcCommandf = rcCommandf * power3(rcCommandfAbs) * expof + rcCommandf * (1 - expof);
+        rcCommandf = rcCommandf * POWER3(rcCommandfAbs) * expof + rcCommandf * (1 - expof);
     }
 
     float rcRate = currentControlRateProfile->rcRates[axis] / 100.0f;
@@ -143,7 +143,7 @@ static float applyKissRates(const int axis, float rcCommandf)
     const float rcCurvef = currentControlRateProfile->rcExpo[axis] / 100.0f;
 
     float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
-    float kissRcCommandf = (power3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (currentControlRateProfile->rcRates[axis] / 1000.0f);
+    float kissRcCommandf = (POWER3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (currentControlRateProfile->rcRates[axis] / 1000.0f);
     float kissAngle = constrainf(((2000.0f * kissRpyUseRates) * kissRcCommandf), -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
 
     return kissAngle;
@@ -176,11 +176,11 @@ static float applyQuickRates(const int axis, float rcCommandf)
     float angleRate;
 
     if (currentControlRateProfile->quickRatesRcExpo) {
-        curve = power3(rcCommandf) * expof + rcCommandf * (1 - expof);
+        curve = POWER3(rcCommandf) * expof + rcCommandf * (1 - expof);
         superFactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * superFactorConfig), 0.01f, 1.00f));
         angleRate = constrainf(curve * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
     } else {
-        curve = power3(rcCommandfAbs) * expof + rcCommandfAbs * (1 - expof);
+        curve = POWER3(rcCommandfAbs) * expof + rcCommandfAbs * (1 - expof);
         superFactor = 1.0f / (constrainf(1.0f - (curve * superFactorConfig), 0.01f, 1.00f));
         angleRate = constrainf(rcCommandf * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
     }
