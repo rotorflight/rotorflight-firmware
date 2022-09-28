@@ -84,7 +84,7 @@ static inline float getLevelModeRcDeflection(uint8_t axis)
 
     if (axis < FD_YAW) {
         const float expof = currentControlRateProfile->levelExpo[axis] / 100.0f;
-        deflection = power3(deflection) * expof + deflection * (1 - expof);
+        deflection = POWER3(deflection) * expof + deflection * (1 - expof);
     }
 
     return deflection;
@@ -109,10 +109,10 @@ static FAST_CODE float calcLevelErrorAngle(int axis)
 static FAST_CODE float calcHorizonLevelStrength(void)
 {
     // start with 1.0 at center stick, 0.0 at max stick deflection:
-    float horizonLevelStrength = 1.0f - MAX(fabsf(getLevelModeRcDeflection(FD_ROLL)), fabsf(getLevelModeRcDeflection(FD_PITCH)));
+    float horizonLevelStrength = 1.0f - fmaxf(fabsf(getLevelModeRcDeflection(FD_ROLL)), fabsf(getLevelModeRcDeflection(FD_PITCH)));
 
     // 0 at level, 90 at vertical, 180 at inverted (degrees):
-    const float currentInclination = MAX(ABS(attitude.values.roll), ABS(attitude.values.pitch)) / 10.0f;
+    const float currentInclination = fmaxf(abs(attitude.values.roll), abs(attitude.values.pitch)) / 10.0f;
 
     // horizonTiltExpertMode:  0 = leveling always active when sticks centered,
     //                         1 = leveling can be totally off when inverted
