@@ -179,16 +179,6 @@ void updateRcRefreshRate(timeUs_t currentTimeUs)
 }
 
 
-static inline float deadband(float x, float deadband)
-{
-    if (x > deadband)
-        return x - deadband;
-    else if (x < -deadband)
-        return x + deadband;
-    else
-        return 0;
-}
-
 void updateRcCommands(void)
 {
     float data;
@@ -199,7 +189,7 @@ void updateRcCommands(void)
     for (int axis = 0; axis < 4; axis++) {
         data = rcData[axis] - rxConfig()->midrc;
         data = constrainf(data, -500, 500);
-        data = deadband(data, rcDeadband[axis]);
+        data = fapplyDeadband(data, rcDeadband[axis]);
 
         // RC yaw rate and gyro yaw rate have opposite sign
         if (axis == FD_YAW)
