@@ -230,6 +230,8 @@
 #define USE_ACC
 #define USE_GYRO
 
+#define USE_ACC_MPU6050
+#define USE_GYRO_MPU6050
 #define USE_ACC_MPU6500
 #define USE_GYRO_MPU6500
 #define USE_ACC_SPI_MPU6000
@@ -259,6 +261,7 @@
 #define USE_BARO
 #define USE_BARO_MS5611
 #define USE_BARO_SPI_MS5611
+#define USE_BARO_BMP085
 #define USE_BARO_BMP280
 #define USE_BARO_SPI_BMP280
 #define USE_BARO_BMP388
@@ -335,16 +338,6 @@
 
 // Additional drivers included for targets with > 512KB of flash
 #if (TARGET_FLASH_SIZE > 512)
-
-#ifdef USE_ACC
-#define USE_ACC_MPU6050
-#endif
-#ifdef USE_GYRO
-#define USE_GYRO_MPU6050
-#endif
-#ifdef USE_BARO
-#define USE_BARO_BMP085
-#endif
 
 #ifdef USE_VTX_CONTROL
 #define USE_VTX_RTC6705
