@@ -83,7 +83,7 @@ static inline float getLevelModeRcDeflection(uint8_t axis)
 
     if (axis < FD_YAW) {
         const float expof = currentControlRateProfile->levelExpo[axis] / 100.0f;
-        deflection = power3(deflection) * expof + deflection * (1 - expof);
+        deflection = POWER3(deflection) * expof + deflection * (1 - expof);
     }
 
     return deflection;
