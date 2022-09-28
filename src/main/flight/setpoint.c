@@ -125,7 +125,7 @@ FAST_CODE void setpointUpdate(void)
         float setpoint = getRawSetpoint(axis);
         DEBUG_AXIS(SETPOINT, axis, 0, setpoint);
 
-        setpoint = spFilter.limitedSp[axis] = slew_limit(spFilter.limitedSp[axis], setpoint, spFilter.accelLimit[axis]);
+        setpoint = spFilter.limitedSp[axis] = slewLimit(spFilter.limitedSp[axis], setpoint, spFilter.accelLimit[axis]);
         DEBUG_AXIS(SETPOINT, axis, 1, setpoint);
 
         setpoint = pt3FilterApply(&spFilter.filter[axis], setpoint);
