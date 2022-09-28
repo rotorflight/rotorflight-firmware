@@ -196,10 +196,12 @@ static uint8_t getBmiOsrMode()
             return BMI270_VAL_GYRO_CONF_BWP_OSR2;
         case GYRO_HARDWARE_LPF_OPTION_2:
             return BMI270_VAL_GYRO_CONF_BWP_NORM;
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
         case GYRO_HARDWARE_LPF_EXPERIMENTAL:
             return BMI270_VAL_GYRO_CONF_BWP_NORM;
+#endif
     }
-    return 0;
+    return BMI270_VAL_GYRO_CONF_BWP_NORM;
 }
 
 static void bmi270Config(gyroDev_t *gyro)
