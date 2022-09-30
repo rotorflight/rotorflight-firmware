@@ -311,7 +311,7 @@ static void govDebugStats(void)
 static void govUpdateInputs(void)
 {
     // Update throttle state
-    govThrottle = (float)(rcCommand[THROTTLE] - PWM_RANGE_MIN) / (PWM_RANGE_MAX - PWM_RANGE_MIN);
+    govThrottle = getRcDeflection(THROTTLE);
     govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
 
     // Assume motor[0]
