@@ -2222,6 +2222,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
         break;
 
+    case MSP_SET_MOTOR_OVERRIDE:
+#ifdef USE_MOTOR
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_MOTORS) {
+            return MSP_RESULT_ERROR;
+        }
+        setMotorOverride(i, sbufReadU16(src));
+#endif
+        break;
+
     case MSP_SET_MOTOR_CONFIG:
         motorConfigMutable()->minthrottle = sbufReadU16(src);
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
