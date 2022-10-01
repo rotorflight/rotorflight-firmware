@@ -36,6 +36,7 @@ typedef enum {
     // Flight modes
     BOXANGLE,
     BOXHORIZON,
+    BOXPASSTHRU, // RF TODO remove
     BOXFAILSAFE,
     BOXRESCUE,
     BOXGPSRESCUE,
