@@ -309,7 +309,8 @@ FAST_CODE_NOINLINE void updateRcCommands(void)
             } else {
                 tmp = 0;
             }
-            rcCommand[axis] = tmp * -GET_DIRECTION(rcControlsConfig()->yaw_control_reversed);
+            rcCommand[axis] = -tmp; // Yaw CW rate is negative
+
         }
         if (rcData[axis] < rxConfig()->midrc) {
             rcCommand[axis] = -rcCommand[axis];
