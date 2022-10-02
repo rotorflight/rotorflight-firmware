@@ -270,7 +270,7 @@ static void setBearing(int16_t desiredHeading)
         errorAngle -= 360;
     }
 
-    errorAngle *= -GET_DIRECTION(rcControlsConfig()->yaw_control_reversed);
+    errorAngle = -errorAngle; // Yaw CW rate is negative
 
     // Calculate a desired yaw rate based on a maximum limit beyond
     // an error window and then scale the requested rate down inside
