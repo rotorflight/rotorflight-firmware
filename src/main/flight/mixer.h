@@ -172,7 +172,7 @@ static inline bool pidAxisSaturated(uint8_t i) { return mixerSaturated(MIXER_IN_
 static inline void mixerSaturateServoOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_SERVO_OFFSET); }
 static inline void mixerSaturateMotorOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_MOTOR_OFFSET); }
 
-static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir == DIR_CW) ? 1 : -1; }
+static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1; }
 
 static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode != TAIL_MODE_VARIABLE); }
 static inline bool mixerIsTailMode(int mode) { return (mixerConfig()->tail_rotor_mode == mode); }
