@@ -78,16 +78,15 @@ typedef struct gyroSensor_s {
 
 typedef struct gyro_s {
     uint16_t sampleRateHz;
+    uint16_t filterRateHz;
     uint32_t targetLooptime;
     uint32_t sampleLooptime;
+
     float scale;
     float gyroADC[XYZ_AXIS_COUNT];     // aligned, calibrated, scaled, but unfiltered data from the sensor(s)
     float gyroADCd[XYZ_AXIS_COUNT];    // downsampled gyro data
     float gyroADCf[XYZ_AXIS_COUNT];    // filtered gyro data
     float gyroDtermADCf[XYZ_AXIS_COUNT]; // filtered gyro data for D-term
-    uint8_t sampleCount;               // gyro sensor sample counter
-    float sampleSum[XYZ_AXIS_COUNT];   // summed samples used for downsampling
-    bool downsampleFilterEnabled;      // if true then downsample using gyro lowpass 2, otherwise use averaging
 
     gyroSensor_t gyroSensor1;
 #ifdef USE_MULTI_GYRO
@@ -95,6 +94,10 @@ typedef struct gyro_s {
 #endif
 
     gyroDev_t *rawSensorDev;           // pointer to the sensor providing the raw data for DEBUG_GYRO_RAW
+
+    // gyro decimation filter
+    filterApplyFnPtr decimationApplyFn;
+    gyroLowpassFilter_t decimationFilter[XYZ_AXIS_COUNT];
 
     // lowpass gyro soft filter
     filterApplyFnPtr lowpassFilterApplyFn;
@@ -169,6 +172,7 @@ enum {
     FILTER_LPF2,
     FILTER_DTERM_LPF1,
     FILTER_DTERM_LPF2,
+    FILTER_DECIMATION,
 };
 
 typedef struct gyroConfig_s {
@@ -176,6 +180,8 @@ typedef struct gyroConfig_s {
     uint8_t gyro_hardware_lpf;                // gyro DLPF setting
     uint8_t gyro_high_fsr;
     uint8_t gyro_to_use;
+
+    uint16_t gyro_decimation_hz;
 
     uint16_t gyro_lpf1_static_hz;
     uint16_t gyro_lpf2_static_hz;
