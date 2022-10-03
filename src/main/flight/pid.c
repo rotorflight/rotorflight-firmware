@@ -160,7 +160,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
         pid.errorLimit[i] = constrain(pidProfile->error_limit[i], 0, 360);
 
     // Error decay speed when not flying
-    pid.errorDecay = 1.0f - (pidProfile->error_decay) ? pid.dT * 10 / pidProfile->error_decay : 0;
+    pid.errorDecay = 1.0f - ((pidProfile->error_decay) ? (10 * pid.dT / pidProfile->error_decay) : 0);
 
     // Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
@@ -256,13 +256,13 @@ static inline void rotateAxisError(void)
 
 static FAST_CODE float applyItermRelax(int axis, float itermError, float gyroRate, float setpoint)
 {
-    const float setpointLpf = pt1FilterApply(&pid.relaxFilter[axis], setpoint);
-    const float setpointHpf = setpoint - setpointLpf;
-
     if ((pid.itermRelax == ITERM_RELAX_RPY) ||
         (pid.itermRelax == ITERM_RELAX_RP && axis == PID_ROLL) ||
         (pid.itermRelax == ITERM_RELAX_RP && axis == PID_PITCH))
     {
+        const float setpointLpf = pt1FilterApply(&pid.relaxFilter[axis], setpoint);
+        const float setpointHpf = setpoint - setpointLpf;
+
         const float itermRelaxFactor = MAX(0, 1.0f - fabsf(setpointHpf) / 40);
 
         itermError *= itermRelaxFactor;
