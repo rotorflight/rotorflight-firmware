@@ -1056,7 +1056,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     }
 
     for (int i = 0; i < 4; i++) {
-        blackboxCurrent->setpoint[i] = lrintf(getSetpoint(i));
+        blackboxCurrent->setpoint[i] = lrintf(getSetpoint(i) * 10);
     }
 
     blackboxCurrent->control[FD_ROLL]  = lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 1000);
@@ -1067,15 +1067,15 @@ static void loadMainState(timeUs_t currentTimeUs)
     const pidAxisData_t *pidData = pidGetAxisData();
 
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        blackboxCurrent->axisPID_P[i] = pidData[i].P;
-        blackboxCurrent->axisPID_I[i] = pidData[i].I;
-        blackboxCurrent->axisPID_D[i] = pidData[i].D;
-        blackboxCurrent->axisPID_F[i] = pidData[i].F;
+        blackboxCurrent->axisPID_P[i] = lrintf(pidData[i].P * 1000);
+        blackboxCurrent->axisPID_I[i] = lrintf(pidData[i].I * 1000);
+        blackboxCurrent->axisPID_D[i] = lrintf(pidData[i].D * 1000);
+        blackboxCurrent->axisPID_F[i] = lrintf(pidData[i].F * 1000);
     }
 
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        blackboxCurrent->gyroADC[i] = lrintf(gyro.gyroADCf[i]);
-        blackboxCurrent->gyroRAW[i] = lrintf(gyro.gyroADCd[i]);
+        blackboxCurrent->gyroADC[i] = lrintf(gyro.gyroADCf[i] * 10);
+        blackboxCurrent->gyroRAW[i] = lrintf(gyro.gyroADCd[i] * 10);
 #ifdef USE_ACC
         blackboxCurrent->accADC[i] = lrintf(acc.accADC[i]);
 #endif
@@ -1092,8 +1092,8 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->current = constrain(getAmperageLatest(), 0, 50000); // 500Amps
     blackboxCurrent->rssi = getRssi();
 
-    blackboxCurrent->headspeed = getHeadSpeed();
-    blackboxCurrent->tailspeed = getTailSpeed();
+    blackboxCurrent->headspeed = lrintf(getHeadSpeed());
+    blackboxCurrent->tailspeed = lrintf(getTailSpeed());
 
     for (int i = 0; i < getMotorCount(); i++) {
         blackboxCurrent->motor[i] = getMotorOutput(i);
