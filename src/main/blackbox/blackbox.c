@@ -1262,12 +1262,12 @@ static char *blackboxGetStartDateTime(char *buf)
 static bool blackboxWriteSysinfo(void)
 {
 #ifndef UNIT_TEST
-    // Make sure we have enough room in the buffer for our longest line (as of this writing, the "Firmware date" line)
+    // Make sure we have enough room in the buffer for our longest lines
     if (blackboxDeviceReserveBufferSpace(64) != BLACKBOX_RESERVE_SUCCESS) {
         return false;
     }
 
-    char buf[128];  // datetime and rpm filter
+    char buf[64];
 
     const controlRateConfig_t *currentControlRateProfile = controlRateProfiles(systemConfig()->activeRateProfile);
     switch (xmitState.headerIndex) {
@@ -1373,7 +1373,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DSHOT_BIDIR, "%d",            motorConfig()->dev.useDshotTelemetry);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_POLES, "%d",            motorConfig()->motorPoleCount);
 #endif
-#ifdef USE_RPM_FILTER
+#ifdef USE_RPM_FILTER__DISABLED__
         BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
             char *ptr = buf;
             for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
