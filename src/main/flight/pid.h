@@ -88,7 +88,9 @@ typedef struct pid_s {
 
     uint8_t pidMode;
 
-    uint8_t itermRelax;
+    uint8_t itermRelaxType;
+    uint8_t itermRelaxLevel[PID_AXIS_COUNT];
+
     uint8_t errorRotation;
 
     float errorDecay;
