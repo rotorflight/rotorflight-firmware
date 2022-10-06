@@ -104,6 +104,7 @@ typedef struct pidProfile_s {
     uint8_t             error_rotation;
 
     uint8_t             iterm_relax_type;
+    uint8_t             iterm_relax_level[PID_AXIS_COUNT];
     uint8_t             iterm_relax_cutoff[PID_AXIS_COUNT];
 
     uint16_t            error_limit[PID_AXIS_COUNT];

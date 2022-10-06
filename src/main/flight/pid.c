@@ -171,11 +171,12 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     }
 
     // Error relax
-    pid.itermRelax = pidProfile->iterm_relax_type;
-    if (pid.itermRelax) {
+    pid.itermRelaxType = pidProfile->iterm_relax_type;
+    if (pid.itermRelaxType) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
             uint8_t freq = constrain(pidProfile->iterm_relax_cutoff[i], 1, 100);
             pt1FilterInit(&pid.relaxFilter[i], pt1FilterGain(freq, pid.dT));
+            pid.itermRelaxLevel[i] = constrain(pidProfile->iterm_relax_level[i], 10, 250);
         }
     }
 
@@ -256,14 +257,14 @@ static inline void rotateAxisError(void)
 
 static FAST_CODE float applyItermRelax(int axis, float itermError, float gyroRate, float setpoint)
 {
-    if ((pid.itermRelax == ITERM_RELAX_RPY) ||
-        (pid.itermRelax == ITERM_RELAX_RP && axis == PID_ROLL) ||
-        (pid.itermRelax == ITERM_RELAX_RP && axis == PID_PITCH))
+    if ((pid.itermRelaxType == ITERM_RELAX_RPY) ||
+        (pid.itermRelaxType == ITERM_RELAX_RP && axis == PID_ROLL) ||
+        (pid.itermRelaxType == ITERM_RELAX_RP && axis == PID_PITCH))
     {
         const float setpointLpf = pt1FilterApply(&pid.relaxFilter[axis], setpoint);
         const float setpointHpf = setpoint - setpointLpf;
 
-        const float itermRelaxFactor = MAX(0, 1.0f - fabsf(setpointHpf) / 40);
+        const float itermRelaxFactor = MAX(0, 1.0f - fabsf(setpointHpf) / pid.itermRelaxLevel[axis]);
 
         itermError *= itermRelaxFactor;
 
