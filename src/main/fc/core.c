@@ -74,6 +74,7 @@
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
 #include "flight/governor.h"
+#include "flight/rescue.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -726,6 +727,7 @@ static void subTaskSetpoint(timeUs_t currentTimeUs)
     UNUSED(currentTimeUs);
 
     setpointUpdate();
+    rescueUpdate();
 }
 
 void taskGyroSample(timeUs_t currentTimeUs)
