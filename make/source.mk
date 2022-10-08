@@ -99,6 +99,7 @@ COMMON_SRC = \
             flight/governor.c \
             flight/trainer.c \
             flight/leveling.c \
+            flight/rescue.c \
             flight/setpoint.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
