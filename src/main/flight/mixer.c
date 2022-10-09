@@ -171,8 +171,8 @@ static FAST_CODE void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        // Yaw input value
-        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
+        // Yaw input value - positive is against torque
+        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Thrust linearization
         float throttle = sqrtf(fmaxf(yaw,0));
@@ -192,8 +192,8 @@ static FAST_CODE void mixerUpdateMotorizedTail(void)
         mixInput[MIXER_IN_STABILIZED_YAW] = throttle;
     }
     else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
-        // Yaw input value
-        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW];
+        // Yaw input value - positive is against torque
+        const float yaw = mixInput[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Thrust linearization
         float throttle = copysignf(sqrtf(fabsf(yaw)),yaw);
