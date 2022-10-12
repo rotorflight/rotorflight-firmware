@@ -135,6 +135,22 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(LED_PROFILE,        NONE,  1,  3),
     ADJ_CONFIG(PID_PROFILE,        NONE,  1,  6),
     ADJ_CONFIG(RATE_PROFILE,       NONE,  1,  6),
+
+    // RF TODO for evalution only
+    ADJ_CONFIG(WAY_P_GAIN,         PROF,  0, 1000),
+    ADJ_CONFIG(WAY_I_GAIN,         PROF,  0, 1000),
+    ADJ_CONFIG(WAY_D_GAIN,         PROF,  0, 1000),
+    ADJ_CONFIG(WAY_F_GAIN,         PROF,  0, 1000),
+
+    ADJ_CONFIG(PITCH_ERROR_CUTOFF, PROF,  0, 250),
+    ADJ_CONFIG(PITCH_DTERM_CUTOFF, PROF,  0, 250),
+    ADJ_CONFIG(PITCH_FTERM_CUTOFF, PROF,  0, 250),
+    ADJ_CONFIG(ROLL_ERROR_CUTOFF,  PROF,  0, 250),
+    ADJ_CONFIG(ROLL_DTERM_CUTOFF,  PROF,  0, 250),
+    ADJ_CONFIG(ROLL_FTERM_CUTOFF,  PROF,  0, 250),
+    ADJ_CONFIG(YAW_ERROR_CUTOFF,   PROF,  0, 250),
+    ADJ_CONFIG(YAW_DTERM_CUTOFF,   PROF,  0, 250),
+    ADJ_CONFIG(YAW_FTERM_CUTOFF,   PROF,  0, 250),
 };
 
 
@@ -290,6 +306,48 @@ static int getAdjustmentValue(uint8_t adjFunc)
             value = getLedProfile() + 1;
 #endif
             break;
+
+        // RF TODO for evalution only
+        case ADJUSTMENT_WAY_P_GAIN:
+            value = currentPidProfile->pid[PID_WAY].P;
+            break;
+        case ADJUSTMENT_WAY_I_GAIN:
+            value = currentPidProfile->pid[PID_WAY].I;
+            break;
+        case ADJUSTMENT_WAY_D_GAIN:
+            value = currentPidProfile->pid[PID_WAY].D;
+            break;
+        case ADJUSTMENT_WAY_F_GAIN:
+            value = currentPidProfile->pid[PID_WAY].F;
+            break;
+
+        case ADJUSTMENT_PITCH_ERROR_CUTOFF:
+            value = currentPidProfile->error_cutoff[PID_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_ERROR_CUTOFF:
+            value = currentPidProfile->error_cutoff[PID_ROLL];
+            break;
+        case ADJUSTMENT_YAW_ERROR_CUTOFF:
+            value = currentPidProfile->error_cutoff[PID_YAW];
+            break;
+        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_ROLL];
+            break;
+        case ADJUSTMENT_YAW_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_YAW];
+            break;
+        case ADJUSTMENT_PITCH_FTERM_CUTOFF:
+            value = currentPidProfile->fterm_cutoff[PID_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_FTERM_CUTOFF:
+            value = currentPidProfile->fterm_cutoff[PID_ROLL];
+            break;
+        case ADJUSTMENT_YAW_FTERM_CUTOFF:
+            value = currentPidProfile->fterm_cutoff[PID_YAW];
+            break;
     }
 
     return value;
@@ -444,6 +502,48 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
 #ifdef USE_LED_STRIP
             setLedProfile(value - 1);
 #endif
+            break;
+
+        // RF TODO for evalution only
+        case ADJUSTMENT_WAY_P_GAIN:
+            currentPidProfile->pid[PID_WAY].P = value;
+            break;
+        case ADJUSTMENT_WAY_I_GAIN:
+            currentPidProfile->pid[PID_WAY].I = value;
+            break;
+        case ADJUSTMENT_WAY_D_GAIN:
+            currentPidProfile->pid[PID_WAY].D = value;
+            break;
+        case ADJUSTMENT_WAY_F_GAIN:
+            currentPidProfile->pid[PID_WAY].F = value;
+            break;
+
+        case ADJUSTMENT_PITCH_ERROR_CUTOFF:
+            currentPidProfile->error_cutoff[PID_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_ERROR_CUTOFF:
+            currentPidProfile->error_cutoff[PID_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_ERROR_CUTOFF:
+            currentPidProfile->error_cutoff[PID_YAW] = value;
+            break;
+        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_YAW] = value;
+            break;
+        case ADJUSTMENT_PITCH_FTERM_CUTOFF:
+            currentPidProfile->fterm_cutoff[PID_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_FTERM_CUTOFF:
+            currentPidProfile->fterm_cutoff[PID_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_FTERM_CUTOFF:
+            currentPidProfile->fterm_cutoff[PID_YAW] = value;
             break;
     }
 }
