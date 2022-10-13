@@ -487,7 +487,8 @@ static void updateAdjustmentData(uint8_t adjFunc, int value)
     }
 }
 
-#define REPEAT_STEP_FREQ  (1000 / 2)
+#define REPEAT_DELAY     500
+#define TRIGGER_DELAY    100
 
 void processRcAdjustments(void)
 {
@@ -503,21 +504,30 @@ void processRcAdjustments(void)
             if (adjRange->enaChannel == 0xff || isRangeActive(adjRange->enaChannel, &adjRange->enaRange))
             {
                 adjustmentState_t * adjState = &adjustmentState[index];
+                const uint8_t adjFunc = adjRange->function;
                 const timeMs_t now = millis();
-                int adjval = adjState->value;
+                int adjval = adjState->adjValue;
 
-                if (adjState->timer && cmp32(now, adjState->timer) < 0)
+                if (cmp32(now, adjState->deadTime) < 0)
                     continue;
 
-                adjState->timer = 0;
+                const int chValue = lrintf(rcData[adjRange->adjChannel + NON_AUX_CHANNEL_COUNT]);
 
                 // Stepped adjustment
                 if (adjRange->adjStep) {
+                    if (ABS(chValue - adjState->chValue) > 2) {
+                        adjState->trigTime = now + TRIGGER_DELAY;
+                        adjState->chValue = chValue;
+                        continue;
+                    }
+                    if (cmp32(now, adjState->trigTime) < 0) {
+                        continue;
+                    }
                     if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange1)) {
-                        adjval -= adjRange->adjStep;
+                        adjval = getAdjustmentValue(adjFunc) - adjRange->adjStep;
                     }
                     else if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange2)) {
-                        adjval += adjRange->adjStep;
+                        adjval = getAdjustmentValue(adjFunc) + adjRange->adjStep;
                     }
                     else {
                         continue;
@@ -526,7 +536,6 @@ void processRcAdjustments(void)
                 // Continuous adjustment
                 else {
                     const int adjWidth = adjRange->adjMax - adjRange->adjMin;
-                    const int chValue = rcData[adjRange->adjChannel + NON_AUX_CHANNEL_COUNT];
                     const int chWidth = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.endStep) -
                                         STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.startStep);
                     const int chStep  = chWidth / adjWidth / 2;
@@ -541,9 +550,7 @@ void processRcAdjustments(void)
                 adjval = constrain(adjval, adjConfig->cfgMin, adjConfig->cfgMax);
                 adjval = constrain(adjval, adjRange->adjMin, adjRange->adjMax);
 
-                if (adjval != adjState->value) {
-                    const uint8_t adjFunc = adjRange->function;
-
+                if (adjval != adjState->adjValue) {
                     setAdjustmentValue(adjFunc, adjval);
                     updateAdjustmentData(adjFunc, adjval);
                     blackboxAdjustmentEvent(adjFunc, adjval);
@@ -551,8 +558,8 @@ void processRcAdjustments(void)
                     beeperConfirmationBeeps(1);
                     setConfigDirty();
 
-                    adjState->timer = now + REPEAT_STEP_FREQ;
-                    adjState->value = adjval;
+                    adjState->deadTime = now + REPEAT_DELAY;
+                    adjState->adjValue = adjval;
 
                     changed |= adjConfig->cfgType;
                 }
@@ -602,6 +609,8 @@ void adjustmentRangeInit(void)
 
 void adjustmentRangeReset(int index)
 {
-    adjustmentState[index].timer = 0;
-    adjustmentState[index].value = getAdjustmentValue(index);
+    adjustmentState[index].deadTime = 0;
+    adjustmentState[index].trigTime = 0;
+    adjustmentState[index].adjValue = getAdjustmentValue(index);
+    adjustmentState[index].chValue  = 0;
 }
