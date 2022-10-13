@@ -2193,6 +2193,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         loadControlRateProfile();
         break;
 
+    case MSP_SET_MOTOR:
+#ifdef USE_MOTOR
+        for (int i = 0; i < getMotorCount(); i++) {
+            int throttle = sbufReadU16(src);
+            if (motorIsEnabled() && motorIsMotorEnabled(i)) {
+                if (throttle >= 1000 && throttle <= 2000)
+                    setMotorOverride(i, throttle - 1000);
+            }
+        }
+#endif
+        break;
+
     case MSP_SET_MOTOR_CONFIG:
         motorConfigMutable()->minthrottle = sbufReadU16(src);
         motorConfigMutable()->maxthrottle = sbufReadU16(src);
@@ -2257,12 +2269,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 #endif
-
-    case MSP_SET_MOTOR:
-        for (int i = 0; i < getMotorCount(); i++) {
-            //motor_disarmed[i] = motorConvertFromExternal(sbufReadU16(src));
-        }
-        break;
 
 #ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
