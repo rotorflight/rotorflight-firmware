@@ -49,6 +49,7 @@
 #include "config/config.h"
 #include "fc/rc_rates.h"
 #include "fc/rc_controls.h"
+#include "fc/rc_adjustments.h"
 #include "fc/runtime_config.h"
 
 #include "flight/failsafe.h"
@@ -126,6 +127,8 @@ enum
     FSSP_DATAID_CELLS_LAST = 0x030F ,
     FSSP_DATAID_HEADING    = 0x0840 ,
 // DIY range 0x5100 to 0x52FF
+    FSSP_DATAID_ADJFUNC    = 0x5110 , // custom
+    FSSP_DATAID_ADJVALUE   = 0x5111 , // custom
     FSSP_DATAID_CAP_USED   = 0x5250 ,
 #if defined(USE_ACC)
     FSSP_DATAID_PITCH      = 0x5230 , // custom
@@ -154,7 +157,7 @@ enum
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
-#define MAX_DATAIDS 20
+#define MAX_DATAIDS 24
 
 static uint16_t frSkyDataIdTable[MAX_DATAIDS];
 
@@ -417,6 +420,11 @@ static void initSmartPortSensors(void)
         }
     }
 #endif
+
+    if (telemetryIsSensorEnabled(SENSOR_ADJUSTMENT)) {
+        ADD_SENSOR(FSSP_DATAID_ADJFUNC);
+        ADD_SENSOR(FSSP_DATAID_ADJVALUE);
+    }
 
     frSkyDataIdTableInfo.size = frSkyDataIdTableInfo.index;
     frSkyDataIdTableInfo.index = 0;
@@ -876,6 +884,17 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 smartPortSendPackage(id, vfasVoltage);
                 *clearToSend = false;
                 break;
+
+            case FSSP_DATAID_ADJFUNC    :
+                smartPortSendPackage(id, getAdjustmentsRangeFunc());
+                *clearToSend = false;
+                break;
+
+            case FSSP_DATAID_ADJVALUE   :
+                smartPortSendPackage(id, getAdjustmentsRangeValue());
+                *clearToSend = false;
+                break;
+
             default:
                 break;
                 // if nothing is sent, hasRequest isn't cleared, we already incremented the counter, just loop back to the start
