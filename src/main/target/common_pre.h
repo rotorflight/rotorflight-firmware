@@ -228,8 +228,6 @@ extern uint8_t _dmaram_end__;
 #define DMA_RAM_RW
 #endif
 
-#define USE_BRUSHED_ESC_AUTODETECT  // Detect if brushed motors are connected and set defaults appropriately to avoid motors spinning on boot
-
 #define USE_MOTOR
 #define USE_PWM_OUTPUT
 #define USE_DMA
