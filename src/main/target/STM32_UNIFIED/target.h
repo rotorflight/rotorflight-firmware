@@ -115,6 +115,8 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 
+#define USE_MIXER_HISTORY
+
 #define VOLTAGE_TASK_FREQ_HZ     200
 #define CURRENT_TASK_FREQ_HZ     200
 #define ESC_SENSOR_TASK_FREQ_HZ  200
@@ -151,6 +153,8 @@
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
+
+#define USE_MIXER_HISTORY
 
 #define VOLTAGE_TASK_FREQ_HZ     200
 #define CURRENT_TASK_FREQ_HZ     200
@@ -227,6 +231,8 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 #define TARGET_IO_PORTG 0xffff
+
+#define USE_MIXER_HISTORY
 
 #define VOLTAGE_TASK_FREQ_HZ     250
 #define CURRENT_TASK_FREQ_HZ     250
