@@ -73,6 +73,7 @@
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/governor.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -671,6 +672,10 @@ static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
     if (debugMode == DEBUG_PIDLOOP) {
         startTime = micros();
     }
+
+#ifdef USE_DYN_LPF
+    dynLpfUpdate(currentTimeUs, getHeadSpeedRatio());
+#endif
 
 #ifdef USE_RPM_FILTER
     rpmFilterUpdate();
