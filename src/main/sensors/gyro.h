@@ -39,6 +39,7 @@
 
 #define LPF_MAX_HZ 1000 // so little filtering above 1000hz that if the user wants less delay, they must disable the filter
 #define DYN_LPF_MAX_HZ 1000
+#define DYN_LPF_UPDATE_DELAY_US 5000
 
 #define GYRO_LPF1_DYN_MIN_HZ_DEFAULT 250
 #define GYRO_LPF1_DYN_MAX_HZ_DEFAULT 500
@@ -128,9 +129,11 @@ typedef struct gyro_s {
 
 #ifdef USE_DYN_LPF
     uint8_t dynLpfFilter;
+    uint16_t dynLpfHz;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
     uint8_t  dynLpfDtermFilter;
+    uint16_t dynLpfDtermHz;
     uint16_t dynLpfDtermMin;
     uint16_t dynLpfDtermMax;
 #endif
@@ -224,6 +227,5 @@ int16_t gyroGetTemperature(void);
 bool gyroOverflowDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 #ifdef USE_DYN_LPF
-void dynLpfGyroUpdate(float throttle);
-void dynLpfDTermUpdate(float throttle);
+void dynLpfUpdate(timeUs_t currentTimeUs, float ratio);
 #endif
