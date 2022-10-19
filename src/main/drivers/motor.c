@@ -100,7 +100,6 @@ bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig, bool *isP
     case PWM_TYPE_ONESHOT125:
     case PWM_TYPE_ONESHOT42:
     case PWM_TYPE_MULTISHOT:
-    case PWM_TYPE_BRUSHED:
         enabled = true;
 
         break;
