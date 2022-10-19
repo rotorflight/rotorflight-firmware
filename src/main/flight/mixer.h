@@ -149,6 +149,8 @@ void mixerInitConfig(void);
 void mixerUpdate(void);
 
 float mixerGetInput(uint8_t i);
+float mixerGetInputHistory(uint8_t i, uint16_t delay);
+
 float mixerGetOutput(uint8_t i);
 float mixerGetServoOutput(uint8_t i);
 float mixerGetMotorOutput(uint8_t i);
