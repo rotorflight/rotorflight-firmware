@@ -201,11 +201,6 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         sMin = 5e-6f;
         sLen = 20e-6f;
         break;
-    case PWM_TYPE_BRUSHED:
-        sMin = 0;
-        useUnsyncedPwm = true;
-        idlePulse = 0;
-        break;
     case PWM_TYPE_STANDARD:
         sMin = 1e-3f;
         sLen = 1e-3f;
@@ -251,7 +246,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
             TODO: this can be moved back to periodMin and periodLen
             once mixer outputs a 0..1 float value.
         */
-        motors[motorIndex].pulseScale = ((motorConfig->motorPwmProtocol == PWM_TYPE_BRUSHED) ? period : (sLen * hz)) / 1000.0f;
+        motors[motorIndex].pulseScale = (sLen * hz) / 1000.0f;
         motors[motorIndex].pulseOffset = (sMin * hz) - (motors[motorIndex].pulseScale * 1000);
 
         pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, idlePulse, motorConfig->motorPwmInversion);

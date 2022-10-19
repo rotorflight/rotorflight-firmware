@@ -221,7 +221,6 @@
 #define FLASH_CS_PIN            NONE
 #define USE_FLASHFS
 
-#define USE_BRUSHED_ESC_AUTODETECT  // Detect if brushed motors are connected and set defaults appropriately to avoid motors spinning on boot
 #define USE_GYRO_REGISTER_DUMP  // Adds gyroregisters command to cli to dump configured register values
 #define USE_TIMER
 #define USE_PWM_OUTPUT

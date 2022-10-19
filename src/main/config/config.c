@@ -289,12 +289,6 @@ static void validateAndFixConfig(void)
 #endif
     }
 
-    if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
-        if (motorConfig()->mincommand < 1000) {
-            motorConfigMutable()->mincommand = 1000;
-        }
-    }
-
     if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > BRUSHLESS_MOTORS_PWM_RATE)) {
         motorConfigMutable()->dev.motorPwmRate = BRUSHLESS_MOTORS_PWM_RATE;
     }
