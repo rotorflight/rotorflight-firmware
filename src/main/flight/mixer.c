@@ -91,6 +91,27 @@ static FAST_DATA_ZERO_INIT int8_t    tailMotorDirection;
 
 static FAST_DATA_ZERO_INIT float     phaseSin, phaseCos;
 
+#ifdef USE_MIXER_HISTORY
+
+// History lengh is 1024 samples (must be power of 2)
+#define MIXER_HISTORY_TIME   (1<<10)
+#define MIXER_HISTORY_MASK   (MIXER_HISTORY_TIME-1)
+
+static float inputHistory[4][MIXER_HISTORY_TIME];
+
+static FAST_DATA_ZERO_INIT uint16_t historyIndex;
+
+static inline void mixerHistoryUpdate(void)
+{
+    historyIndex = (historyIndex + 1) & MIXER_HISTORY_MASK;
+
+    inputHistory[FD_ROLL][historyIndex]   = mixerGetInput(MIXER_IN_STABILIZED_ROLL);
+    inputHistory[FD_PITCH][historyIndex]  = mixerGetInput(MIXER_IN_STABILIZED_PITCH);
+    inputHistory[FD_YAW][historyIndex]    = mixerGetInput(MIXER_IN_STABILIZED_YAW);
+    inputHistory[FD_COLL][historyIndex]   = mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE);
+}
+
+#endif /* USE_MIXER_HISTORY */
 
 static void mixerSetInput(int index, float value)
 {
@@ -252,6 +273,11 @@ static void mixerUpdateInputs(void)
     // Update motorized tail
     if (mixerMotorizedTail())
         mixerUpdateMotorizedTail();
+
+#ifdef USE_MIXER_HISTORY
+    // Update history
+    mixerHistoryUpdate();
+#endif
 }
 
 void mixerUpdate(void)
@@ -371,6 +397,13 @@ void mixerSaturateOutput(uint8_t index)
         }
     }
 }
+
+#ifdef USE_MIXER_HISTORY
+float mixerGetInputHistory(uint8_t i, uint16_t delay)
+{
+    return inputHistory[i][(historyIndex - delay) & MIXER_HISTORY_MASK];
+}
+#endif
 
 float mixerGetInput(uint8_t i)
 {
