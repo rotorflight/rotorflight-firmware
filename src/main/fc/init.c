@@ -62,7 +62,6 @@
 #include "drivers/nvic.h"
 #include "drivers/persistent.h"
 #include "drivers/pin_pull_up_down.h"
-#include "drivers/pwm_esc_detect.h"
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
 #include "drivers/sensor.h"
@@ -274,16 +273,6 @@ void init(void)
     targetConfiguration();
 #endif
 
-#ifdef USE_BRUSHED_ESC_AUTODETECT
-    // Opportunistically use the first motor pin of the default configuration for detection.
-    // We are doing this as with some boards, timing seems to be important, and the later detection will fail.
-    ioTag_t motorIoTag = timerioTagGetByUsage(TIM_USE_MOTOR, 0);
-
-    if (motorIoTag) {
-        detectBrushedESC(motorIoTag);
-    }
-#endif
-
     enum {
         FLASH_INIT_ATTEMPTED            = (1 << 0),
         SD_INIT_ATTEMPTED               = (1 << 1),
@@ -400,15 +389,6 @@ void init(void)
 
 #ifdef USE_DEBUG_PIN
     dbgPinInit();
-#endif
-
-#ifdef USE_BRUSHED_ESC_AUTODETECT
-    // Now detect again with the actually configured pin for motor 1, if it is not the default pin.
-    ioTag_t configuredMotorIoTag = motorConfig()->dev.ioTags[0];
-
-    if (configuredMotorIoTag && configuredMotorIoTag != motorIoTag) {
-        detectBrushedESC(configuredMotorIoTag);
-    }
 #endif
 
     debugMode = systemConfig()->debug_mode;
@@ -539,18 +519,12 @@ void init(void)
 
     mixerInit(mixerConfig()->mixerMode);
 
-    uint16_t idlePulse = motorConfig()->mincommand;
-    if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_BRUSHED) {
-        idlePulse = 0; // brushed motors
-    }
 #ifdef USE_MOTOR
     /* Motors needs to be initialized soon as posible because hardware initialization
      * may send spurious pulses to esc's causing their early initialization. Also ppm
      * receiver may share timer with motors so motors MUST be initialized here. */
-    motorDevInit(&motorConfig()->dev, idlePulse, getMotorCount());
+    motorDevInit(&motorConfig()->dev, motorConfig()->mincommand, getMotorCount());
     systemState |= SYSTEM_STATE_MOTORS_READY;
-#else
-    UNUSED(idlePulse);
 #endif
 
     if (0) {}
