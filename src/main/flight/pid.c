@@ -256,7 +256,7 @@ static inline void rotateAxisError(void)
 }
 
 
-static FAST_CODE float applyItermRelax(int axis, float itermError, float gyroRate, float setpoint)
+static float applyItermRelax(int axis, float itermError, float gyroRate, float setpoint)
 {
     if ((pid.itermRelaxType == ITERM_RELAX_RPY) ||
         (pid.itermRelaxType == ITERM_RELAX_RP && axis == PID_ROLL) ||
@@ -314,7 +314,7 @@ static inline void pidApplyCollective(const pidProfile_t *pidProfile)
     pid.collective = getSetpoint(FD_COLL) / 1000.0f;
 }
 
-static FAST_CODE void pidApplyPrecomp(const pidProfile_t *pidProfile)
+static void pidApplyPrecomp(const pidProfile_t *pidProfile)
 {
     UNUSED(pidProfile);
 
@@ -375,7 +375,7 @@ static FAST_CODE void pidApplyPrecomp(const pidProfile_t *pidProfile)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static FAST_CODE void pidApplyMode0(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyMode0(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Rate setpoint
     float setpoint = pidApplySetpoint(pidProfile, axis);
@@ -410,7 +410,7 @@ static FAST_CODE void pidApplyMode0(const pidProfile_t *pidProfile, uint8_t axis
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static FAST_CODE void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Rate setpoint
     float setpoint = pidApplySetpoint(pidProfile, axis);
@@ -488,7 +488,7 @@ static FAST_CODE void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_
 }
 
 
-static FAST_CODE void pidApplyYawMode1(const pidProfile_t *pidProfile)
+static void pidApplyYawMode1(const pidProfile_t *pidProfile)
 {
     const uint8_t axis = FD_YAW;
 
@@ -585,7 +585,7 @@ static FAST_CODE void pidApplyYawMode1(const pidProfile_t *pidProfile)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static FAST_CODE void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Rate setpoint
     float setpoint = pidApplySetpoint(pidProfile, axis);
@@ -661,7 +661,7 @@ static FAST_CODE void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_
 }
 
 
-static FAST_CODE void pidApplyYawMode2(const pidProfile_t *pidProfile)
+static void pidApplyYawMode2(const pidProfile_t *pidProfile)
 {
     const uint8_t axis = FD_YAW;
 
@@ -757,7 +757,7 @@ static FAST_CODE void pidApplyYawMode2(const pidProfile_t *pidProfile)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static FAST_CODE void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
 {
     // Rate setpoint
     float setpoint = pidApplySetpoint(pidProfile, axis);
@@ -837,7 +837,7 @@ static FAST_CODE void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_
 }
 
 
-static FAST_CODE void pidApplyYawMode9(const pidProfile_t *pidProfile)
+static void pidApplyYawMode9(const pidProfile_t *pidProfile)
 {
     const uint8_t axis = FD_YAW;
 
@@ -932,7 +932,7 @@ static FAST_CODE void pidApplyYawMode9(const pidProfile_t *pidProfile)
 
 /** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-FAST_CODE void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
+void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 

@@ -90,7 +90,7 @@ static inline float getLevelModeRcDeflection(uint8_t axis)
     return deflection;
 }
 
-static FAST_CODE float calcLevelErrorAngle(int axis)
+static float calcLevelErrorAngle(int axis)
 {
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
     float angle = level.AngleLimit * getLevelModeRcDeflection(axis);
@@ -106,7 +106,7 @@ static FAST_CODE float calcLevelErrorAngle(int axis)
 }
 
 // calculates strength of horizon leveling; 0 = none, 1.0 = most leveling
-static FAST_CODE float calcHorizonLevelStrength(void)
+static float calcHorizonLevelStrength(void)
 {
     // start with 1.0 at center stick, 0.0 at max stick deflection:
     float horizonLevelStrength = 1.0f - fmaxf(fabsf(getLevelModeRcDeflection(FD_ROLL)), fabsf(getLevelModeRcDeflection(FD_PITCH)));
@@ -165,7 +165,7 @@ static FAST_CODE float calcHorizonLevelStrength(void)
     return constrainf(horizonLevelStrength, 0, 1);
 }
 
-FAST_CODE float pidLevelApply(int axis, float pidSetpoint)
+float pidLevelApply(int axis, float pidSetpoint)
 {
     if (axis == FD_ROLL || axis == FD_PITCH)
     {

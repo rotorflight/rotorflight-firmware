@@ -211,7 +211,7 @@ uint32_t failsafeFailurePeriodMs(void)
     return failsafeState.rxDataFailurePeriod;
 }
 
-FAST_CODE_NOINLINE void failsafeUpdateState(void)
+void failsafeUpdateState(void)
 // triggered directly, and ONLY, by the cheduler, at 10ms = PERIOD_RXDATA_FAILURE - intervals
 {
     if (!failsafeIsMonitoring()) {

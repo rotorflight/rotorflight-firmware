@@ -653,7 +653,7 @@ void processRxModes(timeUs_t currentTimeUs)
 #endif // USE_ACRO_TRAINER
 }
 
-static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)
+static void subTaskPidController(timeUs_t currentTimeUs)
 {
     DEBUG_TIME_START(PIDLOOP, 1);
 
@@ -662,7 +662,7 @@ static FAST_CODE void subTaskPidController(timeUs_t currentTimeUs)
     DEBUG_TIME_END(PIDLOOP, 1);
 }
 
-static FAST_CODE_NOINLINE void subTaskPidSubprocesses(timeUs_t currentTimeUs)
+static void subTaskPidSubprocesses(timeUs_t currentTimeUs)
 {
     DEBUG_TIME_START(PIDLOOP, 3);
 
@@ -699,7 +699,7 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 }
 #endif
 
-static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
+static void subTaskMixerUpdate(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
@@ -726,14 +726,14 @@ static FAST_CODE_NOINLINE void subTaskMixerUpdate(timeUs_t currentTimeUs)
     DEBUG_TIME_END(PIDLOOP, 2);
 }
 
-static FAST_CODE_NOINLINE void subTaskSetpoint(timeUs_t currentTimeUs)
+static void subTaskSetpoint(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
     setpointUpdate();
 }
 
-FAST_CODE void taskGyroSample(timeUs_t currentTimeUs)
+void taskGyroSample(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
     gyroUpdate();
@@ -741,7 +741,7 @@ FAST_CODE void taskGyroSample(timeUs_t currentTimeUs)
     pidUpdateCounter = (pidUpdateCounter + 1) % activePidLoopDenom;
 }
 
-FAST_CODE bool gyroFilterReady(void)
+bool gyroFilterReady(void)
 {
     return ((pidUpdateCounter + 1) % activeFilterLoopDenom == 0);
 }
@@ -751,14 +751,14 @@ bool pidLoopReady(void)
     return (pidUpdateCounter == 0);
 }
 
-FAST_CODE void taskFiltering(timeUs_t currentTimeUs)
+void taskFiltering(timeUs_t currentTimeUs)
 {
     gyroFiltering(currentTimeUs);
 
 }
 
 // Function for loop trigger
-FAST_CODE void taskMainPidLoop(timeUs_t currentTimeUs)
+void taskMainPidLoop(timeUs_t currentTimeUs)
 {
 
 #if defined(SIMULATOR_BUILD) && defined(SIMULATOR_GYROPID_SYNC)

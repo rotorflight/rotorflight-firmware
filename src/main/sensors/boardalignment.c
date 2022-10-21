@@ -69,7 +69,7 @@ static void alignBoard(float *vec)
     applyMatrixRotation(vec, &boardRotation);
 }
 
-FAST_CODE_NOINLINE void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* sensorRotationMatrix)
+void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* sensorRotationMatrix)
 {
     applyMatrixRotation(dest, sensorRotationMatrix);
 
