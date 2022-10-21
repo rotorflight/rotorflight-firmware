@@ -78,7 +78,7 @@ static inline float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoS
     return cutoff;
 }
 
-FAST_CODE void setpointFilterUpdate(float frameTimeUs)
+void setpointFilterUpdate(float frameTimeUs)
 {
     float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rxConfig()->rx_smoothness);
 
