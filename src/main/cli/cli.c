@@ -2049,7 +2049,7 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #ifdef USE_SERVOS
 static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
 {
-    const char *format = "servo %u %d %d %d %d %d %d";
+    const char *format = "servo %u %u %u %u %u %u %u %u";
     const uint8_t servoCount = getServoCount();
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
@@ -2066,9 +2066,10 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
                 defaultServoConf->mid,
                 defaultServoConf->min,
                 defaultServoConf->max,
+                defaultServoConf->rneg,
+                defaultServoConf->rpos,
                 defaultServoConf->rate,
-                defaultServoConf->trim,
-                defaultServoConf->speed
+                defaultServoConf->flags
             );
         }
         cliDumpPrintLinef(dumpMask, equalsDefault, format,
@@ -2076,9 +2077,10 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
             servoConf->mid,
             servoConf->min,
             servoConf->max,
+            servoConf->rneg,
+            servoConf->rpos,
             servoConf->rate,
-            servoConf->trim,
-            servoConf->speed
+            servoConf->flags
         );
     }
 }
@@ -2086,9 +2088,13 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
 static void printServoStatus(uint8_t index)
 {
     if (hasServoOverride(index))
-        cliPrintLinef("servo %d: %dus [%d]", index+1, getServoOutput(index), getServoOverride(index));
+        cliPrintLinef("servo %d: %4dus %3d OVERRIDE", index+1,
+            getServoOutput(index),
+            getServoOverride(index));
     else
-        cliPrintLinef("servo %d: %dus", index+1, getServoOutput(index));
+        cliPrintLinef("servo %d: %4dus %3d", index+1,
+            getServoOutput(index),
+            lrintf(mixerGetServoOutput(index) * 1000));
 }
 
 static void printServoOverride(uint8_t index)
@@ -2101,7 +2107,7 @@ static void printServoOverride(uint8_t index)
 
 static void cliServo(const char *cmdName, char *cmdline)
 {
-    enum { FUNC=0, ARGS_MAX=8 };
+    enum { FUNC=0, ARGS_MAX=9 };
     char *args[ARGS_MAX];
     char *saveptr, *ptr;
     int count = 0;
@@ -2180,96 +2186,68 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
-    else if (strcasecmp(args[FUNC], "trim") == 0) {
+    else if (strcasecmp(args[FUNC], "flags") == 0) {
         if (count == 1) {
             for (int i=0; i<servoCount; i++) {
-                cliPrintLinef("servo trim %d %d", i+1, servoParams(i)->trim);
+                cliPrintLinef("servo flags %d %cREV %cGEO", i+1,
+                    (servoParams(i)->flags & SERVO_FLAG_REVERSED) ? '+' : '-',
+                    (servoParams(i)->flags & SERVO_FLAG_GEO_CORR) ? '+' : '-');
             }
         }
-        else if (count == 3) {
-            enum { FUNC=0, INDEX, VALUE };
-            int index, value;
-            index = atoi(args[INDEX]);
-            value = atoi(args[VALUE]);
-            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
-                value < SERVO_TRIM_MIN || value > SERVO_TRIM_MAX) {
-                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
-                return;
-            }
-            servoParamsMutable(index-1)->trim = value;
-            cliPrintLinef("servo trim %d %d", index, servoParams(index-1)->trim);
-        }
-        else {
-            cliShowInvalidArgumentCountError(cmdName);
-        }
-    }
-    else if (strcasecmp(args[FUNC], "speed") == 0) {
-        if (count == 1) {
-            for (int i=0; i<servoCount; i++) {
-                cliPrintLinef("servo speed %d %d", i+1, servoParams(i)->speed);
-            }
-        }
-        else if (count == 3) {
-            enum { FUNC=0, INDEX, VALUE };
-            int index, value;
-            index = atoi(args[INDEX]);
-            value = atoi(args[VALUE]);
-            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
-                value < SERVO_SPEED_MIN || value > SERVO_SPEED_MAX) {
-                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
-                return;
-            }
-            servoParamsMutable(index-1)->speed = value;
-            cliPrintLinef("servo speed %d %d", index, servoParams(index-1)->speed);
-        }
-        else {
-            cliShowInvalidArgumentCountError(cmdName);
-        }
-    }
-    else if (strcasecmp(args[FUNC], "reverse") == 0) {
-        if (count == 1) {
-            for (int i=0; i<servoCount; i++) {
-                if (servoParams(i)->rate >= 0)
-                    cliPrintLinef("servo %d: normal", i+1);
-                else
-                    cliPrintLinef("servo %d: reversed", i+1);
-            }
-        }
-        else if (count == 2) {
-            enum { FUNC=0, INDEX };
-            int index;
-            index = atoi(args[INDEX]);
+        else if (count >= 3) {
+            enum { FUNC=0, INDEX, FLAGS };
+            int index = atoi(args[INDEX]);
             if (index < 1 || index > MAX_SUPPORTED_SERVOS) {
                 cliShowArgumentRangeError(cmdName, NULL, 0, 0);
                 return;
             }
-            servoParamsMutable(index-1)->rate *= -1;
-            servoParamsMutable(index-1)->trim *= -1;
-            if (servoParams(index-1)->rate >= 0)
-                cliPrintLinef("servo %d: normal", index);
-            else
-                cliPrintLinef("servo %d: reversed", index);
+            uint16_t flags = servoParams(index - 1)->flags;
+            for (int i = FLAGS; i < count; i++) {
+                if (args[i][0] != '+' && args[i][0] != '-') {
+                    cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                    return;
+                }
+                if (strcmp(args[i]+1, "REV") == 0) {
+                    if (args[i][0] == '+')
+                        flags |= SERVO_FLAG_REVERSED;
+                    else
+                        flags &= ~SERVO_FLAG_REVERSED;
+                }
+                else if (strcmp(args[i]+1, "GEO") == 0) {
+                    if (args[i][0] == '+')
+                        flags |= SERVO_FLAG_GEO_CORR;
+                    else
+                        flags &= ~SERVO_FLAG_GEO_CORR;
+                }
+                else {
+                    cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                    return;
+                }
+            }
+            servoParamsMutable(index-1)->flags = flags;
+            cliPrintLinef("servo flags %d %cREV %cGEO", index,
+                (servoParams(index-1)->flags & SERVO_FLAG_REVERSED) ? '+' : '-',
+                (servoParams(index-1)->flags & SERVO_FLAG_GEO_CORR) ? '+' : '-');
         }
         else {
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
-    else if (count == 7) {
-        const char *format = "servo %d %d %d %d %d %d %d";
-        enum { INDEX = 0, MID, MIN, MAX, RATE, TRIM, SPEED, ARGS_COUNT };
-        int vals[ARGS_COUNT];
-        for (int i=0; i<ARGS_COUNT; i++)
+    else if (count == 8) {
+        const char *format = "servo %u %u %u %u %u %u %u %u";
+        enum { INDEX = 0, MID, MIN, MAX, RNEG, RPOS, RATE, FLAGS, ARGS_COUNT };
+        int vals[ARGS_COUNT] = { 0, };
+        for (int i=0; i<count; i++)
             vals[i] = atoi(args[i]);
         if (vals[INDEX] < 1 || vals[INDEX] > MAX_SUPPORTED_SERVOS ||
             vals[MID] < PWM_SERVO_PULSE_MIN || vals[MID] > PWM_SERVO_PULSE_MAX ||
-            vals[MIN] < SERVO_RANGE_MIN || vals[MIN] > SERVO_RANGE_MAX  ||
-            vals[MAX] < SERVO_RANGE_MIN || vals[MAX] > SERVO_RANGE_MAX ||
-            vals[MIN] + vals[MID] < PWM_SERVO_PULSE_MIN ||
-            vals[MAX] + vals[MID] > PWM_SERVO_PULSE_MAX ||
+            vals[MIN] < SERVO_LIMIT_MIN || vals[MIN] > SERVO_LIMIT_MAX  ||
+            vals[MAX] < SERVO_LIMIT_MIN || vals[MAX] > SERVO_LIMIT_MAX ||
             vals[MIN] > vals[MAX] ||
+            vals[RNEG] < SERVO_RANGE_MIN || vals[RNEG] > SERVO_RANGE_MAX ||
+            vals[RPOS] < SERVO_RANGE_MIN || vals[RPOS] > SERVO_RANGE_MAX ||
             vals[RATE] < SERVO_RATE_MIN || vals[RATE] > SERVO_RATE_MAX ||
-            vals[TRIM] < SERVO_TRIM_MIN || vals[TRIM] > SERVO_TRIM_MAX ||
-            vals[SPEED] < SERVO_SPEED_MIN || vals[SPEED] > SERVO_SPEED_MAX) {
+            vals[FLAGS] > SERVO_FLAGS_ALL) {
             cliShowArgumentRangeError(cmdName, NULL, 0, 0);
             return;
         }
@@ -2278,17 +2256,19 @@ static void cliServo(const char *cmdName, char *cmdline)
         servo->mid = vals[MID];
         servo->min = vals[MIN];
         servo->max = vals[MAX];
+        servo->rneg = vals[RNEG];
+        servo->rpos = vals[RPOS];
         servo->rate = vals[RATE];
-        servo->trim = vals[TRIM];
-        servo->speed = vals[SPEED];
+        servo->flags = vals[FLAGS];
         cliPrintLinef(format,
             index + 1,
             servo->mid,
             servo->min,
             servo->max,
+            servo->rneg,
+            servo->rpos,
             servo->rate,
-            servo->trim,
-            servo->speed
+            servo->flags
         );
     }
     else {
@@ -5336,7 +5316,7 @@ const cliResourceValue_t resourceTable[] = {
 #endif
     DEFA( OWNER_MOTOR,         PG_MOTOR_CONFIG, motorConfig_t, dev.ioTags[0], MAX_SUPPORTED_MOTORS ),
 #ifdef USE_SERVOS
-    DEFA( OWNER_SERVO,         PG_SERVO_CONFIG, servoConfig_t, dev.ioTags[0], MAX_SUPPORTED_SERVOS ),
+    DEFA( OWNER_SERVO,         PG_SERVO_CONFIG, servoConfig_t, ioTags[0], MAX_SUPPORTED_SERVOS ),
 #endif
 #if defined(USE_PPM)
     DEFS( OWNER_PPMINPUT,      PG_PPM_CONFIG, ppmConfig_t, ioTag ),
@@ -6851,14 +6831,10 @@ const clicmd_t cmdTable[] = {
 #endif
 #ifdef USE_SERVOS
     CLI_COMMAND_DEF("servo", "configure servos",
-                    "<servo> <center> <min> <max> <scale> <trim> <speed>\r\n\t"
+                    "<servo> <center> <min> <max> <-range> <+range> <update_rate> <flags>\r\n\t"
                     "status\r\n\t"
-                    "trim\r\n\t"
-                    "trim <servo> <value>\r\n\t"
-                    "speed\r\n\t"
-                    "speed <servo> <value>\r\n\t"
-                    "reverse\r\n\t"
-                    "reverse <servo>\r\n\t"
+                    "flags\r\n\t"
+                    "flags <servo> <[+|-]FLAG> ...\r\n\t"
                     "override\r\n\t"
                     "override <value>|off\r\n\t"
                     "override <servo> <value>|off",

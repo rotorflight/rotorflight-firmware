@@ -239,8 +239,8 @@ static void validateAndFixConfig(void)
         featureDisableImmediate(FEATURE_GPS);
     }
 
-    if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > BRUSHLESS_MOTORS_PWM_RATE)) {
-        motorConfigMutable()->dev.motorPwmRate = BRUSHLESS_MOTORS_PWM_RATE;
+    if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE)) {
+        motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
     }
 
     validateAndFixGyroConfig();
@@ -537,6 +537,7 @@ static void validateAndFixConfig(void)
 #endif
 
     validateAndFixPositionConfig();
+    validateAndFixServoConfig();
 }
 
 void validateAndFixGyroConfig(void)
@@ -592,7 +593,7 @@ void validateAndFixGyroConfig(void)
 
         switch (motorConfig()->dev.motorPwmProtocol) {
         case PWM_TYPE_STANDARD:
-                motorUpdateRestriction = 1.0f / BRUSHLESS_MOTORS_PWM_RATE;
+                motorUpdateRestriction = 1.0f / MOTORS_MAX_PWM_RATE;
                 break;
         case PWM_TYPE_ONESHOT125:
                 motorUpdateRestriction = 0.0005f;

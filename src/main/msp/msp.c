@@ -1112,13 +1112,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_SERVO_CONFIGURATIONS:
         for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-            sbufWriteU16(dst, servoParams(i)->mid);
-            sbufWriteU16(dst, servoParams(i)->min);
-            sbufWriteU16(dst, servoParams(i)->max);
-            sbufWriteU16(dst, servoParams(i)->rate);
-            sbufWriteU16(dst, servoParams(i)->trim);
-            sbufWriteU16(dst, servoParams(i)->speed);
+            sbufWriteU16(dst, 1500); // mid
+            sbufWriteU16(dst, -500); //min
+            sbufWriteU16(dst, 500); // max
+            sbufWriteU16(dst, 500); // rate
+            sbufWriteU16(dst, 0); // trim
+            sbufWriteU16(dst, 0); // speed
+            //sbufWriteU16(dst, servoParams(i)->mid);
+            //sbufWriteU16(dst, servoParams(i)->min);
+            //sbufWriteU16(dst, servoParams(i)->max);
+            //sbufWriteU16(dst, servoParams(i)->rneg);
+            //sbufWriteU16(dst, servoParams(i)->rpos);
+            //sbufWriteU16(dst, servoParams(i)->rate);
+            //sbufWriteU16(dst, servoParams(i)->flags);
+
         }
+
         break;
 
     case MSP_SERVO_OVERRIDE:
@@ -1702,7 +1711,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, motorConfig()->dev.useUnsyncedPwm);
         sbufWriteU8(dst, motorConfig()->dev.motorPwmProtocol);
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
-        sbufWriteU16(dst, servoConfig()->dev.servoPwmRate);
+        sbufWriteU16(dst, 50); // was servoConfig()->dev.servoPwmRate
         sbufWriteU32(dst, 0); // compat: deprecated
         sbufWriteU32(dst, 0);
         sbufWriteU32(dst, 0);
@@ -2371,8 +2380,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
 #ifdef USE_SERVOS
+#if 0
     case MSP_SET_SERVO_CONFIGURATION:
-        if (dataSize != 1 + 12) {
+        if (dataSize != 1 + 14) {
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
@@ -2382,11 +2392,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->mid = sbufReadU16(src);
         servoParamsMutable(i)->min = sbufReadU16(src);
         servoParamsMutable(i)->max = sbufReadU16(src);
+        servoParamsMutable(i)->rneg = sbufReadU16(src);
+        servoParamsMutable(i)->rpos = sbufReadU16(src);
         servoParamsMutable(i)->rate = sbufReadU16(src);
-        servoParamsMutable(i)->trim = sbufReadU16(src);
-        servoParamsMutable(i)->speed = sbufReadU16(src);
+        servoParamsMutable(i)->flags = sbufReadU16(src);
         break;
-
+#endif
     case MSP_SET_SERVO_OVERRIDE:
         i = sbufReadU8(src);
         if (i >= MAX_SUPPORTED_SERVOS) {
@@ -2421,7 +2432,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         sbufReadU8(src);  // compat: gyro denom
         pidConfigMutable()->pid_process_denom = sbufReadU8(src);
         sbufReadU32(src); // compat: deprecated
-        servoConfigMutable()->dev.servoPwmRate = sbufReadU16(src);
+        sbufReadU16(src); // was servoConfig()->dev.servoPwmRate
         break;
 
     case MSP_SET_FILTER_CONFIG:

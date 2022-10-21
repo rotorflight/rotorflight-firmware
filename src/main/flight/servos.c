@@ -45,20 +45,20 @@
 #include "pg/pg_ids.h"
 
 
-static FAST_DATA_ZERO_INIT uint8_t  servoCount;
+static FAST_DATA_ZERO_INIT uint8_t      servoCount;
 
-static FAST_DATA_ZERO_INIT float    servoOutput[MAX_SUPPORTED_SERVOS];
-static FAST_DATA_ZERO_INIT int16_t  servoOverride[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT uint16_t     servoOutput[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
+
+static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
 
 
 PG_REGISTER_WITH_RESET_FN(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 0);
 
 void pgResetFn_servoConfig(servoConfig_t *servoConfig)
 {
-    servoConfig->dev.servoPwmRate = DEFAULT_SERVO_UPDATE;
-
     for (unsigned i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        servoConfig->dev.ioTags[i] = timerioTagGetByUsage(TIM_USE_SERVO, i);
+        servoConfig->ioTags[i] = timerioTagGetByUsage(TIM_USE_SERVO, i);
     }
 }
 
@@ -71,9 +71,10 @@ void pgResetFn_servoParams(servoParam_t *instance)
                      .mid   = DEFAULT_SERVO_CENTER,
                      .min   = DEFAULT_SERVO_MIN,
                      .max   = DEFAULT_SERVO_MAX,
+                     .rneg  = DEFAULT_SERVO_RANGE,
+                     .rpos  = DEFAULT_SERVO_RANGE,
                      .rate  = DEFAULT_SERVO_RATE,
-                     .trim  = DEFAULT_SERVO_TRIM,
-                     .speed = DEFAULT_SERVO_SPEED,
+                     .flags = DEFAULT_SERVO_FLAGS,
         );
     }
 }
@@ -84,9 +85,9 @@ uint8_t getServoCount(void)
     return servoCount;
 }
 
-int16_t getServoOutput(uint8_t servo)
+uint16_t getServoOutput(uint8_t servo)
 {
-    return lrintf(servoOutput[servo]);
+    return servoOutput[servo];
 }
 
 bool hasServoOverride(uint8_t servo)
@@ -104,20 +105,68 @@ int16_t setServoOverride(uint8_t servo, int16_t val)
     return servoOverride[servo] = val;
 }
 
+void validateAndFixServoConfig(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+#ifndef USE_SERVO_GEOMETRY_CORRECTION
+        servoParamsMutable(i)->flags &= ~SERVO_FLAG_GEO_CORR;
+#endif
+    }
+}
+
 void servoInit(void)
 {
-    const ioTag_t *ioTags = servoConfig()->dev.ioTags;
+    const ioTag_t *ioTags = servoConfig()->ioTags;
+    const timerHardware_t *timer[MAX_SUPPORTED_SERVOS];
+    uint8_t index;
 
-    for (servoCount = 0;
-         servoCount < MAX_SUPPORTED_SERVOS && ioTags[servoCount] != IO_TAG_NONE;
-         servoCount++);
-
-    servoDevInit(&servoConfig()->dev, servoCount);
-
-    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        servoOutput[i] = servoParams(i)->mid;
-        servoOverride[i] = SERVO_OVERRIDE_OFF;
+    for (index = 0; index < MAX_SUPPORTED_SERVOS; index++)
+    {
+        servoOutput[index] = servoParams(index)->mid;
+        servoOverride[index] = SERVO_OVERRIDE_OFF;
     }
+
+    for (index = 0; index < MAX_SUPPORTED_SERVOS && ioTags[index]; index++)
+    {
+        const ioTag_t tag = ioTags[index];
+        const IO_t io = IOGetByTag(tag);
+
+        timer[index] = timerAllocate(tag, OWNER_SERVO, RESOURCE_INDEX(index));
+
+        if (!timer[index])
+            break;
+
+        IOInit(io, OWNER_SERVO, RESOURCE_INDEX(index));
+        IOConfigGPIOAF(io, IOCFG_AF_PP, timer[index]->alternateFunction);
+    }
+
+    servoCount = index;
+
+    for (index = 0; index < servoCount; index++)
+    {
+        int rate = servoParams(index)->rate;
+        int max = servoParams(index)->max;
+
+        for (int jndex = 0; jndex < servoCount; jndex++) {
+            if (timer[index]->tim == timer[jndex]->tim) {
+                if (servoParams(jndex)->rate < rate)
+                    rate = servoParams(jndex)->rate;
+                if (servoParams(jndex)->max > max)
+                    max = servoParams(jndex)->max;
+            }
+        }
+
+        rate = MAX(rate, SERVO_RATE_MIN);
+        rate = MIN(rate, 1000000 / (max + 10)); // At least 10us low
+
+        pwmOutConfig(&servoChannel[index], timer[index], PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / rate, 0, 0);
+    }
+}
+
+static inline void servoWrite(uint8_t index, uint16_t value)
+{
+    if (servoChannel[index].ccr)
+        *servoChannel[index].ccr = value;
 }
 
 static inline float limitTravel(uint8_t servo, float pos, float min, float max)
@@ -132,44 +181,46 @@ static inline float limitTravel(uint8_t servo, float pos, float min, float max)
     return pos;
 }
 
-static inline float limitSpeed(float rate, float speed, float old, float new)
+#ifdef USE_SERVO_GEOMETRY_CORRECTION
+static float geometryCorrection(float pos)
 {
-    float diff = new - old;
+    // 1.0 == 50° without correction
+    float height = constrainf(pos * 0.7660444431f, -1, 1);
 
-    rate = fabsf(rate * gyro.targetLooptime) / (speed * 1000);
+    // Scale 50° in rad => 1.0
+    float rotation = asin_approx(height) * 1.14591559026f;
 
-    if (diff > rate)
-        return old + rate;
-    else if (diff < -rate)
-        return old - rate;
-
-    return new;
+    return rotation;
 }
+#endif
 
 void servoUpdate(void)
 {
-    float pos, trim;
-
     for (int i = 0; i < servoCount; i++)
     {
         const servoParam_t *servo = servoParams(i);
+        float pos = mixerGetServoOutput(i);
 
-        trim = (servo->rate >= 0) ? servo->trim : -servo->trim;
+#ifdef USE_SERVO_GEOMETRY_CORRECTION
+        if (servo->flags & SERVO_FLAG_GEO_CORR)
+            pos = geometryCorrection(pos);
+#endif
 
         if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
             pos = servoOverride[i] / 1000.0f;
-        else
-            pos = mixerGetServoOutput(i);
 
-        pos = limitTravel(i, servo->rate * pos, servo->min, servo->max);
-        pos = servo->mid + trim + pos;
+        if (servo->flags & SERVO_FLAG_REVERSED)
+            pos = -pos;
 
-        if (servo->speed > 0)
-            pos = limitSpeed(servo->rate, servo->speed, servoOutput[i], pos);
+        float rate = (pos > 0) ? servo->rpos : servo->rneg;
 
-        servoOutput[i] = pos;
+        pos = servo->mid + rate * pos;
 
-        pwmWriteServo(i, servoOutput[i]);
+        pos = limitTravel(i, pos, servo->min, servo->max);
+
+        servoOutput[i] = lrintf(pos);
+
+        servoWrite(i, servoOutput[i]);
     }
 }
 
