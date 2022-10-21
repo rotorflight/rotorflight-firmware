@@ -26,6 +26,7 @@
 #define DEFAULT_SERVO_TRIM       0
 #define DEFAULT_SERVO_SPEED      0
 #define DEFAULT_SERVO_UPDATE   333
+#define DEFAULT_SERVO_FLAGS      0
 
 #define SERVO_RANGE_MIN      -1000
 #define SERVO_RANGE_MAX       1000
@@ -39,13 +40,19 @@
 #define SERVO_OVERRIDE_MAX    2000
 #define SERVO_OVERRIDE_OFF   (SERVO_OVERRIDE_MAX + 1)
 
+enum {
+    SERVO_FLAG_GEOMETRY_CORRECTION = BIT(0),
+    SERVO_FLAG_ALL = BIT(1) - 1,
+};
+
 typedef struct servoParam_s {
-    int16_t mid;    // center point
-    int16_t min;    // movement lower limit
-    int16_t max;    // movement upper limit
-    int16_t rate;   // scaling in microseconds. sign indicates direction
-    int16_t trim;   // center trim in microseconds
-    int16_t speed;  // speed limit (ms/60deg) ; 0 = disabled
+    uint16_t    mid;     // center point
+    int16_t     min;     // movement lower limit in us
+    int16_t     max;     // movement upper limit in us
+    int16_t     rate;    // scaling in us - sign indicates direction
+    int16_t     trim;    // link trim in 0.1% steps
+    uint16_t    speed;   // speed limit (ms/50deg) ; 0 = disabled
+    uint16_t    flags;   // feature flags
 } servoParam_t;
 
 PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
