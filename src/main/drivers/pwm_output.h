@@ -29,7 +29,7 @@
 #include "drivers/motor.h"
 #include "drivers/timer.h"
 
-#define BRUSHLESS_MOTORS_PWM_RATE 480
+#define MOTORS_MAX_PWM_RATE 480
 
 #define ALL_MOTORS 255
 
@@ -56,16 +56,7 @@ extern FAST_DATA_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 struct motorDevConfig_s;
 motorDevice_t *motorPwmDevInit(const struct motorDevConfig_s *motorDevConfig, uint8_t motorCount);
 
-typedef struct servoDevConfig_s {
-    uint16_t servoPwmRate;                  // The update rate of servo outputs (50-498Hz)
-    ioTag_t  ioTags[MAX_SUPPORTED_SERVOS];
-} servoDevConfig_t;
-
-void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount);
-
 void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware, uint32_t hz, uint16_t period, uint16_t value, uint8_t inversion);
-
-void pwmWriteServo(uint8_t index, float value);
 
 pwmOutputPort_t *pwmGetMotors(void);
 bool pwmIsSynced(void);

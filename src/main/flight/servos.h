@@ -19,39 +19,43 @@
 
 #include "pg/pg.h"
 
+#define DEFAULT_SERVO_FLAGS      0
 #define DEFAULT_SERVO_CENTER  1500
-#define DEFAULT_SERVO_MIN     -500
-#define DEFAULT_SERVO_MAX      500
-#define DEFAULT_SERVO_RATE     500
-#define DEFAULT_SERVO_TRIM       0
-#define DEFAULT_SERVO_SPEED      0
-#define DEFAULT_SERVO_UPDATE   333
+#define DEFAULT_SERVO_MIN     1000
+#define DEFAULT_SERVO_MAX     2000
+#define DEFAULT_SERVO_RANGE    500
+#define DEFAULT_SERVO_RATE     333
 
-#define SERVO_RANGE_MIN      -1000
+#define SERVO_LIMIT_MIN        100
+#define SERVO_LIMIT_MAX       2500
+#define SERVO_RANGE_MIN        100
 #define SERVO_RANGE_MAX       1000
-#define SERVO_RATE_MIN       -2500
-#define SERVO_RATE_MAX        2500
-#define SERVO_TRIM_MIN        -250
-#define SERVO_TRIM_MAX         250
-#define SERVO_SPEED_MIN          0
-#define SERVO_SPEED_MAX      10000
+#define SERVO_RATE_MIN          50
+#define SERVO_RATE_MAX        1000
 #define SERVO_OVERRIDE_MIN   -2000
 #define SERVO_OVERRIDE_MAX    2000
 #define SERVO_OVERRIDE_OFF   (SERVO_OVERRIDE_MAX + 1)
 
+enum {
+    SERVO_FLAG_REVERSED     = BIT(0),
+    SERVO_FLAG_GEO_CORR     = BIT(1),
+    SERVO_FLAGS_ALL         = BIT(2) - 1,
+};
+
 typedef struct servoParam_s {
-    int16_t mid;    // center point
-    int16_t min;    // movement lower limit
-    int16_t max;    // movement upper limit
-    int16_t rate;   // scaling in microseconds. sign indicates direction
-    int16_t trim;   // center trim in microseconds
-    int16_t speed;  // speed limit (ms/60deg) ; 0 = disabled
+    uint16_t    mid;     // center (mid) point
+    uint16_t    min;     // lower limit in us
+    uint16_t    max;     // upper limit in us
+    uint16_t    rneg;    // negative range in us
+    uint16_t    rpos;    // positive range in us
+    uint16_t    rate;    // servo update rate Hz
+    uint16_t    flags;   // feature flags
 } servoParam_t;
 
 PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
 
 typedef struct servoConfig_s {
-    servoDevConfig_t dev;
+    ioTag_t  ioTags[MAX_SUPPORTED_SERVOS];
 } servoConfig_t;
 
 PG_DECLARE(servoConfig_t, servoConfig);
@@ -59,8 +63,10 @@ PG_DECLARE(servoConfig_t, servoConfig);
 void servoInit(void);
 void servoUpdate(void);
 
+void validateAndFixServoConfig(void);
+
 uint8_t getServoCount(void);
-int16_t getServoOutput(uint8_t servo);
+uint16_t getServoOutput(uint8_t servo);
 
 int16_t getServoOverride(uint8_t servo);
 int16_t setServoOverride(uint8_t servo, int16_t val);

@@ -110,6 +110,9 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
     *channel->ccr = 0;
 }
 
+
+/* MOTORS */
+
 static FAST_DATA_ZERO_INIT motorDevice_t motorPwmDevice;
 
 static void pwmWriteUnused(uint8_t index, uint8_t mode, float value)
@@ -161,6 +164,7 @@ void pwmDisableMotors(void)
 }
 
 static motorVTable_t motorPwmVTable;
+
 bool pwmEnableMotors(void)
 {
     /* check motors can be enabled */
@@ -281,42 +285,4 @@ pwmOutputPort_t *pwmGetMotors(void)
     return motors;
 }
 
-#ifdef USE_SERVOS
-static pwmOutputPort_t servos[MAX_SUPPORTED_SERVOS];
-
-void pwmWriteServo(uint8_t index, float value)
-{
-    if (index < MAX_SUPPORTED_SERVOS && servos[index].channel.ccr) {
-        *servos[index].channel.ccr = lrintf(value);
-    }
-}
-
-void servoDevInit(const servoDevConfig_t *servoConfig, uint8_t servoCount)
-{
-    for (uint8_t servoIndex = 0; servoIndex < MAX_SUPPORTED_SERVOS && servoIndex < servoCount; servoIndex++) {
-        const ioTag_t tag = servoConfig->ioTags[servoIndex];
-
-        if (!tag) {
-            break;
-        }
-
-        servos[servoIndex].io = IOGetByTag(tag);
-
-        IOInit(servos[servoIndex].io, OWNER_SERVO, RESOURCE_INDEX(servoIndex));
-
-        const timerHardware_t *timer = timerAllocate(tag, OWNER_SERVO, RESOURCE_INDEX(servoIndex));
-
-        if (timer == NULL) {
-            /* flag failure and disable ability to arm */
-            break;
-        }
-
-        IOConfigGPIOAF(servos[servoIndex].io, IOCFG_AF_PP, timer->alternateFunction);
-
-        // Initialize with zero output to support servos with different center pulse widths
-        pwmOutConfig(&servos[servoIndex].channel, timer, PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / servoConfig->servoPwmRate, 0, 0);
-        servos[servoIndex].enabled = true;
-    }
-}
-#endif // USE_SERVOS
 #endif // USE_PWM_OUTPUT
