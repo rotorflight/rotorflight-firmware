@@ -160,7 +160,7 @@ bool queueRemove(task_t *task)
 /*
  * Returns first item queue or NULL if queue empty
  */
-FAST_CODE task_t *queueFirst(void)
+static inline task_t *queueFirst(void)
 {
     taskQueuePos = 0;
     return taskQueueArray[0]; // guaranteed to be NULL if queue is empty
@@ -169,7 +169,7 @@ FAST_CODE task_t *queueFirst(void)
 /*
  * Returns next item in queue or NULL if at end of queue
  */
-FAST_CODE task_t *queueNext(void)
+static inline task_t *queueNext(void)
 {
     return taskQueueArray[++taskQueuePos]; // guaranteed to be NULL at end of queue
 }
@@ -360,12 +360,12 @@ void schedulerInit(void)
 
 static timeDelta_t taskNextStateTime;
 
-FAST_CODE void schedulerSetNextStateTime(timeDelta_t nextStateTime)
+void schedulerSetNextStateTime(timeDelta_t nextStateTime)
 {
     taskNextStateTime = nextStateTime;
 }
 
-FAST_CODE timeDelta_t schedulerGetNextStateTime()
+timeDelta_t schedulerGetNextStateTime()
 {
     return currentTask->anticipatedExecutionTime >> TASK_EXEC_TIME_SHIFT;
 }
