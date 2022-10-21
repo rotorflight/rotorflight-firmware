@@ -2049,7 +2049,7 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #ifdef USE_SERVOS
 static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
 {
-    const char *format = "servo %u %d %d %d %d %d %d";
+    const char *format = "servo %u %d %d %d %d %d %d %u";
     const uint8_t servoCount = getServoCount();
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
@@ -2068,7 +2068,8 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
                 defaultServoConf->max,
                 defaultServoConf->rate,
                 defaultServoConf->trim,
-                defaultServoConf->speed
+                defaultServoConf->speed,
+                defaultServoConf->flags
             );
         }
         cliDumpPrintLinef(dumpMask, equalsDefault, format,
@@ -2078,7 +2079,8 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
             servoConf->max,
             servoConf->rate,
             servoConf->trim,
-            servoConf->speed
+            servoConf->speed,
+            servoConf->flags
         );
     }
 }
@@ -2101,7 +2103,7 @@ static void printServoOverride(uint8_t index)
 
 static void cliServo(const char *cmdName, char *cmdline)
 {
-    enum { FUNC=0, ARGS_MAX=8 };
+    enum { FUNC=0, ARGS_MAX=9 };
     char *args[ARGS_MAX];
     char *saveptr, *ptr;
     int count = 0;
@@ -2180,6 +2182,75 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
+    else if (strcasecmp(args[FUNC], "center") == 0) {
+        if (count == 1) {
+            for (int i=0; i<servoCount; i++) {
+                cliPrintLinef("servo center %d %d", i+1, servoParams(i)->mid);
+            }
+        }
+        else if (count == 3) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, value;
+            index = atoi(args[INDEX]);
+            value = atoi(args[VALUE]);
+            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
+                value < PWM_SERVO_PULSE_MIN || value > PWM_SERVO_PULSE_MAX) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            servoParamsMutable(index-1)->mid = value;
+            cliPrintLinef("servo center %d %d", index, servoParams(index-1)->mid);
+        }
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
+    else if (strcasecmp(args[FUNC], "min") == 0) {
+        if (count == 1) {
+            for (int i=0; i<servoCount; i++) {
+                cliPrintLinef("servo min %d %d", i+1, servoParams(i)->min);
+            }
+        }
+        else if (count == 3) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, value;
+            index = atoi(args[INDEX]);
+            value = atoi(args[VALUE]);
+            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
+                value < SERVO_RANGE_MIN || value > SERVO_RANGE_MAX) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            servoParamsMutable(index-1)->min = value;
+            cliPrintLinef("servo min %d %d", index, servoParams(index-1)->min);
+        }
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
+    else if (strcasecmp(args[FUNC], "max") == 0) {
+        if (count == 1) {
+            for (int i=0; i<servoCount; i++) {
+                cliPrintLinef("servo max %d %d", i+1, servoParams(i)->max);
+            }
+        }
+        else if (count == 3) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, value;
+            index = atoi(args[INDEX]);
+            value = atoi(args[VALUE]);
+            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
+                value < SERVO_RANGE_MIN || value > SERVO_RANGE_MAX) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            servoParamsMutable(index-1)->max = value;
+            cliPrintLinef("servo max %d %d", index, servoParams(index-1)->max);
+        }
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
     else if (strcasecmp(args[FUNC], "trim") == 0) {
         if (count == 1) {
             for (int i=0; i<servoCount; i++) {
@@ -2226,6 +2297,29 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
+    else if (strcasecmp(args[FUNC], "flags") == 0) {
+        if (count == 1) {
+            for (int i=0; i<servoCount; i++) {
+                cliPrintLinef("servo flags %d %u", i+1, servoParams(i)->flags);
+            }
+        }
+        else if (count == 3) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, value;
+            index = atoi(args[INDEX]);
+            value = atoi(args[VALUE]);
+            if (index < 1 || index > MAX_SUPPORTED_SERVOS ||
+                value < 0 || value > SERVO_FLAG_ALL) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            servoParamsMutable(index-1)->flags = value;
+            cliPrintLinef("servo flags %d %u", index, servoParams(index-1)->flags);
+        }
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
     else if (strcasecmp(args[FUNC], "reverse") == 0) {
         if (count == 1) {
             for (int i=0; i<servoCount; i++) {
@@ -2254,11 +2348,11 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
-    else if (count == 7) {
-        const char *format = "servo %d %d %d %d %d %d %d";
-        enum { INDEX = 0, MID, MIN, MAX, RATE, TRIM, SPEED, ARGS_COUNT };
-        int vals[ARGS_COUNT];
-        for (int i=0; i<ARGS_COUNT; i++)
+    else if (count >= 5) {
+        const char *format = "servo %d %d %d %d %d %d %d %u";
+        enum { INDEX = 0, MID, MIN, MAX, RATE, TRIM, SPEED, FLAGS, ARGS_COUNT };
+        int vals[ARGS_COUNT] = { 0, };
+        for (int i=0; i<count; i++)
             vals[i] = atoi(args[i]);
         if (vals[INDEX] < 1 || vals[INDEX] > MAX_SUPPORTED_SERVOS ||
             vals[MID] < PWM_SERVO_PULSE_MIN || vals[MID] > PWM_SERVO_PULSE_MAX ||
@@ -2269,7 +2363,8 @@ static void cliServo(const char *cmdName, char *cmdline)
             vals[MIN] > vals[MAX] ||
             vals[RATE] < SERVO_RATE_MIN || vals[RATE] > SERVO_RATE_MAX ||
             vals[TRIM] < SERVO_TRIM_MIN || vals[TRIM] > SERVO_TRIM_MAX ||
-            vals[SPEED] < SERVO_SPEED_MIN || vals[SPEED] > SERVO_SPEED_MAX) {
+            vals[SPEED] < SERVO_SPEED_MIN || vals[SPEED] > SERVO_SPEED_MAX ||
+            vals[FLAGS] > SERVO_FLAG_ALL) {
             cliShowArgumentRangeError(cmdName, NULL, 0, 0);
             return;
         }
@@ -2281,6 +2376,7 @@ static void cliServo(const char *cmdName, char *cmdline)
         servo->rate = vals[RATE];
         servo->trim = vals[TRIM];
         servo->speed = vals[SPEED];
+        servo->flags = vals[FLAGS];
         cliPrintLinef(format,
             index + 1,
             servo->mid,
@@ -2288,7 +2384,8 @@ static void cliServo(const char *cmdName, char *cmdline)
             servo->max,
             servo->rate,
             servo->trim,
-            servo->speed
+            servo->speed,
+            servo->flags
         );
     }
     else {
@@ -6852,12 +6949,20 @@ const clicmd_t cmdTable[] = {
 #endif
 #ifdef USE_SERVOS
     CLI_COMMAND_DEF("servo", "configure servos",
-                    "<servo> <center> <min> <max> <scale> <trim> <speed>\r\n\t"
+                    "<servo> <center> <min> <max> <rate> [trim] [speed] [flags]\r\n\t"
                     "status\r\n\t"
+                    "center\r\n\t"
+                    "center <servo> <value>\r\n\t"
+                    "min\r\n\t"
+                    "min <servo> <value>\r\n\t"
+                    "max\r\n\t"
+                    "max <servo> <value>\r\n\t"
                     "trim\r\n\t"
                     "trim <servo> <value>\r\n\t"
                     "speed\r\n\t"
                     "speed <servo> <value>\r\n\t"
+                    "flags\r\n\t"
+                    "flags <servo> <value>\r\n\t"
                     "reverse\r\n\t"
                     "reverse <servo>\r\n\t"
                     "override\r\n\t"
