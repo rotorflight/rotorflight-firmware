@@ -99,7 +99,7 @@ static inline sign_t Sign(float x)
 // 3. If no potential overflow is detected, then return the original setPoint
 //
 
-FAST_CODE float acroTrainerApply(int axis, float setPoint)
+float acroTrainerApply(int axis, float setPoint)
 {
     if (acroTrainer.Active && (axis == FD_ROLL || axis == FD_PITCH))
     {

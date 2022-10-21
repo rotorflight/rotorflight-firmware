@@ -92,7 +92,7 @@ static FAST_DATA_ZERO_INIT int8_t    tailMotorDirection;
 static FAST_DATA_ZERO_INIT float     phaseSin, phaseCos;
 
 
-static FAST_CODE void mixerSetInput(int index, float value)
+static void mixerSetInput(int index, float value)
 {
     const mixerInput_t *in = mixerInputs(index);
 
@@ -120,7 +120,7 @@ static FAST_CODE void mixerSetInput(int index, float value)
     }
 }
 
-static FAST_CODE void mixerCyclicUpdate(void)
+static void mixerCyclicUpdate(void)
 {
     // Swash phasing
     if (phaseSin != 0)
@@ -168,7 +168,7 @@ static FAST_CODE void mixerCyclicUpdate(void)
                         sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
 }
 
-static FAST_CODE void mixerUpdateMotorizedTail(void)
+static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
@@ -219,7 +219,7 @@ static FAST_CODE void mixerUpdateMotorizedTail(void)
     }
 }
 
-static FAST_CODE void mixerUpdateInputs(void)
+static void mixerUpdateInputs(void)
 {
     // Flight Dynamics
     mixerSetInput(MIXER_IN_RC_COMMAND_ROLL, getRcDeflection(ROLL));
@@ -254,7 +254,7 @@ static FAST_CODE void mixerUpdateInputs(void)
         mixerUpdateMotorizedTail();
 }
 
-void FAST_CODE mixerUpdate(void)
+void mixerUpdate(void)
 {
     // Reset saturation
     for (int i = 0; i < MIXER_INPUT_COUNT; i++) {

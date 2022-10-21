@@ -38,7 +38,7 @@ int main(void)
     return 0;
 }
 
-void FAST_CODE run(void)
+FAST_CODE void run(void)
 {
     while (true) {
         scheduler();

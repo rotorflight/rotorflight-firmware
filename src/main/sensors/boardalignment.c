@@ -43,7 +43,7 @@ static fp_rotationMatrix_t boardRotation;
 // no template required since defaults are zero
 PG_REGISTER(boardAlignment_t, boardAlignment, PG_BOARD_ALIGNMENT, 0);
 
-static bool isBoardAlignmentStandard(const boardAlignment_t *boardAlignment)
+static inline bool isBoardAlignmentStandard(const boardAlignment_t *boardAlignment)
 {
     return !boardAlignment->rollDegrees && !boardAlignment->pitchDegrees && !boardAlignment->yawDegrees;
 }
@@ -64,12 +64,12 @@ void initBoardAlignment(const boardAlignment_t *boardAlignment)
     buildRotationMatrix(&rotationAngles, &boardRotation);
 }
 
-static void alignBoard(float *vec)
+static inline void alignBoard(float *vec)
 {
     applyMatrixRotation(vec, &boardRotation);
 }
 
-FAST_CODE_NOINLINE void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* sensorRotationMatrix)
+FAST_CODE void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* sensorRotationMatrix)
 {
     applyMatrixRotation(dest, sensorRotationMatrix);
 
@@ -78,7 +78,7 @@ FAST_CODE_NOINLINE void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* s
     }
 }
 
-void alignSensorViaRotation(float *dest, uint8_t rotation)
+FAST_CODE void alignSensorViaRotation(float *dest, uint8_t rotation)
 {
     const float x = dest[X];
     const float y = dest[Y];

@@ -131,12 +131,12 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dterm_notch_cutoff = 0;
 }
 
-FAST_CODE bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
+static inline bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
 {
     return gyroSensor->calibration.cyclesRemaining == 0;
 }
 
-FAST_CODE bool gyroIsCalibrationComplete(void)
+bool gyroIsCalibrationComplete(void)
 {
     switch (gyro.gyroToUse) {
         default:
