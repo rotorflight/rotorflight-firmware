@@ -104,7 +104,7 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_RSSI) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MOTOR) |
               BIT(FLIGHT_LOG_FIELD_SELECT_SERVO),
-    .mode = BLACKBOX_MODE_NORMAL
+    .mode = BLACKBOX_MODE_NORMAL,
 );
 
 STATIC_ASSERT((sizeof(blackboxConfig()->fields) * 8) >= FLIGHT_LOG_FIELD_SELECT_COUNT, too_many_flight_log_fields_selections);
@@ -449,12 +449,15 @@ bool blackboxMayEditConfig(void)
 
 static bool blackboxIsLoggingEnabled(void)
 {
-    return (blackboxConfig()->device && blackboxConfig()->mode && (blackboxConfig()->mode == BLACKBOX_MODE_ALWAYS || ARMING_FLAG(ARMED)));
+    return (blackboxConfig()->device && (
+        (blackboxConfig()->mode == BLACKBOX_MODE_NORMAL && ARMING_FLAG(ARMED) && IS_RC_MODE_ACTIVE(BOXBLACKBOX)) ||
+        (blackboxConfig()->mode == BLACKBOX_MODE_ARMED && ARMING_FLAG(ARMED)) ||
+        (blackboxConfig()->mode == BLACKBOX_MODE_SWITCH && IS_RC_MODE_ACTIVE(BOXBLACKBOX))));
 }
 
-static bool blackboxIsLoggingRunning(void)
+static bool blackboxIsLoggingPaused(void)
 {
-    return (blackboxConfig()->mode && (blackboxConfig()->mode != BLACKBOX_MODE_NORMAL || IS_RC_MODE_ACTIVE(BOXBLACKBOX)));
+    return (blackboxConfig()->mode == BLACKBOX_MODE_NORMAL && !IS_RC_MODE_ACTIVE(BOXBLACKBOX));
 }
 
 static bool blackboxIsOnlyLoggingIntraframes(void)
@@ -980,10 +983,7 @@ static void blackboxStart(void)
     blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
 }
 
-/**
- * Begin Blackbox shutdown.
- */
-void blackboxFinish(void)
+void blackboxCheckEnabler(void)
 {
     if (!blackboxIsLoggingEnabled()) {
         switch (blackboxState) {
@@ -1632,6 +1632,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static BlackboxState cacheFlushNextState;
 
+    blackboxCheckEnabler();
+
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
         if (blackboxIsLoggingEnabled()) {
@@ -1732,7 +1734,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_PAUSED:
         // Only allow resume to occur during an I-frame iteration, so that we have an "I" base to work from
-        if (blackboxIsLoggingRunning() && blackboxShouldLogIFrame()) {
+        if (!blackboxIsLoggingPaused() && blackboxShouldLogIFrame()) {
             // Write a log entry so the decoder is aware that our large time/iteration skip is intended
             flightLogEvent_loggingResume_t resume;
 
@@ -1749,7 +1751,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
-        if (!blackboxIsLoggingRunning()) {
+        if (blackboxIsLoggingPaused()) {
             blackboxSetState(BLACKBOX_STATE_PAUSED);
         } else {
             blackboxLogIteration(currentTimeUs);
