@@ -78,7 +78,7 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
             IBUS_SENSOR_TYPE_RPM_FLYSKY,
             IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
     },
-    .disabledSensors = ESC_SENSOR_ALL | SENSOR_CAP_USED | SENSOR_ADJUSTMENT,
+    .enableSensors = SENSOR_ALL ^ (ESC_SENSOR_ALL | SENSOR_CAP_USED | SENSOR_ADJUSTMENT),
     .mavlink_mah_as_heading_divisor = 0,
 );
 
@@ -239,6 +239,6 @@ void telemetryProcess(uint32_t currentTime)
 
 bool telemetryIsSensorEnabled(sensor_e sensor)
 {
-    return ~(telemetryConfig()->disabledSensors) & sensor;
+    return telemetryConfig()->enableSensors & sensor;
 }
 #endif
