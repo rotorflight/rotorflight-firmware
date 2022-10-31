@@ -36,7 +36,7 @@ typedef enum BlackboxMode {
     BLACKBOX_MODE_OFF = 0,
     BLACKBOX_MODE_NORMAL,
     BLACKBOX_MODE_ARMED,
-    BLACKBOX_MODE_ALWAYS,
+    BLACKBOX_MODE_SWITCH,
 } BlackboxMode;
 
 typedef enum BlackboxSampleRate { // Sample rate is 1/(2^BlackboxSampleRate)
@@ -80,7 +80,6 @@ uint8_t blackboxGetRateDenom(void);
 uint16_t blackboxGetPRatio(void);
 uint8_t blackboxCalculateSampleRate(uint16_t pRatio);
 void blackboxValidateConfig(void);
-void blackboxFinish(void);
 bool blackboxMayEditConfig(void);
 #ifdef UNIT_TEST
 STATIC_UNIT_TESTED void blackboxLogIteration(timeUs_t currentTimeUs);
