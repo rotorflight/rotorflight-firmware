@@ -64,6 +64,7 @@
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
 #include "flight/governor.h"
+#include "flight/rescue.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -391,6 +392,7 @@ static BlackboxState blackboxState = BLACKBOX_STATE_DISABLED;
 static uint32_t blackboxLastArmingBeep = 0;
 static uint32_t blackboxLastFlightModeFlags = 0; // New event tracking of flight modes
 static uint8_t  blackboxLastGovState = 0;
+static uint8_t  blackboxLastRescueState = 0;
 
 static struct {
     uint32_t headerIndex;
@@ -978,7 +980,9 @@ static void blackboxStart(void)
      */
     blackboxLastArmingBeep = getArmingBeepTimeMicros();
     memcpy(&blackboxLastFlightModeFlags, &rcModeActivationMask, sizeof(blackboxLastFlightModeFlags)); // record startup status
+
     blackboxLastGovState = getGovernorState();
+    blackboxLastRescueState = getRescueState();
 
     blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
 }
@@ -1477,6 +1481,9 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     case FLIGHT_LOG_EVENT_GOVSTATE:
         blackboxWriteUnsignedVB(data->govState.govState);
         break;
+    case FLIGHT_LOG_EVENT_RESCUE_STATE:
+        blackboxWriteUnsignedVB(data->rescueState.rescueState);
+        break;
     case FLIGHT_LOG_EVENT_DISARM:
         blackboxWriteUnsignedVB(data->disarm.reason);
         break;
@@ -1531,6 +1538,13 @@ static void blackboxCheckAndLogFlightMode(void)
         flightLogEvent_govState_t eventData;
         eventData.govState = blackboxLastGovState;
         blackboxLogEvent(FLIGHT_LOG_EVENT_GOVSTATE, (flightLogEventData_t *)&eventData);
+    }
+
+    if (getRescueState() != blackboxLastRescueState) {
+        blackboxLastRescueState = getRescueState();
+        flightLogEvent_rescueState_t eventData;
+        eventData.rescueState = blackboxLastRescueState;
+        blackboxLogEvent(FLIGHT_LOG_EVENT_RESCUE_STATE, (flightLogEventData_t *)&eventData);
     }
 }
 
