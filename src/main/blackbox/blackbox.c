@@ -1363,6 +1363,8 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentControlRateProfile->rate_limit[PITCH],
                                                                             currentControlRateProfile->rate_limit[YAW]);
 
+        BLACKBOX_PRINT_HEADER_LINE("pid_debug_axis", "%d",                  currentPidProfile->debug_axis);
+
         BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d",                   currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
                                                                             currentPidProfile->pid[PID_ROLL].D);
@@ -1410,6 +1412,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yaw_collective_ff_impulse_freq", "%d",  currentPidProfile->yaw_collective_ff_impulse_freq);
 
         BLACKBOX_PRINT_HEADER_LINE("rescue_collective", "%d",               currentPidProfile->rescue_collective);
+        BLACKBOX_PRINT_HEADER_LINE("rescue_boost", "%d",                    currentPidProfile->rescue_boost);
+        BLACKBOX_PRINT_HEADER_LINE("rescue_delay", "%d",                    currentPidProfile->rescue_delay);
 
         BLACKBOX_PRINT_HEADER_LINE("gov_headspeed", "%d",                   currentPidProfile->gov_headspeed);
         BLACKBOX_PRINT_HEADER_LINE("gov_gain", "%d",                        currentPidProfile->gov_gain);
@@ -1596,11 +1600,19 @@ static bool blackboxWriteSysinfo(void)
 
         BLACKBOX_PRINT_HEADER_LINE("motor_pwm_protocol", "%d",              motorConfig()->dev.motorPwmProtocol);
         BLACKBOX_PRINT_HEADER_LINE("motor_pwm_rate", "%d",                  motorConfig()->dev.motorPwmRate);
+        BLACKBOX_PRINT_HEADER_LINE("motor_ctrl_mode", "%d,%d",              motorConfig()->dev.motorControlMode[0],
+                                                                            motorConfig()->dev.motorControlMode[1]);
+        BLACKBOX_PRINT_HEADER_LINE("motor_pole_count", "%d,%d",             motorConfig()->motorPoleCount[0],
+                                                                            motorConfig()->motorPoleCount[1]);
         BLACKBOX_PRINT_HEADER_LINE("use_unsynced_pwm", "%d",                motorConfig()->dev.useUnsyncedPwm);
+        BLACKBOX_PRINT_HEADER_LINE("mincommand", "%d",                      motorConfig()->mincommand);
         BLACKBOX_PRINT_HEADER_LINE("minthrottle", "%d",                     motorConfig()->minthrottle);
         BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
+
 #ifdef USE_DSHOT_TELEMETRY
         BLACKBOX_PRINT_HEADER_LINE("dshot_bidir", "%d",                     motorConfig()->dev.useDshotTelemetry);
+        BLACKBOX_PRINT_HEADER_LINE("dshot_bitbang", "%d",                   motorConfig()->dev.useDshotBitbang);
+        BLACKBOX_PRINT_HEADER_LINE("dshot_bitbang_timer", "%d",             motorConfig()->dev.useDshotBitbangedTimer);
 #endif
         BLACKBOX_PRINT_HEADER_LINE("main_rotor_gear_ratio", "%d/%d",        motorConfig()->mainRotorGearRatio[0], motorConfig()->mainRotorGearRatio[1]);
         BLACKBOX_PRINT_HEADER_LINE("tail_rotor_gear_ratio", "%d/%d",        motorConfig()->tailRotorGearRatio[0], motorConfig()->tailRotorGearRatio[1]);
