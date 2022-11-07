@@ -117,7 +117,17 @@ static inline float rescueSetpoint(uint8_t axis, float setpoint)
     return setpoint;
 }
 
-static void rescueApplyLimits(float max_accel)
+static inline bool rescueIsInverted(void)
+{
+    return getCosTiltAngle() < 0;
+}
+
+static inline bool rescueIsLeveled(void)
+{
+    return fabsf(getCosTiltAngle()) > 0.866f; // less than 30deg error from level
+}
+
+static void rescueApplyLimits(void)
 {
     // Rate limit is for RPY
     for (int i=0; i<3; i++) {
@@ -125,7 +135,7 @@ static void rescueApplyLimits(float max_accel)
     }
 
     for (int i=0; i<4; i++) {
-        rescue.setpoint[i] = slewLimit(rescue.prevSetpoint[i], rescue.setpoint[i], max_accel);
+        rescue.setpoint[i] = slewLimit(rescue.prevSetpoint[i], rescue.setpoint[i], rescue.maxAccel);
         rescue.prevSetpoint[i] = rescue.setpoint[i];
     }
 }
@@ -151,7 +161,7 @@ static void rescueApplyStabilisation(void)
     }
 
     // Avoid "gimbal lock"
-    if (pitch > 750 || pitch < -750) {
+    if (pitch > 800 || pitch < -800) {
         rError = 0;
     }
 
@@ -187,7 +197,7 @@ static void rescuePullUp(void)
 {
     rescueApplyStabilisation();
     rescueApplyCollective(rescue.pullUpCollective);
-    rescueApplyLimits(rescue.maxAccel);
+    rescueApplyLimits();
 }
 
 static inline bool rescuePullUpDone(void)
@@ -199,7 +209,7 @@ static void rescueFlipOver(void)
 {
     rescueApplyFlip();
     rescueApplyCollective(rescue.pullUpCollective);
-    rescueApplyLimits(rescue.maxAccel);
+    rescueApplyLimits();
 }
 
 static inline bool rescueFlipDone(void)
@@ -216,7 +226,7 @@ static void rescueClimb(void)
 {
     rescueApplyStabilisation();
     rescueApplyCollective(rescue.climbCollective);
-    rescueApplyLimits(rescue.maxAccel);
+    rescueApplyLimits();
 }
 
 static inline bool rescueClimbDone(void)
@@ -228,7 +238,7 @@ static void rescueHover(void)
 {
     rescueApplyStabilisation();
     rescueApplyCollective(rescue.hoverCollective);
-    rescueApplyLimits(rescue.maxAccel);
+    rescueApplyLimits();
 }
 
 static inline bool rescueSlowExitDone(void)
@@ -258,10 +268,15 @@ static void rescueUpdateState(void)
                 if (!rescueActive())
                     rescueChangeState(RSTATE_EXIT);
                 else if (rescuePullUpDone()) {
-                    if (rescue.flip)
-                        rescueChangeState(RSTATE_FLIP);
-                    else
-                        rescueChangeState(RSTATE_CLIMB);
+                    if (rescueIsLeveled()) {
+                        if (rescue.flip && rescueIsInverted())
+                            rescueChangeState(RSTATE_FLIP);
+                        else
+                            rescueChangeState(RSTATE_CLIMB);
+                    }
+                    else {
+                        rescueChangeState(RSTATE_EXIT);
+                    }
                 }
                 break;
 
@@ -274,7 +289,10 @@ static void rescueUpdateState(void)
                         rescueChangeState(RSTATE_CLIMB);
                 }
                 else if (rescueFlipTimeout()) {
-                    rescueChangeState(RSTATE_EXIT);
+                    if (rescueIsLeveled())
+                        rescueChangeState(RSTATE_CLIMB);
+                    else
+                        rescueChangeState(RSTATE_EXIT);
                 }
                 break;
 
