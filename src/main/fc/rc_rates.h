@@ -67,6 +67,7 @@ typedef struct controlRateConfig_s {
     uint16_t accel_limit[4];
 
     uint8_t rates_smoothness;
+    uint8_t cyclic_ring;
 
 } controlRateConfig_t;
 

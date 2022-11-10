@@ -939,6 +939,7 @@ const clivalue_t valueTable[] = {
     { "pitch_level_expo",           VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, CONTROL_RATE_CONFIG_RC_EXPO_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, levelExpo[FD_PITCH]) },
 
     { "rates_smoothness",           VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rates_smoothness) },
+    { "cyclic_ring",                VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, cyclic_ring) },
 
 // PG_SERIAL_CONFIG
     { "reboot_character",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 48, 126 }, PG_SERIAL_CONFIG, offsetof(serialConfig_t, reboot_character) },
