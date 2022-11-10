@@ -41,9 +41,11 @@
 
 typedef struct
 {
-    float accelLimit[4];
-    float limitedSp[4];
     float setpoint[4];
+    float limitedSp[4];
+
+    float accelLimit[4];
+    float ringLimit[2];
 
     pt3Filter_t filter[4];
 
@@ -100,11 +102,16 @@ void setpointFilterUpdate(float frameTimeUs)
 
 INIT_CODE void setpointFilterInitProfile(void)
 {
+    const float cyclicLimit = 1.4142135623f - currentControlRateProfile->cyclic_ring * 0.004142135623f;
+
     for (int i = 0; i < 4; i++) {
         spFilter.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
     }
+    for (int i = 0; i < 2; i++) {
+        spFilter.ringLimit[i] = 1.0f / (currentControlRateProfile->rate_limit[i] * cyclicLimit);
+    }
 
-    spFilter.smoothCutoff  = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);
+    spFilter.smoothCutoff = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);
     spFilter.activeCutoff = constrain(spFilter.smoothCutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
 }
 
@@ -122,16 +129,25 @@ INIT_CODE void setpointFilterInit(void)
 void setpointUpdate(void)
 {
     for (int axis = 0; axis < 4; axis++) {
-        float setpoint = getRawSetpoint(axis);
-        DEBUG_AXIS(SETPOINT, axis, 0, setpoint);
+        spFilter.setpoint[axis] = getRawSetpoint(axis);
+        DEBUG_AXIS(SETPOINT, axis, 0, spFilter.setpoint[axis]);
+    }
 
-        setpoint = spFilter.limitedSp[axis] = slewLimit(spFilter.limitedSp[axis], setpoint, spFilter.accelLimit[axis]);
-        DEBUG_AXIS(SETPOINT, axis, 1, setpoint);
+    const float R = spFilter.setpoint[FD_ROLL]  * spFilter.ringLimit[FD_ROLL];
+    const float P = spFilter.setpoint[FD_PITCH] * spFilter.ringLimit[FD_PITCH];
+    const float C = sqrtf(sq(R) + sq(P));
 
-        setpoint = pt3FilterApply(&spFilter.filter[axis], setpoint);
-        DEBUG_AXIS(SETPOINT, axis, 2, setpoint);
+    if (C > 1.0f) {
+        spFilter.setpoint[FD_ROLL]  /= C;
+        spFilter.setpoint[FD_PITCH] /= C;
+    }
 
-        spFilter.setpoint[axis] = setpoint;
+    for (int axis = 0; axis < 4; axis++) {
+        spFilter.setpoint[axis] = spFilter.limitedSp[axis] = slewLimit(spFilter.limitedSp[axis], spFilter.setpoint[axis], spFilter.accelLimit[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 1, spFilter.setpoint[axis]);
+
+        spFilter.setpoint[axis] = pt3FilterApply(&spFilter.filter[axis], spFilter.setpoint[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 2, spFilter.setpoint[axis]);
     }
 }
 
