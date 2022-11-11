@@ -2084,6 +2084,40 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
     }
 }
 
+#ifdef USE_SERVO_CORRECTION_CURVE
+static void printServoCurve(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
+{
+    const char *format = "servo curve %u %d %d %d %d";
+    const uint8_t servoCount = getServoCount();
+
+    headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
+
+    for (uint32_t i = 0; i < servoCount; i++) {
+        const servoParam_t *servoConf = &servoParams[i];
+        bool equalsDefault = false;
+        if (defaultServoParams) {
+            const servoParam_t *defaultServoConf = &defaultServoParams[i];
+            equalsDefault = !memcmp(servoConf->curve, defaultServoConf->curve, sizeof(servoConf->curve));
+            headingStr = cliPrintSectionHeading(dumpMask, !equalsDefault, headingStr);
+            cliDefaultPrintLinef(dumpMask, equalsDefault, format,
+                i + 1,
+                defaultServoConf->curve[0],
+                defaultServoConf->curve[1],
+                defaultServoConf->curve[2],
+                defaultServoConf->curve[3]
+            );
+        }
+        cliDumpPrintLinef(dumpMask, equalsDefault, format,
+            i + 1,
+            servoConf->curve[0],
+            servoConf->curve[1],
+            servoConf->curve[2],
+            servoConf->curve[3]
+        );
+    }
+}
+#endif
+
 static void printServoStatus(uint8_t index)
 {
     if (hasServoOverride(index))
@@ -2117,6 +2151,9 @@ static void cliServo(const char *cmdName, char *cmdline)
 
     if (count == 0) {
         printServo(DUMP_MASTER, servoParams(0), NULL, NULL);
+#ifdef USE_SERVO_CORRECTION_CURVE
+        printServoCurve(DUMP_MASTER, servoParams(0), NULL, "servo curve");
+#endif
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         for (int i=0; i<servoCount; i++) {
@@ -2347,6 +2384,41 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
+#ifdef USE_SERVO_CORRECTION_CURVE
+    else if (strcasecmp(args[FUNC], "curve") == 0) {
+        if (count == 1) {
+            printServoCurve(DUMP_MASTER, servoParams(0), NULL, NULL);
+        }
+        else if (count == 6) {
+            enum { FUNC=0, INDEX, VALUE };
+            int index, val[4];
+            index = atoi(args[INDEX]);
+            if (index < 1 || index > MAX_SUPPORTED_SERVOS) {
+                cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                return;
+            }
+            for (int i=0; i<4; i++) {
+                val[i] = atoi(args[VALUE + i]);
+                if (val[i] < -125 || val[i] > 125) {
+                    cliShowArgumentRangeError(cmdName, NULL, 0, 0);
+                    return;
+                }
+            }
+            for (int i=0; i<4; i++) {
+                servoParamsMutable(index-1)->curve[i] = val[i];
+            }
+            servoInitCurve(index - 1);
+            cliPrintLinef("servo curve %d %d %d %d %d", index,
+                servoParams(index-1)->curve[0],
+                servoParams(index-1)->curve[1],
+                servoParams(index-1)->curve[2],
+                servoParams(index-1)->curve[3]);
+        }
+        else {
+            cliShowInvalidArgumentCountError(cmdName);
+        }
+    }
+#endif
     else if (count >= 5) {
         const char *format = "servo %d %d %d %d %d %d %d %u";
         enum { INDEX = 0, MID, MIN, MAX, RATE, TRIM, SPEED, FLAGS, ARGS_COUNT };
@@ -6631,8 +6703,10 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 
 #ifdef USE_SERVOS
             printServo(dumpMask, servoParams_CopyArray, servoParams(0), "servo");
+#ifdef USE_SERVO_CORRECTION_CURVE
+            printServoCurve(dumpMask, servoParams_CopyArray, servoParams(0), "servo curve");
 #endif
-
+#endif
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");
             printMixerRules(dumpMask, mixerRules_CopyArray, mixerRules(0), "mixer rule");
 

@@ -224,6 +224,9 @@ static void validateAndFixServoConfig()
 #ifndef USE_SERVO_GEOMETRY_CORRECTION
         servoParamsMutable(i)->flags &= ~SERVO_FLAG_GEOMETRY_CORRECTION;
 #endif
+#ifndef USE_SERVO_CORRECTION_CURVE
+        servoParamsMutable(i)->flags &= ~SERVO_FLAG_CURVE_CORRECTION;
+#endif
     }
 }
 

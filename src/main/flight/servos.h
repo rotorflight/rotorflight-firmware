@@ -42,17 +42,19 @@
 
 enum {
     SERVO_FLAG_GEOMETRY_CORRECTION = BIT(0),
-    SERVO_FLAG_ALL = BIT(1) - 1,
+    SERVO_FLAG_CURVE_CORRECTION = BIT(1),
+    SERVO_FLAG_ALL = BIT(2) - 1,
 };
 
 typedef struct servoParam_s {
-    uint16_t    mid;     // center point
-    int16_t     min;     // movement lower limit in us
-    int16_t     max;     // movement upper limit in us
-    int16_t     rate;    // scaling in us - sign indicates direction
-    int16_t     trim;    // link trim in 0.1% steps
-    uint16_t    speed;   // speed limit (ms/50deg) ; 0 = disabled
-    uint16_t    flags;   // feature flags
+    uint16_t    mid;        // center point
+    int16_t     min;        // movement lower limit in us
+    int16_t     max;        // movement upper limit in us
+    int16_t     rate;       // scaling in us - sign indicates direction
+    int16_t     trim;       // link trim in 0.1% steps
+    uint16_t    speed;      // speed limit (ms/50deg) ; 0 = disabled
+    uint16_t    flags;      // feature flags
+    int8_t      curve[4];   // correction curve
 } servoParam_t;
 
 PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
@@ -65,6 +67,8 @@ PG_DECLARE(servoConfig_t, servoConfig);
 
 void servoInit(void);
 void servoUpdate(void);
+
+void servoInitCurve(uint8_t servo);
 
 uint8_t getServoCount(void);
 int16_t getServoOutput(uint8_t servo);
