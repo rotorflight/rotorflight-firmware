@@ -93,17 +93,19 @@ typedef enum {
 #define ESC_BOOTTIME            5000            // 5 seconds
 #define ESC_REQUEST_TIMEOUT     100             // 100 ms (data transfer takes only 900us)
 
-#define TELEMETRY_FRAME_SIZE    10
+#define TELEMETRY_BUFFER_SIZE    40
 
-static uint8_t telemetryBuffer[TELEMETRY_FRAME_SIZE] = { 0, };
-
-static volatile uint8_t *buffer;
-static volatile uint8_t bufferSize = 0;
-static volatile uint8_t bufferPosition = 0;
+#define KISS_TELEMETRY_FRAME_SIZE    10
 
 static serialPort_t *escSensorPort = NULL;
 
 static escSensorData_t escSensorData[MAX_SUPPORTED_MOTORS];
+
+static uint8_t buffer[TELEMETRY_BUFFER_SIZE] = { 0, };
+
+static volatile uint8_t *bufferPtr;
+static volatile uint8_t bufferSize = 0;
+static volatile uint8_t bufferPosition = 0;
 
 static escSensorTriggerState_t escSensorTriggerState = ESC_SENSOR_TRIGGER_STARTUP;
 static uint32_t escTriggerTimestamp;
@@ -118,7 +120,7 @@ static uint32_t totalCrcErrorCount = 0;
 
 void startEscDataRead(uint8_t *frameBuffer, uint8_t frameLength)
 {
-    buffer = frameBuffer;
+    bufferPtr = frameBuffer;
     bufferPosition = 0;
     bufferSize = frameLength;
 }
@@ -180,6 +182,9 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_HW4) {
         return &escSensorData[0];
     }
+    else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KONTRONIK) {
+        return &escSensorData[0];
+    }
 
     return NULL;
 }
@@ -194,7 +199,7 @@ static FAST_CODE void escSensorDataReceive(uint16_t c, void *data)
     UNUSED(data);
 
     if (bufferPosition < bufferSize) {
-        buffer[bufferPosition++] = c;
+        bufferPtr[bufferPosition++] = c;
     }
 }
 
@@ -217,6 +222,12 @@ bool escSensorInit(void)
 
         // Initialize serial port with no callback. We will just process the buffer.
         escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, NULL, NULL, 19200, MODE_RX, options);
+    }
+    else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KONTRONIK) {
+        portOptions_e options = SERIAL_STOPBITS_1 | SERIAL_PARITY_EVEN | SERIAL_NOT_INVERTED | (escSensorConfig()->halfDuplex ? SERIAL_BIDIR : 0);
+
+        // Initialize serial port with no callback. We will just process the buffer.
+        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, NULL, NULL, 115200, MODE_RX, options);
     }
 
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
@@ -271,16 +282,16 @@ static uint8_t decodeEscFrame(void)
     }
 
     // Get CRC8 checksum
-    uint16_t chksum = calculateCrc8(telemetryBuffer, TELEMETRY_FRAME_SIZE - 1);
-    uint16_t tlmsum = telemetryBuffer[TELEMETRY_FRAME_SIZE - 1];     // last byte contains CRC value
+    uint16_t chksum = calculateCrc8(buffer, KISS_TELEMETRY_FRAME_SIZE - 1);
+    uint16_t tlmsum = buffer[KISS_TELEMETRY_FRAME_SIZE - 1];     // last byte contains CRC value
     uint8_t frameStatus;
     if (chksum == tlmsum) {
         escSensorData[escSensorMotor].dataAge = 0;
-        escSensorData[escSensorMotor].temperature = telemetryBuffer[0];
-        escSensorData[escSensorMotor].voltage = telemetryBuffer[1] << 8 | telemetryBuffer[2];
-        escSensorData[escSensorMotor].current = telemetryBuffer[3] << 8 | telemetryBuffer[4];
-        escSensorData[escSensorMotor].consumption = telemetryBuffer[5] << 8 | telemetryBuffer[6];
-        escSensorData[escSensorMotor].rpm = telemetryBuffer[7] << 8 | telemetryBuffer[8];
+        escSensorData[escSensorMotor].temperature = buffer[0];
+        escSensorData[escSensorMotor].voltage = buffer[1] << 8 | buffer[2];
+        escSensorData[escSensorMotor].current = buffer[3] << 8 | buffer[4];
+        escSensorData[escSensorMotor].consumption = buffer[5] << 8 | buffer[6];
+        escSensorData[escSensorMotor].rpm = buffer[7] << 8 | buffer[8];
 
         combinedDataNeedsUpdate = true;
 
@@ -314,7 +325,7 @@ static void selectNextMotor(void)
 
 static void setRequest(timeMs_t currentTimeMs)
 {
-    startEscDataRead(telemetryBuffer, TELEMETRY_FRAME_SIZE);
+    startEscDataRead(buffer, KISS_TELEMETRY_FRAME_SIZE);
     getMotorDmaOutput(escSensorMotor)->protocolControl.requestTelemetry = true;
 
     escSensorTriggerState = ESC_SENSOR_TRIGGER_PENDING;
@@ -397,7 +408,6 @@ static void kissSensorProcess(timeUs_t currentTimeUs)
  *
  */
 
-static uint8_t hwData[20];
 static uint8_t skipBytes = 0;
 static uint8_t bytesRead = 0;
 
@@ -453,7 +463,7 @@ static bool processHW4TelemetryStream(uint8_t dataByte)
     }
     else if (bytesRead == 0 && dataByte == 0x9B) {
         // Start of a potentially valid packet
-        hwData[bytesRead++] = dataByte;
+        buffer[bytesRead++] = dataByte;
     }
     else if (bytesRead == 1 && dataByte == 0x9B) {
         // Signature packet - skip it
@@ -462,7 +472,7 @@ static bool processHW4TelemetryStream(uint8_t dataByte)
     }
     else if (bytesRead > 0) {
         // Store 19 bytes in the data buffer
-        hwData[bytesRead++] = dataByte;
+        buffer[bytesRead++] = dataByte;
         if (bytesRead == 19) {
             bytesRead = 0;
             return true;
@@ -483,17 +493,18 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         if (processHW4TelemetryStream(serialRead(escSensorPort))) {
-            if (hwData[4] < 4 && hwData[6] < 4 && hwData[8] < 4 &&
-                hwData[11] < 0xF && hwData[13] < 0xF && hwData[15] < 0xF && hwData[17] < 0xF) {
+            if (buffer[4] < 4 && buffer[6] < 4 && buffer[8] < 4 &&
+                buffer[11] < 0xF && buffer[13] < 0xF && buffer[15] < 0xF && buffer[17] < 0xF) {
 
-                uint32_t cnt = hwData[1] << 16 | hwData[2] << 8 | hwData[3];
-                uint16_t thr = hwData[4] << 8 | hwData[5];
-                uint16_t pwm = hwData[6] << 8 | hwData[7];
-                uint32_t rpm = hwData[8] << 16 | hwData[9] << 8 | hwData[10];
-                float voltage = calcVoltHW(hwData[11] << 8 | hwData[12]);
-                float current = calcCurrHW(hwData[13] << 8 | hwData[14]);
-                float tempFET = calcTempHW(hwData[15] << 8 | hwData[16]);
-                float tempBEC = calcTempHW(hwData[17] << 8 | hwData[18]);
+                uint32_t cnt = buffer[1] << 16 | buffer[2] << 8 | buffer[3];
+                uint16_t thr = buffer[4] << 8 | buffer[5];
+                uint16_t pwm = buffer[6] << 8 | buffer[7];
+                uint32_t rpm = buffer[8] << 16 | buffer[9] << 8 | buffer[10];
+
+                float voltage = calcVoltHW(buffer[11] << 8 | buffer[12]);
+                float current = calcCurrHW(buffer[13] << 8 | buffer[14]);
+                float tempFET = calcTempHW(buffer[15] << 8 | buffer[16]);
+                float tempBEC = calcTempHW(buffer[17] << 8 | buffer[18]);
 
                 escSensorData[0].dataAge = 0;
                 escSensorData[0].temperature = lrintf(tempFET);
@@ -542,17 +553,150 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
     escSensorData[0].consumption = lrintf(totalConsumption / 3600e6f);
 }
 
-void escSensorProcess(timeUs_t currentTimeUs)
+
+/*
+ * Kontronik telemetry
+ *
+ * See https://www.kontronik.com/fileadmin/kontronik-sobek/Public/Content/Images/Content/Downloads/Software/Kontronik_TelMe_V4.12_1.12_EN.pdf
+ *
+ * Byte 0-3:        Sync 0x4B 0x4F 0x44 0x4C "KODL"
+ * Byte 4-7:        RPM
+ * Byte 8-9:        Battery voltage
+ * Byte 10-11:      Battery current
+ * Byte 12-13:      Motor current average
+ * Byte 14-15:      Motor current peak
+ * Byte 16-17:      Capacity
+ * Byte 18-19:      BEC current
+ * Byte 20-21:      BEC Voltage
+ * Byte 22-23:      PWM in (us)
+ * Byte 24:         Gas in
+ * Byte 25:         PWM out
+ * Byte 26:         FET temp
+ * Byte 27:         BEC temp
+ * Byte 28-31:      Error flags
+ * Byte 32:         Operational condition
+ * Byte 33:         Timing
+ * Byte 34-37:      CRC
+ *
+ */
+
+static uint32_t calculateCRC32(const uint8_t *buf, uint8_t length)
 {
-    if (!escSensorPort || !motorIsEnabled()) {
-        return;
+    uint32_t crc = 0xFFFFFFFF;
+
+    for (int i = 0; i < length; i++) {
+        crc = crc ^ buf[i];
+        for (int j = 0; j < 8; j++) {
+            crc = (crc >> 1) ^ (0xEDB88320 & -(crc & 1));
+        }
     }
 
-    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KISS) {
-        kissSensorProcess(currentTimeUs);
+    return ~crc;
+}
+
+static bool processKontronikTelemetryStream(uint8_t dataByte)
+{
+    if (bytesRead == 0) {
+        if (dataByte == 0x4B)
+            buffer[bytesRead++] = dataByte;
     }
-    else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_HW4) {
-        hw4SensorProcess(currentTimeUs);
+    else if (bytesRead == 1) {
+        if (dataByte == 0x4F)
+            buffer[bytesRead++] = dataByte;
+        else
+            bytesRead = 0;
+    }
+    else if (bytesRead == 2) {
+        if (dataByte == 0x44)
+            buffer[bytesRead++] = dataByte;
+        else
+            bytesRead = 0;
+    }
+    else if (bytesRead == 3) {
+        if (dataByte == 0x4C)
+            buffer[bytesRead++] = dataByte;
+        else
+            bytesRead = 0;
+    }
+    else if (bytesRead < 38) {
+        buffer[bytesRead++] = dataByte;
+    }
+    else {
+        bytesRead = 0;
+        return true;
+    }
+
+    return false;
+}
+
+static void kontronikSensorProcess(timeUs_t currentTimeUs)
+{
+    // Increment data age counter if no updates in 250ms
+    if (cmp32(currentTimeUs, dataUpdateUs) > 250000) {
+        increaseDataAge();
+        dataUpdateUs = currentTimeUs;
+    }
+
+    // check for any available bytes in the rx buffer
+    while (serialRxBytesWaiting(escSensorPort)) {
+        if (processKontronikTelemetryStream(serialRead(escSensorPort))) {
+            uint32_t crc = buffer[37] << 24 | buffer[36] << 16 | buffer[35] << 8 | buffer[34];
+            if (calculateCRC32(buffer, 34) == crc) {
+                uint32_t rpm = buffer[7] << 24 | buffer[6] << 16 | buffer[5] << 8 | buffer[4];
+                uint16_t pwm = buffer[23] << 8 | buffer[22];
+                uint16_t voltage = buffer[9] << 8 | buffer[8];
+                uint16_t current = buffer[11] << 8 | buffer[10];
+                uint16_t capacity = buffer[17] << 8 | buffer[16];
+                uint16_t tempFET = buffer[26];
+                uint16_t tempBEC = buffer[27];
+
+                escSensorData[0].dataAge = 0;
+                escSensorData[0].temperature = tempFET;
+                escSensorData[0].voltage = voltage;
+                escSensorData[0].current = current;
+                escSensorData[0].rpm = rpm / 100;
+                escSensorData[0].consumption = capacity;
+
+                //DEBUG(ESC_SENSOR, DEBUG_ESC_MOTOR_INDEX, cnt);
+                DEBUG(ESC_SENSOR, DEBUG_ESC_RPM, rpm);
+                DEBUG(ESC_SENSOR, DEBUG_ESC_TEMP, tempFET);
+                DEBUG(ESC_SENSOR, DEBUG_ESC_VOLTAGE, voltage);
+                DEBUG(ESC_SENSOR, DEBUG_ESC_CURRENT, current);
+
+                DEBUG(ESC_SENSOR_RPM, 0, rpm);
+                DEBUG(ESC_SENSOR_RPM, 2, pwm);
+
+                DEBUG(ESC_SENSOR_TMP, 0, tempFET * 10);
+                DEBUG(ESC_SENSOR_TMP, 1, tempBEC * 10);
+
+                dataUpdateUs = currentTimeUs;
+            }
+            else {
+                DEBUG(ESC_SENSOR, DEBUG_ESC_NUM_CRC_ERRORS, ++totalCrcErrorCount);
+            }
+        }
+    }
+
+    // Log the buffer size as "timeouts"
+    DEBUG(ESC_SENSOR, DEBUG_ESC_NUM_TIMEOUTS, bytesRead);
+
+    // Log the data age to see how old the data gets
+    DEBUG(ESC_SENSOR, DEBUG_ESC_DATA_AGE, escSensorData[escSensorMotor].dataAge);
+}
+
+
+void escSensorProcess(timeUs_t currentTimeUs)
+{
+    if (escSensorPort && motorIsEnabled()) {
+        if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KISS) {
+            kissSensorProcess(currentTimeUs);
+        }
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_HW4) {
+            hw4SensorProcess(currentTimeUs);
+        }
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KONTRONIK) {
+            kontronikSensorProcess(currentTimeUs);
+        }
     }
 }
 
