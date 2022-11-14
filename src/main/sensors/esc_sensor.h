@@ -32,6 +32,7 @@ enum {
     ESC_SENSOR_PROTO_NONE = 0,
     ESC_SENSOR_PROTO_KISS,
     ESC_SENSOR_PROTO_HW4,
+    ESC_SENSOR_PROTO_KONTRONIK,
 };
 
 typedef struct escSensorConfig_s {
