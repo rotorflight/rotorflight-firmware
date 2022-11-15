@@ -20,7 +20,12 @@
 
 #pragma once
 
-#if defined(STM32F405)
+/*
+ * STM32F405
+ */
+
+#if defined(STM32F405) || defined(STM32F405_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "S405"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F405"
@@ -40,6 +45,8 @@
 
 #define USE_INVERTER
 
+#define USE_SDCARD_SDIO
+
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
 #define USE_SPI_DEVICE_3
@@ -55,7 +62,13 @@
 #define CURRENT_TASK_FREQ_HZ     100
 #define ESC_SENSOR_TASK_FREQ_HZ  100
 
-#elif defined(STM32F411)
+
+/*
+ * STM32F411
+ */
+
+#elif defined(STM32F411) || defined(STM32F411_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "S411"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F411"
@@ -86,7 +99,13 @@
 #define CURRENT_TASK_FREQ_HZ     100
 #define ESC_SENSOR_TASK_FREQ_HZ  100
 
-#elif defined(STM32F7X2)
+
+/*
+ * STM32F7x2
+ */
+
+#elif defined(STM32F7X2) || defined(STM32F7X2_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "S7X2"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F7x2"
@@ -103,6 +122,8 @@
 #define USE_UART6
 
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 6)
+
+#define USE_SDCARD_SDIO
 
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
@@ -121,7 +142,13 @@
 #define CURRENT_TASK_FREQ_HZ     200
 #define ESC_SENSOR_TASK_FREQ_HZ  200
 
-#elif defined(STM32F745)
+
+/*
+ * STM32F745
+ */
+
+#elif defined(STM32F745) || defined(STM32F745_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "S745"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32F745"
@@ -142,6 +169,8 @@
 
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 8)
 
+#define USE_SDCARD_SDIO
+
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
 #define USE_SPI_DEVICE_3
@@ -160,7 +189,13 @@
 #define CURRENT_TASK_FREQ_HZ     200
 #define ESC_SENSOR_TASK_FREQ_HZ  200
 
-#elif defined(STM32G47X)
+
+/*
+ * STM32G47x
+ */
+
+#elif defined(STM32G47X) || defined(STM32G47X_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "SG47"
 
 #define USBD_PRODUCT_STRING     "Betaflight STM32G47x"
@@ -195,7 +230,13 @@
 #define CURRENT_TASK_FREQ_HZ     100
 #define ESC_SENSOR_TASK_FREQ_HZ  100
 
-#elif defined(STM32H743)
+
+/*
+ * STM32H743
+ */
+
+#elif defined(STM32H743) || defined(STM32H743_OSD)
+
 #define TARGET_BOARD_IDENTIFIER "SH74"
 
 #define USBD_PRODUCT_STRING     "Rotorflight STM32H743"
@@ -216,6 +257,8 @@
 #define USE_LPUART1
 
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 9)
+
+#define USE_SDCARD_SDIO
 
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
@@ -238,11 +281,15 @@
 #define CURRENT_TASK_FREQ_HZ     250
 #define ESC_SENSOR_TASK_FREQ_HZ  250
 
+
+/*
+ * UNKNOWN target
+ */
+
 #elif !defined(UNIT_TEST)
-
 #error "No resources defined for this Unified Target."
-
 #endif
+
 
 // Treat the target as unified, and expect manufacturer id / board name
 // to be supplied when the board is configured for the first time
@@ -306,10 +353,6 @@
 
 #define USE_SDCARD
 #define USE_SDCARD_SPI
-#if !defined(STM32G4)
-// G4 support needs fixing
-#define USE_SDCARD_SDIO
-#endif
 
 #define USE_FLASHFS
 #define USE_FLASH_TOOLS
@@ -343,17 +386,27 @@
 
 #define USE_FREQ_SENSOR
 
-#ifdef DISABLE_OSD_VIDEO
+#if defined(STM32F405_OSD) || defined(STM32F411_OSD) || defined(STM32F7X2_OSD) || defined(STM32F745_OSD) || defined(STM32G47X_OSD) || defined(STM32H743_OSD)
+#define USE_OSD
+#define USE_CMS
+#define USE_MAX7456
+#define USE_RCDEVICE
+#define USE_VTX_COMMON
+#define USE_VTX_CONTROL
+#define USE_VTX_SMARTAUDIO
+#define USE_VTX_TRAMP
+#define USE_CAMERA_CONTROL
+#else
 #undef USE_OSD
 #undef USE_CMS
 #undef USE_MAX7456
 #undef USE_RCDEVICE
+#undef USE_VTX_COMMON
 #undef USE_VTX_CONTROL
+#undef USE_VTX_SMARTAUDIO
+#undef USE_VTX_TRAMP
 #undef USE_CAMERA_CONTROL
 #endif
-
-// SPI RX is not supported in Rotorflight
-#undef  USE_RX_SPI
 
 #ifdef USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D
@@ -367,10 +420,10 @@
 #define USE_RX_FLYSKY_SPI_LED
 #define USE_RX_SPEKTRUM
 #define USE_RX_SPEKTRUM_TELEMETRY
+#define USE_RX_EXPRESSLRS
+#define USE_RX_SX1280
+#define USE_RX_SX127X
 #endif
-
-// Additional drivers included for targets with > 512KB of flash
-#if (TARGET_FLASH_SIZE > 512)
 
 #ifdef USE_VTX_CONTROL
 #define USE_VTX_RTC6705
@@ -380,12 +433,4 @@
 #ifdef USE_RANGEFINDER
 #define USE_RANGEFINDER_HCSR04
 #define USE_RANGEFINDER_TF
-#endif
-
-#ifdef USE_RX_SPI
-#define USE_RX_EXPRESSLRS
-#define USE_RX_SX1280
-#define USE_RX_SX127X
-#endif
-
 #endif
