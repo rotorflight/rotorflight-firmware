@@ -1,41 +1,35 @@
-ifeq ($(TARGET), STM32F405)
-F405_TARGETS += $(TARGET)
 
-else
-ifeq ($(TARGET), STM32F411)
-F411_TARGETS += $(TARGET)
-
-else
-ifeq ($(TARGET), STM32F7X2)
-F7X2RE_TARGETS += $(TARGET)
-
-else
-ifeq ($(TARGET), STM32F745)
-F7X5XG_TARGETS += $(TARGET)
-
-else
-ifeq ($(TARGET), STM32G47X)
-G47X_TARGETS += $(TARGET)
-
-else # STM32H743
-H743xI_TARGETS += $(TARGET)
-
-endif
-endif
-endif
-endif
+ifneq ($(findstring STM32F411,$(TARGET)),)
+F411_TARGETS    += $(TARGET)
+FEATURES        += VCP SDCARD_SPI ONBOARDFLASH
 endif
 
-ifeq ($(TARGET), $(filter $(TARGET), STM32F405 STM32F745 STM32H743))
-# Use a full block (16 kB) of flash for custom defaults - with 1 MB flash we have more than we know how to use anyway
-
+ifneq ($(findstring STM32F405,$(TARGET)),)
+F405_TARGETS    += $(TARGET)
+FEATURES        += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
 CUSTOM_DEFAULTS_EXTENDED = yes
 endif
 
-ifeq ($(TARGET), STM32G47X)
-FEATURES       += VCP SDCARD_SPI ONBOARDFLASH
-else
-FEATURES       += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
+ifneq ($(findstring STM32F7X2,$(TARGET)),)
+F7X2RE_TARGETS  += $(TARGET)
+FEATURES        += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
+endif
+
+ifneq ($(findstring STM32F745,$(TARGET)),)
+F7X5XG_TARGETS  += $(TARGET)
+FEATURES        += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
+CUSTOM_DEFAULTS_EXTENDED = yes
+endif
+
+ifneq ($(findstring STM32G47X,$(TARGET)),)
+G47X_TARGETS    += $(TARGET)
+FEATURES        += VCP SDCARD_SPI ONBOARDFLASH
+endif
+
+ifneq ($(findstring STM32H743,$(TARGET)),)
+H743xI_TARGETS  += $(TARGET)
+FEATURES        += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
+CUSTOM_DEFAULTS_EXTENDED = yes
 endif
 
 TARGET_SRC = \
@@ -43,9 +37,6 @@ TARGET_SRC = \
     $(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270_maximum_fifo.c \
     $(addprefix drivers/barometer/,$(notdir $(wildcard $(SRC_DIR)/drivers/barometer/*.c))) \
     $(addprefix drivers/compass/,$(notdir $(wildcard $(SRC_DIR)/drivers/compass/*.c))) \
-    drivers/max7456.c \
-    drivers/vtx_rtc6705.c \
-    drivers/vtx_rtc6705_soft_spi.c \
     rx/cc2500_common.c \
     rx/cc2500_frsky_shared.c \
     rx/cc2500_frsky_d.c \
@@ -63,3 +54,10 @@ TARGET_SRC = \
     drivers/rx/rx_cyrf6936.c \
     drivers/rx/rx_sx127x.c \
     drivers/rx/rx_sx1280.c \
+
+ifneq ($(findstring _OSD,$(TARGET)),)
+VARIANT_SRC = \
+    drivers/max7456.c \
+    drivers/vtx_rtc6705.c \
+    drivers/vtx_rtc6705_soft_spi.c
+endif
