@@ -104,12 +104,7 @@ FEATURE_CUT_LEVEL_SUPPLIED := $(FEATURE_CUT_LEVEL)
 FEATURE_CUT_LEVEL =
 
 # The list of targets to build for 'pre-push'
-ifeq ($(OSFAMILY), macosx)
-# SITL is not buildable on MacOS
 PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) STM32F4DISCOVERY_DEBUG test-representative
-else
-PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) SITL STM32F4DISCOVERY_DEBUG test-representative
-endif
 
 include $(ROOT)/make/targets.mk
 
@@ -307,7 +302,6 @@ endif
 TARGET_BIN      = $(TARGET_BASENAME).bin
 TARGET_HEX      = $(TARGET_BASENAME).hex
 TARGET_DFU      = $(TARGET_BASENAME).dfu
-TARGET_ZIP      = $(TARGET_BASENAME).zip
 TARGET_ELF      = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).elf
 TARGET_EXST_ELF = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET)_EXST.elf
 TARGET_UNPATCHED_BIN = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET)_UNPATCHED.bin
@@ -456,9 +450,6 @@ all_all: $(VALID_TARGETS)
 ## unified : build all Unified Targets
 unified: $(UNIFIED_TARGETS)
 
-## unified_zip : build all Unified Targets as zip files (for posting on GitHub)
-unified_zip: $(addsuffix _clean,$(UNIFIED_TARGETS)) $(addsuffix _zip,$(UNIFIED_TARGETS))
-
 ## legacy : Build legacy targets
 legacy: $(LEGACY_TARGETS)
 
@@ -546,16 +537,6 @@ ifneq ($(OPENOCD_COMMAND),)
 openocd-gdb: $(TARGET_ELF)
 	$(V0) $(OPENOCD_COMMAND) & $(CROSS_GDB) $(TARGET_ELF) -ex "target remote localhost:3333" -ex "load"
 endif
-
-TARGETS_ZIP = $(addsuffix _zip,$(VALID_TARGETS))
-
-## <TARGET>_zip    : build target and zip it (useful for posting to GitHub)
-$(TARGETS_ZIP):
-	$(V0) $(MAKE) hex TARGET=$(subst _zip,,$@)
-	$(V0) $(MAKE) zip TARGET=$(subst _zip,,$@)
-
-zip:
-	$(V0) zip $(TARGET_ZIP) $(TARGET_HEX)
 
 binary:
 	$(V0) $(MAKE) -j $(TARGET_BIN)
