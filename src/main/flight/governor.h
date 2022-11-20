@@ -37,7 +37,7 @@ typedef enum {
     GS_SPOOLING_UP,
     GS_RECOVERY,
     GS_ACTIVE,
-    GS_LOST_THROTTLE,
+    GS_ZERO_THROTTLE,
     GS_LOST_HEADSPEED,
     GS_AUTOROTATION,
     GS_AUTOROTATION_BAILOUT,
@@ -45,10 +45,11 @@ typedef enum {
 
 typedef struct governorConfig_s {
     uint8_t  gov_mode;
+    uint16_t gov_startup_time;
     uint16_t gov_spoolup_time;
     uint16_t gov_tracking_time;
     uint16_t gov_recovery_time;
-    uint16_t gov_lost_throttle_timeout;
+    uint16_t gov_zero_throttle_timeout;
     uint16_t gov_lost_headspeed_timeout;
     uint16_t gov_autorotation_timeout;
     uint16_t gov_autorotation_bailout_time;
@@ -56,8 +57,6 @@ typedef struct governorConfig_s {
     uint16_t gov_pwr_filter;
     uint16_t gov_rpm_filter;
     uint16_t gov_tta_filter;
-    uint16_t gov_ff_exponent;
-    uint16_t gov_vbat_offset;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);
@@ -73,6 +72,7 @@ uint8_t getGovernorState();
 float getGovernorOutput(void);
 
 float getHeadSpeedRatio(void);
+float getFullHeadSpeedRatio(void);
 
 bool isSpooledUp(void);
 
