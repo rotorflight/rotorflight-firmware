@@ -37,7 +37,7 @@ typedef enum {
     GS_SPOOLING_UP,
     GS_RECOVERY,
     GS_ACTIVE,
-    GS_LOST_THROTTLE,
+    GS_ZERO_THROTTLE,
     GS_LOST_HEADSPEED,
     GS_AUTOROTATION,
     GS_AUTOROTATION_BAILOUT,
@@ -73,6 +73,7 @@ uint8_t getGovernorState();
 float getGovernorOutput(void);
 
 float getHeadSpeedRatio(void);
+float getFullHeadSpeedRatio(void);
 
 bool isSpooledUp(void);
 

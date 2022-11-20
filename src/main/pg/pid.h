@@ -84,6 +84,7 @@ typedef struct {
     uint8_t     f_gain;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
+    uint8_t     yaw_ff_weight;
     uint8_t     cyclic_ff_weight;
     uint8_t     collective_ff_weight;
 } governorProfile_t;
