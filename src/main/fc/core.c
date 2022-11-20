@@ -663,7 +663,7 @@ static void subTaskPidSubprocesses(timeUs_t currentTimeUs)
     DEBUG_TIME_START(PIDLOOP, 3);
 
 #ifdef USE_DYN_LPF
-    dynLpfUpdate(currentTimeUs, getHeadSpeedRatio());
+    dynLpfUpdate(currentTimeUs, getFullHeadSpeedRatio());
 #endif
 
 #ifdef USE_RPM_FILTER

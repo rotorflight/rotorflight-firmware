@@ -197,6 +197,8 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
     pid.precomp.pitchCollectiveImpulseFFGain = pidProfile->pitch_collective_ff_impulse_gain / 500.0f;
 
+    // Initialise sub-profiles
+    governorInitProfile(pidProfile);
 #ifdef USE_ACC
     pidLevelInit(pidProfile);
 #endif

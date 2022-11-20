@@ -50,7 +50,7 @@
 // Throttle mapping in IDLE state
 #define GOV_THROTTLE_OFF_LIMIT          0.10f
 #define GOV_THROTTLE_IDLE_LIMIT         0.20f
-#define GOV_THROTTLE_IDLE_RANGE         0.10f
+#define GOV_THROTTLE_IDLE_RANGE         0.20f
 
 // Minimum throttle output from PI algorithms
 #define GOV_MIN_THROTTLE_OUTPUT         0.05f
@@ -63,15 +63,19 @@
 #define GOV_HS_INVALID_RATIO            0.01f
 #define GOV_HS_INVALID_THROTTLE         0.10f
 
+// Nominal battery cell voltage
+#define GOV_NOMINAL_CELL_VOLTAGE        3.70f
+
 
 PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 0);
 
 PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_mode = GM_PASSTHROUGH,
+    .gov_startup_time = 200,
     .gov_spoolup_time = 100,
     .gov_tracking_time = 20,
     .gov_recovery_time = 20,
-    .gov_lost_throttle_timeout = 30,
+    .gov_zero_throttle_timeout = 30,
     .gov_lost_headspeed_timeout = 10,
     .gov_autorotation_timeout = 0,
     .gov_autorotation_bailout_time = 0,
@@ -79,101 +83,112 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
     .gov_tta_filter = 250,
-    .gov_ff_exponent = 150,
-    .gov_vbat_offset = 0,
 );
 
 
-static FAST_DATA_ZERO_INIT uint8_t govMode;
+//// Internal Data
 
-static FAST_DATA_ZERO_INIT uint8_t govState;
-static FAST_DATA_ZERO_INIT timeMs_t govStateEntryTime;
+typedef struct {
 
-static FAST_DATA_ZERO_INIT float govGearRatio;
+    // Governor mode (GM_ enum)
+    uint8_t         mode;
 
-static FAST_DATA_ZERO_INIT float govOutput;
-static FAST_DATA_ZERO_INIT float govThrottle;
-static FAST_DATA_ZERO_INIT bool  govThrottleLow;
+    // State machine
+    uint8_t         state;
+    timeMs_t        stateEntryTime;
 
-static FAST_DATA_ZERO_INIT float govNominalVoltage;
+    // Output throttle
+    float           throttle;
 
-static FAST_DATA_ZERO_INIT float govVoltage;
-static FAST_DATA_ZERO_INIT biquadFilter_t govVoltageFilter;
+    // Input throttle
+    float           throttleInput;
+    bool            throttleInputLow;
 
-static FAST_DATA_ZERO_INIT float govCurrent;
-static FAST_DATA_ZERO_INIT biquadFilter_t govCurrentFilter;
+    // Current headspeed
+    float           actualHeadSpeed;
 
-static FAST_DATA_ZERO_INIT float govMotorRPM;
-static FAST_DATA_ZERO_INIT uint32_t govMotorRPMGood;
-static FAST_DATA_ZERO_INIT biquadFilter_t govMotorRPMFilter;
+    // Headspeed config
+    float           fullHeadSpeed;
+    float           targetHeadSpeed;
+    float           requestedHeadSpeed;
 
-static FAST_DATA_ZERO_INIT float govSetpoint;
-static FAST_DATA_ZERO_INIT float govHeadSpeed;
-static FAST_DATA_ZERO_INIT float govFullHeadSpeed;
-static FAST_DATA_ZERO_INIT float govTargetHeadSpeed;
+    // Proportial headspeeds
+    float           fullHeadSpeedRatio;
+    float           requestedHeadSpeedRatio;
 
-static FAST_DATA_ZERO_INIT float govHeadSpeedRatio;
-static FAST_DATA_ZERO_INIT bool  govHeadSpeedError;
-static FAST_DATA_ZERO_INIT bool  govHeadSpeedPresent;
+    // Main gear ratio (motor/head)
+    float           mainGearRatio;
 
-static FAST_DATA_ZERO_INIT bool  govAutoEnabled;
-static FAST_DATA_ZERO_INIT long  govAutoTimeout;
-static FAST_DATA_ZERO_INIT long  govAutoMinEntry;
+    // RPM Signal Flags
+    bool            motorRPMError;
+    bool            motorRPMPresent;
 
-static FAST_DATA_ZERO_INIT long  govLostThrottleTimeout;
-static FAST_DATA_ZERO_INIT long  govLostHeadspeedTimeout;
+    // Input data filters
+    float           motorRPM;
+    biquadFilter_t  motorRPMFilter;
+    uint32_t        motorRPMGood;
 
-static FAST_DATA_ZERO_INIT float govThrottleSpoolupRate;
-static FAST_DATA_ZERO_INIT float govThrottleBailoutRate;
-static FAST_DATA_ZERO_INIT float govThrottleRecoveryRate;
-static FAST_DATA_ZERO_INIT float govThrottleTrackingRate;
+    float           motorVoltage;
+    biquadFilter_t  motorVoltageFilter;
 
-static FAST_DATA_ZERO_INIT float govSetpointSpoolupRate;
-static FAST_DATA_ZERO_INIT float govSetpointBailoutRate;
-static FAST_DATA_ZERO_INIT float govSetpointRecoveryRate;
-static FAST_DATA_ZERO_INIT float govSetpointTrackingRate;
+    float           motorCurrent;
+    biquadFilter_t  motorCurrentFilter;
 
-static FAST_DATA_ZERO_INIT float govK;
-static FAST_DATA_ZERO_INIT float govKp;
-static FAST_DATA_ZERO_INIT float govKi;
-static FAST_DATA_ZERO_INIT float govKd;
-static FAST_DATA_ZERO_INIT float govKf;
+    // Nominal battery voltage
+    float           nominalVoltage;
 
-static FAST_DATA_ZERO_INIT float govP;
-static FAST_DATA_ZERO_INIT float govI;
-static FAST_DATA_ZERO_INIT float govC;
-static FAST_DATA_ZERO_INIT float govD;
-static FAST_DATA_ZERO_INIT float govF;
-static FAST_DATA_ZERO_INIT float govPidSum;
-static FAST_DATA_ZERO_INIT float govError;
+    // PID terms
+    float           P;
+    float           I;
+    float           C;
+    float           D;
+    float           F;
+    float           pidSum;
+    float           pidError;
 
-static FAST_DATA_ZERO_INIT float govCycWeight;
-static FAST_DATA_ZERO_INIT float govColWeight;
+    // PID Gains
+    float           K;
+    float           Kp;
+    float           Ki;
+    float           Kd;
+    float           Kf;
 
-static FAST_DATA_ZERO_INIT float govCyclicFF;
-static FAST_DATA_ZERO_INIT float govCollectiveFF;
-static FAST_DATA_ZERO_INIT float govFeedForward;
-static FAST_DATA_ZERO_INIT float govFFexponent;
-static FAST_DATA_ZERO_INIT float govBatOffset;
+    // Feedforward
+    float           yawWeight;
+    float           cyclicWeight;
+    float           collectiveWeight;
 
-static FAST_DATA_ZERO_INIT float govTTAMull;
-static FAST_DATA_ZERO_INIT float govTTAGain;
-static FAST_DATA_ZERO_INIT float govTTALimit;
-static FAST_DATA_ZERO_INIT biquadFilter_t govTTAFilter;
+    // Tail Torque Assist
+    float           TTAMull;
+    float           TTAGain;
+    float           TTALimit;
+    biquadFilter_t  TTAFilter;
 
+    // Autorotation
+    bool            autoEnabled;
+    long            autoMinEntry;
+    long            autoTimeout;
 
-//// Prototypes
+    // Timeouts
+    long            zeroThrottleTimeout;
+    long            lostHeadspeedTimeout;
 
-static void govPIDInit(void);
-static void govMode1Init(void);
-static void govMode2Init(void);
+    // Headspeed change rates
+    float           headSpeedSpoolupRate;
+    float           headSpeedBailoutRate;
+    float           headSpeedRecoveryRate;
+    float           headSpeedTrackingRate;
 
-static float govPIDControl(void);
-static float govMode1Control(void);
-static float govMode2Control(void);
+    // Throttle change rates
+    float           throttleStartupRate;
+    float           throttleSpoolupRate;
+    float           throttleBailoutRate;
+    float           throttleRecoveryRate;
+    float           throttleTrackingRate;
 
-static void governorUpdateState(void);
-static void governorUpdatePassthrough(void);
+} govData_t;
+
+static FAST_DATA_ZERO_INIT govData_t gov;
 
 
 //// Handler functions
@@ -190,34 +205,54 @@ static FAST_DATA_ZERO_INIT govVoidFn   govActiveInit;
 static FAST_DATA_ZERO_INIT govFloatFn  govActiveCalc;
 
 
+//// Prototypes
+
+static void govPIDInit(void);
+static void govMode1Init(void);
+static void govMode2Init(void);
+
+static float govPIDControl(void);
+static float govMode1Control(void);
+static float govMode2Control(void);
+
+static void governorUpdateState(void);
+static void governorUpdatePassthrough(void);
+
+
 
 //// Access functions
 
 uint8_t getGovernorState(void)
 {
-    return govState;
+    return gov.state;
 }
 
 float getGovernorOutput(void)
 {
-    return govOutput;
+    return gov.throttle;
 }
 
 float getHeadSpeedRatio(void)
 {
-    if (govMode > GM_PASSTHROUGH) {
-        switch (govState)
+    return (gov.mode > GM_PASSTHROUGH && gov.state == GS_ACTIVE) ?
+        gov.requestedHeadSpeedRatio :
+        1.0f;
+}
+
+float getFullHeadSpeedRatio(void)
+{
+    if (gov.mode > GM_PASSTHROUGH) {
+        switch (gov.state)
         {
             case GS_ACTIVE:
             case GS_RECOVERY:
             case GS_SPOOLING_UP:
-            case GS_LOST_THROTTLE:
+            case GS_ZERO_THROTTLE:
             case GS_LOST_HEADSPEED:
             case GS_AUTOROTATION:
             case GS_AUTOROTATION_BAILOUT:
-                return govHeadSpeedRatio;
+                return gov.fullHeadSpeedRatio;
         }
-        return 1.0f;
     }
 
     return 1.0f;
@@ -228,12 +263,12 @@ bool isSpooledUp(void)
     if (!ARMING_FLAG(ARMED))
         return false;
 
-    if (govMode > GM_OFF) {
-        switch (govState)
+    if (gov.mode > GM_OFF) {
+        switch (gov.state)
         {
             case GS_ACTIVE:
             case GS_RECOVERY:
-            case GS_LOST_THROTTLE:
+            case GS_ZERO_THROTTLE:
             case GS_LOST_HEADSPEED:
             case GS_AUTOROTATION:
             case GS_AUTOROTATION_BAILOUT:
@@ -247,7 +282,7 @@ bool isSpooledUp(void)
         return false;
     }
     else {
-        if (govThrottle > 0.25f)
+        if (gov.throttleInput > 0.333f)
             return true;
     }
 
@@ -260,115 +295,126 @@ bool isSpooledUp(void)
 static inline float idleMap(float throttle)
 {
     // Map throttle in IDLE state
-    //     0%..5%   => 0%
-    //     5%..20%  => 0%..10%
-    //     >20%     => 10%
+    //     0%..10%   => 0%
+    //     10%..20%  => 0%..20%
+    //     >20%      => 20%
     throttle = (throttle - GOV_THROTTLE_OFF_LIMIT) * GOV_THROTTLE_IDLE_RANGE /
         (GOV_THROTTLE_IDLE_LIMIT - GOV_THROTTLE_OFF_LIMIT);
 
     return constrainf(throttle, 0, GOV_THROTTLE_IDLE_RANGE);
 }
 
+static inline float angleDrag(float angle)
+{
+    return angle * sqrtf(angle); // angle ^ 1.5
+}
+
 static inline void govChangeState(uint8_t futureState)
 {
-    govState = futureState;
-    govStateEntryTime = millis();
+    gov.state = futureState;
+    gov.stateEntryTime = millis();
 }
 
 static inline long govStateTime(void)
 {
-    return cmp32(millis(),govStateEntryTime);
+    return cmp32(millis(),gov.stateEntryTime);
 }
 
 static void govDebugStats(void)
 {
-    DEBUG(GOVERNOR, 0, govTargetHeadSpeed);
-    DEBUG(GOVERNOR, 1, govSetpoint);
-    DEBUG(GOVERNOR, 2, govFeedForward * 1000);
-    DEBUG(GOVERNOR, 3, govP * 1000);
-    DEBUG(GOVERNOR, 4, govI * 1000);
-    DEBUG(GOVERNOR, 5, govD * 1000);
-    DEBUG(GOVERNOR, 6, govF * 1000);
-    DEBUG(GOVERNOR, 7, govPidSum * 1000);
+    DEBUG(GOVERNOR, 0, gov.requestedHeadSpeed);
+    DEBUG(GOVERNOR, 1, gov.targetHeadSpeed);
+    DEBUG(GOVERNOR, 2, gov.actualHeadSpeed);
+    DEBUG(GOVERNOR, 3, gov.pidSum * 1000);
+    DEBUG(GOVERNOR, 4, gov.P * 1000);
+    DEBUG(GOVERNOR, 5, gov.I * 1000);
+    DEBUG(GOVERNOR, 6, gov.D * 1000);
+    DEBUG(GOVERNOR, 7, gov.F * 1000);
 }
 
 static void govUpdateInputs(void)
 {
     // Update throttle state
-    govThrottle = getRcDeflection(THROTTLE);
-    govThrottleLow = (calculateThrottleStatus() == THROTTLE_LOW);
+    gov.throttleInput = getRcDeflection(THROTTLE);
+    gov.throttleInputLow = (calculateThrottleStatus() == THROTTLE_LOW);
 
     // Assume motor[0]
-    govMotorRPM = getMotorRawRPMf(0);
+    gov.motorRPM = getMotorRawRPMf(0);
 
     // RPM signal is noisy - filtering is required
-    float filteredRPM = biquadFilterApply(&govMotorRPMFilter, govMotorRPM);
+    float filteredRPM = biquadFilterApply(&gov.motorRPMFilter, gov.motorRPM);
 
     // Calculate headspeed from filtered motor speed
-    govHeadSpeed = filteredRPM * govGearRatio;
+    gov.actualHeadSpeed = filteredRPM * gov.mainGearRatio;
 
-    // Calculate HS vs MaxHS ratio
-    govHeadSpeedRatio = govHeadSpeed / govFullHeadSpeed;
+    // Calculate HS vs FullHS ratio
+    gov.fullHeadSpeedRatio = gov.actualHeadSpeed / gov.fullHeadSpeed;
 
     // Evaluate RPM signal quality
-    if (govMotorRPM > 0 && govHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
-        if (!govMotorRPMGood) {
-            govMotorRPMGood = millis();
+    if (gov.motorRPM > 0 && gov.fullHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
+        if (!gov.motorRPMGood) {
+            gov.motorRPMGood = millis();
         }
     } else {
-        if (govMotorRPMGood) {
-            govMotorRPMGood = 0;
+        if (gov.motorRPMGood) {
+            gov.motorRPMGood = 0;
         }
     }
 
     // Headspeed is present if RPM is stable
-    govHeadSpeedPresent = (govMotorRPMGood && cmp32(millis(),govMotorRPMGood) > GOV_HS_DETECT_DELAY);
+    gov.motorRPMPresent = (gov.motorRPMGood && cmp32(millis(),gov.motorRPMGood) > GOV_HS_DETECT_DELAY);
 
     // Headspeed should be available if throttle is high enough
-    govHeadSpeedError = ((govHeadSpeedRatio < GOV_HS_INVALID_RATIO || govMotorRPM < 1) && govOutput > GOV_HS_INVALID_THROTTLE);
+    gov.motorRPMError = ((gov.fullHeadSpeedRatio < GOV_HS_INVALID_RATIO || gov.motorRPM < 1) && gov.throttle > GOV_HS_INVALID_THROTTLE);
 
     // Battery state - zero when battery unplugged
-    govNominalVoltage = getBatteryCellCount() * 3.70f;
+    gov.nominalVoltage = getBatteryCellCount() * GOV_NOMINAL_CELL_VOLTAGE;
 
     // Voltage & current filters
-    govVoltage = biquadFilterApply(&govVoltageFilter, getBatteryVoltageLatest() * 0.01f);
-    govCurrent = biquadFilterApply(&govCurrentFilter, getAmperageLatest() * 0.01f);
+    gov.motorVoltage = biquadFilterApply(&gov.motorVoltageFilter, getBatteryVoltageLatest() * 0.01f);
+    gov.motorCurrent = biquadFilterApply(&gov.motorCurrentFilter, getAmperageLatest() * 0.01f);
 }
 
 static void govUpdateData(void)
 {
     // Update headspeed target
-    govTargetHeadSpeed = govThrottle * govFullHeadSpeed;
+    gov.requestedHeadSpeed = gov.throttleInput * gov.fullHeadSpeed;
+
+    // Calculate HS vs TargetHS ratio
+    gov.requestedHeadSpeedRatio = gov.actualHeadSpeed / gov.requestedHeadSpeed;
 
     // Calculate feedforward from collective deflection
-    govCollectiveFF = govColWeight * getCollectiveDeflectionAbs();
+    float collectiveFF = gov.collectiveWeight * getCollectiveDeflectionAbs();
 
     // Calculate feedforward from cyclic deflection
-    govCyclicFF = govCycWeight * getCyclicDeflection();
+    float cyclicFF = gov.cyclicWeight * getCyclicDeflection();
+
+    // Calculate feedforward from yaw deflection
+    float yawFF = gov.yawWeight * getYawDeflectionAbs();
 
     // Angle-of-attack vs. FeedForward curve
-    govFeedForward = powf(govCollectiveFF + govCyclicFF, govFFexponent);
+    float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
 
     // Tail Torque Assist
-    if (mixerMotorizedTail() && govTTAGain != 0 && isSpooledUp()) {
-        float TTA = govTTAGain * biquadFilterApply(&govTTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
-        govTTAMull = constrainf(TTA, 0, govTTALimit) + 1.0f;
+    if (mixerMotorizedTail() && gov.TTAGain != 0 && isSpooledUp()) {
+        float TTA = gov.TTAGain * biquadFilterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
+        gov.TTAMull = constrainf(TTA, 0, gov.TTALimit) + 1.0f;
     }
     else {
-        govTTAMull = 1.0f;
+        gov.TTAMull = 1.0f;
     }
 
     // Normalized RPM error
-    float newError = (govSetpoint * govTTAMull - govHeadSpeed) / govFullHeadSpeed;
+    float newError = (gov.targetHeadSpeed * gov.TTAMull - gov.actualHeadSpeed) / gov.fullHeadSpeed;
 
     // Update PIDF terms
-    govP = govK * govKp * newError;
-    govC = govK * govKi * newError * pidGetDT();
-    govD = govK * govKd * (newError - govError) / pidGetDT();
-    govF = govK * govKf * govFeedForward;
+    gov.P = gov.K * gov.Kp * newError;
+    gov.C = gov.K * gov.Ki * newError * pidGetDT();
+    gov.D = gov.K * gov.Kd * (newError - gov.pidError) / pidGetDT();
+    gov.F = gov.K * gov.Kf * totalFF;
 
     // Update error term
-    govError = newError;
+    gov.pidError = newError;
 }
 
 
@@ -378,7 +424,7 @@ static void govUpdateData(void)
 
 static void governorUpdatePassthrough(void)
 {
-    float govPrev = govOutput;
+    float govPrev = gov.throttle;
     float govMain = 0;
 
     // Handle DISARM separately for SAFETY!
@@ -386,12 +432,12 @@ static void governorUpdatePassthrough(void)
         govChangeState(GS_THROTTLE_OFF);
     }
     else {
-        switch (govState)
+        switch (gov.state)
         {
             // Throttle is OFF
             case GS_THROTTLE_OFF:
                 govMain = 0;
-                if (!govThrottleLow)
+                if (!gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_IDLE);
                 break;
 
@@ -399,10 +445,10 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = slewLimit(govPrev, govThrottle, govThrottleTrackingRate);
-                if (govThrottleLow)
+                govMain = slewLimit(govPrev, gov.throttleInput, gov.throttleStartupRate);
+                if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
-                else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT)
+                else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_SPOOLING_UP);
                 break;
 
@@ -411,24 +457,24 @@ static void governorUpdatePassthrough(void)
             //  -- If 0% < throttle < 20%, stay in spoolup
             //  -- Once throttle >20% and not ramping up, move to ACTIVE
             case GS_SPOOLING_UP:
-                govMain = slewUpLimit(govPrev, govThrottle, govThrottleSpoolupRate);
-                if (govThrottleLow)
+                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleSpoolupRate);
+                if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_THROTTLE_IDLE);
-                else if (govMain >= govThrottle)
+                else if (govMain >= gov.throttleInput)
                     govChangeState(GS_ACTIVE);
                 break;
 
             // Follow the throttle without ramp limits.
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If throttle <20%, move to AUTO or SPOOLING_UP
             case GS_ACTIVE:
-                govMain = govThrottle * govTTAMull;
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
+                govMain = gov.throttleInput * gov.TTAMull;
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
                 else if (govMain < GOV_THROTTLE_IDLE_LIMIT) {
-                    if (govAutoEnabled && govStateTime() > govAutoMinEntry)
+                    if (gov.autoEnabled && govStateTime() > gov.autoMinEntry)
                         govChangeState(GS_AUTOROTATION);
                     else
                         govChangeState(GS_THROTTLE_IDLE);
@@ -438,11 +484,11 @@ static void governorUpdatePassthrough(void)
             // Throttle is low. If it is a mistake, give a chance to recover.
             //  -- If throttle returns, move to RECOVERY
             //  -- When timer expires, move to OFF
-            case GS_LOST_THROTTLE:
+            case GS_ZERO_THROTTLE:
                 govMain = 0;
-                if (!govThrottleLow)
+                if (!gov.throttleInputLow)
                     govChangeState(GS_RECOVERY);
-                else if (govStateTime() > govLostThrottleTimeout)
+                else if (govStateTime() > gov.zeroThrottleTimeout)
                     govChangeState(GS_THROTTLE_OFF);
                 break;
 
@@ -450,12 +496,12 @@ static void governorUpdatePassthrough(void)
             //  -- If throttle is >20%, move to AUTOROTATION_BAILOUT
             //  -- If timer expires, move to IDLE
             case GS_AUTOROTATION:
-                govMain = slewUpLimit(govPrev, govThrottle, govThrottleTrackingRate);
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT)
+                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleTrackingRate);
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_AUTOROTATION_BAILOUT);
-                else if (govStateTime() > govAutoTimeout)
+                else if (govStateTime() > gov.autoTimeout)
                     govChangeState(GS_THROTTLE_IDLE);
                 break;
 
@@ -463,12 +509,12 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move back to AUTO
             case GS_AUTOROTATION_BAILOUT:
-                govMain = slewUpLimit(govPrev, govThrottle, govThrottleBailoutRate);
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleBailoutRate);
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_AUTOROTATION);
-                else if (govMain >= govThrottle)
+                else if (govMain >= gov.throttleInput)
                     govChangeState(GS_ACTIVE);
                 break;
 
@@ -476,12 +522,12 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move to IDLE
             case GS_RECOVERY:
-                govMain = slewUpLimit(govPrev, govThrottle, govThrottleRecoveryRate);
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleRecoveryRate);
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_THROTTLE_IDLE);
-                else if (govMain >= govThrottle)
+                else if (govMain >= gov.throttleInput)
                     govChangeState(GS_ACTIVE);
                 break;
 
@@ -493,7 +539,7 @@ static void governorUpdatePassthrough(void)
     }
 
     // Update output variable
-    govOutput = govMain;
+    gov.throttle = govMain;
 
     // Set debug
     govDebugStats();
@@ -518,7 +564,7 @@ static inline void govEnterActiveState(uint8_t state)
 
 static void governorUpdateState(void)
 {
-    float govPrev = govOutput;
+    float govPrev = gov.throttle;
     float govMain = 0;
 
     // Handle DISARM separately for SAFETY!
@@ -526,26 +572,26 @@ static void governorUpdateState(void)
         govChangeState(GS_THROTTLE_OFF);
     }
     else {
-        switch (govState)
+        switch (gov.state)
         {
             // Throttle is OFF
             case GS_THROTTLE_OFF:
                 govMain = 0;
-                govSetpoint = 0;
-                if (!govThrottleLow)
+                gov.targetHeadSpeed = 0;
+                if (!gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_IDLE);
                 break;
 
-            // Throttle is IDLE, follow with a limited ramupup rate
+            // Throttle is IDLE, follow with a limited startup rate
             //  -- Map throttle to motor output
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleSpoolupRate);
-                govSetpoint = govHeadSpeed;
-                if (govThrottleLow)
+                govMain = slewUpLimit(govPrev, idleMap(gov.throttleInput), gov.throttleStartupRate);
+                gov.targetHeadSpeed = gov.actualHeadSpeed;
+                if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
-                else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT && govHeadSpeedPresent)
+                else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT && gov.motorRPMPresent)
                     govEnterSpoolupState(GS_SPOOLING_UP);
                 break;
 
@@ -557,129 +603,129 @@ static void governorUpdateState(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             case GS_SPOOLING_UP:
                 govMain = govPrev;
-                if (govThrottleLow)
+                if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_THROTTLE_IDLE);
-                else if (govHeadSpeedError)
+                else if (gov.motorRPMError)
                     govChangeState(GS_THROTTLE_IDLE);
-                else if (govHeadSpeed > govTargetHeadSpeed * 0.99f || govMain > 0.95f)
+                else if (gov.actualHeadSpeed > gov.requestedHeadSpeed * 0.99f || govMain > 0.95f)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointSpoolupRate);
+                    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, gov.headSpeedSpoolupRate);
                 }
                 break;
 
             // Governor active, maintain headspeed
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If no headspeed signal, move to LOST_HEADSPEED
             //  -- If throttle <20%, move to AUTOROTATION or IDLE
             case GS_ACTIVE:
                 govMain = govPrev;
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govHeadSpeedError)
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.motorRPMError)
                     govChangeState(GS_LOST_HEADSPEED);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT) {
-                    if (govAutoEnabled && govStateTime() > govAutoMinEntry)
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT) {
+                    if (gov.autoEnabled && govStateTime() > gov.autoMinEntry)
                         govChangeState(GS_AUTOROTATION);
                     else
                         govChangeState(GS_THROTTLE_IDLE);
                 } else {
                     govMain = govActiveCalc();
-                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointTrackingRate);
+                    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, gov.headSpeedTrackingRate);
                 }
                 break;
 
             // Throttle is off or low. If it is a mistake, give a chance to recover
             //  -- When throttle and *headspeed* returns, move to RECOVERY
             //  -- When timer expires, move to OFF
-            case GS_LOST_THROTTLE:
-                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleTrackingRate);
-                govSetpoint = govHeadSpeed;
-                if (govThrottle > GOV_THROTTLE_IDLE_LIMIT && govHeadSpeedPresent)
+            case GS_ZERO_THROTTLE:
+                govMain = slewUpLimit(govPrev, idleMap(gov.throttleInput), gov.throttleTrackingRate);
+                gov.targetHeadSpeed = gov.actualHeadSpeed;
+                if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT && gov.motorRPMPresent)
                     govEnterSpoolupState(GS_RECOVERY);
-                else if (govStateTime() > govLostThrottleTimeout)
+                else if (govStateTime() > gov.zeroThrottleTimeout)
                     govChangeState(GS_THROTTLE_OFF);
                 break;
 
             // No headspeed signal. Ramp down throttle slowly.
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If headspeed recovers, move to RECOVERY or IDLE
             //  -- When timer expires, move to OFF
             case GS_LOST_HEADSPEED:
-                govMain = slewLimit(govPrev, idleMap(govThrottle), govThrottleSpoolupRate);
-                govSetpoint = govHeadSpeed;
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govHeadSpeedPresent) {
-                    if (govThrottle > GOV_THROTTLE_IDLE_LIMIT)
+                govMain = slewLimit(govPrev, idleMap(gov.throttleInput), gov.throttleSpoolupRate);
+                gov.targetHeadSpeed = gov.actualHeadSpeed;
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.motorRPMPresent) {
+                    if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT)
                         govEnterSpoolupState(GS_RECOVERY);
                     else
                         govChangeState(GS_THROTTLE_IDLE);
                 }
-                else if (govStateTime() > govLostHeadspeedTimeout)
+                else if (govStateTime() > gov.lostHeadspeedTimeout)
                     govChangeState(GS_THROTTLE_OFF);
                 break;
 
             // Throttle passthrough with rampup limit
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If throttle >20%, move to AUTOROTATION_BAILOUT
             //  -- If timer expires, move to IDLE
             //  -- Map throttle to motor output
             case GS_AUTOROTATION:
-                govMain = slewUpLimit(govPrev, idleMap(govThrottle), govThrottleTrackingRate);
-                govSetpoint = govHeadSpeed;
-                if (govThrottleLow)
+                govMain = slewUpLimit(govPrev, idleMap(gov.throttleInput), gov.throttleTrackingRate);
+                gov.targetHeadSpeed = gov.actualHeadSpeed;
+                if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
-                else if (govThrottle > GOV_THROTTLE_IDLE_LIMIT && govHeadSpeedPresent)
+                else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT && gov.motorRPMPresent)
                     govEnterSpoolupState(GS_AUTOROTATION_BAILOUT);
-                else if (govStateTime() > govAutoTimeout)
+                else if (govStateTime() > gov.autoTimeout)
                     govChangeState(GS_THROTTLE_IDLE);
                 break;
 
             // Ramp up throttle until target headspeed is reached, with fast(er) rampup.
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If no headspeed detected, move to LOST_HEADSPEED
             //  -- If throttle <20%, move back to AUTOROTATION
             //  -- If throttle reaches 95%, move to ACTIVE
             //  -- Once 99% headspeed reached, move to ACTIVE
             case GS_AUTOROTATION_BAILOUT:
                 govMain = govPrev;
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govHeadSpeedError)
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.motorRPMError)
                     govChangeState(GS_LOST_HEADSPEED);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_AUTOROTATION);
-                else if (govHeadSpeed > govTargetHeadSpeed * 0.99f || govMain > 0.95f)
+                else if (gov.actualHeadSpeed > gov.requestedHeadSpeed * 0.99f || govMain > 0.95f)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointBailoutRate);
+                    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, gov.headSpeedBailoutRate);
                 }
                 break;
 
             // Ramp up throttle until target headspeed is reached, with fast(er) rampup.
-            //  -- If NO throttle, move to LOST_THROTTLE
+            //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If no headspeed detected, move to LOST_HEADSPEED
             //  -- If throttle <20%, move to IDLE
             //  -- If throttle reaches 95%, move to ACTIVE
             //  -- Once 99% headspeed reached, move to ACTIVE
             case GS_RECOVERY:
                 govMain = govPrev;
-                if (govThrottleLow)
-                    govChangeState(GS_LOST_THROTTLE);
-                else if (govHeadSpeedError)
+                if (gov.throttleInputLow)
+                    govChangeState(GS_ZERO_THROTTLE);
+                else if (gov.motorRPMError)
                     govChangeState(GS_LOST_HEADSPEED);
-                else if (govThrottle < GOV_THROTTLE_IDLE_LIMIT)
+                else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
                     govChangeState(GS_THROTTLE_IDLE);
-                else if (govHeadSpeed > govTargetHeadSpeed * 0.99f || govMain > 0.95f)
+                else if (gov.actualHeadSpeed > gov.requestedHeadSpeed * 0.99f || govMain > 0.95f)
                     govEnterActiveState(GS_ACTIVE);
                 else {
                     govMain = govSpoolupCalc();
-                    govSetpoint = slewLimit(govSetpoint, govTargetHeadSpeed, govSetpointRecoveryRate);
+                    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, gov.headSpeedRecoveryRate);
                 }
                 break;
 
@@ -691,7 +737,7 @@ static void governorUpdateState(void)
     }
 
     // Update output variables
-    govOutput = govMain;
+    gov.throttle = govMain;
 
     // Set debug
     govDebugStats();
@@ -705,13 +751,13 @@ static void governorUpdateState(void)
 static void govPIDInit(void)
 {
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
 
-    // Use govI to reach the target
-    govI = govOutput - govP;
+    // Use gov.I to reach the target
+    gov.I = gov.throttle - gov.P;
 
     // Limited range
-    govI = constrainf(govI, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, 0.95f);
 }
 
 static float govPIDControl(void)
@@ -719,19 +765,19 @@ static float govPIDControl(void)
     float output;
 
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
-    govI = constrainf(govI,      0, 0.95f);
-    govD = constrainf(govD, -0.25f, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.I = constrainf(gov.I,      0, 0.95f);
+    gov.D = constrainf(gov.D, -0.25f, 0.25f);
 
     // Governor PID sum
-    govPidSum = govP + govI + govD + govC;
+    gov.pidSum = gov.P + gov.I + gov.D + gov.C;
 
     // Generate throttle signal
-    output = govPidSum;
+    output = gov.pidSum;
 
-    // Apply govC if output not saturated
-    if (!((output > 1 && govC > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && govC < 0)))
-        govI += govC;
+    // Apply gov.C if output not saturated
+    if (!((output > 1 && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+        gov.I += gov.C;
 
     // Limit output to 10%..100%
     output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, 1);
@@ -747,15 +793,15 @@ static float govPIDControl(void)
 static void govMode1Init(void)
 {
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
-    govD = constrainf(govD, -0.25f, 0.25f);
-    govF = constrainf(govF,      0, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.D = constrainf(gov.D, -0.25f, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.25f);
 
-    // Use govI to reach the target
-    govI = govOutput - (govP + govD + govF);
+    // Use gov.I to reach the target
+    gov.I = gov.throttle - (gov.P + gov.D + gov.F);
 
     // Limited range
-    govI = constrainf(govI, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, 0.95f);
 }
 
 static float govMode1Control(void)
@@ -763,20 +809,20 @@ static float govMode1Control(void)
     float output;
 
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
-    govI = constrainf(govI,      0, 0.95f);
-    govD = constrainf(govD, -0.25f, 0.25f);
-    govF = constrainf(govF,      0, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.I = constrainf(gov.I,      0, 0.95f);
+    gov.D = constrainf(gov.D, -0.25f, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.25f);
 
     // Governor PIDF sum
-    govPidSum = govP + govI + govC + govD + govF;
+    gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
 
     // Generate throttle signal
-    output = govPidSum;
+    output = gov.pidSum;
 
-    // Apply govC if output not saturated
-    if (!((output > 1 && govC > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && govC < 0)))
-        govI += govC;
+    // Apply gov.C if output not saturated
+    if (!((output > 1 && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+        gov.I += gov.C;
 
     // Limit output to 10%..100%
     output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, 1);
@@ -792,21 +838,21 @@ static float govMode1Control(void)
 static void govMode2Init(void)
 {
     // Normalized battery voltage
-    float pidGain = govNominalVoltage / (govVoltage - govBatOffset);
+    float pidGain = gov.nominalVoltage / gov.motorVoltage;
 
     // Expected PID output
-    float pidTarget = govOutput / pidGain;
+    float pidTarget = gov.throttle / pidGain;
 
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
-    govD = constrainf(govD, -0.25f, 0.25f);
-    govF = constrainf(govF,      0, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.D = constrainf(gov.D, -0.25f, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.25f);
 
-    // Use govI to reach the target
-    govI = pidTarget - (govP + govD + govF);
+    // Use gov.I to reach the target
+    gov.I = pidTarget - (gov.P + gov.D + gov.F);
 
     // Limited range
-    govI = constrainf(govI, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, 0.95f);
 }
 
 static float govMode2Control(void)
@@ -814,23 +860,23 @@ static float govMode2Control(void)
     float output;
 
     // Normalized battery voltage
-    float pidGain = govNominalVoltage / (govVoltage - govBatOffset);
+    float pidGain = gov.nominalVoltage / gov.motorVoltage;
 
     // PID limits
-    govP = constrainf(govP, -0.25f, 0.25f);
-    govI = constrainf(govI,      0, 0.95f);
-    govD = constrainf(govD, -0.25f, 0.25f);
-    govF = constrainf(govF,      0, 0.25f);
+    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.I = constrainf(gov.I,      0, 0.95f);
+    gov.D = constrainf(gov.D, -0.25f, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.25f);
 
     // Governor PIDF sum
-    govPidSum = govP + govI + govC + govD + govF;
+    gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
 
     // Generate throttle signal
-    output = govPidSum * pidGain;
+    output = gov.pidSum * pidGain;
 
-    // Apply govC if output not saturated
-    if (!((output > 1 && govC > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && govC < 0)))
-        govI += govC;
+    // Apply gov.C if output not saturated
+    if (!((output > 1 && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+        gov.I += gov.C;
 
     // Limit output to 10%..100%
     output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, 1);
@@ -856,7 +902,7 @@ void governorUpdate(void)
     govUpdateInputs();
 
     // Governor is active
-    if (govMode)
+    if (gov.mode)
     {
         // Update internal state data
         govUpdateData();
@@ -867,10 +913,10 @@ void governorUpdate(void)
     else
     {
         // Straight passthrough
-        if (govThrottleLow)
-            govOutput = 0;
+        if (gov.throttleInputLow)
+            gov.throttle = 0;
         else
-            govOutput = govThrottle;
+            gov.throttle = gov.throttleInput;
     }
 }
 
@@ -878,27 +924,28 @@ void governorInitProfile(const pidProfile_t *pidProfile)
 {
     if (getMotorCount() > 0)
     {
-        govK  = pidProfile->governor.gain / 100.0f;
-        govKp = pidProfile->governor.p_gain / 10.0f;
-        govKi = pidProfile->governor.i_gain / 10.0f;
-        govKd = pidProfile->governor.d_gain / 1000.0f;
-        govKf = pidProfile->governor.f_gain / 100.0f;
+        gov.K  = pidProfile->governor.gain / 100.0f;
+        gov.Kp = pidProfile->governor.p_gain / 10.0f;
+        gov.Ki = pidProfile->governor.i_gain / 10.0f;
+        gov.Kd = pidProfile->governor.d_gain / 1000.0f;
+        gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
-        govTTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -250.0f;
-        govTTALimit  = pidProfile->governor.tta_limit / 100.0f;
+        gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -250.0f;
+        gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
 
-        if (govMode >= GM_STANDARD)
-            govTTAGain /= govK * govKp;
+        if (gov.mode >= GM_STANDARD)
+            gov.TTAGain /= gov.K * gov.Kp;
 
-        govCycWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
-        govColWeight = pidProfile->governor.collective_ff_weight / 100.0f;
+        gov.yawWeight = pidProfile->governor.yaw_ff_weight / 100.0f;
+        gov.cyclicWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
+        gov.collectiveWeight = pidProfile->governor.collective_ff_weight / 100.0f;
 
-        govFullHeadSpeed = constrainf(pidProfile->governor.headspeed, 100, 50000);
+        gov.fullHeadSpeed = constrainf(pidProfile->governor.headspeed, 100, 50000);
 
-        govSetpointSpoolupRate  = govThrottleSpoolupRate  * govFullHeadSpeed;
-        govSetpointTrackingRate = govThrottleTrackingRate * govFullHeadSpeed;
-        govSetpointRecoveryRate = govThrottleRecoveryRate * govFullHeadSpeed;
-        govSetpointBailoutRate  = govThrottleBailoutRate  * govFullHeadSpeed;
+        gov.headSpeedSpoolupRate  = gov.throttleSpoolupRate  * gov.fullHeadSpeed;
+        gov.headSpeedTrackingRate = gov.throttleTrackingRate * gov.fullHeadSpeed;
+        gov.headSpeedRecoveryRate = gov.throttleRecoveryRate * gov.fullHeadSpeed;
+        gov.headSpeedBailoutRate  = gov.throttleBailoutRate  * gov.fullHeadSpeed;
     }
 }
 
@@ -907,11 +954,11 @@ void governorInit(const pidProfile_t *pidProfile)
     // Must have at least one motor
     if (getMotorCount() > 0)
     {
-        govMode         = governorConfig()->gov_mode;
-        govState        = GS_THROTTLE_OFF;
+        gov.mode  = governorConfig()->gov_mode;
+        gov.state = GS_THROTTLE_OFF;
 
         // Mode specific handler functions
-        switch (govMode) {
+        switch (gov.mode) {
             case GM_PASSTHROUGH:
                 govStateUpdate = governorUpdatePassthrough;
                 govSpoolupInit = NULL;
@@ -942,35 +989,33 @@ void governorInit(const pidProfile_t *pidProfile)
                 break;
         }
 
-        govGearRatio    = getMainGearRatio();
+        gov.mainGearRatio = getMainGearRatio();
 
-        govFFexponent   = governorConfig()->gov_ff_exponent / 100.0f;
-        govBatOffset    = governorConfig()->gov_vbat_offset / 100.0f;
-
-        govAutoEnabled  = (governorConfig()->gov_autorotation_timeout > 0 &&
+        gov.autoEnabled  = (governorConfig()->gov_autorotation_timeout > 0 &&
                            governorConfig()->gov_autorotation_bailout_time > 0);
-        govAutoTimeout  = governorConfig()->gov_autorotation_timeout * 100;
-        govAutoMinEntry = governorConfig()->gov_autorotation_min_entry_time * 100;
+        gov.autoTimeout  = governorConfig()->gov_autorotation_timeout * 100;
+        gov.autoMinEntry = governorConfig()->gov_autorotation_min_entry_time * 100;
 
-        govThrottleSpoolupRate  = govCalcRate(governorConfig()->gov_spoolup_time, 1, 600);
-        govThrottleTrackingRate = govCalcRate(governorConfig()->gov_tracking_time, 1, 100);
-        govThrottleRecoveryRate = govCalcRate(governorConfig()->gov_recovery_time, 1, 100);
-        govThrottleBailoutRate  = govCalcRate(governorConfig()->gov_autorotation_bailout_time, 1, 100);
+        gov.throttleStartupRate  = govCalcRate(governorConfig()->gov_startup_time, 1, 600);
+        gov.throttleSpoolupRate  = govCalcRate(governorConfig()->gov_spoolup_time, 1, 600);
+        gov.throttleTrackingRate = govCalcRate(governorConfig()->gov_tracking_time, 1, 100);
+        gov.throttleRecoveryRate = govCalcRate(governorConfig()->gov_recovery_time, 1, 100);
+        gov.throttleBailoutRate  = govCalcRate(governorConfig()->gov_autorotation_bailout_time, 1, 100);
 
-        govSetpointSpoolupRate  = govThrottleSpoolupRate  * govFullHeadSpeed;
-        govSetpointTrackingRate = govThrottleTrackingRate * govFullHeadSpeed;
-        govSetpointRecoveryRate = govThrottleRecoveryRate * govFullHeadSpeed;
-        govSetpointBailoutRate  = govThrottleBailoutRate  * govFullHeadSpeed;
+        gov.headSpeedSpoolupRate  = gov.throttleSpoolupRate  * gov.fullHeadSpeed;
+        gov.headSpeedTrackingRate = gov.throttleTrackingRate * gov.fullHeadSpeed;
+        gov.headSpeedRecoveryRate = gov.throttleRecoveryRate * gov.fullHeadSpeed;
+        gov.headSpeedBailoutRate  = gov.throttleBailoutRate  * gov.fullHeadSpeed;
 
-        govLostThrottleTimeout  = governorConfig()->gov_lost_throttle_timeout * 100;
-        govLostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
+        gov.zeroThrottleTimeout  = governorConfig()->gov_zero_throttle_timeout * 100;
+        gov.lostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
         const float maxFreq = pidGetPidFrequency() / 4;
 
-        biquadFilterInitLPF(&govTTAFilter, constrainf(governorConfig()->gov_tta_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&govVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&govCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&govMotorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&gov.TTAFilter, constrainf(governorConfig()->gov_tta_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&gov.motorVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&gov.motorCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
+        biquadFilterInitLPF(&gov.motorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);
 
         governorInitProfile(pidProfile);
     }

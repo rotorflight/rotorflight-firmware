@@ -444,3 +444,8 @@ float getCollectiveDeflection(void)
 {
     return mixInput[MIXER_IN_STABILIZED_COLLECTIVE];
 }
+
+float getYawDeflection(void)
+{
+    return mixInput[MIXER_IN_STABILIZED_YAW];
+}
