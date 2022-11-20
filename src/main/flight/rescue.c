@@ -43,6 +43,8 @@
 #include "flight/imu.h"
 
 
+#define RESCUE_MAX_DECIANGLE  450
+
 enum {
     RSTATE_OFF = 0,
     RSTATE_PULLUP,
@@ -140,51 +142,62 @@ static void rescueApplyLimits(void)
     }
 }
 
-static void rescueApplyStabilisation(void)
+static void rescueApplyLeveling(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    const int roll = attitude.values.roll - trim->values.roll;
-    const int pitch = attitude.values.pitch - trim->values.pitch;
+    float rollError = -(attitude.values.roll - trim->values.roll);
+    float pitchError = -(attitude.values.pitch - trim->values.pitch);
 
-    int rError = -pitch;
-    int pError = -roll;
-
-    // Inverted
-    if (roll > 900) {
-        pError = pitch;
-        rError = 1800 - roll;
-    }
-    else if (roll < -900) {
-        pError = pitch;
-        rError = -1800 - roll;
+    if (allow_inverted) {
+        if (attitude.values.roll > 900) {
+            pitchError = -pitchError;
+            rollError += 1800;
+        }
+        else if (attitude.values.roll < -900) {
+            pitchError = -pitchError;
+            rollError -= 1800;
+        }
     }
 
     // Avoid "gimbal lock"
-    if (pitch > 800 || pitch < -800) {
-        rError = 0;
+    if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
+        rollError = 0;
     }
 
-    rescue.setpoint[FD_PITCH] = pError * rescue.levelGain;
-    rescue.setpoint[FD_ROLL] = rError * rescue.levelGain;
+    rescue.setpoint[FD_PITCH] = pitchError * rescue.flipGain;
+    rescue.setpoint[FD_ROLL] = rollError * rescue.flipGain;
     rescue.setpoint[FD_YAW] = 0;
 }
 
-static void rescueApplyFlip(void)
+static void rescueApplyStabilisation(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    int rError = attitude.values.roll - trim->values.roll;
-    int pError = attitude.values.pitch - trim->values.pitch;
+    float rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE  -
+        (attitude.values.roll - trim->values.roll);
+    float pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE -
+        (attitude.values.pitch - trim->values.pitch);
 
-    // Avoid "gimbal lock"
-    if (pError > 800 || pError < -800) {
-        rError = 0;
+    if (allow_inverted) {
+        if (attitude.values.roll > 900) {
+            pitchError = -pitchError;
+            rollError += 1800;
+        }
+        else if (attitude.values.roll < -900) {
+            pitchError = -pitchError;
+            rollError -= 1800;
+        }
     }
 
-    rescue.setpoint[FD_PITCH] = -pError * rescue.flipGain;
-    rescue.setpoint[FD_ROLL] = -rError * rescue.flipGain;
-    rescue.setpoint[FD_YAW] = 0;
+    // Avoid "gimbal lock"
+    if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
+        rollError = 0;
+    }
+
+    rescue.setpoint[FD_PITCH] = pitchError * rescue.levelGain;
+    rescue.setpoint[FD_ROLL] = rollError * rescue.levelGain;
+    rescue.setpoint[FD_YAW] = getSetpoint(FD_YAW);
 }
 
 static void rescueApplyCollective(float collective)
@@ -195,7 +208,7 @@ static void rescueApplyCollective(float collective)
 
 static void rescuePullUp(void)
 {
-    rescueApplyStabilisation();
+    rescueApplyLeveling(true);
     rescueApplyCollective(rescue.pullUpCollective);
     rescueApplyLimits();
 }
@@ -207,7 +220,7 @@ static inline bool rescuePullUpDone(void)
 
 static void rescueFlipOver(void)
 {
-    rescueApplyFlip();
+    rescueApplyLeveling(false);
     rescueApplyCollective(rescue.pullUpCollective);
     rescueApplyLimits();
 }
@@ -224,7 +237,7 @@ static inline bool rescueFlipTimeout(void)
 
 static void rescueClimb(void)
 {
-    rescueApplyStabilisation();
+    rescueApplyStabilisation(true);
     rescueApplyCollective(rescue.climbCollective);
     rescueApplyLimits();
 }
@@ -236,7 +249,7 @@ static inline bool rescueClimbDone(void)
 
 static void rescueHover(void)
 {
-    rescueApplyStabilisation();
+    rescueApplyStabilisation(true);
     rescueApplyCollective(rescue.hoverCollective);
     rescueApplyLimits();
 }
