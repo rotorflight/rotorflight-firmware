@@ -59,6 +59,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .tail_motor_idle = 0,
     .swash_ring = 0,
     .swash_phase = 0,
+    .coll_correction = 0,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
@@ -85,6 +86,8 @@ static FAST_DATA_ZERO_INIT uint16_t  mixSaturated[MIXER_INPUT_COUNT];
 
 static FAST_DATA_ZERO_INIT float     cyclicTotal;
 static FAST_DATA_ZERO_INIT float     cyclicLimit;
+
+static FAST_DATA_ZERO_INIT float     collectiveCorrection;
 
 static FAST_DATA_ZERO_INIT float     tailMotorIdle;
 static FAST_DATA_ZERO_INIT int8_t    tailMotorDirection;
@@ -189,6 +192,18 @@ static FAST_CODE void mixerCyclicUpdate(void)
                         sq(mixInput[MIXER_IN_STABILIZED_PITCH]));
 }
 
+static FAST_CODE void mixerCollectiveUpdate(void)
+{
+    // Headspeed fluctuation ratio
+    const float ratio = constrainf(getHeadSpeedRatio(), 0.90f, 1.25f);
+
+    // Collective correction - TODO: CHECK
+    const float corr = collectiveCorrection * (1.0f / (ratio * ratio) - 1.0f) + 1.0f;
+
+    // Apply correction
+    mixInput[MIXER_IN_STABILIZED_COLLECTIVE] *= corr;
+}
+
 static FAST_CODE void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
@@ -267,6 +282,9 @@ static FAST_CODE void mixerUpdateInputs(void)
     // Update governor sub-mixer
     governorUpdate();
 
+    // Calculate collective
+    mixerCollectiveUpdate();
+
     // Update throttle from governor
     mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
@@ -335,9 +353,11 @@ void INIT_CODE mixerInitConfig(void)
     }
 
     if (mixerConfig()->swash_ring)
-        cyclicLimit = 1.41f - mixerConfig()->swash_ring * 0.0041f;
+        cyclicLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
     else
         cyclicLimit = 0;
+
+    collectiveCorrection = mixerConfig()->coll_correction / 100.0f;
 }
 
 void INIT_CODE mixerInit(void)
