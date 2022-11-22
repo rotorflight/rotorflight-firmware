@@ -31,16 +31,21 @@
 #include "flight/motors.h"
 
 
-typedef enum {
-    DIR_CW,
-    DIR_CCW,
-} dir_e;
+enum {
+    SWASH_TYPE_NONE = 0,
+    SWASH_TYPE_THRU,
+    SWASH_TYPE_120,
+    SWASH_TYPE_135,
+    SWASH_TYPE_140,
+    SWASH_TYPE_90L,
+    SWASH_TYPE_90V,
+};
 
-typedef enum {
+enum {
     TAIL_MODE_VARIABLE,
     TAIL_MODE_MOTORIZED,
     TAIL_MODE_BIDIRECTIONAL,
-} tail_mode_e;
+};
 
 enum {
     MIXER_IN_NONE = 0,
@@ -83,6 +88,11 @@ enum {
     MIXER_OP_COUNT
 };
 
+enum {
+    DIR_CW,
+    DIR_CCW,
+};
+
 
 #define MIXER_RULE_COUNT      32
 
@@ -115,8 +125,11 @@ typedef struct
     uint8_t   tail_rotor_mode;  // Tail motor vs. variable pitch tail
     uint8_t   tail_motor_idle;  // Idle throttle for tail motor
 
+    uint8_t   swash_type;       // Swashplate type
     uint8_t   swash_ring;       // Swash ring size
     int16_t   swash_phase;      // Swashplate phasing angle
+
+    uint8_t   coll_correction;  // Collective correction vs. headspeed
 
 } mixerConfig_t;
 
@@ -133,11 +146,11 @@ PG_DECLARE_ARRAY(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs);
 
 typedef struct
 {
-    uint8_t   oper;              // rule operation
-    uint8_t   input;             // input channel
-    uint8_t   output;            // output channel
-    int16_t   offset;            // addition
-    int16_t   weight;            // multiplier (weight and direction)
+    uint8_t   oper;             // rule operation
+    uint8_t   input;            // input channel
+    uint8_t   output;           // output channel
+    int16_t   offset;           // addition
+    int16_t   weight;           // multiplier (weight and direction)
 } mixerRule_t;
 
 PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
@@ -145,6 +158,8 @@ PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
 
 void mixerInit(void);
 void mixerInitConfig(void);
+
+void validateAndFixMixerConfig(void);
 
 void mixerUpdate(void);
 

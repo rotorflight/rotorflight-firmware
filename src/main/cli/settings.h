@@ -129,6 +129,7 @@ typedef enum {
     TABLE_ESC_SENSOR_PROTO,
 #endif
     TABLE_RESCUE_MODE,
+    TABLE_SWASH_TYPE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;
