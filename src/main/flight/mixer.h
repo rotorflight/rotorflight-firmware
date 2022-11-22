@@ -118,6 +118,8 @@ typedef struct
     uint8_t   swash_ring;       // Swash ring size
     int16_t   swash_phase;      // Swashplate phasing angle
 
+    uint8_t   coll_correction;  // Collective correction vs. headspeed
+
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
