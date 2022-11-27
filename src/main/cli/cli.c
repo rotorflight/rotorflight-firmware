@@ -6527,11 +6527,10 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif
 #endif
 
-        printFeature(dumpMask, featureConfig_Copy.enabledFeatures, featureConfig()->enabledFeatures, "feature");
-
-        printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
-
         if (!(dumpMask & HARDWARE_ONLY)) {
+
+            printFeature(dumpMask, featureConfig_Copy.enabledFeatures, featureConfig()->enabledFeatures, "feature");
+            printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
             printServo(dumpMask, servoParams_CopyArray, servoParams(0), "servo");
