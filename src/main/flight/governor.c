@@ -395,7 +395,7 @@ static void govUpdateData(void)
     float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
 
     // Tail Torque Assist
-    if (mixerMotorizedTail() && gov.TTAGain != 0) {
+    if (isSpooledUp() && mixerMotorizedTail() && gov.TTAGain != 0) {
         float TTA = gov.TTAGain * biquadFilterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
         gov.TTAMull = constrainf(TTA, 0, gov.TTALimit) + 1.0f;
     }
