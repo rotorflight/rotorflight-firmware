@@ -65,6 +65,7 @@
 #include "flight/servos.h"
 #include "flight/governor.h"
 #include "flight/rescue.h"
+#include "flight/position.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -247,7 +248,10 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
 #endif
 
 #ifdef USE_BARO
-    {"BaroAlt",    -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(BARO)},
+    {"altitude",   -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(ALT)},
+#ifdef USE_VARIO
+    {"vario",      -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(ALT)},
+#endif
 #endif
 
     {"vbatLatest",     -1, UNSIGNED, .Ipredict = PREDICT(VBATREF),  .Iencode = ENCODING(NEG_14BIT),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(VOLTAGE)},
@@ -351,7 +355,10 @@ typedef struct blackboxMainState_s {
     int16_t magADC[XYZ_AXIS_COUNT];
 #endif
 #ifdef USE_BARO
-    int32_t baro;
+    int32_t altitude;
+#ifdef USE_VARIO
+    int16_t vario;
+#endif
 #endif
 
     uint16_t voltage;
@@ -506,9 +513,9 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return false;
 #endif
 
-    case CONDITION(BARO):
+    case CONDITION(ALT):
 #ifdef USE_BARO
-        return sensors(SENSOR_BARO) && isFieldEnabled(FIELD_SELECT(BARO));
+        return sensors(SENSOR_BARO) && isFieldEnabled(FIELD_SELECT(ALT));
 #else
         return false;
 #endif
@@ -662,8 +669,11 @@ static void writeIntraframe(void)
     }
 #endif
 #ifdef USE_BARO
-    if (testBlackboxCondition(CONDITION(BARO))) {
-        blackboxWriteSignedVB(blackboxCurrent->baro);
+    if (testBlackboxCondition(CONDITION(ALT))) {
+        blackboxWriteSignedVB(blackboxCurrent->altitude);
+#ifdef USE_VARIO
+        blackboxWriteSignedVB(blackboxCurrent->vario);
+#endif
     }
 #endif
 
@@ -804,8 +814,11 @@ static void writeInterframe(void)
     }
 #endif
 #ifdef USE_BARO
-    if (testBlackboxCondition(CONDITION(BARO))) {
-        deltas[packedFieldCount++] = blackboxCurrent->baro - blackboxPrev->baro;
+    if (testBlackboxCondition(CONDITION(ALT))) {
+        deltas[packedFieldCount++] = blackboxCurrent->altitude - blackboxPrev->altitude;
+#ifdef USE_VARIO
+        deltas[packedFieldCount++] = blackboxCurrent->vario - blackboxPrev->vario;
+#endif
     }
 #endif
 
@@ -1091,7 +1104,10 @@ static void loadMainState(timeUs_t currentTimeUs)
     }
 
 #ifdef USE_BARO
-    blackboxCurrent->baro = baro.baroAltitude;
+    blackboxCurrent->altitude = getEstimatedAltitudeCm();
+#ifdef USE_VARIO
+    blackboxCurrent->vario = getEstimatedVario();
+#endif
 #endif
 
     blackboxCurrent->voltage = getBatteryVoltageLatest();

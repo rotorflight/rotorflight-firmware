@@ -782,7 +782,7 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_mag",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_MAG, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #endif
 #if defined(USE_BARO)
-    { "blackbox_log_baro",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BARO, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_alt",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ALT, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #endif
 #ifdef USE_GPS
     { "blackbox_log_gps",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_GPS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
