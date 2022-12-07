@@ -44,20 +44,18 @@ typedef struct barometerConfig_s {
     uint8_t baro_i2c_device;
     uint8_t baro_i2c_address;
     uint8_t baro_hardware;                  // Barometer hardware to use
-    uint8_t baro_sample_count;              // size of baro filter array
-    uint16_t baro_noise_lpf;                // additional LPF to reduce baro noise
-    uint16_t baro_cf_vel;                   // apply Complimentary Filter to keep the calculated velocity based on baro velocity (i.e. near real velocity)
     ioTag_t baro_eoc_tag;
     ioTag_t baro_xclr_tag;
+    uint16_t baro_cf_vel;                   // apply Complimentary Filter to keep the calculated velocity based on baro velocity (i.e. near real velocity)
 } barometerConfig_t;
 
 PG_DECLARE(barometerConfig_t, barometerConfig);
 
 typedef struct baro_s {
     baroDev_t dev;
-    int32_t BaroAlt;
-    int32_t baroTemperature;             // Use temperature for telemetry
-    int32_t baroPressure;                // Use pressure for telemetry
+    int32_t baroTemperature;
+    int32_t baroPressure;
+    int32_t baroAltitude;
 } baro_t;
 
 extern baro_t baro;
@@ -65,9 +63,7 @@ extern baro_t baro;
 void baroPreInit(void);
 bool baroDetect(baroDev_t *dev, baroSensor_e baroHardwareToUse);
 bool baroIsCalibrationComplete(void);
+bool baroIsReady(void);
 void baroStartCalibration(void);
 void baroSetGroundLevel(void);
 uint32_t baroUpdate(timeUs_t currentTimeUs);
-bool isBaroReady(void);
-int32_t baroCalculateAltitude(void);
-void performBaroCalibrationCycle(void);
