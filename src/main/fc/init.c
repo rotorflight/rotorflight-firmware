@@ -788,9 +788,6 @@ void init(void)
     blackboxInit();
 #endif
 
-#ifdef USE_ACC
-    accStartCalibration();
-#endif
     gyroStartCalibration(false);
 #ifdef USE_BARO
     baroStartCalibration();
