@@ -412,6 +412,8 @@ static bool isOnFirstAccelerationCalibrationCycle(void)
 
 void performAcclerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
 {
+    UNUSED(rollAndPitchTrims);
+
     static int32_t a[3];
 
     for (int axis = 0; axis < 3; axis++) {
@@ -435,7 +437,7 @@ void performAcclerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
         accelerationRuntime.accelerationTrims->raw[Y] = (a[Y] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES;
         accelerationRuntime.accelerationTrims->raw[Z] = (a[Z] + (CALIBRATING_ACC_CYCLES / 2)) / CALIBRATING_ACC_CYCLES - acc.dev.acc_1G;
 
-        resetRollAndPitchTrims(rollAndPitchTrims);
+        //resetRollAndPitchTrims(rollAndPitchTrims);
         setConfigCalibrationCompleted();
 
         saveConfigAndNotify();
