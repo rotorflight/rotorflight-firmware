@@ -420,7 +420,7 @@ static void setValue(uint8_t* bufferPtr, uint8_t sensorType, uint8_t length)
 #ifdef USE_BARO
         case IBUS_SENSOR_TYPE_ALT:
         case IBUS_SENSOR_TYPE_ALT_MAX:
-            value.int32 = baro.BaroAlt;
+            value.int32 = getEstimatedAltitudeCm();
             break;
         case IBUS_SENSOR_TYPE_PRES:
             value.uint32 = baro.baroPressure | (((uint32_t)getTemperature()) << 19);

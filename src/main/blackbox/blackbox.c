@@ -1091,7 +1091,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     }
 
 #ifdef USE_BARO
-    blackboxCurrent->baro = baro.BaroAlt;
+    blackboxCurrent->baro = baro.baroAltitude;
 #endif
 
     blackboxCurrent->voltage = getBatteryVoltageLatest();
