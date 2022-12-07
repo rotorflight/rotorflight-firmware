@@ -134,11 +134,6 @@ void pgResetFn_accelerometerConfig(accelerometerConfig_t *instance)
 
 PG_REGISTER_WITH_RESET_FN(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 2);
 
-extern uint16_t InflightcalibratingA;
-extern bool AccInflightCalibrationMeasurementDone;
-extern bool AccInflightCalibrationSavetoEEProm;
-extern bool AccInflightCalibrationActive;
-
 
 bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
 {
@@ -447,59 +442,6 @@ void performAcclerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
     }
 
     accelerationRuntime.calibratingA--;
-}
-
-void performInflightAccelerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
-{
-    static int32_t b[3];
-    static int16_t accZero_saved[3] = { 0, 0, 0 };
-    static rollAndPitchTrims_t angleTrim_saved = { { 0, 0 } };
-
-    // Saving old zeropoints before measurement
-    if (InflightcalibratingA == 50) {
-        accZero_saved[X] = accelerationRuntime.accelerationTrims->raw[X];
-        accZero_saved[Y] = accelerationRuntime.accelerationTrims->raw[Y];
-        accZero_saved[Z] = accelerationRuntime.accelerationTrims->raw[Z];
-        angleTrim_saved.values.roll = rollAndPitchTrims->values.roll;
-        angleTrim_saved.values.pitch = rollAndPitchTrims->values.pitch;
-    }
-    if (InflightcalibratingA > 0) {
-        for (int axis = 0; axis < 3; axis++) {
-            // Reset a[axis] at start of calibration
-            if (InflightcalibratingA == 50)
-                b[axis] = 0;
-            // Sum up 50 readings
-            b[axis] += acc.accADC[axis];
-            // Clear global variables for next reading
-            acc.accADC[axis] = 0;
-            accelerationRuntime.accelerationTrims->raw[axis] = 0;
-        }
-        // all values are measured
-        if (InflightcalibratingA == 1) {
-            AccInflightCalibrationActive = false;
-            AccInflightCalibrationMeasurementDone = true;
-            beeper(BEEPER_ACC_CALIBRATION); // indicate end of calibration
-            // recover saved values to maintain current flight behaviour until new values are transferred
-            accelerationRuntime.accelerationTrims->raw[X] = accZero_saved[X];
-            accelerationRuntime.accelerationTrims->raw[Y] = accZero_saved[Y];
-            accelerationRuntime.accelerationTrims->raw[Z] = accZero_saved[Z];
-            rollAndPitchTrims->values.roll = angleTrim_saved.values.roll;
-            rollAndPitchTrims->values.pitch = angleTrim_saved.values.pitch;
-        }
-        InflightcalibratingA--;
-    }
-    // Calculate average, shift Z down by acc_1G and store values in EEPROM at end of calibration
-    if (AccInflightCalibrationSavetoEEProm) {      // the aircraft is landed, disarmed and the combo has been done again
-        AccInflightCalibrationSavetoEEProm = false;
-        accelerationRuntime.accelerationTrims->raw[X] = b[X] / 50;
-        accelerationRuntime.accelerationTrims->raw[Y] = b[Y] / 50;
-        accelerationRuntime.accelerationTrims->raw[Z] = b[Z] / 50 - acc.dev.acc_1G;    // for nunchuck 200=1G
-
-        resetRollAndPitchTrims(rollAndPitchTrims);
-        setConfigCalibrationCompleted();
-
-        saveConfigAndNotify();
-    }
 }
 
 void setAccelerationTrims(flightDynamicsTrims_t *accelerationTrimsToUse)
