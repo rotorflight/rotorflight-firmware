@@ -50,7 +50,6 @@ typedef enum {
 PG_DECLARE(throttleCorrectionConfig_t, throttleCorrectionConfig);
 
 union rollAndPitchTrims_u;
-void handleInflightCalibrationStickPosition(void);
 
 void resetArmingDisabled(void);
 
