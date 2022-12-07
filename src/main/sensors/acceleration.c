@@ -77,10 +77,6 @@ void accUpdate(timeUs_t currentTimeUs, rollAndPitchTrims_t *rollAndPitchTrims)
         performAcclerationCalibration(rollAndPitchTrims);
     }
 
-    if (featureIsEnabled(FEATURE_INFLIGHT_ACC_CAL)) {
-        performInflightAccelerationCalibration(rollAndPitchTrims);
-    }
-
     applyAccelerationTrims(accelerationRuntime.accelerationTrims);
 
     ++accelerationRuntime.accumulatedMeasurementCount;
