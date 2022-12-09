@@ -729,6 +729,13 @@ static void subTaskMixerUpdate(timeUs_t currentTimeUs)
     DEBUG_TIME_END(PIDLOOP, 2);
 }
 
+static void subTaskPosition(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    positionUpdate();
+}
+
 static void subTaskSetpoint(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
@@ -776,6 +783,7 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
     // 3 - subTaskPidSubprocesses()
     DEBUG_SET(DEBUG_PIDLOOP, 0, micros() - currentTimeUs);
 
+    subTaskPosition(currentTimeUs);
     subTaskSetpoint(currentTimeUs);
     subTaskPidController(currentTimeUs);
     subTaskMixerUpdate(currentTimeUs);

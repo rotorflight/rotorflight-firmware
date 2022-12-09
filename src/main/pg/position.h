@@ -17,13 +17,19 @@
 
 #pragma once
 
-bool hasAltitudeOffset(void);
+#include <stdint.h>
+#include <stdbool.h>
 
-void positionInit(void);
-void positionUpdate(void);
+typedef struct positionConfig_s {
+    uint8_t alt_source;
+    uint8_t baro_alt_lpf;
+    uint8_t baro_offset_lpf;
+    uint8_t baro_drift_lpf;
+    uint8_t gps_alt_lpf;
+    uint8_t gps_offset_lpf;
+    uint8_t gps_min_sats;
+    uint8_t vario_lpf;
+} positionConfig_t;
 
-float getAltitude(void);
-float getVario(void);
+PG_DECLARE(positionConfig_t, positionConfig);
 
-int32_t getEstimatedAltitudeCm(void);
-int16_t getEstimatedVario(void);
