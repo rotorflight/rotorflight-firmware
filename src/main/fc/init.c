@@ -92,6 +92,7 @@
 #include "fc/tasks.h"
 
 #include "flight/failsafe.h"
+#include "flight/position.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
@@ -721,6 +722,8 @@ void init(void)
     failsafeInit();
 
     rxInit();
+
+    positionInit();
 
 #ifdef USE_GPS
     if (featureIsEnabled(FEATURE_GPS)) {

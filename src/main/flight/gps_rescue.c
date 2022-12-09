@@ -224,7 +224,7 @@ static void idleTasks()
     }
 
     // Don't update any rescue flight statistics if we haven't applied a proper altitude offset yet
-    if (!isAltitudeOffset()) {
+    if (!hasAltitudeOffset()) {
         return;
     }
 

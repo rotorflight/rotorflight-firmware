@@ -193,9 +193,6 @@ extern const uint8_t __pg_resetdata_end[];
     }                                                                   \
     /**/
 
-#define CONVERT_PARAMETER_TO_FLOAT(param) (0.001f * param)
-#define CONVERT_PARAMETER_TO_PERCENT(param) (0.01f * param)
-
 const pgRegistry_t* pgFind(pgn_t pgn);
 
 bool pgLoad(const pgRegistry_t* reg, const void *from, int size, int version);

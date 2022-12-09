@@ -46,7 +46,6 @@ typedef struct barometerConfig_s {
     uint8_t baro_hardware;                  // Barometer hardware to use
     ioTag_t baro_eoc_tag;
     ioTag_t baro_xclr_tag;
-    uint16_t baro_cf_vel;                   // apply Complimentary Filter to keep the calculated velocity based on baro velocity (i.e. near real velocity)
 } barometerConfig_t;
 
 PG_DECLARE(barometerConfig_t, barometerConfig);
