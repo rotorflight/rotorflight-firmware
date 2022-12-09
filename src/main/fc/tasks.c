@@ -286,13 +286,6 @@ void taskUpdateRangefinder(timeUs_t currentTimeUs)
 }
 #endif
 
-#if defined(USE_BARO) || defined(USE_GPS)
-static void taskCalculateAltitude(timeUs_t currentTimeUs)
-{
-    calculateEstimatedAltitude(currentTimeUs);
-}
-#endif // USE_BARO || USE_GPS
-
 #ifdef USE_TELEMETRY
 static void taskTelemetry(timeUs_t currentTimeUs)
 {
@@ -364,10 +357,6 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 
 #ifdef USE_BARO
     [TASK_BARO] = DEFINE_TASK("BARO", NULL, NULL, taskUpdateBaro, TASK_PERIOD_HZ(20), TASK_PRIORITY_LOW),
-#endif
-
-#if defined(USE_BARO) || defined(USE_GPS)
-    [TASK_ALTITUDE] = DEFINE_TASK("ALTITUDE", NULL, NULL, taskCalculateAltitude, TASK_PERIOD_HZ(40), TASK_PRIORITY_LOW),
 #endif
 
 #ifdef USE_DASHBOARD
@@ -506,10 +495,6 @@ void tasksInit(void)
 
 #ifdef USE_BARO
     setTaskEnabled(TASK_BARO, sensors(SENSOR_BARO));
-#endif
-
-#if defined(USE_BARO) || defined(USE_GPS)
-    setTaskEnabled(TASK_ALTITUDE, sensors(SENSOR_BARO) || featureIsEnabled(FEATURE_GPS));
 #endif
 
 #ifdef USE_DASHBOARD

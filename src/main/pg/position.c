@@ -15,15 +15,31 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-bool hasAltitudeOffset(void);
+#include "platform.h"
 
-void positionInit(void);
-void positionUpdate(void);
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
+#include "pg/position.h"
 
-float getAltitude(void);
-float getVario(void);
+typedef enum {
+    ALT_SOURCE_DEFAULT = 0,
+    ALT_SOURCE_BARO_ONLY,
+    ALT_SOURCE_GPS_ONLY
+} altSource_e;
 
-int32_t getEstimatedAltitudeCm(void);
-int16_t getEstimatedVario(void);
+PG_REGISTER_WITH_RESET_TEMPLATE(positionConfig_t, positionConfig, PG_POSITION, 0);
+
+PG_RESET_TEMPLATE(positionConfig_t, positionConfig,
+    .alt_source = ALT_SOURCE_DEFAULT,
+    .baro_alt_lpf = 25,
+    .baro_offset_lpf = 10,
+    .baro_drift_lpf = 5,
+    .gps_alt_lpf = 25,
+    .gps_offset_lpf = 10,
+    .gps_min_sats = 12,
+    .vario_lpf = 25,
+);

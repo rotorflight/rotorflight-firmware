@@ -90,6 +90,7 @@
 #include "pg/pg_ids.h"
 #include "pg/pinio.h"
 #include "pg/piniobox.h"
+#include "pg/position.h"
 #include "pg/rx.h"
 #include "pg/rx_pwm.h"
 #include "pg/rx_spi.h"
@@ -702,7 +703,6 @@ const clivalue_t valueTable[] = {
     { "baro_i2c_device",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 5 }, PG_BAROMETER_CONFIG, offsetof(barometerConfig_t, baro_i2c_device) },
     { "baro_i2c_address",           VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, I2C_ADDR7_MAX }, PG_BAROMETER_CONFIG, offsetof(barometerConfig_t, baro_i2c_address) },
     { PARAM_NAME_BARO_HARDWARE,     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_BARO_HARDWARE }, PG_BAROMETER_CONFIG, offsetof(barometerConfig_t, baro_hardware) },
-    { "baro_cf_vel",                VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_BAROMETER_CONFIG, offsetof(barometerConfig_t, baro_cf_vel) },
 #endif
 
 // PG_RX_CONFIG
@@ -1607,9 +1607,14 @@ const clivalue_t valueTable[] = {
 #endif
 
 // PG_POSITION
-    { "position_alt_source",                    VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_POSITION_ALT_SOURCE }, PG_POSITION, offsetof(positionConfig_t, altSource) },
-    { "position_alt_gps_min_sats",              VAR_INT8   | MASTER_VALUE, .config.minmaxUnsigned = { 4, 50 }, PG_POSITION, offsetof(positionConfig_t, altNumSatsGpsUse) },
-    { "position_alt_baro_fallback_sats",        VAR_INT8   | MASTER_VALUE, .config.minmaxUnsigned = { 3, 49 }, PG_POSITION, offsetof(positionConfig_t, altNumSatsBaroFallback) },
+    { "position_alt_source",       VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_POSITION_ALT_SOURCE }, PG_POSITION, offsetof(positionConfig_t, alt_source) },
+    { "position_baro_alt_lpf",     VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, baro_alt_lpf) },
+    { "position_baro_offset_lpf",  VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, baro_offset_lpf) },
+    { "position_baro_drift_lpf",   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, baro_drift_lpf) },
+    { "position_gps_alt_lpf",      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, gps_alt_lpf) },
+    { "position_gps_offset_lpf",      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, gps_offset_lpf) },
+    { "position_vario_lpf",      VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_POSITION, offsetof(positionConfig_t, vario_lpf) },
+
 // PG_MODE_ACTIVATION_CONFIG
 #if defined(USE_CUSTOM_BOX_NAMES)
     { "box_user_1_name", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_BOX_USER_NAME_LENGTH, STRING_FLAGS_NONE }, PG_MODE_ACTIVATION_CONFIG, offsetof(modeActivationConfig_t, box_user_1_name) },

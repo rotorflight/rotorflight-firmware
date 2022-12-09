@@ -212,10 +212,7 @@ static void validateAndFixRatesSettings(void)
 
 static void validateAndFixPositionConfig(void)
 {
-    if (positionConfig()->altNumSatsBaroFallback >= positionConfig()->altNumSatsGpsUse) {
-        positionConfigMutable()->altNumSatsGpsUse = POSITION_DEFAULT_ALT_NUM_SATS_GPS_USE;
-        positionConfigMutable()->altNumSatsBaroFallback = POSITION_DEFAULT_ALT_NUM_SATS_BARO_FALLBACK;
-    }
+
 }
 
 static void validateAndFixConfig(void)
