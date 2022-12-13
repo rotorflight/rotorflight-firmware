@@ -489,7 +489,7 @@ static const char * const lookupTableEscSensorProtocol[] = {
 #endif
 
 const char * const lookupTableRescueMode[] = {
-    "OFF", "CLIMB",
+    "OFF", "CLIMB", "ALT_HOLD",
 };
 
 const char * const lookupTableSwashType[] = {
@@ -1082,8 +1082,14 @@ const clivalue_t valueTable[] = {
     { "rescue_pull_up_collective",  VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.pull_up_collective) },
     { "rescue_climb_collective",    VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.climb_collective) },
     { "rescue_hover_collective",    VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.hover_collective) },
-    { "rescue_max_rate",            VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_rate) },
-    { "rescue_max_accel",           VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 50000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_accel) },
+    { "rescue_hover_altitude",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 10000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.hover_altitude) },
+    { "rescue_alt_a_gain",          VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 10000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.alt_a_gain) },
+    { "rescue_alt_p_gain",          VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 10000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.alt_p_gain) },
+    { "rescue_alt_i_gain",          VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 10000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.alt_i_gain) },
+    { "rescue_max_sp_rate",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_setpoint_rate) },
+    { "rescue_max_sp_accel",        VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 10000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_setpoint_accel) },
+    { "rescue_max_collective",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_collective) },
+    { "rescue_max_climb_rate",      VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_PID_PROFILE, offsetof(pidProfile_t, rescue.max_climb_rate) },
 
     { "gov_headspeed",              VAR_UINT16 |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50000 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.headspeed) },
     { "gov_gain",                   VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.gain) },
