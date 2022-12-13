@@ -26,6 +26,7 @@
 enum {
     RESCUE_MODE_OFF = 0,
     RESCUE_MODE_CLIMB,
+    RESCUE_MODE_ALT_HOLD,
 };
 
 uint8_t getRescueState(void);
