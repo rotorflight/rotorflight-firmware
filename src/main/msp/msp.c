@@ -1603,7 +1603,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_BLACKBOX_CONFIG:
-#ifdef USE_BLACKBOX
+#ifdef USE_BLACKBOX_BROKEN
         sbufWriteU8(dst, 1); //Blackbox supported
         sbufWriteU8(dst, blackboxConfig()->device);
         sbufWriteU8(dst, 1); // Rate numerator, not used anymore
@@ -2650,7 +2650,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 
-#ifdef USE_BLACKBOX
+#ifdef USE_BLACKBOX_BROKEN
     case MSP_SET_BLACKBOX_CONFIG:
         // Don't allow config to be updated while Blackbox is logging
         if (blackboxMayEditConfig()) {
