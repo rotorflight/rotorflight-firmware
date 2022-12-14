@@ -2611,29 +2611,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 
-#ifdef USE_BLACKBOX_BROKEN
+#ifdef USE_BLACKBOX
     case MSP_SET_BLACKBOX_CONFIG:
         // Don't allow config to be updated while Blackbox is logging
         if (blackboxMayEditConfig()) {
             blackboxConfigMutable()->device = sbufReadU8(src);
-            const int rateNum = sbufReadU8(src); // was rate_num
-            const int rateDenom = sbufReadU8(src); // was rate_denom
-            uint16_t pRatio = 0;
-            if (sbufBytesRemaining(src) >= 2) {
-                // p_ratio specified, so use it directly
-                pRatio = sbufReadU16(src);
-            } else {
-                // p_ratio not specified in MSP, so calculate it from old rateNum and rateDenom
-                pRatio = blackboxCalculatePDenom(rateNum, rateDenom);
-            }
-            // RF TODO refactor
-            if (false && sbufBytesRemaining(src) >= 1) {
-                // sample_rate specified, so use it directly
-                blackboxConfigMutable()->sample_rate = sbufReadU8(src);
-            } else {
-                // sample_rate not specified in MSP, so calculate it from old p_ratio
-                blackboxConfigMutable()->sample_rate = blackboxCalculateSampleRate(pRatio);
-            }
+            blackboxConfigMutable()->mode = sbufReadU8(src);
+            blackboxConfigMutable()->denom = sbufReadU16(src);
+            blackboxConfigMutable()->fields = sbufReadU32(src);
         }
         break;
 #endif
