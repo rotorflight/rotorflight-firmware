@@ -39,14 +39,6 @@ typedef enum BlackboxMode {
     BLACKBOX_MODE_SWITCH,
 } BlackboxMode;
 
-typedef enum BlackboxSampleRate { // Sample rate is 1/(2^BlackboxSampleRate)
-    BLACKBOX_RATE_ONE = 0,
-    BLACKBOX_RATE_HALF,
-    BLACKBOX_RATE_QUARTER,
-    BLACKBOX_RATE_8TH,
-    BLACKBOX_RATE_16TH
-} BlackboxSampleRate_e;
-
 typedef enum FlightLogEvent {
     FLIGHT_LOG_EVENT_SYNC_BEEP = 0,
     FLIGHT_LOG_EVENT_AUTOTUNE_CYCLE_START = 10,   // UNUSED
@@ -62,10 +54,10 @@ typedef enum FlightLogEvent {
 } FlightLogEvent;
 
 typedef struct blackboxConfig_s {
-    uint8_t sample_rate;
     uint8_t device;
-    uint32_t fields;
     uint8_t mode;
+    uint16_t denom;
+    uint32_t fields;
 } blackboxConfig_t;
 
 PG_DECLARE(blackboxConfig_t, blackboxConfig);
@@ -75,13 +67,11 @@ void blackboxLogEvent(FlightLogEvent event, union flightLogEventData_u *data);
 
 void blackboxInit(void);
 void blackboxUpdate(timeUs_t currentTimeUs);
+
 void blackboxSetStartDateTime(const char *dateTime, timeMs_t timeNowMs);
-int blackboxCalculatePDenom(int rateNum, int rateDenom);
-uint8_t blackboxGetRateDenom(void);
-uint16_t blackboxGetPRatio(void);
-uint8_t blackboxCalculateSampleRate(uint16_t pRatio);
 void blackboxValidateConfig(void);
 bool blackboxMayEditConfig(void);
+
 #ifdef UNIT_TEST
 STATIC_UNIT_TESTED void blackboxLogIteration(timeUs_t currentTimeUs);
 STATIC_UNIT_TESTED bool blackboxShouldLogPFrame(void);

@@ -96,8 +96,9 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 2);
 
 PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
-    .sample_rate = BLACKBOX_RATE_QUARTER,
     .device = DEFAULT_BLACKBOX_DEVICE,
+    .mode = BLACKBOX_MODE_NORMAL,
+    .denom = 8,
     .fields = BIT(FLIGHT_LOG_FIELD_SELECT_SETPOINT) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MIXER) |
               BIT(FLIGHT_LOG_FIELD_SELECT_PID) |
@@ -106,7 +107,6 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_RSSI) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MOTOR) |
               BIT(FLIGHT_LOG_FIELD_SELECT_SERVO),
-    .mode = BLACKBOX_MODE_NORMAL,
 );
 
 STATIC_ASSERT((sizeof(blackboxConfig()->fields) * 8) >= FLIGHT_LOG_FIELD_SELECT_COUNT, too_many_flight_log_fields_selections);
@@ -419,16 +419,15 @@ static uint32_t blackboxConditionCache;
 STATIC_ASSERT((sizeof(blackboxConditionCache) * 8) >= FLIGHT_LOG_FIELD_CONDITION_LAST, too_many_flight_log_conditions);
 
 static uint32_t blackboxIteration;
-static uint16_t blackboxLoopIndex;
-static uint16_t blackboxPFrameIndex;
-static uint16_t blackboxIFrameIndex;
-// number of flight loop iterations before logging I-frame
-// typically 32 for 1kHz loop, 64 for 2kHz loop etc
-static int16_t blackboxIInterval = 0;
-// number of flight loop iterations before logging P-frame
-static int8_t blackboxPInterval = 0;
-static int32_t blackboxSInterval = 0;
-static int32_t blackboxSlowFrameIterationTimer;
+
+static uint32_t blackboxPInterval = 0;
+static uint32_t blackboxIInterval = 0;
+static uint32_t blackboxSInterval = 0;
+static uint32_t blackboxGInterval = 0;
+
+static uint32_t blackboxSlowFrameSkipCounter;
+static uint32_t blackboxGPSHomeFrameSkipCounter;
+
 static bool blackboxLoggedAnyFrames;
 
 /*
@@ -467,11 +466,6 @@ static bool blackboxIsLoggingEnabled(void)
 static bool blackboxIsLoggingPaused(void)
 {
     return (blackboxConfig()->mode == BLACKBOX_MODE_NORMAL && !IS_RC_MODE_ACTIVE(BOXBLACKBOX));
-}
-
-static bool blackboxIsOnlyLoggingIntraframes(void)
-{
-    return (blackboxPInterval == 0);
 }
 
 static bool isFieldEnabled(FlightLogFieldSelect_e field)
@@ -564,7 +558,7 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return (debugMode != DEBUG_NONE);
 
     case CONDITION(NOT_EVERY_FRAME):
-        return (blackboxPInterval != blackboxIInterval);
+        return (blackboxPInterval > 1);
 
     case CONDITION(NEVER):
         return false;
@@ -612,7 +606,7 @@ static void blackboxSetState(BlackboxState newState)
         xmitState.headerIndex = 0;
         break;
     case BLACKBOX_STATE_RUNNING:
-        blackboxSlowFrameIterationTimer = blackboxSInterval; //Force a slow frame to be written on the first iteration
+        blackboxSlowFrameSkipCounter = blackboxSInterval; //Force a slow frame to be written on the first iteration
         break;
     case BLACKBOX_STATE_SHUTTING_DOWN:
         xmitState.u.startTime = millis();
@@ -881,8 +875,6 @@ static void writeSlowFrame(void)
     values[1] = slowHistory.rxSignalReceived ? 1 : 0;
     values[2] = slowHistory.rxFlightChannelsValid ? 1 : 0;
     blackboxWriteTag2_3S32(values);
-
-    blackboxSlowFrameIterationTimer = 0;
 }
 
 /**
@@ -899,34 +891,29 @@ static void loadSlowState(blackboxSlowState_t *slow)
 
 /**
  * If the data in the slow frame has changed, log a slow frame.
- *
- * If allowPeriodicWrite is true, the frame is also logged if it has been more than blackboxSInterval logging iterations
- * since the field was last logged.
  */
-static bool writeSlowFrameIfNeeded(void)
+static void blackboxCheckAndLogSlowFrame(void)
 {
-    // Write the slow frame peridocially so it can be recovered if we ever lose sync
-    bool shouldWrite = blackboxSlowFrameIterationTimer >= blackboxSInterval;
-
-    if (shouldWrite) {
+    if (blackboxSlowFrameSkipCounter >= blackboxSInterval) {
         loadSlowState(&slowHistory);
-    } else {
+        writeSlowFrame();
+        blackboxSlowFrameSkipCounter = 0;
+    }
+    else {
         blackboxSlowState_t newSlowState;
-
         loadSlowState(&newSlowState);
 
         // Only write a slow frame if it was different from the previous state
         if (memcmp(&newSlowState, &slowHistory, sizeof(slowHistory)) != 0) {
             // Use the new state as our new history
             memcpy(&slowHistory, &newSlowState, sizeof(slowHistory));
-            shouldWrite = true;
+            writeSlowFrame();
+            blackboxSlowFrameSkipCounter = 0;
+        }
+        else {
+            blackboxSlowFrameSkipCounter++;
         }
     }
-
-    if (shouldWrite) {
-        writeSlowFrame();
-    }
-    return shouldWrite;
 }
 
 void blackboxValidateConfig(void)
@@ -951,10 +938,6 @@ void blackboxValidateConfig(void)
 static void blackboxResetIterationTimers(void)
 {
     blackboxIteration = 0;
-    blackboxLoopIndex = 0;
-    blackboxIFrameIndex = 0;
-    blackboxPFrameIndex = 0;
-    blackboxSlowFrameIterationTimer = 0;
 }
 
 /**
@@ -1301,7 +1284,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("Craft name", "%s",                      pilotConfig()->name);
         BLACKBOX_PRINT_HEADER_LINE("I interval", "%d",                      blackboxIInterval);
         BLACKBOX_PRINT_HEADER_LINE("P interval", "%d",                      blackboxPInterval);
-        BLACKBOX_PRINT_HEADER_LINE("P ratio", "%d",                         (uint16_t)(blackboxIInterval / blackboxPInterval));
+        BLACKBOX_PRINT_HEADER_LINE("P ratio", "%d",                         blackboxIInterval / blackboxPInterval);
         BLACKBOX_PRINT_HEADER_LINE("minthrottle", "%d",                     motorConfig()->minthrottle);
         BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
         BLACKBOX_PRINT_HEADER_LINE("gyro_scale","0x%x",                     castFloatBytesToInt(1.0f));
@@ -1540,7 +1523,6 @@ static void blackboxCheckAndLogArmingBeep(void)
 /* monitor the flight mode event status and trigger an event record if the state changes */
 static void blackboxCheckAndLogFlightMode(void)
 {
-    // Use != so that we can still detect a change if the counter wraps
     if (memcmp(&rcModeActivationMask, &blackboxLastFlightModeFlags, sizeof(blackboxLastFlightModeFlags))) {
         flightLogEvent_flightMode_t eventData; // Add new data for current flight mode flags
         eventData.lastFlags = blackboxLastFlightModeFlags;
@@ -1564,94 +1546,95 @@ static void blackboxCheckAndLogFlightMode(void)
     }
 }
 
-static bool blackboxShouldLogPFrame(void)
+static bool blackboxShouldLogFastFrame(void)
 {
-    return blackboxPFrameIndex == 0 && blackboxPInterval != 0;
+    return (blackboxIteration % blackboxPInterval) == 0;
 }
 
 static bool blackboxShouldLogIFrame(void)
 {
-    return blackboxLoopIndex == 0;
+    return (blackboxIteration % blackboxIInterval) == 0;
 }
 
 /*
- * If the GPS home point has been updated, or every 128 I-frames (~10 seconds), write the
- * GPS home position.
+ * If the GPS home point has been updated, write the GPS home position.
  *
  * We write it periodically so that if one Home Frame goes missing, the GPS coordinates can
  * still be interpreted correctly.
+ *
+ * Synchronise the GPS frames between the I-frames.
  */
 #ifdef USE_GPS
-static bool blackboxShouldLogGpsHomeFrame(void)
+static bool blackboxShouldLogGPSFrame(void)
 {
-    if ((GPS_home[0] != gpsHistory.GPS_home[0] || GPS_home[1] != gpsHistory.GPS_home[1]
-        || (blackboxPFrameIndex == blackboxIInterval / 2 && blackboxIFrameIndex % 128 == 0)) && isFieldEnabled(FIELD_SELECT(GPS))) {
+    return (blackboxIteration % blackboxIInterval) == (blackboxIInterval / 2);
+}
+
+static bool blackboxShouldLogGpsCoordFrame(void)
+{
+    if (gpsSol.numSat != gpsHistory.GPS_numSat ||
+        gpsSol.llh.lat != gpsHistory.GPS_coord[GPS_LATITUDE] ||
+        gpsSol.llh.lon != gpsHistory.GPS_coord[GPS_LONGITUDE]) {
         return true;
     }
+
     return false;
 }
+
+static bool blackboxShouldLogGpsHomeFrame(void)
+{
+    if (GPS_home[0] != gpsHistory.GPS_home[0] ||
+        GPS_home[1] != gpsHistory.GPS_home[1] ||
+        blackboxGPSHomeFrameSkipCounter >= blackboxGInterval) {
+        blackboxGPSHomeFrameSkipCounter = 0;
+        return true;
+    }
+    else {
+        blackboxGPSHomeFrameSkipCounter++;
+    }
+
+    return false;
+}
+
+
 #endif // GPS
 
-// Called once every FC loop in order to keep track of how many FC loop iterations have passed
+// Called once every FC loop in PAUSED and RUNNING states
 static void blackboxAdvanceIterationTimers(void)
 {
-    ++blackboxSlowFrameIterationTimer;
-    ++blackboxIteration;
-
-    if (++blackboxLoopIndex >= blackboxIInterval) {
-        blackboxLoopIndex = 0;
-        blackboxIFrameIndex++;
-        blackboxPFrameIndex = 0;
-    } else if (++blackboxPFrameIndex >= blackboxPInterval) {
-        blackboxPFrameIndex = 0;
-    }
+    blackboxIteration++;
 }
 
 // Called once every FC loop in order to log the current state
 static void blackboxLogIteration(timeUs_t currentTimeUs)
 {
-    // Write a keyframe every blackboxIInterval frames so we can resynchronise upon missing frames
-    if (blackboxShouldLogIFrame()) {
-        /*
-         * Don't log a slow frame if the slow data didn't change ("I" frames are already large enough without adding
-         * an additional item to write at the same time). Unless we're *only* logging "I" frames, then we have no choice.
-         */
-        if (blackboxIsOnlyLoggingIntraframes()) {
-            writeSlowFrameIfNeeded();
-        }
+    if (blackboxShouldLogFastFrame()) {
+        blackboxCheckAndLogArmingBeep();
+        blackboxCheckAndLogFlightMode();
+        blackboxCheckAndLogSlowFrame();
 
         loadMainState(currentTimeUs);
-        writeIntraframe();
-    } else {
-        blackboxCheckAndLogArmingBeep();
-        blackboxCheckAndLogFlightMode(); // Check for FlightMode status change event
 
-        if (blackboxShouldLogPFrame()) {
-            /*
-             * We assume that slow frames are only interesting in that they aid the interpretation of the main data stream.
-             * So only log slow frames during loop iterations where we log a main frame.
-             */
-            writeSlowFrameIfNeeded();
-
-            loadMainState(currentTimeUs);
+        if (blackboxShouldLogIFrame())
+            writeIntraframe();
+        else
             writeInterframe();
-        }
+    }
+
 #ifdef USE_GPS
-        if (featureIsEnabled(FEATURE_GPS) && isFieldEnabled(FIELD_SELECT(GPS))) {
+    if (featureIsEnabled(FEATURE_GPS) && isFieldEnabled(FIELD_SELECT(GPS))) {
+        if (blackboxShouldLogGPSFrame()) {
             if (blackboxShouldLogGpsHomeFrame()) {
                 writeGPSHomeFrame();
                 writeGPSFrame(currentTimeUs);
-            } else if (gpsSol.numSat != gpsHistory.GPS_numSat
-                    || gpsSol.llh.lat != gpsHistory.GPS_coord[GPS_LATITUDE]
-                    || gpsSol.llh.lon != gpsHistory.GPS_coord[GPS_LONGITUDE]) {
-                //We could check for velocity changes as well but I doubt it changes independent of position
+            } else if (blackboxShouldLogGpsCoordFrame()) {
                 writeGPSFrame(currentTimeUs);
             }
         }
-#endif
     }
+#endif
 
-    //Flush every iteration so that our runtime variance is minimized
+    // Flush every iteration so that our runtime variance is minimized
     blackboxDeviceFlush();
 }
 
@@ -1780,7 +1763,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         blackboxAdvanceIterationTimers();
         break;
     case BLACKBOX_STATE_RUNNING:
-        // On entry to this state, blackboxIteration, blackboxPFrameIndex and blackboxIFrameIndex are reset to 0
+        // On entry to this state, blackboxIteration reset to 0
         if (blackboxIsLoggingPaused()) {
             blackboxSetState(BLACKBOX_STATE_PAUSED);
         } else {
@@ -1837,24 +1820,11 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     }
 }
 
-int blackboxCalculatePDenom(int rateNum, int rateDenom)
-{
-    return blackboxIInterval * rateNum / rateDenom;
-}
-
 uint8_t blackboxGetRateDenom(void)
 {
     return blackboxPInterval;
-
 }
 
-uint16_t blackboxGetPRatio(void) {
-    return blackboxIInterval / blackboxPInterval;
-}
-
-uint8_t blackboxCalculateSampleRate(uint16_t pRatio) {
-    return LOG2(32000 / (gyro.targetLooptime * pRatio));
-}
 
 /**
  * Call during system startup to initialize the blackbox.
@@ -1863,21 +1833,28 @@ void blackboxInit(void)
 {
     blackboxResetIterationTimers();
 
-    // an I-frame is written every 32ms
-    // blackboxUpdate() is run in synchronisation with the PID loop
-    // targetPidLooptime is 1000 for 1kHz loop, 500 for 2kHz loop etc, targetPidLooptime is rounded for short looptimes
-    blackboxIInterval = (uint16_t)(32 * 1000 / gyro.targetLooptime);
+    blackboxPInterval = constrain(blackboxConfig()->denom, 1, 8000);
 
-    blackboxPInterval = 1 << blackboxConfig()->sample_rate;
-    if (blackboxPInterval > blackboxIInterval) {
-        blackboxPInterval = 0; // log only I frames if logging frequency is too low
-    }
+    // I-frame is written at least every 32ms or 64 P-frames
+    uint32_t Imul = (32 * gyro.targetRateHz) / (1000 * blackboxPInterval);
 
-    if (blackboxConfig()->device) {
+    // Make sure Iinterval is a multiple of Pinterval
+    if (Imul > 64)
+        blackboxIInterval = blackboxPInterval * 64;
+    else if (Imul > 0)
+        blackboxIInterval = blackboxPInterval * Imul;
+    else
+        blackboxIInterval = blackboxPInterval;
+
+    // S-frame is written at least every 5s
+    blackboxSInterval = 5 * gyro.targetRateHz / blackboxPInterval;
+
+    // GPS frame is written at least every 10s
+    blackboxGInterval = 10 * gyro.targetRateHz / blackboxIInterval;
+
+    if (blackboxConfig()->device)
         blackboxSetState(BLACKBOX_STATE_STOPPED);
-    } else {
+    else
         blackboxSetState(BLACKBOX_STATE_DISABLED);
-    }
-    blackboxSInterval = blackboxIInterval * 256; // S-frame is written every 256*32 = 8192ms, approx every 8 seconds
 }
 #endif
