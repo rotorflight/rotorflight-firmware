@@ -102,6 +102,7 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyroCalibrationDuration = 125;        // 1.25 seconds
     gyroConfig->gyroMovementCalibrationThreshold = 48;
     gyroConfig->gyro_hardware_lpf = GYRO_HARDWARE_LPF_NORMAL;
+    gyroConfig->gyro_decimation_hz = 250;
     gyroConfig->gyro_lpf1_type = FILTER_PT1;
     gyroConfig->gyro_lpf1_static_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
         // NOTE: dynamic lpf is enabled by default so this setting is actually
@@ -387,18 +388,9 @@ FAST_CODE void gyroUpdate(void)
 #endif
     }
 
-    if (gyro.downsampleFilterEnabled) {
-        // using gyro lowpass 2 filter for downsampling
-        gyro.sampleSum[X] = gyro.lowpass2FilterApplyFn((filter_t *)&gyro.lowpass2Filter[X], gyro.gyroADC[X]);
-        gyro.sampleSum[Y] = gyro.lowpass2FilterApplyFn((filter_t *)&gyro.lowpass2Filter[Y], gyro.gyroADC[Y]);
-        gyro.sampleSum[Z] = gyro.lowpass2FilterApplyFn((filter_t *)&gyro.lowpass2Filter[Z], gyro.gyroADC[Z]);
-    } else {
-        // using simple averaging for downsampling
-        gyro.sampleSum[X] += gyro.gyroADC[X];
-        gyro.sampleSum[Y] += gyro.gyroADC[Y];
-        gyro.sampleSum[Z] += gyro.gyroADC[Z];
-        gyro.sampleCount++;
-    }
+    gyro.gyroADCd[X] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[X], gyro.gyroADC[X]);
+    gyro.gyroADCd[Y] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[Y], gyro.gyroADC[Y]);
+    gyro.gyroADCd[Z] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[Z], gyro.gyroADC[Z]);
 }
 
 #define GYRO_FILTER_FUNCTION_NAME filterGyro

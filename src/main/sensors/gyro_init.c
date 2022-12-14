@@ -170,6 +170,11 @@ static bool gyroInitLowpassFilterLpf(int slot, int type, uint16_t lpfHz, uint32_
         lowpassFilter = gyro.dtermLowpass2Filter;
         break;
 
+    case FILTER_DECIMATION:
+        lowpassFilterApplyFn = &gyro.decimationApplyFn;
+        lowpassFilter = gyro.decimationFilter;
+        break;
+
     default:
         return false;
     }
@@ -299,17 +304,24 @@ void gyroInitFilters(void)
 #endif
 
     gyroInitLowpassFilterLpf(
+      FILTER_DECIMATION,
+      FILTER_BIQUAD,
+      MIN(gyroConfig()->gyro_decimation_hz, gyro.filterRateHz / 2),
+      gyro.sampleLooptime
+    );
+
+    gyroInitLowpassFilterLpf(
       FILTER_LPF1,
       gyroConfig()->gyro_lpf1_type,
       gyro_lpf1_init_hz,
       gyro.filterLooptime
     );
 
-    gyro.downsampleFilterEnabled = gyroInitLowpassFilterLpf(
+    gyroInitLowpassFilterLpf(
       FILTER_LPF2,
       gyroConfig()->gyro_lpf2_type,
       gyroConfig()->gyro_lpf2_static_hz,
-      gyro.sampleLooptime
+      gyro.filterLooptime
     );
 
     gyroInitFilterNotch1(gyroConfig()->gyro_soft_notch_hz_1, gyroConfig()->gyro_soft_notch_cutoff_1);
