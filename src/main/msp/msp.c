@@ -768,8 +768,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
     case MSP_DEBUG:
         for (int i = 0; i < DEBUG_VALUE_COUNT; i++) {
-            // RF TODO sbufWriteU32(dst, debug[i]);
-            sbufWriteU16(dst, debug[i]);
+            sbufWriteU32(dst, debug[i]);
         }
         break;
 
