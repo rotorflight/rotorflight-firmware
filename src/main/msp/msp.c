@@ -2956,15 +2956,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         rxConfigMutable()->mincheck = sbufReadU16(src);
         rxConfigMutable()->rx_min_usec = sbufReadU16(src);
         rxConfigMutable()->rx_max_usec = sbufReadU16(src);
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
-        sbufReadU8(src); // RF TODO remove
 #ifdef USE_RX_SPI
         rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
         rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
