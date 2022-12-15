@@ -2203,7 +2203,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_DEBUG_CONFIG:
         systemConfigMutable()->debug_mode = sbufReadU8(src);
-        // RF TODO systemConfigMutable()->debug_axis = sbufReadU8(src);
+        systemConfigMutable()->debug_axis = sbufReadU8(src);
         break;
 
     case MSP_SET_ARMING_CONFIG:
