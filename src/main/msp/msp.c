@@ -1650,20 +1650,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_BLACKBOX_CONFIG:
-#ifdef USE_BLACKBOX_BROKEN
-        sbufWriteU8(dst, 1); //Blackbox supported
+#ifdef USE_BLACKBOX
+        sbufWriteU8(dst, 1); // Blackbox supported
         sbufWriteU8(dst, blackboxConfig()->device);
-        sbufWriteU8(dst, 1); // Rate numerator, not used anymore
-        sbufWriteU8(dst, blackboxGetRateDenom());
-        sbufWriteU16(dst, blackboxGetPRatio());
-        sbufWriteU8(dst, blackboxConfig()->sample_rate);
+        sbufWriteU16(dst, blackboxConfig()->denom);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
-        sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
-        sbufWriteU8(dst, 0);
 #endif
         break;
 
