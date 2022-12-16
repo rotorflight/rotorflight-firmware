@@ -1433,7 +1433,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, (uint16_t)constrain(gpsSol.llh.altCm / 100, 0, UINT16_MAX)); // alt changed from 1m to 0.01m per lsb since MSP API 1.39 by RTH. To maintain backwards compatibility compensate to 1m per lsb in MSP again.
         sbufWriteU16(dst, gpsSol.groundSpeed);
         sbufWriteU16(dst, gpsSol.groundCourse);
-        // Added in API version 1.44    
+        // Added in API version 1.44
         sbufWriteU16(dst, gpsSol.hdop);
         break;
 
@@ -1751,7 +1751,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, motorConfig()->dev.motorPwmRate);
         sbufWriteU16(dst, motorConfig()->digitalIdleOffsetValue);
         sbufWriteU8(dst, 0); // DEPRECATED: gyro_use_32kHz
-        sbufWriteU8(dst, motorConfig()->dev.motorPwmInversion);
+        sbufWriteU8(dst, 0); // was motorConfig()->dev.motorPwmInversion
         sbufWriteU8(dst, gyroConfig()->gyro_to_use);
         sbufWriteU8(dst, gyroConfig()->gyro_high_fsr);
         sbufWriteU8(dst, gyroConfig()->gyroMovementCalibrationThreshold);
@@ -2578,7 +2578,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             sbufReadU8(src); // DEPRECATED: gyro_use_32khz
         }
         if (sbufBytesRemaining(src)) {
-            motorConfigMutable()->dev.motorPwmInversion = sbufReadU8(src);
+            sbufReadU8(src); // was motorConfigMutable()->dev.motorPwmInversion
         }
         if (sbufBytesRemaining(src) >= 8) {
             gyroConfigMutable()->gyro_to_use = sbufReadU8(src);

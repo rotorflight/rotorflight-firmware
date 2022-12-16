@@ -39,8 +39,7 @@ typedef enum {
 
 typedef struct motorDevConfig_s {
     uint16_t motorPwmRate;                  // The update rate of motor outputs (50-498Hz)
-    uint8_t  motorPwmProtocol;              // Pwm Protocol
-    uint8_t  motorPwmInversion;             // Active-High vs Active-Low. Useful for brushed FCs converted for brushless operation
+    uint8_t  motorPwmProtocol;
     uint8_t  useUnsyncedPwm;
     uint8_t  useBurstDshot;
     uint8_t  useDshotTelemetry;

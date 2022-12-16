@@ -249,7 +249,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
         motors[motorIndex].pulseScale = (sLen * hz) / 1000.0f;
         motors[motorIndex].pulseOffset = (sMin * hz) - (motors[motorIndex].pulseScale * 1000);
 
-        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, idlePulse, motorConfig->motorPwmInversion);
+        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, idlePulse, 0);
 
         bool timerAlreadyUsed = false;
         for (int i = 0; i < motorIndex; i++) {
