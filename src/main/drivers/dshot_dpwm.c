@@ -191,7 +191,7 @@ motorDevice_t *dshotPwmDevInit(const motorDevConfig_t *motorConfig, uint16_t idl
                 motorIndex,
                 reorderedMotorIndex,
                 motorConfig->motorPwmProtocol,
-                motorConfig->motorPwmInversion ? timerHardware->output ^ TIMER_OUTPUT_INVERTED : timerHardware->output)) {
+                timerHardware->output)) {
                 motors[motorIndex].enabled = true;
 
                 continue;
