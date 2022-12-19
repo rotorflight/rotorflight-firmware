@@ -23,4 +23,4 @@
 void statsInit(void);
 
 void statsOnArm(void);
-void statsOnDisarm(void);
+bool statsOnDisarm(void);

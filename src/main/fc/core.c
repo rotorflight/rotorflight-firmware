@@ -365,13 +365,19 @@ void disarm(flightLogDisarmReason_e reason)
 #endif
         BEEP_OFF;
 
+        bool saveRequired = isConfigDirty();
 #ifdef USE_PERSISTENT_STATS
-        statsOnDisarm();
+        saveRequired |= statsOnDisarm();
 #endif
 
         // if ARMING_DISABLED_CRASH_DETECTED is set then we want to play it's beep pattern instead
         if (!(getArmingDisableFlags() & ARMING_DISABLED_CRASH_DETECTED)) {
             beeper(BEEPER_DISARMING);      // emit disarm tone
+        }
+
+        // let the disarming process complete and then execute the actual save
+        if (saveRequired) {
+            writeEEPROMDelayed(500000);
         }
     }
 }
