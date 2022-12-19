@@ -46,6 +46,7 @@
 #include "fc/rc_adjustments.h"
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
+#include "fc/dispatch.h"
 
 #include "flight/failsafe.h"
 #include "flight/imu.h"
@@ -712,6 +713,24 @@ void writeEEPROM(void)
     systemConfigMutable()->configurationState = CONFIGURATION_STATE_CONFIGURED;
 
     writeUnmodifiedConfigToEEPROM();
+}
+
+void dispatchConfigWrite(struct dispatchEntry_s* self)
+{
+    UNUSED(self);
+
+    writeUnmodifiedConfigToEEPROM();
+    beeperConfirmationBeeps(1);
+}
+
+dispatchEntry_t writeConfigEntry =
+{
+    dispatchConfigWrite, 0, NULL, false
+};
+
+void writeEEPROMDelayed(int delayUs)
+{
+    dispatchAdd(&writeConfigEntry, delayUs);
 }
 
 bool resetEEPROM(bool useCustomDefaults)
