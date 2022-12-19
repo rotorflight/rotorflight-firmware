@@ -64,6 +64,7 @@ void initEEPROM(void);
 bool resetEEPROM(bool useCustomDefaults);
 bool readEEPROM(void);
 void writeEEPROM(void);
+void writeEEPROMDelayed(int delayUs);
 void writeUnmodifiedConfigToEEPROM(void);
 void ensureEEPROMStructureIsValid(void);
 

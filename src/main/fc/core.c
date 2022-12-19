@@ -360,9 +360,16 @@ void disarm(flightLogDisarmReason_e reason)
         UNUSED(reason);
 #endif
         BEEP_OFF;
+
+        bool saveRequired = isConfigDirty();
 #ifdef USE_PERSISTENT_STATS
-        statsOnDisarm();
+        saveRequired |= statsOnDisarm();
 #endif
+
+        // let the disarming process complete and then execute the actual save
+        if (saveRequired) {
+            writeEEPROMDelayed(500000);
+        }
     }
 }
 
