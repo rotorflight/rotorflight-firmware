@@ -725,7 +725,7 @@ static FAST_CODE void pidApplyAxis(const pidProfile_t *pidProfile, uint8_t axis)
 
     // Calculate D-component
     pidData[axis].Derror = dtermErrorRate;
-    pidData[axis].D = Ks * pidCoefficient[axis].Kd * dtermDelta;
+    pidData[axis].D = pidCoefficient[axis].Kd * dtermDelta;
 
     // Calculate feedforward component
     pidData[axis].F = pidCoefficient[axis].Kf * pidSetpoint;
