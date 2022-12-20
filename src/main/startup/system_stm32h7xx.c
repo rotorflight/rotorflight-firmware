@@ -219,6 +219,8 @@ typedef struct pllConfig_s {
         400 420 440 460 (Rev.Y & V ends here) 480 500 520 540
  */
 
+#if (HSE_VALUE == 8000000)
+
 const pllConfig_t pll1Configs743[] =
 {
   {
@@ -377,6 +379,168 @@ const pllConfig_t pll1Configs743[] =
   },
 };
 
+#elif (HSE_VALUE == 25000000)
+
+const pllConfig_t pll1Configs743[] =
+{
+  {
+    .clockMhz = 240,
+    .m = 5,   // 5MHz
+    .n = 96,  // 480MHz
+    .p = 2,   // 240MHz
+    .q = 5,   // 96MHz
+    .r = 3,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE2,
+  },
+  {
+    .clockMhz = 320,
+    .m = 5,   // 5MHz
+    .n = 128, // 640MHz
+    .p = 2,   // 320MHz
+    .q = 6,   // 106MHz
+    .r = 4,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
+  },
+  {
+    .clockMhz = 400,
+    .m = 5,   // 5MHz
+    .n = 160, // 800MHz
+    .p = 2,   // 400MHz
+    .q = 8,   // 100MHz
+    .r = 5,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
+  },
+  {
+    .clockMhz = 420,
+    .m = 5,   // 5MHz
+    .n = 84,  // 420MHz
+    .p = 1,   // 420MHz
+    .q = 4,   // 105MHz
+    .r = 3,   // 140MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE1,
+  },
+  {
+    .clockMhz = 440,
+    .m = 5,   // 5MHz
+    .n = 88,  // 440MHz
+    .p = 1,   // 440MHz
+    .q = 4,   // 110MHz
+    .r = 3,   // 147MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 460,
+    .m = 5,   // 5MHz
+    .n = 92,  // 460MHz
+    .p = 1,   // 460MHz
+    .q = 4,   // 115MHz
+    .r = 3,   // 153MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 480,
+    .m = 5,   // 5MHz
+    .n = 96,  // 480MHz
+    .p = 1,   // 480MHz
+    .q = 4,   // 120MHz
+    .r = 3,   // 160MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 500,
+    .m = 5,   // 5MHz
+    .n = 100, // 500MHz
+    .p = 1,   // 500MHz
+    .q = 4,   // 125MHz
+    .r = 3,   // 167MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 510,
+    .m = 5,   // 5MHz
+    .n = 102, // 510MHz
+    .p = 1,   // 510MHz
+    .q = 5,   // 102MHz
+    .r = 3,   // 170MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 520,
+    .m = 5,   // 5MHz
+    .n = 104, // 520MHz
+    .p = 1,   // 520MHz
+    .q = 5,   // 104MHz
+    .r = 3,   // 173MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 530,
+    .m = 5,   // 5MHz
+    .n = 106, // 530MHz
+    .p = 1,   // 530MHz
+    .q = 5,   // 106MHz
+    .r = 3,   // 177MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 540,
+    .m = 5,   // 5MHz
+    .n = 108, // 540MHz
+    .p = 1,   // 540MHz
+    .q = 5,   // 108MHz
+    .r = 3,   // 180MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 550,
+    .m = 5,   // 5MHz
+    .n = 110, // 550MHz
+    .p = 1,   // 550MHz
+    .q = 5,   // 110MHz
+    .r = 3,   // 183MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+  {
+    .clockMhz = 560,
+    .m = 5,   // 5MHz
+    .n = 112, // 560MHz
+    .p = 1,   // 560MHz
+    .q = 5,   // 112MHz
+    .r = 3,   // 187MHz
+    .vco = RCC_PLL1VCOWIDE,
+    .rge = RCC_PLL1VCIRANGE_2,
+    .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
+  },
+};
+
+#endif // HSE_VALUE
+
 #ifdef USE_OVERCLOCK
 void SystemCoreClockInitLevel(void)
 {
@@ -427,7 +591,7 @@ void OverclockRebootIfNecessary(uint32_t clockLevel)
 
 // Nominal max 280MHz with 8MHz HSE
 // (340 is okay, 360 doesn't work.)
-// 
+//
 
 pllConfig_t pll1Config7A3 = {
     .clockMhz = 280,
@@ -470,7 +634,7 @@ pllConfig_t pll1Config72x = {
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
 
-// RM0468 (Rev.2) Table 16. 
+// RM0468 (Rev.2) Table 16.
 // 550MHz (AXI Interface clock) at VOS0 is 3WS
 #define MCU_FLASH_LATENCY FLASH_LATENCY_3
 
@@ -817,10 +981,7 @@ void SystemClock_Config(void)
 
     RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_SDMMC;
 
-#  if (HSE_VALUE != 8000000)
-#    error Unsupported external oscillator speed.  The calculations below are based on 8Mhz resonators
-// if you are seeing this, then calculate the PLL2 settings for your resonator and add support as required.
-#  else
+#  if (HSE_VALUE == 8000000)
 #    if defined(STM32H743xx) || defined(STM32H750xx) || defined(STM32H723xx) || defined(STM32H7A3xx) || defined(STM32H7A3xxQ) || defined(STM32H725xx)
     RCC_PeriphClkInit.PLL2.PLL2M = 5;
     RCC_PeriphClkInit.PLL2.PLL2N = 500; // 8Mhz (Oscillator Frequency) / 5 (PLL2M) = 1.6 * 500 (PLL2N) = 800Mhz.
@@ -842,11 +1003,27 @@ void SystemClock_Config(void)
     RCC_PeriphClkInit.PLL2.PLL2Q = 3; // 400Mhz / 3 = 133Mhz // SPI6 does't like much higher when using PLL2Q
     RCC_PeriphClkInit.PLL2.PLL2R = 2; // 400Mhz / 2 = 200Mhz // HAL LIBS REQUIRE 200MHZ SDMMC CLOCK, see HAL_SD_ConfigWideBusOperation, SDMMC_HSpeed_CLK_DIV, SDMMC_NSpeed_CLK_DIV
 #    else
-#      error Unknown MCU type
+#      error Unknown MCU type with HSE_VALUE = 8MHz
 #    endif
+#  elif (HSE_VALUE == 25000000)
+#    if defined(STM32H743xx)
+    RCC_PeriphClkInit.PLL2.PLL2M = 5;
+    RCC_PeriphClkInit.PLL2.PLL2N = 160; // 25Mhz (Oscillator Frequency) / 5 (PLL2M) = 5 * 160 (PLL2N) = 800Mhz.
+    RCC_PeriphClkInit.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE; // Wide VCO range:192 to 836 MHz
+    RCC_PeriphClkInit.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_2; // PLL2 input between 4 and 8Mhz
+    RCC_PeriphClkInit.PLL2.PLL2FRACN = 0;
+
+    RCC_PeriphClkInit.PLL2.PLL2P = 2; // 800Mhz / 2 = 400Mhz
+    RCC_PeriphClkInit.PLL2.PLL2Q = 3; // 800Mhz / 3 = 266Mhz // 133Mhz can be derived from this for for QSPI if flash chip supports the speed.
+    RCC_PeriphClkInit.PLL2.PLL2R = 4; // 800Mhz / 4 = 200Mhz // HAL LIBS REQUIRE 200MHZ SDMMC CLOCK, see HAL_SD_ConfigWideBusOperation, SDMMC_HSpeed_CLK_DIV, SDMMC_NSpeed_CLK_DIV
+#    else
+#      error Unknown MCU type with HSE_VALUE = 25MHz
+#    endif
+#  else
+#    error Unknown HSE_VALUE
+#  endif
     RCC_PeriphClkInit.SdmmcClockSelection = RCC_SDMMCCLKSOURCE_PLL2;
     HAL_RCCEx_PeriphCLKConfig(&RCC_PeriphClkInit);
-#  endif
 #endif
 
     RCC_PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
