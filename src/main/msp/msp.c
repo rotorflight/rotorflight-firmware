@@ -2365,7 +2365,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
 #ifdef USE_SERVOS
-#if 0
     case MSP_SET_SERVO_CONFIGURATION:
         if (dataSize != 1 + 14) {
             return MSP_RESULT_ERROR;
@@ -2382,7 +2381,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
         break;
-#endif
+
     case MSP_SET_SERVO_OVERRIDE:
         i = sbufReadU8(src);
         if (i >= MAX_SUPPORTED_SERVOS) {
