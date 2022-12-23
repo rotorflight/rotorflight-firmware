@@ -1478,6 +1478,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->main_rotor_dir);
         sbufWriteU8(dst, mixerConfig()->tail_rotor_mode);
         sbufWriteU8(dst, mixerConfig()->tail_motor_idle);
+        sbufWriteU8(dst, mixerConfig()->swash_type);
         sbufWriteU8(dst, mixerConfig()->swash_ring);
         sbufWriteU8(dst, mixerConfig()->swash_phase);
         break;
