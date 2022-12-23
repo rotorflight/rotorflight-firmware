@@ -1111,22 +1111,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_SERVO_CONFIGURATIONS:
         for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-            sbufWriteU16(dst, 1500); // mid
-            sbufWriteU16(dst, -500); //min
-            sbufWriteU16(dst, 500); // max
-            sbufWriteU16(dst, 500); // rate
-            sbufWriteU16(dst, 0); // trim
-            sbufWriteU16(dst, 0); // speed
-            //sbufWriteU16(dst, servoParams(i)->mid);
-            //sbufWriteU16(dst, servoParams(i)->min);
-            //sbufWriteU16(dst, servoParams(i)->max);
-            //sbufWriteU16(dst, servoParams(i)->rneg);
-            //sbufWriteU16(dst, servoParams(i)->rpos);
-            //sbufWriteU16(dst, servoParams(i)->rate);
-            //sbufWriteU16(dst, servoParams(i)->flags);
-
+            sbufWriteU16(dst, servoParams(i)->mid);
+            sbufWriteU16(dst, servoParams(i)->min);
+            sbufWriteU16(dst, servoParams(i)->max);
+            sbufWriteU16(dst, servoParams(i)->rneg);
+            sbufWriteU16(dst, servoParams(i)->rpos);
+            sbufWriteU16(dst, servoParams(i)->rate);
+            sbufWriteU16(dst, servoParams(i)->flags);
         }
-
         break;
 
     case MSP_SERVO_OVERRIDE:
