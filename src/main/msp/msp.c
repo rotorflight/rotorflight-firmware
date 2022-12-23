@@ -2317,14 +2317,20 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
-        if (dataSize != 1 + 12) {
+        if (dataSize != 1 + 14) {
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
-        // RF TODO
+        servoParamsMutable(i)->mid = sbufReadU16(src);
+        servoParamsMutable(i)->min = sbufReadU16(src);
+        servoParamsMutable(i)->max = sbufReadU16(src);
+        servoParamsMutable(i)->rneg = sbufReadU16(src);
+        servoParamsMutable(i)->rpos = sbufReadU16(src);
+        servoParamsMutable(i)->rate = sbufReadU16(src);
+        servoParamsMutable(i)->flags = sbufReadU16(src);
         break;
 #endif
 
