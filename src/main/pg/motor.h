@@ -63,6 +63,7 @@ typedef struct motorConfig_s {
 
     uint8_t motorPoleCount[MAX_SUPPORTED_MOTORS]; // Magnetic poles in the motors for calculating actual RPM from eRPM provided by ESC telemetry
     uint8_t motorRpmLpf[MAX_SUPPORTED_MOTORS];    // RPM low pass filter cutoff frequency
+    int16_t motorRpmFactor[MAX_SUPPORTED_MOTORS]; // RPM correction factor
 
     uint16_t mainRotorGearRatio[2];         // Main motor to main rotor gear ratio [N,D]
     uint16_t tailRotorGearRatio[2];         // Main rotor to tail rotor gear ratio [N,D]

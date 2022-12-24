@@ -811,6 +811,7 @@ const clivalue_t valueTable[] = {
     { "motor_control_mode",         VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = MAX_SUPPORTED_MOTORS, PG_MOTOR_CONFIG, offsetof(motorConfig_t, dev.motorControlMode) },
     { "motor_poles",                VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = MAX_SUPPORTED_MOTORS, PG_MOTOR_CONFIG, offsetof(motorConfig_t, motorPoleCount) },
     { "motor_rpm_lpf",              VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = MAX_SUPPORTED_MOTORS, PG_MOTOR_CONFIG, offsetof(motorConfig_t, motorRpmLpf) },
+    { "motor_rpm_factor",           VAR_INT16  | MASTER_VALUE | MODE_ARRAY, .config.array.length = MAX_SUPPORTED_MOTORS, PG_MOTOR_CONFIG, offsetof(motorConfig_t, motorRpmFactor) },
 
     { "main_rotor_gear_ratio",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = 2, PG_MOTOR_CONFIG, offsetof(motorConfig_t, mainRotorGearRatio) },
     { "tail_rotor_gear_ratio",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = 2, PG_MOTOR_CONFIG, offsetof(motorConfig_t, tailRotorGearRatio) },

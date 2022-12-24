@@ -81,6 +81,8 @@ static FAST_DATA_ZERO_INIT float          tailSpeed;
 static FAST_DATA_ZERO_INIT float          mainGearRatio;
 static FAST_DATA_ZERO_INIT float          tailGearRatio;
 
+static FAST_DATA_ZERO_INIT float          motorRpmFactor[MAX_SUPPORTED_MOTORS];
+
 
 /*** Access functions ***/
 
@@ -216,6 +218,8 @@ INIT_CODE void rpmSourceInit(void)
 
         motorRpmDiv[i] = constrain(motorConfig()->motorPoleCount[i] / 2, 1, 100);
 
+        motorRpmFactor[i] = 1.0f + motorConfig()->motorRpmFactor[i] / 100000.0f;
+
         int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 250);
         biquadFilterInitLPF(&motorRpmFilter[i], freq, gyro.targetLooptime);
     }
@@ -284,7 +288,7 @@ void motorUpdate(void)
     motorWriteAll(motorOutput);
 
     for (int i = 0; i < motorCount; i++) {
-        motorRpmRaw[i] = calcMotorRPMf(i,getMotorERPM(i));
+        motorRpmRaw[i] = calcMotorRPMf(i,getMotorERPM(i)) * motorRpmFactor[i];
         motorRpm[i] = biquadFilterApply(&motorRpmFilter[i], motorRpmRaw[i]);
         DEBUG_SET(DEBUG_RPM_SOURCE, i, lrintf(motorRpmRaw[i]));
     }
