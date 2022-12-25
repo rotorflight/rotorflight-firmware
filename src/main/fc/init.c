@@ -664,13 +664,13 @@ void init(void)
     systemState |= SYSTEM_STATE_SENSORS_READY;
 
     // Set the targetLooptime based on the detected gyro sampleRateHz and pid_process_denom
-    gyroSetLooptime(pidConfig()->pid_process_denom, pidConfig()->pid_process_denom);
+    gyroSetLooptime(pidConfig()->pid_process_denom, pidConfig()->filter_process_denom);
 
     // Validate and correct the gyro config or PID loop time if needed
     validateAndFixGyroConfig();
 
     // Now reset the targetLooptime as it's possible for the validation to change the pid_process_denom
-    gyroSetLooptime(pidConfig()->pid_process_denom, pidConfig()->pid_process_denom);
+    gyroSetLooptime(pidConfig()->pid_process_denom, pidConfig()->filter_process_denom);
 
     // Finally initialize the gyro filtering
     gyroInitFilters();

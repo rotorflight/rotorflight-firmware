@@ -31,6 +31,8 @@
 #define PID_PROCESS_DENOM_DEFAULT   8
 #define MAX_PID_PROCESS_DENOM       16
 
+#define FILTER_PROCESS_DENOM_DEFAULT 0
+
 #define PID_GAIN_MAX                2500
 
 #define ROLL_P_TERM_SCALE           (0.0033333333f / 500)
