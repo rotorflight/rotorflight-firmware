@@ -46,6 +46,7 @@
 #define PARAM_NAME_DEADBAND "deadband"
 #define PARAM_NAME_YAW_DEADBAND "yaw_deadband"
 #define PARAM_NAME_PID_PROCESS_DENOM "pid_process_denom"
+#define PARAM_NAME_FILTER_PROCESS_DENOM "filter_process_denom"
 #define PARAM_NAME_DTERM_LPF1_TYPE "dterm_lpf1_type"
 #define PARAM_NAME_DTERM_LPF1_STATIC_HZ "dterm_lpf1_static_hz"
 #define PARAM_NAME_DTERM_LPF2_TYPE "dterm_lpf2_type"

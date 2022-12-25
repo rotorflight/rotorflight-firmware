@@ -779,7 +779,7 @@ gyroDetectionFlags_t getGyroDetectionFlags(void)
 void gyroSetLooptime(uint8_t pidDenom, uint8_t filterDenom)
 {
     activePidLoopDenom = pidDenom;
-    activeFilterLoopDenom = filterDenom;
+    activeFilterLoopDenom = (filterDenom) ? filterDenom : pidDenom;
 
     if (gyro.sampleRateHz) {
         gyro.sampleLooptime = 1000000 / gyro.sampleRateHz;

@@ -26,9 +26,8 @@
 
 
 typedef struct {
-
     uint8_t pid_process_denom;
-
+    uint8_t filter_process_denom;
 } pidConfig_t;
 
 PG_DECLARE(pidConfig_t, pidConfig);

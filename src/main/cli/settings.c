@@ -997,7 +997,8 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_YAW_DEADBAND,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, yaw_deadband) },
 
 // PG_PID_CONFIG
-    { PARAM_NAME_PID_PROCESS_DENOM, VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 1, MAX_PID_PROCESS_DENOM }, PG_PID_CONFIG, offsetof(pidConfig_t, pid_process_denom) },
+    { PARAM_NAME_PID_PROCESS_DENOM,    VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, MAX_PID_PROCESS_DENOM }, PG_PID_CONFIG, offsetof(pidConfig_t, pid_process_denom) },
+    { PARAM_NAME_FILTER_PROCESS_DENOM, VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, MAX_PID_PROCESS_DENOM }, PG_PID_CONFIG, offsetof(pidConfig_t, filter_process_denom) },
 
 // PG_PID_PROFILE
 #ifdef USE_PROFILE_NAMES
