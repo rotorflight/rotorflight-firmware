@@ -2911,7 +2911,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MIXER_RULE_COUNT) {
             return MSP_RESULT_ERROR;
         }
-        sbufReadU32(src); // RF TODO remove me
         mixerRulesMutable(i)->oper = sbufReadU8(src);
         mixerRulesMutable(i)->input = sbufReadU8(src);
         mixerRulesMutable(i)->output = sbufReadU8(src);
