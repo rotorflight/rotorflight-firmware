@@ -23,9 +23,9 @@
 #include "fc/rc_modes.h"
 
 typedef struct box_s {
+    char *boxName;            // GUI-readable box name
     uint8_t boxId;            // See boxId_e
     uint8_t permanentId;      // Permanent ID for the function, DO NOT REUSE IT
-    char *boxName;            // GUI-readable box name
 } box_t;
 
 #define PERMANENT_ID_NONE 255

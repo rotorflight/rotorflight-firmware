@@ -200,7 +200,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
 #ifdef USE_ACC
-    pidLevelInit(pidProfile);
+    levelingInit(pidProfile);
 #endif
 #ifdef USE_ACRO_TRAINER
     acroTrainerInit(pidProfile);
@@ -292,13 +292,15 @@ static inline float pidApplySetpoint(const pidProfile_t *pidProfile, uint8_t axi
     float setpoint = getSetpoint(axis);
 
 #ifdef USE_ACC
-    // Apply leveling
-    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
-        setpoint = pidLevelApply(axis, setpoint);
+    // Apply leveling modes
+    if (FLIGHT_MODE(ANGLE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
+        setpoint = angleModeApply(axis, setpoint);
+    }
+    else if (FLIGHT_MODE(HORIZON_MODE)) {
+        setpoint = horizonModeApply(axis, setpoint);
     }
 #ifdef USE_ACRO_TRAINER
-    else {
-        // Apply acro trainer
+    else if (FLIGHT_MODE(TRAINER_MODE)) {
         setpoint = acroTrainerApply(axis, setpoint);
     }
 #endif

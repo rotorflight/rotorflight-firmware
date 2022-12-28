@@ -25,7 +25,7 @@
 #include "common/axis.h"
 
 
-void pidLevelInit(const pidProfile_t *pidProfile);
+void levelingInit(const pidProfile_t *pidProfile);
 
-float pidLevelApply(int axis, float pidSetpoint);
-
+float angleModeApply(int axis, float pidSetpoint);
+float horizonModeApply(int axis, float pidSetpoint);

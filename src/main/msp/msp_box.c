@@ -52,7 +52,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXARM, "ARM", 0),
     BOXITEM(BOXANGLE, "ANGLE", 1),
     BOXITEM(BOXHORIZON, "HORIZON", 2),
-//    BOXITEM(BOXBARO, "BARO", 3),
+    BOXITEM(BOXALTHOLD, "ALTHOLD", 3),
 //    BOXITEM(BOXANTIGRAVITY, "ANTI GRAVITY", 4),
 //    BOXITEM(BOXMAG, "MAG", 5),
 //    BOXITEM(BOXCAMSTAB, "CAMSTAB", 8),
@@ -70,14 +70,14 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXTELEMETRY, "TELEMETRY", 20),
 //    BOXITEM(BOXGTUNE, "GTUNE", 21),
 //    BOXITEM(BOXRANGEFINDER, "RANGEFINDER", 22),
-    BOXITEM(BOXSERVO1, "SERVO1", 23),
-    BOXITEM(BOXSERVO2, "SERVO2", 24),
-    BOXITEM(BOXSERVO3, "SERVO3", 25),
+//    BOXITEM(BOXSERVO1, "SERVO1", 23),
+//    BOXITEM(BOXSERVO2, "SERVO2", 24),
+//    BOXITEM(BOXSERVO3, "SERVO3", 25),
     BOXITEM(BOXBLACKBOX, "BLACKBOX", 26),
     BOXITEM(BOXFAILSAFE, "FAILSAFE", 27),
 //    BOXITEM(BOXAIRMODE, "AIR MODE", 28),
 //    BOXITEM(BOX3D, "3D DISABLE / SWITCH", 29),
-    BOXITEM(BOXFPVANGLEMIX, "FPV ANGLE MIX", 30),
+//    BOXITEM(BOXFPVANGLEMIX, "FPV ANGLE MIX", 30),
     BOXITEM(BOXBLACKBOXERASE, "BLACKBOX ERASE (>30s)", 31),
     BOXITEM(BOXCAMERA1, "CAMERA CONTROL 1", 32),
     BOXITEM(BOXCAMERA2, "CAMERA CONTROL 2", 33),
@@ -94,7 +94,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
 //    BOXITEM(BOXPIDAUDIO, "PID AUDIO", 44),
     BOXITEM(BOXPARALYZE, "PARALYZE", 45),
     BOXITEM(BOXGPSRESCUE, "GPS RESCUE", 46),
-    BOXITEM(BOXACROTRAINER, "ACRO TRAINER", 47),
+    BOXITEM(BOXTRAINER, "TRAINER", 47),
     BOXITEM(BOXVTXCONTROLDISABLE, "VTX CONTROL DISABLE", 48),
 //    BOXITEM(BOXLAUNCHCONTROL, "LAUNCH CONTROL", 49),
     BOXITEM(BOXMSPOVERRIDE, "MSP OVERRIDE", 50),
@@ -187,11 +187,16 @@ void initActiveBoxIds(void)
 #define BME(boxId) do { bitArraySet(&ena, boxId); } while (0)
     BME(BOXARM);
     BME(BOXPREARM);
+    BME(BOXPARALYZE);
+    BME(BOXFAILSAFE);
 
     if (sensors(SENSOR_ACC)) {
         BME(BOXANGLE);
         BME(BOXHORIZON);
         BME(BOXRESCUE);
+#ifdef USE_ACRO_TRAINER
+        BME(BOXTRAINER);
+#endif
     }
 
 #ifdef USE_GPS
@@ -202,8 +207,6 @@ void initActiveBoxIds(void)
         BME(BOXBEEPGPSCOUNT);
     }
 #endif
-
-    BME(BOXFAILSAFE);
 
     BME(BOXBEEPERON);
     BME(BOXBEEPERMUTE);
@@ -221,20 +224,12 @@ void initActiveBoxIds(void)
 #endif
 #endif
 
-    BME(BOXFPVANGLEMIX);
-
     BME(BOXOSD);
 
 #ifdef USE_TELEMETRY
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
         BME(BOXTELEMETRY);
     }
-#endif
-
-#ifdef USE_SERVOS
-    BME(BOXSERVO1);
-    BME(BOXSERVO2);
-    BME(BOXSERVO3);
 #endif
 
 #ifdef USE_RCDEVICE
@@ -247,8 +242,6 @@ void initActiveBoxIds(void)
     BME(BOXVTXPITMODE);
     BME(BOXVTXCONTROLDISABLE);
 #endif
-
-    BME(BOXPARALYZE);
 
 #ifdef USE_PINIOBOX
     // Turn BOXUSERx only if pinioBox facility monitors them, as the facility is the only BOXUSERx observer.
@@ -271,12 +264,6 @@ void initActiveBoxIds(void)
         }
     }
 #endif
-
-#if defined(USE_ACRO_TRAINER) && defined(USE_ACC)
-    if (sensors(SENSOR_ACC)) {
-        BME(BOXACROTRAINER);
-    }
-#endif // USE_ACRO_TRAINER
 
 #if defined(USE_RX_MSP_OVERRIDE)
     if (rxConfig()->msp_override_channels_mask) {

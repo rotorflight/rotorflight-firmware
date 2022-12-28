@@ -78,17 +78,21 @@ bool isArmingDisabled(void);
 armingDisableFlags_e getArmingDisableFlags(void);
 
 typedef enum {
-    ANGLE_MODE_BIT       = 0,
-    HORIZON_MODE_BIT     = 1,
-    FAILSAFE_MODE_BIT    = 2,
-    RESCUE_MODE_BIT      = 3,
-    GPS_RESCUE_MODE_BIT  = 4,
+    FAILSAFE_MODE_BIT    = 0,
+    ANGLE_MODE_BIT       = 1,
+    HORIZON_MODE_BIT     = 2,
+    TRAINER_MODE_BIT     = 3,
+    ALTHOLD_MODE_BIT     = 4,
+    RESCUE_MODE_BIT      = 5,
+    GPS_RESCUE_MODE_BIT  = 6,
 } flightModeBits_e;
 
 typedef enum {
+    FAILSAFE_MODE        = BIT(FAILSAFE_MODE_BIT),
     ANGLE_MODE           = BIT(ANGLE_MODE_BIT),
     HORIZON_MODE         = BIT(HORIZON_MODE_BIT),
-    FAILSAFE_MODE        = BIT(FAILSAFE_MODE_BIT),
+    TRAINER_MODE         = BIT(TRAINER_MODE_BIT),
+    ALTHOLD_MODE         = BIT(ALTHOLD_MODE_BIT),
     RESCUE_MODE          = BIT(RESCUE_MODE_BIT),
     GPS_RESCUE_MODE      = BIT(GPS_RESCUE_MODE_BIT),
 } flightModeFlags_e;
@@ -104,9 +108,11 @@ extern uint16_t flightModeFlags;
 #define BOXID_TO_FLIGHT_MODE_MAP_INITIALIZER {           \
    [BOXANGLE]       = ANGLE_MODE_BIT,                    \
    [BOXHORIZON]     = HORIZON_MODE_BIT,                  \
-   [BOXFAILSAFE]    = FAILSAFE_MODE_BIT,                 \
+   [BOXTRAINER]     = TRAINER_MODE_BIT,                  \
+   [BOXALTHOLD]     = ALTHOLD_MODE_BIT,                  \
    [BOXRESCUE]      = RESCUE_MODE_BIT,                   \
    [BOXGPSRESCUE]   = GPS_RESCUE_MODE_BIT,               \
+   [BOXFAILSAFE]    = FAILSAFE_MODE_BIT,                 \
 }                                                        \
 /**/
 

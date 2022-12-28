@@ -65,7 +65,7 @@ static FAST_DATA_ZERO_INIT level_t level;
 static FAST_DATA_ZERO_INIT horizon_t horizon;
 
 
-INIT_CODE void pidLevelInit(const pidProfile_t *pidProfile)
+INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
 {
     level.Gain = pidProfile->angle.level_strength / 10.0f;
     level.AngleLimit = pidProfile->angle.level_limit;
@@ -165,21 +165,28 @@ static float calcHorizonLevelStrength(void)
     return constrainf(horizonLevelStrength, 0, 1);
 }
 
-float pidLevelApply(int axis, float pidSetpoint)
+float angleModeApply(int axis, float pidSetpoint)
 {
     if (axis == FD_ROLL || axis == FD_PITCH)
     {
         float errorAngle = calcLevelErrorAngle(axis);
 
-        if (FLIGHT_MODE(ANGLE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
-            // Angle based control
-            pidSetpoint = errorAngle * level.Gain;
-        }
-        else if (FLIGHT_MODE(HORIZON_MODE)) {
-            // HORIZON mode - mix of ANGLE and ACRO modes
-            // mix in errorAngle to setpoint to add a little auto-level feel
-            pidSetpoint += errorAngle * horizon.Gain * calcHorizonLevelStrength();
-        }
+        // Angle based control
+        pidSetpoint = errorAngle * level.Gain;
+    }
+
+    return pidSetpoint;
+}
+
+float horizonModeApply(int axis, float pidSetpoint)
+{
+    if (axis == FD_ROLL || axis == FD_PITCH)
+    {
+        float errorAngle = calcLevelErrorAngle(axis);
+
+        // HORIZON mode - mix of ANGLE and ACRO modes
+        // mix in errorAngle to setpoint to add a little auto-level feel
+        pidSetpoint += errorAngle * horizon.Gain * calcHorizonLevelStrength();
     }
 
     return pidSetpoint;

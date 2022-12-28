@@ -171,12 +171,10 @@ static bool accNeedsCalibration(void)
         // Check for any configured modes that use the ACC
         if (isModeActivationConditionPresent(BOXANGLE) ||
             isModeActivationConditionPresent(BOXHORIZON) ||
+            isModeActivationConditionPresent(BOXTRAINER) ||
             isModeActivationConditionPresent(BOXRESCUE) ||
             isModeActivationConditionPresent(BOXGPSRESCUE) ||
-            isModeActivationConditionPresent(BOXCAMSTAB) ||
-            isModeActivationConditionPresent(BOXCALIB) ||
-            isModeActivationConditionPresent(BOXACROTRAINER)) {
-
+            isModeActivationConditionPresent(BOXCALIB)) {
             return true;
         }
 
@@ -578,7 +576,17 @@ void processRxModes(timeUs_t currentTimeUs)
     }
 
     if (sensors(SENSOR_ACC)) {
-        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+#ifdef USE_GPS_RESCUE
+        if (ARMING_FLAG(ARMED) &&
+            (IS_RC_MODE_ACTIVE(BOXGPSRESCUE) ||
+             (failsafeIsActive() && failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE))) {
+            ENABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
+        } else {
+            DISABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
+        }
+#endif
+
+        if (ARMING_FLAG(ARMED) && IS_RC_MODE_ACTIVE(BOXRESCUE)) {
             ENABLE_FLIGHT_MODE(RESCUE_MODE);
         } else {
             DISABLE_FLIGHT_MODE(RESCUE_MODE);
@@ -587,27 +595,34 @@ void processRxModes(timeUs_t currentTimeUs)
         if (IS_RC_MODE_ACTIVE(BOXANGLE)) {
             ENABLE_FLIGHT_MODE(ANGLE_MODE);
             DISABLE_FLIGHT_MODE(HORIZON_MODE);
-        } else {
+            DISABLE_FLIGHT_MODE(TRAINER_MODE);
+        }
+        else if (IS_RC_MODE_ACTIVE(BOXHORIZON)) {
             DISABLE_FLIGHT_MODE(ANGLE_MODE);
-            if (IS_RC_MODE_ACTIVE(BOXHORIZON)) {
-                ENABLE_FLIGHT_MODE(HORIZON_MODE);
-            } else {
-                DISABLE_FLIGHT_MODE(HORIZON_MODE);
-            }
+            ENABLE_FLIGHT_MODE(HORIZON_MODE);
+            DISABLE_FLIGHT_MODE(TRAINER_MODE);
+        }
+#ifdef USE_ACRO_TRAINER
+        else if (IS_RC_MODE_ACTIVE(BOXTRAINER)) {
+            DISABLE_FLIGHT_MODE(ANGLE_MODE);
+            DISABLE_FLIGHT_MODE(HORIZON_MODE);
+            ENABLE_FLIGHT_MODE(TRAINER_MODE);
+        }
+#endif
+        else {
+            DISABLE_FLIGHT_MODE(ANGLE_MODE);
+            DISABLE_FLIGHT_MODE(HORIZON_MODE);
+            DISABLE_FLIGHT_MODE(TRAINER_MODE);
         }
     }
 
-#ifdef USE_GPS_RESCUE
-    if (ARMING_FLAG(ARMED) && (IS_RC_MODE_ACTIVE(BOXGPSRESCUE) || (failsafeIsActive() && failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE))) {
-        ENABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
-    } else {
-        DISABLE_FLIGHT_MODE(GPS_RESCUE_MODE);
-    }
-#endif
+#ifdef USE_ACRO_TRAINER
+    acroTrainerSetState(FLIGHT_MODE(TRAINER_MODE));
+#endif // USE_ACRO_TRAINER
 
-    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | RESCUE_MODE | FAILSAFE_MODE)) {
+    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | TRAINER_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
         LED1_ON;
-        // increase frequency of attitude task to reduce drift when in angle or horizon mode
+        // increase frequency of attitude task to reduce drift
         rescheduleTask(TASK_ATTITUDE, TASK_PERIOD_HZ(500));
     } else {
         LED1_OFF;
@@ -643,10 +658,6 @@ void processRxModes(timeUs_t currentTimeUs)
         handleVTXControlButton();
     }
 #endif
-
-#ifdef USE_ACRO_TRAINER
-    acroTrainerSetState(IS_RC_MODE_ACTIVE(BOXACROTRAINER) && sensors(SENSOR_ACC));
-#endif // USE_ACRO_TRAINER
 }
 
 static void subTaskPidController(timeUs_t currentTimeUs)
