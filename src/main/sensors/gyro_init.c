@@ -783,8 +783,8 @@ void gyroSetLooptime(uint8_t pidDenom, uint8_t filterDenom)
 
     if (gyro.sampleRateHz) {
         gyro.sampleLooptime = 1000000 / gyro.sampleRateHz;
-        gyro.filterLooptime = activePidLoopDenom * 1000000 / gyro.sampleRateHz;
-        gyro.targetLooptime = activeFilterLoopDenom * 1000000 / gyro.sampleRateHz;
+        gyro.filterLooptime = activeFilterLoopDenom * 1000000 / gyro.sampleRateHz;
+        gyro.targetLooptime = activePidLoopDenom * 1000000 / gyro.sampleRateHz;
         gyro.filterRateHz = gyro.sampleRateHz / activeFilterLoopDenom;
         gyro.targetRateHz = gyro.sampleRateHz / activePidLoopDenom;
     } else {
