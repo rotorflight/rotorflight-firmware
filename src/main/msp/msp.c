@@ -82,6 +82,7 @@
 #include "fc/runtime_config.h"
 
 #include "flight/failsafe.h"
+#include "flight/rescue.h"
 #include "flight/gps_rescue.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
@@ -1292,7 +1293,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
-    case MSP_PID:
+    case MSP_PID_TUNING:
         for (int i = 0; i < PID_AXIS_COUNT; i++) {
             sbufWriteU16(dst, currentPidProfile->pid[i].P);
             sbufWriteU16(dst, currentPidProfile->pid[i].I);
@@ -1740,7 +1741,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
 
-    case MSP_PID_ADVANCED:
+    case MSP_PID_PROFILE:
         sbufWriteU8(dst, currentPidProfile->pid_mode);
         sbufWriteU8(dst, currentPidProfile->error_decay);
         sbufWriteU8(dst, currentPidProfile->error_rotation);
@@ -1770,7 +1771,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         /* Acro trainer */
         sbufWriteU8(dst, currentPidProfile->trainer.gain);
         sbufWriteU8(dst, currentPidProfile->trainer.angle_limit);
-        /* Rescue */
+        break;
+
+    case MSP_RESCUE_PROFILE:
         sbufWriteU8(dst, currentPidProfile->rescue.mode);
         sbufWriteU8(dst, currentPidProfile->rescue.flip_mode);
         sbufWriteU8(dst, currentPidProfile->rescue.flip_gain);
@@ -1790,7 +1793,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, currentPidProfile->rescue.max_climb_rate);
         sbufWriteU16(dst, currentPidProfile->rescue.max_setpoint_rate);
         sbufWriteU16(dst, currentPidProfile->rescue.max_setpoint_accel);
-        /* Governor */
+        break;
+
+    case MSP_GOVERNOR_PROFILE:
         sbufWriteU16(dst, currentPidProfile->governor.headspeed);
         sbufWriteU8(dst, currentPidProfile->governor.gain);
         sbufWriteU8(dst, currentPidProfile->governor.p_gain);
@@ -1899,7 +1904,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
 
-    case MSP_GOVERNOR:
+    case MSP_GOVERNOR_CONFIG:
         sbufWriteU8(dst, governorConfig()->gov_mode);
         sbufWriteU16(dst, governorConfig()->gov_startup_time);
         sbufWriteU16(dst, governorConfig()->gov_spoolup_time);
@@ -2192,7 +2197,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         armingConfigMutable()->auto_disarm_delay = sbufReadU8(src);
         break;
 
-    case MSP_SET_PID:
+    case MSP_SET_PID_TUNING:
         for (int i = 0; i < PID_AXIS_COUNT; i++) {
             currentPidProfile->pid[i].P = sbufReadU16(src);
             currentPidProfile->pid[i].I = sbufReadU16(src);
@@ -2470,7 +2475,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
-    case MSP_SET_PID_ADVANCED:
+    case MSP_SET_PID_PROFILE:
         currentPidProfile->pid_mode = sbufReadU8(src);
         currentPidProfile->error_decay = sbufReadU8(src);
         currentPidProfile->error_rotation = sbufReadU8(src);
@@ -2500,7 +2505,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         /* Acro trainer */
         currentPidProfile->trainer.gain = sbufReadU8(src);
         currentPidProfile->trainer.angle_limit = sbufReadU8(src);
-        /* Rescue */
+        /* Load new values */
+        pidInitProfile(currentPidProfile);
+        break;
+
+    case MSP_SET_RESCUE_PROFILE:
         currentPidProfile->rescue.mode = sbufReadU8(src);
         currentPidProfile->rescue.flip_mode = sbufReadU8(src);
         currentPidProfile->rescue.flip_gain = sbufReadU8(src);
@@ -2520,7 +2529,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->rescue.max_climb_rate = sbufReadU16(src);
         currentPidProfile->rescue.max_setpoint_rate = sbufReadU16(src);
         currentPidProfile->rescue.max_setpoint_accel = sbufReadU16(src);
-        /* Governor */
+        /* Load new values */
+        rescueInitProfile(currentPidProfile);
+        break;
+
+    case MSP_SET_GOVERNOR_PROFILE:
         currentPidProfile->governor.headspeed = sbufReadU16(src);
         currentPidProfile->governor.gain = sbufReadU8(src);
         currentPidProfile->governor.p_gain = sbufReadU8(src);
@@ -2533,7 +2546,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->governor.cyclic_ff_weight = sbufReadU8(src);
         currentPidProfile->governor.collective_ff_weight = sbufReadU8(src);
         /* Load new values */
-        pidInitProfile(currentPidProfile);
+        governorInitProfile(currentPidProfile);
         break;
 
     case MSP_SET_SENSOR_CONFIG:
@@ -3152,7 +3165,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
-    case MSP_SET_GOVERNOR:
+    case MSP_SET_GOVERNOR_CONFIG:
         governorConfigMutable()->gov_mode = sbufReadU8(src);
         governorConfigMutable()->gov_startup_time = sbufReadU16(src);
         governorConfigMutable()->gov_spoolup_time = sbufReadU16(src);

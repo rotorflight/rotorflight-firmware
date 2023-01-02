@@ -134,8 +134,8 @@
 #define MSP_SET_ADVANCED_CONFIG              91
 #define MSP_FILTER_CONFIG                    92
 #define MSP_SET_FILTER_CONFIG                93
-#define MSP_PID_ADVANCED                     94
-#define MSP_SET_PID_ADVANCED                 95
+#define MSP_PID_PROFILE                      94
+#define MSP_SET_PID_PROFILE                  95
 #define MSP_SENSOR_CONFIG                    96
 #define MSP_SET_SENSOR_CONFIG                97
 #define MSP_CAMERA_CONTROL                   98
@@ -152,7 +152,7 @@
 #define MSP_ALTITUDE                         109
 #define MSP_ANALOG                           110
 #define MSP_RC_TUNING                        111
-#define MSP_PID                              112
+#define MSP_PID_TUNING                       112
 
 #define MSP_BOXNAMES                         116
 
@@ -177,10 +177,14 @@
 #define MSP_VTXTABLE_POWERLEVEL              138
 #define MSP_MOTOR_TELEMETRY                  139
 
-#define MSP_GOVERNOR                         142
-#define MSP_SET_GOVERNOR                     143
+#define MSP_GOVERNOR_CONFIG                  142
+#define MSP_SET_GOVERNOR_CONFIG              143
 #define MSP_RPM_FILTER                       144
 #define MSP_SET_RPM_FILTER                   145
+#define MSP_RESCUE_PROFILE                   146
+#define MSP_SET_RESCUE_PROFILE               147
+#define MSP_GOVERNOR_PROFILE                 148
+#define MSP_SET_GOVERNOR_PROFILE             149
 
 #define MSP_UID                              160
 
@@ -210,7 +214,7 @@
 
 #define MSP_SET_RAW_RC                       200
 #define MSP_SET_RAW_GPS                      201
-#define MSP_SET_PID                          202
+#define MSP_SET_PID_TUNING                   202
 #define MSP_SET_RC_TUNING                    204
 #define MSP_ACC_CALIBRATION                  205
 #define MSP_MAG_CALIBRATION                  206
