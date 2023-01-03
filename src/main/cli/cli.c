@@ -2049,7 +2049,7 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #ifdef USE_SERVOS
 static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
 {
-    const char *format = "servo %u %u %u %u %u %u %u %u";
+    const char *format = "servo %u %u %d %d %u %u %u %u";
     const uint8_t servoCount = getServoCount();
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
@@ -2234,7 +2234,7 @@ static void cliServo(const char *cmdName, char *cmdline)
         }
     }
     else if (count == 8) {
-        const char *format = "servo %u %u %u %u %u %u %u %u";
+        const char *format = "servo %u %u %d %d %u %u %u %u";
         enum { INDEX = 0, MID, MIN, MAX, RNEG, RPOS, RATE, FLAGS, ARGS_COUNT };
         int vals[ARGS_COUNT] = { 0, };
         for (int i=0; i<count; i++)

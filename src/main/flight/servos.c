@@ -214,9 +214,8 @@ void servoUpdate(void)
 
         float rate = (pos > 0) ? servo->rpos : servo->rneg;
 
-        pos = servo->mid + rate * pos;
-
-        pos = limitTravel(i, pos, servo->min, servo->max);
+        pos = limitTravel(i, rate * pos, servo->min, servo->max);
+        pos = servo->mid + pos;
 
         servoOutput[i] = lrintf(pos);
 

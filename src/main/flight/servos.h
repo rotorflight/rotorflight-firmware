@@ -21,13 +21,13 @@
 
 #define DEFAULT_SERVO_FLAGS      0
 #define DEFAULT_SERVO_CENTER  1500
-#define DEFAULT_SERVO_MIN     1000
-#define DEFAULT_SERVO_MAX     2000
+#define DEFAULT_SERVO_MIN     -500
+#define DEFAULT_SERVO_MAX      500
 #define DEFAULT_SERVO_RANGE    500
 #define DEFAULT_SERVO_RATE     333
 
-#define SERVO_LIMIT_MIN        100
-#define SERVO_LIMIT_MAX       2500
+#define SERVO_LIMIT_MIN      -1000
+#define SERVO_LIMIT_MAX       1000
 #define SERVO_RANGE_MIN        100
 #define SERVO_RANGE_MAX       1000
 #define SERVO_RATE_MIN          50
@@ -44,10 +44,10 @@ enum {
 
 typedef struct servoParam_s {
     uint16_t    mid;     // center (mid) point
-    uint16_t    min;     // lower limit in us
-    uint16_t    max;     // upper limit in us
-    uint16_t    rneg;    // negative range in us
-    uint16_t    rpos;    // positive range in us
+    int16_t     min;     // lower limit in us from the midpoint
+    int16_t     max;     // upper limit in us from the midpoint
+    uint16_t    rneg;    // negative range (slope) in us
+    uint16_t    rpos;    // positive range (slope) in us
     uint16_t    rate;    // servo update rate Hz
     uint16_t    flags;   // feature flags
 } servoParam_t;
