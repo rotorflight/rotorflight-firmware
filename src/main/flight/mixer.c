@@ -88,6 +88,8 @@ typedef struct {
     float           tailMotorIdle;
     int8_t          tailMotorDirection;
 
+    float           swashTrim[3];
+
     float           cyclicTotal;
     float           cyclicLimit;
 
@@ -364,33 +366,37 @@ static void mixerUpdateBasic(void)
         const float SC = inputValue(COLLECTIVE);
         const float ST = inputValue(THROTTLE);
 
+        const float T0 = mixer.swashTrim[0];
+        const float T1 = mixer.swashTrim[1];
+        const float T2 = mixer.swashTrim[2];
+
         switch (mixerConfig()->swash_type) {
             case SWASH_TYPE_120:
-                mixerSetServoOutput(0, 0.5f * SC - SP);
-                mixerSetServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP);
-                mixerSetServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP);
+                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
+                mixerSetServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP + T1);
+                mixerSetServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP + T2);
                 break;
 
             case SWASH_TYPE_135:
-                mixerSetServoOutput(0, 0.5f * SC - SP);
-                mixerSetServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP);
-                mixerSetServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP);
+                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
+                mixerSetServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP + T1);
+                mixerSetServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP + T2);
                 break;
 
             case SWASH_TYPE_140:
-                mixerSetServoOutput(0, 0.5f * SC - SP);
-                mixerSetServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.7660444f * SP);
-                mixerSetServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.7660444f * SP);
+                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
+                mixerSetServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.7660444f * SP + T1);
+                mixerSetServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.7660444f * SP + T2);
                 break;
 
             case SWASH_TYPE_90L:
-                mixerSetServoOutput(0, -SP);
-                mixerSetServoOutput(1, -SR);
+                mixerSetServoOutput(0, -SP + T0);
+                mixerSetServoOutput(1, -SR + T1);
                 break;
 
             case SWASH_TYPE_90V:
-                mixerSetServoOutput(0,  0.70710678f * SR - 0.70710678f * SP);
-                mixerSetServoOutput(1, -0.70710678f * SR - 0.70710678f * SP);
+                mixerSetServoOutput(0,  0.70710678f * SR - 0.70710678f * SP + T0);
+                mixerSetServoOutput(1, -0.70710678f * SR - 0.70710678f * SP + T1);
                 break;
 
             default:
@@ -541,6 +547,9 @@ void INIT_CODE mixerInitConfig(void)
         mixer.cyclicLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
     else
         mixer.cyclicLimit = 0;
+
+    for (int i = 0; i < 3; i++)
+        mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;
 }
 
 void INIT_CODE mixerInit(void)

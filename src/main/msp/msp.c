@@ -1474,6 +1474,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->swash_type);
         sbufWriteU8(dst, mixerConfig()->swash_ring);
         sbufWriteU8(dst, mixerConfig()->swash_phase);
+        sbufWriteU8(dst, mixerConfig()->swash_trim[0]);
+        sbufWriteU8(dst, mixerConfig()->swash_trim[1]);
+        sbufWriteU8(dst, mixerConfig()->swash_trim[2]);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2892,6 +2895,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_type = sbufReadU8(src);
         mixerConfigMutable()->swash_ring = sbufReadU8(src);
         mixerConfigMutable()->swash_phase = sbufReadU8(src);
+        mixerConfigMutable()->swash_trim[0] = sbufReadU8(src);
+        mixerConfigMutable()->swash_trim[1] = sbufReadU8(src);
+        mixerConfigMutable()->swash_trim[2] = sbufReadU8(src);
         break;
 
     case MSP_SET_MIXER_INPUT:

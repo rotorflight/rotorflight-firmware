@@ -882,6 +882,7 @@ const clivalue_t valueTable[] = {
     { "swash_type",                 VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SWASH_TYPE }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_type) },
     { "swash_ring",                 VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_ring) },
     { "swash_phase",                VAR_INT16  | MASTER_VALUE,  .config.minmax = { -1800, 1800 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_phase) },
+    { "swash_trim",                 VAR_INT8   | MASTER_VALUE | MODE_ARRAY, .config.array.length = 3, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_trim) },
     { "collective_correction",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, coll_correction) },
 
 // PG_GOVERNOR_CONFIG
