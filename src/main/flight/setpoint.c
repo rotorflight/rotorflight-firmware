@@ -41,34 +41,40 @@
 
 typedef struct
 {
+    float deflection[4];
     float setpoint[4];
-    float limitedSp[4];
+    float limited[4];
 
     float accelLimit[4];
-    float ringLimit[2];
+    float ringLimit;
 
     pt3Filter_t filter[4];
 
     uint16_t smoothCutoff;
     uint16_t activeCutoff;
 
-} setpointFilter_t;
+} setpointData_t;
 
-static FAST_DATA_ZERO_INIT setpointFilter_t spFilter;
+static FAST_DATA_ZERO_INIT setpointData_t sp;
 
 
 float getSetpoint(int axis)
 {
-    return spFilter.setpoint[axis];
+    return sp.setpoint[axis];
+}
+
+float getDeflection(int axis)
+{
+    return sp.deflection[axis];
 }
 
 uint16_t setpointFilterGetCutoffFreq(void)
 {
-    return spFilter.activeCutoff;
+    return sp.activeCutoff;
 }
 
 
-static inline float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoSmoothnessFactor)
+static float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoSmoothnessFactor)
 {
     float cutoff = 0;
 
@@ -80,74 +86,77 @@ static inline float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoS
     return cutoff;
 }
 
-void setpointFilterUpdate(float frameTimeUs)
+void setpointUpdateTiming(float frameTimeUs)
 {
     float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rxConfig()->rx_smoothness);
 
-    DEBUG(SETPOINT, 4, cutoff);
-
-    cutoff = MIN(spFilter.smoothCutoff, cutoff);
-    cutoff = constrain(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
-
     DEBUG(SETPOINT, 5, cutoff);
 
-    if (spFilter.activeCutoff != cutoff) {
+    cutoff = MIN(sp.smoothCutoff, cutoff);
+    cutoff = constrain(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
+
+    DEBUG(SETPOINT, 6, cutoff);
+
+    if (sp.activeCutoff != cutoff) {
         const float gain = pt3FilterGain(cutoff, pidGetDT());
         for (int i = 0; i < 4; i++) {
-            pt3FilterUpdateCutoff(&spFilter.filter[i], gain);
+            pt3FilterUpdateCutoff(&sp.filter[i], gain);
         }
-        spFilter.activeCutoff = cutoff;
+        sp.activeCutoff = cutoff;
     }
+
+    DEBUG(SETPOINT, 7, frameTimeUs);
 }
 
-INIT_CODE void setpointFilterInitProfile(void)
+INIT_CODE void setpointInitProfile(void)
 {
-    const float cyclicLimit = 1.4142135623f - currentControlRateProfile->cyclic_ring * 0.004142135623f;
+    sp.ringLimit = 1.0f / (1.4142135623f - currentControlRateProfile->cyclic_ring * 0.004142135623f);
 
     for (int i = 0; i < 4; i++) {
-        spFilter.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
-    }
-    for (int i = 0; i < 2; i++) {
-        spFilter.ringLimit[i] = 1.0f / (currentControlRateProfile->rate_limit[i] * cyclicLimit);
+        sp.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
     }
 
-    spFilter.smoothCutoff = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);
-    spFilter.activeCutoff = constrain(spFilter.smoothCutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
+    sp.smoothCutoff = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);
+    sp.activeCutoff = constrain(sp.smoothCutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
 }
 
-INIT_CODE void setpointFilterInit(void)
+INIT_CODE void setpointInit(void)
 {
-    setpointFilterInitProfile();
+    setpointInitProfile();
 
-    const float gain = pt3FilterGain(spFilter.activeCutoff, pidGetDT());
+    const float gain = pt3FilterGain(sp.activeCutoff, pidGetDT());
     for (int i = 0; i < 4; i++) {
-        pt3FilterInit(&spFilter.filter[i], gain);
+        pt3FilterInit(&sp.filter[i], gain);
     }
 }
-
 
 void setpointUpdate(void)
 {
     for (int axis = 0; axis < 4; axis++) {
-        spFilter.setpoint[axis] = getRawSetpoint(axis);
-        DEBUG_AXIS(SETPOINT, axis, 0, spFilter.setpoint[axis]);
+        sp.deflection[axis] = getRcDeflection(axis);
+        DEBUG_AXIS(SETPOINT, axis, 0, sp.deflection[axis] * 1000);
     }
 
-    const float R = spFilter.setpoint[FD_ROLL]  * spFilter.ringLimit[FD_ROLL];
-    const float P = spFilter.setpoint[FD_PITCH] * spFilter.ringLimit[FD_PITCH];
+    const float R = sp.deflection[FD_ROLL]  * sp.ringLimit;
+    const float P = sp.deflection[FD_PITCH] * sp.ringLimit;
     const float C = sqrtf(sq(R) + sq(P));
 
     if (C > 1.0f) {
-        spFilter.setpoint[FD_ROLL]  /= C;
-        spFilter.setpoint[FD_PITCH] /= C;
+        sp.deflection[FD_ROLL]  /= C;
+        sp.deflection[FD_PITCH] /= C;
     }
+
+    DEBUG_AXIS(SETPOINT, FD_ROLL, 1, sp.deflection[FD_ROLL] * 1000);
+    DEBUG_AXIS(SETPOINT, FD_PITCH, 1, sp.deflection[FD_PITCH] * 1000);
 
     for (int axis = 0; axis < 4; axis++) {
-        spFilter.setpoint[axis] = spFilter.limitedSp[axis] = slewLimit(spFilter.limitedSp[axis], spFilter.setpoint[axis], spFilter.accelLimit[axis]);
-        DEBUG_AXIS(SETPOINT, axis, 1, spFilter.setpoint[axis]);
+        float SP = sp.limited[axis] = slewLimit(sp.limited[axis], sp.deflection[axis], sp.accelLimit[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
-        spFilter.setpoint[axis] = pt3FilterApply(&spFilter.filter[axis], spFilter.setpoint[axis]);
-        DEBUG_AXIS(SETPOINT, axis, 2, spFilter.setpoint[axis]);
+        SP = sp.deflection[axis] = pt3FilterApply(&sp.filter[axis], SP);
+        DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
+
+        SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);
+        DEBUG_AXIS(SETPOINT, axis, 4, SP);
     }
 }
-

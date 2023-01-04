@@ -62,8 +62,6 @@
 FAST_DATA_ZERO_INIT float rcCommand[5];                  // -500..+500 for RPYC and 0..1000 for THROTTLE
 FAST_DATA_ZERO_INIT float rcDeflection[5];               // -1..1 for RPYC, 0..1 for THROTTLE
 
-static FAST_DATA_ZERO_INIT float rawSetpoint[4];
-
 static FAST_DATA_ZERO_INIT float rcDeadband[4];
 
 static FAST_DATA_ZERO_INIT uint16_t currentRxRefreshRate;
@@ -82,12 +80,6 @@ void resetYawAxis(void)
 {
     rcCommand[YAW] = 0;
     rcDeflection[YAW] = 0;
-    rawSetpoint[YAW] =  0;
-}
-
-float getRawSetpoint(int axis)
-{
-    return rawSetpoint[axis];
 }
 
 float getRcDeflection(int axis)
@@ -112,7 +104,7 @@ float getAverageRxUpdateRate(void)
 }
 
 
-void updateRcChange(void)
+static void updateRcChange(void)
 {
     const uint16_t rcValue = lrintf(rcData[FD_ROLL]);
 
@@ -183,9 +175,9 @@ void updateRcCommands(void)
 {
     float data;
 
-    setpointFilterUpdate(averageRxRefreshRate * currentMult);
+    setpointUpdateTiming(averageRxRefreshRate * currentMult);
 
-    // rcData => rcCommand => rcDeflection => rawSetpoint
+    // rcData => rcCommand => rcDeflection
     for (int axis = 0; axis < 4; axis++) {
         data = rcData[axis] - rxConfig()->midrc;
         data = constrainf(data, -500, 500);
@@ -198,13 +190,8 @@ void updateRcCommands(void)
         rcCommand[axis] = data;
         rcDeflection[axis] = data / (500 - rcDeadband[axis]);
 
-        data = applyRatesCurve(axis, rcDeflection[axis]);
-        rawSetpoint[axis] = data;
-
         DEBUG(RC_COMMAND, axis, rcCommand[axis]);
         DEBUG(RC_COMMAND, axis+4, rcDeflection[axis] * 1000);
-
-        DEBUG(RC_SETPOINT, axis, data);
     }
 
     // RF TODO FIXME

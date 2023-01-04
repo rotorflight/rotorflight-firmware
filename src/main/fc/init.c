@@ -717,7 +717,7 @@ void init(void)
 
     imuInit();
 
-    setpointFilterInit();
+    setpointInit();
 
     failsafeInit();
 

@@ -26,13 +26,13 @@
 
 
 float getSetpoint(int axis);
+float getDeflection(int axis);
 
 uint16_t setpointFilterGetCutoffFreq(void);
 
-void setpointFilterInit(void);
-void setpointFilterInitProfile(void);
+void setpointInit(void);
+void setpointInitProfile(void);
 
-void setpointFilterUpdate(float frameTimeUs);
+void setpointUpdateTiming(float frameTimeUs);
 
 void setpointUpdate(void);
-

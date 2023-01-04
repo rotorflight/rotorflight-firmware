@@ -78,9 +78,9 @@ INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
 }
 
 // calculate the stick deflection while applying level mode expo
-static inline float getLevelModeRcDeflection(uint8_t axis)
+static inline float getLevelModeDeflection(uint8_t axis)
 {
-    float deflection = getRcDeflection(axis);
+    float deflection = getDeflection(axis);
 
     if (axis < FD_YAW) {
         const float expof = currentControlRateProfile->levelExpo[axis] / 100.0f;
@@ -93,7 +93,7 @@ static inline float getLevelModeRcDeflection(uint8_t axis)
 static float calcLevelErrorAngle(int axis)
 {
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
-    float angle = level.AngleLimit * getLevelModeRcDeflection(axis);
+    float angle = level.AngleLimit * getLevelModeDeflection(axis);
 
 #ifdef USE_GPS_RESCUE
     angle += gpsRescueAngle[axis] / 100.0f; // ANGLE IS IN CENTIDEGREES
@@ -109,7 +109,7 @@ static float calcLevelErrorAngle(int axis)
 static float calcHorizonLevelStrength(void)
 {
     // start with 1.0 at center stick, 0.0 at max stick deflection:
-    float horizonLevelStrength = 1.0f - fmaxf(fabsf(getLevelModeRcDeflection(FD_ROLL)), fabsf(getLevelModeRcDeflection(FD_PITCH)));
+    float horizonLevelStrength = 1.0f - fmaxf(fabsf(getLevelModeDeflection(FD_ROLL)), fabsf(getLevelModeDeflection(FD_PITCH)));
 
     // 0 at level, 90 at vertical, 180 at inverted (degrees):
     const float currentInclination = fmaxf(abs(attitude.values.roll), abs(attitude.values.pitch)) / 10.0f;

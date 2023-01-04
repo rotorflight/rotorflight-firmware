@@ -35,7 +35,6 @@ void updateRcCommands(void);
 
 void resetYawAxis(void);
 
-float getRawSetpoint(int axis);
 float getRcDeflection(int axis);
 
 uint16_t getCurrentRxRefreshRate(void);

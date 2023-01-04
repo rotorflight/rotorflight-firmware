@@ -223,7 +223,7 @@ INIT_CODE void loadControlRateProfile(void)
             break;
     }
 
-    setpointFilterInitProfile();
+    setpointInitProfile();
 }
 
 INIT_CODE void changeControlRateProfile(uint8_t controlRateProfileIndex)
