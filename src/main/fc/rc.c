@@ -180,24 +180,25 @@ void updateRcCommands(void)
     // rcData => rcCommand => rcDeflection
     for (int axis = 0; axis < 4; axis++) {
         data = rcData[axis] - rxConfig()->midrc;
-        data = constrainf(data, -500, 500);
         data = fapplyDeadband(data, rcDeadband[axis]);
 
         // RC yaw rate and gyro yaw rate have opposite sign
         if (axis == FD_YAW)
             data = -data;
 
-        rcCommand[axis] = data;
-        rcDeflection[axis] = data / (500 - rcDeadband[axis]);
+        // rcCommand range is -500..500
+        rcCommand[axis] = constrainf(data, -500, 500);
+        rcDeflection[axis] = rcCommand[axis] / 500;
 
         DEBUG(RC_COMMAND, axis, rcCommand[axis]);
-        DEBUG(RC_COMMAND, axis+4, rcDeflection[axis] * 1000);
     }
 
-    // RF TODO FIXME
-    data = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX) - PWM_RANGE_MIN;
-    rcCommand[THROTTLE] = data;
-    rcDeflection[THROTTLE] = data / PWM_RANGE;
+    // throttle range is 0..1000
+    data = scaleRangef(rcData[THROTTLE], rxConfig()->mincheck, rxConfig()->maxcheck, 0, 1000);
+    rcCommand[THROTTLE] = constrainf(data, 0, 1000);
+    rcDeflection[THROTTLE] = rcCommand[THROTTLE] / 1000;
+
+    DEBUG(RC_COMMAND, THROTTLE, rcCommand[THROTTLE]);
 }
 
 INIT_CODE void initRcProcessing(void)
