@@ -36,7 +36,7 @@
 
 
 #define SP_SMOOTHING_FILTER_MIN_HZ             5
-#define SP_SMOOTHING_FILTER_MAX_HZ           250
+#define SP_SMOOTHING_FILTER_MAX_HZ           500
 
 
 typedef struct
