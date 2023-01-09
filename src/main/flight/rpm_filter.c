@@ -173,6 +173,9 @@ void rpmFilterUpdate()
 {
     if (activeBankCount > 0) {
 
+        // Adjust the looptime to actual gyro speed
+        float loopTime = gyro.filterLooptime / schedulerGetCycleTimeMultiplier();
+
         // Update one filter bank per cycle
         rpmFilterBank_t *filt = &filterBank[currentBank];
 
@@ -186,7 +189,7 @@ void rpmFilterUpdate()
         biquadFilter_t *Y = &filt->notch[2];
 
         // Update the filter coefficients
-        biquadFilterUpdate(R, freq, gyro.filterLooptime, filt->Q, FILTER_NOTCH, 1);
+        biquadFilterUpdate(R, freq, loopTime, filt->Q, FILTER_NOTCH, 1);
 
         // Transfer the filter coefficients from Roll axis filter into Pitch and Yaw
         P->b0 = Y->b0 = R->b0;
@@ -195,10 +198,11 @@ void rpmFilterUpdate()
         P->a1 = Y->a1 = R->a1;
         P->a2 = Y->a2 = R->a2;
 
-        DEBUG_SET(DEBUG_RPM_FILTER, 0, currentBank);
-        DEBUG_SET(DEBUG_RPM_FILTER, 1, filt->motorIndex);
-        DEBUG_SET(DEBUG_RPM_FILTER, 2, rpm);
-        DEBUG_SET(DEBUG_RPM_FILTER, 3, freq * 10);
+        DEBUG(RPM_FILTER, 0, currentBank);
+        DEBUG(RPM_FILTER, 1, filt->motorIndex);
+        DEBUG(RPM_FILTER, 2, rpm);
+        DEBUG(RPM_FILTER, 3, freq * 10);
+        DEBUG(RPM_FILTER, 4, loopTime * 10);
 
         // Find next active bank - there must be at least one
         currentBank = (currentBank + 1) % activeBankCount;
