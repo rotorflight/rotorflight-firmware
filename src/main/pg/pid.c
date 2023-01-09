@@ -62,6 +62,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_cutoff = { 15, 15, 20 },
         .fterm_cutoff = { 0, 0, 0 },
         .gyro_cutoff = { 50, 50, 50 },
+        .yaw_d_select = 0,
         .yaw_cw_stop_gain = 100,
         .yaw_ccw_stop_gain = 100,
         .yaw_cyclic_ff_gain = 0,
