@@ -2898,6 +2898,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_trim[0] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[1] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[2] = sbufReadU8(src);
+        mixerInitConfig();
         break;
 
     case MSP_SET_MIXER_INPUT:

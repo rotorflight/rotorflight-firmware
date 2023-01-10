@@ -116,7 +116,7 @@ float mixerGetInputHistory(uint8_t i, uint16_t delay)
     return mixerInputHistory[i][(historyIndex - delay) & MIXER_HISTORY_MASK];
 }
 
-static inline void mixerHistoryUpdate(void)
+static inline void mixerUpdateHistory(void)
 {
     historyIndex = (historyIndex + 1) & MIXER_HISTORY_MASK;
 
@@ -128,6 +128,8 @@ static inline void mixerHistoryUpdate(void)
 
 #endif /* USE_MIXER_HISTORY */
 
+
+/** Interface functions **/
 
 float mixerGetOutput(uint8_t i)
 {
@@ -142,26 +144,6 @@ float mixerGetServoOutput(uint8_t i)
 float mixerGetMotorOutput(uint8_t i)
 {
     return mixer.output[MIXER_MOTOR_OFFSET + i];
-}
-
-static inline void mixerSetServoOutput(uint8_t i, float value)
-{
-    mixer.output[MIXER_SERVO_OFFSET + i] = value;
-}
-
-static inline void mixerSetMotorOutput(uint8_t i, float value)
-{
-    mixer.output[MIXER_MOTOR_OFFSET + i] = value;
-}
-
-static inline void mixerSetServoMapping(uint8_t input, uint8_t servo)
-{
-    mixer.mapping[MIXER_SERVO_OFFSET + servo] |= BIT(input);
-}
-
-static inline void mixerSetMotorMapping(uint8_t input, uint8_t motor)
-{
-    mixer.mapping[MIXER_MOTOR_OFFSET + motor] |= BIT(input);
 }
 
 bool mixerSaturated(uint8_t index)
@@ -213,6 +195,9 @@ float mixerGetInput(uint8_t i)
     return mixer.input[i];
 }
 
+
+/** Internal functions **/
+
 static void mixerSetInput(int index, float value)
 {
     const mixerInput_t *in = mixerInputs(index);
@@ -241,7 +226,7 @@ static void mixerSetInput(int index, float value)
     }
 }
 
-static void mixerCyclicUpdate(void)
+static void mixerUpdateCyclic(void)
 {
     // Swashring enabled
     if (mixer.cyclicLimit > 0)
@@ -289,7 +274,7 @@ static void mixerCyclicUpdate(void)
                               sq(mixer.input[MIXER_IN_STABILIZED_PITCH]));
 }
 
-static void mixerCollectiveUpdate(void)
+static void mixerUpdateCollective(void)
 {
     if (mixerConfig()->coll_correction) {
         // Headspeed fluctuation ratio
@@ -354,9 +339,11 @@ static void mixerUpdateMotorizedTail(void)
     }
 }
 
-#define inputValue(NAME) ( mixer.input[MIXER_IN_STABILIZED_##NAME] * mixerInputs(MIXER_IN_STABILIZED_##NAME)->rate / 1000.0f )
+#define inputValue(NAME)            (mixer.input[MIXER_IN_STABILIZED_##NAME] * mixerInputs(MIXER_IN_STABILIZED_##NAME)->rate / 1000.0f)
+#define setServoOutput(I,VAL)       (mixer.output[MIXER_SERVO_OFFSET + (I)] = (VAL))
+#define setMotorOutput(I,VAL)       (mixer.output[MIXER_MOTOR_OFFSET + (I)] = (VAL))
 
-static void mixerUpdateBasic(void)
+static void mixerUpdateSwash(void)
 {
     if (mixerConfig()->swash_type)
     {
@@ -372,46 +359,46 @@ static void mixerUpdateBasic(void)
 
         switch (mixerConfig()->swash_type) {
             case SWASH_TYPE_120:
-                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
-                mixerSetServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP + T1);
-                mixerSetServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP + T0);
+                setServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP + T1);
+                setServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP + T2);
                 break;
 
             case SWASH_TYPE_135:
-                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
-                mixerSetServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP + T1);
-                mixerSetServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP + T0);
+                setServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP + T1);
+                setServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP + T2);
                 break;
 
             case SWASH_TYPE_140:
-                mixerSetServoOutput(0, 0.5f * SC - SP + T0);
-                mixerSetServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.7660444f * SP + T1);
-                mixerSetServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.7660444f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP + T0);
+                setServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.76604444f * SP + T1);
+                setServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.76604444f * SP + T2);
                 break;
 
             case SWASH_TYPE_90L:
-                mixerSetServoOutput(0, -SP + T0);
-                mixerSetServoOutput(1, -SR + T1);
+                setServoOutput(0, SP + T0);
+                setServoOutput(1, SR + T1);
                 break;
 
             case SWASH_TYPE_90V:
-                mixerSetServoOutput(0,  0.70710678f * SR - 0.70710678f * SP + T0);
-                mixerSetServoOutput(1, -0.70710678f * SR - 0.70710678f * SP + T1);
+                setServoOutput(0,  0.70710678f * SR + 0.70710678f * SP + T0);
+                setServoOutput(1, -0.70710678f * SR + 0.70710678f * SP + T1);
                 break;
 
-            default:
-                mixerSetServoOutput(0, SP);
-                mixerSetServoOutput(1, SR);
-                mixerSetServoOutput(2, SC);
+            case SWASH_TYPE_THRU:
+                setServoOutput(0, SP);
+                setServoOutput(1, SR);
+                setServoOutput(2, SC);
                 break;
         }
 
-        mixerSetMotorOutput(0, ST);
+        setMotorOutput(0, ST);
 
         if (mixerMotorizedTail())
-            mixerSetMotorOutput(1, SY);
+            setMotorOutput(1, SY);
         else
-            mixerSetServoOutput(3, SY);
+            setServoOutput(3, SY);
     }
 }
 
@@ -462,10 +449,10 @@ static void mixerUpdateInputs(void)
     mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, pidGetCollective());
 
     // Calculate cyclic
-    mixerCyclicUpdate();
+    mixerUpdateCyclic();
 
     // Calculate collective
-    mixerCollectiveUpdate();
+    mixerUpdateCollective();
 
     // Update governor sub-mixer
     governorUpdate();
@@ -478,8 +465,8 @@ static void mixerUpdateInputs(void)
         mixerUpdateMotorizedTail();
 
 #ifdef USE_MIXER_HISTORY
-    // Update history
-    mixerHistoryUpdate();
+    // Update historical values
+    mixerUpdateHistory();
 #endif
 }
 
@@ -500,7 +487,7 @@ void mixerUpdate(void)
     mixerUpdateInputs();
 
     // Evaluate hard-coded mixer
-    mixerUpdateBasic();
+    mixerUpdateSwash();
 
     // Evaluate rule-based mixer
     mixerUpdateRules();
@@ -552,6 +539,11 @@ void INIT_CODE mixerInitConfig(void)
         mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;
 }
 
+#define setMapping(IN,OUT)      (mixer.mapping[(OUT)] = BIT((IN)))
+#define addMapping(IN,OUT)      (mixer.mapping[(OUT)] |= BIT((IN)))
+#define addServoMapping(IN,S)   (mixer.mapping[MIXER_SERVO_OFFSET + (S)] |= BIT((IN)))
+#define addMotorMapping(IN,M)   (mixer.mapping[MIXER_MOTOR_OFFSET + (M)] |= BIT((IN)))
+
 void INIT_CODE mixerInit(void)
 {
     for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
@@ -563,45 +555,48 @@ void INIT_CODE mixerInit(void)
         mixer.override[i] = MIXER_OVERRIDE_OFF;
     }
 
-    switch (mixerConfig()->swash_type) {
-        case SWASH_TYPE_120:
-        case SWASH_TYPE_135:
-        case SWASH_TYPE_140:
-            mixerSetServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 1);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 2);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 2);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
-            break;
+    if (mixerConfig()->swash_type)
+    {
+        switch (mixerConfig()->swash_type) {
+            case SWASH_TYPE_120:
+            case SWASH_TYPE_135:
+            case SWASH_TYPE_140:
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 0);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 1);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 2);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 2);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
+                break;
 
-        case SWASH_TYPE_90L:
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
-            break;
+            case SWASH_TYPE_90L:
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
+                break;
 
-        case SWASH_TYPE_90V:
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
-            break;
+            case SWASH_TYPE_90V:
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 0);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
+                break;
 
-        case SWASH_TYPE_THRU:
-            mixerSetServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 0);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
-            mixerSetServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
-            break;
+            case SWASH_TYPE_THRU:
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 2);
+                break;
+        }
+
+        addMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
+
+        if (mixerMotorizedTail())
+            addMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
+        else
+            addServoMapping(MIXER_IN_STABILIZED_YAW, 3);
     }
-
-    mixerSetMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
-
-    if (mixerMotorizedTail())
-        mixerSetMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
-    else
-        mixerSetServoMapping(MIXER_IN_STABILIZED_YAW, 3);
 
     for (int i = 0; i < MIXER_RULE_COUNT; i++)
     {
@@ -610,11 +605,11 @@ void INIT_CODE mixerInit(void)
         switch (rule->oper)
         {
             case MIXER_OP_SET:
-                mixer.mapping[rule->output] = BIT(rule->input);
+                setMapping(rule->input, rule->output);
                 break;
             case MIXER_OP_ADD:
             case MIXER_OP_MUL:
-                mixer.mapping[rule->output] |= BIT(rule->input);
+                addMapping(rule->input, rule->output);
                 break;
         }
     }
