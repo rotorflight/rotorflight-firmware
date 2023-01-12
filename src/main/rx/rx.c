@@ -634,6 +634,9 @@ static void readRxChannelsApplyRanges(void)
         }
 
         rcRaw[channel] = sample;
+        if (channel < 8) {
+            DEBUG(RC_RAW, channel, lrintf(sample));
+        }
     }
 }
 
@@ -702,6 +705,10 @@ void detectAndApplySignalLossBehaviour(void)
         {
             //  set rcData to either validated incoming values, or failsafe-modified values
             rcData[channel] = sample;
+        }
+
+        if (channel < 8) {
+            DEBUG(RC_DATA, channel, lrintf(sample));
         }
     }
 
