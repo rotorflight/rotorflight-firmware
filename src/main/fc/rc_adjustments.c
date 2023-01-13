@@ -112,8 +112,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(PITCH_COLL_FF,      PROF,  0, 2500),
     ADJ_CONFIG(PITCH_IMPULSE_FF,   PROF,  0, 2500),
 
-    ADJ_CONFIG(RESCUE_COLLECTIVE,  PROF,  0, 1000),
-    ADJ_CONFIG(RESCUE_COLL_BOOST,  PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_CLIMB_COLLECTIVE,  PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_HOVER_COLLECTIVE,  PROF,  0, 1000),
 
     ADJ_CONFIG(ANGLE_LEVEL_GAIN,   PROF,  0, 200),
     ADJ_CONFIG(HORIZON_LEVEL_GAIN, PROF,  0, 200),
@@ -151,6 +151,10 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(YAW_ERROR_CUTOFF,   PROF,  0, 250),
     ADJ_CONFIG(YAW_DTERM_CUTOFF,   PROF,  0, 250),
     ADJ_CONFIG(YAW_FTERM_CUTOFF,   PROF,  0, 250),
+
+    ADJ_CONFIG(RESCUE_ALT_P_GAIN, PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_ALT_I_GAIN, PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_ALT_D_GAIN, PROF,  0, 1000),
 };
 
 
@@ -243,14 +247,12 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_PITCH_IMPULSE_FF:
             value = currentPidProfile->pitch_collective_ff_impulse_gain;
             break;
-#if 0
-        case ADJUSTMENT_RESCUE_COLLECTIVE:
-            value = currentPidProfile->rescue_collective;
+        case ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE:
+            value = currentPidProfile->rescue.climb_collective;
             break;
-        case ADJUSTMENT_RESCUE_COLL_BOOST:
-            value = currentPidProfile->rescue_boost;
+        case ADJUSTMENT_RESCUE_HOVER_COLLECTIVE:
+            value = currentPidProfile->rescue.hover_collective;
             break;
-#endif
         case ADJUSTMENT_ANGLE_LEVEL_GAIN:
             value = currentPidProfile->angle.level_strength;
             break;
@@ -348,6 +350,16 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_YAW_FTERM_CUTOFF:
             value = currentPidProfile->fterm_cutoff[PID_YAW];
             break;
+
+        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
+            value = currentPidProfile->rescue.alt_p_gain;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
+            value = currentPidProfile->rescue.alt_i_gain;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
+            value = currentPidProfile->rescue.alt_d_gain;
+            break;
     }
 
     return value;
@@ -440,14 +452,12 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         case ADJUSTMENT_PITCH_IMPULSE_FF:
             currentPidProfile->pitch_collective_ff_impulse_gain = value;
             break;
-#if 0
-        case ADJUSTMENT_RESCUE_COLLECTIVE:
-            currentPidProfile->rescue_collective = value;
+        case ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE:
+            currentPidProfile->rescue.climb_collective = value;
             break;
-        case ADJUSTMENT_RESCUE_COLL_BOOST:
-            currentPidProfile->rescue_boost = value;
+        case ADJUSTMENT_RESCUE_HOVER_COLLECTIVE:
+            currentPidProfile->rescue.hover_collective = value;
             break;
-#endif
         case ADJUSTMENT_ANGLE_LEVEL_GAIN:
             currentPidProfile->angle.level_strength = value;
             break;
@@ -544,6 +554,16 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_YAW_FTERM_CUTOFF:
             currentPidProfile->fterm_cutoff[PID_YAW] = value;
+            break;
+
+        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
+            currentPidProfile->rescue.alt_p_gain = value;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
+            currentPidProfile->rescue.alt_i_gain = value;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
+            currentPidProfile->rescue.alt_d_gain = value;
             break;
     }
 }
