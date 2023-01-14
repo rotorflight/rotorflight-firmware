@@ -267,23 +267,24 @@ bool isSpooledUp(void)
         switch (gov.state)
         {
             case GS_ACTIVE:
-            case GS_RECOVERY:
-            case GS_ZERO_THROTTLE:
-            case GS_LOST_HEADSPEED:
             case GS_AUTOROTATION:
             case GS_AUTOROTATION_BAILOUT:
                 return true;
 
+            case GS_RECOVERY:
+            case GS_SPOOLING_UP:
+            case GS_LOST_HEADSPEED:
+                return (gov.throttle > 0.333f);
+
             case GS_THROTTLE_OFF:
             case GS_THROTTLE_IDLE:
-            case GS_SPOOLING_UP:
+            case GS_ZERO_THROTTLE:
                 return false;
         }
         return false;
     }
     else {
-        if (gov.throttleInput > 0.333f)
-            return true;
+        return (gov.throttle > 0.333f);
     }
 
     return false;

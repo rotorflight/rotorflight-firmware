@@ -83,6 +83,7 @@ typedef struct rcControlsConfig_s {
     uint8_t yaw_deadband;                   // introduce a deadband around the stick center for yaw axis. Must be greater than zero.
     uint8_t alt_hold_deadband;              // defines the neutral zone of throttle stick during altitude hold, default setting is +/-40
     uint8_t alt_hold_fast_change;           // when disabled, turn off the althold when throttle stick is out of deadband defined with alt_hold_deadband; when enabled, altitude changes slowly proportional to stick movement
+    uint8_t movement_threshold[4];
 } rcControlsConfig_t;
 
 PG_DECLARE(rcControlsConfig_t, rcControlsConfig);

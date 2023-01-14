@@ -400,6 +400,7 @@ static uint32_t blackboxLastArmingBeep = 0;
 static uint32_t blackboxLastFlightModeFlags = 0; // New event tracking of flight modes
 static uint8_t  blackboxLastGovState = 0;
 static uint8_t  blackboxLastRescueState = 0;
+static uint8_t  blackboxLastAirborneState = 0;
 
 static struct {
     uint32_t headerIndex;
@@ -979,6 +980,7 @@ static void blackboxStart(void)
 
     blackboxLastGovState = getGovernorState();
     blackboxLastRescueState = getRescueState();
+    blackboxLastAirborneState = isAirborne();
 
     blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
 }
@@ -1484,6 +1486,9 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     case FLIGHT_LOG_EVENT_RESCUE_STATE:
         blackboxWriteUnsignedVB(data->rescueState.rescueState);
         break;
+    case FLIGHT_LOG_EVENT_AIRBORNE_STATE:
+        blackboxWriteUnsignedVB(data->airborneState.airborneState);
+        break;
     case FLIGHT_LOG_EVENT_DISARM:
         blackboxWriteUnsignedVB(data->disarm.reason);
         break;
@@ -1544,6 +1549,13 @@ static void blackboxCheckAndLogFlightMode(void)
         flightLogEvent_rescueState_t eventData;
         eventData.rescueState = blackboxLastRescueState;
         blackboxLogEvent(FLIGHT_LOG_EVENT_RESCUE_STATE, (flightLogEventData_t *)&eventData);
+    }
+
+    if (isAirborne() != blackboxLastAirborneState) {
+        blackboxLastAirborneState = isAirborne();
+        flightLogEvent_airborneState_t eventData;
+        eventData.airborneState = blackboxLastAirborneState;
+        blackboxLogEvent(FLIGHT_LOG_EVENT_AIRBORNE_STATE, (flightLogEventData_t *)&eventData);
     }
 }
 

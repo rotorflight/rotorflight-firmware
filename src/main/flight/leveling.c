@@ -171,7 +171,9 @@ float angleModeApply(int axis, float pidSetpoint)
     {
         float errorAngle = calcLevelErrorAngle(axis);
 
-        // Angle based control
+        if (!isAirborne())
+            errorAngle *= 0.25f;
+
         pidSetpoint = errorAngle * level.Gain;
     }
 
@@ -184,8 +186,9 @@ float horizonModeApply(int axis, float pidSetpoint)
     {
         float errorAngle = calcLevelErrorAngle(axis);
 
-        // HORIZON mode - mix of ANGLE and ACRO modes
-        // mix in errorAngle to setpoint to add a little auto-level feel
+        if (!isAirborne())
+            errorAngle *= 0.25f;
+
         pidSetpoint += errorAngle * horizon.Gain * calcHorizonLevelStrength();
     }
 

@@ -36,3 +36,7 @@ void setpointInitProfile(void);
 void setpointUpdateTiming(float frameTimeUs);
 
 void setpointUpdate(void);
+
+bool isHandsOn(void);
+bool isAirborne(void);
+

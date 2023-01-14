@@ -160,6 +160,10 @@ typedef struct flightLogEvent_rescueState_s {
     uint8_t rescueState;
 } flightLogEvent_rescueState_t;
 
+typedef struct flightLogEvent_airborneState_s {
+    uint8_t airborneState;
+} flightLogEvent_airborneState_t;
+
 typedef struct flightLogEvent_inflightAdjustment_s {
     int32_t newValue;
     float newFloatValue;
@@ -179,6 +183,7 @@ typedef union flightLogEventData_u {
     flightLogEvent_flightMode_t flightMode;
     flightLogEvent_govState_t govState;
     flightLogEvent_rescueState_t rescueState;
+    flightLogEvent_airborneState_t airborneState;
     flightLogEvent_disarm_t disarm;
     flightLogEvent_inflightAdjustment_t inflightAdjustment;
     flightLogEvent_loggingResume_t loggingResume;
