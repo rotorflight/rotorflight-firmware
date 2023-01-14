@@ -254,10 +254,10 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
 #endif
 #endif
 
-    {"vbatLatest",     -1, UNSIGNED, .Ipredict = PREDICT(VBATREF),  .Iencode = ENCODING(NEG_14BIT),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(VOLTAGE)},
-    {"amperageLatest", -1, UNSIGNED, .Ipredict = PREDICT(0),        .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(CURRENT)},
-
     {"rssi",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(RSSI)},
+
+    {"Vbat",       -1, UNSIGNED, .Ipredict = PREDICT(VBATREF), .Iencode = ENCODING(NEG_14BIT),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(VOLTAGE)},
+    {"Ibat",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(CURRENT)},
 
     {"headspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(HEADSPEED)},
     {"tailspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(TAILSPEED)},
@@ -670,6 +670,9 @@ static void writeIntraframe(void)
 #endif
     }
 #endif
+    if (testBlackboxCondition(CONDITION(RSSI))) {
+        blackboxWriteUnsignedVB(blackboxCurrent->rssi);
+    }
 
     if (testBlackboxCondition(CONDITION(VOLTAGE))) {
         blackboxWriteUnsignedVB((vbatReference - blackboxCurrent->voltage) & 0x3FFF);
@@ -677,10 +680,6 @@ static void writeIntraframe(void)
     if (testBlackboxCondition(CONDITION(CURRENT))) {
         blackboxWriteUnsignedVB(blackboxCurrent->current);
     }
-    if (testBlackboxCondition(CONDITION(RSSI))) {
-        blackboxWriteUnsignedVB(blackboxCurrent->rssi);
-    }
-
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         blackboxWriteUnsignedVB(blackboxCurrent->headspeed);
     }
@@ -816,17 +815,18 @@ static void writeInterframe(void)
     }
 #endif
 
-    if (testBlackboxCondition(CONDITION(VOLTAGE))) {
-        deltas[packedFieldCount++] = (int32_t) blackboxCurrent->voltage - blackboxPrev->voltage;
-    }
-    if (testBlackboxCondition(CONDITION(CURRENT))) {
-        deltas[packedFieldCount++] = (int32_t) blackboxCurrent->current - blackboxPrev->current;
-    }
     if (testBlackboxCondition(CONDITION(RSSI))) {
         deltas[packedFieldCount++] = (int32_t) blackboxCurrent->rssi - blackboxPrev->rssi;
     }
 
     blackboxWriteTag8_8SVB(deltas, packedFieldCount);
+
+    if (testBlackboxCondition(CONDITION(VOLTAGE))) {
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->voltage - blackboxPrev->voltage);
+    }
+    if (testBlackboxCondition(CONDITION(CURRENT))) {
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->current - blackboxPrev->current);
+    }
 
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         int32_t predictor = (blackboxHistory[1]->headspeed + blackboxHistory[2]->headspeed) / 2;
@@ -1093,9 +1093,10 @@ static void loadMainState(timeUs_t currentTimeUs)
 #endif
 #endif
 
-    blackboxCurrent->voltage = getBatteryVoltageLatest();
-    blackboxCurrent->current = constrain(getAmperageLatest(), 0, 50000); // 500Amps
     blackboxCurrent->rssi = getRssi();
+
+    blackboxCurrent->voltage = getBatteryVoltageLatest();
+    blackboxCurrent->current = getAmperageLatest();
 
     blackboxCurrent->headspeed = lrintf(getHeadSpeed());
     blackboxCurrent->tailspeed = lrintf(getTailSpeed());
