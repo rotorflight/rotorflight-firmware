@@ -627,15 +627,6 @@ void processRxModes(timeUs_t currentTimeUs)
     acroTrainerSetState(FLIGHT_MODE(TRAINER_MODE));
 #endif // USE_ACRO_TRAINER
 
-    if (FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | TRAINER_MODE | RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)) {
-        LED1_ON;
-        // increase frequency of attitude task to reduce drift
-        rescheduleTask(TASK_ATTITUDE, TASK_PERIOD_HZ(500));
-    } else {
-        LED1_OFF;
-        rescheduleTask(TASK_ATTITUDE, TASK_PERIOD_HZ(100));
-    }
-
     if (!IS_RC_MODE_ACTIVE(BOXPREARM) && ARMING_FLAG(WAS_ARMED_WITH_PREARM)) {
         DISABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
     }
