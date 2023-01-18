@@ -1650,10 +1650,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // Blackbox supported
         sbufWriteU8(dst, blackboxConfig()->device);
         sbufWriteU16(dst, blackboxConfig()->denom);
+        sbufWriteU32(dst, blackboxConfig()->fields);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
+        sbufWriteU32(dst, 0);
 #endif
         break;
 
