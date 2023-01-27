@@ -1118,6 +1118,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, servoParams(i)->rneg);
             sbufWriteU16(dst, servoParams(i)->rpos);
             sbufWriteU16(dst, servoParams(i)->rate);
+            sbufWriteU16(dst, servoParams(i)->speed);
             sbufWriteU16(dst, servoParams(i)->flags);
         }
         break;
@@ -2370,7 +2371,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #ifdef USE_SERVOS
     case MSP_SET_SERVO_CONFIGURATION:
-        if (dataSize != 1 + 14) {
+        if (dataSize != 1 + 16) {
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
@@ -2383,6 +2384,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rneg = sbufReadU16(src);
         servoParamsMutable(i)->rpos = sbufReadU16(src);
         servoParamsMutable(i)->rate = sbufReadU16(src);
+        servoParamsMutable(i)->speed = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
         break;
 

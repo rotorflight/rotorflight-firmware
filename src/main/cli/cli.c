@@ -2049,7 +2049,7 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #ifdef USE_SERVOS
 static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
 {
-    const char *format = "servo %u %u %d %d %u %u %u %u";
+    const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t servoCount = getServoCount();
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
@@ -2069,6 +2069,7 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
                 defaultServoConf->rneg,
                 defaultServoConf->rpos,
                 defaultServoConf->rate,
+                defaultServoConf->speed,
                 defaultServoConf->flags
             );
         }
@@ -2080,6 +2081,7 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
             servoConf->rneg,
             servoConf->rpos,
             servoConf->rate,
+            servoConf->speed,
             servoConf->flags
         );
     }
@@ -2233,9 +2235,9 @@ static void cliServo(const char *cmdName, char *cmdline)
             cliShowInvalidArgumentCountError(cmdName);
         }
     }
-    else if (count == 8) {
-        const char *format = "servo %u %u %d %d %u %u %u %u";
-        enum { INDEX = 0, MID, MIN, MAX, RNEG, RPOS, RATE, FLAGS, ARGS_COUNT };
+    else if (count == 9) {
+        const char *format = "servo %u %u %d %d %u %u %u %u %u";
+        enum { INDEX = 0, MID, MIN, MAX, RNEG, RPOS, RATE, SPEED, FLAGS, ARGS_COUNT };
         int vals[ARGS_COUNT] = { 0, };
         for (int i=0; i<count; i++)
             vals[i] = atoi(args[i]);
@@ -2244,9 +2246,10 @@ static void cliServo(const char *cmdName, char *cmdline)
             vals[MIN] < SERVO_LIMIT_MIN || vals[MIN] > SERVO_LIMIT_MAX  ||
             vals[MAX] < SERVO_LIMIT_MIN || vals[MAX] > SERVO_LIMIT_MAX ||
             vals[MIN] > vals[MAX] ||
-            vals[RNEG] < SERVO_RANGE_MIN || vals[RNEG] > SERVO_RANGE_MAX ||
-            vals[RPOS] < SERVO_RANGE_MIN || vals[RPOS] > SERVO_RANGE_MAX ||
+            vals[RNEG] < SERVO_SCALE_MIN || vals[RNEG] > SERVO_SCALE_MAX ||
+            vals[RPOS] < SERVO_SCALE_MIN || vals[RPOS] > SERVO_SCALE_MAX ||
             vals[RATE] < SERVO_RATE_MIN || vals[RATE] > SERVO_RATE_MAX ||
+            vals[SPEED] < SERVO_SPEED_MIN || vals[SPEED] > SERVO_SPEED_MAX ||
             vals[FLAGS] > SERVO_FLAGS_ALL) {
             cliShowArgumentRangeError(cmdName, NULL, 0, 0);
             return;
@@ -2259,6 +2262,7 @@ static void cliServo(const char *cmdName, char *cmdline)
         servo->rneg = vals[RNEG];
         servo->rpos = vals[RPOS];
         servo->rate = vals[RATE];
+        servo->speed = vals[SPEED];
         servo->flags = vals[FLAGS];
         cliPrintLinef(format,
             index + 1,
@@ -2268,6 +2272,7 @@ static void cliServo(const char *cmdName, char *cmdline)
             servo->rneg,
             servo->rpos,
             servo->rate,
+            servo->speed,
             servo->flags
         );
     }
@@ -6831,7 +6836,7 @@ const clicmd_t cmdTable[] = {
 #endif
 #ifdef USE_SERVOS
     CLI_COMMAND_DEF("servo", "configure servos",
-                    "<servo> <center> <min> <max> <-range> <+range> <update_rate> <flags>\r\n\t"
+                    "<servo> <center> <min> <max> <-scale> <+scale> <update_rate> <speed> <flags>\r\n\t"
                     "status\r\n\t"
                     "flags\r\n\t"
                     "flags <servo> <[+|-]FLAG> ...\r\n\t"

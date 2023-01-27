@@ -47,7 +47,8 @@
 
 static FAST_DATA_ZERO_INIT uint8_t      servoCount;
 
-static FAST_DATA_ZERO_INIT uint16_t     servoOutput[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT float        servoInput[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT float        servoOutput[MAX_SUPPORTED_SERVOS];
 static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
@@ -71,9 +72,10 @@ void pgResetFn_servoParams(servoParam_t *instance)
                      .mid   = DEFAULT_SERVO_CENTER,
                      .min   = DEFAULT_SERVO_MIN,
                      .max   = DEFAULT_SERVO_MAX,
-                     .rneg  = DEFAULT_SERVO_RANGE,
-                     .rpos  = DEFAULT_SERVO_RANGE,
+                     .rneg  = DEFAULT_SERVO_SCALE,
+                     .rpos  = DEFAULT_SERVO_SCALE,
                      .rate  = DEFAULT_SERVO_RATE,
+                     .speed = DEFAULT_SERVO_SPEED,
                      .flags = DEFAULT_SERVO_FLAGS,
         );
     }
@@ -87,7 +89,7 @@ uint8_t getServoCount(void)
 
 uint16_t getServoOutput(uint8_t servo)
 {
-    return servoOutput[servo];
+    return lrintf(servoOutput[servo]);
 }
 
 bool hasServoOverride(uint8_t servo)
@@ -181,6 +183,19 @@ static inline float limitTravel(uint8_t servo, float pos, float min, float max)
     return pos;
 }
 
+static inline float limitSpeed(float speed, float old, float new)
+{
+    float rate = gyro.targetLooptime / (speed * 1000);
+    float diff = new - old;
+
+    if (diff > rate)
+        return old + rate;
+    else if (diff < -rate)
+        return old - rate;
+
+    return new;
+ }
+
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
 static float geometryCorrection(float pos)
 {
@@ -201,25 +216,30 @@ void servoUpdate(void)
         const servoParam_t *servo = servoParams(i);
         float pos = mixerGetServoOutput(i);
 
+        if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
+            pos = servoOverride[i] / 1000.0f;
+
+        if (servo->speed > 0)
+            pos = limitSpeed(servo->speed, servoInput[i], pos);
+
+        servoInput[i] = pos;
+
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
         if (servo->flags & SERVO_FLAG_GEO_CORR)
             pos = geometryCorrection(pos);
 #endif
 
-        if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
-            pos = servoOverride[i] / 1000.0f;
-
         if (servo->flags & SERVO_FLAG_REVERSED)
             pos = -pos;
 
-        float rate = (pos > 0) ? servo->rpos : servo->rneg;
+        float scale = (pos > 0) ? servo->rpos : servo->rneg;
 
-        pos = limitTravel(i, rate * pos, servo->min, servo->max);
+        pos = limitTravel(i, scale * pos, servo->min, servo->max);
         pos = servo->mid + pos;
 
-        servoOutput[i] = lrintf(pos);
+        servoOutput[i] = pos;
 
-        servoWrite(i, servoOutput[i]);
+        servoWrite(i, lrintf(servoOutput[i]));
     }
 }
 

@@ -23,15 +23,18 @@
 #define DEFAULT_SERVO_CENTER  1500
 #define DEFAULT_SERVO_MIN     -500
 #define DEFAULT_SERVO_MAX      500
-#define DEFAULT_SERVO_RANGE    500
+#define DEFAULT_SERVO_SCALE    500
 #define DEFAULT_SERVO_RATE     333
+#define DEFAULT_SERVO_SPEED      0
 
 #define SERVO_LIMIT_MIN      -1000
 #define SERVO_LIMIT_MAX       1000
-#define SERVO_RANGE_MIN        100
-#define SERVO_RANGE_MAX       1000
+#define SERVO_SCALE_MIN        100
+#define SERVO_SCALE_MAX       1000
 #define SERVO_RATE_MIN          50
 #define SERVO_RATE_MAX        1000
+#define SERVO_SPEED_MIN          0
+#define SERVO_SPEED_MAX      60000
 #define SERVO_OVERRIDE_MIN   -2000
 #define SERVO_OVERRIDE_MAX    2000
 #define SERVO_OVERRIDE_OFF   (SERVO_OVERRIDE_MAX + 1)
@@ -46,9 +49,10 @@ typedef struct servoParam_s {
     uint16_t    mid;     // center (mid) point
     int16_t     min;     // lower limit in us from the midpoint
     int16_t     max;     // upper limit in us from the midpoint
-    uint16_t    rneg;    // negative range (slope) in us
-    uint16_t    rpos;    // positive range (slope) in us
+    uint16_t    rneg;    // negative scale (slope) in us
+    uint16_t    rpos;    // positive scale (slope) in us
     uint16_t    rate;    // servo update rate Hz
+    uint16_t    speed;   // speed limit
     uint16_t    flags;   // feature flags
 } servoParam_t;
 
