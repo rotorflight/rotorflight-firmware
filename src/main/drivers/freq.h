@@ -17,11 +17,12 @@
 
 #pragma once
 
-#define FREQ_SENSOR_PORT_COUNT 2
+#define FREQ_SENSOR_PORT_COUNT 4
 
 struct freqConfig_s;
 
 void freqInit(const struct freqConfig_s *freqConfig);
+void freqUpdate(void);
 
 float freqRead(uint8_t port);
 
