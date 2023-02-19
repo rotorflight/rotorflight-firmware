@@ -78,6 +78,8 @@ void getLedHsv(uint16_t index, hsvColor_t *color);
 void scaleLedValue(uint16_t index, const uint8_t scalePercent);
 void setLedValue(uint16_t index, const uint8_t value);
 
+void setLedsWithInvertedLedFormat(uint32_t leds);
+
 void setStripColor(const hsvColor_t *color);
 void setStripColors(const hsvColor_t *colors);
 

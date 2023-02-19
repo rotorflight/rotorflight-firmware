@@ -75,6 +75,8 @@ static bool needsFullRefresh = true;
 uint16_t BIT_COMPARE_1 = 0;
 uint16_t BIT_COMPARE_0 = 0;
 
+uint32_t ledsWithInvertedLedFormat = 0;
+
 static hsvColor_t ledColorBuffer[WS2811_DATA_BUFFER_SIZE];
 
 #if !defined(USE_WS2811_SINGLE_COLOUR)
@@ -96,6 +98,12 @@ void setLedValue(uint16_t index, const uint8_t value)
 void scaleLedValue(uint16_t index, const uint8_t scalePercent)
 {
     ledColorBuffer[index].v = ((uint16_t)ledColorBuffer[index].v * scalePercent / 100);
+}
+
+void setLedsWithInvertedLedFormat(uint32_t leds)
+{
+    // Adds support for RGB and GRB leds on the same strip.
+    ledsWithInvertedLedFormat = leds;
 }
 #endif
 
@@ -208,7 +216,8 @@ void ws2811UpdateStrip(ledStripFormatRGB_e ledFormat, uint8_t brightness)
 
         rgbColor24bpp_t *rgb24 = hsvToRgb24(&scaledLed);
 
-        updateLEDDMABuffer(ledFormat, rgb24, ledIndex++);
+        updateLEDDMABuffer(ledFormat ^ ((ledsWithInvertedLedFormat >> ledIndex) & 1), rgb24, ledIndex);
+        ++ledIndex;
     }
     needsFullRefresh = false;
 

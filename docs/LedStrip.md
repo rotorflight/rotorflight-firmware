@@ -5,7 +5,7 @@ Betaflight supports the use of addressable LED strips.  Addressable LED strips a
 
 ## LED Strip Profiles
 
-The LED strip feature supports 3 LED strip profiles, STATUS, RACE and BEACON.  The selected profile can be changed from the CLI, OSD LED strip menu or from an adjustment channel, i.e. switch on your radio.  Take note that the adjustment channel from your radio overrides all other LED strip profile selection options.
+The LED strip feature supports 4 LED strip profiles, STATUS, STATUS_DIMMED, RACE and BEACON.  The selected profile can be changed from the CLI, OSD LED strip menu or from an adjustment channel, i.e. switch on your radio.  Take note that the adjustment channel from your radio overrides all other LED strip profile selection options.
 
 
 ### STATUS Profile
@@ -23,6 +23,10 @@ Addressable LED strips can be used to show information from the flight controlle
 * GPS state.
 * RSSI level.
 * Battery level.
+
+### STATUS_DIMMED Profile
+
+The STATUS_DIMMED profile equals the STATUS_PROFILE, except for LEDs with the Dimmed overlay, which are dimmed in this profile.
 
 
 ### RACE Profile
@@ -47,7 +51,7 @@ The BEACON profile is used to find a lost quad, it flashes all LEDs white once p
     - Select the "via channel" to match the selected AUX channel of above. ("when channel").
     - Save
 3. Open the CLI and type ```adjrange``` followed by enter.
-4. Copy the adjrange configured in step 2. above and paste it in the command window.  Change the '1' following the range of the channel to '30' and press enter.  Type ```save``` and press enter.  The configured adjrange will now be saved and the FC will reboot.
+4. Copy the adjrange configured in step 2. above and paste it in the command window.  Change the '1' following the range of the channel to '48' and press enter.  Type ```save``` and press enter.  The configured adjrange will now be saved and the FC will reboot.
 5. Configure the AUX channel on your radio.  When this channel is changed the selected LED strip profile will change between STATUS, RACE and BEACON, you should see the LED function change as you do this.
 
 
@@ -85,7 +89,7 @@ Only strips of 32 WS2811/WS2812 LEDs are supported currently.  If the strip is l
 
 WS2812 LEDs require an 800khz signal and precise timings and thus requires the use of a dedicated hardware timer.
 
-Note: Not all WS2812 ICs use the same timings, some batches use different timings.  
+Note: Not all WS2812 ICs use the same timings, some batches use different timings.
 
 It could be possible to be able to specify the timings required via CLI if users request it.
 
@@ -126,6 +130,14 @@ set ledstrip_grb_rgb = GRBW
 
 Then confirm the required setting by simply setting an LED to be green. If it lights up red, you have the wrong setting.
 Afterwards check if the second LED also lights up red - if not, you might have 4-color SK6812 LEDs and would have to select GRBW.
+
+###### Combining RGB and GBR(W) LEDs
+
+If you're using both WS2811 and WS2812/SK6812 LEDs, set `ledstrip_grb_rgb` to `GRB` or `GRBW`. The colors of the WS2811 LEDs will then be incorrect. To correct this, indicate which LEDs use RGB by specifying those LEDs in `ledstrip_inverted_format` - a 32 bit bitmask. For example, if LED 1 and 4 use RGB, specify 1 + 8 = 9:
+
+```
+set ledstrip_inverted_format = 9
+```
 
 ## Connections
 
@@ -173,10 +185,10 @@ The `led` command takes either zero or two arguments - an zero-based led number 
 
 If used with zero arguments it prints out the led configuration which can be copied for future reference.
 
-Each led is configured using the following template: `x,y:ddd:mmm:cc`
+Each led is configured using the following template: `x,y:direction:mode:color:blinkpattern:blinkpause:alternatecolor`
 
 `x` and `y` are grid coordinates of a 0 based 16x16 grid, north west is 0,0, south east is 15,15
-`ddd` specifies the directions, since an led can face in any direction it can have multiple directions.  Directions are:
+`direction` specifies the directions, since an led can face in any direction it can have multiple directions.  Directions are:
 
  `N` - North
  `E` - East
@@ -189,7 +201,7 @@ For instance, an LED that faces South-east at a 45 degree downwards angle could 
 
 Note: It is perfectly possible to configure an LED to have all directions `NESWUD` but probably doesn't make sense.
 
-`mmm` specifies the modes that should be applied an LED.
+`mode` specifies the modes that should be applied an LED. A mode consists of a base function and zero or more overlays.
 
 Each LED has one base function:
 
@@ -201,27 +213,35 @@ Each LED has one base function:
 * `S` - R`S`SSI level.
 * `L` - Battery `L`evel.
 
-And each LED has overlays:
+And each LED can have one ore more overlays:
 
 * `W` - `W`warnings.
 * `I` - `I`ndicator.
 * `T` - `T`hrust state.
-* `B` - `B`link (flash twice) mode.
+* `B` - `B`link mode.
 * `O` - Lars`O`n Scanner (Cylon Effect).
 * `V` - `V`TX Frequency.
+* `K` - Flic`K`er.
+* `D` - `D`immed.
 
-`cc` specifies the color number (0 based index).
+`color` specifies the color number (0 based index).
+
+`blinkpattern` specifies a 16 bit bitmask which indicates when a LED should blink. Example: two fast blinks would be 5 (binary 101), two slow blinks 3855 (binary 111100001111).
+
+`blinkpause` specifies whether blinking should pause after the blink pattern has been finished. A value of `0` doesn't pause blinking, a value of `3` pauses the blinking for three subsequent rounds.
+
+`alternatecolor` specifies the color for: a. blinking; b. dimming (usually black).
 
 Example:
 
 ```
-led 0 0,15:SD:AWI:0
-led 1 15,0:ND:AWI:0
-led 2 0,0:ND:AWI:0
-led 3 0,15:SD:AWI:0
-led 4 7,7::C:1
-led 5 8,8::C:2
-led 6 8,9::B:1
+led 0 0,15:SD:AWI:0:0:0:0
+led 1 15,0:ND:AWI:0:0:0:0
+led 2 0,0:ND:AWI:0:0:0:0
+led 3 0,15:SD:AWI:0:0:0:0
+led 4 7,7::C:1:0:0:0
+led 5 8,8::C:2:0:0:0
+led 6 8,9::CB:1:3855:0:2
 ```
 
 To erase an led, and to mark the end of the chain, use `0,0::` as the second argument, like this:
@@ -267,7 +287,7 @@ This mode binds the LED color to RSSI level.
 | Orange     |    40%   |
 | Red        |    20%   |
 | Deep pink  |     0%   |
-    
+
 When RSSI is below 50% is reached, LEDs will blink slowly, and they will blink fast when under 20%.
 
 
@@ -283,18 +303,26 @@ This mode binds the LED color to remaining battery capacity.
 | Orange     |    40%   |
 | Red        |    20%   |
 | Deep pink  |     0%   |
-    
+
 When Warning or Critical voltage is reached, LEDs will blink slowly or fast.
 Note: this mode requires a current sensor. If you don't have the actual device you can set up a virtual current sensor (see [Battery](Battery.md)).
 
 #### Blink
 
-This mode blinks the current LED, alternatively from black to the current active color.
+This overlay makes the LED blink from the current active color to the alternate color. You can set the blink rate using `ledstrip_blink_period_ms`.
+
+#### Flicker
+
+This overlay makes the LED flicker, a bit like a candle. Set the flicker rate using `ledstrip_flicker_rate`.
+
+### Dimmed
+
+A led with this overlay will fade to the alternate color in the profile STATUS_DIMMED. Specify Black as the alternate color to turn LEDs of (e.g. landing lights). You can set the dimmer rate with `ledstrip_dimmer_rate`.
 
 #### Larson Scanner (Cylon Effect)
 
 The Larson Scanner replicates the scanning "eye" effect seen on the mechanical Cylons and on Kitt from Knight Rider.
-This overlay dims all of the LEDs it is assigned to and brightens certain ones at certain times in accordance with the animation. The animation is active regardless of arm state. 
+This overlay dims all of the LEDs it is assigned to and brightens certain ones at certain times in accordance with the animation. The animation is active regardless of arm state.
 
 #### VTX Frequency
 
@@ -336,7 +364,7 @@ This mode flashes LEDs that correspond to roll and pitch stick positions.  i.e. 
 | Mode | Direction | LED Color |
 |------------|--------|---------------------|
 |Orientation | North  | WHITE			|
-|Orientation | East   | DARK VIOLET	|  
+|Orientation | East   | DARK VIOLET	|
 |Orientation | South  | RED			|
 |Orientation | West   | DEEP PINK		|
 |Orientation | Up     | BLUE			|
@@ -397,7 +425,7 @@ LED direction and X/Y positions are irrelevant for thrust ring LED state.  The o
 
 Each LED of the ring can be a different color. The color can be selected between the 16 colors available.
 
-For example, led 0 is set as a `R`ing thrust state led in color 13 as follow. 
+For example, led 0 is set as a `R`ing thrust state led in color 13 as follow.
 
 ```
 led 0 2,2::R:13
@@ -413,7 +441,7 @@ x,y position and directions are ignored when using this mode.
 
 Other modes will override or combine with the color mode.
 
-For example, to set led 0 to always use color 10 you would issue this command. 
+For example, to set led 0 to always use color 10 you would issue this command.
 
 ```
 led 0 0,0::C:10
@@ -512,7 +540,7 @@ Mode 6 use these functions:
 | 5        | gps: no satellites |
 | 6        | gps: no fix        |
 | 7        | gps: 3D fix        |
- 
+
 The ColorIndex is picked from the colors array ("palette").
 
 Mode 7 is used along with Thrust state to make the LED color dependent on a channel different from the throttle.
@@ -616,13 +644,13 @@ Which translates into the following positions:
 
 ```
      6             3
-      \           / 
-       \   5-4   / 
+      \           /
+       \   5-4   /
       7 \ FRONT / 2
-        | 12-15 | 
+        | 12-15 |
       8 /  BACK \ 1
        /  10-11  \
-      /           \ 
+      /           \
      9             0
 ```
 
@@ -630,7 +658,7 @@ LEDs 0,3,6 and 9 should be placed underneath the quad, facing downwards.
 LEDs 1-2, 4-5, 7-8 and 10-11 should be positioned so the face east/north/west/south, respectively.
 LEDs 12-13 should be placed facing down, in the middle
 LEDs 14-15 should be placed facing up, in the middle
- 
+
 ### Example 28 LED config
 
 ```
@@ -672,12 +700,12 @@ led 27 2,9:S:FWT:0
 ```
        16-18  9-11
 19-21 \           / 6-8
-       \  12-15  / 
+       \  12-15  /
         \ FRONT /
         /  BACK \
        /         \
 22-24 /           \ 3-5
-       25-27   0-2  
+       25-27   0-2
 ```
 
 All LEDs should face outwards from the chassis in this configuration.
