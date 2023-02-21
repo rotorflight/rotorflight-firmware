@@ -34,6 +34,7 @@ sbuf_t *sbufInit(sbuf_t *sbuf, uint8_t *ptr, uint8_t *end);
 void sbufWriteU8(sbuf_t *dst, uint8_t val);
 void sbufWriteU16(sbuf_t *dst, uint16_t val);
 void sbufWriteU32(sbuf_t *dst, uint32_t val);
+void sbufWriteU64(sbuf_t *dst, uint64_t val);
 void sbufWriteU16BigEndian(sbuf_t *dst, uint16_t val);
 void sbufWriteU32BigEndian(sbuf_t *dst, uint32_t val);
 void sbufFill(sbuf_t *dst, uint8_t data, int len);
@@ -44,6 +45,7 @@ void sbufWriteStringWithZeroTerminator(sbuf_t *dst, const char *string);
 uint8_t sbufReadU8(sbuf_t *src);
 uint16_t sbufReadU16(sbuf_t *src);
 uint32_t sbufReadU32(sbuf_t *src);
+uint64_t sbufReadU64(sbuf_t *src);
 void sbufReadData(sbuf_t *dst, void *data, int len);
 
 int sbufBytesRemaining(sbuf_t *buf);

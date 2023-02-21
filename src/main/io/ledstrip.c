@@ -35,6 +35,7 @@
 #include "common/color.h"
 #include "common/maths.h"
 #include "common/printf.h"
+#include "common/strtol.h"
 #include "common/typeconversion.h"
 #include "common/utils.h"
 
@@ -131,6 +132,10 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_beacon_armed_only = false; // blink always
     ledStripConfig->ledstrip_visual_beeper_color = VISUAL_BEEPER_COLOR;
     ledStripConfig->ledstrip_brightness = 100;
+    ledStripConfig->ledstrip_blink_period_ms = 100;
+    ledStripConfig->ledstrip_flicker_rate = 50;
+    ledStripConfig->ledstrip_dimmer_rate = 50;
+    ledStripConfig->ledstrip_inverted_format = 0;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
 #endif
@@ -273,12 +278,18 @@ STATIC_UNIT_TESTED void updateLedCount(void)
     setUsedLedCount(ledCounts.count);
 }
 
+void updateBlinkPauses() {
+    memset(ledCounts.blinkPauses, 0, sizeof(ledCounts.blinkPauses));
+}
+
 void reevaluateLedConfig(void)
 {
     updateLedCount();
     updateDimensions();
     updateLedRingCounts();
     updateRequiredOverlay();
+    updateBlinkPauses();
+    setLedsWithInvertedLedFormat(ledStripConfig()->ledstrip_inverted_format);
 }
 
 // get specialColor by index
@@ -289,7 +300,7 @@ static const hsvColor_t* getSC(ledSpecialColorIds_e index)
 
 static const char directionCodes[LED_DIRECTION_COUNT] = { 'N', 'E', 'S', 'W', 'U', 'D' };
 static const char baseFunctionCodes[LED_BASEFUNCTION_COUNT]   = { 'C', 'F', 'A', 'L', 'S', 'G', 'R' };
-static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W' };
+static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W', 'K', 'D' };
 
 #define CHUNK_BUFFER_SIZE 11
 bool parseLedStripConfig(int ledIndex, const char *config)
@@ -303,9 +314,12 @@ bool parseLedStripConfig(int ledIndex, const char *config)
         DIRECTIONS,
         FUNCTIONS,
         RING_COLORS,
+        BLINK_PATTERN,
+        BLINK_PAUSE,
+        ALT_COLOR,
         PARSE_STATE_COUNT
     };
-    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', '\0'};
+    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', ':', ':', '\0'};
 
     ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[ledIndex];
     memset(ledConfig, 0, sizeof(ledConfig_t));
@@ -314,6 +328,7 @@ bool parseLedStripConfig(int ledIndex, const char *config)
     int baseFunction = 0;
     int overlay_flags = 0;
     int direction_flags = 0;
+    uint64_t blinkPattern = 0, blinkPause = 0, altColor = 0;
 
     for (enum parseState_e parseState = 0; parseState < PARSE_STATE_COUNT; parseState++) {
         char chunk[CHUNK_BUFFER_SIZE];
@@ -368,11 +383,23 @@ bool parseLedStripConfig(int ledIndex, const char *config)
                 if (color >= LED_CONFIGURABLE_COLOR_COUNT)
                     color = 0;
                 break;
+            case BLINK_PATTERN:
+                blinkPattern = atoui(chunk);
+                break;
+            case BLINK_PAUSE:
+                blinkPause = atoui(chunk);
+                break;
+            case ALT_COLOR:
+                altColor = atoui(chunk);
+                if (altColor >= LED_CONFIGURABLE_COLOR_COUNT)
+                    altColor = 0;
+                break;
+
             case PARSE_STATE_COUNT:; // prevent warning
         }
     }
 
-    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0);
+    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern, blinkPause, altColor);
 
     reevaluateLedConfig();
 
@@ -405,7 +432,7 @@ void generateLedConfig(ledConfig_t *ledConfig, char *ledConfigBuffer, size_t buf
     *fptr = 0;
 
     // TODO - check buffer length
-    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig));
+    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig), ledGetBlinkPause(ledConfig), ledGetAltColor(ledConfig));
 }
 
 typedef enum {
@@ -940,34 +967,136 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
-// blink twice, then wait ; either always or just when landing
-static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
+static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
 {
-    const uint16_t blinkPattern = 0x8005; // 0b1000000000000101;
-    static uint16_t blinkMask;
-
     if (updateNow) {
-        blinkMask = blinkMask >> 1;
-        if (blinkMask <= 1)
-            blinkMask = blinkPattern;
-
-        *timer += HZ_TO_US(10);
+        int flickerRate = 100 - ledStripConfig()->ledstrip_flicker_rate;
+        *timer += (20 + randomInt(0, flickerRate)) * 1000 ;
     }
 
-    bool ledOn = (blinkMask & 1);  // b_b_____...
-    if (!ledOn) {
-        for (int i = 0; i < ledCounts.count; ++i) {
-            const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_FLICKER))
+            continue;
 
-            if (ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK)) {
-                setLedHsv(i, getSC(LED_SCOLOR_BLINKBACKGROUND));
+        if (rand() % 5 == 0) {
+            hsvColor_t color;
+            getLedHsv(i, &color);
+            color.v = randomInt(1, 256);
+            setLedHsv(i, &color);
+        }
+    }
+}
+
+typedef struct dimmerParameters_s {
+    ledProfile_e previousLedProfile;
+    int16_t currentBrightness;
+    int8_t direction;
+} dimmerParameters_t;
+
+static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
+{
+    static dimmerParameters_t dimmerParameters = { LED_PROFILE_STATUS, 0, 1 };
+    const int16_t maxBrightness = 500;
+
+    if (updateNow) {
+        *timer += HZ_TO_US(60);
+    }
+
+    if (dimmerParameters.previousLedProfile != ledStripConfig()->ledstrip_profile) {
+        if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_DIMMED) {
+            // Start dimming
+            dimmerParameters.direction = -1;
+            dimmerParameters.currentBrightness = maxBrightness;
+        } else {
+            // Start brightening
+            dimmerParameters.direction = 1;
+            dimmerParameters.currentBrightness = 0;
+        }
+        dimmerParameters.previousLedProfile = ledStripConfig()->ledstrip_profile;
+    }
+
+    if (dimmerParameters.direction != 0) {
+        int8_t step = ledStripConfig()->ledstrip_dimmer_rate;
+
+        if (dimmerParameters.direction == -1) {
+            if (ledStripConfig()->ledstrip_dimmer_rate <= 20 && dimmerParameters.currentBrightness < 50) {
+                // Slow down dimming even more when dimmer rate is low.
+                step = -MIN(1 + dimmerParameters.currentBrightness/5, step);
+            } else {
+                step = -step;
             }
+        }
+
+        dimmerParameters.currentBrightness += step;
+
+        if (dimmerParameters.currentBrightness > maxBrightness) {
+            dimmerParameters.currentBrightness = maxBrightness;
+            dimmerParameters.direction = 0;
+        } else if (dimmerParameters.currentBrightness < 0) {
+            dimmerParameters.currentBrightness = 0;
+            dimmerParameters.direction = 0;
+        }
+    }
+
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_DIMMER))
+            continue;
+
+        hsvColor_t color, altColor;
+        color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
+        altColor = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
+
+        hsvColor_t currentColor;
+        currentColor.h = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.h, color.h);
+        currentColor.s = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.s, color.s);
+        currentColor.v = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.v, color.v);
+        setLedHsv(i, &currentColor);
+    }
+}
+
+static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
+{
+    const int patternBits = 15;
+    static int currentPatternBit = patternBits;
+    bool finishedPattern = false;
+
+    if (updateNow) {
+        if (--currentPatternBit == -1) {
+            currentPatternBit = patternBits;
+            finishedPattern = true;
+        }
+
+        *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
+    }
+
+    uint16_t patternMask = 1 << currentPatternBit;
+
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK))
+            continue;
+
+        int blinkPause = ledGetBlinkPause(ledConfig);
+        if (blinkPause > 0 && finishedPattern) {
+            if (++ledCounts.blinkPauses[i] > blinkPause) {
+                ledCounts.blinkPauses[i] = 0;
+            }
+        }
+
+        bool ledOn = ledCounts.blinkPauses[i] > 0 ? false : ledGetBlinkPattern(ledConfig) & patternMask;
+        if (ledOn) {
+            hsvColor_t altColor = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
+            setLedHsv(i, &altColor);
         }
     }
 }
 
 // In reverse order of priority
 typedef enum {
+    timFlicker,
+    timDimmer,
     timBlink,
     timLarson,
     timRing,
@@ -997,6 +1126,8 @@ STATIC_ASSERT(timTimerCount <= sizeof(disabledTimerMask) * 8, disabledTimerMask_
 typedef void applyLayerFn_timed(bool updateNow, timeUs_t *timer);
 
 static applyLayerFn_timed* layerTable[] = {
+    [timFlicker] = &applyLedFlickerLayer,
+    [timDimmer] = &applyLedDimmerLayer,
     [timBlink] = &applyLedBlinkLayer,
     [timLarson] = &applyLarsonScannerLayer,
     [timBattery] = &applyLedBatteryLayer,
@@ -1026,6 +1157,8 @@ bool isOverlayTypeUsed(ledOverlayId_e overlayType)
 void updateRequiredOverlay(void)
 {
     disabledTimerMask = 0;
+    disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_FLICKER) << timFlicker;
+    disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_DIMMER) << timDimmer;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_BLINK) << timBlink;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_LARSON_SCANNER) << timLarson;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_WARNING) << timWarning;
@@ -1254,7 +1387,8 @@ void ledStripUpdate(timeUs_t currentTimeUs)
     if (ledStripEnabled) {
         switch (ledStripConfig()->ledstrip_profile) {
 #ifdef USE_LED_STRIP_STATUS_MODE
-            case LED_PROFILE_STATUS: {
+            case LED_PROFILE_STATUS:
+            case LED_PROFILE_STATUS_DIMMED: {
                 applyStatusProfile(currentTimeUs);
                 break;
             }

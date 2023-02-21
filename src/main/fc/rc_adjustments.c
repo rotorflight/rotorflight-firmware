@@ -132,7 +132,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(SWASH_PHASE,        MIX,  -1800, 1800),
 
     ADJ_CONFIG(OSD_PROFILE,        NONE,  1,  3),
-    ADJ_CONFIG(LED_PROFILE,        NONE,  1,  3),
+    ADJ_CONFIG(LED_PROFILE,        NONE,  1,  4),
     ADJ_CONFIG(PID_PROFILE,        NONE,  1,  6),
     ADJ_CONFIG(RATE_PROFILE,       NONE,  1,  6),
 
