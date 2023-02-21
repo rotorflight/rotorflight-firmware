@@ -1473,6 +1473,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->swash_trim[0]);
         sbufWriteU8(dst, mixerConfig()->swash_trim[1]);
         sbufWriteU8(dst, mixerConfig()->swash_trim[2]);
+        sbufWriteU16(dst, mixerConfig()->total_pitch_limit);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2903,6 +2904,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_trim[0] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[1] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[2] = sbufReadU8(src);
+        mixerConfigMutable()->total_pitch_limit = sbufReadU16(src);
         mixerInitConfig();
         break;
 

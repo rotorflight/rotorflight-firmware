@@ -58,9 +58,11 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .tail_rotor_mode = TAIL_MODE_VARIABLE,
     .tail_motor_idle = 0,
     .swash_type = SWASH_TYPE_NONE,
-    .swash_ring = 0,
+    .swash_ring = 100,
     .swash_phase = 0,
-    .coll_correction = 0,
+    .swash_trim = { 0, 0, 0 },
+    .total_pitch_limit = 0,
+    .coll_rpm_correction = 0,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
@@ -91,7 +93,10 @@ typedef struct {
     float           swashTrim[3];
 
     float           cyclicTotal;
-    float           cyclicLimit;
+    float           cyclicRingLimit;
+    float           cyclicPitchLimit;
+
+    float           totalPitchLimit;
 
     float           phaseSin;
     float           phaseCos;
@@ -198,27 +203,21 @@ float mixerGetInput(uint8_t i)
 
 /** Internal functions **/
 
-static void mixerSetInput(int index, float value)
+static inline void mixerApplyInputLimit(int index, float value)
 {
     const mixerInput_t *in = mixerInputs(index);
 
-    // Check override only if not armed
-    if (!ARMING_FLAG(ARMED)) {
-        if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX)
-            value = mixer.override[index] / 1000.0f;
-    }
-
     // Input limits
-    const float imin = in->min / 1000.0f;
-    const float imax = in->max / 1000.0f;
+    const float in_min = in->min / 1000.0f;
+    const float in_max = in->max / 1000.0f;
 
     // Constrain and saturate
-    if (value > imax) {
-        mixer.input[index] = imax;
+    if (value > in_max) {
+        mixer.input[index] = in_max;
         mixerSaturateInput(index);
     }
-    else if (value < imin) {
-        mixer.input[index] = imin;
+    else if (value < in_min) {
+        mixer.input[index] = in_min;
         mixerSaturateInput(index);
     }
     else {
@@ -226,10 +225,21 @@ static void mixerSetInput(int index, float value)
     }
 }
 
+static void mixerSetInput(int index, float value)
+{
+    // Set override only if not armed
+    if (!ARMING_FLAG(ARMED)) {
+        if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX)
+            value = mixer.override[index] / 1000.0f;
+    }
+
+    mixerApplyInputLimit(index, value);
+}
+
 static void mixerUpdateCyclic(void)
 {
     // Swashring enabled
-    if (mixer.cyclicLimit > 0)
+    if (mixer.cyclicRingLimit > 0)
     {
         float SR = mixer.input[MIXER_IN_STABILIZED_ROLL];
         float SP = mixer.input[MIXER_IN_STABILIZED_PITCH];
@@ -238,12 +248,18 @@ static void mixerUpdateCyclic(void)
         const mixerInput_t *mixP = mixerInputs(MIXER_IN_STABILIZED_PITCH);
 
         // Assume min<0 and max>0 for cyclic & pitch
-        const float maxR = abs((SR < 0) ? mixR->min : mixR->max) / 1000.0f;
-        const float maxP = abs((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
+        float maxR = abs((SR < 0) ? mixR->min : mixR->max) / 1000.0f;
+        float maxP = abs((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
+
+        // Apply total cyclic limit
+        if (mixer.totalPitchLimit > 0) {
+            maxR = fminf(maxR, mixer.cyclicPitchLimit);
+            maxP = fminf(maxP, mixer.cyclicPitchLimit);
+        }
 
         // Stretch the limits to the unit circle
-        SR /= fmaxf(maxR, 0.001f) * mixer.cyclicLimit;
-        SP /= fmaxf(maxP, 0.001f) * mixer.cyclicLimit;
+        SR /= fmaxf(maxR, 0.001f) * mixer.cyclicRingLimit;
+        SP /= fmaxf(maxP, 0.001f) * mixer.cyclicRingLimit;
 
         // Stretched cyclic deflection
         const float cyclic = sqrtf(sq(SR) + sq(SP));
@@ -276,15 +292,20 @@ static void mixerUpdateCyclic(void)
 
 static void mixerUpdateCollective(void)
 {
-    if (mixerConfig()->coll_correction) {
+    if (mixerConfig()->coll_rpm_correction) {
         // Headspeed fluctuation ratio
         const float ratio = constrainf(getHeadSpeedRatio(), 0.90f, 1.25f);
 
         // Lift increases with RPM^2
-        const float factor = 1.0f / (ratio * ratio);
+        const float coll = mixer.input[MIXER_IN_STABILIZED_COLLECTIVE] / (ratio * ratio);
 
-        // Apply correction factor
-        mixer.input[MIXER_IN_STABILIZED_COLLECTIVE] *= factor;
+        // Apply correction with limits
+        mixerApplyInputLimit(MIXER_IN_STABILIZED_COLLECTIVE, coll);
+    }
+
+    // Limit cyclic if needed
+    if (mixer.totalPitchLimit > 0) {
+        mixer.cyclicPitchLimit = fmaxf(mixer.totalPitchLimit - fabsf(mixer.input[MIXER_IN_STABILIZED_COLLECTIVE]), 0);
     }
 }
 
@@ -448,11 +469,11 @@ static void mixerUpdateInputs(void)
     mixerSetInput(MIXER_IN_STABILIZED_YAW, pidGetOutput(PID_YAW));
     mixerSetInput(MIXER_IN_STABILIZED_COLLECTIVE, pidGetCollective());
 
-    // Calculate cyclic
-    mixerUpdateCyclic();
-
     // Calculate collective
     mixerUpdateCollective();
+
+    // Calculate cyclic
+    mixerUpdateCyclic();
 
     // Update governor sub-mixer
     governorUpdate();
@@ -461,8 +482,7 @@ static void mixerUpdateInputs(void)
     mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
     // Update motorized tail
-    if (mixerMotorizedTail())
-        mixerUpdateMotorizedTail();
+    mixerUpdateMotorizedTail();
 
 #ifdef USE_MIXER_HISTORY
     // Update historical values
@@ -530,10 +550,16 @@ void INIT_CODE mixerInitConfig(void)
         mixer.phaseCos = 1;
     }
 
-    if (mixerConfig()->swash_ring)
-        mixer.cyclicLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
-    else
-        mixer.cyclicLimit = 0;
+    if (mixerConfig()->total_pitch_limit) {
+        mixer.cyclicRingLimit = 1.0f;
+        mixer.totalPitchLimit = mixerConfig()->total_pitch_limit / 1000.0f;
+    }
+    else {
+        if (mixerConfig()->swash_ring)
+            mixer.cyclicRingLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
+        else
+            mixer.cyclicRingLimit = 0;
+    }
 
     for (int i = 0; i < 3; i++)
         mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;

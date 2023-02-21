@@ -884,7 +884,8 @@ const clivalue_t valueTable[] = {
     { "swash_ring",                 VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_ring) },
     { "swash_phase",                VAR_INT16  | MASTER_VALUE,  .config.minmax = { -1800, 1800 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_phase) },
     { "swash_trim",                 VAR_INT8   | MASTER_VALUE | MODE_ARRAY, .config.array.length = 3, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_trim) },
-    { "collective_correction",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, coll_correction) },
+    { "total_blade_pitch_limit",    VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 3000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, total_pitch_limit) },
+    { "collective_rpm_correction",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, coll_rpm_correction) },
 
 // PG_GOVERNOR_CONFIG
     { "gov_mode",                   VAR_UINT8  |  MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },

@@ -130,7 +130,9 @@ typedef struct
     int16_t   swash_phase;      // Swashplate phasing angle
     int8_t    swash_trim[3];    // Swashplate leveling trim
 
-    uint8_t   coll_correction;  // Collective correction vs. headspeed
+    uint16_t  total_pitch_limit;  // Maximum main rotor blade pitch
+
+    uint8_t   coll_rpm_correction;  // Collective correction vs. headspeed
 
 } mixerConfig_t;
 
