@@ -97,8 +97,8 @@
 #define MSP_SET_RSSI_CONFIG                  51
 #define MSP_ADJUSTMENT_RANGES                52
 #define MSP_SET_ADJUSTMENT_RANGE             53
-#define MSP_CF_SERIAL_CONFIG                 54
-#define MSP_SET_CF_SERIAL_CONFIG             55
+#define MSP_SERIAL_CONFIG                    54
+#define MSP_SET_SERIAL_CONFIG                55
 #define MSP_VOLTAGE_METER_CONFIG             56
 #define MSP_SET_VOLTAGE_METER_CONFIG         57
 #define MSP_SONAR_ALTITUDE                   58

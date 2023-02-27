@@ -17,6 +17,3 @@
  *
  * If not, see <http://www.gnu.org/licenses/>.
  */
-
-#define MSP2_COMMON_SERIAL_CONFIG       0x1009
-#define MSP2_COMMON_SET_SERIAL_CONFIG   0x100A
