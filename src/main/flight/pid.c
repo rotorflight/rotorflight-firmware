@@ -249,12 +249,12 @@ static inline void rotateAxisError(void)
         const float y = pid.data[PID_PITCH].axisError;
         const float r = gyro.gyroADCf[Z] * RAD * pid.dT;
 
-        const float a = r * r / 2;
-        const float c = 1 - a + (a * a / 6);
-        const float s = r * (1 - a / 3);
+        const float t = r * r / 2;
+        const float C = t * (1 - t / 6);
+        const float S = r * (1 - t / 3);
 
-        pid.data[PID_ROLL].axisError  = x * c + y * s;
-        pid.data[PID_PITCH].axisError = y * c - x * s;
+        pid.data[PID_ROLL].axisError  -= x * C - y * S;
+        pid.data[PID_PITCH].axisError -= y * C + x * S;
     }
 }
 
