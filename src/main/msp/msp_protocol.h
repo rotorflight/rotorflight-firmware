@@ -160,6 +160,7 @@
 #define MSP_SERVO_CONFIGURATIONS             120
 #define MSP_NAV_STATUS                       121
 #define MSP_NAV_CONFIG                       122
+#define MSP_ESC_SENSOR_CONFIG                123
 
 #define MSP_RC_DEADBAND                      125
 #define MSP_SENSOR_ALIGNMENT                 126
@@ -170,7 +171,6 @@
 #define MSP_MOTOR_CONFIG                     131
 #define MSP_GPS_CONFIG                       132
 
-#define MSP_ESC_SENSOR_DATA                  134
 #define MSP_GPS_RESCUE                       135
 #define MSP_GPS_RESCUE_PIDS                  136
 #define MSP_VTXTABLE_BAND                    137
@@ -228,6 +228,7 @@
 
 #define MSP_SET_MOTOR                        214
 #define MSP_SET_NAV_CONFIG                   215
+#define MSP_SET_ESC_SENSOR_CONFIG            216
 
 #define MSP_SET_RC_DEADBAND                  218
 #define MSP_SET_RESET_CURR_PID               219

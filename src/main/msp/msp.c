@@ -791,6 +791,18 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 #endif
 
+#ifdef USE_ESC_SENSOR
+    case MSP_ESC_SENSOR_CONFIG:
+        sbufWriteU8(dst, escSensorConfig()->protocol);
+        sbufWriteU8(dst, escSensorConfig()->halfDuplex);
+        sbufWriteU16(dst, escSensorConfig()->offset);
+        sbufWriteU16(dst, escSensorConfig()->update_hz);
+        sbufWriteU16(dst, escSensorConfig()->hw4_current_offset);
+        sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
+        sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
+        break;
+#endif
+
     case MSP_BATTERY_STATE: {
         // battery characteristics
         sbufWriteU8(dst, (uint8_t)constrain(getBatteryCellCount(), 0, 255)); // 0 indicates battery not detected.
@@ -1372,23 +1384,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[0]);
         sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[1]);
         break;
-
-#if defined(USE_ESC_SENSOR)
-    // Deprecated in favor of MSP_MOTOR_TELEMETY as of API version 1.42
-    case MSP_ESC_SENSOR_DATA:
-        if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-            sbufWriteU8(dst, getMotorCount());
-            for (int i = 0; i < getMotorCount(); i++) {
-                const escSensorData_t *escData = getEscSensorData(i);
-                sbufWriteU8(dst, escData->temperature);
-                sbufWriteU16(dst, escData->rpm);
-            }
-        } else {
-            unsupportedCommand = true;
-        }
-
-        break;
-#endif
 
 #ifdef USE_GPS
     case MSP_GPS_CONFIG:
@@ -2609,9 +2604,21 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (!ARMING_FLAG(ARMED)) {
             compassStartCalibration();
         }
+        break;
 #endif
 
+#ifdef USE_ESC_SENSOR
+    case MSP_SET_ESC_SENSOR_CONFIG:
+        escSensorConfigMutable()->protocol = sbufReadU8(src);
+        escSensorConfigMutable()->halfDuplex = sbufReadU8(src);
+        escSensorConfigMutable()->offset = sbufReadU16(src);
+        escSensorConfigMutable()->update_hz = sbufReadU16(src);
+        escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
+        escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
+        escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
         break;
+#endif
+
     case MSP_EEPROM_WRITE:
         if (ARMING_FLAG(ARMED)) {
             return MSP_RESULT_ERROR;
