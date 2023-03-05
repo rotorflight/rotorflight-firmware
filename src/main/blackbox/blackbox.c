@@ -61,6 +61,7 @@
 #include "flight/failsafe.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/imu.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
 #include "flight/governor.h"
@@ -228,6 +229,11 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"axisF",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
     {"axisF",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
 
+    /* Attitude Euler angles in 0.1deg steps */
+    {"attitude",    0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(ATTITUDE)},
+    {"attitude",    1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(ATTITUDE)},
+    {"attitude",    2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(ATTITUDE)},
+
     /* Gyros and accelerometers base their P-predictions on the average of the previous 2 frames to reduce noise impact */
     {"gyroRAW",     0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(GYRAW)},
     {"gyroRAW",     1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(GYRAW)},
@@ -240,7 +246,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"accADC",      0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(ACC)},
     {"accADC",      1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(ACC)},
     {"accADC",      2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(ACC)},
-#
+
 #ifdef USE_MAG
     {"magADC",      0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(MAG)},
     {"magADC",      1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(MAG)},
@@ -348,6 +354,7 @@ typedef struct blackboxMainState_s {
     int32_t axisPID_D[XYZ_AXIS_COUNT];
     int32_t axisPID_F[XYZ_AXIS_COUNT];
 
+    int16_t attitude[XYZ_AXIS_COUNT];
     int16_t gyroRAW[XYZ_AXIS_COUNT];
     int16_t gyroADC[XYZ_AXIS_COUNT];
     int16_t accADC[XYZ_AXIS_COUNT];
@@ -491,6 +498,9 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
 
     case CONDITION(PID):
         return isFieldEnabled(FIELD_SELECT(PID));
+
+    case CONDITION(ATTITUDE):
+        return isFieldEnabled(FIELD_SELECT(ATTITUDE));
 
     case CONDITION(GYRAW):
         return isFieldEnabled(FIELD_SELECT(GYRAW));
@@ -649,6 +659,9 @@ static void writeIntraframe(void)
         blackboxWriteSignedVBArray(blackboxCurrent->axisPID_F, XYZ_AXIS_COUNT);
     }
 
+    if (testBlackboxCondition(CONDITION(ATTITUDE))) {
+        blackboxWriteSigned16VBArray(blackboxCurrent->attitude, XYZ_AXIS_COUNT);
+    }
     if (testBlackboxCondition(CONDITION(GYRAW))) {
         blackboxWriteSigned16VBArray(blackboxCurrent->gyroRAW, XYZ_AXIS_COUNT);
     }
@@ -783,6 +796,11 @@ static void writeInterframe(void)
         blackboxWriteTag2_3S32(deltas);
 
         CALC_DELTAS(deltas, blackboxCurrent->axisPID_F, blackboxPrev->axisPID_F, XYZ_AXIS_COUNT);
+        blackboxWriteTag2_3S32(deltas);
+    }
+
+    if (testBlackboxCondition(CONDITION(ATTITUDE))) {
+        CALC_DELTAS(deltas, blackboxCurrent->attitude, blackboxPrev->attitude, XYZ_AXIS_COUNT);
         blackboxWriteTag2_3S32(deltas);
     }
 
@@ -1078,6 +1096,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     }
 
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+        blackboxCurrent->attitude[i] = attitude.raw[i];
         blackboxCurrent->gyroADC[i] = lrintf(gyro.gyroADCf[i]);
         blackboxCurrent->gyroRAW[i] = lrintf(gyro.gyroADCd[i]);
 #ifdef USE_ACC
