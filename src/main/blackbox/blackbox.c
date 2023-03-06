@@ -224,9 +224,9 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"axisD",       0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
     {"axisD",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
     {"axisD",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
-    {"axisF",       0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(PID)},
-    {"axisF",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(PID)},
-    {"axisF",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(PID)},
+    {"axisF",       0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
+    {"axisF",       1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
+    {"axisF",       2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG2_3S32),  CONDITION(PID)},
 
     /* Gyros and accelerometers base their P-predictions on the average of the previous 2 frames to reduce noise impact */
     {"gyroRAW",     0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(GYRAW)},
@@ -783,7 +783,7 @@ static void writeInterframe(void)
         blackboxWriteTag2_3S32(deltas);
 
         CALC_DELTAS(deltas, blackboxCurrent->axisPID_F, blackboxPrev->axisPID_F, XYZ_AXIS_COUNT);
-        blackboxWriteSignedVBArray(deltas, XYZ_AXIS_COUNT);
+        blackboxWriteTag2_3S32(deltas);
     }
 
     // Since gyro and acc are noisy, base their predictions on the average of the history
