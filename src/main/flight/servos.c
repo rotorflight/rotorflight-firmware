@@ -120,7 +120,8 @@ void servoInit(void)
 {
     const ioTag_t *ioTags = servoConfig()->ioTags;
     const timerHardware_t *timer[MAX_SUPPORTED_SERVOS];
-    uint8_t index;
+    uint32_t rate[MAX_SUPPORTED_SERVOS];
+    uint8_t index, jndex;
 
     for (index = 0; index < MAX_SUPPORTED_SERVOS; index++)
     {
@@ -146,22 +147,24 @@ void servoInit(void)
 
     for (index = 0; index < servoCount; index++)
     {
-        int rate = servoParams(index)->rate;
-        int max = servoParams(index)->max;
+        rate[index] = servoParams(index)->rate;
 
-        for (int jndex = 0; jndex < servoCount; jndex++) {
+        for (jndex = 0; jndex < servoCount; jndex++) {
             if (timer[index]->tim == timer[jndex]->tim) {
-                if (servoParams(jndex)->rate < rate)
-                    rate = servoParams(jndex)->rate;
-                if (servoParams(jndex)->max > max)
-                    max = servoParams(jndex)->max;
+                uint32_t maxpulse = servoParams(jndex)->max + 10;
+                uint32_t maxrate = MIN(servoParams(jndex)->rate, 1000000 / maxpulse);
+                if (maxrate < rate[index])
+                    rate[index] = maxrate;
             }
         }
 
-        rate = MAX(rate, SERVO_RATE_MIN);
-        rate = MIN(rate, 1000000 / (max + 10)); // At least 10us low
+        rate[index] = constrain(rate[index], SERVO_RATE_MIN, SERVO_RATE_MAX);
+    }
 
-        pwmOutConfig(&servoChannel[index], timer[index], PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / rate, 0, 0);
+    for (index = 0; index < servoCount; index++)
+    {
+        servoParamsMutable(index)->rate = rate[index];
+        pwmOutConfig(&servoChannel[index], timer[index], PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / rate[index], 0, 0);
     }
 }
 
