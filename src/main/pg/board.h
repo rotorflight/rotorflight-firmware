@@ -24,6 +24,7 @@
 
 #define MAX_MANUFACTURER_ID_LENGTH 4
 #define MAX_BOARD_NAME_LENGTH 20
+#define MAX_BOARD_DESIGN_LENGTH 12
 #define SIGNATURE_LENGTH 32
 
 // Warning: This configuration is meant to be applied when loading the initial
@@ -35,6 +36,7 @@ typedef struct boardConfig_s {
     uint8_t signature[SIGNATURE_LENGTH];
     char manufacturerId[MAX_MANUFACTURER_ID_LENGTH + 1];
     char boardName[MAX_BOARD_NAME_LENGTH + 1];
+    char boardDesign[MAX_BOARD_DESIGN_LENGTH + 1];
     uint8_t boardInformationSet;
     uint8_t signatureSet;
 } boardConfig_t;

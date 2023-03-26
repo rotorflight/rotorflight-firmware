@@ -224,6 +224,7 @@ static char cliBufferTemp[CLI_IN_BUFFER_SIZE];
 #define CUSTOM_DEFAULTS_START_PREFIX ("# " FC_FIRMWARE_NAME)
 #define CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX "# config: manufacturer_id: "
 #define CUSTOM_DEFAULTS_BOARD_NAME_PREFIX ", board_name: "
+#define CUSTOM_DEFAULTS_BOARD_DESIGN_PREFIX ", board_design: "
 #define CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX ", version: "
 #define CUSTOM_DEFAULTS_DATE_PREFIX ", date: "
 
@@ -234,6 +235,7 @@ static bool customDefaultsHeaderParsed = false;
 static bool customDefaultsFound = false;
 static char customDefaultsManufacturerId[MAX_MANUFACTURER_ID_LENGTH + 1] = { 0 };
 static char customDefaultsBoardName[MAX_BOARD_NAME_LENGTH + 1] = { 0 };
+static char customDefaultsBoardDesign[MAX_BOARD_DESIGN_LENGTH + 1] = { 0 };
 static char customDefaultsChangesetId[MAX_CHANGESET_ID_LENGTH + 1] = { 0 };
 static char customDefaultsDate[MAX_DATE_LENGTH + 1] = { 0 };
 #endif
@@ -3408,6 +3410,29 @@ static void cliBoardName(const char *cmdName, char *cmdline)
     }
 }
 
+static void printBoardDesign(dumpFlags_t dumpMask)
+{
+    if (!(dumpMask & DO_DIFF) || strlen(getBoardDesign())) {
+        cliPrintLinef("board_design %s", getBoardDesign());
+    }
+}
+
+static void cliBoardDesign(const char *cmdName, char *cmdline)
+{
+    const unsigned int len = strlen(cmdline);
+    const char *boardDesign = getBoardDesign();
+    if (len > 0 && strlen(boardDesign) != 0 && boardInformationIsSet() && (len != strlen(boardDesign) || strncmp(boardDesign, cmdline, len))) {
+        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_DESIGN", boardDesign);
+    } else {
+        if (len > 0 && !configIsInCopy && setBoardDesign(cmdline)) {
+            boardInformationUpdated = true;
+
+            cliPrintHashLine("Set board_design.");
+        }
+        printBoardDesign(DUMP_ALL);
+    }
+}
+
 static void printManufacturerId(dumpFlags_t dumpMask)
 {
     if (!(dumpMask & DO_DIFF) || strlen(getManufacturerId())) {
@@ -4574,7 +4599,9 @@ static void parseCustomDefaultsHeader(void)
 
         customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsManufacturerId, customDefaultsPtr, CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX[0], MAX_MANUFACTURER_ID_LENGTH);
 
-        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsBoardName, customDefaultsPtr, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX[0], MAX_BOARD_NAME_LENGTH);
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsBoardName, customDefaultsPtr, CUSTOM_DEFAULTS_BOARD_NAME_PREFIX, CUSTOM_DEFAULTS_BOARD_DESIGN_PREFIX[0], MAX_BOARD_NAME_LENGTH);
+
+        customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsBoardDesign, customDefaultsPtr, CUSTOM_DEFAULTS_BOARD_DESIGN_PREFIX, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX[0], MAX_BOARD_DESIGN_LENGTH);
 
         customDefaultsPtr = parseCustomDefaultsHeaderElement(customDefaultsChangesetId, customDefaultsPtr, CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX, CUSTOM_DEFAULTS_DATE_PREFIX[0], MAX_CHANGESET_ID_LENGTH);
 
@@ -5240,10 +5267,11 @@ static void printVersion(const char *cmdName, bool printBoardInfo)
 
 #if defined(USE_CUSTOM_DEFAULTS)
     if (hasCustomDefaults()) {
-        if (strlen(customDefaultsManufacturerId) || strlen(customDefaultsBoardName) || strlen(customDefaultsChangesetId) || strlen(customDefaultsDate)) {
-            cliPrintLinef("%s%s%s%s%s%s%s%s",
+        if (strlen(customDefaultsManufacturerId) || strlen(customDefaultsBoardName) || strlen(customDefaultsBoardDesign) || strlen(customDefaultsChangesetId) || strlen(customDefaultsDate)) {
+            cliPrintLinef("%s%s%s%s%s%s%s%s%s%s",
                 CUSTOM_DEFAULTS_MANUFACTURER_ID_PREFIX, customDefaultsManufacturerId,
                 CUSTOM_DEFAULTS_BOARD_NAME_PREFIX, customDefaultsBoardName,
+                CUSTOM_DEFAULTS_BOARD_DESIGN_PREFIX, customDefaultsBoardDesign,
                 CUSTOM_DEFAULTS_CHANGESET_ID_PREFIX, customDefaultsChangesetId,
                 CUSTOM_DEFAULTS_DATE_PREFIX, customDefaultsDate
             );
@@ -6488,6 +6516,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #if defined(USE_BOARD_INFO)
         cliPrintLinefeed();
         printBoardName(dumpMask);
+        printBoardDesign(dumpMask);
         printManufacturerId(dumpMask);
 #endif
 
@@ -6715,6 +6744,7 @@ const clicmd_t cmdTable[] = {
 #endif
 #if defined(USE_BOARD_INFO)
     CLI_COMMAND_DEF("board_name", "get / set the name of the board model", "[board name]", cliBoardName),
+    CLI_COMMAND_DEF("board_design", "get / set the name of the board design", "[board design]", cliBoardDesign),
 #endif
 #ifdef USE_LED_STRIP_STATUS_MODE
         CLI_COMMAND_DEF("color", "configure colors", NULL, cliColor),

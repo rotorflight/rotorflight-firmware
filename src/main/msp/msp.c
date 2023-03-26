@@ -691,6 +691,11 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, strlen(value));
         sbufWriteString(dst, value);
 
+        // Board design with explicit length
+        value = getBoardDesign();
+        sbufWriteU8(dst, strlen(value));
+        sbufWriteString(dst, value);
+
         // Manufacturer id with explicit length
         value = getManufacturerId();
         sbufWriteU8(dst, strlen(value));
@@ -3123,6 +3128,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             }
             boardName[length] = '\0';
             length = sbufReadU8(src);
+            char boardDesign[MAX_BOARD_DESIGN_LENGTH + 1];
+            sbufReadData(src, boardDesign, MIN(length, MAX_BOARD_DESIGN_LENGTH));
+            if (length > MAX_BOARD_DESIGN_LENGTH) {
+                sbufAdvance(src, length - MAX_BOARD_DESIGN_LENGTH);
+                length = MAX_BOARD_DESIGN_LENGTH;
+            }
+            boardDesign[length] = '\0';
+            length = sbufReadU8(src);
             char manufacturerId[MAX_MANUFACTURER_ID_LENGTH + 1];
             sbufReadData(src, manufacturerId, MIN(length, MAX_MANUFACTURER_ID_LENGTH));
             if (length > MAX_MANUFACTURER_ID_LENGTH) {
@@ -3132,6 +3145,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             manufacturerId[length] = '\0';
 
             setBoardName(boardName);
+            setBoardDesign(boardDesign);
             setManufacturerId(manufacturerId);
             persistBoardInformation();
         } else {

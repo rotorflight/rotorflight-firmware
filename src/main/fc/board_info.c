@@ -29,6 +29,7 @@
 static bool boardInformationSet = false;
 static char manufacturerId[MAX_MANUFACTURER_ID_LENGTH + 1];
 static char boardName[MAX_BOARD_NAME_LENGTH + 1];
+static char boardDesign[MAX_BOARD_DESIGN_LENGTH + 1];
 static bool boardInformationWasUpdated = false;
 
 static bool signatureSet = false;
@@ -40,6 +41,7 @@ void initBoardInformation(void)
     if (boardInformationSet) {
         strncpy(manufacturerId, boardConfig()->manufacturerId, MAX_MANUFACTURER_ID_LENGTH + 1);
         strncpy(boardName, boardConfig()->boardName, MAX_BOARD_NAME_LENGTH + 1);
+        strncpy(boardDesign, boardConfig()->boardDesign, MAX_BOARD_DESIGN_LENGTH + 1);
     }
 
     signatureSet = boardConfig()->signatureSet;
@@ -56,6 +58,11 @@ const char *getManufacturerId(void)
 const char *getBoardName(void)
 {
     return boardName;
+}
+
+const char *getBoardDesign(void)
+{
+    return boardDesign;
 }
 
 bool boardInformationIsSet(void)
@@ -89,11 +96,25 @@ bool setBoardName(const char *newBoardName)
     }
 }
 
+bool setBoardDesign(const char *newBoardDesign)
+{
+    if (!boardInformationSet || strlen(boardDesign) == 0) {
+        strncpy(boardDesign, newBoardDesign, MAX_BOARD_DESIGN_LENGTH + 1);
+
+        boardInformationWasUpdated = true;
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool persistBoardInformation(void)
 {
     if (boardInformationWasUpdated) {
         strncpy(boardConfigMutable()->manufacturerId, manufacturerId, MAX_MANUFACTURER_ID_LENGTH + 1);
         strncpy(boardConfigMutable()->boardName, boardName, MAX_BOARD_NAME_LENGTH + 1);
+        strncpy(boardConfigMutable()->boardDesign, boardDesign, MAX_BOARD_DESIGN_LENGTH + 1);
         boardConfigMutable()->boardInformationSet = true;
 
         initBoardInformation();

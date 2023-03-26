@@ -23,10 +23,12 @@
 void initBoardInformation(void);
 
 char *getBoardName(void);
+char *getBoardDesign(void);
 char *getManufacturerId(void);
 bool boardInformationIsSet(void);
 
 bool setBoardName(char *newBoardName);
+bool setBoardDesign(char *newBoardDesign);
 bool setManufacturerId(char *newManufacturerId);
 bool persistBoardInformation(void);
 
