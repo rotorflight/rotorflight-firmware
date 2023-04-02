@@ -201,8 +201,8 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"rcCommand",   0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
     {"rcCommand",   1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
     {"rcCommand",   2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
-    {"rcCommand",   3, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16), CONDITION(COMMAND)},
-    {"rcCommand",   4, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB), CONDITION(COMMAND)},
+    {"rcCommand",   3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
+    {"rcCommand",   4, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(UNSIGNED_VB),CONDITION(COMMAND)},
 
     /* setpoint - define 4 fields like RC command */
     {"setpoint",    0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(SETPOINT)},
@@ -642,17 +642,14 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->time);
 
     if (testBlackboxCondition(CONDITION(COMMAND))) {
-        // Write roll, pitch and yaw first:
-        blackboxWriteSigned16VBArray(blackboxCurrent->command, 3);
+        // Write roll, pitch, yaw and collective first:
+        blackboxWriteSigned16VBArray(blackboxCurrent->command, 4);
 
         /*
         * Write the throttle separately from the rest of the RC data as it's unsigned.
         * Throttle lies in range [PWM_RANGE_MIN..PWM_RANGE_MAX]:
         */
         blackboxWriteUnsignedVB(blackboxCurrent->command[THROTTLE]);
-
-        // Write rcCommand[COLLECTIVE]
-        blackboxWriteSignedVB(blackboxCurrent->command[COLLECTIVE]);
     }
 
     if (testBlackboxCondition(CONDITION(SETPOINT))) {
@@ -785,9 +782,9 @@ static void writeInterframe(void)
         CALC_DELTAS(deltas, blackboxCurrent->command, blackboxPrev->command, 4);
         blackboxWriteTag8_4S16(deltas);
 
-        // Calculate collective delta
-        int32_t collectiveDelta = blackboxCurrent->command[COLLECTIVE] - blackboxPrev->command[COLLECTIVE];
-        blackboxWriteSignedVB(collectiveDelta);
+        // Calculate throttle delta
+        int32_t throttleDelta = blackboxCurrent->command[THROTTLE] - blackboxPrev->command[THROTTLE];
+        blackboxWriteUnsignedVB(throttleDelta);
     }
 
     if (testBlackboxCondition(CONDITION(SETPOINT))) {
@@ -1088,7 +1085,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->time = currentTimeUs;
 
-    // ROLL/PITCH/YAW/THROTTLE/COLLECTIVE
+    // ROLL/PITCH/YAW/COLLECTIVE/THROTTLE
     for (int i = 0; i < 5; i++) {
         blackboxCurrent->command[i] = lrintf(rcCommand[i]);
     }
