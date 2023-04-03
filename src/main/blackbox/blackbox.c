@@ -202,6 +202,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"rcCommand",   1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
     {"rcCommand",   2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
     {"rcCommand",   3, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(COMMAND)},
+    {"rcCommand",   4, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(COMMAND)},
 
     /* setpoint - define 4 fields like RC command */
     {"setpoint",    0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(SETPOINT)},
@@ -345,7 +346,7 @@ typedef enum BlackboxState {
 typedef struct blackboxMainState_s {
     uint32_t time;
 
-    int16_t command[4];
+    int16_t command[5];
     int16_t setpoint[4];
     int16_t mixer[4];
 
@@ -641,7 +642,14 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->time);
 
     if (testBlackboxCondition(CONDITION(COMMAND))) {
+        // Write roll, pitch, yaw and collective first:
         blackboxWriteSigned16VBArray(blackboxCurrent->command, 4);
+
+        /*
+        * Write the throttle separately from the rest of the RC data as it's unsigned.
+        * Throttle lies in range [PWM_RANGE_MIN..PWM_RANGE_MAX]:
+        */
+        blackboxWriteUnsignedVB(blackboxCurrent->command[THROTTLE]);
     }
 
     if (testBlackboxCondition(CONDITION(SETPOINT))) {
@@ -773,6 +781,10 @@ static void writeInterframe(void)
     if (testBlackboxCondition(CONDITION(COMMAND))) {
         CALC_DELTAS(deltas, blackboxCurrent->command, blackboxPrev->command, 4);
         blackboxWriteTag8_4S16(deltas);
+
+        // Calculate throttle delta
+        int32_t throttleDelta = blackboxCurrent->command[THROTTLE] - blackboxPrev->command[THROTTLE];
+        blackboxWriteSignedVB(throttleDelta);
     }
 
     if (testBlackboxCondition(CONDITION(SETPOINT))) {
@@ -1073,7 +1085,8 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->time = currentTimeUs;
 
-    for (int i = 0; i < 4; i++) {
+    // ROLL/PITCH/YAW/COLLECTIVE/THROTTLE
+    for (int i = 0; i < 5; i++) {
         blackboxCurrent->command[i] = lrintf(rcCommand[i]);
     }
 
