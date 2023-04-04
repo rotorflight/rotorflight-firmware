@@ -129,6 +129,7 @@ typedef enum {
 #endif
     TABLE_RESCUE_MODE,
     TABLE_SWASH_TYPE,
+    TABLE_CRSF_FM_REUSE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

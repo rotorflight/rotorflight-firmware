@@ -496,6 +496,10 @@ const char * const lookupTableSwashType[] = {
     "NONE", "PASSTHROUGH", "CP120", "CP135", "CP140", "FP90L", "FP90V",
 };
 
+const char * const lookupTableCrsfFmReuse[] = {
+    "NONE", "RPM", "TEMP", "ADJFUNC",
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -607,6 +611,7 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
+    LOOKUP_TABLE_ENTRY(lookupTableCrsfFmReuse),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -729,6 +734,8 @@ const clivalue_t valueTable[] = {
 #endif
 #if defined(USE_SERIALRX_CRSF)
     { "crsf_use_rx_snr",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_rx_snr) },
+    { "crsf_flight_mode_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_FM_REUSE }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_flight_mode_reuse) },
+
 #if defined(USE_CRSF_V3)
     { "crsf_use_negotiated_baud",    VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_negotiated_baud) },
 #endif

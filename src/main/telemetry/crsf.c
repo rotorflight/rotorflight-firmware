@@ -47,8 +47,10 @@
 
 #include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
+#include "fc/rc_adjustments.h"
 
 #include "flight/imu.h"
+#include "flight/motors.h"
 #include "flight/position.h"
 
 #include "io/displayport_crsf.h"
@@ -63,6 +65,7 @@
 
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
+#include "sensors/adcinternal.h"
 
 #include "telemetry/telemetry.h"
 #include "telemetry/msp_shared.h"
@@ -340,27 +343,21 @@ void crsfFrameAttitude(sbuf_t *dst)
 Payload:
 char[]      Flight mode ( Null terminated string )
 */
-void crsfFrameFlightMode(sbuf_t *dst)
-{
-    // write zero for frame length, since we don't know it yet
-    uint8_t *lengthPtr = sbufPtr(dst);
-    sbufWriteU8(dst, 0);
-    sbufWriteU8(dst, CRSF_FRAMETYPE_FLIGHT_MODE);
 
-    // Acro is the default mode
-    const char *flightMode = "ACRO";
+static int crsfFlightModeInfo(char *buf)
+{
+    const char *flightMode;
+    int len;
 
     // Modes that are only relevant when disarmed
     if (!ARMING_FLAG(ARMED) && isArmingDisabled()) {
         flightMode = "!ERR";
     } else
-
 #if defined(USE_GPS)
     if (!ARMING_FLAG(ARMED) && featureIsEnabled(FEATURE_GPS) && (!STATE(GPS_FIX) || !STATE(GPS_FIX_HOME))) {
         flightMode = "WAIT"; // Waiting for GPS lock
     } else
 #endif
-
     // Flight modes in decreasing order of importance
     if (FLIGHT_MODE(FAILSAFE_MODE)) {
         flightMode = "FAIL";
@@ -372,15 +369,75 @@ void crsfFrameFlightMode(sbuf_t *dst)
         flightMode = "ANGL";
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
         flightMode = "HORZ";
+    } else {
+        flightMode = "ACRO";
     }
 
-    sbufWriteString(dst, flightMode);
+    len = strlen(flightMode);
+    strcpy(buf, flightMode);
+
     if (!ARMING_FLAG(ARMED)) {
-        sbufWriteU8(dst, '*');
+        buf[len++] = '*';
     }
-    sbufWriteU8(dst, '\0');     // zero-terminate string
-    // write in the frame length
-    *lengthPtr = sbufPtr(dst) - lengthPtr;
+
+    buf[len] = 0;
+
+    return len;
+}
+
+static int crsfRpmInfo(char *buf)
+{
+    int val = lrintf(getHeadSpeed());
+    int len = tfp_sprintf(buf, "RPM: %d", val);
+
+    return len;
+}
+
+static int crsfTempInfo(char *buf)
+{
+    int val = getCoreTemperatureCelsius();
+    int len = tfp_sprintf(buf, "Temp: %dC", val);
+
+    return len;
+}
+
+static int crsfAdjFuncInfo(char *buf)
+{
+    int len = 0;
+
+    if (getAdjustmentsRangeName()) {
+        int fun = getAdjustmentsRangeFunc();
+        int val = getAdjustmentsRangeValue();
+        len = tfp_sprintf(buf, "ADJ %d:%d", fun, val);
+    }
+
+    return len;
+}
+
+void crsfFrameFlightMode(sbuf_t *dst)
+{
+    char buf[16];
+    int len;
+
+    switch (rxConfig()->crsf_flight_mode_reuse) {
+        case CRSF_FM_REUSE_RPM:
+            len = crsfRpmInfo(buf);
+            break;
+        case CRSF_FM_REUSE_TEMP:
+            len = crsfTempInfo(buf);
+            break;
+        case CRSF_FM_REUSE_ADJFUNC:
+            len = crsfAdjFuncInfo(buf);
+            break;
+        default:
+            len = crsfFlightModeInfo(buf);
+            break;
+    }
+
+    sbufWriteU8(dst, len + 3);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_FLIGHT_MODE);
+    sbufWriteData(dst, buf, len);
+    sbufWriteU8(dst, 0);
 }
 
 /*

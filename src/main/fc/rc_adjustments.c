@@ -584,7 +584,7 @@ static void blackboxAdjustmentEvent(uint8_t adjFunc, int value)
 #endif
 }
 
-#define ADJUSTMENT_LATENCY_MS 2500
+#define ADJUSTMENT_LATENCY_MS 3000
 
 static void updateAdjustmentData(uint8_t adjFunc, int value)
 {

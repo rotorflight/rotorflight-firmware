@@ -28,6 +28,13 @@
 #include "rx/crsf_protocol.h"
 #include "telemetry/msp_shared.h"
 
+enum {
+    CRSF_FM_REUSE_NONE = 0,
+    CRSF_FM_REUSE_RPM,
+    CRSF_FM_REUSE_TEMP,
+    CRSF_FM_REUSE_ADJFUNC,
+};
+
 void initCrsfTelemetry(void);
 uint32_t getCrsfDesiredSpeed(void);
 void setCrsfDefaultSpeed(void);
