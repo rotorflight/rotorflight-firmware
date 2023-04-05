@@ -70,7 +70,7 @@ INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
     level.Gain = pidProfile->angle.level_strength / 10.0f;
     level.AngleLimit = pidProfile->angle.level_limit;
 
-    horizon.Gain = pidProfile->horizon.level_strength;
+    horizon.Gain = pidProfile->horizon.level_strength / 10.0f;
     horizon.Transition = pidProfile->horizon.transition;
     horizon.TiltExpertMode = pidProfile->horizon.tilt_expert_mode;
     horizon.CutoffDegrees = (175 - pidProfile->horizon.tilt_effect) * 1.8f;
