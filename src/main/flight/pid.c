@@ -163,6 +163,9 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Error decay speed when not flying
     pid.errorDecay = 1.0f - ((pidProfile->error_decay) ? (10 * pid.dT / pidProfile->error_decay) : 0);
 
+    // Error Rotation enable
+    pid.errorRotation = pidProfile->error_rotation;
+
     // Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         pt1FilterInit(&pid.gyrorFilter[i], pt1FilterGain(constrain(pidProfile->gyro_cutoff[i], 1, 250), pid.dT));
