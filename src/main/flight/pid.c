@@ -586,13 +586,11 @@ static void pidApplyYawMode1(const pidProfile_t *pidProfile)
  **
  ** MODE 2
  **
- **   gyroFilter => errorFilter => Kp => P-term
- **   gyroFilter => errorFilter => dtermFilter => Kd => D-term
- **   gyroFilter => errorFilter => Ki => I-term
+ **   gyroFilter => Kp => P-term
+ **   gyroFilter => dtermFilter => Kd => D-term
+ **   gyroFilter => Ki => I-term
  **
  **   -- Yaw Stop gain on P only
- **   -- D-term selectable D(error) or D(gyro)
- **   -- Gyro D-term filters not used
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
@@ -610,11 +608,6 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
     // Calculate error rate
     float errorRate = setpoint - gyroRate;
 
-    // Limit error bandwidth
-    if (pidProfile->error_cutoff[axis]) {
-        errorRate = pt1FilterApply(&pid.errorFilter[axis], errorRate);
-    }
-
     // Saturation
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * errorRate > 0);
 
@@ -628,9 +621,8 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    float dError = pidProfile->dterm_mode ? errorRate : -gyro.gyroADCf[axis];
-    float dTerm = (dError - pid.data[axis].prevError) * pid.freq;
-    pid.data[axis].prevError = dError;
+    float dTerm = (errorRate - pid.data[axis].prevError) * pid.freq;
+    pid.data[axis].prevError = errorRate;
 
     // Filter D-term
     if (pidProfile->dterm_cutoff[axis]) {
@@ -688,11 +680,6 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
     // Calculate error rate
     float errorRate = setpoint - gyroRate;
 
-    // Limit error bandwidth
-    if (pidProfile->error_cutoff[axis]) {
-        errorRate = pt1FilterApply(&pid.errorFilter[axis], errorRate);
-    }
-
     // Select stop gain
     float stopGain = transition(errorRate, -10, 10, pid.yawCCWStopGain, pid.yawCWStopGain);
 
@@ -709,9 +696,8 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    float dError = pidProfile->dterm_mode ? errorRate : -gyro.gyroADCf[axis];
-    float dTerm = (dError - pid.data[axis].prevError) * pid.freq;
-    pid.data[axis].prevError = dError;
+    float dTerm = (errorRate - pid.data[axis].prevError) * pid.freq;
+    pid.data[axis].prevError = errorRate;
 
     // Filter D-term
     if (pidProfile->dterm_cutoff[axis]) {
