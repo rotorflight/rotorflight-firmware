@@ -223,11 +223,6 @@ static void idleTasks()
         return;
     }
 
-    // Don't update any rescue flight statistics if we haven't applied a proper altitude offset yet
-    if (!hasAltitudeOffset()) {
-        return;
-    }
-
     gpsRescueAngle[AI_PITCH] = 0;
     gpsRescueAngle[AI_ROLL] = 0;
 

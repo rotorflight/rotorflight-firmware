@@ -46,87 +46,74 @@
 
 typedef struct {
 
-    bool        wasARMED;
+    uint8_t     source;
+
+    float       altitude;
+    float       variometer;
 
     bool        haveBaroAlt;
-    bool        haveBaroOffset;
+    bool        haveGpsAlt;
 
     float       baroAlt;
     float       baroAltOffset;
 
-    bool        haveGpsAlt;
-    bool        haveGpsOffset;
-
     float       gpsAlt;
     float       gpsAltOffset;
-
-    float       estimatedAltitude;
-    float       estimatedVario;
 
     float       varioAltPrev;
 
     pt2Filter_t gpsFilter;
     pt2Filter_t baroFilter;
-    pt2Filter_t varioFilter;
+    pt1Filter_t varioFilter;
 
-    pt3Filter_t gpsOffsetFilter;
-    pt3Filter_t baroOffsetFilter;
-
-    pt2Filter_t baroDriftFilter;
+    pt2Filter_t gpsOffsetFilter;
+    pt2Filter_t baroOffsetFilter;
 
 } altState_t;
 
 static FAST_DATA altState_t alt;
 
 
-bool hasAltitudeOffset(void)
-{
-    return alt.haveBaroOffset || alt.haveGpsOffset;
-}
-
 float getAltitude(void)
 {
-    return alt.estimatedAltitude;
+    return alt.altitude;
 }
 
 float getVario(void)
 {
-    return alt.estimatedVario;
+    return alt.variometer;
 }
 
 int32_t getEstimatedAltitudeCm(void)
 {
-    return lrintf(alt.estimatedAltitude);
+    return lrintf(alt.altitude * 100);
 }
 
 int16_t getEstimatedVario(void)
 {
-    return lrintf(alt.estimatedVario);
+    return lrintf(alt.variometer * 100);
 }
 
 
 static float calculateVario(float altitude)
 {
     float vario = (altitude - alt.varioAltPrev) * pidGetPidFrequency();
-    vario = pt2FilterApply(&alt.varioFilter, vario);
+    vario = pt1FilterApply(&alt.varioFilter, vario);
 
     alt.varioAltPrev = altitude;
 
     return vario;
 }
 
-static void calculateAltitude(void)
+void positionUpdate(void)
 {
-    float gpsGround = 0;
-    float baroGround = 0;
-    float baroDrift = 0;
-
 #ifdef USE_BARO
-    if (sensors(SENSOR_BARO)) {
-        if (baroIsReady()) {
-            alt.baroAlt = pt2FilterApply(&alt.baroFilter, baro.baroAltitude);
-            baroGround = pt3FilterApply(&alt.baroOffsetFilter, alt.baroAlt);
-            alt.haveBaroAlt = true;
+    if (alt.source == ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_BARO_ONLY) {
+        if (sensors(SENSOR_BARO) && baroIsReady()) {
+            if (baro.baroAltitude < 15000 && baro.baroAltitude > -2500) {
+                alt.baroAlt = pt2FilterApply(&alt.baroFilter, baro.baroAltitude / 100.0f);
+                alt.haveBaroAlt = true;
+            }
         }
         else {
             alt.haveBaroAlt = false;
@@ -135,10 +122,9 @@ static void calculateAltitude(void)
 #endif
 
 #ifdef USE_GPS
-    if (sensors(SENSOR_GPS)) {
-        if (STATE(GPS_FIX) && gpsSol.numSat >= positionConfig()->gps_min_sats) {
-            alt.gpsAlt = pt2FilterApply(&alt.gpsFilter, gpsSol.llh.altCm);
-            gpsGround = pt3FilterApply(&alt.gpsOffsetFilter, alt.gpsAlt);
+    if (alt.source & ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
+        if (sensors(SENSOR_GPS) && STATE(GPS_FIX) && gpsSol.numSat >= positionConfig()->gps_min_sats) {
+            alt.gpsAlt = pt2FilterApply(&alt.gpsFilter, gpsSol.llh.altCm / 100.0f);
             alt.haveGpsAlt = true;
         }
         else {
@@ -147,72 +133,52 @@ static void calculateAltitude(void)
     }
 #endif
 
-    if (ARMING_FLAG(ARMED)) {
-        if (!alt.wasARMED) {
-            if (alt.wasARMED) {
-                alt.haveBaroOffset = true;
-                alt.baroAltOffset = baroGround;
-            }
-            if (alt.haveGpsAlt) {
-                alt.haveGpsOffset = true;
-                alt.gpsAltOffset = gpsGround;
-            }
-            alt.wasARMED = true;
+    if (!ARMING_FLAG(ARMED)) {
+        if (alt.haveBaroAlt) {
+            alt.baroAltOffset = pt2FilterApply(&alt.baroOffsetFilter, alt.baroAlt);
+        }
+        if (alt.haveGpsAlt) {
+            alt.gpsAltOffset = pt2FilterApply(&alt.gpsOffsetFilter, alt.gpsAlt);
         }
     }
     else {
-        if (alt.wasARMED) {
-            alt.haveBaroOffset = false;
-            alt.haveGpsOffset = false;
-            alt.wasARMED = false;
+        if (alt.haveBaroAlt && alt.haveGpsAlt && alt.gpsAltOffset) {
+            alt.baroAltOffset = pt2FilterApply(&alt.baroOffsetFilter,
+                alt.baroAlt - (alt.gpsAlt - alt.gpsAltOffset));
         }
     }
 
-    if (alt.haveBaroAlt && alt.haveBaroOffset)
-        alt.baroAlt -= alt.baroAltOffset;
-
-    if (alt.haveGpsAlt && alt.haveGpsOffset)
-        alt.gpsAlt -= alt.gpsAltOffset;
-
-    if (alt.haveBaroAlt) {
-        alt.estimatedAltitude = alt.baroAlt;
-        alt.estimatedVario = calculateVario(alt.baroAlt);
-        if (alt.haveBaroOffset && alt.haveGpsAlt && alt.haveGpsOffset) {
-            baroDrift = pt2FilterApply(&alt.baroDriftFilter, alt.baroAlt - alt.gpsAlt);
-            alt.estimatedAltitude -= baroDrift;
-        }
+    if (alt.haveBaroAlt && alt.baroAltOffset) {
+        alt.altitude = alt.baroAlt - alt.baroAltOffset;
+        alt.variometer = calculateVario(alt.baroAlt);
     }
-    else if (alt.haveGpsAlt) {
-        alt.estimatedAltitude = alt.gpsAlt;
-        alt.estimatedVario = calculateVario(alt.gpsAlt);
+    else if (alt.haveGpsAlt && alt.gpsAltOffset) {
+        alt.altitude = alt.gpsAlt - alt.gpsAltOffset;
+        alt.variometer = calculateVario(alt.gpsAlt);
     }
     else {
-        alt.estimatedAltitude = 0;
-        alt.estimatedVario = 0;
+        alt.altitude = 0;
+        alt.variometer = 0;
     }
 
-    DEBUG(ALTITUDE, 0, alt.estimatedAltitude);
-    DEBUG(ALTITUDE, 1, alt.estimatedVario);
-    DEBUG(ALTITUDE, 2, alt.baroAlt);
-    DEBUG(ALTITUDE, 3, baroGround);
-    DEBUG(ALTITUDE, 4, baroDrift);
-    DEBUG(ALTITUDE, 5, alt.gpsAlt);
-    DEBUG(ALTITUDE, 6, gpsGround);
+    DEBUG(ALTITUDE, 0, alt.baroAlt * 100);
+    DEBUG(ALTITUDE, 1, alt.baroAltOffset * 100);
+    DEBUG(ALTITUDE, 2, alt.gpsAlt * 100);
+    DEBUG(ALTITUDE, 3, alt.gpsAltOffset * 100);
+    DEBUG(ALTITUDE, 4, gpsSol.llh.altCm);
+    DEBUG(ALTITUDE, 5, gpsSol.numSat);
+    DEBUG(ALTITUDE, 6, alt.altitude * 100);
+    DEBUG(ALTITUDE, 7, alt.variometer * 100);
 }
 
-void positionUpdate(void)
+void INIT_CODE positionInit(void)
 {
-    calculateAltitude();
-}
+    alt.source = positionConfig()->alt_source;
 
-void positionInit(void)
-{
     pt2FilterInit(&alt.gpsFilter, pt2FilterGain(positionConfig()->gps_alt_lpf / 100.0f, pidGetDT()));
     pt2FilterInit(&alt.baroFilter, pt2FilterGain(positionConfig()->baro_alt_lpf / 100.0f, pidGetDT()));
-    pt2FilterInit(&alt.varioFilter, pt2FilterGain(positionConfig()->vario_lpf / 100.0f, pidGetDT()));
+    pt1FilterInit(&alt.varioFilter, pt1FilterGain(positionConfig()->vario_lpf / 100.0f, pidGetDT()));
 
-    pt3FilterInit(&alt.gpsOffsetFilter, pt3FilterGain(positionConfig()->gps_offset_lpf / 1000.0f, pidGetDT()));
-    pt3FilterInit(&alt.baroOffsetFilter, pt3FilterGain(positionConfig()->baro_offset_lpf / 1000.0f, pidGetDT()));
-
-    pt2FilterInit(&alt.baroDriftFilter, pt2FilterGain(positionConfig()->baro_drift_lpf / 1000.0f, pidGetDT()));
+    pt2FilterInit(&alt.gpsOffsetFilter, pt2FilterGain(positionConfig()->gps_offset_lpf / 1000.0f, pidGetDT()));
+    pt2FilterInit(&alt.baroOffsetFilter, pt2FilterGain(positionConfig()->baro_offset_lpf / 1000.0f, pidGetDT()));
 }

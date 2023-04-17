@@ -25,21 +25,14 @@
 #include "pg/pg_ids.h"
 #include "pg/position.h"
 
-typedef enum {
-    ALT_SOURCE_DEFAULT = 0,
-    ALT_SOURCE_BARO_ONLY,
-    ALT_SOURCE_GPS_ONLY
-} altSource_e;
-
 PG_REGISTER_WITH_RESET_TEMPLATE(positionConfig_t, positionConfig, PG_POSITION, 0);
 
 PG_RESET_TEMPLATE(positionConfig_t, positionConfig,
     .alt_source = ALT_SOURCE_DEFAULT,
     .baro_alt_lpf = 25,
-    .baro_offset_lpf = 10,
-    .baro_drift_lpf = 5,
+    .baro_offset_lpf = 5,
     .gps_alt_lpf = 25,
-    .gps_offset_lpf = 10,
+    .gps_offset_lpf = 5,
     .gps_min_sats = 12,
     .vario_lpf = 25,
 );

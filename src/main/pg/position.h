@@ -20,11 +20,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+enum {
+    ALT_SOURCE_DEFAULT = 0,
+    ALT_SOURCE_BARO_ONLY,
+    ALT_SOURCE_GPS_ONLY,
+};
+
 typedef struct positionConfig_s {
     uint8_t alt_source;
     uint8_t baro_alt_lpf;
     uint8_t baro_offset_lpf;
-    uint8_t baro_drift_lpf;
     uint8_t gps_alt_lpf;
     uint8_t gps_offset_lpf;
     uint8_t gps_min_sats;
