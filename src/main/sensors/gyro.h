@@ -37,17 +37,19 @@
 
 #include "pg/pg.h"
 
-#define LPF_MAX_HZ 1000 // so little filtering above 1000hz that if the user wants less delay, they must disable the filter
-#define DYN_LPF_MAX_HZ 1000
-#define DYN_LPF_UPDATE_DELAY_US 5000
+#define LPF_MAX_HZ                      1000
+#define DYN_LPF_MAX_HZ                  1000
+#define DYN_LPF_UPDATE_DELAY_US         5000
 
-#define GYRO_LPF1_DYN_MIN_HZ_DEFAULT 250
-#define GYRO_LPF1_DYN_MAX_HZ_DEFAULT 500
-#define GYRO_LPF2_HZ_DEFAULT 500
+#define GYRO_LPF1_HZ_DEFAULT            100
+#define GYRO_LPF1_DYN_MIN_HZ_DEFAULT    0
+#define GYRO_LPF1_DYN_MAX_HZ_DEFAULT    0
+#define GYRO_LPF2_HZ_DEFAULT            0
 
-#define DTERM_LPF1_DYN_MIN_HZ_DEFAULT 75
-#define DTERM_LPF1_DYN_MAX_HZ_DEFAULT 150
-#define DTERM_LPF2_HZ_DEFAULT 150
+#define DTERM_LPF1_HZ_DEFAULT           15
+#define DTERM_LPF1_DYN_MIN_HZ_DEFAULT   0
+#define DTERM_LPF1_DYN_MAX_HZ_DEFAULT   0
+#define DTERM_LPF2_HZ_DEFAULT           0
 
 typedef union gyroLowpassFilter_u {
     pt1Filter_t pt1FilterState;
