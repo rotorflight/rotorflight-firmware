@@ -1474,11 +1474,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->tail_motor_idle);
         sbufWriteU8(dst, mixerConfig()->swash_type);
         sbufWriteU8(dst, mixerConfig()->swash_ring);
-        sbufWriteU8(dst, mixerConfig()->swash_phase);
+        sbufWriteU16(dst, mixerConfig()->swash_phase);
+        sbufWriteU16(dst, mixerConfig()->swash_pitch_limit);
         sbufWriteU8(dst, mixerConfig()->swash_trim[0]);
         sbufWriteU8(dst, mixerConfig()->swash_trim[1]);
         sbufWriteU8(dst, mixerConfig()->swash_trim[2]);
-        sbufWriteU16(dst, mixerConfig()->total_pitch_limit);
+        sbufWriteU8(dst, mixerConfig()->coll_rpm_correction);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2905,11 +2906,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->tail_motor_idle = sbufReadU8(src);
         mixerConfigMutable()->swash_type = sbufReadU8(src);
         mixerConfigMutable()->swash_ring = sbufReadU8(src);
-        mixerConfigMutable()->swash_phase = sbufReadU8(src);
+        mixerConfigMutable()->swash_phase = sbufReadU16(src);
+        mixerConfigMutable()->swash_pitch_limit = sbufReadU16(src);
         mixerConfigMutable()->swash_trim[0] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[1] = sbufReadU8(src);
         mixerConfigMutable()->swash_trim[2] = sbufReadU8(src);
-        mixerConfigMutable()->total_pitch_limit = sbufReadU16(src);
+        mixerConfigMutable()->coll_rpm_correction = sbufReadU8(src);
         mixerInitConfig();
         break;
 

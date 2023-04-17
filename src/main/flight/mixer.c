@@ -60,8 +60,8 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .swash_type = SWASH_TYPE_NONE,
     .swash_ring = 100,
     .swash_phase = 0,
+    .swash_pitch_limit = 0,
     .swash_trim = { 0, 0, 0 },
-    .total_pitch_limit = 0,
     .coll_rpm_correction = 0,
 );
 
@@ -550,9 +550,9 @@ void INIT_CODE mixerInitConfig(void)
         mixer.phaseCos = 1;
     }
 
-    if (mixerConfig()->total_pitch_limit) {
+    if (mixerConfig()->swash_pitch_limit) {
         mixer.cyclicRingLimit = 1.0f;
-        mixer.totalPitchLimit = mixerConfig()->total_pitch_limit / 1000.0f;
+        mixer.totalPitchLimit = mixerConfig()->swash_pitch_limit / 1000.0f;
     }
     else {
         if (mixerConfig()->swash_ring)
