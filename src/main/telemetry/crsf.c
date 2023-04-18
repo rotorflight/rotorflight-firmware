@@ -344,100 +344,87 @@ Payload:
 char[]      Flight mode ( Null terminated string )
 */
 
-static int crsfFlightModeInfo(char *buf)
+static void crsfFlightModeInfo(char *buf)
 {
-    const char *flightMode;
-    int len;
+    const char *flightMode = "-";
 
     // Modes that are only relevant when disarmed
     if (!ARMING_FLAG(ARMED) && isArmingDisabled()) {
-        flightMode = "!ERR";
+        flightMode = "-NO-ARM-";
     } else
 #if defined(USE_GPS)
     if (!ARMING_FLAG(ARMED) && featureIsEnabled(FEATURE_GPS) && (!STATE(GPS_FIX) || !STATE(GPS_FIX_HOME))) {
-        flightMode = "WAIT"; // Waiting for GPS lock
+        flightMode = "GPS-WAIT";
     } else
 #endif
     // Flight modes in decreasing order of importance
     if (FLIGHT_MODE(FAILSAFE_MODE)) {
-        flightMode = "FAIL";
+        flightMode = "FAILSAFE";
     } else if (FLIGHT_MODE(GPS_RESCUE_MODE)) {
-        flightMode = "HOLD";
+        flightMode = "GPS-RESCUE";
     } else if (FLIGHT_MODE(RESCUE_MODE)) {
-        flightMode = "SAVE";
-    } else if (FLIGHT_MODE(ANGLE_MODE)) {
-        flightMode = "ANGL";
+        flightMode = "RESCUE";
     } else if (FLIGHT_MODE(HORIZON_MODE)) {
-        flightMode = "HORZ";
+        flightMode = "HORIZON";
+    } else if (FLIGHT_MODE(ANGLE_MODE)) {
+        flightMode = "ANGLE";
     } else {
-        flightMode = "ACRO";
+        flightMode = "NORMAL";
     }
 
-    len = strlen(flightMode);
-    strcpy(buf, flightMode);
+    const char armChar = ARMING_FLAG(ARMED) ? '*' : ' ';
 
-    if (!ARMING_FLAG(ARMED)) {
-        buf[len++] = '*';
-    }
-
-    buf[len] = 0;
-
-    return len;
+    tfp_sprintf(buf, "%s%c", flightMode, armChar);
 }
 
-static int crsfRpmInfo(char *buf)
+static void crsfRpmInfo(char *buf)
 {
     int val = lrintf(getHeadSpeed());
-    int len = tfp_sprintf(buf, "RPM: %d", val);
-
-    return len;
+    tfp_sprintf(buf, "RPM: %d", val);
 }
 
-static int crsfTempInfo(char *buf)
+static void crsfTempInfo(char *buf)
 {
     int val = getCoreTemperatureCelsius();
-    int len = tfp_sprintf(buf, "Temp: %dC", val);
-
-    return len;
+    tfp_sprintf(buf, "Temp: %dC", val);
 }
 
-static int crsfAdjFuncInfo(char *buf)
+static void crsfAdjFuncInfo(char *buf)
 {
-    int len = 0;
-
     if (getAdjustmentsRangeName()) {
         int fun = getAdjustmentsRangeFunc();
         int val = getAdjustmentsRangeValue();
-        len = tfp_sprintf(buf, "ADJ %d:%d", fun, val);
+        tfp_sprintf(buf, "ADJ %d:%d", fun, val);
     }
-
-    return len;
+    else {
+        buf[0] = 0;
+    }
 }
 
 void crsfFrameFlightMode(sbuf_t *dst)
 {
-    char buf[16];
-    int len;
+    char buff[32];
 
     switch (rxConfig()->crsf_flight_mode_reuse) {
         case CRSF_FM_REUSE_RPM:
-            len = crsfRpmInfo(buf);
+            crsfRpmInfo(buff);
             break;
         case CRSF_FM_REUSE_TEMP:
-            len = crsfTempInfo(buf);
+            crsfTempInfo(buff);
             break;
         case CRSF_FM_REUSE_ADJFUNC:
-            len = crsfAdjFuncInfo(buf);
+            crsfAdjFuncInfo(buff);
             break;
         default:
-            len = crsfFlightModeInfo(buf);
+            crsfFlightModeInfo(buff);
             break;
     }
 
-    sbufWriteU8(dst, len + 3);
-    sbufWriteU8(dst, CRSF_FRAMETYPE_FLIGHT_MODE);
-    sbufWriteData(dst, buf, len);
+    uint8_t *lengthPtr = sbufPtr(dst);
     sbufWriteU8(dst, 0);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_FLIGHT_MODE);
+    sbufWriteStringWithZeroTerminator(dst, buff);
+    *lengthPtr = sbufPtr(dst) - lengthPtr;
 }
 
 /*
