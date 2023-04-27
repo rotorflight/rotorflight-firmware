@@ -534,7 +534,7 @@ static void applyLedFixedLayers(void)
             break;
 
         case LED_FUNCTION_ARM_STATE:
-            color = ARMING_FLAG(ARMED) ? *getSC(LED_SCOLOR_ARMED) : *getSC(LED_SCOLOR_DISARMED);
+            color = !ARMING_FLAG(ARMED) && isArmingDisabled() ? *getSC(LED_SCOLOR_BACKGROUND) : ARMING_FLAG(ARMED) ? *getSC(LED_SCOLOR_ARMED) : *getSC(LED_SCOLOR_DISARMED);
             break;
 
         case LED_FUNCTION_BATTERY:

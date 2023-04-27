@@ -407,7 +407,7 @@ This mode flashes LEDs that correspond to roll and pitch stick positions.  i.e. 
 
 #### Armed state
 
-This mode toggles LEDs between green and blue when disarmed and armed, respectively.
+This mode toggles LEDs between green and blue when disarmed and armed, respectively. If arming is disabled the LED will be set to the background color, which usually is black.
 
 Note: Armed State cannot be used with Flight Mode.
 
