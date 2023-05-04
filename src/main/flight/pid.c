@@ -587,9 +587,6 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
     // Calculate error rate
     const float errorRate = setpoint - gyroRate;
 
-    // Saturation
-    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * errorRate > 0);
-
 
   //// P-term
 
@@ -600,7 +597,7 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    float dTerm = difFilterApply(&pid.dtermFilter[axis], errorRate);
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], errorRate);
 
     // Calculate D-component
     pid.data[axis].D = pid.coef[axis].Kd * dTerm;
@@ -609,10 +606,13 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
   //// I-term
 
     // Apply error relax
-    float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * itermErrorRate > 0);
 
     // I-term change
-    float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
 
     // Calculate I-component
     pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
@@ -653,9 +653,6 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
     // Select stop gain
     const float stopGain = transition(errorRate, -10, 10, pid.yawCCWStopGain, pid.yawCWStopGain);
 
-    // Saturation
-    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * errorRate > 0);
-
 
   //// P-term
 
@@ -666,7 +663,7 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    float dTerm = difFilterApply(&pid.dtermFilter[axis], errorRate);
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], errorRate);
 
     // Calculate D-component
     pid.data[axis].D = pid.coef[axis].Kd * dTerm;
@@ -675,10 +672,13 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
   //// I-term
 
     // Apply error relax
-    float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * itermErrorRate > 0);
 
     // I-term change
-    float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
 
     // Calculate I-component
     pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
@@ -730,9 +730,6 @@ static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
     // Calculate error rate
     const float errorRate = filterApply(&pid.errorFilter[axis], setpoint - gyroRate);
 
-    // Saturation
-    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * errorRate > 0);
-
 
   //// P-term
 
@@ -754,6 +751,9 @@ static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
 
     // Apply error relax
     const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * itermErrorRate > 0);
 
     // I-term change
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
@@ -805,9 +805,6 @@ static void pidApplyYawMode9(const pidProfile_t *pidProfile)
     // Select P-gain
     const float Kp = transition(errorRate, -10, 10, pid.coef[PID_WAY].Kp, pid.coef[PID_YAW].Kp);
 
-    // Saturation
-    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * errorRate > 0);
-
 
   //// P-term
 
@@ -843,6 +840,9 @@ static void pidApplyYawMode9(const pidProfile_t *pidProfile)
 
     // Apply error relax
     const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].I * itermErrorRate > 0);
 
     // I-term change
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
