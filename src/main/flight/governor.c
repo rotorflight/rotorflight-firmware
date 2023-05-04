@@ -568,7 +568,7 @@ static void governorUpdateState(void)
     float govMain = 0;
 
     // Handle DISARM separately for SAFETY!
-    if (!ARMING_FLAG(ARMED) || getBatteryCellCount() == 0) {
+    if (!ARMING_FLAG(ARMED) || (getBatteryCellCount() == 0 && gov.mode == GM_MODE2)) {
         govChangeState(GS_THROTTLE_OFF);
     }
     else {
