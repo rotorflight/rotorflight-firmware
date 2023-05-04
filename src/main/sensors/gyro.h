@@ -44,14 +44,7 @@
 #define GYRO_LPF1_HZ_DEFAULT            100
 #define GYRO_LPF1_DYN_MIN_HZ_DEFAULT    0
 #define GYRO_LPF1_DYN_MAX_HZ_DEFAULT    0
-#define GYRO_LPF2_HZ_DEFAULT            0
-
-typedef union gyroLowpassFilter_u {
-    pt1Filter_t pt1FilterState;
-    biquadFilter_t biquadFilterState;
-    pt2Filter_t pt2FilterState;
-    pt3Filter_t pt3FilterState;
-} gyroLowpassFilter_t;
+#define GYRO_LPF2_HZ_DEFAULT            50
 
 typedef enum gyroDetectionFlags_e {
     GYRO_NONE_MASK = 0,
@@ -96,33 +89,26 @@ typedef struct gyro_s {
 
     gyroDev_t *rawSensorDev;           // pointer to the sensor providing the raw data for DEBUG_GYRO_RAW
 
-    // gyro decimation filter
-    filterApplyFnPtr decimationApplyFn;
-    gyroLowpassFilter_t decimationFilter[XYZ_AXIS_COUNT];
+    // gyro decimation filter stack
+    biquadFilter_t decimator[XYZ_AXIS_COUNT][2];
 
-    // lowpass gyro soft filter
-    filterApplyFnPtr lowpassFilterApplyFn;
-    gyroLowpassFilter_t lowpassFilter[XYZ_AXIS_COUNT];
+    // gyro lowpass filters
+    filter_t lowpassFilter[XYZ_AXIS_COUNT];
+    filter_t lowpass2Filter[XYZ_AXIS_COUNT];
 
-    // lowpass2 gyro soft filter
-    filterApplyFnPtr lowpass2FilterApplyFn;
-    gyroLowpassFilter_t lowpass2Filter[XYZ_AXIS_COUNT];
-
-    // notch filters
-    filterApplyFnPtr notchFilter1ApplyFn;
-    biquadFilter_t notchFilter1[XYZ_AXIS_COUNT];
-
-    filterApplyFnPtr notchFilter2ApplyFn;
-    biquadFilter_t notchFilter2[XYZ_AXIS_COUNT];
+    // Notch filters
+    filter_t notchFilter1[XYZ_AXIS_COUNT];
+    filter_t notchFilter2[XYZ_AXIS_COUNT];
 
     uint16_t accSampleRateHz;
     uint8_t gyroToUse;
     uint8_t gyroDebugMode;
+
     bool gyroHasOverflowProtection;
     bool useDualGyroDebugging;
 
 #ifdef USE_DYN_LPF
-    uint8_t dynLpfFilter;
+    bool dynLpfFilter;
     uint16_t dynLpfHz;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
@@ -144,23 +130,9 @@ enum {
     GYRO_OVERFLOW_CHECK_ALL_AXES
 };
 
-enum {
-    DYN_LPF_NONE = 0,
-    DYN_LPF_PT1,
-    DYN_LPF_BIQUAD,
-    DYN_LPF_PT2,
-    DYN_LPF_PT3,
-};
-
 #define GYRO_CONFIG_USE_GYRO_1      0
 #define GYRO_CONFIG_USE_GYRO_2      1
 #define GYRO_CONFIG_USE_GYRO_BOTH   2
-
-enum {
-    FILTER_LPF1 = 0,
-    FILTER_LPF2,
-    FILTER_DECIMATION,
-};
 
 typedef struct gyroConfig_s {
     uint8_t gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
@@ -206,5 +178,5 @@ int16_t gyroGetTemperature(void);
 bool gyroOverflowDetected(void);
 uint16_t gyroAbsRateDps(int axis);
 #ifdef USE_DYN_LPF
-void dynLpfUpdate(timeUs_t currentTimeUs, float ratio);
+void dynLpfUpdate(timeUs_t currentTimeUs);
 #endif

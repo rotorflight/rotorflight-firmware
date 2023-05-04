@@ -61,7 +61,7 @@ typedef struct
     float maxGainUp;
     float maxGainDown;
 
-    pt3Filter_t filter[4];
+    filter_t filter[4];
 
     uint16_t smoothCutoff;
     uint16_t activeCutoff;
@@ -111,9 +111,8 @@ void setpointUpdateTiming(float frameTimeUs)
     DEBUG(SETPOINT, 6, cutoff);
 
     if (sp.activeCutoff != cutoff) {
-        const float gain = pt3FilterGain(cutoff, pidGetDT());
         for (int i = 0; i < 4; i++) {
-            pt3FilterUpdateCutoff(&sp.filter[i], gain);
+            filterUpdate(&sp.filter[i], cutoff, pidGetPidFrequency());
         }
         sp.activeCutoff = cutoff;
     }
@@ -141,13 +140,12 @@ INIT_CODE void setpointInit(void)
 {
     setpointInitProfile();
 
-    float gain = pt3FilterGain(sp.activeCutoff, pidGetDT());
     for (int i = 0; i < 4; i++) {
-        pt3FilterInit(&sp.filter[i], gain);
+        lowpassFilterInit(&sp.filter[i], LPF_PT3, sp.activeCutoff, pidGetPidFrequency(), 0);
     }
 
-    sp.maxGainUp    = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetDT());
-    sp.maxGainDown  = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetDT());
+    sp.maxGainUp = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetPidFrequency());
+    sp.maxGainDown = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetPidFrequency());
 }
 
 void setpointUpdate(void)
@@ -189,7 +187,7 @@ void setpointUpdate(void)
         float SP = sp.limited[axis] = slewLimit(sp.limited[axis], sp.deflection[axis], sp.accelLimit[axis]);
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
-        SP = sp.deflection[axis] = pt3FilterApply(&sp.filter[axis], SP);
+        SP = sp.deflection[axis] = filterApply(&sp.filter[axis], SP);
         DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
 
         SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);

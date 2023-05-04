@@ -63,7 +63,7 @@ void accUpdate(timeUs_t currentTimeUs, rollAndPitchTrims_t *rollAndPitchTrims)
 
     if (accelerationRuntime.accLpfCutHz) {
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            acc.accADC[axis] = biquadFilterApply(&accelerationRuntime.accFilter[axis], acc.accADC[axis]);
+            acc.accADC[axis] = filterApply(&accelerationRuntime.accFilter[axis], acc.accADC[axis]);
         }
     }
 

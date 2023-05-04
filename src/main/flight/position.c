@@ -60,14 +60,13 @@ typedef struct {
     float       gpsAlt;
     float       gpsAltOffset;
 
-    float       varioAltPrev;
+    difFilter_t varioFilter;
 
-    pt2Filter_t gpsFilter;
-    pt2Filter_t baroFilter;
-    pt1Filter_t varioFilter;
+    filter_t    gpsFilter;
+    filter_t    baroFilter;
 
-    pt2Filter_t gpsOffsetFilter;
-    pt2Filter_t baroOffsetFilter;
+    filter_t    gpsOffsetFilter;
+    filter_t    baroOffsetFilter;
 
 } altState_t;
 
@@ -97,12 +96,7 @@ int16_t getEstimatedVario(void)
 
 static float calculateVario(float altitude)
 {
-    float vario = (altitude - alt.varioAltPrev) * pidGetPidFrequency();
-    vario = pt1FilterApply(&alt.varioFilter, vario);
-
-    alt.varioAltPrev = altitude;
-
-    return vario;
+    return difFilterApply(&alt.varioFilter, altitude);
 }
 
 void positionUpdate(void)
@@ -111,7 +105,7 @@ void positionUpdate(void)
     if (alt.source == ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_BARO_ONLY) {
         if (sensors(SENSOR_BARO) && baroIsReady()) {
             if (baro.baroAltitude < 15000 && baro.baroAltitude > -2500) {
-                alt.baroAlt = pt2FilterApply(&alt.baroFilter, baro.baroAltitude / 100.0f);
+                alt.baroAlt = filterApply(&alt.baroFilter, baro.baroAltitude / 100.0f);
                 alt.haveBaroAlt = true;
             }
         }
@@ -124,7 +118,7 @@ void positionUpdate(void)
 #ifdef USE_GPS
     if (alt.source & ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
         if (sensors(SENSOR_GPS) && STATE(GPS_FIX) && gpsSol.numSat >= positionConfig()->gps_min_sats) {
-            alt.gpsAlt = pt2FilterApply(&alt.gpsFilter, gpsSol.llh.altCm / 100.0f);
+            alt.gpsAlt = filterApply(&alt.gpsFilter, gpsSol.llh.altCm / 100.0f);
             alt.haveGpsAlt = true;
         }
         else {
@@ -135,15 +129,15 @@ void positionUpdate(void)
 
     if (!ARMING_FLAG(ARMED)) {
         if (alt.haveBaroAlt) {
-            alt.baroAltOffset = pt2FilterApply(&alt.baroOffsetFilter, alt.baroAlt);
+            alt.baroAltOffset = filterApply(&alt.baroOffsetFilter, alt.baroAlt);
         }
         if (alt.haveGpsAlt) {
-            alt.gpsAltOffset = pt2FilterApply(&alt.gpsOffsetFilter, alt.gpsAlt);
+            alt.gpsAltOffset = filterApply(&alt.gpsOffsetFilter, alt.gpsAlt);
         }
     }
     else {
         if (alt.haveBaroAlt && alt.haveGpsAlt && alt.gpsAltOffset) {
-            alt.baroAltOffset = pt2FilterApply(&alt.baroOffsetFilter,
+            alt.baroAltOffset = filterApply(&alt.baroOffsetFilter,
                 alt.baroAlt - (alt.gpsAlt - alt.gpsAltOffset));
         }
     }
@@ -161,24 +155,25 @@ void positionUpdate(void)
         alt.variometer = 0;
     }
 
-    DEBUG(ALTITUDE, 0, alt.baroAlt * 100);
-    DEBUG(ALTITUDE, 1, alt.baroAltOffset * 100);
-    DEBUG(ALTITUDE, 2, alt.gpsAlt * 100);
-    DEBUG(ALTITUDE, 3, alt.gpsAltOffset * 100);
-    DEBUG(ALTITUDE, 4, gpsSol.llh.altCm);
-    DEBUG(ALTITUDE, 5, gpsSol.numSat);
-    DEBUG(ALTITUDE, 6, alt.altitude * 100);
-    DEBUG(ALTITUDE, 7, alt.variometer * 100);
+    DEBUG(ALTITUDE, 0, alt.altitude * 100);
+    DEBUG(ALTITUDE, 1, alt.variometer * 100);
+    DEBUG(ALTITUDE, 2, alt.baroAlt * 100);
+    DEBUG(ALTITUDE, 3, alt.baroAltOffset * 100);
+    DEBUG(ALTITUDE, 4, alt.gpsAlt * 100);
+    DEBUG(ALTITUDE, 5, alt.gpsAltOffset * 100);
+    DEBUG(ALTITUDE, 6, gpsSol.llh.altCm);
+    DEBUG(ALTITUDE, 7, gpsSol.numSat);
 }
 
 void INIT_CODE positionInit(void)
 {
     alt.source = positionConfig()->alt_source;
 
-    pt2FilterInit(&alt.gpsFilter, pt2FilterGain(positionConfig()->gps_alt_lpf / 100.0f, pidGetDT()));
-    pt2FilterInit(&alt.baroFilter, pt2FilterGain(positionConfig()->baro_alt_lpf / 100.0f, pidGetDT()));
-    pt1FilterInit(&alt.varioFilter, pt1FilterGain(positionConfig()->vario_lpf / 100.0f, pidGetDT()));
+    difFilterInit(&alt.varioFilter, positionConfig()->vario_lpf / 100.0f, pidGetPidFrequency());
 
-    pt2FilterInit(&alt.gpsOffsetFilter, pt2FilterGain(positionConfig()->gps_offset_lpf / 1000.0f, pidGetDT()));
-    pt2FilterInit(&alt.baroOffsetFilter, pt2FilterGain(positionConfig()->baro_offset_lpf / 1000.0f, pidGetDT()));
+    lowpassFilterInit(&alt.gpsFilter, LPF_PT2, positionConfig()->gps_alt_lpf / 100.0f, pidGetPidFrequency(), LPF_EWMA);
+    lowpassFilterInit(&alt.baroFilter, LPF_PT2, positionConfig()->baro_alt_lpf / 100.0f, pidGetPidFrequency(), LPF_EWMA);
+
+    lowpassFilterInit(&alt.gpsOffsetFilter, LPF_PT2, positionConfig()->gps_offset_lpf / 1000.0f, pidGetPidFrequency(), LPF_EWMA);
+    lowpassFilterInit(&alt.baroOffsetFilter, LPF_PT2, positionConfig()->baro_offset_lpf / 1000.0f, pidGetPidFrequency(), LPF_EWMA);
 }

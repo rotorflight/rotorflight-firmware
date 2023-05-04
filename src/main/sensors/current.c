@@ -81,7 +81,7 @@ void currentMeterReset(currentMeter_t *meter)
     meter->mAhDrawn = 0;
 }
 
-static pt1Filter_t adciBatFilter;
+static filter_t adciBatFilter;
 
 #ifndef CURRENT_METER_SCALE_DEFAULT
 #define CURRENT_METER_SCALE_DEFAULT 400 // for Allegro ACS758LCB-100U (40mV/A)
@@ -130,8 +130,7 @@ currentMeterADCState_t currentMeterADCState;
 void currentMeterADCInit(void)
 {
     memset(&currentMeterADCState, 0, sizeof(currentMeterADCState_t));
-    pt1FilterInit(&adciBatFilter, pt1FilterGain(GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod),
-                                                HZ_TO_INTERVAL(batteryConfig()->ibatUpdateHz)));
+    lowpassFilterInit(&adciBatFilter, LPF_BESSEL, GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod), batteryConfig()->ibatUpdateHz, 0);
 }
 
 void currentMeterADCRefresh(int32_t lastUpdateAt)
@@ -139,7 +138,7 @@ void currentMeterADCRefresh(int32_t lastUpdateAt)
 #ifdef USE_ADC
     const uint16_t iBatSample = adcGetChannel(ADC_CURRENT);
     currentMeterADCState.amperageLatest = currentMeterADCToCentiamps(iBatSample);
-    currentMeterADCState.amperage = currentMeterADCToCentiamps(pt1FilterApply(&adciBatFilter, iBatSample));
+    currentMeterADCState.amperage = currentMeterADCToCentiamps(filterApply(&adciBatFilter, iBatSample));
 
     updateCurrentmAhDrawnState(&currentMeterADCState.mahDrawnState, currentMeterADCState.amperageLatest, lastUpdateAt);
 #else

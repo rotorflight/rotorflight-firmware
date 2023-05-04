@@ -82,7 +82,7 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_min_entry_time = 50,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
-    .gov_tta_filter = 250,
+    .gov_tta_filter = 0,
 );
 
 
@@ -125,14 +125,14 @@ typedef struct {
 
     // Input data filters
     float           motorRPM;
-    biquadFilter_t  motorRPMFilter;
+    filter_t        motorRPMFilter;
     uint32_t        motorRPMGood;
 
     float           motorVoltage;
-    biquadFilter_t  motorVoltageFilter;
+    filter_t        motorVoltageFilter;
 
     float           motorCurrent;
-    biquadFilter_t  motorCurrentFilter;
+    filter_t        motorCurrentFilter;
 
     // Nominal battery voltage
     float           nominalVoltage;
@@ -144,7 +144,9 @@ typedef struct {
     float           D;
     float           F;
     float           pidSum;
-    float           pidError;
+
+    // Differentiator with bandwidth limiter
+    difFilter_t     differentiator;
 
     // PID Gains
     float           K;
@@ -162,7 +164,7 @@ typedef struct {
     float           TTAMull;
     float           TTAGain;
     float           TTALimit;
-    biquadFilter_t  TTAFilter;
+    filter_t        TTAFilter;
 
     // Autorotation
     bool            autoEnabled;
@@ -343,7 +345,7 @@ static void govUpdateInputs(void)
     gov.motorRPM = getMotorRawRPMf(0);
 
     // RPM signal is noisy - filtering is required
-    float filteredRPM = biquadFilterApply(&gov.motorRPMFilter, gov.motorRPM);
+    float filteredRPM = filterApply(&gov.motorRPMFilter, gov.motorRPM);
 
     // Calculate headspeed from filtered motor speed
     gov.actualHeadSpeed = filteredRPM * gov.mainGearRatio;
@@ -372,8 +374,8 @@ static void govUpdateInputs(void)
     gov.nominalVoltage = getBatteryCellCount() * GOV_NOMINAL_CELL_VOLTAGE;
 
     // Voltage & current filters
-    gov.motorVoltage = biquadFilterApply(&gov.motorVoltageFilter, getBatteryVoltageLatest() * 0.01f);
-    gov.motorCurrent = biquadFilterApply(&gov.motorCurrentFilter, getAmperageLatest() * 0.01f);
+    gov.motorVoltage = filterApply(&gov.motorVoltageFilter, getBatteryVoltageLatest() * 0.01f);
+    gov.motorCurrent = filterApply(&gov.motorCurrentFilter, getAmperageLatest() * 0.01f);
 }
 
 static void govUpdateData(void)
@@ -398,7 +400,7 @@ static void govUpdateData(void)
 
     // Tail Torque Assist
     if (mixerMotorizedTail() && gov.TTAGain != 0 && isSpooledUp()) {
-        float TTA = gov.TTAGain * biquadFilterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
+        float TTA = gov.TTAGain * filterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
         gov.TTAMull = constrainf(TTA, 0, gov.TTALimit) + 1.0f;
     }
     else {
@@ -411,11 +413,8 @@ static void govUpdateData(void)
     // Update PIDF terms
     gov.P = gov.K * gov.Kp * newError;
     gov.C = gov.K * gov.Ki * newError * pidGetDT();
-    gov.D = gov.K * gov.Kd * (newError - gov.pidError) / pidGetDT();
+    gov.D = gov.K * gov.Kd * difFilterApply(&gov.differentiator, newError);
     gov.F = gov.K * gov.Kf * totalFF;
-
-    // Update error term
-    gov.pidError = newError;
 }
 
 
@@ -1011,12 +1010,15 @@ void governorInit(const pidProfile_t *pidProfile)
         gov.zeroThrottleTimeout  = governorConfig()->gov_zero_throttle_timeout * 100;
         gov.lostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
-        const float maxFreq = pidGetPidFrequency() / 4;
+        const float diff_cutoff = governorConfig()->gov_rpm_filter ?
+            constrainf(governorConfig()->gov_rpm_filter, 1, 50) : 20;
 
-        biquadFilterInitLPF(&gov.TTAFilter, constrainf(governorConfig()->gov_tta_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&gov.motorVoltageFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&gov.motorCurrentFilter, constrainf(governorConfig()->gov_pwr_filter, 1, maxFreq), gyro.targetLooptime);
-        biquadFilterInitLPF(&gov.motorRPMFilter, constrainf(governorConfig()->gov_rpm_filter, 1, maxFreq), gyro.targetLooptime);
+        difFilterInit(&gov.differentiator, diff_cutoff, gyro.targetRateHz);
+
+        lowpassFilterInit(&gov.motorVoltageFilter, LPF_BESSEL, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorCurrentFilter, LPF_BESSEL, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorRPMFilter, LPF_BESSEL, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.TTAFilter, LPF_BESSEL, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
 
         governorInitProfile(pidProfile);
     }

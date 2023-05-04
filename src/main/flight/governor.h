@@ -54,9 +54,9 @@ typedef struct governorConfig_s {
     uint16_t gov_autorotation_timeout;
     uint16_t gov_autorotation_bailout_time;
     uint16_t gov_autorotation_min_entry_time;
-    uint16_t gov_pwr_filter;
-    uint16_t gov_rpm_filter;
-    uint16_t gov_tta_filter;
+    uint8_t  gov_pwr_filter;
+    uint8_t  gov_rpm_filter;
+    uint8_t  gov_tta_filter;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);

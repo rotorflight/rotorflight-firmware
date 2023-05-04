@@ -73,7 +73,7 @@ static FAST_DATA_ZERO_INIT float          motorRpm[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT float          motorRpmRaw[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT uint8_t        motorRpmDiv[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT uint8_t        motorRpmSource[MAX_SUPPORTED_MOTORS];
-static FAST_DATA_ZERO_INIT biquadFilter_t motorRpmFilter[MAX_SUPPORTED_MOTORS];
+static FAST_DATA_ZERO_INIT filter_t       motorRpmFilter[MAX_SUPPORTED_MOTORS];
 
 static FAST_DATA_ZERO_INIT float          headSpeed;
 static FAST_DATA_ZERO_INIT float          tailSpeed;
@@ -221,7 +221,7 @@ INIT_CODE void rpmSourceInit(void)
         motorRpmFactor[i] = 1.0f + motorConfig()->motorRpmFactor[i] / 100000.0f;
 
         int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 250);
-        biquadFilterInitLPF(&motorRpmFilter[i], freq, gyro.targetLooptime);
+        lowpassFilterInit(&motorRpmFilter[i], LPF_BESSEL, freq, gyro.targetRateHz, 0);
     }
 }
 
@@ -289,7 +289,7 @@ void motorUpdate(void)
 
     for (int i = 0; i < motorCount; i++) {
         motorRpmRaw[i] = calcMotorRPMf(i,getMotorERPM(i)) * motorRpmFactor[i];
-        motorRpm[i] = biquadFilterApply(&motorRpmFilter[i], motorRpmRaw[i]);
+        motorRpm[i] = filterApply(&motorRpmFilter[i], motorRpmRaw[i]);
         DEBUG_SET(DEBUG_RPM_SOURCE, i, lrintf(motorRpmRaw[i]));
     }
 

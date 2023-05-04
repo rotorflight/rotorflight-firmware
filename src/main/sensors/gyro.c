@@ -48,6 +48,7 @@
 #include "flight/dyn_notch_filter.h"
 #endif
 #include "flight/rpm_filter.h"
+#include "flight/governor.h"
 
 #include "io/beeper.h"
 #include "io/statusindicator.h"
@@ -103,9 +104,9 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyroMovementCalibrationThreshold = 48;
     gyroConfig->gyro_hardware_lpf = GYRO_HARDWARE_LPF_NORMAL;
     gyroConfig->gyro_decimation_hz = 250;
-    gyroConfig->gyro_lpf1_type = FILTER_PT1;
+    gyroConfig->gyro_lpf1_type = LPF_2ND_ORDER;
     gyroConfig->gyro_lpf1_static_hz = GYRO_LPF1_HZ_DEFAULT;
-    gyroConfig->gyro_lpf2_type = FILTER_PT1;
+    gyroConfig->gyro_lpf2_type = LPF_NONE;
     gyroConfig->gyro_lpf2_static_hz = GYRO_LPF2_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
@@ -376,9 +377,9 @@ FAST_CODE void gyroUpdate(void)
 #endif
     }
 
-    gyro.gyroADCd[X] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[X], gyro.gyroADC[X]);
-    gyro.gyroADCd[Y] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[Y], gyro.gyroADC[Y]);
-    gyro.gyroADCd[Z] = gyro.decimationApplyFn((filter_t *)&gyro.decimationFilter[Z], gyro.gyroADC[Z]);
+    gyro.gyroADCd[X] = filterStackApply(gyro.decimator[X], gyro.gyroADC[X], 2);
+    gyro.gyroADCd[Y] = filterStackApply(gyro.decimator[Y], gyro.gyroADC[Y], 2);
+    gyro.gyroADCd[Z] = filterStackApply(gyro.decimator[Z], gyro.gyroADC[Z], 2);
 }
 
 #define GYRO_FILTER_FUNCTION_NAME filterGyro
@@ -532,44 +533,20 @@ uint16_t gyroAbsRateDps(int axis)
 
 #ifdef USE_DYN_LPF
 
-static void dynLpfGyroUpdate(float ratio)
-{
-    if (gyro.dynLpfFilter != DYN_LPF_NONE) {
-        const float cutoffFreq = constrainf(ratio * gyro.dynLpfHz, gyro.dynLpfMin, gyro.dynLpfMax);
-        DEBUG_SET(DEBUG_DYN_LPF, 2, lrintf(cutoffFreq));
-        const float gyroDt = gyro.filterLooptime * 1e-6f;
-        switch (gyro.dynLpfFilter) {
-        case DYN_LPF_PT1:
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                pt1FilterUpdateCutoff(&gyro.lowpassFilter[axis].pt1FilterState, pt1FilterGain(cutoffFreq, gyroDt));
-            }
-            break;
-        case DYN_LPF_BIQUAD:
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                biquadFilterUpdateLPF(&gyro.lowpassFilter[axis].biquadFilterState, cutoffFreq, gyro.filterLooptime);
-            }
-            break;
-        case  DYN_LPF_PT2:
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                pt2FilterUpdateCutoff(&gyro.lowpassFilter[axis].pt2FilterState, pt2FilterGain(cutoffFreq, gyroDt));
-            }
-            break;
-        case DYN_LPF_PT3:
-            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-                pt3FilterUpdateCutoff(&gyro.lowpassFilter[axis].pt3FilterState, pt3FilterGain(cutoffFreq, gyroDt));
-            }
-            break;
-        }
-    }
-}
-
-void dynLpfUpdate(timeUs_t currentTimeUs, float ratio)
+void dynLpfUpdate(timeUs_t currentTimeUs)
 {
     static timeUs_t lastDynLpfUpdateUs = 0;
+    const float ratio = getFullHeadSpeedRatio();
 
-    if (cmpTimeUs(currentTimeUs, lastDynLpfUpdateUs) >= DYN_LPF_UPDATE_DELAY_US) {
-        dynLpfGyroUpdate(ratio);
-        lastDynLpfUpdateUs = currentTimeUs;
+    if (gyro.dynLpfFilter) {
+        if (cmpTimeUs(currentTimeUs, lastDynLpfUpdateUs) >= DYN_LPF_UPDATE_DELAY_US) {
+            const float cutoffFreq = constrainf(ratio * gyro.dynLpfHz, gyro.dynLpfMin, gyro.dynLpfMax);
+            DEBUG_SET(DEBUG_DYN_LPF, 2, lrintf(cutoffFreq));
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                filterUpdate(&gyro.lowpassFilter[axis], cutoffFreq, gyro.filterRateHz);
+            }
+            lastDynLpfUpdateUs = currentTimeUs;
+        }
     }
 }
 

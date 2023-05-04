@@ -347,9 +347,8 @@ void accInitFilters(void)
     // the filter initialization is not defined (sample rate = 0)
     accelerationRuntime.accLpfCutHz = (acc.sampleRateHz) ? accelerometerConfig()->acc_lpf_hz : 0;
     if (accelerationRuntime.accLpfCutHz) {
-        const uint32_t accSampleTimeUs = 1e6 / acc.sampleRateHz;
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInitLPF(&accelerationRuntime.accFilter[axis], accelerationRuntime.accLpfCutHz, accSampleTimeUs);
+            lowpassFilterInit(&accelerationRuntime.accFilter[axis], LPF_BESSEL, accelerationRuntime.accLpfCutHz, acc.sampleRateHz, 0);
         }
     }
 }

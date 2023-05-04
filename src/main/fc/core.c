@@ -676,7 +676,7 @@ static void subTaskPidSubprocesses(timeUs_t currentTimeUs)
 #endif
 
 #ifdef USE_DYN_LPF
-    dynLpfUpdate(currentTimeUs, getFullHeadSpeedRatio());
+    dynLpfUpdate(currentTimeUs);
 #endif
 
 #ifdef USE_RPM_FILTER

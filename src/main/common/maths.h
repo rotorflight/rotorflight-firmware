@@ -44,13 +44,17 @@
 
 float sin_approx(float x);
 float cos_approx(float x);
-float tan_approx(float x);
 float atan2_approx(float y, float x);
 float asin_approx(float x);
 float acos_approx(float x);
 float exp_approx(float val);
 float log_approx(float val);
 float pow_approx(float a, float b);
+
+static inline float tan_approx(float x)
+{
+    return sin_approx(x) / cos_approx(x);
+}
 
 #else /* USE_STANDARD_MATH */
 

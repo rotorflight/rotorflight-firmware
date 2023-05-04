@@ -27,7 +27,7 @@
 
 typedef struct accelerationRuntime_s {
     uint16_t accLpfCutHz;
-    biquadFilter_t accFilter[XYZ_AXIS_COUNT];
+    filter_t accFilter[XYZ_AXIS_COUNT];
     flightDynamicsTrims_t *accelerationTrims;
     int accumulatedMeasurementCount;
     float accumulatedMeasurements[XYZ_AXIS_COUNT];

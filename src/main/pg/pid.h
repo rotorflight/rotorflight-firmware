@@ -128,12 +128,14 @@ typedef struct pidProfile_s {
     uint8_t             iterm_relax_level[PID_AXIS_COUNT];
     uint8_t             iterm_relax_cutoff[PID_AXIS_COUNT];
 
-    uint16_t            error_limit[PID_AXIS_COUNT];
+    uint8_t             error_limit[PID_AXIS_COUNT];
 
     uint8_t             error_cutoff[PID_AXIS_COUNT];
     uint8_t             dterm_cutoff[PID_AXIS_COUNT];
     uint8_t             fterm_cutoff[PID_AXIS_COUNT];
     uint8_t             gyro_cutoff[PID_AXIS_COUNT];
+
+    uint8_t             gyro_filter_type;
 
     uint8_t             yaw_d_select;
     uint16_t            yaw_cw_stop_gain;
@@ -141,11 +143,10 @@ typedef struct pidProfile_s {
 
     uint16_t            yaw_cyclic_ff_gain;
     uint16_t            yaw_collective_ff_gain;
-    uint16_t            yaw_collective_ff_impulse_gain;
-    uint8_t             yaw_collective_ff_impulse_freq;
+    uint16_t            yaw_collective_hf_gain;
+    uint8_t             yaw_collective_ff_cutoff;
 
     uint16_t            pitch_collective_ff_gain;
-    uint16_t            pitch_collective_ff_impulse_gain;
 
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;
