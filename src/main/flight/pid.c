@@ -450,7 +450,7 @@ static void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_t axis)
   //// D-term
 
     // Calculate derivative
-    float dError = -gyro.gyroDtermADCf[axis];
+    float dError = -gyro.gyroADCf[axis];
     float dTerm = (dError - pid.data[axis].prevError) * pid.freq;
     pid.data[axis].prevError = dError;
 
@@ -533,7 +533,7 @@ static void pidApplyYawMode1(const pidProfile_t *pidProfile)
   //// D-term
 
     // Calculate D-term from filtered gyro signal
-    float dError = -gyro.gyroDtermADCf[axis];
+    float dError = -gyro.gyroADCf[axis];
     float dTerm = (dError - pid.data[axis].prevError) * pid.freq;
     pid.data[axis].prevError = dError;
 

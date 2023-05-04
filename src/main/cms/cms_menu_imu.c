@@ -425,8 +425,6 @@ static uint16_t dynFiltNotchMinHz;
 #ifdef USE_DYN_LPF
 static uint16_t gyroLpfDynMin;
 static uint16_t gyroLpfDynMax;
-static uint16_t dtermLpfDynMin;
-static uint16_t dtermLpfDynMax;
 #endif
 
 static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
@@ -442,8 +440,6 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
 #ifdef USE_DYN_LPF
     gyroLpfDynMin       = gyroConfig()->gyro_lpf1_dyn_min_hz;
     gyroLpfDynMax       = gyroConfig()->gyro_lpf1_dyn_max_hz;
-    dtermLpfDynMin      = gyroConfig()->dterm_lpf1_dyn_min_hz;
-    dtermLpfDynMax      = gyroConfig()->dterm_lpf1_dyn_max_hz;
 #endif
 
     return NULL;
@@ -463,8 +459,6 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
 #ifdef USE_DYN_LPF
     gyroConfigMutable()->gyro_lpf1_dyn_min_hz        = gyroLpfDynMin;
     gyroConfigMutable()->gyro_lpf1_dyn_max_hz        = gyroLpfDynMax;
-    gyroConfigMutable()->dterm_lpf1_dyn_min_hz       = dtermLpfDynMin;
-    gyroConfigMutable()->dterm_lpf1_dyn_max_hz       = dtermLpfDynMax;
 #endif
 
     return NULL;
@@ -484,8 +478,6 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
 #ifdef USE_DYN_LPF
     { "GYRO DLPF MIN",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMin,  0, 1000, 1 } },
     { "GYRO DLPF MAX",   OME_UINT16, NULL, &(OSD_UINT16_t) { &gyroLpfDynMax,  0, 1000, 1 } },
-    { "DTERM DLPF MIN",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMin, 0, 1000, 1 } },
-    { "DTERM DLPF MAX",  OME_UINT16, NULL, &(OSD_UINT16_t) { &dtermLpfDynMax, 0, 1000, 1 } },
 #endif
 
     { "BACK", OME_Back, NULL, NULL },
@@ -505,19 +497,10 @@ static CMS_Menu cmsx_menuDynFilt = {
 
 #endif
 
-static uint16_t cmsx_dterm_lpf1_static_hz;
-static uint16_t cmsx_dterm_lpf2_static_hz;
-static uint16_t cmsx_dterm_notch_hz;
-static uint16_t cmsx_dterm_notch_cutoff;
-
+#if 0
 static const void *cmsx_FilterPerProfileRead(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
-
-    cmsx_dterm_lpf1_static_hz   = gyroConfig()->dterm_lpf1_static_hz;
-    cmsx_dterm_lpf2_static_hz   = gyroConfig()->dterm_lpf2_static_hz;
-    cmsx_dterm_notch_hz         = gyroConfig()->dterm_notch_hz;
-    cmsx_dterm_notch_cutoff     = gyroConfig()->dterm_notch_cutoff;
 
     return NULL;
 }
@@ -527,22 +510,12 @@ static const void *cmsx_FilterPerProfileWriteback(displayPort_t *pDisp, const OS
     UNUSED(pDisp);
     UNUSED(self);
 
-    gyroConfigMutable()->dterm_lpf1_static_hz  = cmsx_dterm_lpf1_static_hz;
-    gyroConfigMutable()->dterm_lpf2_static_hz  = cmsx_dterm_lpf2_static_hz;
-    gyroConfigMutable()->dterm_notch_hz        = cmsx_dterm_notch_hz;
-    gyroConfigMutable()->dterm_notch_cutoff    = cmsx_dterm_notch_cutoff;
-
     return NULL;
 }
 
 static const OSD_Entry cmsx_menuFilterPerProfileEntries[] =
 {
     { "-- FILTER PP  --", OME_Label, NULL, NULL },
-
-    { "DTERM LPF1", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf1_static_hz, 0, LPF_MAX_HZ, 1 } },
-    { "DTERM LPF2", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_lpf2_static_hz, 0, LPF_MAX_HZ, 1 } },
-    { "DTERM NF",   OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_notch_hz,       0, LPF_MAX_HZ, 1 } },
-    { "DTERM NFCO", OME_UINT16, NULL, &(OSD_UINT16_t){ &cmsx_dterm_notch_cutoff,   0, LPF_MAX_HZ, 1 } },
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
@@ -558,6 +531,7 @@ static CMS_Menu cmsx_menuFilterPerProfile = {
     .onDisplayUpdate = NULL,
     .entries = cmsx_menuFilterPerProfileEntries,
 };
+#endif
 
 #ifdef USE_EXTENDED_CMS_MENUS
 
@@ -641,7 +615,7 @@ static const OSD_Entry cmsx_menuImuEntries[] =
     {"PID PROF",  OME_UINT8,   cmsx_profileIndexOnChange,     &(OSD_UINT8_t){ &tmpPidProfileIndex, 1, PID_PROFILE_COUNT, 1}},
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
     {"MISC PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileOther},
-    {"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
+    //{"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 
     {"RATE PROF", OME_UINT8,   cmsx_rateProfileIndexOnChange, &(OSD_UINT8_t){ &tmpRateProfileIndex, 1, CONTROL_RATE_PROFILE_COUNT, 1}},
     {"RATE",      OME_Submenu, cmsMenuChange,                 &cmsx_menuRateProfile},

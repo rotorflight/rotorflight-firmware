@@ -1705,20 +1705,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_1);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_hz_2);
         sbufWriteU16(dst, gyroConfig()->gyro_soft_notch_cutoff_2);
-        sbufWriteU8(dst, gyroConfig()->dterm_lpf1_type);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf1_static_hz);
-        sbufWriteU8(dst, gyroConfig()->dterm_lpf2_type);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf2_static_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_notch_cutoff);
 #if defined(USE_DYN_LPF)
         sbufWriteU16(dst, gyroConfig()->gyro_lpf1_dyn_min_hz);
         sbufWriteU16(dst, gyroConfig()->gyro_lpf1_dyn_max_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf1_dyn_min_hz);
-        sbufWriteU16(dst, gyroConfig()->dterm_lpf1_dyn_max_hz);
 #else
-        sbufWriteU16(dst, 0);
-        sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
@@ -2433,20 +2423,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gyroConfigMutable()->gyro_soft_notch_cutoff_1 = sbufReadU16(src);
         gyroConfigMutable()->gyro_soft_notch_hz_2 = sbufReadU16(src);
         gyroConfigMutable()->gyro_soft_notch_cutoff_2 = sbufReadU16(src);
-        gyroConfigMutable()->dterm_lpf1_type = sbufReadU8(src);
-        gyroConfigMutable()->dterm_lpf1_static_hz = sbufReadU16(src);
-        gyroConfigMutable()->dterm_lpf2_type = sbufReadU8(src);
-        gyroConfigMutable()->dterm_lpf2_static_hz = sbufReadU16(src);
-        gyroConfigMutable()->dterm_notch_hz = sbufReadU16(src);
-        gyroConfigMutable()->dterm_notch_cutoff = sbufReadU16(src);
 #if defined(USE_DYN_LPF)
         gyroConfigMutable()->gyro_lpf1_dyn_min_hz = sbufReadU16(src);
         gyroConfigMutable()->gyro_lpf1_dyn_max_hz = sbufReadU16(src);
-        gyroConfigMutable()->dterm_lpf1_dyn_min_hz = sbufReadU16(src);
-        gyroConfigMutable()->dterm_lpf1_dyn_max_hz = sbufReadU16(src);
 #else
-        sbufReadU16(src);
-        sbufReadU16(src);
         sbufReadU16(src);
         sbufReadU16(src);
 #endif

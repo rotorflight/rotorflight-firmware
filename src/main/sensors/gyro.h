@@ -46,11 +46,6 @@
 #define GYRO_LPF1_DYN_MAX_HZ_DEFAULT    0
 #define GYRO_LPF2_HZ_DEFAULT            0
 
-#define DTERM_LPF1_HZ_DEFAULT           15
-#define DTERM_LPF1_DYN_MIN_HZ_DEFAULT   0
-#define DTERM_LPF1_DYN_MAX_HZ_DEFAULT   0
-#define DTERM_LPF2_HZ_DEFAULT           0
-
 typedef union gyroLowpassFilter_u {
     pt1Filter_t pt1FilterState;
     biquadFilter_t biquadFilterState;
@@ -93,7 +88,6 @@ typedef struct gyro_s {
     float gyroADC[XYZ_AXIS_COUNT];     // aligned, calibrated, scaled, but unfiltered data from the sensor(s)
     float gyroADCd[XYZ_AXIS_COUNT];    // downsampled gyro data
     float gyroADCf[XYZ_AXIS_COUNT];    // filtered gyro data
-    float gyroDtermADCf[XYZ_AXIS_COUNT]; // filtered gyro data for D-term
 
     gyroSensor_t gyroSensor1;
 #ifdef USE_MULTI_GYRO
@@ -121,15 +115,6 @@ typedef struct gyro_s {
     filterApplyFnPtr notchFilter2ApplyFn;
     biquadFilter_t notchFilter2[XYZ_AXIS_COUNT];
 
-    // D-term filters
-    filterApplyFnPtr dtermLowpassApplyFn;
-    gyroLowpassFilter_t dtermLowpassFilter[XYZ_AXIS_COUNT];
-    filterApplyFnPtr dtermLowpass2ApplyFn;
-    gyroLowpassFilter_t dtermLowpass2Filter[XYZ_AXIS_COUNT];
-
-    filterApplyFnPtr dtermNotchApplyFn;
-    biquadFilter_t dtermNotch[XYZ_AXIS_COUNT];
-
     uint16_t accSampleRateHz;
     uint8_t gyroToUse;
     uint8_t gyroDebugMode;
@@ -141,10 +126,6 @@ typedef struct gyro_s {
     uint16_t dynLpfHz;
     uint16_t dynLpfMin;
     uint16_t dynLpfMax;
-    uint8_t  dynLpfDtermFilter;
-    uint16_t dynLpfDtermHz;
-    uint16_t dynLpfDtermMin;
-    uint16_t dynLpfDtermMax;
 #endif
 
 #ifdef USE_GYRO_OVERFLOW_CHECK
@@ -178,8 +159,6 @@ enum {
 enum {
     FILTER_LPF1 = 0,
     FILTER_LPF2,
-    FILTER_DTERM_LPF1,
-    FILTER_DTERM_LPF2,
     FILTER_DECIMATION,
 };
 
@@ -211,17 +190,6 @@ typedef struct gyroConfig_s {
     uint16_t gyro_lpf1_dyn_max_hz;
 
     uint8_t gyrosDetected; // What gyros should detection be attempted for on startup. Automatically set on first startup.
-
-    uint8_t dterm_lpf1_type;                // Filter type for dterm lowpass 1
-    uint16_t dterm_lpf1_static_hz;          // Static Dterm lowpass 1 filter cutoff value in hz
-    uint16_t dterm_lpf1_dyn_min_hz;         // Dterm lowpass filter 1 min hz when in dynamic mode
-    uint16_t dterm_lpf1_dyn_max_hz;         // Dterm lowpass filter 1 max hz when in dynamic mode
-
-    uint8_t dterm_lpf2_type;                // Filter type for 2nd dterm lowpass
-    uint16_t dterm_lpf2_static_hz;          // Static Dterm lowpass 2 filter cutoff value in hz
-
-    uint16_t dterm_notch_hz;                // Biquad dterm notch hz
-    uint16_t dterm_notch_cutoff;            // Biquad dterm notch low cutoff
 
 } gyroConfig_t;
 
