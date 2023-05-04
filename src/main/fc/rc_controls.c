@@ -76,8 +76,6 @@ PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONT
 PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .deadband = 0,
     .yaw_deadband = 0,
-    .alt_hold_deadband = 40,
-    .alt_hold_fast_change = 1,
     .movement_threshold = { 70, 70, 70, 150 },
 );
 
