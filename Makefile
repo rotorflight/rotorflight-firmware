@@ -65,6 +65,7 @@ OBJECT_DIR      := $(ROOT)/obj/main
 BIN_DIR         := $(ROOT)/obj
 CMSIS_DIR       := $(ROOT)/lib/main/CMSIS
 INCLUDE_DIRS    := $(SRC_DIR) \
+                   $(SRC_DIR)/common \
                    $(ROOT)/src/main/target \
                    $(ROOT)/src/main/startup
 LINKER_DIR      := $(ROOT)/src/link
