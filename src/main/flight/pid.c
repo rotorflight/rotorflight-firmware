@@ -359,10 +359,10 @@ static void pidApplyPrecomp(void)
     DEBUG(YAW_PRECOMP, 1, collectiveFF * 1000);
     DEBUG(YAW_PRECOMP, 2, collectiveHF * 1000);
     DEBUG(YAW_PRECOMP, 3, cyclicDeflection * 1000);
-    DEBUG(YAW_PRECOMP, 4, yawCollectiveFF * 10);
-    DEBUG(YAW_PRECOMP, 5, yawCollectiveHF * 10);
-    DEBUG(YAW_PRECOMP, 6, yawCyclicFF * 10);
-    DEBUG(YAW_PRECOMP, 7, yawPrecomp * 10);
+    DEBUG(YAW_PRECOMP, 4, yawCollectiveFF * 1000);
+    DEBUG(YAW_PRECOMP, 5, yawCollectiveHF * 100);
+    DEBUG(YAW_PRECOMP, 6, yawCyclicFF * 1000);
+    DEBUG(YAW_PRECOMP, 7, yawPrecomp * 1000);
 
   //// Pitch precomp
 
@@ -374,7 +374,7 @@ static void pidApplyPrecomp(void)
     pid.data[FD_PITCH].pidSum += pitchPrecomp;
 
     DEBUG(PITCH_PRECOMP, 0, collectiveDeflection * 1000);
-    DEBUG(PITCH_PRECOMP, 1, pitchPrecomp * 10);
+    DEBUG(PITCH_PRECOMP, 1, pitchPrecomp * 1000);
 }
 
 /** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **
