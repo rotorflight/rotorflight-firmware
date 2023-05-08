@@ -5100,7 +5100,7 @@ static void cliStatus(const char *cmdName, char *cmdline)
     }
     const int systemRate = getTaskDeltaTimeUs(TASK_SYSTEM) == 0 ? 0 : (int)(1000000.0f / ((float)getTaskDeltaTimeUs(TASK_SYSTEM)));
     cliPrintLinef("CPU:%d%%, cycle time: %d, GYRO rate: %d, RX rate: %d, System rate: %d",
-            constrain(getAverageSystemLoadPercent(), 0, LOAD_PERCENTAGE_ONE), getTaskDeltaTimeUs(TASK_GYRO), gyroRate, rxRate, systemRate);
+            constrain(getAverageCPULoadPercent(), 0, 100), getTaskDeltaTimeUs(TASK_GYRO), gyroRate, rxRate, systemRate);
 
     // Battery meter
 

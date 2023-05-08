@@ -84,7 +84,13 @@ static int32_t taskGuardMaxCycles;
 static uint32_t taskGuardDeltaDownCycles;
 static uint32_t taskGuardDeltaUpCycles;
 
-FAST_DATA_ZERO_INIT uint16_t averageSystemLoadPercent = 0;
+static timeUs_t taskTotalExecutionTime = 0;
+
+static uint32_t totalWaitingTaskCount = 0;
+static uint32_t totalWaitingTaskSamples = 0;
+
+FAST_DATA_ZERO_INIT uint16_t averageCPULoad = 0;
+FAST_DATA_ZERO_INIT uint16_t averageSystemLoad = 0;
 
 static FAST_DATA_ZERO_INIT int taskQueuePos = 0;
 STATIC_UNIT_TESTED FAST_DATA_ZERO_INIT int taskQueueSize = 0;
@@ -174,16 +180,20 @@ static inline task_t *queueNext(void)
     return taskQueueArray[++taskQueuePos]; // guaranteed to be NULL at end of queue
 }
 
-static timeUs_t taskTotalExecutionTime = 0;
-
 void taskSystemLoad(timeUs_t currentTimeUs)
 {
     static timeUs_t lastExecutedAtUs;
     timeDelta_t deltaTime = cmpTimeUs(currentTimeUs, lastExecutedAtUs);
 
-    // Calculate system load
+    // Calculate System load
+    if (totalWaitingTaskSamples > 0) {
+        averageSystemLoad = 1000 * totalWaitingTaskCount / totalWaitingTaskSamples;
+        totalWaitingTaskCount = totalWaitingTaskSamples = 0;
+    }
+
+    // Calculate CPU load
     if (deltaTime) {
-        averageSystemLoadPercent = 100 * taskTotalExecutionTime / deltaTime;
+        averageCPULoad = 1000 * taskTotalExecutionTime / deltaTime;
         taskTotalExecutionTime = 0;
         lastExecutedAtUs = currentTimeUs;
     } else {
@@ -191,7 +201,8 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     }
 
 #if defined(SIMULATOR_BUILD)
-    averageSystemLoadPercent = 0;
+    averageCPULoad = 0;
+    averageSystemLoad = 0;
 #endif
 }
 
@@ -519,7 +530,7 @@ FAST_CODE void scheduler(void)
 
 #if defined(USE_LATE_TASK_STATISTICS)
             // % CPU busy
-            DEBUG_SET(DEBUG_TIMING_ACCURACY, 0, getAverageSystemLoadPercent());
+            DEBUG_SET(DEBUG_TIMING_ACCURACY, 0, averageCPULoad);
 
             if (cmpTimeCycles(nextTimingCycles, nowCycles) < 0) {
                 nextTimingCycles += clockMicrosToCycles(1000000);
@@ -603,6 +614,7 @@ FAST_CODE void scheduler(void)
                     if (task->dynamicPriority > 0) {
                         task->taskAgePeriods = 1 + (cmpTimeUs(currentTimeUs, task->lastSignaledAtUs) / task->attribute->desiredPeriodUs);
                         task->dynamicPriority = 1 + task->attribute->staticPriority * task->taskAgePeriods;
+                        totalWaitingTaskCount++;
                     } else if (task->attribute->checkFunc(currentTimeUs, cmpTimeUs(currentTimeUs, task->lastExecutedAtUs))) {
                         const uint32_t checkFuncExecutionTimeUs = cmpTimeUs(micros(), currentTimeUs);
                         checkFuncMovingSumExecutionTimeUs += checkFuncExecutionTimeUs - checkFuncMovingSumExecutionTimeUs / TASK_STATS_MOVING_SUM_COUNT;
@@ -612,6 +624,7 @@ FAST_CODE void scheduler(void)
                         task->lastSignaledAtUs = currentTimeUs;
                         task->taskAgePeriods = 1;
                         task->dynamicPriority = 1 + task->attribute->staticPriority;
+                        totalWaitingTaskCount++;
                     } else {
                         task->taskAgePeriods = 0;
                     }
@@ -621,6 +634,7 @@ FAST_CODE void scheduler(void)
                     task->taskAgePeriods = (cmpTimeUs(currentTimeUs, task->lastExecutedAtUs) / task->attribute->desiredPeriodUs);
                     if (task->taskAgePeriods > 0) {
                         task->dynamicPriority = 1 + task->attribute->staticPriority * task->taskAgePeriods;
+                        totalWaitingTaskCount++;
                     }
                 }
 
@@ -642,6 +656,8 @@ FAST_CODE void scheduler(void)
             }
 
         }
+
+        totalWaitingTaskSamples++;
 
         // The number of cycles taken to run the checkers is quite consistent with some higher spikes, but
         // that doesn't defeat its use
@@ -726,9 +742,24 @@ void schedulerEnableGyro(void)
     gyroEnabled = true;
 }
 
-uint16_t getAverageSystemLoadPercent(void)
+uint16_t getAverageCPULoad(void)
 {
-    return averageSystemLoadPercent;
+    return averageCPULoad;
+}
+
+uint8_t getAverageCPULoadPercent(void)
+{
+    return averageCPULoad / 10;
+}
+
+uint16_t getAverageSystemLoad(void)
+{
+    return averageSystemLoad;
+}
+
+uint8_t getAverageSystemLoadPercent(void)
+{
+    return averageSystemLoad / 10;
 }
 
 float schedulerGetCycleTimeMultiplier(void)

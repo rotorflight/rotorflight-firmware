@@ -30,8 +30,6 @@
 
 #define TASK_STATS_MOVING_SUM_COUNT     8
 
-#define LOAD_PERCENTAGE_ONE             100
-
 #define SCHED_TASK_DEFER_MASK           0x07 // Scheduler loop count is masked with this and when 0 long running tasks are processed
 
 #define SCHED_START_LOOP_MIN_US         1   // Wait at start of scheduler loop if gyroTask is nearly due
@@ -236,5 +234,8 @@ void scheduler(void);
 timeUs_t schedulerExecuteTask(task_t *selectedTask, timeUs_t currentTimeUs);
 void taskSystemLoad(timeUs_t currentTimeUs);
 void schedulerEnableGyro(void);
-uint16_t getAverageSystemLoadPercent(void);
+uint16_t getAverageCPULoad(void);
+uint16_t getAverageSystemLoad(void);
+uint8_t getAverageCPULoadPercent(void);
+uint8_t getAverageSystemLoadPercent(void);
 float schedulerGetCycleTimeMultiplier(void);

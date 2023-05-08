@@ -251,7 +251,7 @@ void updateArmingStatus(void)
             unsetArmingDisabled(ARMING_DISABLED_ANGLE);
         }
 
-        if (getAverageSystemLoadPercent() > 70) {
+        if (getAverageCPULoad() > 750 || getAverageSystemLoad() > 750) {
             setArmingDisabled(ARMING_DISABLED_LOAD);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_LOAD);
@@ -796,7 +796,7 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
     subTaskPidSubprocesses(currentTimeUs);
 
     DEBUG_SET(DEBUG_CYCLETIME, 0, getTaskDeltaTimeUs(TASK_SELF));
-    DEBUG_SET(DEBUG_CYCLETIME, 1, getAverageSystemLoadPercent());
+    DEBUG_SET(DEBUG_CYCLETIME, 1, getAverageCPULoadPercent());
 }
 
 timeUs_t getLastDisarmTimeUs(void)

@@ -1048,8 +1048,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
             sbufWriteU8(dst, 0); // compat: profile number
 
-            sbufWriteU16(dst, getAverageSystemLoadPercent());
-            sbufWriteU16(dst, 0); // getAverageCPULoadPercent());
+            sbufWriteU16(dst, getAverageSystemLoad());
+            sbufWriteU16(dst, getAverageCPULoad());
 
             sbufWriteU8(dst, 0); // compat: extra flight mode flags count
 
