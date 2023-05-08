@@ -103,8 +103,6 @@ void setpointUpdateTiming(float frameTimeUs)
 {
     float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rxConfig()->rx_smoothness);
 
-    DEBUG(SETPOINT, 5, cutoff);
-
     cutoff = MIN(sp.smoothCutoff, cutoff);
     cutoff = constrain(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
 
