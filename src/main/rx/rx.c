@@ -107,8 +107,10 @@ static timeUs_t needRxSignalBefore = 0;
 static timeUs_t suspendRxSignalUntil = 0;
 static uint8_t  skipRxSamples = 0;
 
-static float rcRaw[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // last received raw value, as it comes
+float rxChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];        // received RC channels from the Rx
+float rcRaw[MAX_SUPPORTED_RC_CHANNEL_COUNT];            // last received raw value, as it comes
 float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];           // scaled, modified, checked and constrained values
+
 uint32_t validRxSignalTimeout[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 
 #define MAX_INVALID_PULSE_TIME_MS 300                   // hold time in milliseconds after bad channel or Rx link loss
@@ -627,6 +629,8 @@ static void readRxChannelsApplyRanges(void)
         {
             sample = rxRuntimeState.rcReadRawFn(&rxRuntimeState, rawChannel);
         }
+
+        rxChannel[rawChannel] = sample;
 
         // apply the rx calibration
         if (channel < NON_AUX_CHANNEL_COUNT) {

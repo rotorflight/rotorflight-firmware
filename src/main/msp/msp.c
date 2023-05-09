@@ -1552,6 +1552,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteData(dst, rxConfig()->rcmap, RX_MAPPABLE_CHANNEL_COUNT);
         break;
 
+    case MSP_RX_CHANNELS:
+        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
+            sbufWriteU16(dst, rxChannel[i]);
+        }
+        break;
+
     case MSP_SERIAL_CONFIG:
         for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
             if (serialIsPortAvailable(serialConfig()->portConfigs[i].identifier)) {
