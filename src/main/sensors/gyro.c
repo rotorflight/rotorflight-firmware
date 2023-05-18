@@ -104,9 +104,9 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->gyroMovementCalibrationThreshold = 48;
     gyroConfig->gyro_hardware_lpf = GYRO_HARDWARE_LPF_NORMAL;
     gyroConfig->gyro_decimation_hz = 250;
-    gyroConfig->gyro_lpf1_type = LPF_2ND_ORDER;
+    gyroConfig->gyro_lpf1_type = GYRO_LPF1_TYPE_DEFAULT;
     gyroConfig->gyro_lpf1_static_hz = GYRO_LPF1_HZ_DEFAULT;
-    gyroConfig->gyro_lpf2_type = LPF_NONE;
+    gyroConfig->gyro_lpf2_type = GYRO_LPF2_TYPE_DEFAULT;
     gyroConfig->gyro_lpf2_static_hz = GYRO_LPF2_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
     gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;

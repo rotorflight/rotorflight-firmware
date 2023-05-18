@@ -41,10 +41,14 @@
 #define DYN_LPF_MAX_HZ                  1000
 #define DYN_LPF_UPDATE_DELAY_US         5000
 
+#define GYRO_LPF1_TYPE_DEFAULT          LPF_1ST_ORDER
 #define GYRO_LPF1_HZ_DEFAULT            100
 #define GYRO_LPF1_DYN_MIN_HZ_DEFAULT    0
 #define GYRO_LPF1_DYN_MAX_HZ_DEFAULT    0
+
+#define GYRO_LPF2_TYPE_DEFAULT          LPF_NONE
 #define GYRO_LPF2_HZ_DEFAULT            50
+
 
 typedef enum gyroDetectionFlags_e {
     GYRO_NONE_MASK = 0,
