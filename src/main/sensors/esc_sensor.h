@@ -38,8 +38,8 @@ enum {
 typedef struct escSensorConfig_s {
     uint8_t protocol;               // ESC telemetry protocol
     uint8_t halfDuplex;             // Set to false to listen on the TX pin for telemetry data
-    uint16_t offset;                // offset consumed by the flight controller / VTX / cam / ... in milliampere
     uint16_t update_hz;             // Update frequency
+    uint16_t current_offset;        // Offset (extra current) consumed by the VTX / cam (mA)
     uint16_t hw4_current_offset;    // HobbyWing V4 raw current offset
     uint8_t hw4_current_gain;       // HobbyWing V4 current gain
     uint8_t hw4_voltage_gain;       // HobbyWing V4 voltage gain
@@ -50,10 +50,10 @@ PG_DECLARE(escSensorConfig_t, escSensorConfig);
 typedef struct {
     uint8_t dataAge;
     int8_t temperature;  // C degrees
-    int16_t voltage;     // 0.01V
-    int32_t current;     // 0.01A
+    int16_t voltage;     // x0.01V
+    int32_t current;     // x0.01A
     int32_t consumption; // mAh
-    int16_t rpm;         // 0.01erpm
+    int16_t rpm;         // x100erpm
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255

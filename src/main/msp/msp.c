@@ -800,8 +800,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_ESC_SENSOR_CONFIG:
         sbufWriteU8(dst, escSensorConfig()->protocol);
         sbufWriteU8(dst, escSensorConfig()->halfDuplex);
-        sbufWriteU16(dst, escSensorConfig()->offset);
         sbufWriteU16(dst, escSensorConfig()->update_hz);
+        sbufWriteU16(dst, escSensorConfig()->current_offset);
         sbufWriteU16(dst, escSensorConfig()->hw4_current_offset);
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
@@ -2576,8 +2576,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_ESC_SENSOR_CONFIG:
         escSensorConfigMutable()->protocol = sbufReadU8(src);
         escSensorConfigMutable()->halfDuplex = sbufReadU8(src);
-        escSensorConfigMutable()->offset = sbufReadU16(src);
         escSensorConfigMutable()->update_hz = sbufReadU16(src);
+        escSensorConfigMutable()->current_offset = sbufReadU16(src);
         escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
         escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
         escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
