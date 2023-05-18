@@ -192,9 +192,9 @@ static void activateConfig(void)
     initActiveBoxIds();
 }
 
-static void adjustFilterLimit(uint16_t *parm, uint16_t resetValue)
+static void adjustFilterLimit(uint16_t *parm, uint16_t maxValue, uint16_t resetValue)
 {
-    if (*parm > LPF_MAX_HZ) {
+    if (*parm > maxValue) {
         *parm = resetValue;
     }
 }
@@ -540,31 +540,19 @@ static void validateAndFixConfig(void)
 
 void validateAndFixGyroConfig(void)
 {
-    // Fix gyro filter settings to handle cases where an older configurator was used that
-    // allowed higher cutoff limits from previous firmware versions.
-    adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, LPF_MAX_HZ);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, LPF_MAX_HZ);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_lpf2_static_hz, LPF_MAX_HZ);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_1, LPF_MAX_HZ);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_1, 0);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_2, LPF_MAX_HZ);
-    adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_2, 0);
+    uint32_t pidDenom = pidConfigMutable()->pid_process_denom;
+    uint32_t filtDenom = pidConfigMutable()->filter_process_denom;
+    if (filtDenom > 0) {
+        if (filtDenom < pidDenom) {
+            while (pidDenom % filtDenom) filtDenom++;
+        } else {
+            filtDenom = pidDenom;
+        }
+        pidConfigMutable()->filter_process_denom = filtDenom;
+    }
 
-    // Prevent invalid notch cutoff
-    if (gyroConfig()->gyro_soft_notch_cutoff_1 >= gyroConfig()->gyro_soft_notch_hz_1) {
-        gyroConfigMutable()->gyro_soft_notch_hz_1 = 0;
-    }
-    if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2) {
-        gyroConfigMutable()->gyro_soft_notch_hz_2 = 0;
-    }
-#ifdef USE_DYN_LPF
-    //Prevent invalid dynamic lowpass filter
-    if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_dyn_max_hz) {
-        gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
-    }
-#endif
-
-    if (gyro.sampleRateHz > 0) {
+    if (gyro.sampleRateHz > 0)
+    {
         float samplingTime = 1.0f / gyro.sampleRateHz;
 
         // check for looptime restrictions based on motor protocol. Motor times have safety margin
@@ -624,17 +612,49 @@ void validateAndFixGyroConfig(void)
                 pidConfigMutable()->pid_process_denom = MAX(pidConfigMutable()->pid_process_denom, minPidProcessDenom);
             }
         }
-    }
 
-    uint32_t pidDenom = pidConfigMutable()->pid_process_denom;
-    uint32_t filtDenom = pidConfigMutable()->filter_process_denom;
-    if (filtDenom > 0) {
-        if (filtDenom < pidDenom) {
-            while (pidDenom % filtDenom) filtDenom++;
-        } else {
-            filtDenom = pidDenom;
+        // Fix gyro filter limits
+        uint16_t decimation_limit = lrintf(0.5f * gyro.sampleRateHz / pidDenom);
+        uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / (filtDenom ? filtDenom : pidDenom));
+
+        adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, cutoff_limit, cutoff_limit);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_lpf2_static_hz, cutoff_limit, cutoff_limit);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_1, cutoff_limit, cutoff_limit);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_1, cutoff_limit, 0);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_2, cutoff_limit, cutoff_limit);
+        adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_2, cutoff_limit, 0);
+
+        if (gyroConfig()->gyro_lpf1_static_hz == 0) {
+            gyroConfigMutable()->gyro_lpf1_type = LPF_NONE;
         }
-        pidConfigMutable()->filter_process_denom = filtDenom;
+        if (gyroConfig()->gyro_lpf2_static_hz == 0) {
+            gyroConfigMutable()->gyro_lpf2_type = LPF_NONE;
+        }
+
+#ifdef USE_DYN_LPF
+        // Prevent invalid dynamic lowpass filter
+        if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_dyn_max_hz) {
+            gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
+            gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
+        }
+        else if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_static_hz) {
+            gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
+            gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
+        }
+        else if (gyroConfig()->gyro_lpf1_dyn_max_hz < gyroConfig()->gyro_lpf1_static_hz) {
+            gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
+            gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
+        }
+#endif
+
+        // Prevent invalid notch cutoff
+        if (gyroConfig()->gyro_soft_notch_cutoff_1 >= gyroConfig()->gyro_soft_notch_hz_1) {
+            gyroConfigMutable()->gyro_soft_notch_hz_1 = 0;
+        }
+        if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2) {
+            gyroConfigMutable()->gyro_soft_notch_hz_2 = 0;
+        }
     }
 
 #ifdef USE_BLACKBOX
