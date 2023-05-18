@@ -27,6 +27,13 @@
 #include "common/utils.h"
 
 
+static inline float limitCutoff(float cutoff, float sampleRate)
+{
+    // 95% of Nyquist
+    return fminf(cutoff, 0.475f * sampleRate);
+}
+
+
 // NIL filter
 
 FAST_CODE float nilFilterApply(nilFilter_t *filter, float input)
@@ -53,6 +60,8 @@ void nilFilterInit(nilFilter_t *filter, float cutoff, float sampleRate)
 
 float pt1FilterGain(float cutoff, float sampleRate)
 {
+    cutoff = limitCutoff(cutoff, sampleRate);
+
     float omega = tan_approx(M_PIf * cutoff / sampleRate);
     float alpha = 2.0f / (1.0f / omega + 1.0f);
 
@@ -175,6 +184,8 @@ FAST_CODE float pt3FilterApply(pt3Filter_t *filter, float input)
 
 float ewma1FilterWeight(float cutoff, float sampleRate)
 {
+    cutoff = limitCutoff(cutoff, sampleRate);
+
     float omega = tan_approx(M_PIf * cutoff / sampleRate);
     float weight = (1.0f / omega + 1.0f) / 2.0f;
 
@@ -366,6 +377,8 @@ void difFilterInit(difFilter_t *filter, float cutoff, float sampleRate)
 
 void difFilterUpdate(difFilter_t *filter, float cutoff, float sampleRate)
 {
+    cutoff = limitCutoff(cutoff, sampleRate);
+
     const float K = tan_approx(M_PIf * cutoff / sampleRate);
     const float Wc = M_2PIf * cutoff;
 
@@ -452,6 +465,8 @@ void biquadFilterInit(biquadFilter_t *filter, float cutoff, float sampleRate, fl
 
 FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType)
 {
+    cutoff = limitCutoff(cutoff, sampleRate);
+
     const float omega = M_2PIf * cutoff / sampleRate;
     const float sinom = sin_approx(omega);
     const float cosom = cos_approx(omega);
@@ -557,6 +572,8 @@ void firstOrderFilterInit(order1Filter_t *filter, float cutoff, float sampleRate
 
 FAST_CODE void firstOrderFilterUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
+    cutoff = limitCutoff(cutoff, sampleRate);
+
     const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
     filter->a1 = (W - 1) / (W + 1);
