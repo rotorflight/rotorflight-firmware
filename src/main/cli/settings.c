@@ -185,10 +185,6 @@ static const char * const lookupTableAlignment[] = {
     "CUSTOM",
 };
 
-static const char * const lookupTableDebugAxis[] = {
-    "ROLL", "PITCH", "YAW", "COLLECTIVE", "THROTTLE"
-};
-
 #ifdef USE_MULTI_GYRO
 static const char * const lookupTableGyro[] = {
     "FIRST", "SECOND", "BOTH"
@@ -498,7 +494,6 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableOffOn),
     LOOKUP_TABLE_ENTRY(lookupTableUnit),
     LOOKUP_TABLE_ENTRY(lookupTableAlignment),
-    LOOKUP_TABLE_ENTRY(lookupTableDebugAxis),
 #ifdef USE_GPS
     LOOKUP_TABLE_ENTRY(lookupTableGPSProvider),
     LOOKUP_TABLE_ENTRY(lookupTableGPSSBASMode),
@@ -1381,7 +1376,7 @@ const clivalue_t valueTable[] = {
 #endif
     { "task_statistics",            VAR_INT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, task_statistics) },
     { PARAM_NAME_DEBUG_MODE,        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DEBUG }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, debug_mode) },
-    { PARAM_NAME_DEBUG_AXIS,        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DEBUG_AXIS }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, debug_axis) },
+    { PARAM_NAME_DEBUG_AXIS,        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, debug_axis) },
 #ifdef USE_OVERCLOCK
     { "cpu_overclock",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OVERCLOCK }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, cpu_overclock) },
 #endif

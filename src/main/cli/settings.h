@@ -29,7 +29,6 @@ typedef enum {
     TABLE_OFF_ON = 0,
     TABLE_UNIT,
     TABLE_ALIGNMENT,
-    TABLE_DEBUG_AXIS,
 #ifdef USE_GPS
     TABLE_GPS_PROVIDER,
     TABLE_GPS_SBAS_MODE,
