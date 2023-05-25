@@ -488,6 +488,10 @@ const char * const lookupTableCrsfFmReuse[] = {
     "NONE", "RPM", "TEMP", "ADJFUNC",
 };
 
+const char * const lookupTableDtermMode[] = {
+    "GYRO", "ERROR",
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -598,6 +602,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
     LOOKUP_TABLE_ENTRY(lookupTableCrsfFmReuse),
+    LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -992,7 +997,8 @@ const clivalue_t valueTable[] = {
 #endif
 
     { "pid_mode",                   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 9 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid_mode) },
-    { "pid_dterm_mode",             VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 1 }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode) },
+    { "pid_dterm_mode",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode) },
+    { "pid_dterm_mode_yaw",         VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode_yaw) },
 
     { "pid_gyro_filter_type",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_filter_type) },
 

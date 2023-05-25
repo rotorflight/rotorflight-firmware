@@ -52,6 +52,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         },
         .pid_mode = 2,
         .dterm_mode = 0,
+        .dterm_mode_yaw = 0,
         .error_decay = 25,
         .error_rotation = true,
         .iterm_relax_type = ITERM_RELAX_RPY,
