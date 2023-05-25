@@ -130,6 +130,7 @@ void INIT_CODE pidInit(const pidProfile_t *pidProfile)
 
 void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 {
+    // PID algorithm
     pid.pidMode = pidProfile->pid_mode;
 
     // Roll axis
@@ -182,6 +183,11 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
             pid.itermRelaxLevel[i] = constrain(pidProfile->iterm_relax_level[i], 10, 250);
         }
     }
+
+    // D-term calculation
+    pid.dtermMode = pidProfile->dterm_mode;
+    pid.dtermModeYaw = pidProfile->dterm_mode_yaw;
+    pid.dtermChoiceYaw = pidProfile->yaw_d_select;
 
     // Tail/yaw PID parameters
     pid.yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
@@ -285,10 +291,8 @@ static float applyItermRelax(int axis, float itermError, float gyroRate, float s
 }
 
 
-static inline float pidApplySetpoint(const pidProfile_t *pidProfile, uint8_t axis)
+static inline float pidApplySetpoint(uint8_t axis)
 {
-    UNUSED(pidProfile);
-
     // Rate setpoint
     float setpoint = getSetpoint(axis);
 
@@ -382,10 +386,10 @@ static void pidApplyPrecomp(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void pidApplyMode0(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyMode0(uint8_t axis)
 {
     // Rate setpoint
-    float setpoint = pidApplySetpoint(pidProfile, axis);
+    float setpoint = pidApplySetpoint(axis);
 
   //// Unused term
     pid.data[axis].P = 0;
@@ -418,10 +422,10 @@ static void pidApplyMode0(const pidProfile_t *pidProfile, uint8_t axis)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode1(uint8_t axis)
 {
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = gyro.gyroADCf[axis];
@@ -488,12 +492,12 @@ static void pidApplyCyclicMode1(const pidProfile_t *pidProfile, uint8_t axis)
 }
 
 
-static void pidApplyYawMode1(const pidProfile_t *pidProfile)
+static void pidApplyYawMode1(void)
 {
     const uint8_t axis = FD_YAW;
 
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = gyro.gyroADCf[axis];
@@ -575,10 +579,10 @@ static void pidApplyYawMode1(const pidProfile_t *pidProfile)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode2(uint8_t axis)
 {
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = filterApply(&pid.gyrorFilter[axis], gyro.gyroADCf[axis]);
@@ -596,7 +600,7 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    const float dError = pidProfile->dterm_mode ? errorRate : -gyroRate;
+    const float dError = pid.dtermMode ? errorRate : -gyroRate;
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Calculate D-component
@@ -637,12 +641,12 @@ static void pidApplyCyclicMode2(const pidProfile_t *pidProfile, uint8_t axis)
 }
 
 
-static void pidApplyYawMode2(const pidProfile_t *pidProfile)
+static void pidApplyYawMode2(void)
 {
     const uint8_t axis = FD_YAW;
 
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = filterApply(&pid.gyrorFilter[axis], gyro.gyroADCf[axis]);
@@ -663,7 +667,7 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    const float dError = pidProfile->dterm_mode_yaw ? errorRate : -gyroRate;
+    const float dError = pid.dtermModeYaw ? errorRate : -gyroRate;
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Calculate D-component
@@ -720,10 +724,10 @@ static void pidApplyYawMode2(const pidProfile_t *pidProfile)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
+static void pidApplyCyclicMode9(uint8_t axis)
 {
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = filterApply(&pid.gyrorFilter[axis], gyro.gyroADCf[axis]);
@@ -741,7 +745,7 @@ static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    const float dError = pidProfile->dterm_mode ? errorRate : -gyroRate;
+    const float dError = pid.dtermMode ? errorRate : -gyroRate;
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Calculate D-component
@@ -782,12 +786,12 @@ static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
 }
 
 
-static void pidApplyYawMode9(const pidProfile_t *pidProfile)
+static void pidApplyYawMode9()
 {
     const uint8_t axis = FD_YAW;
 
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(pidProfile, axis);
+    const float setpoint = pidApplySetpoint(axis);
 
     // Get filtered gyro rate
     const float gyroRate = filterApply(&pid.gyrorFilter[axis], gyro.gyroADCf[axis]);
@@ -808,12 +812,12 @@ static void pidApplyYawMode9(const pidProfile_t *pidProfile)
   //// D-term
 
     // Calculate D-term with bandwidth limit
-    const float dError = pidProfile->dterm_mode_yaw ? errorRate : -gyroRate;
+    const float dError = pid.dtermModeYaw ? errorRate : -gyroRate;
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Select D-gain
     float Kd = 0;
-    switch (pidProfile->yaw_d_select) {
+    switch (pid.dtermChoiceYaw) {
         case 2:
             Kd = transition(dTerm, -100, 100, pid.coef[PID_YAW].Kd, pid.coef[PID_WAY].Kd);
             break;
@@ -878,6 +882,8 @@ static void pidApplyYawMode9(const pidProfile_t *pidProfile)
 
 void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
+    // pidProfile can't be used in runtime - pidInitProfile must be called first
+    UNUSED(pidProfile);
     UNUSED(currentTimeUs);
 
     // Rotate pitch/roll axis error with yaw rotation
@@ -889,24 +895,24 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
     // Apply PID for each axis
     switch (pid.pidMode) {
         case 9:
-            pidApplyCyclicMode9(pidProfile, PID_ROLL);
-            pidApplyCyclicMode9(pidProfile, PID_PITCH);
-            pidApplyYawMode9(pidProfile);
+            pidApplyCyclicMode9(PID_ROLL);
+            pidApplyCyclicMode9(PID_PITCH);
+            pidApplyYawMode9();
             break;
         case 2:
-            pidApplyCyclicMode2(pidProfile, PID_ROLL);
-            pidApplyCyclicMode2(pidProfile, PID_PITCH);
-            pidApplyYawMode2(pidProfile);
+            pidApplyCyclicMode2(PID_ROLL);
+            pidApplyCyclicMode2(PID_PITCH);
+            pidApplyYawMode2();
             break;
         case 1:
-            pidApplyCyclicMode1(pidProfile, PID_ROLL);
-            pidApplyCyclicMode1(pidProfile, PID_PITCH);
-            pidApplyYawMode1(pidProfile);
+            pidApplyCyclicMode1(PID_ROLL);
+            pidApplyCyclicMode1(PID_PITCH);
+            pidApplyYawMode1();
             break;
         default:
-            pidApplyMode0(pidProfile, PID_ROLL);
-            pidApplyMode0(pidProfile, PID_PITCH);
-            pidApplyMode0(pidProfile, PID_YAW);
+            pidApplyMode0(PID_ROLL);
+            pidApplyMode0(PID_PITCH);
+            pidApplyMode0(PID_YAW);
             break;
     }
 
