@@ -111,7 +111,6 @@ typedef struct pid_s {
 
     filter_t gyrorFilter[PID_AXIS_COUNT];
     filter_t errorFilter[PID_AXIS_COUNT];
-    filter_t ftermFilter[PID_AXIS_COUNT];
 
     pt1Filter_t relaxFilter[PID_AXIS_COUNT];
     difFilter_t dtermFilter[PID_AXIS_COUNT];

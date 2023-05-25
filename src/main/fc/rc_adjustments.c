@@ -143,13 +143,10 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(PITCH_ERROR_CUTOFF, PROF,  0, 250),
     ADJ_CONFIG(PITCH_DTERM_CUTOFF, PROF,  0, 250),
-    ADJ_CONFIG(PITCH_FTERM_CUTOFF, PROF,  0, 250),
     ADJ_CONFIG(ROLL_ERROR_CUTOFF,  PROF,  0, 250),
     ADJ_CONFIG(ROLL_DTERM_CUTOFF,  PROF,  0, 250),
-    ADJ_CONFIG(ROLL_FTERM_CUTOFF,  PROF,  0, 250),
     ADJ_CONFIG(YAW_ERROR_CUTOFF,   PROF,  0, 250),
     ADJ_CONFIG(YAW_DTERM_CUTOFF,   PROF,  0, 250),
-    ADJ_CONFIG(YAW_FTERM_CUTOFF,   PROF,  0, 250),
 
     ADJ_CONFIG(RESCUE_ALT_P_GAIN, PROF,  0, 1000),
     ADJ_CONFIG(RESCUE_ALT_I_GAIN, PROF,  0, 1000),
@@ -336,15 +333,6 @@ static int getAdjustmentValue(uint8_t adjFunc)
             break;
         case ADJUSTMENT_YAW_DTERM_CUTOFF:
             value = currentPidProfile->dterm_cutoff[PID_YAW];
-            break;
-        case ADJUSTMENT_PITCH_FTERM_CUTOFF:
-            value = currentPidProfile->fterm_cutoff[PID_PITCH];
-            break;
-        case ADJUSTMENT_ROLL_FTERM_CUTOFF:
-            value = currentPidProfile->fterm_cutoff[PID_ROLL];
-            break;
-        case ADJUSTMENT_YAW_FTERM_CUTOFF:
-            value = currentPidProfile->fterm_cutoff[PID_YAW];
             break;
 
         case ADJUSTMENT_RESCUE_ALT_P_GAIN:
@@ -538,15 +526,6 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_YAW_DTERM_CUTOFF:
             currentPidProfile->dterm_cutoff[PID_YAW] = value;
-            break;
-        case ADJUSTMENT_PITCH_FTERM_CUTOFF:
-            currentPidProfile->fterm_cutoff[PID_PITCH] = value;
-            break;
-        case ADJUSTMENT_ROLL_FTERM_CUTOFF:
-            currentPidProfile->fterm_cutoff[PID_ROLL] = value;
-            break;
-        case ADJUSTMENT_YAW_FTERM_CUTOFF:
-            currentPidProfile->fterm_cutoff[PID_YAW] = value;
             break;
 
         case ADJUSTMENT_RESCUE_ALT_P_GAIN:

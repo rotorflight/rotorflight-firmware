@@ -170,7 +170,6 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
         lowpassFilterInit(&pid.errorFilter[i], LPF_ORDER1, pidProfile->error_cutoff[i], pid.freq, 0);
-        lowpassFilterInit(&pid.ftermFilter[i], LPF_ORDER1, pidProfile->fterm_cutoff[i], pid.freq, 0);
         difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
     }
 
@@ -770,16 +769,8 @@ static void pidApplyCyclicMode9(const pidProfile_t *pidProfile, uint8_t axis)
 
   //// F-term
 
-    // Calculate feedforward component
-    float fTerm = setpoint;
-
-    // High pass filter
-    if (pidProfile->fterm_cutoff[axis]) {
-        fTerm -= filterApply(&pid.ftermFilter[axis], setpoint);
-    }
-
     // Calculate F-term
-    pid.data[axis].F = pid.coef[axis].Kf * fTerm;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
   //// PID Sum
@@ -870,16 +861,8 @@ static void pidApplyYawMode9(const pidProfile_t *pidProfile)
 
   //// F-term
 
-    // Calculate feedforward component
-    float fTerm = setpoint;
-
-    // High pass filter
-    if (pidProfile->fterm_cutoff[axis]) {
-        fTerm -= filterApply(&pid.ftermFilter[axis], setpoint);
-    }
-
     // Calculate F-term
-    pid.data[axis].F = pid.coef[axis].Kf * fTerm;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
   //// PID Sum
