@@ -1408,18 +1408,27 @@ static bool blackboxWriteSysinfo(void)
             for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
                 if (i > 0)
                     *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_motor_index[i]);
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_source[i]);
             }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_motor_index", buf);
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_source", buf);
         );
         BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
             char *ptr = buf;
             for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
                 if (i > 0)
                     *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_gear_ratio[i]);
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_ratio[i]);
             }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_gear_ratio", buf);
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_ratio", buf);
+        );
+        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
+            char *ptr = buf;
+            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
+                if (i > 0)
+                    *ptr++ = ',';
+                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_limit[i]);
+            }
+            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_limit", buf);
         );
         BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
             char *ptr = buf;
@@ -1429,24 +1438,6 @@ static bool blackboxWriteSysinfo(void)
                 ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_notch_q[i]);
             }
             blackboxPrintfHeaderLine("gyro_rpm_filter_bank_notch_q", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_min_hz[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_min_hz", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_max_hz[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_max_hz", buf);
         );
 #endif
 #if defined(USE_ACC)

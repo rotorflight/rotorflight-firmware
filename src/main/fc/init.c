@@ -755,7 +755,7 @@ void init(void)
 
 #ifdef USE_RPM_FILTER
     if (featureIsEnabled(FEATURE_RPM_FILTER)) {
-        rpmFilterInit(rpmFilterConfig());
+        rpmFilterInit();
     }
 #endif
 

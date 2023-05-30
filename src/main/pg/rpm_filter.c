@@ -15,11 +15,15 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "platform.h"
+
+#if defined(USE_RPM_FILTER)
 
 #include "pg/pg.h"
+#include "pg/pg_ids.h"
 #include "pg/rpm_filter.h"
 
-void  rpmFilterInit(void);
-float rpmFilterGyro(int axis, float values);
-void  rpmFilterUpdate(void);
+PG_REGISTER(rpmFilterConfig_t, rpmFilterConfig, PG_RPM_FILTER_CONFIG, 0);
+
+#endif
+

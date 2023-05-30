@@ -18,8 +18,18 @@
 #pragma once
 
 #include "pg/pg.h"
-#include "pg/rpm_filter.h"
 
-void  rpmFilterInit(void);
-float rpmFilterGyro(int axis, float values);
-void  rpmFilterUpdate(void);
+#define RPM_FILTER_BANK_COUNT 16
+
+typedef struct rpmFilteConfig_s
+{
+    uint8_t  filter_bank_rpm_source[RPM_FILTER_BANK_COUNT];     // RPM source
+    uint16_t filter_bank_rpm_ratio[RPM_FILTER_BANK_COUNT];      // RPM ratio *1000
+    uint16_t filter_bank_rpm_limit[RPM_FILTER_BANK_COUNT];      // RPM minimum limit
+    uint8_t  filter_bank_notch_q[RPM_FILTER_BANK_COUNT];        // Notch Q *10
+
+} rpmFilterConfig_t;
+
+
+PG_DECLARE(rpmFilterConfig_t, rpmFilterConfig);
+
