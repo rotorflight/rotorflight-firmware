@@ -220,8 +220,7 @@ INIT_CODE void rpmSourceInit(void)
 
         motorRpmFactor[i] = 1.0f + motorConfig()->motorRpmFactor[i] / 100000.0f;
 
-        int freq = constrain(motorConfig()->motorRpmLpf[i], 1, 250);
-        lowpassFilterInit(&motorRpmFilter[i], LPF_BESSEL, freq, gyro.targetRateHz, 0);
+        lowpassFilterInit(&motorRpmFilter[i], LPF_BESSEL, motorConfig()->motorRpmLpf[i], gyro.targetRateHz, 0);
     }
 }
 
