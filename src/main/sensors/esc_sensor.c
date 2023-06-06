@@ -120,7 +120,6 @@ static volatile uint8_t bufferSize = 0;
 static volatile uint8_t bufferPos = 0;
 
 static uint8_t  readBytes = 0;
-static uint8_t  skipBytes = 0;
 static uint32_t syncCount = 0;
 
 
@@ -515,29 +514,28 @@ static bool processHW4TelemetryStream(uint8_t dataByte)
 {
     totalByteCount++;
 
-    if (skipBytes > 0) {
-        skipBytes--;
-        return false;
-    }
-
     buffer[readBytes++] = dataByte;
 
     if (readBytes == 1) {
-        if (dataByte == 0x9B)
-            syncCount++;
-        else
-            frameSyncError();
-    }
-    else if (readBytes == 2) {
         if (dataByte == 0x9B) {
+            syncCount++;
+        }
+        else if (dataByte == 0xB9) {
             readBytes = 0;
-            skipBytes = 11;
+            syncCount++;
+        }
+        else {
+            frameSyncError();
+        }
+    }
+    else if (readBytes == 12) {
+        if (buffer[1] == 0x9B) {
+            readBytes = 0;
         }
     }
     else if (readBytes == 19) {
         readBytes = 0;
-        if (syncCount > 3)
-            return true;
+        return true;
     }
 
     return false;
@@ -606,8 +604,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
     // Log consumption
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, escSensorData[0].consumption);
 
-    // Increment data age counter if no updates in 250ms
-    if (cmp32(currentTimeUs, dataUpdateUs) > 250000) {
+    // Increment data age counter if no updates in 500ms
+    if (cmp32(currentTimeUs, dataUpdateUs) > 500000) {
         increaseDataAge();
         frameTimeoutError();
         dataUpdateUs = currentTimeUs;
