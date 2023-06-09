@@ -23,11 +23,15 @@
 
 #if defined(USE_ESC_SENSOR)
 
+#include "config/feature.h"
+#include "config/config.h"
+
 #include "build/debug.h"
+
+#include "blackbox/blackbox.h"
 
 #include "common/time.h"
 
-#include "config/feature.h"
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 #include "pg/motor.h"
@@ -42,13 +46,12 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 
-#include "esc_sensor.h"
-
-#include "config/config.h"
-
 #include "flight/mixer.h"
 
 #include "io/serial.h"
+
+#include "esc_sensor.h"
+
 
 
 PG_REGISTER_WITH_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig, PG_ESC_SENSOR_CONFIG, 0);
@@ -216,6 +219,10 @@ bool escSensorInit(void)
         escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, NULL, NULL, 19200, MODE_RX, options);
     }
     else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_KONTRONIK) {
+        portOptions_e options = SERIAL_STOPBITS_1 | SERIAL_PARITY_EVEN | SERIAL_NOT_INVERTED | (escSensorConfig()->halfDuplex ? SERIAL_BIDIR : 0);
+        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, NULL, NULL, 115200, MODE_RX, options);
+    }
+    else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_COLLECT) {
         portOptions_e options = SERIAL_STOPBITS_1 | SERIAL_PARITY_EVEN | SERIAL_NOT_INVERTED | (escSensorConfig()->halfDuplex ? SERIAL_BIDIR : 0);
         escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, NULL, NULL, 115200, MODE_RX, options);
     }
@@ -742,6 +749,28 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 }
 
 
+/*
+ * Raw Telemetry Data Collector
+ */
+
+static void collectSensorProcess(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    // check for any available bytes in the rx buffer
+    while (serialRxBytesWaiting(escSensorPort) && readBytes < 32) {
+        totalByteCount++;
+        buffer[readBytes++] = serialRead(escSensorPort);
+    }
+
+    if (readBytes > 0) {
+        blackboxLogCustomData(buffer, readBytes);
+        totalFrameCount++;
+        readBytes = 0;
+    }
+}
+
+
 void escSensorProcess(timeUs_t currentTimeUs)
 {
     if (escSensorPort && motorIsEnabled()) {
@@ -754,6 +783,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 break;
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
+                break;
+            case ESC_SENSOR_PROTO_COLLECT:
+                collectSensorProcess(currentTimeUs);
                 break;
         }
 

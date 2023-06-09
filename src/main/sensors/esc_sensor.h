@@ -33,6 +33,7 @@ enum {
     ESC_SENSOR_PROTO_KISS,
     ESC_SENSOR_PROTO_HW4,
     ESC_SENSOR_PROTO_KONTRONIK,
+    ESC_SENSOR_PROTO_COLLECT,
 };
 
 typedef struct escSensorConfig_s {
