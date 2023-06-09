@@ -172,6 +172,15 @@ typedef struct flightLogEvent_inflightAdjustment_s {
     bool floatFlag;
 } flightLogEvent_inflightAdjustment_t;
 
+typedef struct flightLogEvent_customData_s {
+    const uint8_t *buffer;
+    uint8_t length;
+} flightLogEvent_customData_t;
+
+typedef struct flightLogEvent_customString_s {
+    const char *buffer;
+} flightLogEvent_customString_t;
+
 typedef struct flightLogEvent_loggingResume_s {
     uint32_t logIteration;
     uint32_t currentTime;
@@ -187,6 +196,8 @@ typedef union flightLogEventData_u {
     flightLogEvent_airborneState_t airborneState;
     flightLogEvent_disarm_t disarm;
     flightLogEvent_inflightAdjustment_t inflightAdjustment;
+    flightLogEvent_customData_t data;
+    flightLogEvent_customString_t string;
     flightLogEvent_loggingResume_t loggingResume;
 } flightLogEventData_t;
 
