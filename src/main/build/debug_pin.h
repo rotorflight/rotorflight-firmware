@@ -29,3 +29,4 @@ typedef struct dbgPin_s {
 void dbgPinInit(void);
 void dbgPinHi(int index);
 void dbgPinLo(int index);
+void dbgPinSet(int index, int value);

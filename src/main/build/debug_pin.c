@@ -36,11 +36,21 @@ typedef struct dbgPinState_s {
 dbgPinState_t dbgPinStates[DEBUG_PIN_COUNT] = { 0 };
 
 extern dbgPin_t dbgPins[DEBUG_PIN_COUNT];
-// Define this in the target definition as (and set DEBUG_PIN_COUNT to the correct value):
-// dbgPin_t dbgPins[DEBUG_PIN_COUNT] = {
-//     { .tag = IO_TAG(<pin>) },
-// };
+
+#if 0
+
+// Add something like this to target.c
+static dbgPin_t dbgPins[DEBUG_PIN_COUNT] = {
+    { .tag = IO_TAG(PA2) },
+};
+
+// Add something like this to target.h
+#define USE_DEBUG_PIN
+#define DEBUG_PIN_COUNT 1
+
 #endif
+
+#endif /* USE_DEBUG_PIN */
 
 void dbgPinInit(void)
 {
@@ -49,15 +59,15 @@ void dbgPinInit(void)
         dbgPin_t *dbgPin = &dbgPins[i];
         dbgPinState_t *dbgPinState = &dbgPinStates[i];
         IO_t io = IOGetByTag(dbgPin->tag);
-        if (!io) {
-            continue;
+        if (io) {
+            IOInit(io, OWNER_SYSTEM, 0);
+            IOConfigGPIO(io, IOCFG_OUT_PP);
+            dbgPinState->gpio = IO_GPIO(io);
+
+            int pinSrc = IO_GPIO_PinSource(io);
+            dbgPinState->setBSRR = (1 << pinSrc);
+            dbgPinState->resetBSRR = (1 << (pinSrc + 16));
         }
-        IOInit(io, OWNER_SYSTEM, 0);
-        IOConfigGPIO(io, IOCFG_OUT_PP);
-        dbgPinState->gpio = IO_GPIO(io);
-        int pinSrc = IO_GPIO_PinSource(io);
-        dbgPinState->setBSRR = (1 << pinSrc);
-        dbgPinState->resetBSRR = (1 << (pinSrc + 16));
     }
 #endif
 }
@@ -71,11 +81,12 @@ void dbgPinHi(int index)
 
     dbgPinState_t *dbgPinState = &dbgPinStates[index];
     if (dbgPinState->gpio) {
-#if defined(STM32F7) || defined(STM32H7)
-        dbgPinState->gpio->BSRR = dbgPinState->setBSRR;
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+        dbgPinState->gpio->BSRR
 #else
-        dbgPinState->gpio->BSRRL = dbgPinState->setBSRR;
+        dbgPinState->gpio->BSRRL
 #endif
+             = dbgPinState->setBSRR;
     }
 #else
     UNUSED(index);
@@ -92,13 +103,40 @@ void dbgPinLo(int index)
     dbgPinState_t *dbgPinState = &dbgPinStates[index];
 
     if (dbgPinState->gpio) {
-#if defined(STM32F7) || defined(STM32H7)
-        dbgPinState->gpio->BSRR = dbgPinState->resetBSRR;
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+        dbgPinState->gpio->BSRR
 #else
-        dbgPinState->gpio->BSRRL = dbgPinState->resetBSRR;
+        dbgPinState->gpio->BSRRL
 #endif
+            = dbgPinState->resetBSRR;
     }
 #else
     UNUSED(index);
 #endif
 }
+
+void dbgPinSet(int index, int value)
+{
+#ifdef USE_DEBUG_PIN
+    if ((unsigned)index >= ARRAYLEN(dbgPins)) {
+        return;
+    }
+
+    dbgPinState_t *dbgPinState = &dbgPinStates[index];
+
+    if (dbgPinState->gpio) {
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+        dbgPinState->gpio->BSRR
+#else
+        dbgPinState->gpio->BSRRL
+#endif
+           = (value) ?
+                dbgPinState->setBSRR:
+                dbgPinState->resetBSRR;
+    }
+#else
+    UNUSED(index);
+    UNUSED(value);
+#endif
+}
+
