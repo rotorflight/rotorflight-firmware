@@ -32,6 +32,7 @@
 #include "config/config.h"
 #include "config/config_reset.h"
 
+#include "drivers/time.h"
 #include "drivers/pwm_output.h"
 
 #include "sensors/gyro.h"
@@ -166,6 +167,19 @@ void servoInit(void)
         servoParamsMutable(index)->rate = rate[index];
         pwmOutConfig(&servoChannel[index], timer[index], PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / rate[index], 0, 0);
     }
+}
+
+void servoShutdown(void)
+{
+    for (int index = 0; index < MAX_SUPPORTED_SERVOS; index++)
+    {
+        if (servoChannel[index].ccr) {
+            *servoChannel[index].ccr = 0;
+            servoChannel[index].ccr = NULL;
+        }
+    }
+
+    delay(100);
 }
 
 static inline void servoWrite(uint8_t index, uint16_t value)

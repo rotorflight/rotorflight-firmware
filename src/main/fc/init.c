@@ -436,7 +436,7 @@ void init(void)
 #ifdef USE_PERSISTENT_OBJECTS
                     persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
 #endif
-                    systemReset();
+                    systemResetHard();
                 }
                 delay(1000);
                 LED0_TOGGLE;

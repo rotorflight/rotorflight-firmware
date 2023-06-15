@@ -60,9 +60,17 @@ typedef enum {
 void indicateFailure(failureMode_e mode, int repeatCount);
 void failureMode(failureMode_e mode);
 
+// Values for reset reason
+#define RESET_NONE                      0
+#define RESET_BOOTLOADER_REQUEST_ROM    1  // Boot loader invocation was requested
+#define RESET_BOOTLOADER_POST           2  // Reset after boot loader activity
+#define RESET_MSC_REQUEST               3  // MSC invocation was requested
+#define RESET_FORCED                    4  // Reset due to unknown reset reason
+#define RESET_BOOTLOADER_REQUEST_FLASH  5
+
 // bootloader/IAP
-void systemReset(void);
-void systemResetToBootloader(bootloaderRequestType_e requestType);
+void systemReset(int reason);
+void systemResetHard(void);
 bool isMPUSoftReset(void);
 void cycleCounterInit(void);
 int32_t clockCyclesToMicros(int32_t clockCycles);

@@ -28,10 +28,14 @@
 
 #include "drivers/io.h"
 #include "drivers/light_led.h"
+#include "drivers/motor.h"
 #include "drivers/nvic.h"
 #include "drivers/resource.h"
+#include "drivers/persistent.h"
 #include "drivers/sound_beeper.h"
 
+#include "flight/servos.h"
+#include "flight/motors.h"
 
 #include "system.h"
 
@@ -253,9 +257,9 @@ void failureMode(failureMode_e mode)
     indicateFailure(mode, 10);
 
 #ifdef DEBUG
-    systemReset();
+    systemResetHard();
 #else
-    systemResetToBootloader(BOOTLOADER_REQUEST_ROM);
+    systemReset(RESET_BOOTLOADER_REQUEST_ROM);
 #endif
 }
 
@@ -310,4 +314,19 @@ static void unusedPinInit(IO_t io)
 void unusedPinsInit(void)
 {
     IOTraversePins(unusedPinInit);
+}
+
+void systemReset(int reason)
+{
+#ifdef USE_PERSISTENT_OBJECTS
+    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, reason);
+#else
+    UNUSED(reason);
+#endif
+
+    motorStop();
+    motorShutdown();
+    servoShutdown();
+
+    systemResetHard();
 }

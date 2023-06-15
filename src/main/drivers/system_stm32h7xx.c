@@ -101,7 +101,7 @@ void systemInit(void)
     // SysTick is updated whenever HAL_RCC_ClockConfig is called.
 }
 
-void systemReset(void)
+void systemResetHard(void)
 {
     SCB_DisableDCache();
     SCB_DisableICache();
@@ -115,27 +115,6 @@ void systemResetWithoutDisablingCaches(void)
     __disable_irq();
     NVIC_SystemReset();
 }
-
-void systemResetToBootloader(bootloaderRequestType_e requestType)
-{
-    switch (requestType) {
-#if defined(USE_FLASH_BOOT_LOADER)
-    case BOOTLOADER_REQUEST_FLASH:
-        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_FLASH);
-
-        break;
-#endif
-    case BOOTLOADER_REQUEST_ROM:
-    default:
-        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
-
-        break;
-    }
-
-    __disable_irq();
-    NVIC_SystemReset();
-}
-
 
 #if defined(STM32H743xx) || defined(STM32H750xx) || defined(STM32H723xx) || defined(STM32H725xx) || defined(STM32H730xx)
 #define SYSMEMBOOT_VECTOR_TABLE ((uint32_t *)0x1ff09800)
@@ -168,17 +147,10 @@ void systemProcessResetReason(void)
     uint32_t bootloaderRequest = persistentObjectRead(PERSISTENT_OBJECT_RESET_REASON);
 
     switch (bootloaderRequest) {
-#if defined(USE_FLASH_BOOT_LOADER)
     case RESET_BOOTLOADER_REQUEST_FLASH:
-#endif
     case RESET_BOOTLOADER_REQUEST_ROM:
         persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_POST);
         systemJumpToBootloader();
-
-        break;
-
-    case RESET_FORCED:
-        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
         break;
 
     case RESET_BOOTLOADER_POST:
@@ -186,7 +158,10 @@ void systemProcessResetReason(void)
         // Issue a soft reset to prevent the condition.
         persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_FORCED);
         systemResetWithoutDisablingCaches(); // observed that disabling dcache after cold boot with BOOT pin high causes segfault.
+        break;
 
+    case RESET_FORCED:
+        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
         break;
 
     case RESET_MSC_REQUEST:

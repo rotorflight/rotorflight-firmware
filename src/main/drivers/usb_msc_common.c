@@ -136,24 +136,19 @@ void mscWaitForButton(void)
 
 void systemResetToMsc(int timezoneOffsetMinutes)
 {
-    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_MSC_REQUEST);
-
-    __disable_irq();
-
-    // Persist the RTC across the reboot to use as the file timestamp
 #ifdef USE_PERSISTENT_MSC_RTC
+    // Persist the RTC across the reboot to use as the file timestamp
     rtcPersistWrite(timezoneOffsetMinutes);
 #else
     UNUSED(timezoneOffsetMinutes);
 #endif
-    NVIC_SystemReset();
+
+    systemReset(RESET_MSC_REQUEST);
 }
 
 void systemResetFromMsc(void)
 {
-    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
-    __disable_irq();
-    NVIC_SystemReset();
+    systemReset(RESET_NONE);
 }
 
 #endif

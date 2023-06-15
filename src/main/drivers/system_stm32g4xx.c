@@ -75,20 +75,10 @@ void systemInit(void)
 #endif
 }
 
-void systemReset(void)
+void systemResetHard(void)
 {
     // SCB_DisableDCache();
     // SCB_DisableICache();
-
-    __disable_irq();
-    NVIC_SystemReset();
-}
-
-void systemResetToBootloader(bootloaderRequestType_e requestType)
-{
-    UNUSED(requestType);
-
-    persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
 
     __disable_irq();
     NVIC_SystemReset();

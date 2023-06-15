@@ -447,15 +447,15 @@ static void mspProcessPendingRequest(mspPort_t * mspPort)
 
     switch(mspPort->pendingRequest) {
     case MSP_PENDING_BOOTLOADER_ROM:
-        systemResetToBootloader(BOOTLOADER_REQUEST_ROM);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_ROM);
         break;
+
 #if defined(USE_FLASH_BOOT_LOADER)
     case MSP_PENDING_BOOTLOADER_FLASH:
-        systemResetToBootloader(BOOTLOADER_REQUEST_FLASH);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_FLASH);
         break;
 #endif
+
 #ifdef USE_CLI
     case MSP_PENDING_CLI:
         cliEnter(mspPort->port);

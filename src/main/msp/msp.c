@@ -346,17 +346,15 @@ static void mspRebootFn(serialPort_t *serialPort)
 {
     UNUSED(serialPort);
 
-    motorShutdown();
-
     switch (rebootMode) {
     case MSP_REBOOT_FIRMWARE:
-        systemReset();
-
+        systemReset(RESET_NONE);
         break;
+
     case MSP_REBOOT_BOOTLOADER_ROM:
-        systemResetToBootloader(BOOTLOADER_REQUEST_ROM);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_ROM);
         break;
+
 #if defined(USE_USB_MSC)
     case MSP_REBOOT_MSC:
     case MSP_REBOOT_MSC_UTC: {
@@ -369,14 +367,14 @@ static void mspRebootFn(serialPort_t *serialPort)
         }
         break;
 #endif
+
 #if defined(USE_FLASH_BOOT_LOADER)
     case MSP_REBOOT_BOOTLOADER_FLASH:
-        systemResetToBootloader(BOOTLOADER_REQUEST_FLASH);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_FLASH);
         break;
 #endif
-    default:
 
+    default:
         return;
     }
 

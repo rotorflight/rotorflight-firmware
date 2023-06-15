@@ -1449,7 +1449,7 @@ static void cbCtrlLine(void *context, uint16_t ctrl)
     UNUSED(context);
 
     if (!(ctrl & CTRL_LINE_STATE_DTR)) {
-        systemReset();
+        systemResetHard();
     }
 }
 
@@ -3803,23 +3803,21 @@ static void cliRebootEx(rebootTarget_e rebootTarget)
     cliPrint("\r\nRebooting");
     cliWriterFlush();
     waitForSerialPortToFinishTransmitting(cliPort);
-    motorShutdown();
 
     switch (rebootTarget) {
     case REBOOT_TARGET_BOOTLOADER_ROM:
-        systemResetToBootloader(BOOTLOADER_REQUEST_ROM);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_ROM);
         break;
+
 #if defined(USE_FLASH_BOOT_LOADER)
     case REBOOT_TARGET_BOOTLOADER_FLASH:
-        systemResetToBootloader(BOOTLOADER_REQUEST_FLASH);
-
+        systemReset(RESET_BOOTLOADER_REQUEST_FLASH);
         break;
 #endif
+
     case REBOOT_TARGET_FIRMWARE:
     default:
-        systemReset();
-
+        systemReset(RESET_NONE);
         break;
     }
 }
@@ -6601,7 +6599,6 @@ static void cliMsc(const char *cmdName, char *cmdline)
         cliPrint("\r\nRebooting");
         cliWriterFlush();
         waitForSerialPortToFinishTransmitting(cliPort);
-        motorShutdown();
 
         systemResetToMsc(timezoneOffsetMinutes);
     } else {

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "config/config.h"
+
 #include "pg/pg.h"
 
 #define DEFAULT_SERVO_FLAGS      0
@@ -66,6 +68,7 @@ PG_DECLARE(servoConfig_t, servoConfig);
 
 void servoInit(void);
 void servoUpdate(void);
+void servoShutdown(void);
 
 void validateAndFixServoConfig(void);
 

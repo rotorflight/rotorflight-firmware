@@ -33,22 +33,8 @@
 #define AIRCR_VECTKEY_MASK    ((uint32_t)0x05FA0000)
 void SetSysClock(void);
 
-void systemReset(void)
+void systemResetHard(void)
 {
-    __disable_irq();
-    NVIC_SystemReset();
-}
-
-void systemResetToBootloader(bootloaderRequestType_e requestType)
-{
-    switch (requestType) {
-    case BOOTLOADER_REQUEST_ROM:
-    default:
-        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
-
-        break;
-    }
-
     __disable_irq();
     NVIC_SystemReset();
 }

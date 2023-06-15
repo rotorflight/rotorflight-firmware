@@ -986,11 +986,7 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
         // Flush display
         displayRedraw(pDisplay);
 
-        stopMotors();
-        motorShutdown();
-        delay(200);
-
-        systemReset();
+        systemReset(RESET_NONE);
     }
 
     unsetArmingDisabled(ARMING_DISABLED_CMS_MENU);
