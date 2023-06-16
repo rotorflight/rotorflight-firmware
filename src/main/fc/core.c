@@ -120,6 +120,8 @@ enum {
     ARMING_DELAYED_NORMAL = 1,
 };
 
+#define BOOTUP_GRACE_TIME_US 2000000
+
 #define GYRO_WATCHDOG_DELAY 80 //  delay for gyro sync
 
 #if defined(USE_GPS) || defined(USE_MAG)
@@ -725,12 +727,14 @@ static void subTaskMixerUpdate(timeUs_t currentTimeUs)
 
     mixerUpdate();
 
+    if (currentTimeUs > BOOTUP_GRACE_TIME_US) {
 #ifdef USE_SERVOS
-    servoUpdate();
+        servoUpdate();
 #endif
 #ifdef USE_MOTOR
-    motorUpdate();
+        motorUpdate();
 #endif
+    }
 
     DEBUG_TIME_END(PIDLOOP, 2);
 }
