@@ -161,8 +161,10 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++)
         pid.errorLimit[i] = pidProfile->error_limit[i];
 
-    // Error decay speed when not flying
-    pid.errorDecay = 1.0f - ((pidProfile->error_decay) ? (10 * pid.dT / pidProfile->error_decay) : 0);
+    // Error decay speeds
+    pid.errorDecayGround = 1.0f - ((pidProfile->error_decay_ground) ? (10 * pid.dT / pidProfile->error_decay_ground) : 0);
+    pid.errorDecayCyclic = 1.0f - ((pidProfile->error_decay_cyclic) ? (10 * pid.dT / pidProfile->error_decay_cyclic) : 0);
+    pid.errorDecayYaw    = 1.0f - ((pidProfile->error_decay_yaw) ? (10 * pid.dT / pidProfile->error_decay_yaw) : 0);
 
     // Error Rotation enable
     pid.errorRotation = pidProfile->error_rotation;
@@ -474,9 +476,8 @@ static void pidApplyCyclicMode1(uint8_t axis)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    if (!isAirborne()) {
-        pid.data[axis].axisError *= pid.errorDecay;
-    }
+    if (!isAirborne())
+        pid.data[axis].axisError *= pid.errorDecayGround;
 
 
   //// F-term
@@ -549,9 +550,8 @@ static void pidApplyYawMode1(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    if (!isSpooledUp()) {
-        pid.data[axis].axisError *= pid.errorDecay;
-    }
+    if (!isSpooledUp())
+        pid.data[axis].axisError *= pid.errorDecayGround;
 
 
   //// F-term
@@ -623,9 +623,7 @@ static void pidApplyCyclicMode2(uint8_t axis)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    if (!isAirborne()) {
-        pid.data[axis].axisError *= pid.errorDecay;
-    }
+    pid.data[axis].axisError *= isAirborne() ? pid.errorDecayCyclic : pid.errorDecayGround;
 
 
   //// F-term
@@ -690,9 +688,7 @@ static void pidApplyYawMode2(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    if (!isSpooledUp()) {
-        pid.data[axis].axisError *= pid.errorDecay;
-    }
+    pid.data[axis].axisError *= isSpooledUp() ? pid.errorDecayYaw : pid.errorDecayGround;
 
 
   //// F-term
@@ -768,9 +764,7 @@ static void pidApplyCyclicMode9(uint8_t axis)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    if (!isAirborne()) {
-        pid.data[axis].axisError *= pid.errorDecay;
-    }
+    pid.data[axis].axisError *= isAirborne() ? pid.errorDecayCyclic : pid.errorDecayGround;
 
 
   //// F-term
@@ -860,9 +854,7 @@ static void pidApplyYawMode9()
     }
 
     // Apply I-term error decay
-    if (!isSpooledUp()) {
-        pid.data[axis].I *= pid.errorDecay;
-    }
+    pid.data[axis].axisError *= isSpooledUp() ? pid.errorDecayYaw : pid.errorDecayGround;
 
 
   //// F-term

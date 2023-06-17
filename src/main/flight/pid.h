@@ -99,7 +99,10 @@ typedef struct pid_s {
 
     uint8_t errorRotation;
 
-    float errorDecay;
+    float errorDecayYaw;
+    float errorDecayCyclic;
+    float errorDecayGround;
+
     float errorLimit[PID_AXIS_COUNT];
 
     float yawCWStopGain;

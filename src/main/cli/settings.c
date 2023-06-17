@@ -1043,7 +1043,9 @@ const clivalue_t valueTable[] = {
     { "pitch_collective_ff_gain",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, pitch_collective_ff_gain) },
 
     { "error_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, error_rotation) },
-    { "error_decay",                VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay) },
+    { "error_decay_ground",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_ground) },
+    { "error_decay_cyclic",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_cyclic) },
+    { "error_decay_yaw",            VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_yaw) },
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
 
     { "iterm_relax_type",           VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ITERM_RELAX_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_type) },

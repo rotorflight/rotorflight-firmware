@@ -122,7 +122,10 @@ typedef struct pidProfile_s {
     uint8_t             dterm_mode;
     uint8_t             dterm_mode_yaw;
 
-    uint8_t             error_decay;
+    uint8_t             error_decay_ground;
+    uint8_t             error_decay_cyclic;
+    uint8_t             error_decay_yaw;
+
     uint8_t             error_rotation;
 
     uint8_t             iterm_relax_type;
