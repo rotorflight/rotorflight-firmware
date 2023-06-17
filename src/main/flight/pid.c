@@ -196,12 +196,12 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
 
     // Collective filter
-    lowpassFilterInit(&pid.precomp.collFilter, LPF_ORDER1, pidProfile->yaw_collective_ff_cutoff, pid.freq, 0);
+    difFilterInit(&pid.precomp.collFilter, pidProfile->yaw_collective_df_cutoff, pid.freq);
 
     // Tail/yaw precomp
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 500.0f;
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 500.0f;
-    pid.precomp.yawCollectiveHFGain = pidProfile->yaw_collective_hf_gain / 500.0f;
+    pid.precomp.yawCollectiveDFGain = pidProfile->yaw_collective_df_gain / 1000.0f;
 
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
@@ -331,6 +331,12 @@ static inline void pidApplyCollective(void)
     pid.collective = collective / 1000;
 }
 
+static inline float dragCoef(float angle)
+{
+    const float absAngle = fabsf(angle);
+    return absAngle * sqrtf(absAngle);
+}
+
 static void pidApplyPrecomp(void)
 {
     // Yaw precompensation direction
@@ -340,34 +346,36 @@ static void pidApplyPrecomp(void)
     const float cyclicDeflection = getCyclicDeflection();
     const float collectiveDeflection = getCollectiveDeflection();
 
-    // Collective complementary filter
-    const float collectiveFF = filterApply(&pid.precomp.collFilter, collectiveDeflection);
-    const float collectiveHF = collectiveDeflection - collectiveFF;
-
   //// Yaw Precomp
 
+    // Collective drag
+    const float collectiveDrag = dragCoef(collectiveDeflection);
+
+    // Collective derivative
+    const float collectiveDeriv = difFilterApply(&pid.precomp.collFilter, collectiveDeflection);
+    const float collectiveDerivDrag = dragCoef(collectiveDeriv);
+
     // Collective components
-    const float yawCollectiveFF = fabsf(collectiveFF) * pid.precomp.yawCollectiveFFGain;
-    const float yawCollectiveHF = fabsf(collectiveHF) * pid.precomp.yawCollectiveHFGain;
+    const float yawCollectiveFF = collectiveDrag * pid.precomp.yawCollectiveFFGain;
+    const float yawCollectiveDF = collectiveDerivDrag * pid.precomp.yawCollectiveDFGain;
 
     // Cyclic component
-    float yawCyclicFF = fabsf(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
+    float yawCyclicFF = dragCoef(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
 
     // Calculate total precompensation
-    float yawPrecomp = (yawCollectiveFF + yawCollectiveHF + yawCyclicFF) * rotSign;
+    float yawPrecomp = (yawCollectiveFF + yawCollectiveDF + yawCyclicFF) * rotSign;
 
     // Add to YAW feedforward
     pid.data[FD_YAW].F += yawPrecomp;
     pid.data[FD_YAW].pidSum += yawPrecomp;
 
     DEBUG(YAW_PRECOMP, 0, collectiveDeflection * 1000);
-    DEBUG(YAW_PRECOMP, 1, collectiveFF * 1000);
-    DEBUG(YAW_PRECOMP, 2, collectiveHF * 1000);
-    DEBUG(YAW_PRECOMP, 3, cyclicDeflection * 1000);
-    DEBUG(YAW_PRECOMP, 4, yawCollectiveFF * 1000);
-    DEBUG(YAW_PRECOMP, 5, yawCollectiveHF * 100);
-    DEBUG(YAW_PRECOMP, 6, yawCyclicFF * 1000);
-    DEBUG(YAW_PRECOMP, 7, yawPrecomp * 1000);
+    DEBUG(YAW_PRECOMP, 1, collectiveDrag * 1000);
+    DEBUG(YAW_PRECOMP, 2, collectiveDeriv * 1000);
+    DEBUG(YAW_PRECOMP, 3, collectiveDerivDrag * 1000);
+    DEBUG(YAW_PRECOMP, 4, cyclicDeflection * 1000);
+    DEBUG(YAW_PRECOMP, 5, yawCyclicFF * 1000);
+    DEBUG(YAW_PRECOMP, 6, yawPrecomp * 1000);
 
   //// Pitch precomp
 

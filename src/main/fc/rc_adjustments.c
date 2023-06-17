@@ -107,7 +107,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(YAW_CCW_GAIN,       PROF,  25, 250),
     ADJ_CONFIG(YAW_CYCLIC_FF,      PROF,  0, 2500),
     ADJ_CONFIG(YAW_COLLECTIVE_FF,  PROF,  0, 2500),
-    ADJ_CONFIG(YAW_COLLECTIVE_HF,  PROF,  0, 2500),
+    ADJ_CONFIG(YAW_COLLECTIVE_DF,  PROF,  -2500, 2500),
 
     ADJ_CONFIG(PITCH_COLLECTIVE_FF, PROF,  0, 2500),
 
@@ -234,8 +234,8 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_YAW_COLLECTIVE_FF:
             value = currentPidProfile->yaw_collective_ff_gain;
             break;
-        case ADJUSTMENT_YAW_COLLECTIVE_HF:
-            value = currentPidProfile->yaw_collective_hf_gain;
+        case ADJUSTMENT_YAW_COLLECTIVE_DF:
+            value = currentPidProfile->yaw_collective_df_gain;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             value = currentPidProfile->pitch_collective_ff_gain;
@@ -427,8 +427,8 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         case ADJUSTMENT_YAW_COLLECTIVE_FF:
             currentPidProfile->yaw_collective_ff_gain = value;
             break;
-        case ADJUSTMENT_YAW_COLLECTIVE_HF:
-            currentPidProfile->yaw_collective_hf_gain = value;
+        case ADJUSTMENT_YAW_COLLECTIVE_DF:
+            currentPidProfile->yaw_collective_df_gain = value;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             currentPidProfile->pitch_collective_ff_gain = value;

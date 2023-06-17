@@ -1037,8 +1037,8 @@ const clivalue_t valueTable[] = {
 
     { "yaw_cyclic_ff_gain",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cyclic_ff_gain) },
     { "yaw_collective_ff_gain",     VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_gain) },
-    { "yaw_collective_hf_gain",     VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_hf_gain) },
-    { "yaw_collective_ff_cutoff",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_cutoff) },
+    { "yaw_collective_df_gain",     VAR_INT16 | PROFILE_VALUE, .config.minmax = { -2500, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_df_gain) },
+    { "yaw_collective_df_cutoff",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_df_cutoff) },
 
     { "pitch_collective_ff_gain",         VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 2500 }, PG_PID_PROFILE, offsetof(pidProfile_t, pitch_collective_ff_gain) },
 

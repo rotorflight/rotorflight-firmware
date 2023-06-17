@@ -72,14 +72,11 @@ typedef struct {
 
 typedef struct {
 
-    filter_t collFilter;
-
-    float collectiveLP;
-    float collectiveHP;
+    difFilter_t collFilter;
 
     float yawCyclicFFGain;
     float yawCollectiveFFGain;
-    float yawCollectiveHFGain;
+    float yawCollectiveDFGain;
 
     float pitchCollectiveFFGain;
 
