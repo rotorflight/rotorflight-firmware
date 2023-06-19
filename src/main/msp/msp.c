@@ -1307,6 +1307,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->rates[i]);
             sbufWriteU16(dst, currentControlRateProfile->rate_limit[i]);
         }
+        sbufWriteU8(dst, currentControlRateProfile->rates_smoothness);
         break;
 
     case MSP_PID_TUNING:
@@ -2254,6 +2255,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->rates[i] = sbufReadU8(src);
             currentControlRateProfile->rate_limit[i] = sbufReadU16(src);
         }
+        currentControlRateProfile->rates_smoothness = sbufReadU8(src);
         loadControlRateProfile();
         break;
 
