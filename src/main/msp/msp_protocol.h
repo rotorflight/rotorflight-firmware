@@ -115,7 +115,8 @@
 #define MSP_DATAFLASH_SUMMARY                70
 #define MSP_DATAFLASH_READ                   71
 #define MSP_DATAFLASH_ERASE                  72
-
+#define MSP_TELEMETRY_CONFIG                 73
+#define MSP_SET_TELEMETRY_CONFIG             74
 #define MSP_FAILSAFE_CONFIG                  75
 #define MSP_SET_FAILSAFE_CONFIG              76
 #define MSP_RXFAIL_CONFIG                    77

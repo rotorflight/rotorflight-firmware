@@ -1558,6 +1558,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_TELEMETRY_CONFIG:
+        sbufWriteU8(dst, telemetryConfig()->telemetry_inverted);
+        sbufWriteU8(dst, telemetryConfig()->halfDuplex);
+        sbufWriteU32(dst, telemetryConfig()->enableSensors);
+        break;
+
     case MSP_SERIAL_CONFIG:
         for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
             if (serialIsPortAvailable(serialConfig()->portConfigs[i].identifier)) {
@@ -2983,6 +2989,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         for (int i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++) {
             rxConfigMutable()->rcmap[i] = sbufReadU8(src);
         }
+        break;
+
+    case MSP_SET_TELEMETRY_CONFIG:
+        telemetryConfigMutable()->telemetry_inverted = sbufReadU8(src);
+        telemetryConfigMutable()->halfDuplex = sbufReadU8(src);
+        telemetryConfigMutable()->enableSensors = sbufReadU32(src);
         break;
 
     case MSP_SET_SERIAL_CONFIG:
