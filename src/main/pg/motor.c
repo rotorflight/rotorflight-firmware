@@ -38,7 +38,7 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
 {
     motorConfig->dev.motorPwmProtocol = PWM_TYPE_DISABLED;
     motorConfig->dev.motorPwmRate = 250;
-    motorConfig->dev.useUnsyncedPwm = true;
+    motorConfig->dev.useUnsyncedPwm = false;
     motorConfig->minthrottle = 1070;
     motorConfig->maxthrottle = 2000;
     motorConfig->mincommand = 1000;

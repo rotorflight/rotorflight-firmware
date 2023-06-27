@@ -540,23 +540,10 @@ static void validateAndFixConfig(void)
 
 void validateAndFixGyroConfig(void)
 {
-    uint32_t pidDenom = pidConfigMutable()->pid_process_denom;
-    uint32_t filtDenom = pidConfigMutable()->filter_process_denom;
-    if (filtDenom > 0) {
-        if (filtDenom < pidDenom) {
-            while (pidDenom % filtDenom) filtDenom++;
-        } else {
-            filtDenom = pidDenom;
-        }
-        pidConfigMutable()->filter_process_denom = filtDenom;
-    }
-
     if (gyro.sampleRateHz > 0)
     {
-        float samplingTime = 1.0f / gyro.sampleRateHz;
-
-        // check for looptime restrictions based on motor protocol. Motor times have safety margin
-        float motorUpdateRestriction;
+        // Loop rate restrictions based on motor protocol. Motor times have safety margin
+        uint32_t motorUpdateRestriction = 0;
 
 #if defined(STM32F411xE)
         /* If bidirectional DSHOT is being used on an F411 then force DSHOT300. The motor update restrictions then applied
@@ -568,54 +555,60 @@ void validateAndFixGyroConfig(void)
 #endif
 
         switch (motorConfig()->dev.motorPwmProtocol) {
-        case PWM_TYPE_STANDARD:
-                motorUpdateRestriction = 1.0f / MOTORS_MAX_PWM_RATE;
+            case PWM_TYPE_ONESHOT125:
+                motorUpdateRestriction = 2000;
                 break;
-        case PWM_TYPE_ONESHOT125:
-                motorUpdateRestriction = 0.0005f;
+            case PWM_TYPE_ONESHOT42:
+                motorUpdateRestriction = 10000;
                 break;
-        case PWM_TYPE_ONESHOT42:
-                motorUpdateRestriction = 0.0001f;
+            case PWM_TYPE_MULTISHOT:
+                motorUpdateRestriction = 32000;
                 break;
-#ifdef USE_DSHOT
-        case PWM_TYPE_DSHOT150:
-                motorUpdateRestriction = 0.000250f;
+            case PWM_TYPE_DSHOT150:
+                motorUpdateRestriction = 4000;
                 break;
-        case PWM_TYPE_DSHOT300:
-                motorUpdateRestriction = 0.0001f;
+            case PWM_TYPE_DSHOT300:
+                motorUpdateRestriction = 10000;
                 break;
-#endif
-        default:
-            motorUpdateRestriction = 0.00003125f;
-            break;
+            case PWM_TYPE_DSHOT600:
+            case PWM_TYPE_PROSHOT1000:
+                motorUpdateRestriction = 32000;
+                break;
         }
 
-        if (motorConfig()->dev.useUnsyncedPwm) {
-            bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
-            // Prevent overriding the max rate of motors
-            if (!configuredMotorProtocolDshot && motorConfig()->dev.motorPwmProtocol != PWM_TYPE_STANDARD) {
-                const uint32_t maxEscRate = lrintf(1.0f / motorUpdateRestriction);
-                motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, maxEscRate);
-            }
-        } else {
-            const float pidLooptime = samplingTime * pidConfig()->pid_process_denom;
-            if (motorConfig()->dev.useDshotTelemetry) {
-                motorUpdateRestriction *= 2;
-            }
-            if (pidLooptime < motorUpdateRestriction) {
-                uint8_t minPidProcessDenom = motorUpdateRestriction / samplingTime;
-                if (motorUpdateRestriction / samplingTime > minPidProcessDenom) {
-                    // if any fractional part then round up
-                    minPidProcessDenom++;
+        uint32_t pidDenom = pidConfig()->pid_process_denom;
+        uint32_t filtDenom = pidConfig()->filter_process_denom;
+
+        if (motorUpdateRestriction) {
+            if (motorConfig()->dev.useUnsyncedPwm) {
+                if (!checkMotorProtocolDshot(&motorConfig()->dev)) {
+                    motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
                 }
-                minPidProcessDenom = constrain(minPidProcessDenom, 1, MAX_PID_PROCESS_DENOM);
-                pidConfigMutable()->pid_process_denom = MAX(pidConfigMutable()->pid_process_denom, minPidProcessDenom);
+            } else {
+                if (motorConfig()->dev.useDshotTelemetry) {
+                    motorUpdateRestriction /= 2;
+                }
+                while (gyro.sampleRateHz / pidDenom > motorUpdateRestriction && pidDenom < MAX_PID_PROCESS_DENOM) {
+                    pidConfigMutable()->pid_process_denom = ++pidDenom;
+                }
             }
+        }
+
+        if (filtDenom > 0) {
+            if (filtDenom < pidDenom) {
+                while (pidDenom % filtDenom) filtDenom++;
+            } else {
+                filtDenom = pidDenom;
+            }
+            pidConfigMutable()->filter_process_denom = filtDenom;
+        }
+        else {
+            filtDenom = pidDenom;
         }
 
         // Fix gyro filter limits
         uint16_t decimation_limit = lrintf(0.5f * gyro.sampleRateHz / pidDenom);
-        uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / (filtDenom ? filtDenom : pidDenom));
+        uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / filtDenom);
 
         adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, cutoff_limit, cutoff_limit);
