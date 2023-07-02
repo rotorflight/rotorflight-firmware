@@ -159,12 +159,12 @@ static void rescueApplyLimits(void)
     for (int i=0; i<3; i++) {
         rescue.setpoint[i] = constrainf(rescue.setpoint[i], -rescue.maxRate, rescue.maxRate);
         rescue.setpoint[i] = slewLimit(rescue.prevSetpoint[i], rescue.setpoint[i], rescue.maxAccel);
-        rescue.prevSetpoint[i] = rescue.setpoint[i];
     }
 
-    // Collective limit
-    rescue.setpoint[FD_COLL] = constrainf(rescue.setpoint[FD_COLL], -rescue.maxColl, rescue.maxColl);
-    rescue.prevSetpoint[FD_COLL] = rescue.setpoint[FD_COLL];
+    // Previous values
+    for (int i=0; i<4; i++) {
+        rescue.prevSetpoint[i] = rescue.setpoint[i];
+    }
 }
 
 static void rescueApplyLeveling(bool allow_inverted)
@@ -229,17 +229,18 @@ static float rescueApplyAltitudePID(float altitude)
 {
     const float tilt = getCosTiltAngle();
 
-    float error = altitude - getAltitude();
-    float sqerr = error; //copysignf(sqrtf(fabsf(error)), error);
+    const float error = altitude - getAltitude();
+    const float sqerr = copysignf(sqrtf(fabsf(error)), error);
 
-    float Pterm = sqerr * rescue.alt_Kp;
-    float Iterm = sqerr * rescue.alt_Ki * tilt * tilt + rescue.alt_Iterm;
+    float Pterm = error * rescue.alt_Kp;
+    float Iterm = error * rescue.alt_Ki * tilt * tilt + rescue.alt_Iterm;
     float Dterm = getVario() * rescue.alt_Kd;
 
     Iterm = constrainf(Iterm, 0, rescue.maxColl);
+
     rescue.alt_Iterm = Iterm;
 
-    float pidSum = Pterm + Iterm + Dterm;
+    float pidSum = fminf(Pterm + Iterm + Dterm, rescue.maxColl);
 
     DEBUG(RESCUE_ALTHOLD, 0, error * 100);
     DEBUG(RESCUE_ALTHOLD, 1, sqerr * 100);
