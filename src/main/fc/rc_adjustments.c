@@ -78,80 +78,76 @@ static int            adjustmentValue  = 0;
 
 static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 {
-    ADJ_CONFIG(NONE,               NONE,  0, 0),
+    ADJ_CONFIG(NONE,                    NONE,  0, 0),
 
-    ADJ_CONFIG(PITCH_RATE,         RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
-    ADJ_CONFIG(ROLL_RATE,          RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
-    ADJ_CONFIG(YAW_RATE,           RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
-    ADJ_CONFIG(PITCH_RC_RATE,      RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
-    ADJ_CONFIG(ROLL_RC_RATE,       RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
-    ADJ_CONFIG(YAW_RC_RATE,        RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
-    ADJ_CONFIG(PITCH_RC_EXPO,      RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
-    ADJ_CONFIG(ROLL_RC_EXPO,       RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
-    ADJ_CONFIG(YAW_RC_EXPO,        RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
+    ADJ_CONFIG(RATE_PROFILE,            NONE,  1, 6),
+    ADJ_CONFIG(PID_PROFILE,             NONE,  1, 6),
+    ADJ_CONFIG(LED_PROFILE,             NONE,  1, 4),
+    ADJ_CONFIG(OSD_PROFILE,             NONE,  1, 3),
 
-    ADJ_CONFIG(PITCH_P_GAIN,       PROF,  0, 1000),
-    ADJ_CONFIG(PITCH_I_GAIN,       PROF,  0, 1000),
-    ADJ_CONFIG(PITCH_D_GAIN,       PROF,  0, 1000),
-    ADJ_CONFIG(PITCH_F_GAIN,       PROF,  0, 1000),
-    ADJ_CONFIG(ROLL_P_GAIN,        PROF,  0, 1000),
-    ADJ_CONFIG(ROLL_I_GAIN,        PROF,  0, 1000),
-    ADJ_CONFIG(ROLL_D_GAIN,        PROF,  0, 1000),
-    ADJ_CONFIG(ROLL_F_GAIN,        PROF,  0, 1000),
-    ADJ_CONFIG(YAW_P_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(YAW_I_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(YAW_D_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(YAW_F_GAIN,         PROF,  0, 1000),
+    ADJ_CONFIG(PITCH_RATE,              RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
+    ADJ_CONFIG(ROLL_RATE,               RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
+    ADJ_CONFIG(YAW_RATE,                RATE,  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
+    ADJ_CONFIG(PITCH_RC_RATE,           RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
+    ADJ_CONFIG(ROLL_RC_RATE,            RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
+    ADJ_CONFIG(YAW_RC_RATE,             RATE,  1, CONTROL_RATE_CONFIG_RC_RATES_MAX),
+    ADJ_CONFIG(PITCH_RC_EXPO,           RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
+    ADJ_CONFIG(ROLL_RC_EXPO,            RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
+    ADJ_CONFIG(YAW_RC_EXPO,             RATE,  0, CONTROL_RATE_CONFIG_RC_EXPO_MAX),
 
-    ADJ_CONFIG(YAW_CW_GAIN,        PROF,  25, 250),
-    ADJ_CONFIG(YAW_CCW_GAIN,       PROF,  25, 250),
-    ADJ_CONFIG(YAW_CYCLIC_FF,      PROF,  0, 250),
-    ADJ_CONFIG(YAW_COLLECTIVE_FF,  PROF,  0, 250),
-    ADJ_CONFIG(YAW_COLLECTIVE_DYN, PROF,  -125, 125),
-    ADJ_CONFIG(YAW_COLLECTIVE_DECAY, PROF,  1, 250),
+    ADJ_CONFIG(PITCH_P_GAIN,            PROF,  0, 1000),
+    ADJ_CONFIG(PITCH_I_GAIN,            PROF,  0, 1000),
+    ADJ_CONFIG(PITCH_D_GAIN,            PROF,  0, 1000),
+    ADJ_CONFIG(PITCH_F_GAIN,            PROF,  0, 1000),
+    ADJ_CONFIG(ROLL_P_GAIN,             PROF,  0, 1000),
+    ADJ_CONFIG(ROLL_I_GAIN,             PROF,  0, 1000),
+    ADJ_CONFIG(ROLL_D_GAIN,             PROF,  0, 1000),
+    ADJ_CONFIG(ROLL_F_GAIN,             PROF,  0, 1000),
+    ADJ_CONFIG(YAW_P_GAIN,              PROF,  0, 1000),
+    ADJ_CONFIG(YAW_I_GAIN,              PROF,  0, 1000),
+    ADJ_CONFIG(YAW_D_GAIN,              PROF,  0, 1000),
+    ADJ_CONFIG(YAW_F_GAIN,              PROF,  0, 1000),
 
-    ADJ_CONFIG(PITCH_COLLECTIVE_FF, PROF,  0, 250),
+    ADJ_CONFIG(YAW_CW_GAIN,             PROF,  25, 250),
+    ADJ_CONFIG(YAW_CCW_GAIN,            PROF,  25, 250),
+    ADJ_CONFIG(YAW_CYCLIC_FF,           PROF,  0, 250),
+    ADJ_CONFIG(YAW_COLLECTIVE_FF,       PROF,  0, 250),
+    ADJ_CONFIG(YAW_COLLECTIVE_DYN,      PROF,  -125, 125),
+    ADJ_CONFIG(YAW_COLLECTIVE_DECAY,    PROF,  1, 250),
 
-    ADJ_CONFIG(RESCUE_CLIMB_COLLECTIVE,  PROF,  0, 1000),
-    ADJ_CONFIG(RESCUE_HOVER_COLLECTIVE,  PROF,  0, 1000),
+    ADJ_CONFIG(PITCH_COLLECTIVE_FF,     PROF,  0, 250),
 
-    ADJ_CONFIG(ANGLE_LEVEL_GAIN,   PROF,  0, 200),
-    ADJ_CONFIG(HORIZON_LEVEL_GAIN, PROF,  0, 200),
-    ADJ_CONFIG(ACRO_TRAINER_GAIN,  PROF, 25, 255),
+    ADJ_CONFIG(PITCH_GYRO_CUTOFF,       PROF,  0, 250),
+    ADJ_CONFIG(ROLL_GYRO_CUTOFF,        PROF,  0, 250),
+    ADJ_CONFIG(YAW_GYRO_CUTOFF,         PROF,  0, 250),
 
-    ADJ_CONFIG(GOV_GAIN,           GOV,   0, 250),
-    ADJ_CONFIG(GOV_P_GAIN,         GOV,   0, 250),
-    ADJ_CONFIG(GOV_I_GAIN,         GOV,   0, 250),
-    ADJ_CONFIG(GOV_D_GAIN,         GOV,   0, 250),
-    ADJ_CONFIG(GOV_F_GAIN,         GOV,   0, 250),
-    ADJ_CONFIG(GOV_TTA_GAIN,       GOV,   0, 250),
-    ADJ_CONFIG(GOV_CYCLIC_FF,      GOV,   0, 250),
-    ADJ_CONFIG(GOV_COLLECTIVE_FF,  GOV,   0, 250),
+    ADJ_CONFIG(PITCH_DTERM_CUTOFF,      PROF,  0, 250),
+    ADJ_CONFIG(ROLL_DTERM_CUTOFF,       PROF,  0, 250),
+    ADJ_CONFIG(YAW_DTERM_CUTOFF,        PROF,  0, 250),
 
-    ADJ_CONFIG(TAIL_MOTOR_IDLE,    MIX,   0, 250),
-    ADJ_CONFIG(SWASH_PHASE,        MIX,  -1800, 1800),
+    ADJ_CONFIG(RESCUE_CLIMB_COLLECTIVE, PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_HOVER_COLLECTIVE, PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_HOVER_ALTITUDE,   PROF,  0, 2500),
+    ADJ_CONFIG(RESCUE_ALT_P_GAIN,       PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_ALT_I_GAIN,       PROF,  0, 1000),
+    ADJ_CONFIG(RESCUE_ALT_D_GAIN,       PROF,  0, 1000),
 
-    ADJ_CONFIG(OSD_PROFILE,        NONE,  1,  3),
-    ADJ_CONFIG(LED_PROFILE,        NONE,  1,  4),
-    ADJ_CONFIG(PID_PROFILE,        NONE,  1,  6),
-    ADJ_CONFIG(RATE_PROFILE,       NONE,  1,  6),
+    ADJ_CONFIG(ANGLE_LEVEL_GAIN,        PROF,  0, 200),
+    ADJ_CONFIG(HORIZON_LEVEL_GAIN,      PROF,  0, 200),
+    ADJ_CONFIG(ACRO_TRAINER_GAIN,       PROF,  25, 255),
 
-    // RF TODO for evalution only
-    ADJ_CONFIG(WAY_P_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(WAY_I_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(WAY_D_GAIN,         PROF,  0, 1000),
-    ADJ_CONFIG(WAY_F_GAIN,         PROF,  0, 1000),
+    ADJ_CONFIG(GOV_GAIN,                GOV,   0, 250),
+    ADJ_CONFIG(GOV_P_GAIN,              GOV,   0, 250),
+    ADJ_CONFIG(GOV_I_GAIN,              GOV,   0, 250),
+    ADJ_CONFIG(GOV_D_GAIN,              GOV,   0, 250),
+    ADJ_CONFIG(GOV_F_GAIN,              GOV,   0, 250),
+    ADJ_CONFIG(GOV_TTA_GAIN,            GOV,   0, 250),
+    ADJ_CONFIG(GOV_CYCLIC_FF,           GOV,   0, 250),
+    ADJ_CONFIG(GOV_COLLECTIVE_FF,       GOV,   0, 250),
 
-    ADJ_CONFIG(PITCH_ERROR_CUTOFF, PROF,  0, 250),
-    ADJ_CONFIG(PITCH_DTERM_CUTOFF, PROF,  0, 250),
-    ADJ_CONFIG(ROLL_ERROR_CUTOFF,  PROF,  0, 250),
-    ADJ_CONFIG(ROLL_DTERM_CUTOFF,  PROF,  0, 250),
-    ADJ_CONFIG(YAW_ERROR_CUTOFF,   PROF,  0, 250),
-    ADJ_CONFIG(YAW_DTERM_CUTOFF,   PROF,  0, 250),
+    ADJ_CONFIG(TAIL_MOTOR_IDLE,         MIX,   0, 250),
+    ADJ_CONFIG(SWASH_PHASE,             MIX,  -1800, 1800),
 
-    ADJ_CONFIG(RESCUE_ALT_P_GAIN, PROF,  0, 1000),
-    ADJ_CONFIG(RESCUE_ALT_I_GAIN, PROF,  0, 1000),
-    ADJ_CONFIG(RESCUE_ALT_D_GAIN, PROF,  0, 1000),
 };
 
 
@@ -160,6 +156,22 @@ static int getAdjustmentValue(uint8_t adjFunc)
     int value = 0;
 
     switch (adjFunc) {
+        case ADJUSTMENT_RATE_PROFILE:
+            value = getCurrentControlRateProfileIndex() + 1;
+            break;
+        case ADJUSTMENT_PID_PROFILE:
+            value = getCurrentPidProfileIndex() + 1;
+            break;
+        case ADJUSTMENT_LED_PROFILE:
+#ifdef USE_LED_STRIP
+            value = getLedProfile() + 1;
+#endif
+            break;
+        case ADJUSTMENT_OSD_PROFILE:
+#ifdef USE_OSD_PROFILES
+            value = getCurrentOsdProfileIndex();
+#endif
+            break;
         case ADJUSTMENT_PITCH_RATE:
             value = currentControlRateProfile->rates[FD_PITCH];
             break;
@@ -244,11 +256,41 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             value = currentPidProfile->pitch_collective_ff_gain;
             break;
+        case ADJUSTMENT_PITCH_GYRO_CUTOFF:
+            value = currentPidProfile->gyro_cutoff[PID_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_GYRO_CUTOFF:
+            value = currentPidProfile->gyro_cutoff[PID_ROLL];
+            break;
+        case ADJUSTMENT_YAW_GYRO_CUTOFF:
+            value = currentPidProfile->gyro_cutoff[PID_YAW];
+            break;
+        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_ROLL];
+            break;
+        case ADJUSTMENT_YAW_DTERM_CUTOFF:
+            value = currentPidProfile->dterm_cutoff[PID_YAW];
+            break;
         case ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE:
             value = currentPidProfile->rescue.climb_collective;
             break;
         case ADJUSTMENT_RESCUE_HOVER_COLLECTIVE:
             value = currentPidProfile->rescue.hover_collective;
+            break;
+        case ADJUSTMENT_RESCUE_HOVER_ALTITUDE:
+            value = currentPidProfile->rescue.hover_altitude;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
+            value = currentPidProfile->rescue.alt_p_gain;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
+            value = currentPidProfile->rescue.alt_i_gain;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
+            value = currentPidProfile->rescue.alt_d_gain;
             break;
         case ADJUSTMENT_ANGLE_LEVEL_GAIN:
             value = currentPidProfile->angle.level_strength;
@@ -289,65 +331,6 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_SWASH_PHASE:
             value = mixerConfig()->swash_phase;
             break;
-        case ADJUSTMENT_RATE_PROFILE:
-            value = getCurrentControlRateProfileIndex() + 1;
-            break;
-        case ADJUSTMENT_PID_PROFILE:
-            value = getCurrentPidProfileIndex() + 1;
-            break;
-        case ADJUSTMENT_OSD_PROFILE:
-#ifdef USE_OSD_PROFILES
-            value = getCurrentOsdProfileIndex();
-#endif
-            break;
-        case ADJUSTMENT_LED_PROFILE:
-#ifdef USE_LED_STRIP
-            value = getLedProfile() + 1;
-#endif
-            break;
-
-        // RF TODO for evalution only
-        case ADJUSTMENT_WAY_P_GAIN:
-            value = currentPidProfile->pid[PID_WAY].P;
-            break;
-        case ADJUSTMENT_WAY_I_GAIN:
-            value = currentPidProfile->pid[PID_WAY].I;
-            break;
-        case ADJUSTMENT_WAY_D_GAIN:
-            value = currentPidProfile->pid[PID_WAY].D;
-            break;
-        case ADJUSTMENT_WAY_F_GAIN:
-            value = currentPidProfile->pid[PID_WAY].F;
-            break;
-
-        case ADJUSTMENT_PITCH_ERROR_CUTOFF:
-            value = currentPidProfile->error_cutoff[PID_PITCH];
-            break;
-        case ADJUSTMENT_ROLL_ERROR_CUTOFF:
-            value = currentPidProfile->error_cutoff[PID_ROLL];
-            break;
-        case ADJUSTMENT_YAW_ERROR_CUTOFF:
-            value = currentPidProfile->error_cutoff[PID_YAW];
-            break;
-        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
-            value = currentPidProfile->dterm_cutoff[PID_PITCH];
-            break;
-        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
-            value = currentPidProfile->dterm_cutoff[PID_ROLL];
-            break;
-        case ADJUSTMENT_YAW_DTERM_CUTOFF:
-            value = currentPidProfile->dterm_cutoff[PID_YAW];
-            break;
-
-        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
-            value = currentPidProfile->rescue.alt_p_gain;
-            break;
-        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
-            value = currentPidProfile->rescue.alt_i_gain;
-            break;
-        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
-            value = currentPidProfile->rescue.alt_d_gain;
-            break;
     }
 
     return value;
@@ -356,6 +339,22 @@ static int getAdjustmentValue(uint8_t adjFunc)
 static void setAdjustmentValue(uint8_t adjFunc, int value)
 {
     switch (adjFunc) {
+        case ADJUSTMENT_RATE_PROFILE:
+            changeControlRateProfile(value - 1);
+            break;
+        case ADJUSTMENT_PID_PROFILE:
+            changePidProfile(value - 1);
+            break;
+        case ADJUSTMENT_LED_PROFILE:
+#ifdef USE_LED_STRIP
+            setLedProfile(value - 1);
+#endif
+            break;
+        case ADJUSTMENT_OSD_PROFILE:
+#ifdef USE_OSD_PROFILES
+            changeOsdProfileIndex(value);
+#endif
+            break;
         case ADJUSTMENT_PITCH_RATE:
             currentControlRateProfile->rates[FD_PITCH] = value;
             break;
@@ -440,11 +439,41 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             currentPidProfile->pitch_collective_ff_gain = value;
             break;
+        case ADJUSTMENT_PITCH_GYRO_CUTOFF:
+            currentPidProfile->gyro_cutoff[PID_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_GYRO_CUTOFF:
+            currentPidProfile->gyro_cutoff[PID_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_GYRO_CUTOFF:
+            currentPidProfile->gyro_cutoff[PID_YAW] = value;
+            break;
+        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_DTERM_CUTOFF:
+            currentPidProfile->dterm_cutoff[PID_YAW] = value;
+            break;
         case ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE:
             currentPidProfile->rescue.climb_collective = value;
             break;
         case ADJUSTMENT_RESCUE_HOVER_COLLECTIVE:
             currentPidProfile->rescue.hover_collective = value;
+            break;
+        case ADJUSTMENT_RESCUE_HOVER_ALTITUDE:
+            currentPidProfile->rescue.hover_altitude = value;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
+            currentPidProfile->rescue.alt_p_gain = value;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
+            currentPidProfile->rescue.alt_i_gain = value;
+            break;
+        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
+            currentPidProfile->rescue.alt_d_gain = value;
             break;
         case ADJUSTMENT_ANGLE_LEVEL_GAIN:
             currentPidProfile->angle.level_strength = value;
@@ -484,65 +513,6 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_SWASH_PHASE:
             mixerConfigMutable()->swash_phase = value;
-            break;
-        case ADJUSTMENT_RATE_PROFILE:
-            changeControlRateProfile(value - 1);
-            break;
-        case ADJUSTMENT_PID_PROFILE:
-            changePidProfile(value - 1);
-            break;
-        case ADJUSTMENT_OSD_PROFILE:
-#ifdef USE_OSD_PROFILES
-            changeOsdProfileIndex(value);
-#endif
-            break;
-        case ADJUSTMENT_LED_PROFILE:
-#ifdef USE_LED_STRIP
-            setLedProfile(value - 1);
-#endif
-            break;
-
-        // RF TODO for evalution only
-        case ADJUSTMENT_WAY_P_GAIN:
-            currentPidProfile->pid[PID_WAY].P = value;
-            break;
-        case ADJUSTMENT_WAY_I_GAIN:
-            currentPidProfile->pid[PID_WAY].I = value;
-            break;
-        case ADJUSTMENT_WAY_D_GAIN:
-            currentPidProfile->pid[PID_WAY].D = value;
-            break;
-        case ADJUSTMENT_WAY_F_GAIN:
-            currentPidProfile->pid[PID_WAY].F = value;
-            break;
-
-        case ADJUSTMENT_PITCH_ERROR_CUTOFF:
-            currentPidProfile->error_cutoff[PID_PITCH] = value;
-            break;
-        case ADJUSTMENT_ROLL_ERROR_CUTOFF:
-            currentPidProfile->error_cutoff[PID_ROLL] = value;
-            break;
-        case ADJUSTMENT_YAW_ERROR_CUTOFF:
-            currentPidProfile->error_cutoff[PID_YAW] = value;
-            break;
-        case ADJUSTMENT_PITCH_DTERM_CUTOFF:
-            currentPidProfile->dterm_cutoff[PID_PITCH] = value;
-            break;
-        case ADJUSTMENT_ROLL_DTERM_CUTOFF:
-            currentPidProfile->dterm_cutoff[PID_ROLL] = value;
-            break;
-        case ADJUSTMENT_YAW_DTERM_CUTOFF:
-            currentPidProfile->dterm_cutoff[PID_YAW] = value;
-            break;
-
-        case ADJUSTMENT_RESCUE_ALT_P_GAIN:
-            currentPidProfile->rescue.alt_p_gain = value;
-            break;
-        case ADJUSTMENT_RESCUE_ALT_I_GAIN:
-            currentPidProfile->rescue.alt_i_gain = value;
-            break;
-        case ADJUSTMENT_RESCUE_ALT_D_GAIN:
-            currentPidProfile->rescue.alt_d_gain = value;
             break;
     }
 }
