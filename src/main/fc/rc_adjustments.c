@@ -105,11 +105,12 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(YAW_CW_GAIN,        PROF,  25, 250),
     ADJ_CONFIG(YAW_CCW_GAIN,       PROF,  25, 250),
-    ADJ_CONFIG(YAW_CYCLIC_FF,      PROF,  0, 2500),
-    ADJ_CONFIG(YAW_COLLECTIVE_FF,  PROF,  0, 2500),
-    ADJ_CONFIG(YAW_COLLECTIVE_DF,  PROF,  -2500, 2500),
+    ADJ_CONFIG(YAW_CYCLIC_FF,      PROF,  0, 250),
+    ADJ_CONFIG(YAW_COLLECTIVE_FF,  PROF,  0, 250),
+    ADJ_CONFIG(YAW_COLLECTIVE_DYN, PROF,  -125, 125),
+    ADJ_CONFIG(YAW_COLLECTIVE_DECAY, PROF,  1, 250),
 
-    ADJ_CONFIG(PITCH_COLLECTIVE_FF, PROF,  0, 2500),
+    ADJ_CONFIG(PITCH_COLLECTIVE_FF, PROF,  0, 250),
 
     ADJ_CONFIG(RESCUE_CLIMB_COLLECTIVE,  PROF,  0, 1000),
     ADJ_CONFIG(RESCUE_HOVER_COLLECTIVE,  PROF,  0, 1000),
@@ -234,8 +235,11 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_YAW_COLLECTIVE_FF:
             value = currentPidProfile->yaw_collective_ff_gain;
             break;
-        case ADJUSTMENT_YAW_COLLECTIVE_DF:
-            value = currentPidProfile->yaw_collective_df_gain;
+        case ADJUSTMENT_YAW_COLLECTIVE_DYN:
+            value = currentPidProfile->yaw_collective_dynamic_gain;
+            break;
+        case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
+            value = currentPidProfile->yaw_collective_dynamic_decay;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             value = currentPidProfile->pitch_collective_ff_gain;
@@ -427,8 +431,11 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         case ADJUSTMENT_YAW_COLLECTIVE_FF:
             currentPidProfile->yaw_collective_ff_gain = value;
             break;
-        case ADJUSTMENT_YAW_COLLECTIVE_DF:
-            currentPidProfile->yaw_collective_df_gain = value;
+        case ADJUSTMENT_YAW_COLLECTIVE_DYN:
+            currentPidProfile->yaw_collective_dynamic_gain = value;
+            break;
+        case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
+            currentPidProfile->yaw_collective_dynamic_decay = value;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             currentPidProfile->pitch_collective_ff_gain = value;
