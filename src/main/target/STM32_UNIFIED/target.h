@@ -285,6 +285,8 @@
 #define CURRENT_TASK_FREQ_HZ     250
 #define ESC_SENSOR_TASK_FREQ_HZ  250
 
+#define USE_LEDSTRIP_CACHE_MGMT
+
 
 /*
  * UNKNOWN target
