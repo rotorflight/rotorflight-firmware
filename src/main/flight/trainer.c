@@ -124,8 +124,7 @@ float acroTrainerApply(int axis, float setPoint)
         }
 
         if (acroTrainer.AxisState[axis] != 0) {
-            setPoint = constrainf(((acroTrainer.AngleLimit * angleSign) - currentAngle) * acroTrainer.Gain,
-                                  -ACRO_TRAINER_SETPOINT_LIMIT, ACRO_TRAINER_SETPOINT_LIMIT);
+            setPoint = limitf((acroTrainer.AngleLimit * angleSign - currentAngle) * acroTrainer.Gain, ACRO_TRAINER_SETPOINT_LIMIT);
         }
         else {
             // Not currently over the limit so project the angle based on current angle and

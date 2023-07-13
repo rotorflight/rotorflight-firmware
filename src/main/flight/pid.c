@@ -472,7 +472,7 @@ static void pidApplyCyclicMode1(uint8_t axis)
     }
 
     // Calculate I-component
-    pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
@@ -546,7 +546,7 @@ static void pidApplyYawMode1(void)
     }
 
     // Calculate I-component
-    pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
@@ -619,7 +619,7 @@ static void pidApplyCyclicMode2(uint8_t axis)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
 
     // Calculate I-component
-    pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
@@ -684,7 +684,7 @@ static void pidApplyYawMode2(void)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
 
     // Calculate I-component
-    pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
@@ -760,7 +760,7 @@ static void pidApplyCyclicMode9(uint8_t axis)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
 
     // Calculate I-component
-    pid.data[axis].axisError = constrainf(pid.data[axis].axisError + itermDelta, -pid.errorLimit[axis], pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay

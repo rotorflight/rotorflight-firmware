@@ -157,7 +157,7 @@ static void rescueApplyLimits(void)
 {
     // Limits for RPY
     for (int i=0; i<3; i++) {
-        rescue.setpoint[i] = constrainf(rescue.setpoint[i], -rescue.maxRate, rescue.maxRate);
+        rescue.setpoint[i] = limitf(rescue.setpoint[i], rescue.maxRate);
         rescue.setpoint[i] = slewLimit(rescue.prevSetpoint[i], rescue.setpoint[i], rescue.maxAccel);
     }
 

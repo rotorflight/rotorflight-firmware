@@ -152,6 +152,26 @@ static inline float constrainf(float value, float low, float high)
         return value;
 }
 
+static inline int limit(int value, int limit)
+{
+    if (value < -limit)
+        return -limit;
+    else if (value > limit)
+        return limit;
+    else
+        return value;
+}
+
+static inline float limitf(float value, float limit)
+{
+    if (value < -limit)
+        return -limit;
+    else if (value > limit)
+        return limit;
+    else
+        return value;
+}
+
 static inline int scaleRange(int src, int srcFrom, int srcTo, int dstFrom, int dstTo)
 {
     const int srcRange = srcTo - srcFrom;
