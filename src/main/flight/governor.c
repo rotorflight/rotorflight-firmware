@@ -795,7 +795,7 @@ static void govMode1Init(void)
     // PID limits
     gov.P = constrainf(gov.P, -0.25f, 0.25f);
     gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.50f);
 
     // Use gov.I to reach the target
     gov.I = gov.throttle - (gov.P + gov.D + gov.F);
@@ -812,7 +812,7 @@ static float govMode1Control(void)
     gov.P = constrainf(gov.P, -0.25f, 0.25f);
     gov.I = constrainf(gov.I,      0, 0.95f);
     gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.50f);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
@@ -846,7 +846,7 @@ static void govMode2Init(void)
     // PID limits
     gov.P = constrainf(gov.P, -0.25f, 0.25f);
     gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.50f);
 
     // Use gov.I to reach the target
     gov.I = pidTarget - (gov.P + gov.D + gov.F);
@@ -866,7 +866,7 @@ static float govMode2Control(void)
     gov.P = constrainf(gov.P, -0.25f, 0.25f);
     gov.I = constrainf(gov.I,      0, 0.95f);
     gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.25f);
+    gov.F = constrainf(gov.F,      0, 0.50f);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
