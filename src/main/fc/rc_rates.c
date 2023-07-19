@@ -194,6 +194,10 @@ float applyRatesCurve(const int axis, float rcCommandf)
 
     rate = constrainf(rate, -currentControlRateProfile->rate_limit[axis], currentControlRateProfile->rate_limit[axis]);
 
+    // Collective is an angle - scale it here so that 480°/s => 12°
+    if (axis == COLLECTIVE)
+        rate *= 2.083333333f;
+
     return rate;
 }
 
