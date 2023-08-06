@@ -129,6 +129,7 @@ typedef enum {
     TABLE_SWASH_TYPE,
     TABLE_CRSF_FM_REUSE,
     TABLE_DTERM_MODE,
+    TABLE_GYRO_SETPOINT,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;
