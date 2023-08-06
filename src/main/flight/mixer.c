@@ -51,6 +51,8 @@
 #include "sensors/gyro.h"
 
 
+/** Configuration definitions **/
+
 PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
 
 PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
@@ -78,6 +80,9 @@ void pgResetFn_mixerInputs(mixerInput_t *input)
     }
 }
 
+
+/** Internal data **/
+
 typedef struct {
 
     float           input[MIXER_INPUT_COUNT];
@@ -92,14 +97,15 @@ typedef struct {
 
     float           swashTrim[3];
 
+    float           cyclicLimit;
     float           cyclicTotal;
-    float           cyclicRingLimit;
-    float           cyclicPitchLimit;
 
     float           totalPitchLimit;
+    float           cyclicRingLimit;
+    float           cyclicSpeedLimit;
 
-    float           phaseSin;
-    float           phaseCos;
+    float           cyclicPhaseSin;
+    float           cyclicPhaseCos;
 
 } mixerData_t;
 
@@ -136,19 +142,19 @@ static inline void mixerUpdateHistory(void)
 
 /** Interface functions **/
 
-float mixerGetOutput(uint8_t i)
+float mixerGetInput(uint8_t index)
 {
-    return mixer.output[i];
+    return mixer.input[index];
 }
 
-float mixerGetServoOutput(uint8_t i)
+float mixerGetOutput(uint8_t index)
 {
-    return mixer.output[MIXER_SERVO_OFFSET + i];
+    return mixer.output[index];
 }
 
-float mixerGetMotorOutput(uint8_t i)
+float getCyclicDeflection(void)
 {
-    return mixer.output[MIXER_MOTOR_OFFSET + i];
+    return mixer.cyclicTotal;
 }
 
 bool mixerSaturated(uint8_t index)
@@ -170,34 +176,14 @@ void mixerSaturateOutput(uint8_t index)
     }
 }
 
-int16_t mixerGetOverride(uint8_t i)
+int16_t mixerGetOverride(uint8_t index)
 {
-    return mixer.override[i];
+    return mixer.override[index];
 }
 
-int16_t mixerSetOverride(uint8_t i, int16_t value)
+int16_t mixerSetOverride(uint8_t index, int16_t value)
 {
-    return mixer.override[i] = value;
-}
-
-float getCyclicDeflection(void)
-{
-    return mixer.cyclicTotal;
-}
-
-float getCollectiveDeflection(void)
-{
-    return mixer.input[MIXER_IN_STABILIZED_COLLECTIVE];
-}
-
-float getYawDeflection(void)
-{
-    return mixer.input[MIXER_IN_STABILIZED_YAW];
-}
-
-float mixerGetInput(uint8_t i)
-{
-    return mixer.input[i];
+    return mixer.override[index] = value;
 }
 
 
@@ -238,56 +224,72 @@ static void mixerSetInput(int index, float value)
 
 static void mixerUpdateCyclic(void)
 {
-    // Swashring enabled
-    if (mixer.cyclicRingLimit > 0)
+    float SR = mixer.input[MIXER_IN_STABILIZED_ROLL];
+    float SP = mixer.input[MIXER_IN_STABILIZED_PITCH];
+
+    // Limit action active
+    if (mixer.cyclicRingLimit > 0 || mixer.totalPitchLimit > 0)
     {
-        float SR = mixer.input[MIXER_IN_STABILIZED_ROLL];
-        float SP = mixer.input[MIXER_IN_STABILIZED_PITCH];
+        float factor = 1.0f;
 
-        const mixerInput_t *mixR = mixerInputs(MIXER_IN_STABILIZED_ROLL);
-        const mixerInput_t *mixP = mixerInputs(MIXER_IN_STABILIZED_PITCH);
+        // Apply cyclic ring limit
+        if (mixer.cyclicRingLimit > 0 ) {
+            // Inidividual limits on SP and SR
+            const mixerInput_t *mixR = mixerInputs(MIXER_IN_STABILIZED_ROLL);
+            const mixerInput_t *mixP = mixerInputs(MIXER_IN_STABILIZED_PITCH);
 
-        // Assume min<0 and max>0 for cyclic & pitch
-        float maxR = abs((SR < 0) ? mixR->min : mixR->max) / 1000.0f;
-        float maxP = abs((SP < 0) ? mixP->min : mixP->max) / 1000.0f;
+            // Assume min<0 and max>0
+            const float maxR = MAX(abs((SR < 0) ? mixR->min : mixR->max), 10) / 1000.0f;
+            const float maxP = MAX(abs((SP < 0) ? mixP->min : mixP->max), 10) / 1000.0f;
 
-        // Apply total cyclic limit
-        if (mixer.totalPitchLimit > 0) {
-            maxR = fminf(maxR, mixer.cyclicPitchLimit);
-            maxP = fminf(maxP, mixer.cyclicPitchLimit);
+            // Stretch the values to a unit circle limit
+            const float SSR = SR / (maxR * mixer.cyclicRingLimit);
+            const float SSP = SP / (maxP * mixer.cyclicRingLimit);
+
+            // Stretched cyclic deflection
+            const float cyclic = sqrtf(sq(SSR) + sq(SSP));
+
+            // Cyclic limits reached - scale back
+            if (cyclic > 1.0f) {
+                factor = 1.0f / cyclic;
+            }
         }
 
-        // Stretch the limits to the unit circle
-        SR /= fmaxf(maxR, 0.001f) * mixer.cyclicRingLimit;
-        SP /= fmaxf(maxP, 0.001f) * mixer.cyclicRingLimit;
+        // Apply dynamic cyclic limit
+        if (mixer.totalPitchLimit > 0) {
+            // Total cyclic after ring limit
+            const float cyclic = sqrtf(sq(SR) + sq(SP)) * factor;
 
-        // Stretched cyclic deflection
-        const float cyclic = sqrtf(sq(SR) + sq(SP));
+            // Cyclic limits reached - scale back
+            if (cyclic > mixer.cyclicLimit) {
+                factor *= mixer.cyclicLimit / cyclic;
+            }
+        }
 
-        // Cyclic limits reached - scale back
-        if (cyclic > 1.0f)
-        {
+        // Apply limit factor
+        if (factor < 1.0f) {
+            SP *= factor;
+            SR *= factor;
             mixerSaturateInput(MIXER_IN_STABILIZED_ROLL);
             mixerSaturateInput(MIXER_IN_STABILIZED_PITCH);
-
-            mixer.input[MIXER_IN_STABILIZED_ROLL]  /= cyclic;
-            mixer.input[MIXER_IN_STABILIZED_PITCH] /= cyclic;
         }
     }
 
     // Swash phasing
-    if (mixer.phaseSin != 0)
+    if (mixer.cyclicPhaseSin != 0)
     {
-        float SR = mixer.input[MIXER_IN_STABILIZED_ROLL];
-        float SP = mixer.input[MIXER_IN_STABILIZED_PITCH];
-
-        mixer.input[MIXER_IN_STABILIZED_PITCH] = SP * mixer.phaseCos - SR * mixer.phaseSin;
-        mixer.input[MIXER_IN_STABILIZED_ROLL]  = SP * mixer.phaseSin + SR * mixer.phaseCos;
+        const float P = SP;
+        const float R = SR;
+        SP = P * mixer.cyclicPhaseCos - R * mixer.cyclicPhaseSin;
+        SR = P * mixer.cyclicPhaseSin + R * mixer.cyclicPhaseCos;
     }
 
+    // Apply new values
+    mixer.input[MIXER_IN_STABILIZED_ROLL]  = SR;
+    mixer.input[MIXER_IN_STABILIZED_PITCH] = SP;
+
     // Total cyclic deflection
-    mixer.cyclicTotal = sqrtf(sq(mixer.input[MIXER_IN_STABILIZED_ROLL]) +
-                              sq(mixer.input[MIXER_IN_STABILIZED_PITCH]));
+    mixer.cyclicTotal = sqrtf(sq(SP) + sq(SR));
 }
 
 static void mixerUpdateCollective(void)
@@ -305,7 +307,7 @@ static void mixerUpdateCollective(void)
 
     // Limit cyclic if needed
     if (mixer.totalPitchLimit > 0) {
-        mixer.cyclicPitchLimit = fmaxf(mixer.totalPitchLimit - fabsf(mixer.input[MIXER_IN_STABILIZED_COLLECTIVE]), 0);
+        mixer.cyclicLimit = fmaxf(mixer.totalPitchLimit - fabsf(mixer.input[MIXER_IN_STABILIZED_COLLECTIVE]), 0);
     }
 }
 
@@ -360,9 +362,9 @@ static void mixerUpdateMotorizedTail(void)
     }
 }
 
-#define inputValue(NAME)            (mixer.input[MIXER_IN_STABILIZED_##NAME] * mixerInputs(MIXER_IN_STABILIZED_##NAME)->rate / 1000.0f)
-#define setServoOutput(I,VAL)       (mixer.output[MIXER_SERVO_OFFSET + (I)] = (VAL))
-#define setMotorOutput(I,VAL)       (mixer.output[MIXER_MOTOR_OFFSET + (I)] = (VAL))
+#define inputValue(NAME)                (mixer.input[MIXER_IN_STABILIZED_##NAME] * mixerInputs(MIXER_IN_STABILIZED_##NAME)->rate / 1000.0f)
+#define setServoOutput(SERVO,VAL)       (mixer.output[MIXER_SERVO_OFFSET + (SERVO)] = (VAL))
+#define setMotorOutput(MOTOR,VAL)       (mixer.output[MIXER_MOTOR_OFFSET + (MOTOR)] = (VAL))
 
 static void mixerUpdateSwash(void)
 {
@@ -534,41 +536,56 @@ void INIT_CODE validateAndFixMixerConfig(void)
             rule->weight  = 0;
         }
     }
+
+    if (mixerConfig()->swash_pitch_limit > 0) {
+        const uint16_t min_cyclic = 500;  // = 6°
+        uint16_t limit = mixerConfig()->swash_pitch_limit;
+        limit = MAX(limit, ABS(mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->max) + min_cyclic);
+        limit = MAX(limit, ABS(mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->min) + min_cyclic);
+        mixerConfigMutable()->swash_pitch_limit = limit;
+    }
 }
 
 void INIT_CODE mixerInitConfig(void)
 {
-    mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
+    if (mixerConfig()->swash_pitch_limit)
+        mixer.totalPitchLimit = mixerConfig()->swash_pitch_limit / 1000.0f;
+    else
+        mixer.totalPitchLimit = 0;
+
+    if (mixerConfig()->swash_ring)
+        mixer.cyclicRingLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
+    else
+        mixer.cyclicRingLimit = 0;
 
     if (mixerConfig()->swash_phase) {
         const float angle = DECIDEGREES_TO_RADIANS(mixerConfig()->swash_phase);
-        mixer.phaseSin = sin_approx(angle);
-        mixer.phaseCos = cos_approx(angle);
+        mixer.cyclicPhaseSin = sin_approx(angle);
+        mixer.cyclicPhaseCos = cos_approx(angle);
     }
     else {
-        mixer.phaseSin = 0;
-        mixer.phaseCos = 1;
-    }
-
-    if (mixerConfig()->swash_pitch_limit) {
-        mixer.cyclicRingLimit = 1.0f;
-        mixer.totalPitchLimit = mixerConfig()->swash_pitch_limit / 1000.0f;
-    }
-    else {
-        if (mixerConfig()->swash_ring)
-            mixer.cyclicRingLimit = 1.4142135623f - mixerConfig()->swash_ring * 0.004142135623f;
-        else
-            mixer.cyclicRingLimit = 0;
+        mixer.cyclicPhaseSin = 0;
+        mixer.cyclicPhaseCos = 1;
     }
 
     for (int i = 0; i < 3; i++)
         mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;
+
+    mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
 }
 
-#define setMapping(IN,OUT)      (mixer.mapping[(OUT)] = BIT((IN)))
-#define addMapping(IN,OUT)      (mixer.mapping[(OUT)] |= BIT((IN)))
-#define addServoMapping(IN,S)   (mixer.mapping[MIXER_SERVO_OFFSET + (S)] |= BIT((IN)))
-#define addMotorMapping(IN,M)   (mixer.mapping[MIXER_MOTOR_OFFSET + (M)] |= BIT((IN)))
+static void INIT_CODE setMapping(uint8_t in, uint8_t out)
+{
+    mixer.mapping[out] = BIT(in);
+}
+
+static void INIT_CODE addMapping(uint8_t in, uint8_t out)
+{
+    mixer.mapping[out] |= BIT(in);
+}
+
+#define addServoMapping(INDEX,SERVO)    addMapping((INDEX), MIXER_SERVO_OFFSET + (SERVO))
+#define addMotorMapping(INDEX,MOTOR)    addMapping((INDEX), MIXER_MOTOR_OFFSET + (MOTOR))
 
 void INIT_CODE mixerInit(void)
 {

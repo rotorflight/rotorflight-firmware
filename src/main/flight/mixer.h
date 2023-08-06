@@ -158,6 +158,8 @@ typedef struct
 PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
 
 
+/** Interface function **/
+
 void mixerInit(void);
 void mixerInitConfig(void);
 
@@ -165,35 +167,84 @@ void validateAndFixMixerConfig(void);
 
 void mixerUpdate(void);
 
-float mixerGetInput(uint8_t i);
-float mixerGetInputHistory(uint8_t i, uint16_t delay);
+float mixerGetInput(uint8_t index);
+float mixerGetInputHistory(uint8_t index, uint16_t delay);
 
-float mixerGetOutput(uint8_t i);
-float mixerGetServoOutput(uint8_t i);
-float mixerGetMotorOutput(uint8_t i);
+float mixerGetOutput(uint8_t index);
+
+float getCyclicDeflection(void);
 
 bool mixerSaturated(uint8_t index);
 void mixerSaturateInput(uint8_t index);
 void mixerSaturateOutput(uint8_t index);
 
-int16_t mixerGetOverride(uint8_t i);
-int16_t mixerSetOverride(uint8_t i, int16_t value);
+int16_t mixerGetOverride(uint8_t index);
+int16_t mixerSetOverride(uint8_t index, int16_t value);
 
-float getYawDeflection(void);
-float getCyclicDeflection(void);
-float getCollectiveDeflection(void);
 
-static inline float getYawDeflectionAbs(void) { return fabsf(getYawDeflection()); }
-static inline float getCollectiveDeflectionAbs(void) { return fabsf(getCollectiveDeflection()); }
+/** Inline functions **/
 
-static inline float mixerGetThrottle(void) { return mixerGetInput(MIXER_IN_RC_COMMAND_THROTTLE); }
+static inline float mixerGetServoOutput(uint8_t index)
+{
+    return mixerGetOutput(MIXER_SERVO_OFFSET + index);
+}
 
-static inline bool pidAxisSaturated(uint8_t i) { return mixerSaturated(MIXER_IN_STABILIZED_ROLL + i); }
+static inline float mixerGetMotorOutput(uint8_t index)
+{
+    return mixerGetOutput(MIXER_MOTOR_OFFSET + index);
+}
 
-static inline void mixerSaturateServoOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_SERVO_OFFSET); }
-static inline void mixerSaturateMotorOutput(uint8_t index) { mixerSaturateOutput(index + MIXER_MOTOR_OFFSET); }
+static inline float getYawDeflection(void)
+{
+    return mixerGetInput(MIXER_IN_STABILIZED_YAW);
+}
 
-static inline int mixerRotationSign() { return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1; }
+static inline float getYawDeflectionAbs(void)
+{
+    return fabsf(mixerGetInput(MIXER_IN_STABILIZED_YAW));
+}
 
-static inline bool mixerMotorizedTail() { return (mixerConfig()->tail_rotor_mode != TAIL_MODE_VARIABLE); }
-static inline bool mixerIsTailMode(int mode) { return (mixerConfig()->tail_rotor_mode == mode); }
+static inline float getCollectiveDeflection(void)
+{
+    return mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE);
+}
+
+static inline float getCollectiveDeflectionAbs(void)
+{
+    return fabsf(mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE));
+}
+
+static inline float mixerGetThrottle(void)
+{
+    return mixerGetInput(MIXER_IN_RC_COMMAND_THROTTLE);
+}
+
+static inline bool pidAxisSaturated(uint8_t index)
+{
+    return mixerSaturated(MIXER_IN_STABILIZED_ROLL + index);
+}
+
+static inline void mixerSaturateServoOutput(uint8_t index)
+{
+    mixerSaturateOutput(index + MIXER_SERVO_OFFSET);
+}
+
+static inline void mixerSaturateMotorOutput(uint8_t index)
+{
+    mixerSaturateOutput(index + MIXER_MOTOR_OFFSET);
+}
+
+static inline int mixerRotationSign()
+{
+    return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1;
+}
+
+static inline bool mixerMotorizedTail(void)
+{
+    return (mixerConfig()->tail_rotor_mode != TAIL_MODE_VARIABLE);
+}
+
+static inline bool mixerIsTailMode(int mode)
+{
+    return (mixerConfig()->tail_rotor_mode == mode);
+}
