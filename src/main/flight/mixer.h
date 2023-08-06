@@ -124,6 +124,7 @@ typedef struct
 
     uint8_t   tail_rotor_mode;  // Tail motor vs. variable pitch tail
     uint8_t   tail_motor_idle;  // Idle throttle for tail motor
+    int8_t    tail_center_trim; // Tail center position offset
 
     uint8_t   swash_type;       // Swashplate type
     uint8_t   swash_ring;       // Swash ring size
