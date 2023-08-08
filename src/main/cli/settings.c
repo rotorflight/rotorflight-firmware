@@ -1039,10 +1039,13 @@ const clivalue_t valueTable[] = {
     { "pitch_collective_ff_gain",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, pitch_collective_ff_gain) },
 
     { "error_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, error_rotation) },
-    { "error_decay_ground",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_ground) },
-    { "error_decay_cyclic",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_cyclic) },
-    { "error_decay_yaw",            VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_yaw) },
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
+
+    { "error_decay_time_ground",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_ground) },
+    { "error_decay_time_cyclic",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_cyclic) },
+    { "error_decay_time_yaw",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_yaw) },
+    { "error_decay_limit_cyclic",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_cyclic) },
+    { "error_decay_limit_yaw",      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_yaw) },
 
     { "iterm_relax_type",           VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ITERM_RELAX_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_type) },
     { "iterm_relax_level",          VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_level) },

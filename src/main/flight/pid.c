@@ -155,10 +155,14 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++)
         pid.errorLimit[i] = pidProfile->error_limit[i];
 
-    // Error decay speeds
-    pid.errorDecayGround = 1.0f - ((pidProfile->error_decay_ground) ? (10 * pid.dT / pidProfile->error_decay_ground) : 0);
-    pid.errorDecayCyclic = 1.0f - ((pidProfile->error_decay_cyclic) ? (10 * pid.dT / pidProfile->error_decay_cyclic) : 0);
-    pid.errorDecayYaw    = 1.0f - ((pidProfile->error_decay_yaw) ? (10 * pid.dT / pidProfile->error_decay_yaw) : 0);
+    // Exponential error decay rates
+    pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10 * pid.dT / pidProfile->error_decay_time_ground) : 0;
+    pid.errorDecayRateCyclic = (pidProfile->error_decay_time_cyclic) ? (10 * pid.dT / pidProfile->error_decay_time_cyclic) : 0;
+    pid.errorDecayRateYaw    = (pidProfile->error_decay_time_yaw)    ? (10 * pid.dT / pidProfile->error_decay_time_yaw) : 0;
+
+    // Max decay speeds in degs/s (linear decay)
+    pid.errorDecayLimitCyclic = (pidProfile->error_decay_limit_cyclic) ? (pid.dT * pidProfile->error_decay_limit_cyclic) : 1e6;
+    pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? (pid.dT * pidProfile->error_decay_limit_yaw) : 1e6;
 
     // Error Rotation enable
     pid.errorRotation = pidProfile->error_rotation;
@@ -484,7 +488,7 @@ static void pidApplyCyclicMode1(uint8_t axis)
 
     // Apply I-term error decay
     if (!isAirborne())
-        pid.data[axis].axisError *= pid.errorDecayGround;
+        pid.data[axis].axisError -= pid.data[axis].axisError * pid.errorDecayRateGround;
 
 
   //// Feedforward
@@ -558,7 +562,7 @@ static void pidApplyYawMode1(void)
 
     // Apply I-term error decay
     if (!isSpooledUp())
-        pid.data[axis].axisError *= pid.errorDecayGround;
+        pid.data[axis].axisError -= pid.data[axis].axisError * pid.errorDecayRateGround;
 
 
   //// Feedforward
@@ -630,7 +634,9 @@ static void pidApplyCyclicMode2(uint8_t axis)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    pid.data[axis].axisError *= isAirborne() ? pid.errorDecayCyclic : pid.errorDecayGround;
+    pid.data[axis].axisError -= isAirborne() ?
+      limitf(pid.data[axis].axisError * pid.errorDecayRateCyclic, pid.errorDecayLimitCyclic):
+      pid.data[axis].axisError * pid.errorDecayRateGround;
 
 
   //// Feedforward
@@ -695,7 +701,9 @@ static void pidApplyYawMode2(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    pid.data[axis].axisError *= isSpooledUp() ? pid.errorDecayYaw : pid.errorDecayGround;
+    pid.data[axis].axisError -= isSpooledUp() ?
+      limitf(pid.data[axis].axisError * pid.errorDecayRateYaw, pid.errorDecayLimitYaw):
+      pid.data[axis].axisError * pid.errorDecayRateGround;
 
 
   //// Feedforward

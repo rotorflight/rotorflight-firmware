@@ -1748,9 +1748,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_PID_PROFILE:
         sbufWriteU8(dst, currentPidProfile->pid_mode);
-        sbufWriteU8(dst, currentPidProfile->error_decay_ground);
-        sbufWriteU8(dst, currentPidProfile->error_decay_cyclic);
-        sbufWriteU8(dst, currentPidProfile->error_decay_yaw);
+        sbufWriteU8(dst, currentPidProfile->error_decay_time_ground);
+        sbufWriteU8(dst, currentPidProfile->error_decay_time_cyclic);
+        sbufWriteU8(dst, currentPidProfile->error_decay_time_yaw);
+        sbufWriteU8(dst, currentPidProfile->error_decay_limit_cyclic);
+        sbufWriteU8(dst, currentPidProfile->error_decay_limit_yaw);
         sbufWriteU8(dst, currentPidProfile->error_rotation);
         sbufWriteU8(dst, currentPidProfile->error_limit[0]);
         sbufWriteU8(dst, currentPidProfile->error_limit[1]);
@@ -2474,9 +2476,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_PID_PROFILE:
         sbufReadU8(src); // PID mode can't be changed
-        currentPidProfile->error_decay_ground = sbufReadU8(src);
-        currentPidProfile->error_decay_cyclic = sbufReadU8(src);
-        currentPidProfile->error_decay_yaw = sbufReadU8(src);
+        currentPidProfile->error_decay_time_ground = sbufReadU8(src);
+        currentPidProfile->error_decay_time_cyclic = sbufReadU8(src);
+        currentPidProfile->error_decay_time_yaw = sbufReadU8(src);
+        currentPidProfile->error_decay_limit_cyclic = sbufReadU8(src);
+        currentPidProfile->error_decay_limit_yaw = sbufReadU8(src);
         currentPidProfile->error_rotation = sbufReadU8(src);
         currentPidProfile->error_limit[0] = sbufReadU8(src);
         currentPidProfile->error_limit[1] = sbufReadU8(src);
