@@ -48,9 +48,9 @@
 #define YAW_D_TERM_SCALE            1.0e-6f
 #define YAW_F_TERM_SCALE            0.000025f
 
-#define PID_ROLL_DEFAULT            { .P = 100, .I = 100, .D = 0, .F = 100, }
-#define PID_PITCH_DEFAULT           { .P = 100, .I = 100, .D = 0, .F = 100, }
-#define PID_YAW_DEFAULT             { .P = 100, .I = 100, .D = 0, .F =   0, }
+#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, }
+#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, }
+#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, }
 
 typedef struct {
     float P;
