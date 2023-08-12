@@ -109,6 +109,8 @@ typedef struct {
     float           cyclicPhaseSin;
     float           cyclicPhaseCos;
 
+    uint32_t        cyclicMapping;
+
 } mixerData_t;
 
 static FAST_DATA_ZERO_INIT mixerData_t mixer;
@@ -186,6 +188,11 @@ int16_t mixerGetOverride(uint8_t index)
 int16_t mixerSetOverride(uint8_t index, int16_t value)
 {
     return mixer.override[index] = value;
+}
+
+bool mixerIsCyclicServo(uint8_t index)
+{
+    return (mixer.cyclicMapping & BIT(MIXER_SERVO_OFFSET + index));
 }
 
 
@@ -581,11 +588,21 @@ void INIT_CODE mixerInitConfig(void)
 static void INIT_CODE setMapping(uint8_t in, uint8_t out)
 {
     mixer.mapping[out] = BIT(in);
+
+    if (in == MIXER_IN_STABILIZED_ROLL || in == MIXER_IN_STABILIZED_PITCH ||
+        in == MIXER_IN_RC_COMMAND_ROLL || in == MIXER_IN_RC_COMMAND_PITCH) {
+        mixer.cyclicMapping |= BIT(out);
+    }
 }
 
 static void INIT_CODE addMapping(uint8_t in, uint8_t out)
 {
     mixer.mapping[out] |= BIT(in);
+
+    if (in == MIXER_IN_STABILIZED_ROLL || in == MIXER_IN_STABILIZED_PITCH ||
+        in == MIXER_IN_RC_COMMAND_ROLL || in == MIXER_IN_RC_COMMAND_PITCH) {
+        mixer.cyclicMapping |= BIT(out);
+    }
 }
 
 #define addServoMapping(INDEX,SERVO)    addMapping((INDEX), MIXER_SERVO_OFFSET + (SERVO))

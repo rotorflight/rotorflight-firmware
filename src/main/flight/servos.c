@@ -200,17 +200,22 @@ static inline float limitTravel(uint8_t servo, float pos, float min, float max)
     return pos;
 }
 
-static inline float limitSpeed(float speed, float old, float new)
+static inline float limitSpeed(float old, float new, float speed)
 {
-    float rate = gyro.targetLooptime / (speed * 1000);
+    float rate = 1000 * pidGetDT() / speed;
     float diff = new - old;
 
     if (diff > rate)
-        return old + rate;
+        new = old + rate;
     else if (diff < -rate)
-        return old - rate;
+        new = old - rate;
 
     return new;
+ }
+
+ static inline float limitRatio(float old, float new, float ratio)
+ {
+    return old + (new - old) * ratio;
  }
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
@@ -228,16 +233,37 @@ static float geometryCorrection(float pos)
 
 void servoUpdate(void)
 {
+    float input[MAX_SUPPORTED_SERVOS];
+    float cyclic_ratio = 1;
+
     for (int i = 0; i < servoCount; i++)
     {
         const servoParam_t *servo = servoParams(i);
-        float pos = mixerGetServoOutput(i);
 
         if (!ARMING_FLAG(ARMED) && hasServoOverride(i))
-            pos = servoOverride[i] / 1000.0f;
+            input[i] = servoOverride[i] / 1000.0f;
+        else
+            input[i] = mixerGetServoOutput(i);
 
-        if (servo->speed > 0)
-            pos = limitSpeed(servo->speed, servoInput[i], pos);
+        if (servo->speed && mixerIsCyclicServo(i)) {
+            const float limit = 1000 * pidGetDT() / servo->speed;
+            const float speed = fabsf(input[i] - servoInput[i]);
+            if (speed > limit)
+                cyclic_ratio = fminf(cyclic_ratio, limit / speed);
+        }
+    }
+
+    for (int i = 0; i < servoCount; i++)
+    {
+        const servoParam_t *servo = servoParams(i);
+        float pos = input[i];
+
+        if (servo->speed > 0) {
+            if (mixerIsCyclicServo(i))
+                pos = limitRatio(servoInput[i], pos, cyclic_ratio);
+            else
+                pos = limitSpeed(servoInput[i], pos, servo->speed);
+        }
 
         servoInput[i] = pos;
 
