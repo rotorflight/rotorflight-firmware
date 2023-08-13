@@ -222,19 +222,18 @@ void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileI
 /*
  * 2D Rotation matrix
  *
- *        | cos(r)   -sin r |
- *    R = |                 |
- *        | sin(r)    cos r |
+ *        | cos(r)   -sin(r) |
+ *    R = |                  |
+ *        | sin(r)    cos(r) |
  *
  *
- *                3     5     7     9
- *               x     x     x     x
- * sin(x) = x - --- + --- - --- + --- - ...
+ *               x³    x⁵    x⁷    x⁹
+ * sin(x) = x - ――― + ――― - ――― + ――― - …
  *               3!    5!    7!    9!
  *
- *                2     4     6     8
- *               x     x     x     x
- * cos(x) = 1 - --- + --- - --- + --- - ...
+ *
+ *               x²    x⁴    x⁶    x⁸
+ * cos(x) = 1 - ――― + ――― - ――― + ――― - …
  *               2!    4!    6!    8!
  *
  *
@@ -488,9 +487,9 @@ static void pidApplyCyclicMode1(uint8_t axis)
         pid.data[axis].axisError *= pid.errorDecayGround;
 
 
-  //// F-term
+  //// Feedforward
 
-    // Calculate feedforward component
+    // Calculate F component
     pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
@@ -562,9 +561,9 @@ static void pidApplyYawMode1(void)
         pid.data[axis].axisError *= pid.errorDecayGround;
 
 
-  //// F-term
+  //// Feedforward
 
-    // Calculate feedforward component
+    // Calculate F component
     pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
@@ -634,9 +633,9 @@ static void pidApplyCyclicMode2(uint8_t axis)
     pid.data[axis].axisError *= isAirborne() ? pid.errorDecayCyclic : pid.errorDecayGround;
 
 
-  //// F-term
+  //// Feedforward
 
-    // Calculate feedforward component
+    // Calculate F component
     pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
@@ -699,9 +698,9 @@ static void pidApplyYawMode2(void)
     pid.data[axis].axisError *= isSpooledUp() ? pid.errorDecayYaw : pid.errorDecayGround;
 
 
-  //// F-term
+  //// Feedforward
 
-    // Calculate feedforward component
+    // Calculate F component
     pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
