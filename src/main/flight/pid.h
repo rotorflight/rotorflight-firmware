@@ -92,7 +92,6 @@ typedef struct pid_s {
     uint8_t pidMode;
     uint8_t dtermMode;
     uint8_t dtermModeYaw;
-    uint8_t dtermChoiceYaw;
 
     uint8_t itermRelaxType;
     uint8_t itermRelaxLevel[PID_AXIS_COUNT];
