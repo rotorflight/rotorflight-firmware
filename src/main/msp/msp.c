@@ -1317,6 +1317,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, currentPidProfile->pid[i].D);
             sbufWriteU16(dst, currentPidProfile->pid[i].F);
         }
+        for (int i = 0; i < PID_AXIS_COUNT; i++) {
+            sbufWriteU16(dst, currentPidProfile->pid[i].B);
+        }
         break;
 
     case MSP_MODE_RANGES:
@@ -2213,6 +2216,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->pid[i].I = sbufReadU16(src);
             currentPidProfile->pid[i].D = sbufReadU16(src);
             currentPidProfile->pid[i].F = sbufReadU16(src);
+        }
+        if (sbufBytesRemaining(src) > 0) {
+            for (int i = 0; i < PID_AXIS_COUNT; i++) {
+                currentPidProfile->pid[i].B = sbufReadU16(src);
+            }
         }
         pidInitProfile(currentPidProfile);
         break;

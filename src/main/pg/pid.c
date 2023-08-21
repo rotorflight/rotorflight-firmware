@@ -64,6 +64,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .error_limit = { 60, 60, 60 },
         .error_cutoff = { 0, 0, 0 },
         .dterm_cutoff = { 15, 15, 20 },
+        .bterm_cutoff = { 15, 15, 20 },
         .gyro_cutoff = { 50, 50, 100 },
         .gyro_filter_type = LPF_1ST_ORDER,
         .yaw_cw_stop_gain = 100,

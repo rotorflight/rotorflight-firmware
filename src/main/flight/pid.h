@@ -37,28 +37,32 @@
 #define ROLL_I_TERM_SCALE           0.0002f
 #define ROLL_D_TERM_SCALE           0.1e-6f
 #define ROLL_F_TERM_SCALE           0.000025f
+#define ROLL_B_TERM_SCALE           0.1e-6f
 
 #define PITCH_P_TERM_SCALE          0.00000666666f
 #define PITCH_I_TERM_SCALE          0.0002f
 #define PITCH_D_TERM_SCALE          1.0e-6f
 #define PITCH_F_TERM_SCALE          0.000025f
+#define PITCH_B_TERM_SCALE          0.1e-6f
 
 #define YAW_P_TERM_SCALE            0.00006666666f
 #define YAW_I_TERM_SCALE            0.0005f
 #define YAW_D_TERM_SCALE            1.0e-6f
 #define YAW_F_TERM_SCALE            0.000025f
+#define YAW_B_TERM_SCALE            1.0e-6f
 
 #define CYCLIC_CROSSTALK_SCALE      0.25e-6f
 
-#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, }
-#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, }
-#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, }
+#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, }
+#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, }
+#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, .B = 0, }
 
 typedef struct {
     float P;
     float I;
     float D;
     float F;
+    float B;
     float pidSum;
     float setPoint;
     float gyroRate;
@@ -70,6 +74,7 @@ typedef struct {
     float Ki;
     float Kd;
     float Kf;
+    float Kb;
 } pidAxisCoef_t;
 
 typedef struct {
@@ -125,7 +130,9 @@ typedef struct pid_s {
     filter_t errorFilter[PID_AXIS_COUNT];
 
     pt1Filter_t relaxFilter[PID_AXIS_COUNT];
+
     difFilter_t dtermFilter[PID_AXIS_COUNT];
+    difFilter_t btermFilter[PID_AXIS_COUNT];
 
     difFilter_t crossTalkFilter;
 
