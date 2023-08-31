@@ -643,8 +643,8 @@ const clivalue_t valueTable[] = {
 #if defined(USE_DYN_NOTCH_FILTER)
     { PARAM_NAME_DYN_NOTCH_COUNT,       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, DYN_NOTCH_COUNT_MAX }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_count) },
     { PARAM_NAME_DYN_NOTCH_Q,           VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 1000 }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_q) },
-    { PARAM_NAME_DYN_NOTCH_MIN_HZ,      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 60, 250 }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_min_hz) },
-    { PARAM_NAME_DYN_NOTCH_MAX_HZ,      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 200, 1000 }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_max_hz) },
+    { PARAM_NAME_DYN_NOTCH_MIN_HZ,      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 30, 200 }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_min_hz) },
+    { PARAM_NAME_DYN_NOTCH_MAX_HZ,      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 100, 500 }, PG_DYN_NOTCH_CONFIG, offsetof(dynNotchConfig_t, dyn_notch_max_hz) },
 #endif
 
 // PG_ACCELEROMETER_CONFIG

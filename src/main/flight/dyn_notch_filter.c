@@ -86,7 +86,7 @@
 #define DYN_NOTCH_SMOOTH_HZ        4
 #define DYN_NOTCH_CALC_TICKS       (XYZ_AXIS_COUNT * STEP_COUNT) // 3 axes and 4 steps per axis
 #define DYN_NOTCH_OSD_MIN_THROTTLE 20
-#define DYN_NOTCH_UPDATE_MIN_HZ    2000
+#define DYN_NOTCH_UPDATE_MIN_HZ    1000
 
 typedef enum {
 
@@ -367,7 +367,7 @@ static FAST_CODE_NOINLINE void dynNotchProcess(void)
             }
 
             if (state.axis == debugAxis) {
-                for (int p = 0; p < dynNotch.count && p < 3; p++) {
+                for (int p = 0; p < dynNotch.count && p < 8; p++) {
                     DEBUG_SET(DEBUG_FFT_FREQ, p, lrintf(dynNotch.centerFreq[state.axis][p]));
                 }
                 DEBUG_SET(DEBUG_DYN_LPF, 1, lrintf(dynNotch.centerFreq[state.axis][0]));
