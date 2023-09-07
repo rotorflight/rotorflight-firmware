@@ -207,12 +207,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
 
-    // Pitch-to-Roll derivative feedback
-    pid.cyclicCrosstalkMode = pidProfile->cyclic_crosstalk_mode;
-    pid.cyclicCrosstalkGain = pidProfile->cyclic_crosstalk_gain * mixerRotationSign() * -CYCLIC_CROSSTALK_SCALE;
+    // Cross-coupling compensation
+    pid.cyclicCrossCouplingGain[FD_PITCH] = pidProfile->cyclic_cross_coupling_gain * mixerRotationSign() * -CROSS_COUPLING_SCALE;
+    pid.cyclicCrossCouplingGain[FD_ROLL]  = pid.cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
 
-    // Pitch derivative filter
-    difFilterInit(&pid.crossTalkFilter, pidProfile->cyclic_crosstalk_cutoff, pid.freq);
+    // Cross-coupling derivative filters
+    difFilterInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff, pid.freq);
+    difFilterInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff, pid.freq);
 
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
@@ -404,18 +405,22 @@ static void pidApplyPrecomp(void)
     DEBUG(PITCH_PRECOMP, 1, pitchPrecomp * 1000);
 }
 
-static void pidApplyCyclicCrosstalk(void)
+static void pidApplyCyclicCrossCoupling(void)
 {
-    // Derivative filter
-    const float pitchRate = pid.cyclicCrosstalkMode ? pid.data[FD_PITCH].setPoint : pid.data[FD_PITCH].gyroRate;
-    const float pitchDeriv = difFilterApply(&pid.crossTalkFilter, pitchRate);
-    const float rollComp = pitchDeriv * pid.cyclicCrosstalkGain;
+    // Setpoint derivative filter
+    const float pitchDeriv = difFilterApply(&pid.crossCouplingFilter[FD_PITCH], pid.data[FD_PITCH].setPoint);
+    const float rollDeriv  = difFilterApply(&pid.crossCouplingFilter[FD_ROLL], pid.data[FD_ROLL].setPoint);
+    const float pitchComp  = rollDeriv * pid.cyclicCrossCouplingGain[FD_ROLL];
+    const float rollComp   = pitchDeriv * pid.cyclicCrossCouplingGain[FD_PITCH];
 
-    // Add to ROLL
+    // Add de-coupling terms
     pid.data[FD_ROLL].pidSum += rollComp;
+    pid.data[FD_PITCH].pidSum += pitchComp;
 
-    DEBUG(PITCH_PRECOMP, 2, pitchDeriv);
-    DEBUG(PITCH_PRECOMP, 3, rollComp * 1000);
+    DEBUG(CROSS_COUPLING, 0, rollDeriv);
+    DEBUG(CROSS_COUPLING, 1, pitchDeriv);
+    DEBUG(CROSS_COUPLING, 2, rollComp * 1000);
+    DEBUG(CROSS_COUPLING, 3, pitchComp * 1000);
 }
 
 
@@ -783,7 +788,7 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
         case 2:
             pidApplyCyclicMode2(PID_ROLL);
             pidApplyCyclicMode2(PID_PITCH);
-            pidApplyCyclicCrosstalk();
+            pidApplyCyclicCrossCoupling();
             pidApplyYawMode2();
             break;
         case 1:

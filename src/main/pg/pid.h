@@ -153,9 +153,9 @@ typedef struct pidProfile_s {
 
     uint8_t             pitch_collective_ff_gain;
 
-    uint8_t             cyclic_crosstalk_mode;
-    uint8_t             cyclic_crosstalk_gain;
-    uint8_t             cyclic_crosstalk_cutoff;
+    uint8_t             cyclic_cross_coupling_gain;
+    uint8_t             cyclic_cross_coupling_ratio;
+    uint8_t             cyclic_cross_coupling_cutoff;
 
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;

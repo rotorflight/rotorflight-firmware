@@ -26,7 +26,8 @@ typedef enum {
     Z
 } axis_e;
 
-#define XYZ_AXIS_COUNT 3
+#define XY_AXIS_COUNT   2
+#define XYZ_AXIS_COUNT  3
 
 typedef enum {
     FD_ROLL = 0,

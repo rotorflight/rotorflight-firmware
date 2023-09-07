@@ -108,4 +108,5 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(YAW_PRECOMP),
     DEBUG_NAME(RESCUE),
     DEBUG_NAME(RESCUE_ALTHOLD),
+    DEBUG_NAME(CROSS_COUPLING),
 };
