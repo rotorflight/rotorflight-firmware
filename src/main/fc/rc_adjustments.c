@@ -151,6 +151,10 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(PITCH_O_GAIN,            PROF,  0, PID_GAIN_MAX),
     ADJ_CONFIG(ROLL_O_GAIN,             PROF,  0, PID_GAIN_MAX),
+
+    ADJ_CONFIG(CROSS_COUPLING_GAIN,     PROF,  0, 250),
+    ADJ_CONFIG(CROSS_COUPLING_RATIO,    PROF,  0, 200),
+    ADJ_CONFIG(CROSS_COUPLING_CUTOFF,   PROF,  1, 250),
 };
 
 
@@ -343,6 +347,15 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_ROLL_O_GAIN:
             value = currentPidProfile->pid[PID_ROLL].O;
             break;
+        case ADJUSTMENT_CROSS_COUPLING_GAIN:
+            value = currentPidProfile->cyclic_cross_coupling_gain;
+            break;
+        case ADJUSTMENT_CROSS_COUPLING_RATIO:
+            value = currentPidProfile->cyclic_cross_coupling_ratio;
+            break;
+        case ADJUSTMENT_CROSS_COUPLING_CUTOFF:
+            value = currentPidProfile->cyclic_cross_coupling_cutoff;
+            break;
     }
 
     return value;
@@ -534,6 +547,15 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_ROLL_O_GAIN:
             currentPidProfile->pid[PID_ROLL].O = value;
+            break;
+        case ADJUSTMENT_CROSS_COUPLING_GAIN:
+            currentPidProfile->cyclic_cross_coupling_gain = value;
+            break;
+        case ADJUSTMENT_CROSS_COUPLING_RATIO:
+            currentPidProfile->cyclic_cross_coupling_ratio = value;
+            break;
+        case ADJUSTMENT_CROSS_COUPLING_CUTOFF:
+            currentPidProfile->cyclic_cross_coupling_cutoff = value;
             break;
     }
 }
