@@ -429,9 +429,9 @@ static struct {
 } xmitState;
 
 // Cache for FLIGHT_LOG_FIELD_CONDITION_* test results:
-static uint32_t blackboxConditionCache;
+static uint64_t blackboxConditionCache;
 
-STATIC_ASSERT((sizeof(blackboxConditionCache) * 8) >= FLIGHT_LOG_FIELD_CONDITION_LAST, too_many_flight_log_conditions);
+STATIC_ASSERT((sizeof(blackboxConditionCache) * 8) >= FLIGHT_LOG_FIELD_CONDITION_COUNT, too_many_flight_log_conditions);
 
 static uint32_t blackboxIteration;
 
@@ -595,16 +595,16 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
 static void blackboxBuildConditionCache(void)
 {
     blackboxConditionCache = 0;
-    for (FlightLogFieldCondition cond = FLIGHT_LOG_FIELD_CONDITION_FIRST; cond <= FLIGHT_LOG_FIELD_CONDITION_LAST; cond++) {
-        if (testBlackboxConditionUncached(cond)) {
-            blackboxConditionCache |= BIT(cond);
+    for (int index = 0; index <  FLIGHT_LOG_FIELD_CONDITION_COUNT; index++) {
+        if (testBlackboxConditionUncached(index)) {
+            blackboxConditionCache |= BITLL(index);
         }
     }
 }
 
 static bool testBlackboxCondition(FlightLogFieldCondition condition)
 {
-    return (blackboxConditionCache & BIT(condition));
+    return (blackboxConditionCache & BITLL(condition));
 }
 
 static void blackboxSetState(BlackboxState newState)

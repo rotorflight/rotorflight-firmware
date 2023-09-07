@@ -64,6 +64,7 @@
 
 
 #define BIT(x) (1 << (x))
+#define BITLL(x) (1ULL << (x))
 
 /*
 http://resnet.uoregon.edu/~gurney_j/jmpc/bitwise.html
