@@ -570,17 +570,13 @@ bool flashfsIsEOF(void)
 void flashfsClose(void)
 {
     switch(flashGeometry->flashType) {
-    case FLASH_TYPE_NOR:
-        break;
-
-    case FLASH_TYPE_NAND:
-        flashFlush();
-
-        // Advance tailAddress to next page boundary.
-        uint32_t pageSize = flashGeometry->pageSize;
-        flashfsSetTailAddress((tailAddress + pageSize - 1) & ~(pageSize - 1));
-
-        break;
+        case FLASH_TYPE_NAND:
+            flashFlush();
+            /* FALL THROUGH */
+        case FLASH_TYPE_NOR:
+            flashfsClearBuffer();
+            flashfsSetTailAddress((tailAddress + 2047) & ~2047);
+            break;
     }
 }
 

@@ -410,6 +410,8 @@ extern boxBitmask_t rcModeActivationMask;
 
 static BlackboxState blackboxState = BLACKBOX_STATE_DISABLED;
 
+static bool blackboxStarted = false;
+
 static uint32_t blackboxLastArmingBeep = 0;
 static uint32_t blackboxLastFlightModeFlags = 0; // New event tracking of flight modes
 static uint8_t  blackboxLastGovState = 0;
@@ -473,7 +475,7 @@ bool blackboxMayEditConfig(void)
 static bool blackboxIsLoggingEnabled(void)
 {
     return (blackboxConfig()->device && (
-        (blackboxConfig()->mode == BLACKBOX_MODE_NORMAL && ARMING_FLAG(ARMED) && IS_RC_MODE_ACTIVE(BOXBLACKBOX)) ||
+        (blackboxConfig()->mode == BLACKBOX_MODE_NORMAL && ARMING_FLAG(ARMED) && (IS_RC_MODE_ACTIVE(BOXBLACKBOX) || blackboxStarted)) ||
         (blackboxConfig()->mode == BLACKBOX_MODE_ARMED && ARMING_FLAG(ARMED)) ||
         (blackboxConfig()->mode == BLACKBOX_MODE_SWITCH && IS_RC_MODE_ACTIVE(BOXBLACKBOX))));
 }
@@ -1003,6 +1005,8 @@ static void blackboxStart(void)
         blackboxSetState(BLACKBOX_STATE_DISABLED);
         return;
     }
+
+    blackboxStarted = true;
 
     memset(&gpsHistory, 0, sizeof(gpsHistory));
 
