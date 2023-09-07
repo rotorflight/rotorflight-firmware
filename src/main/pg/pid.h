@@ -86,6 +86,7 @@ typedef struct {
     uint8_t     yaw_ff_weight;
     uint8_t     cyclic_ff_weight;
     uint8_t     collective_ff_weight;
+    uint8_t     max_throttle;
 } governorProfile_t;
 
 typedef struct {
