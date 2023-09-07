@@ -170,15 +170,12 @@ float calcMotorRPMf(uint8_t motor, int erpm)
 
 bool isMotorRpmSourceActive(uint8_t motor)
 {
-    return (motorRpmSource[motor] != RPM_SRC_NONE);
+    return (motor < motorCount && motorRpmSource[motor] != RPM_SRC_NONE);
 }
 
 bool isRpmSourceActive(void)
 {
-    for (int i = 0; i < getMotorCount(); i++)
-        if (motorRpmSource[i] == RPM_SRC_NONE)
-            return false;
-    return true;
+    return (motorRpmSource[0] != RPM_SRC_NONE);
 }
 
 bool areMotorsRunning(void)

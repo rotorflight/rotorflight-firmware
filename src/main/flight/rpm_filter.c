@@ -72,9 +72,9 @@ INIT_CODE void rpmFilterInit(void)
     const float mainGearRatio = getMainGearRatio();
     const float tailGearRatio = getTailGearRatio();
 
-    const bool enable1x = (getMotorCount() > mainMotorIndex);
+    const bool enable1x = isMotorRpmSourceActive(mainMotorIndex);
     const bool enable10 = (enable1x && mainGearRatio != 1.0f);
-    const bool enable2x = (getMotorCount() > tailMotorIndex);
+    const bool enable2x = isMotorRpmSourceActive(tailMotorIndex);
     const bool enable20 = (enable2x && tailGearRatio != 1.0f);
 
     int bankNumber = 0;

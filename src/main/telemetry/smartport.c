@@ -675,8 +675,9 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             case FSSP_DATAID_RPM6       :
             case FSSP_DATAID_RPM7       :
             case FSSP_DATAID_RPM8       :
-                if (isRpmSourceActive()) {
-                    smartPortSendPackage(id, getMotorRPM(id - FSSP_DATAID_RPM1));
+                tmp2 = id - FSSP_DATAID_RPM1;
+                if (isMotorRpmSourceActive(tmp2)) {
+                    smartPortSendPackage(id, getMotorRPM(tmp2));
                     *clearToSend = false;
                 }
                 break;
