@@ -108,10 +108,6 @@ typedef enum {
     ADJUSTMENT_GOV_CYCLIC_FF            = 54,
     ADJUSTMENT_GOV_COLLECTIVE_FF        = 55,
 
-    // Mixer
-    ADJUSTMENT_TAIL_MOTOR_IDLE          = 56,
-    ADJUSTMENT_SWASH_PHASE              = 57,
-
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunction_e;
 
