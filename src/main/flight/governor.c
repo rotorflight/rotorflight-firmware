@@ -120,7 +120,7 @@ typedef struct {
 
     // Proportial headspeeds
     float           fullHeadSpeedRatio;
-    float           requestedHeadSpeedRatio;
+    float           requestRatio;
 
     // Main gear ratio (motor/head)
     float           mainGearRatio;
@@ -264,6 +264,39 @@ float getFullHeadSpeedRatio(void)
     return 1.0f;
 }
 
+float getSpoolUpRatio(void)
+{
+    if (!ARMING_FLAG(ARMED))
+        return 0;
+
+    if (gov.mode > GM_OFF) {
+        switch (gov.state)
+        {
+            case GS_THROTTLE_OFF:
+            case GS_THROTTLE_IDLE:
+            case GS_ZERO_THROTTLE:
+            case GS_AUTOROTATION:
+                return 0;
+
+            case GS_ACTIVE:
+            case GS_RECOVERY:
+            case GS_LOST_HEADSPEED:
+            case GS_AUTOROTATION_BAILOUT:
+                return 1.0f;
+
+            case GS_SPOOLING_UP:
+                return gov.requestRatio;
+        }
+        return 0;
+    }
+    else {
+        return 1.0f;
+    }
+
+    return 0;
+}
+
+
 bool isSpooledUp(void)
 {
     if (!ARMING_FLAG(ARMED))
@@ -387,8 +420,16 @@ static void govUpdateData(void)
     // Update headspeed target
     gov.requestedHeadSpeed = gov.throttleInput * gov.fullHeadSpeed;
 
-    // Calculate HS vs TargetHS ratio
-    gov.requestedHeadSpeedRatio = gov.actualHeadSpeed / gov.requestedHeadSpeed;
+    // Calculate request ratio (HS or throttle)
+    if (gov.throttleInput > 0) {
+        if (gov.mode > GM_PASSTHROUGH)
+            gov.requestRatio = gov.actualHeadSpeed / gov.requestedHeadSpeed;
+        else
+            gov.requestRatio = gov.throttle / gov.throttleInput;
+    }
+    else {
+        gov.requestRatio = 0;
+    }
 
     // Calculate feedforward from collective deflection
     float collectiveFF = gov.collectiveWeight * getCollectiveDeflectionAbs();

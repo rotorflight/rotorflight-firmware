@@ -72,6 +72,7 @@ uint8_t getGovernorState();
 float getGovernorOutput(void);
 
 float getFullHeadSpeedRatio(void);
+float getSpoolUpRatio(void);
 
 float getTTAIncrease(void);
 
