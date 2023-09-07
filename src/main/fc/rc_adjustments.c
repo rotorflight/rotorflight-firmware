@@ -148,6 +148,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(PITCH_B_GAIN,            PROF,  0, PID_GAIN_MAX),
     ADJ_CONFIG(ROLL_B_GAIN,             PROF,  0, PID_GAIN_MAX),
     ADJ_CONFIG(YAW_B_GAIN,              PROF,  0, PID_GAIN_MAX),
+
+    ADJ_CONFIG(PITCH_O_GAIN,            PROF,  0, PID_GAIN_MAX),
+    ADJ_CONFIG(ROLL_O_GAIN,             PROF,  0, PID_GAIN_MAX),
 };
 
 
@@ -334,6 +337,12 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_YAW_B_GAIN:
             value = currentPidProfile->pid[PID_YAW].B;
             break;
+        case ADJUSTMENT_PITCH_O_GAIN:
+            value = currentPidProfile->pid[PID_PITCH].O;
+            break;
+        case ADJUSTMENT_ROLL_O_GAIN:
+            value = currentPidProfile->pid[PID_ROLL].O;
+            break;
     }
 
     return value;
@@ -519,6 +528,12 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_YAW_B_GAIN:
             currentPidProfile->pid[PID_YAW].B = value;
+            break;
+        case ADJUSTMENT_PITCH_O_GAIN:
+            currentPidProfile->pid[PID_PITCH].O = value;
+            break;
+        case ADJUSTMENT_ROLL_O_GAIN:
+            currentPidProfile->pid[PID_ROLL].O = value;
             break;
     }
 }

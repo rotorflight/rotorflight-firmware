@@ -113,6 +113,10 @@ typedef enum {
     ADJUSTMENT_ROLL_B_GAIN              = 57,
     ADJUSTMENT_YAW_B_GAIN               = 58,
 
+    // Offset gains
+    ADJUSTMENT_PITCH_O_GAIN             = 59,
+    ADJUSTMENT_ROLL_O_GAIN              = 60,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunction_e;
 
