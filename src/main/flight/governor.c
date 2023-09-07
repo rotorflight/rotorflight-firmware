@@ -104,6 +104,9 @@ typedef struct {
     float           throttleInput;
     bool            throttleInputLow;
 
+    // Earlier input throttle
+    float           throttlePrev;
+
     // Current headspeed
     float           actualHeadSpeed;
 
@@ -424,7 +427,7 @@ static void govUpdateData(void)
 
 static void governorUpdatePassthrough(void)
 {
-    float govPrev = gov.throttle;
+    float govPrev = gov.throttlePrev;
     float govMain = 0;
 
     // Handle DISARM separately for SAFETY!
@@ -436,7 +439,7 @@ static void governorUpdatePassthrough(void)
         {
             // Throttle is OFF
             case GS_THROTTLE_OFF:
-                govMain = 0;
+                govMain = govPrev = 0;
                 if (!gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_IDLE);
                 break;
@@ -445,7 +448,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = slewLimit(govPrev, gov.throttleInput, gov.throttleStartupRate);
+                govMain = govPrev = slewLimit(govPrev, gov.throttleInput, gov.throttleStartupRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT)
@@ -457,7 +460,7 @@ static void governorUpdatePassthrough(void)
             //  -- If 0% < throttle < 20%, stay in spoolup
             //  -- Once throttle >20% and not ramping up, move to ACTIVE
             case GS_SPOOLING_UP:
-                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleSpoolupRate);
+                govMain = govPrev = slewUpLimit(govPrev, gov.throttleInput, gov.throttleSpoolupRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
@@ -470,7 +473,8 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to ZERO_THROTTLE
             //  -- If throttle <20%, move to AUTO or SPOOLING_UP
             case GS_ACTIVE:
-                govMain = gov.throttleInput * gov.TTAMull;
+                govPrev = slewLimit(govPrev, gov.throttleInput, gov.throttleTrackingRate);
+                govMain = govPrev * gov.TTAMull;
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
                 else if (govMain < GOV_THROTTLE_IDLE_LIMIT) {
@@ -485,7 +489,7 @@ static void governorUpdatePassthrough(void)
             //  -- If throttle returns, move to RECOVERY
             //  -- When timer expires, move to OFF
             case GS_ZERO_THROTTLE:
-                govMain = 0;
+                govMain = govPrev = 0;
                 if (!gov.throttleInputLow)
                     govChangeState(GS_RECOVERY);
                 else if (govStateTime() > gov.zeroThrottleTimeout)
@@ -496,7 +500,7 @@ static void governorUpdatePassthrough(void)
             //  -- If throttle is >20%, move to AUTOROTATION_BAILOUT
             //  -- If timer expires, move to IDLE
             case GS_AUTOROTATION:
-                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleTrackingRate);
+                govMain = govPrev = slewUpLimit(govPrev, gov.throttleInput, gov.throttleTrackingRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
                 else if (gov.throttleInput > GOV_THROTTLE_IDLE_LIMIT)
@@ -509,7 +513,7 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move back to AUTO
             case GS_AUTOROTATION_BAILOUT:
-                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleBailoutRate);
+                govMain = govPrev = slewUpLimit(govPrev, gov.throttleInput, gov.throttleBailoutRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
                 else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
@@ -522,7 +526,7 @@ static void governorUpdatePassthrough(void)
             //  -- Once throttle is not ramping up any more, move to ACTIVE
             //  -- If throttle <20%, move to IDLE
             case GS_RECOVERY:
-                govMain = slewUpLimit(govPrev, gov.throttleInput, gov.throttleRecoveryRate);
+                govMain = govPrev = slewUpLimit(govPrev, gov.throttleInput, gov.throttleRecoveryRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
                 else if (gov.throttleInput < GOV_THROTTLE_IDLE_LIMIT)
@@ -538,8 +542,9 @@ static void governorUpdatePassthrough(void)
         }
     }
 
-    // Update output variable
+    // Update output variables
     gov.throttle = govMain;
+    gov.throttlePrev = govPrev;
 
     // Set debug
     govDebugStats();
