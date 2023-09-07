@@ -53,9 +53,9 @@
 
 #define CROSS_COUPLING_SCALE        0.25e-6f
 
-#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, }
-#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, }
-#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, .B = 0, }
+#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, .O = 0, }
+#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, .O = 0, }
+#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, .B = 0, .O = 0, }
 
 typedef struct {
     float P;
@@ -63,10 +63,12 @@ typedef struct {
     float D;
     float F;
     float B;
+    float O;
     float pidSum;
     float setPoint;
     float gyroRate;
     float axisError;
+    float axisOffset;
 } pidAxisData_t;
 
 typedef struct {
@@ -75,6 +77,8 @@ typedef struct {
     float Kd;
     float Kf;
     float Kb;
+    float Ko;
+    float Kc;
 } pidAxisCoef_t;
 
 typedef struct {
@@ -111,6 +115,7 @@ typedef struct pid_s {
     float errorDecayRateYaw;
     float errorDecayLimitYaw;
 
+    float offsetLimit[XY_AXIS_COUNT];
     float errorLimit[PID_AXIS_COUNT];
 
     float yawCWStopGain;

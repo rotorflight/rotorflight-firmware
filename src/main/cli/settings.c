@@ -1008,11 +1008,13 @@ const clivalue_t valueTable[] = {
     { "pitch_d_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].D) },
     { "pitch_f_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].F) },
     { "pitch_b_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].B) },
+    { "pitch_o_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].O) },
     { "roll_p_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].P) },
     { "roll_i_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].I) },
     { "roll_d_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].D) },
     { "roll_f_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].F) },
     { "roll_b_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].B) },
+    { "roll_o_gain",                VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_ROLL].O) },
     { "yaw_p_gain",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].P) },
     { "yaw_i_gain",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].I) },
     { "yaw_d_gain",                 VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_YAW].D) },
@@ -1049,13 +1051,23 @@ const clivalue_t valueTable[] = {
     { "cyclic_cross_coupling_cutoff", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_cutoff) },
 
     { "error_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, error_rotation) },
+
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
+    { "offset_limit",               VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 2, PG_PID_PROFILE, offsetof(pidProfile_t, offset_limit) },
 
     { "error_decay_time_ground",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_ground) },
     { "error_decay_time_cyclic",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_cyclic) },
     { "error_decay_time_yaw",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_yaw) },
     { "error_decay_limit_cyclic",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_cyclic) },
     { "error_decay_limit_yaw",      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_yaw) },
+
+    { "error_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_rate_curve) },
+    { "error_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_curve) },
+    { "offset_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_rate_curve) },
+    { "offset_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_limit_curve) },
+    { "offset_bleed_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_rate_curve) },
+    { "offset_bleed_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_limit_curve) },
+    { "offset_charge_curve",        VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_charge_curve) },
 
     { "iterm_relax_type",           VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ITERM_RELAX_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_type) },
     { "iterm_relax_level",          VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_level) },

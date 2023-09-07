@@ -1320,6 +1320,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < PID_AXIS_COUNT; i++) {
             sbufWriteU16(dst, currentPidProfile->pid[i].B);
         }
+        for (int i = 0; i < PID_AXIS_COUNT; i++) {
+            sbufWriteU16(dst, currentPidProfile->pid[i].O);
+        }
         break;
 
     case MSP_MODE_RANGES:
@@ -1789,6 +1792,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->cyclic_cross_coupling_gain);
         sbufWriteU8(dst, currentPidProfile->cyclic_cross_coupling_ratio);
         sbufWriteU8(dst, currentPidProfile->cyclic_cross_coupling_cutoff);
+        /* Offset limits */
+        sbufWriteU8(dst, currentPidProfile->offset_limit[0]);
+        sbufWriteU8(dst, currentPidProfile->offset_limit[1]);
+        sbufWriteU8(dst, currentPidProfile->offset_limit[2]);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2222,9 +2229,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->pid[i].D = sbufReadU16(src);
             currentPidProfile->pid[i].F = sbufReadU16(src);
         }
-        if (sbufBytesRemaining(src) > 0) {
+        if (sbufBytesRemaining(src) >= 6) {
             for (int i = 0; i < PID_AXIS_COUNT; i++) {
                 currentPidProfile->pid[i].B = sbufReadU16(src);
+            }
+        }
+        if (sbufBytesRemaining(src) >= 6) {
+            for (int i = 0; i < PID_AXIS_COUNT; i++) {
+                currentPidProfile->pid[i].O = sbufReadU16(src);
             }
         }
         pidInitProfile(currentPidProfile);
@@ -2528,6 +2540,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->cyclic_cross_coupling_gain = sbufReadU8(src);
             currentPidProfile->cyclic_cross_coupling_ratio = sbufReadU8(src);
             currentPidProfile->cyclic_cross_coupling_cutoff = sbufReadU8(src);
+        }
+        /* Offset limits */
+        if (sbufBytesRemaining(src) >= 3) {
+            currentPidProfile->offset_limit[0] = sbufReadU8(src);
+            currentPidProfile->offset_limit[1] = sbufReadU8(src);
+            currentPidProfile->offset_limit[2] = sbufReadU8(src);
         }
         /* Load new values */
         pidInitProfile(currentPidProfile);
