@@ -5637,9 +5637,11 @@ static void printPeripheralDmaoptDetails(dmaoptEntry_t *entry, int index, const 
             "# %s %d: " DMASPEC_FORMAT_STRING,
             entry->device, uiIndex, DMA_CODE_CONTROLLER(dmaCode), DMA_CODE_STREAM(dmaCode), DMA_CODE_CHANNEL(dmaCode));
     } else if (!(dumpMask & HIDE_UNUSED)) {
-        printValue(dumpMask, equalsDefault,
-            "dma %s %d NONE",
-            entry->device, uiIndex);
+        if (!entry->presenceMask || (entry->presenceMask & BIT(uiIndex))) {
+            printValue(dumpMask, equalsDefault,
+                "dma %s %d NONE",
+                entry->device, uiIndex);
+        }
     }
 }
 
