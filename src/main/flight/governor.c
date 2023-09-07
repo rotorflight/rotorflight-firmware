@@ -167,7 +167,7 @@ typedef struct {
     float           collectiveWeight;
 
     // Tail Torque Assist
-    float           TTAMull;
+    float           TTAAdd;
     float           TTAGain;
     float           TTALimit;
     filter_t        TTAFilter;
@@ -240,11 +240,9 @@ float getGovernorOutput(void)
     return gov.throttle;
 }
 
-float getHeadSpeedRatio(void)
+float getTTAIncrease(void)
 {
-    return (gov.mode > GM_PASSTHROUGH && gov.state == GS_ACTIVE) ?
-        gov.requestedHeadSpeedRatio :
-        1.0f;
+    return gov.TTAAdd;
 }
 
 float getFullHeadSpeedRatio(void)
@@ -407,14 +405,14 @@ static void govUpdateData(void)
     // Tail Torque Assist
     if (mixerMotorizedTail() && gov.TTAGain != 0 && isSpooledUp()) {
         float TTA = gov.TTAGain * filterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
-        gov.TTAMull = constrainf(TTA, 0, gov.TTALimit) + 1.0f;
+        gov.TTAAdd = constrainf(TTA, 0, gov.TTALimit);
     }
     else {
-        gov.TTAMull = 1.0f;
+        gov.TTAAdd = 0.0f;
     }
 
     // Normalized RPM error
-    float newError = (gov.targetHeadSpeed * gov.TTAMull - gov.actualHeadSpeed) / gov.fullHeadSpeed;
+    float newError = (gov.targetHeadSpeed + gov.targetHeadSpeed * gov.TTAAdd - gov.actualHeadSpeed) / gov.fullHeadSpeed;
 
     // Update PIDF terms
     gov.P = gov.K * gov.Kp * newError;
@@ -478,7 +476,7 @@ static void governorUpdatePassthrough(void)
             //  -- If throttle <20%, move to AUTO or SPOOLING_UP
             case GS_ACTIVE:
                 govPrev = slewLimit(govPrev, throttleInput, gov.throttleTrackingRate);
-                govMain = govPrev * gov.TTAMull;
+                govMain = govPrev + govPrev * gov.TTAAdd;
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
                 else if (govMain < GOV_THROTTLE_IDLE_LIMIT) {

@@ -65,7 +65,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .swash_phase = 0,
     .swash_pitch_limit = 0,
     .swash_trim = { 0, 0, 0 },
-    .coll_rpm_correction = 0,
+    .coll_tta_precomp = 0,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
@@ -98,6 +98,8 @@ typedef struct {
     int8_t          tailMotorDirection;
 
     float           swashTrim[3];
+
+    float           collTTAGain;
 
     float           cyclicLimit;
     float           cyclicTotal;
@@ -303,15 +305,12 @@ static void mixerUpdateCyclic(void)
 
 static void mixerUpdateCollective(void)
 {
-    if (mixerConfig()->coll_rpm_correction) {
-        // Headspeed fluctuation ratio
-        const float ratio = constrainf(getHeadSpeedRatio(), 0.90f, 1.25f);
+    if (mixer.collTTAGain > 0) {
+        // TTA ratio
+        const float ratio = 1.0f + getTTAIncrease() * mixer.collTTAGain;
 
-        // Lift increases with RPM^2
-        const float coll = mixer.input[MIXER_IN_STABILIZED_COLLECTIVE] / (ratio * ratio);
-
-        // Apply correction with limits
-        mixerApplyInputLimit(MIXER_IN_STABILIZED_COLLECTIVE, coll);
+        // Counteract lift increase
+        mixer.input[MIXER_IN_STABILIZED_COLLECTIVE] /= ratio * ratio;
     }
 
     // Limit cyclic if needed
@@ -583,6 +582,8 @@ void INIT_CODE mixerInitConfig(void)
 
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
     mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 120.0f;  // 120 => 24°
+
+    mixer.collTTAGain = mixerConfig()->coll_tta_precomp / 100.0f;
 }
 
 static void INIT_CODE setMapping(uint8_t in, uint8_t out)

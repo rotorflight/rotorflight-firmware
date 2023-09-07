@@ -132,7 +132,7 @@ typedef struct
     uint16_t  swash_pitch_limit; // Maximum main rotor blade pitch
     int8_t    swash_trim[3];    // Swashplate leveling trim
 
-    uint8_t   coll_rpm_correction;  // Collective correction vs. headspeed
+    uint8_t   coll_tta_precomp;  // TTA Collective correction
 
 } mixerConfig_t;
 
