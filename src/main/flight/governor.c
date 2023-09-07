@@ -296,7 +296,6 @@ float getSpoolUpRatio(void)
     return 0;
 }
 
-
 bool isSpooledUp(void)
 {
     if (!ARMING_FLAG(ARMED))
@@ -444,8 +443,9 @@ static void govUpdateData(void)
     float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
 
     // Tail Torque Assist
-    if (mixerMotorizedTail() && gov.TTAGain != 0 && isSpooledUp()) {
-        float TTA = gov.TTAGain * filterApply(&gov.TTAFilter, mixerGetInput(MIXER_IN_STABILIZED_YAW));
+    if (mixerMotorizedTail() && gov.TTAGain > 0) {
+        float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
+        float TTA = filterApply(&gov.TTAFilter, YAW) * getSpoolUpRatio() * gov.TTAGain;
         gov.TTAAdd = constrainf(TTA, 0, gov.TTALimit);
     }
     else {
