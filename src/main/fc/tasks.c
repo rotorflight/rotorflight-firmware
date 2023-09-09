@@ -60,6 +60,7 @@
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
 #include "io/dashboard.h"
+#include "io/flashfs.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
 #include "io/piniobox.h"
@@ -123,6 +124,10 @@ static void taskMain(timeUs_t currentTimeUs)
 
 #ifdef USE_SDCARD
     afatfs_poll();
+#endif
+
+#ifdef USE_FLASHFS
+    flashfsEraseAsync();
 #endif
 }
 
