@@ -161,16 +161,14 @@ static const void *cmsx_EraseFlash(displayPort_t *pDisplay, const void *ptr)
     }
 
     displayClearScreen(pDisplay, DISPLAY_CLEAR_WAIT);
-    displayWrite(pDisplay, 5, 3, DISPLAYPORT_ATTR_INFO, "ERASING FLASH...");
+    displayWrite(pDisplay, 5, 3, DISPLAYPORT_ATTR_INFO, "ERASING BLACKBOX...");
     displayRedraw(pDisplay);
 
-    flashfsEraseCompletely();
-    while (!flashfsIsReady()) {
-        //TODO: Make this non-blocking!
+    blackboxErase();
+    while (!isBlackboxErased()) {
         delay(100);
     }
 
-    beeper(BEEPER_BLACKBOX_ERASE);
     displayClearScreen(pDisplay, DISPLAY_CLEAR_WAIT);
     displayRedraw(pDisplay);
 

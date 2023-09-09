@@ -1004,7 +1004,7 @@ void blackboxValidateConfig(void)
         break;
 
     default:
-        blackboxConfigMutable()->device = BLACKBOX_DEVICE_SERIAL;
+        blackboxConfigMutable()->device = BLACKBOX_DEVICE_NONE;
     }
 }
 
@@ -1746,6 +1746,20 @@ static void blackboxLogIteration(timeUs_t currentTimeUs)
     blackboxDeviceFlush();
 }
 
+void blackboxErase(void)
+{
+#ifdef USE_FLASHFS
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
+        blackboxSetState(BLACKBOX_STATE_START_ERASE);
+    }
+#endif
+}
+
+bool isBlackboxErased(void)
+{
+    return isBlackboxDeviceReady();
+}
+
 /**
  * Call each flight loop iteration to perform blackbox logging.
  */
@@ -1755,17 +1769,17 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     blackboxCheckEnabler();
 
+    if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE) &&
+        blackboxState > BLACKBOX_STATE_DISABLED && blackboxState < BLACKBOX_STATE_START_ERASE) {
+        blackboxErase();
+    }
+
     switch (blackboxState) {
     case BLACKBOX_STATE_STOPPED:
         if (blackboxIsLoggingEnabled()) {
             blackboxOpen();
             blackboxStart();
         }
-#ifdef USE_FLASHFS
-        if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE)) {
-            blackboxSetState(BLACKBOX_STATE_START_ERASE);
-        }
-#endif
         break;
     case BLACKBOX_STATE_PREPARE_LOG_FILE:
         if (blackboxDeviceBeginLog()) {
@@ -1894,20 +1908,23 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         break;
 #ifdef USE_FLASHFS
     case BLACKBOX_STATE_START_ERASE:
-        blackboxEraseAll();
-        blackboxSetState(BLACKBOX_STATE_ERASING);
-        beeper(BEEPER_BLACKBOX_ERASE);
+        if (isBlackboxDeviceReady()) {
+            blackboxDeviceErase();
+            blackboxSetState(BLACKBOX_STATE_ERASING);
+            beeper(BEEPER_BLACKBOX_ERASE);
+        }
         break;
     case BLACKBOX_STATE_ERASING:
-        if (isBlackboxErased()) {
-            //Done erasing
+        if (isBlackboxDeviceReady()) {
             blackboxSetState(BLACKBOX_STATE_ERASED);
             beeper(BEEPER_BLACKBOX_ERASE);
         }
         break;
     case BLACKBOX_STATE_ERASED:
         if (!IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE)) {
+            blackboxDeviceClose();
             blackboxSetState(BLACKBOX_STATE_STOPPED);
+            blackboxStarted = false;
         }
     break;
 #endif
@@ -1917,12 +1934,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     // Did we run out of room on the device? Stop!
     if (isBlackboxDeviceFull()) {
-#ifdef USE_FLASHFS
-        if (blackboxState != BLACKBOX_STATE_ERASING
-            && blackboxState != BLACKBOX_STATE_START_ERASE
-            && blackboxState != BLACKBOX_STATE_ERASED)
-#endif
-        {
+        if (blackboxState < BLACKBOX_STATE_START_ERASE) {
             blackboxSetState(BLACKBOX_STATE_STOPPED);
         }
     }

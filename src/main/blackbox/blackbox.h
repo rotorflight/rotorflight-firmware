@@ -71,6 +71,9 @@ void blackboxLogCustomString(const char *ptr);
 void blackboxInit(void);
 void blackboxUpdate(timeUs_t currentTimeUs);
 
+void blackboxErase(void);
+bool isBlackboxErased(void);
+
 void blackboxSetStartDateTime(const char *dateTime, timeMs_t timeNowMs);
 void blackboxValidateConfig(void);
 bool blackboxMayEditConfig(void);
