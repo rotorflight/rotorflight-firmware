@@ -1320,7 +1320,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < PID_AXIS_COUNT; i++) {
             sbufWriteU16(dst, currentPidProfile->pid[i].B);
         }
-        for (int i = 0; i < PID_AXIS_COUNT; i++) {
+        for (int i = 0; i < CYCLIC_AXIS_COUNT; i++) {
             sbufWriteU16(dst, currentPidProfile->pid[i].O);
         }
         break;
@@ -1795,7 +1795,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         /* Offset limits */
         sbufWriteU8(dst, currentPidProfile->offset_limit[0]);
         sbufWriteU8(dst, currentPidProfile->offset_limit[1]);
-        sbufWriteU8(dst, currentPidProfile->offset_limit[2]);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2234,8 +2233,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 currentPidProfile->pid[i].B = sbufReadU16(src);
             }
         }
-        if (sbufBytesRemaining(src) >= 6) {
-            for (int i = 0; i < PID_AXIS_COUNT; i++) {
+        if (sbufBytesRemaining(src) >= 4) {
+            for (int i = 0; i < CYCLIC_AXIS_COUNT; i++) {
                 currentPidProfile->pid[i].O = sbufReadU16(src);
             }
         }
@@ -2542,10 +2541,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->cyclic_cross_coupling_cutoff = sbufReadU8(src);
         }
         /* Offset limits */
-        if (sbufBytesRemaining(src) >= 3) {
+        if (sbufBytesRemaining(src) >= 2) {
             currentPidProfile->offset_limit[0] = sbufReadU8(src);
             currentPidProfile->offset_limit[1] = sbufReadU8(src);
-            currentPidProfile->offset_limit[2] = sbufReadU8(src);
         }
         /* Load new values */
         pidInitProfile(currentPidProfile);
