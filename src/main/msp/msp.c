@@ -1795,6 +1795,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         /* Offset limits */
         sbufWriteU8(dst, currentPidProfile->offset_limit[0]);
         sbufWriteU8(dst, currentPidProfile->offset_limit[1]);
+        /* B-term cutoffs */
+        sbufWriteU8(dst, currentPidProfile->bterm_cutoff[0]);
+        sbufWriteU8(dst, currentPidProfile->bterm_cutoff[1]);
+        sbufWriteU8(dst, currentPidProfile->bterm_cutoff[2]);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2544,6 +2548,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 2) {
             currentPidProfile->offset_limit[0] = sbufReadU8(src);
             currentPidProfile->offset_limit[1] = sbufReadU8(src);
+        }
+        /* B-term cutoffs */
+        if (sbufBytesRemaining(src) >= 3) {
+            currentPidProfile->bterm_cutoff[0] = sbufReadU8(src);
+            currentPidProfile->bterm_cutoff[1] = sbufReadU8(src);
+            currentPidProfile->bterm_cutoff[2] = sbufReadU8(src);
         }
         /* Load new values */
         pidInitProfile(currentPidProfile);
