@@ -581,7 +581,11 @@ void INIT_CODE mixerInitConfig(void)
         mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;
 
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
-    mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 120.0f;  // 120 => 24°
+
+    if (mixerMotorizedTail())
+        mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 400.0f;  // 100 => 25%
+    else
+        mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 240.0f;  // 100 => 10°
 
     mixer.collTTAGain = mixerConfig()->coll_tta_precomp / 100.0f;
 }
