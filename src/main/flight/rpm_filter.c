@@ -40,7 +40,7 @@
 #include "rpm_filter.h"
 
 // Number of banks to update in one cycle
-#define RPM_UPDATE_BANK_COUNT activeBankCount
+#define RPM_UPDATE_BANK_COUNT 1
 
 typedef struct rpmFilterBank_s
 {
