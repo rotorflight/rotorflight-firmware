@@ -60,12 +60,12 @@ void nilFilterInit(nilFilter_t *filter, float cutoff, float sampleRate)
 
 float pt1FilterGain(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
     float omega = tan_approx(M_PIf * cutoff / sampleRate);
     float alpha = 2.0f / (1.0f / omega + 1.0f);
 
-    return alpha;
+    return fminf(alpha, 1.0f);
 }
 
 void pt1FilterInit(pt1Filter_t *filter, float cutoff, float sampleRate)
@@ -184,12 +184,12 @@ FAST_CODE float pt3FilterApply(pt3Filter_t *filter, float input)
 
 float ewma1FilterWeight(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
     float omega = tan_approx(M_PIf * cutoff / sampleRate);
     float weight = (1.0f / omega + 1.0f) / 2.0f;
 
-    return weight;
+    return fmaxf(weight, 1.0f);
 }
 
 void ewma1FilterInit(ewma1Filter_t *filter, float cutoff, float sampleRate)
