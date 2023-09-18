@@ -7,6 +7,7 @@ set -e
 
 TEST=${1:-master}
 HIST=${2:-3}
+FROM=${3:-0}
 
 OUTDIR=".git-history-build"
 
@@ -31,11 +32,13 @@ rm -f ${OUTDIR}/[0-9][0-9][0-9][0-9].*.out
 
 N=0
 
-while [ $N -le ${HIST} ]
+while [[ $N -le ${HIST} ]]
 do
-    RESULT=${OUTDIR}/$(printf '%04d' $N)
+    M=$(($N + $FROM))
 
-    git checkout ${TEST}~$N --force --detach
+    RESULT=${OUTDIR}/$(printf '%04d' $M)
+
+    git checkout ${TEST}~$M --force --detach
 
     rm -fr obj
 
