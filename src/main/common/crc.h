@@ -22,22 +22,29 @@
 
 struct sbuf_s;
 
-uint16_t crc16_ccitt(uint16_t crc, unsigned char a);
-uint16_t crc16_ccitt_update(uint16_t crc, const void *data, uint32_t length);
-struct sbuf_s;
-void crc16_ccitt_sbuf_append(struct sbuf_s *dst, uint8_t *start);
-
-uint8_t crc8_calc(uint8_t crc, unsigned char a, uint8_t poly);
+uint8_t crc8_calc(uint8_t crc, uint8_t data, uint8_t poly);
 uint8_t crc8_update(uint8_t crc, const void *data, uint32_t length, uint8_t poly);
-void crc8_sbuf_append(struct sbuf_s *dst, uint8_t *start, uint8_t poly);
-#define crc8_dvb_s2(crc, a)                         crc8_calc(crc, a, 0xD5)
-#define crc8_dvb_s2_update(crc, data, length)       crc8_update(crc, data, length, 0xD5)
-#define crc8_dvb_s2_sbuf_append(dst, start)         crc8_sbuf_append(dst, start, 0xD5)
-#define crc8_poly_0xba(crc, a)                      crc8_calc(crc, a, 0xBA)
-#define crc8_poly_0xba_sbuf_append(dst, start)      crc8_sbuf_append(dst, start, 0xBA)
+void crc8_sbuf_append(struct sbuf_s *dst, const void *data, uint8_t poly);
+
+#define crc8_kiss_update(crc, data, len)            crc8_update((crc), (data), (len), 0x07)
+
+#define crc8_dvb_s2(crc, data)                      crc8_calc((crc), (data), 0xD5)
+#define crc8_dvb_s2_update(crc, data, len)          crc8_update((crc), (data), (len), 0xD5)
+#define crc8_dvb_s2_sbuf_append(dst, data)          crc8_sbuf_append((dst), (data), 0xD5)
+
+#define crc8_poly_0xba(crc, data)                   crc8_calc((crc), (data), 0xBA)
+#define crc8_poly_0xba_sbuf_append(dst, data)       crc8_sbuf_append((dst), (data), 0xBA)
+
+uint16_t crc16_calc(uint16_t crc, uint8_t data, uint16_t poly);
+uint16_t crc16_update(uint16_t crc, const void *data, uint32_t length, uint16_t poly);
+void crc16_sbuf_append(struct sbuf_s *dst, const void *data, uint16_t poly);
+
+#define crc16_ccitt(crc, data)                      crc16_calc((crc), (data), 0x1021)
+#define crc16_ccitt_update(crc, data, len)          crc16_update((crc), (data), (len), 0x1021)
+#define crc16_ccitt_sbuf_append(dst, data)          crc16_sbuf_append((dst), (data), 0x1021)
 
 uint8_t crc8_xor_update(uint8_t crc, const void *data, uint32_t length);
-void crc8_xor_sbuf_append(struct sbuf_s *dst, uint8_t *start);
+void crc8_xor_sbuf_append(struct sbuf_s *dst, const void *data);
 
 #define FNV_PRIME           16777619
 #define FNV_OFFSET_BASIS    2166136261

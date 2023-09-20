@@ -31,6 +31,7 @@
 #include "blackbox/blackbox.h"
 
 #include "common/time.h"
+#include "common/crc.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -276,30 +277,6 @@ static uint8_t escTriggerState = ESC_TRIGGER_STARTUP;
 static uint8_t currentEsc = 0;
 
 
-static uint8_t updateCrc8(uint8_t crc, uint8_t crc_seed)
-{
-    uint8_t crc_u = crc ^ crc_seed;
-
-    for (int i = 0 ; i < 8; i++) {
-        crc_u = (crc_u & 0x80) ?
-            (crc_u << 1) ^ 0x07 :
-            (crc_u << 1);
-    }
-
-    return crc_u;
-}
-
-uint8_t calculateCrc8(const uint8_t *buf, const uint8_t buf_len)
-{
-    uint8_t crc = 0;
-
-    for (int i = 0; i < buf_len; i++) {
-        crc = updateCrc8(buf[i], crc);
-    }
-
-    return crc;
-}
-
 void startEscDataRead(uint8_t *frameBuffer, uint8_t frameLength)
 {
     bufferPos = 0;
@@ -339,7 +316,7 @@ static uint8_t decodeTelemetryFrame(void)
         return ESC_FRAME_PENDING;
 
     // Verify CRC8 checksum
-    uint16_t chksum = calculateCrc8(buffer, ESC_FRAME_SIZE - 1);
+    uint16_t chksum = crc8_kiss_update(0, buffer, ESC_FRAME_SIZE - 1);
     uint16_t tlmsum = buffer[ESC_FRAME_SIZE - 1];
 
     if (chksum == tlmsum) {

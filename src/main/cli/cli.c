@@ -53,6 +53,7 @@ bool cliMode = false;
 #include "common/time.h"
 #include "common/typeconversion.h"
 #include "common/utils.h"
+#include "common/crc.h"
 
 #include "config/config.h"
 #include "config/config_eeprom.h"
@@ -3963,7 +3964,7 @@ static void printEscInfo(const char *cmdName, const uint8_t *escInfoBuffer, uint
         if (bytesRead == frameLength) {
             escInfoReceived = true;
 
-            if (calculateCrc8(escInfoBuffer, frameLength - 1) == escInfoBuffer[frameLength - 1]) {
+            if (crc8_kiss_update(0, escInfoBuffer, frameLength - 1) == escInfoBuffer[frameLength - 1]) {
                 uint8_t firmwareVersion = 0;
                 uint8_t firmwareSubVersion = 0;
                 uint8_t escType = 0;
