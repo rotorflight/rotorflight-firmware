@@ -569,10 +569,19 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
         }
 
 #if defined(USE_MSP_OVER_TELEMETRY)
+        static timeUs_t nextSendTime = 0;
+
         if (smartPortMspReplyPending) {
             smartPortMspReplyPending = sendMspReply(SMARTPORT_MSP_PAYLOAD_SIZE, &smartPortSendMspResponse);
             *clearToSend = false;
+            // Don't send sensor data for one second.
+            nextSendTime = micros() + 1000000;
 
+            return;
+        }
+
+        if (nextSendTime != 0 && (cmpTimeUs(micros(), nextSendTime) <= 0)) {
+            // Don't send sensor data now. This will improve the reception of the MSP message.
             return;
         }
 #endif
