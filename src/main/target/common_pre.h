@@ -344,7 +344,6 @@ extern uint8_t _dmaram_end__;
 #define USE_EXTENDED_CMS_MENUS
 #define USE_RTC_TIME
 #define USE_RX_MSP
-#define USE_ESC_SENSOR_INFO
 #define USE_CRSF_CMS_TELEMETRY
 #define USE_CRSF_LINK_STATISTICS
 #define USE_RX_RSSI_DBM

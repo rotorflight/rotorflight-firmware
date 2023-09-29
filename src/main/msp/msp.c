@@ -1185,11 +1185,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #ifdef USE_ESC_SENSOR
             if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
                 escSensorData_t *escData = getEscSensorData(i);
-                motorRpm = calcMotorRPM(i,escData->rpm);
-                escTemperature = escData->temperature;
-                escVoltage = escData->voltage;
-                escCurrent = escData->current;
-                escConsumption = escData->consumption;
+                if (escData && escData->dataAge <= ESC_BATTERY_AGE_MAX) {
+                    motorRpm = calcMotorRPM(i,escData->rpm);
+                    escTemperature = escData->temperature;
+                    escVoltage = escData->voltage;
+                    escCurrent = escData->current;
+                    escConsumption = escData->consumption;
+                }
             }
 #endif
 
