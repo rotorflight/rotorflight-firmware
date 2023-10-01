@@ -202,7 +202,7 @@ static inline float limitTravel(uint8_t servo, float pos, float min, float max)
 
 static inline float limitSpeed(float old, float new, float speed)
 {
-    float rate = 1000 * pidGetDT() / speed;
+    float rate = 1200 * pidGetDT() / speed;
     float diff = new - old;
 
     if (diff > rate)
@@ -246,7 +246,7 @@ void servoUpdate(void)
             input[i] = mixerGetServoOutput(i);
 
         if (servo->speed && mixerIsCyclicServo(i)) {
-            const float limit = 1000 * pidGetDT() / servo->speed;
+            const float limit = 1200 * pidGetDT() / servo->speed;
             const float speed = fabsf(input[i] - servoInput[i]);
             if (speed > limit)
                 cyclic_ratio = fminf(cyclic_ratio, limit / speed);
