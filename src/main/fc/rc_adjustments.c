@@ -624,7 +624,7 @@ void processRcAdjustments(void)
                 if (cmp32(now, adjState->deadTime) < 0)
                     continue;
 
-                const int chValue = lrintf(rcData[adjRange->adjChannel + NON_AUX_CHANNEL_COUNT]);
+                const int chValue = lrintf(rcInput[adjRange->adjChannel + CONTROL_CHANNEL_COUNT]);
 
                 // Stepped adjustment
                 if (adjRange->adjStep) {

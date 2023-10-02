@@ -672,7 +672,7 @@ static void writeIntraframe(void)
 
         /*
         * Write the throttle separately from the rest of the RC data as it's unsigned.
-        * Throttle lies in range [PWM_RANGE_MIN..PWM_RANGE_MAX]:
+        * Throttle lies in range [0..1000]:
         */
         blackboxWriteUnsignedVB(blackboxCurrent->command[THROTTLE]);
     }
@@ -1133,14 +1133,13 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->time = currentTimeUs;
 
-    // ROLL/PITCH/YAW/COLLECTIVE/THROTTLE
-    for (int i = 0; i < 5; i++) {
-        blackboxCurrent->command[i] = lrintf(rcCommand[i]);
-    }
-
+    // ROLL/PITCH/YAW/COLLECTIVE
     for (int i = 0; i < 4; i++) {
+        blackboxCurrent->command[i] = lrintf(rcCommand[i]);
         blackboxCurrent->setpoint[i] = lrintf(getSetpoint(i));
     }
+
+    blackboxCurrent->command[THROTTLE] = lrintf(getThrottleCommand());
 
     blackboxCurrent->mixer[0] = lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 1000);
     blackboxCurrent->mixer[1] = lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 1000);
@@ -1424,8 +1423,8 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_YAW].I,
                                                                             currentPidProfile->pid[PID_YAW].D);
 
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEADBAND, "%d",               rcControlsConfig()->deadband);
-        BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_YAW_DEADBAND, "%d",           rcControlsConfig()->yaw_deadband);
+        BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);
 
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_GYRO_TO_USE, "%d",            gyroConfig()->gyro_to_use);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_GYRO_HARDWARE_LPF, "%d",      gyroConfig()->gyro_hardware_lpf);

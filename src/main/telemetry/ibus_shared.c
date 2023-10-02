@@ -53,6 +53,7 @@ static uint16_t calculateChecksum(const uint8_t *ibusPacket);
 #include "sensors/sensors.h"
 #include "sensors/barometer.h"
 #include "flight/imu.h"
+#include "flight/motors.h"
 #include "flight/position.h"
 #include "io/gps.h"
 
@@ -238,15 +239,7 @@ static uint16_t getFuel()
 
 static uint16_t getRPM()
 {
-    uint16_t rpm = 0;
-    if (ARMING_FLAG(ARMED)) {
-        const throttleStatus_e throttleStatus = calculateThrottleStatus();
-        rpm = rcCommand[THROTTLE];  // / BLADE_NUMBER_DIVIDER;
-        if (throttleStatus == THROTTLE_LOW) rpm = 0;
-    } else {
-        rpm = (uint16_t)(batteryConfig()->batteryCapacity); //  / BLADE_NUMBER_DIVIDER
-    }
-    return rpm;
+    return getHeadSpeed();
 }
 
 static uint16_t getMode()
@@ -375,7 +368,7 @@ static void setValue(uint8_t* bufferPtr, uint8_t sensorType, uint8_t length)
             value.uint16 = getTemperature();
             break;
         case IBUS_SENSOR_TYPE_RPM_FLYSKY:
-            value.int16 = (int16_t)rcCommand[THROTTLE];
+            value.int16 = getHeadSpeed();
             break;
         case IBUS_SENSOR_TYPE_FUEL:
             value.uint16 = getFuel();

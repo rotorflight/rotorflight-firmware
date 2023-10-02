@@ -374,8 +374,8 @@ static void govDebugStats(void)
 static void govUpdateInputs(void)
 {
     // Update throttle state
-    gov.throttleInput = getRcDeflection(THROTTLE);
-    gov.throttleInputLow = (calculateThrottleStatus() == THROTTLE_LOW);
+    gov.throttleInput = getThrottle();
+    gov.throttleInputLow = (getThrottleStatus() == THROTTLE_LOW);
 
     // Assume motor[0]
     gov.motorRPM = getMotorRawRPMf(0);

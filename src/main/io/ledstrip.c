@@ -51,8 +51,9 @@
 
 #include "config/config.h"
 #include "fc/core.h"
-#include "fc/rc_controls.h"
+#include "fc/rc.h"
 #include "fc/rc_modes.h"
+#include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
 
 #include "flight/failsafe.h"
@@ -509,16 +510,15 @@ static void applyLedFixedLayers(void)
             hsvColor_t previousColor = ledStripStatusModeConfig()->colors[(ledGetColor(ledConfig) - 1 + LED_CONFIGURABLE_COLOR_COUNT) % LED_CONFIGURABLE_COLOR_COUNT];
 
             if (ledGetOverlayBit(ledConfig, LED_OVERLAY_THROTTLE)) {   //smooth fade with selected Aux channel of all HSV values from previousColor through color to nextColor
-                const int auxInput = rcData[ledStripStatusModeConfig()->ledstrip_aux_channel];
-                int centerPWM = (PWM_RANGE_MIN + PWM_RANGE_MAX) / 2;
-                if (auxInput < centerPWM) {
-                    color.h = scaleRange(auxInput, PWM_RANGE_MIN, centerPWM, previousColor.h, color.h);
-                    color.s = scaleRange(auxInput, PWM_RANGE_MIN, centerPWM, previousColor.s, color.s);
-                    color.v = scaleRange(auxInput, PWM_RANGE_MIN, centerPWM, previousColor.v, color.v);
+                const int auxInput = rcCommand[ledStripStatusModeConfig()->ledstrip_aux_channel];
+                if (auxInput < 0) {
+                    color.h = scaleRange(auxInput, RC_CMD_RANGE_MIN, RC_CMD_RANGE_MID, previousColor.h, color.h);
+                    color.s = scaleRange(auxInput, RC_CMD_RANGE_MIN, RC_CMD_RANGE_MID, previousColor.s, color.s);
+                    color.v = scaleRange(auxInput, RC_CMD_RANGE_MIN, RC_CMD_RANGE_MID, previousColor.v, color.v);
                 } else {
-                    color.h = scaleRange(auxInput, centerPWM, PWM_RANGE_MAX, color.h, nextColor.h);
-                    color.s = scaleRange(auxInput, centerPWM, PWM_RANGE_MAX, color.s, nextColor.s);
-                    color.v = scaleRange(auxInput, centerPWM, PWM_RANGE_MAX, color.v, nextColor.v);
+                    color.h = scaleRange(auxInput, RC_CMD_RANGE_MID, RC_CMD_RANGE_MAX, color.h, nextColor.h);
+                    color.s = scaleRange(auxInput, RC_CMD_RANGE_MID, RC_CMD_RANGE_MAX, color.s, nextColor.s);
+                    color.v = scaleRange(auxInput, RC_CMD_RANGE_MID, RC_CMD_RANGE_MAX, color.v, nextColor.v);
                 }
             }
 
@@ -555,8 +555,8 @@ static void applyLedFixedLayers(void)
         }
 
         if ((fn != LED_FUNCTION_COLOR) && ledGetOverlayBit(ledConfig, LED_OVERLAY_THROTTLE)) {
-            const int auxInput = rcData[ledStripStatusModeConfig()->ledstrip_aux_channel];
-            hOffset += scaleRange(auxInput, PWM_RANGE_MIN, PWM_RANGE_MAX, 0, HSV_HUE_MAX + 1);
+            const int auxInput = rcCommand[ledStripStatusModeConfig()->ledstrip_aux_channel];
+            hOffset += scaleRange(auxInput, RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX, 0, HSV_HUE_MAX + 1);
         }
 
         color.h = (color.h + hOffset) % (HSV_HUE_MAX + 1);
@@ -883,7 +883,7 @@ static void applyLedThrustRingLayer(bool updateNow, timeUs_t *timer)
     if (updateNow) {
         rotationPhase = rotationPhase > 0 ? rotationPhase - 1 : ledCounts.ringSeqLen - 1;
 
-        const int scaledThrottle = ARMING_FLAG(ARMED) ? scaleRange(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX, 0, 100) : 0;
+        const int scaledThrottle = ARMING_FLAG(ARMED) ? getThrottlePercent() : 0;
         *timer += HZ_TO_US(5 + (45 * scaledThrottle) / 100);  // 5 - 50Hz update rate
     }
 

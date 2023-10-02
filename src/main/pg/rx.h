@@ -32,30 +32,37 @@ typedef struct rxConfig_s {
     uint8_t serialrx_provider;                 // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_RX_SERIAL first.
     uint8_t serialrx_inverted;                 // invert the serial RX protocol compared to it's default setting
     uint8_t halfDuplex;                        // allow rx to operate in half duplex mode on F4, ignored for F1 and F3.
+    uint16_t rx_pulse_min;                     // Absolute minimum pulse accepted
+    uint16_t rx_pulse_max;                     // Absolute maximum pulse accepted
+    uint8_t rssi_channel;
+    uint8_t rssi_scale;
+    uint8_t rssi_invert;
+    int8_t  rssi_offset;                       // offset applied to the RSSI value before it is returned
+    uint8_t rssi_src_frame_errors;             // true to use frame drop flags in the rx protocol
+    uint8_t rssi_src_frame_lpf_period;         // Period of the cutoff frequency for the source frame RSSI filter (in 0.1 s)
     ioTag_t spektrum_bind_pin_override_ioTag;
     ioTag_t spektrum_bind_plug_ioTag;
     uint8_t spektrum_sat_bind;                 // number of bind pulses for Spektrum satellite receivers
     uint8_t spektrum_sat_bind_autoreset;       // whenever we will reset (exit) binding mode after hard reboot
-    uint8_t rssi_channel;
-    uint8_t rssi_scale;
-    uint8_t rssi_invert;
-    uint16_t midrc;                            // Some radios have not a neutral point centered on 1500. can be changed here
-    uint16_t mincheck;                         // minimum rc end
-    uint16_t maxcheck;                         // maximum rc end
-    uint16_t rx_min_usec;
-    uint16_t rx_max_usec;
-    uint8_t rx_smoothness;
-    uint8_t max_aux_channel;
-    uint8_t rssi_src_frame_errors;             // true to use frame drop flags in the rx protocol
-    int8_t rssi_offset;                        // offset applied to the RSSI value before it is returned
-    uint8_t rssi_src_frame_lpf_period;         // Period of the cutoff frequency for the source frame RSSI filter (in 0.1 s)
     uint8_t srxl2_unit_id;                     // Spektrum SRXL2 RX unit id
     uint8_t srxl2_baud_fast;                   // Select Spektrum SRXL2 fast baud rate
     uint8_t sbus_baud_fast;                    // Select SBus fast baud rate
     uint8_t crsf_use_rx_snr;                   // Use RX SNR (in dB) instead of RSSI dBm for CRSF
-    uint32_t msp_override_channels_mask;       // Channels to override when the MSP override mode is enabled
     uint8_t crsf_use_negotiated_baud;          // Use negotiated baud rate for CRSF V3
     uint8_t crsf_flight_mode_reuse;            // Use CRSF Fligt Mode frame for an alternative purpose
 } rxConfig_t;
 
 PG_DECLARE(rxConfig_t, rxConfig);
+
+typedef struct rcControlsConfig_s {
+    uint16_t rc_center;                 // Stick center. Usually 1500 or 1520, depending on the RC system
+    uint16_t rc_deflection;             // Max stick declection in us, applies to RPYC
+    uint16_t rc_min_throttle;           // Throttle channel value for 0%
+    uint16_t rc_max_throttle;           // Throttle channel value for 100%
+    uint8_t  rc_deadband;               // A deadband around the stick center for pitch and roll axis
+    uint8_t  rc_yaw_deadband;           // A deadband around the stick center for yaw axis
+    uint8_t  rc_smoothness;             // Minimum RPYC smoothing level
+    uint8_t  rc_threshold[4];           // Threshold for stick activity
+} rcControlsConfig_t;
+
+PG_DECLARE(rcControlsConfig_t, rcControlsConfig);

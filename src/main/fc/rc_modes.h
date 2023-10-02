@@ -61,7 +61,6 @@ typedef enum {
     BOXCAMERA3,
     BOXVTXPITMODE,
     BOXVTXCONTROLDISABLE,
-    BOXMSPOVERRIDE,
     BOXSTICKCOMMANDDISABLE,
     BOXUSER1,
     BOXUSER2,
@@ -150,7 +149,7 @@ static inline bool isRangeUsable(const channelRange_t *range)
 static inline bool isRangeActive(uint8_t auxChannelIndex, const channelRange_t *range)
 {
     if (isRangeUsable(range)) {
-        const uint16_t channelValue = rcData[auxChannelIndex + NON_AUX_CHANNEL_COUNT];
+        const uint16_t channelValue = rcInput[auxChannelIndex + CONTROL_CHANNEL_COUNT];
         return (channelValue >= STEP_TO_CHANNEL_VALUE(range->startStep) && channelValue < STEP_TO_CHANNEL_VALUE(range->endStep));
     }
 

@@ -96,9 +96,10 @@ static float sbusChannelsReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8
 
 void sbusChannelsInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
+    UNUSED(rxConfig);
     rxRuntimeState->rcReadRawFn = sbusChannelsReadRawRC;
     for (int b = 0; b < SBUS_MAX_CHANNEL; b++) {
-        rxRuntimeState->channelData[b] = (16 * rxConfig->midrc) / 10 - 1408;
+        rxRuntimeState->channelData[b] = (16 * rcControlsConfig()->rc_center) / 10 - 1408;
     }
 }
 #endif

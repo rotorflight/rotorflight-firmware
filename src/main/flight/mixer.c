@@ -468,11 +468,11 @@ static void mixerUpdateInputs(void)
     mixerSetInput(MIXER_IN_RC_COMMAND_COLLECTIVE, getRcDeflection(COLLECTIVE));
 
     // Throttle input
-    mixerSetInput(MIXER_IN_RC_COMMAND_THROTTLE, getRcDeflection(THROTTLE));
+    mixerSetInput(MIXER_IN_RC_COMMAND_THROTTLE, getThrottle());
 
     // RC channels
     for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++)
-        mixerSetInput(MIXER_IN_RC_CHANNEL_ROLL + i, (rcData[i] - rxConfig()->midrc) / 500);
+        mixerSetInput(MIXER_IN_RC_CHANNEL_ROLL + i, rcCommand[i] / 500);
 
     // Stabilised inputs
     mixerSetInput(MIXER_IN_STABILIZED_ROLL, pidGetOutput(PID_ROLL));

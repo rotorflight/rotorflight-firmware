@@ -116,9 +116,9 @@ const char * const osdTimerSourceNames[] = {
 
 // Things in both OSD and CMS
 
-#define IS_HI(X)  (rcData[X] > 1750)
-#define IS_LO(X)  (rcData[X] < 1250)
-#define IS_MID(X) (rcData[X] > 1250 && rcData[X] < 1750)
+#define IS_HI(X)  (rcCommand[X] > 250)
+#define IS_LO(X)  (rcCommand[X] < -250)
+#define IS_MID(X) (rcCommand[X] > -250 && rcCommand[X] < 250)
 
 timeUs_t osdFlyTime = 0;
 #if defined(USE_ACC)
@@ -717,7 +717,7 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
         osdDisplayStatisticLabel(displayRow, osdConfig()->stat_show_cell_value ? "END AVG CELL" : "END BATTERY", buff);
         return true;
 
-    case OSD_STAT_BATTERY: 
+    case OSD_STAT_BATTERY:
         {
             const uint16_t statsVoltage = getStatsVoltage();
             osdPrintFloat(buff, SYM_NONE, statsVoltage / 100.0f, "", 2, true, SYM_VOLT);
@@ -725,7 +725,7 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
             return true;
         }
         break;
-        
+
     case OSD_STAT_MIN_RSSI:
         itoa(stats.min_rssi, buff, 10);
         strcat(buff, "%");
@@ -1067,7 +1067,7 @@ void osdProcessStats2(timeUs_t currentTimeUs)
     if (resumeRefreshAt) {
         if (cmp32(currentTimeUs, resumeRefreshAt) < 0) {
             // in timeout period, check sticks for activity
-            if (!ARMING_FLAG(ARMED) && (IS_HI(THROTTLE) || IS_HI(PITCH))) {
+            if (!ARMING_FLAG(ARMED) && (IS_HI(COLLECTIVE) || IS_HI(PITCH))) {
                 resumeRefreshAt = currentTimeUs;
             }
             return;

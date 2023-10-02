@@ -28,7 +28,35 @@
 
 #include "flight/setpoint.h"
 
-extern float rcCommand[5];
+#define PRIMARY_CHANNEL_COUNT 5
+
+enum {
+    ROLL = 0,
+    PITCH,
+    YAW,
+    COLLECTIVE,
+    THROTTLE,
+    AUX1,
+    AUX2,
+    AUX3,
+    AUX4,
+    AUX5,
+    AUX6,
+    AUX7,
+    AUX8,
+    AUX9,
+    AUX10,
+    AUX11,
+    AUX12
+};
+
+typedef enum {
+    THROTTLE_LOW = 0,
+    THROTTLE_HIGH
+} throttleStatus_e;
+
+
+extern float rcCommand[];
 
 void initRcProcessing(void);
 void updateRcCommands(void);
@@ -36,6 +64,12 @@ void updateRcCommands(void);
 void resetYawAxis(void);
 
 float getRcDeflection(int axis);
+
+float getThrottle(void);
+static inline float getThrottleCommand(void) { return getThrottle() * 1000; }
+static inline uint8_t getThrottlePercent(void) { return lrintf(getThrottle() * 100); }
+
+throttleStatus_e getThrottleStatus(void);
 
 uint16_t getCurrentRxRefreshRate(void);
 float getAverageRxRefreshRate(void);

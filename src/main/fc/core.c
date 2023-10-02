@@ -241,7 +241,7 @@ void updateArmingStatus(void)
             unsetArmingDisabled(ARMING_DISABLED_BOXFAILSAFE);
         }
 
-        if (calculateThrottleStatus() != THROTTLE_LOW) {
+        if (getThrottleStatus() != THROTTLE_LOW) {
             setArmingDisabled(ARMING_DISABLED_THROTTLE);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_THROTTLE);
@@ -463,43 +463,6 @@ static bool canUpdateVTX(void)
 }
 #endif
 
-#if defined(USE_GPS_RESCUE)
-// determine if the R/P/Y stick deflection exceeds the specified limit - integer math is good enough here.
-bool areSticksActive(uint8_t stickPercentLimit)
-{
-    for (int axis = FD_ROLL; axis <= FD_YAW; axis ++) {
-        const uint8_t deadband = axis == FD_YAW ? rcControlsConfig()->yaw_deadband : rcControlsConfig()->deadband;
-        uint8_t stickPercent = 0;
-        if ((rcData[axis] >= PWM_RANGE_MAX) || (rcData[axis] <= PWM_RANGE_MIN)) {
-            stickPercent = 100;
-        } else {
-            if (rcData[axis] > (rxConfig()->midrc + deadband)) {
-                stickPercent = ((rcData[axis] - rxConfig()->midrc - deadband) * 100) / (PWM_RANGE_MAX - rxConfig()->midrc - deadband);
-            } else if (rcData[axis] < (rxConfig()->midrc - deadband)) {
-                stickPercent = ((rxConfig()->midrc - deadband - rcData[axis]) * 100) / (rxConfig()->midrc - deadband - PWM_RANGE_MIN);
-            }
-        }
-        if (stickPercent >= stickPercentLimit) {
-            return true;
-        }
-    }
-    return false;
-}
-#endif
-
-
-// calculate the throttle stick percent - integer math is good enough here.
-int8_t calculateThrottlePercent(void)
-{
-    int channelData = constrain(rcData[THROTTLE], PWM_RANGE_MIN, PWM_RANGE_MAX);
-    return constrain(((channelData - rxConfig()->mincheck) * 100) / (PWM_RANGE_MAX - rxConfig()->mincheck), 0, 100);
-}
-
-uint8_t calculateThrottlePercentAbs(void)
-{
-    return ABS(calculateThrottlePercent());
-}
-
 
 /*
  * processRx called from taskUpdateRxMain
@@ -527,7 +490,7 @@ void processRxModes(timeUs_t currentTimeUs)
 #ifdef USE_TELEMETRY
     static bool sharedPortTelemetryEnabled = false;
 #endif
-    const throttleStatus_e throttleStatus = calculateThrottleStatus();
+    const throttleStatus_e throttleStatus = getThrottleStatus();
 
     // When armed and motors aren't spinning, do beeps and then disarm
     // board after delay so users without buzzer won't lose fingers.

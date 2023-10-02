@@ -126,12 +126,6 @@
 #define SCHEDULER_DELAY_LIMIT           100
 #endif
 
-#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
-#define DEFAULT_AUX_CHANNEL_COUNT       MAX_AUX_CHANNEL_COUNT
-#else
-#define DEFAULT_AUX_CHANNEL_COUNT       6
-#endif
-
 // Set the default cpu_overclock to the first level (108MHz) for F411
 // Helps with looptime stability as the CPU is borderline when running native gyro sampling
 #if defined(USE_OVERCLOCK) && defined(STM32F411xE)
@@ -385,7 +379,6 @@ extern uint8_t _dmaram_end__;
 #define USE_PROFILE_NAMES
 #define USE_SERIALRX_SRXL2     // Spektrum SRXL2 protocol
 #define USE_CUSTOM_BOX_NAMES
-#define USE_RX_MSP_OVERRIDE
 #define USE_RX_LINK_UPLINK_POWER
 #define USE_CRSF_V3
 #endif

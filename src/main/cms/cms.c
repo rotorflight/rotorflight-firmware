@@ -671,7 +671,7 @@ static bool rowIsSkippable(const OSD_Entry *row)
     if (type == OME_String) {
         return true;
     }
-    
+
     if ((type == OME_UINT8 || type == OME_INT8 ||
          type == OME_UINT16 || type == OME_INT16) &&
         ((row->flags == DYNAMIC) || rowSliderOverride(row->flags))) {
@@ -996,9 +996,9 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
 
 // Stick/key detection and key codes
 
-#define IS_HI(X)  (rcData[X] > 1750)
-#define IS_LO(X)  (rcData[X] < 1250)
-#define IS_MID(X) (rcData[X] > 1250 && rcData[X] < 1750)
+#define IS_HI(X)  (rcCommand[X] > 250)
+#define IS_LO(X)  (rcCommand[X] < -250)
+#define IS_MID(X) (!IS_LO(X) && !IS_HI(X))
 
 #define BUTTON_TIME   250 // msec
 #define BUTTON_PAUSE  500 // msec
@@ -1358,7 +1358,7 @@ static uint16_t cmsScanKeys(timeMs_t currentTimeMs, timeMs_t lastCalledMs, int16
         rcDelayMs = cmsHandleKey(pCurrentDisplay, externKey);
         externKey = CMS_KEY_NONE;
     } else {
-        if (IS_MID(THROTTLE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED)) {
+        if (IS_MID(COLLECTIVE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED)) {
             key = CMS_KEY_MENU;
         } else if (IS_HI(PITCH)) {
             key = CMS_KEY_UP;
@@ -1450,7 +1450,7 @@ static void cmsUpdate(uint32_t currentTimeUs)
 
     if (!cmsInMenu) {
         // Detect menu invocation
-        if (IS_MID(THROTTLE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED) && !IS_RC_MODE_ACTIVE(BOXSTICKCOMMANDDISABLE)) {
+        if (IS_MID(COLLECTIVE) && IS_LO(YAW) && IS_HI(PITCH) && !ARMING_FLAG(ARMED) && !IS_RC_MODE_ACTIVE(BOXSTICKCOMMANDDISABLE)) {
             cmsMenuOpen();
             rcDelayMs = BUTTON_PAUSE;    // Tends to overshoot if BUTTON_TIME
         }

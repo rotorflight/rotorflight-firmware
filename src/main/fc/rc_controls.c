@@ -67,17 +67,28 @@
 
 #include "rc_controls.h"
 
+
+#define STICK_COMMAND_MIN -450
+#define STICK_COMMAND_MAX  450
+
+#define ROL_LO    (1 << 0)
+#define ROL_HI    (2 << 0)
+#define ROL_CE    (3 << 0)
+#define PIT_LO    (1 << 2)
+#define PIT_HI    (2 << 2)
+#define PIT_CE    (3 << 2)
+#define YAW_LO    (1 << 4)
+#define YAW_HI    (2 << 4)
+#define YAW_CE    (3 << 4)
+#define COL_LO    (1 << 6)
+#define COL_HI    (2 << 6)
+#define COL_CE    (3 << 6)
+#define COL_MASK  (3 << 6)
+
+
 // true if arming is done via the sticks (as opposed to a switch)
 static bool isUsingStickArming = false;
 static bool isUsingStickCommands = false;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
-
-PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
-    .deadband = 0,
-    .yaw_deadband = 0,
-    .movement_threshold = { 70, 70, 70, 150 },
-);
 
 PG_REGISTER_WITH_RESET_TEMPLATE(armingConfig_t, armingConfig, PG_ARMING_CONFIG, 1);
 
@@ -94,11 +105,6 @@ bool isUsingSticksForArming(void)
 bool areSticksInApModePosition(uint16_t ap_mode)
 {
     return fabsf(rcCommand[ROLL]) < ap_mode && fabsf(rcCommand[PITCH]) < ap_mode;
-}
-
-throttleStatus_e calculateThrottleStatus(void)
-{
-    return (rcData[THROTTLE] < rxConfig()->mincheck) ? THROTTLE_LOW : THROTTLE_HIGH;
 }
 
 #define ARM_DELAY_MS        500
@@ -125,10 +131,10 @@ void processRcStickPositions()
     uint8_t stTmp = 0;
     for (int i = 0; i < 4; i++) {
         stTmp >>= 2;
-        if (rcData[i] > rxConfig()->mincheck) {
+        if (rcCommand[i] > STICK_COMMAND_MIN) {
             stTmp |= 0x80;  // check for MIN
         }
-        if (rcData[i] < rxConfig()->maxcheck) {
+        if (rcCommand[i] < STICK_COMMAND_MAX) {
             stTmp |= 0x40;  // check for MAX
         }
     }

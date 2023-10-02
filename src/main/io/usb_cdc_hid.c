@@ -78,7 +78,8 @@ void sendRcDataToHid(void)
      // Axes
     for (unsigned i = 0; i < USB_CDC_HID_NUM_AXES; i++) {
         const uint8_t channel = hidChannelMapping[i];
-        report[i] = scaleRange(constrain(rcData[channel], PWM_RANGE_MIN, PWM_RANGE_MAX), PWM_RANGE_MIN, PWM_RANGE_MAX, USB_CDC_HID_RANGE_MIN, USB_CDC_HID_RANGE_MAX);
+        const uint16_t value = constrain(rcCommand[channel], RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX);
+        report[i] = scaleRange(value, RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX, USB_CDC_HID_RANGE_MIN, USB_CDC_HID_RANGE_MAX);
         if (channel == PITCH) {
             // PITCH is inverted in Windows
             report[i] = -report[i];
@@ -90,7 +91,7 @@ void sendRcDataToHid(void)
     report[8] = 0;
     for (unsigned i = 0; i < USB_CDC_HID_NUM_BUTTONS; i++) {
         const uint8_t channel = hidChannelMapping[i + USB_CDC_HID_NUM_AXES];
-        if (scaleRange(constrain(rcData[channel], PWM_RANGE_MIN, PWM_RANGE_MAX), PWM_RANGE_MIN, PWM_RANGE_MAX, USB_CDC_HID_RANGE_MIN, USB_CDC_HID_RANGE_MAX) > 0) {
+        if (scaleRange(constrain(rcInput[channel], PWM_RANGE_MIN, PWM_RANGE_MAX), PWM_RANGE_MIN, PWM_RANGE_MAX, USB_CDC_HID_RANGE_MIN, USB_CDC_HID_RANGE_MAX) > 0) {
             report[8] |= (1 << i);
         }
     }

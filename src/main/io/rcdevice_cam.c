@@ -42,9 +42,9 @@
 
 #ifdef USE_RCDEVICE
 
-#define IS_HI(X) (rcData[X] > FIVE_KEY_CABLE_JOYSTICK_MAX)
-#define IS_LO(X) (rcData[X] < FIVE_KEY_CABLE_JOYSTICK_MIN)
-#define IS_MID(X) (rcData[X] > FIVE_KEY_CABLE_JOYSTICK_MID_START && rcData[X] < FIVE_KEY_CABLE_JOYSTICK_MID_END)
+#define IS_HI(X) (rcCommand[X] > FIVE_KEY_CABLE_JOYSTICK_MAX)
+#define IS_LO(X) (rcCommand[X] < FIVE_KEY_CABLE_JOYSTICK_MIN)
+#define IS_MID(X) (rcCommand[X] > FIVE_KEY_CABLE_JOYSTICK_MID_START && rcCommand[X] < FIVE_KEY_CABLE_JOYSTICK_MID_END)
 
 
 static runcamDevice_t runcamDevice;
@@ -252,7 +252,7 @@ static void rcdevice5KeySimulationProcess(timeUs_t currentTimeUs)
 
         rcdeviceCamSimulationKeyEvent_e key = RCDEVICE_CAM_KEY_NONE;
 
-        if (IS_MID(THROTTLE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_LO(YAW)) { // Disconnect Lo YAW
+        if (IS_MID(COLLECTIVE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_LO(YAW)) { // Disconnect Lo YAW
             if (rcdeviceInMenu) {
                 key = RCDEVICE_CAM_KEY_CONNECTION_CLOSE;
             }
@@ -266,11 +266,11 @@ static void rcdevice5KeySimulationProcess(timeUs_t currentTimeUs)
                     key = RCDEVICE_CAM_KEY_RIGHT;
                 } else if (IS_LO(PITCH)) { // Down LO PITCH
                     key = RCDEVICE_CAM_KEY_DOWN;
-                } else if (IS_MID(THROTTLE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_HI(YAW)) { // Enter HI YAW
+                } else if (IS_MID(COLLECTIVE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_HI(YAW)) { // Enter HI YAW
                     key = RCDEVICE_CAM_KEY_ENTER;
                 }
             } else {
-                if (IS_MID(THROTTLE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_HI(YAW)) { // Enter HI YAW
+                if (IS_MID(COLLECTIVE) && IS_MID(ROLL) && IS_MID(PITCH) && IS_HI(YAW)) { // Enter HI YAW
                     key = RCDEVICE_CAM_KEY_CONNECTION_OPEN;
                 }
             }

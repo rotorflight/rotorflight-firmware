@@ -1256,8 +1256,8 @@ static void osdElementRcChannels(osdElementParms_t *element)
 
     for (int i = 0; i < OSD_RCCHANNELS_COUNT; i++) {
         if (osdConfig()->rcChannels[i] >= 0) {
-            // Translate (1000, 2000) to (-1000, 1000)
-            int data = scaleRange(rcData[osdConfig()->rcChannels[i]], PWM_RANGE_MIN, PWM_RANGE_MAX, -1000, 1000);
+            // Translate to (-1000, 1000)
+            int data = rcCommand[osdConfig()->rcChannels[i]] * 2;
             // Opt for the simplest formatting for now.
             // Decimal notation can be added when tfp_sprintf supports float among fancy options.
             char fmtbuf[6];
@@ -1336,7 +1336,7 @@ static void osdElementStickOverlay(osdElementParms_t *element)
     const uint8_t ypos = element->elemPosY;
 
     // Now draw the cursor
-    rc_alias_e vertical_channel, horizontal_channel;
+    uint8_t vertical_channel, horizontal_channel;
 
     if (element->item == OSD_STICK_OVERLAY_LEFT) {
         vertical_channel = radioModes[osdConfig()->overlay_radio_mode-1].left_vertical;
@@ -1346,8 +1346,8 @@ static void osdElementStickOverlay(osdElementParms_t *element)
         horizontal_channel = radioModes[osdConfig()->overlay_radio_mode-1].right_horizontal;
     }
 
-    const uint8_t cursorX = scaleRange(constrain(rcData[horizontal_channel], PWM_RANGE_MIN, PWM_RANGE_MAX - 1), PWM_RANGE_MIN, PWM_RANGE_MAX, 0, OSD_STICK_OVERLAY_WIDTH);
-    const uint8_t cursorY = OSD_STICK_OVERLAY_VERTICAL_POSITIONS - 1 - scaleRange(constrain(rcData[vertical_channel], PWM_RANGE_MIN, PWM_RANGE_MAX - 1), PWM_RANGE_MIN, PWM_RANGE_MAX, 0, OSD_STICK_OVERLAY_VERTICAL_POSITIONS);
+    const uint8_t cursorX = scaleRange(constrain(rcCommand[horizontal_channel], RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX - 1), RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX, 0, OSD_STICK_OVERLAY_WIDTH);
+    const uint8_t cursorY = OSD_STICK_OVERLAY_VERTICAL_POSITIONS - 1 - scaleRange(constrain(rcCommand[vertical_channel], RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX - 1), RC_CMD_RANGE_MIN, RC_CMD_RANGE_MAX, 0, OSD_STICK_OVERLAY_VERTICAL_POSITIONS);
     const char cursor = SYM_STICK_OVERLAY_SPRITE_HIGH + (cursorY % OSD_STICK_OVERLAY_SPRITE_HEIGHT);
 
     osdDisplayWriteChar(element, xpos + cursorX, ypos + cursorY / OSD_STICK_OVERLAY_SPRITE_HEIGHT, DISPLAYPORT_ATTR_NONE, cursor);
@@ -1358,7 +1358,7 @@ static void osdElementStickOverlay(osdElementParms_t *element)
 
 static void osdElementThrottlePosition(osdElementParms_t *element)
 {
-    tfp_sprintf(element->buff, "%c%3d", SYM_THR, calculateThrottlePercent());
+    tfp_sprintf(element->buff, "%c%3d", SYM_THR, getThrottlePercent());
 }
 
 static void osdElementTimer(osdElementParms_t *element)

@@ -222,7 +222,7 @@ static inline int32_t applyDeadband(const int32_t value, const int32_t deadband)
         return value - deadband;
     else if (value < -deadband)
         return value + deadband;
-    return value;
+    return 0;
 }
 
 static inline float fapplyDeadband(const float value, const float deadband)
@@ -231,7 +231,7 @@ static inline float fapplyDeadband(const float value, const float deadband)
         return value - deadband;
     else if (value < -deadband)
         return value + deadband;
-    return value;
+    return 0;
 }
 
 static inline float transition(const float src, const float srcMin, const float srcMax,

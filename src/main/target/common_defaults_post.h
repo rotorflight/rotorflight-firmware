@@ -258,10 +258,6 @@
 #define SERIALRX_PROVIDER 0
 #endif
 
-#define RX_MIN_USEC 885
-#define RX_MAX_USEC 2115
-#define RX_MID_USEC 1500
-
 #ifndef SPEKTRUM_BIND_PIN
 #define SPEKTRUM_BIND_PIN NONE
 #endif

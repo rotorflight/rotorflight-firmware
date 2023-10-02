@@ -1257,7 +1257,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RC:
         for (int i = 0; i < rxRuntimeState.channelCount; i++) {
-            sbufWriteU16(dst, rcData[i]);
+            sbufWriteU16(dst, lrintf(rcInput[i]));
+        }
+        break;
+
+    case MSP_RC_COMMAND:
+        for (int i = 0; i < CONTROL_CHANNEL_COUNT; i++) {
+            sbufWriteU16(dst, lrintf(rcCommand[i]));
+        }
+        break;
+
+    case MSP_RX_CHANNELS:
+        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
+            sbufWriteU16(dst, lrintf(rcRawChannel[i]));
         }
         break;
 
@@ -1518,11 +1530,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, rxConfig()->serialrx_provider);
         sbufWriteU8(dst, rxConfig()->serialrx_inverted);
         sbufWriteU8(dst, rxConfig()->halfDuplex);
-        sbufWriteU16(dst, rxConfig()->maxcheck);
-        sbufWriteU16(dst, rxConfig()->midrc);
-        sbufWriteU16(dst, rxConfig()->mincheck);
-        sbufWriteU16(dst, rxConfig()->rx_min_usec);
-        sbufWriteU16(dst, rxConfig()->rx_max_usec);
+        sbufWriteU16(dst, rxConfig()->rx_pulse_min);
+        sbufWriteU16(dst, rxConfig()->rx_pulse_max);
 #ifdef USE_RX_SPI
         sbufWriteU8(dst, rxSpiConfig()->rx_spi_protocol);
         sbufWriteU32(dst, rxSpiConfig()->rx_spi_id);
@@ -1561,10 +1570,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteData(dst, rxConfig()->rcmap, RX_MAPPABLE_CHANNEL_COUNT);
         break;
 
-    case MSP_RX_CHANNELS:
-        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
-            sbufWriteU16(dst, rxChannel[i]);
-        }
+    case MSP_RC_CONFIG:
+        sbufWriteU16(dst, rcControlsConfig()->rc_center);
+        sbufWriteU16(dst, rcControlsConfig()->rc_deflection);
+        sbufWriteU16(dst, rcControlsConfig()->rc_min_throttle);
+        sbufWriteU16(dst, rcControlsConfig()->rc_max_throttle);
+        sbufWriteU8(dst, rcControlsConfig()->rc_deadband);
+        sbufWriteU8(dst, rcControlsConfig()->rc_yaw_deadband);
         break;
 
     case MSP_TELEMETRY_CONFIG:
@@ -1683,12 +1695,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_SDCARD_SUMMARY:
         serializeSDCardSummaryReply(dst);
         break;
-
-    case MSP_RC_DEADBAND:
-        sbufWriteU8(dst, rcControlsConfig()->deadband);
-        sbufWriteU8(dst, rcControlsConfig()->yaw_deadband);
-        break;
-
 
     case MSP_SENSOR_ALIGNMENT:
 #ifdef USE_MULTI_GYRO
@@ -2434,11 +2440,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
-    case MSP_SET_RC_DEADBAND:
-        rcControlsConfigMutable()->deadband = sbufReadU8(src);
-        rcControlsConfigMutable()->yaw_deadband = sbufReadU8(src);
-        break;
-
     case MSP_SET_RESET_CURR_PID:
         resetPidProfile(currentPidProfile);
         break;
@@ -2998,11 +2999,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         rxConfigMutable()->serialrx_provider = sbufReadU8(src);
         rxConfigMutable()->serialrx_inverted = sbufReadU8(src);
         rxConfigMutable()->halfDuplex = sbufReadU8(src);
-        rxConfigMutable()->maxcheck = sbufReadU16(src);
-        rxConfigMutable()->midrc = sbufReadU16(src);
-        rxConfigMutable()->mincheck = sbufReadU16(src);
-        rxConfigMutable()->rx_min_usec = sbufReadU16(src);
-        rxConfigMutable()->rx_max_usec = sbufReadU16(src);
+        rxConfigMutable()->rx_pulse_min = sbufReadU16(src);
+        rxConfigMutable()->rx_pulse_max = sbufReadU16(src);
 #ifdef USE_RX_SPI
         rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
         rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
@@ -3044,6 +3042,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         for (int i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++) {
             rxConfigMutable()->rcmap[i] = sbufReadU8(src);
         }
+        break;
+
+    case MSP_SET_RC_CONFIG:
+        rcControlsConfigMutable()->rc_center = sbufReadU16(src);
+        rcControlsConfigMutable()->rc_deflection = sbufReadU16(src);
+        rcControlsConfigMutable()->rc_min_throttle = sbufReadU16(src);
+        rcControlsConfigMutable()->rc_max_throttle = sbufReadU16(src);
+        rcControlsConfigMutable()->rc_deadband = sbufReadU8(src);
+        rcControlsConfigMutable()->rc_yaw_deadband = sbufReadU8(src);
         break;
 
     case MSP_SET_TELEMETRY_CONFIG:

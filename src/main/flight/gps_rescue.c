@@ -231,12 +231,12 @@ static void idleTasks()
     // Store the max distance to home during normal flight so we know if a flyaway is happening
     rescueState.sensor.maxDistanceToHomeM = MAX(rescueState.sensor.distanceToHomeM, rescueState.sensor.maxDistanceToHomeM);
 
-    rescueThrottle = rcCommand[THROTTLE];
+    rescueThrottle = getThrottleCommand();
 
     //to do: have a default value for hoverThrottle
 
-    // FIXME: GPS Rescue throttle handling should take into account min_check as the
-    // active throttle is from min_check through PWM_RANGE_MAX. Currently adjusting for this
+    // FIXME: GPS Rescue throttle handling should take into account rc_min_throttle as the
+    // active throttle is from rc_min_throttle through PWM_RANGE_MAX. Currently adjusting for this
     // in gpsRescueGetThrottle() but it would be better handled here.
 
     const float ct = getCosTiltAngle();
@@ -706,12 +706,10 @@ float gpsRescueGetYawRate(void)
 float gpsRescueGetThrottle(void)
 {
     // Calculated a desired commanded throttle scaled from 0.0 to 1.0 for use in the mixer.
-    // We need to compensate for min_check since the throttle value set by gps rescue
+    // We need to compensate for rc_min_throttle since the throttle value set by gps rescue
     // is based on the raw rcCommand value commanded by the pilot.
-    float commandedThrottle = scaleRangef(rescueThrottle, MAX(rxConfig()->mincheck, PWM_RANGE_MIN), PWM_RANGE_MAX, 0.0f, 1.0f);
-    commandedThrottle = constrainf(commandedThrottle, 0.0f, 1.0f);
-
-    return commandedThrottle;
+    float commandedThrottle = scaleRangef(rescueThrottle, rcControlsConfig()->rc_min_throttle, rcControlsConfig()->rc_max_throttle, 0.0f, 1.0f);
+    return constrainf(commandedThrottle, 0.0f, 1.0f);
 }
 
 bool gpsRescueIsConfigured(void)

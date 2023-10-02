@@ -27,22 +27,37 @@
 
 #include "drivers/io_types.h"
 
-#define STICK_CHANNEL_COUNT 4
+#define STICK_CHANNEL_COUNT     4
 
-#define PWM_RANGE_MIN 1000
-#define PWM_RANGE_MAX 2000
-#define PWM_RANGE (PWM_RANGE_MAX - PWM_RANGE_MIN)
-#define PWM_RANGE_MIDDLE (PWM_RANGE_MIN + (PWM_RANGE / 2))
+#define RX_PWM_PULSE_MIN        885
+#define RX_PWM_PULSE_MID        1500
+#define RX_PWM_PULSE_MAX        2115
 
-#define PWM_PULSE_MIN   750       // minimum PWM pulse width which is considered valid
-#define PWM_PULSE_MAX   2250      // maximum PWM pulse width which is considered valid
+#define RC_CENTER_DEFAULT       1500
+#define RC_DEFLECTION_DEFAULT   500
 
-#define PWM_SERVO_PULSE_MIN   375    // minimum PWM servo output pulse width allowed
-#define PWM_SERVO_PULSE_MAX   2250   // maximum PWM servo output pulse width allowed
+#define PWM_RANGE_MIN           1000
+#define PWM_RANGE_MAX           2000
+#define PWM_RANGE               1000
+#define PWM_RANGE_MIDDLE        1500
 
-#define RXFAIL_STEP_TO_CHANNEL_VALUE(step) (PWM_PULSE_MIN + 25 * step)
-#define CHANNEL_VALUE_TO_RXFAIL_STEP(channelValue) ((constrain(channelValue, PWM_PULSE_MIN, PWM_PULSE_MAX) - PWM_PULSE_MIN) / 25)
-#define MAX_RXFAIL_RANGE_STEP ((PWM_PULSE_MAX - PWM_PULSE_MIN) / 25)
+#define RC_CMD_RANGE_MIN        -500
+#define RC_CMD_RANGE_MAX        500
+#define RC_CMD_RANGE_MID        0
+
+#define PWM_PULSE_MIN           750       // minimum PWM pulse width which is considered valid
+#define PWM_PULSE_MAX           2250      // maximum PWM pulse width which is considered valid
+
+#define PWM_SERVO_PULSE_MIN     375       // minimum PWM servo output pulse width allowed
+#define PWM_SERVO_PULSE_MAX     2250      // maximum PWM servo output pulse width allowed
+
+#define RXFAIL_PULSE_MIN        875
+#define RXFAIL_PULSE_MAX        2150
+#define RXFAIL_RANGE_MAX        250
+
+#define RXFAIL_STEP_TO_CHANNEL_VALUE(step)          (RXFAIL_PULSE_MIN + 5 * (step))
+#define CHANNEL_VALUE_TO_RXFAIL_STEP(value)         (constrain(((value) - RXFAIL_PULSE_MIN) / 5, 0, RXFAIL_RANGE_MAX))
+
 
 typedef enum {
     RX_FRAME_PENDING = 0,
@@ -74,8 +89,8 @@ typedef enum {
 #define MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT  8
 #define MAX_SUPPORTED_RC_CHANNEL_COUNT              18
 
-#define NON_AUX_CHANNEL_COUNT 5
-#define MAX_AUX_CHANNEL_COUNT (MAX_SUPPORTED_RC_CHANNEL_COUNT - NON_AUX_CHANNEL_COUNT)
+#define CONTROL_CHANNEL_COUNT 5
+#define MAX_AUX_CHANNEL_COUNT (MAX_SUPPORTED_RC_CHANNEL_COUNT - CONTROL_CHANNEL_COUNT)
 
 #if MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT > MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT
 #define MAX_SUPPORTED_RX_PARALLEL_PWM_OR_PPM_CHANNEL_COUNT MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT
@@ -85,8 +100,9 @@ typedef enum {
 
 extern const char rcChannelLetters[];
 
-extern float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // interval [1000;2000]
-extern float rxChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+extern float rcRawChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+extern float rcChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+extern float rcInput[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 
 #define RSSI_SCALE_MIN 1
 #define RSSI_SCALE_MAX 255
@@ -115,13 +131,6 @@ typedef struct rxFailsafeChannelConfig_s {
 } rxFailsafeChannelConfig_t;
 
 PG_DECLARE_ARRAY(rxFailsafeChannelConfig_t, MAX_SUPPORTED_RC_CHANNEL_COUNT, rxFailsafeChannelConfigs);
-
-typedef struct rxChannelRangeConfig_s {
-    uint16_t min;
-    uint16_t max;
-} rxChannelRangeConfig_t;
-
-PG_DECLARE_ARRAY(rxChannelRangeConfig_t, NON_AUX_CHANNEL_COUNT, rxChannelRangeConfigs);
 
 struct rxRuntimeState_s;
 typedef float (*rcReadRawDataFnPtr)(const struct rxRuntimeState_s *rxRuntimeState, uint8_t chan); // used by receiver driver to return channel data
@@ -211,8 +220,6 @@ uint8_t rxGetRfMode(void);
 
 void rxSetUplinkTxPwrMw(uint16_t uplinkTxPwrMwValue);
 uint16_t rxGetUplinkTxPwrMw(void);
-
-void resetAllRxChannelRangeConfigurations(rxChannelRangeConfig_t *rxChannelRangeConfig);
 
 void suspendRxSignal(void);
 void resumeRxSignal(void);

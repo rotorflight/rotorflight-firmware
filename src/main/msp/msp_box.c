@@ -97,7 +97,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXTRAINER, "TRAINER", 47),
     BOXITEM(BOXVTXCONTROLDISABLE, "VTX CONTROL DISABLE", 48),
 //    BOXITEM(BOXLAUNCHCONTROL, "LAUNCH CONTROL", 49),
-    BOXITEM(BOXMSPOVERRIDE, "MSP OVERRIDE", 50),
+//    BOXITEM(BOXMSPOVERRIDE, "MSP OVERRIDE", 50),
     BOXITEM(BOXSTICKCOMMANDDISABLE, "STICK COMMANDS DISABLE", 51),
     BOXITEM(BOXBEEPERMUTE, "BEEPER MUTE", 52),
     BOXITEM(BOXRESCUE, "RESCUE", 53),
@@ -262,12 +262,6 @@ void initActiveBoxIds(void)
                 }
             }
         }
-    }
-#endif
-
-#if defined(USE_RX_MSP_OVERRIDE)
-    if (rxConfig()->msp_override_channels_mask) {
-        BME(BOXMSPOVERRIDE);
     }
 #endif
 

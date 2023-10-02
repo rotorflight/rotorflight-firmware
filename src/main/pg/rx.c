@@ -38,32 +38,27 @@ PG_REGISTER_WITH_RESET_FN(rxConfig_t, rxConfig, PG_RX_CONFIG, 3);
 void pgResetFn_rxConfig(rxConfig_t *rxConfig)
 {
     RESET_CONFIG_2(rxConfig_t, rxConfig,
-        .halfDuplex = 0,
         .serialrx_provider = SERIALRX_PROVIDER,
         .serialrx_inverted = 0,
-        .spektrum_bind_pin_override_ioTag = IO_TAG(SPEKTRUM_BIND_PIN),
-        .spektrum_bind_plug_ioTag = IO_TAG(BINDPLUG_PIN),
-        .spektrum_sat_bind = 0,
-        .spektrum_sat_bind_autoreset = 1,
-        .midrc = RX_MID_USEC,
-        .mincheck = 1050,
-        .maxcheck = 1950,
-        .rx_min_usec = RX_MIN_USEC,          // any of first 4 channels below this value will trigger rx loss detection
-        .rx_max_usec = RX_MAX_USEC,         // any of first 4 channels above this value will trigger rx loss detection
-        .rx_smoothness = 40,
+        .halfDuplex = 0,
+        .rx_pulse_min = RX_PWM_PULSE_MIN,
+        .rx_pulse_max = RX_PWM_PULSE_MAX,
         .rssi_src_frame_errors = false,
         .rssi_channel = 0,
         .rssi_scale = RSSI_SCALE_DEFAULT,
         .rssi_offset = 0,
         .rssi_invert = 0,
         .rssi_src_frame_lpf_period = 30,
-        .max_aux_channel = DEFAULT_AUX_CHANNEL_COUNT,
+        .spektrum_bind_pin_override_ioTag = IO_TAG(SPEKTRUM_BIND_PIN),
+        .spektrum_bind_plug_ioTag = IO_TAG(BINDPLUG_PIN),
+        .spektrum_sat_bind = 0,
+        .spektrum_sat_bind_autoreset = 1,
         .srxl2_unit_id = 1,
         .srxl2_baud_fast = true,
         .sbus_baud_fast = false,
         .crsf_use_rx_snr = false,
-        .msp_override_channels_mask = 0,
         .crsf_use_negotiated_baud = false,
+        .crsf_flight_mode_reuse = 0,
     );
 
 #ifdef RX_CHANNELS_TAER
@@ -72,5 +67,18 @@ void pgResetFn_rxConfig(rxConfig_t *rxConfig)
     parseRcChannels("AETRC123", rxConfig);
 #endif
 }
+
+PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
+
+PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
+    .rc_center = RC_CENTER_DEFAULT,
+    .rc_deflection = RC_DEFLECTION_DEFAULT,
+    .rc_min_throttle = 1100,
+    .rc_max_throttle = 1900,
+    .rc_deadband = 0,
+    .rc_yaw_deadband = 0,
+    .rc_smoothness = 40,
+    .rc_threshold = { 70, 70, 70, 100 },
+);
 
 #endif

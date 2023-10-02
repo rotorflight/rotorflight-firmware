@@ -59,9 +59,9 @@
 #define RX_RANGE_COUNT                    4
 
 
-FAST_DATA_ZERO_INIT float rcCommand[5];                  // -500..+500 for RPYC and 0..1000 for THROTTLE
-FAST_DATA_ZERO_INIT float rcDeflection[5];               // -1..1 for RPYC, 0..1 for THROTTLE
+FAST_DATA_ZERO_INIT float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];           // -500..+500 for RPYCT, more for AUX
 
+static FAST_DATA_ZERO_INIT float rcDeflection[5];                              // -1..1 for RPYC, 0..1 for THROTTLE
 static FAST_DATA_ZERO_INIT float rcDeadband[4];
 
 static FAST_DATA_ZERO_INIT uint16_t currentRxRefreshRate;
@@ -87,6 +87,15 @@ float getRcDeflection(int axis)
     return rcDeflection[axis];
 }
 
+float getThrottle(void)
+{
+    return rcDeflection[THROTTLE];
+}
+
+throttleStatus_e getThrottleStatus(void)
+{
+    return (rcInput[THROTTLE] < rcControlsConfig()->rc_min_throttle) ? THROTTLE_LOW : THROTTLE_HIGH;
+}
 
 uint16_t getCurrentRxRefreshRate(void)
 {
@@ -106,7 +115,7 @@ float getAverageRxUpdateRate(void)
 
 static void updateRcChange(void)
 {
-    const uint16_t rcValue = lrintf(rcData[FD_ROLL]);
+    const uint16_t rcValue = lrintf(rcCommand[FD_ROLL]);
 
     if (rcValue == lastRcValue) {
         repeatCount++;
@@ -174,38 +183,52 @@ void updateRcRefreshRate(timeUs_t currentTimeUs)
 void updateRcCommands(void)
 {
     float data;
+    float range;
 
     setpointUpdateTiming(averageRxRefreshRate * currentMult);
 
-    // rcData => rcCommand => rcDeflection
+    // rcInput => rcDeflection => rcCommand
     for (int axis = 0; axis < 4; axis++) {
-        data = rcData[axis] - rxConfig()->midrc;
-        data = fapplyDeadband(data, rcDeadband[axis]);
+        // Center point
+        data = rcInput[axis] - rcControlsConfig()->rc_center;
 
-        // RC yaw rate and gyro yaw rate have opposite sign
+        // RC yaw rate and gyro yaw rate have opposite signs
         if (axis == FD_YAW)
             data = -data;
 
+        // Apply deadband
+        data = fapplyDeadband(data, rcDeadband[axis]);
+        range = rcControlsConfig()->rc_deflection - rcDeadband[axis];
+
+        // Deflection range is -1..1
+        rcDeflection[axis] = limitf(data / range, 1.0f);
+
         // rcCommand range is -500..500
-        rcCommand[axis] = constrainf(data, -500, 500);
-        rcDeflection[axis] = rcCommand[axis] / 500;
+        rcCommand[axis] = rcDeflection[axis] * 500;
 
         DEBUG(RC_COMMAND, axis, rcCommand[axis]);
     }
 
-    // throttle range is 0..1000
-    data = scaleRangef(rcData[THROTTLE], rxConfig()->mincheck, rxConfig()->maxcheck, 0, 1000);
-    rcCommand[THROTTLE] = constrainf(data, 0, 1000);
-    rcDeflection[THROTTLE] = rcCommand[THROTTLE] / 1000;
+    // Throttle deflection range is 0..1
+    data = scaleRangef(rcInput[THROTTLE], rcControlsConfig()->rc_min_throttle, rcControlsConfig()->rc_max_throttle, 0, 1);
+    rcDeflection[THROTTLE] = constrainf(data, 0, 1);
 
-    DEBUG(RC_COMMAND, THROTTLE, rcCommand[THROTTLE]);
+    // Throttle command range is -500..500 for compatibility with other channels
+    rcCommand[THROTTLE] = rcDeflection[THROTTLE] * 1000 - 500;
+
+    DEBUG(RC_COMMAND, THROTTLE, lrintf(rcDeflection[THROTTLE] * 1000));
+
+    // AUX channels
+    for (int axis = CONTROL_CHANNEL_COUNT; axis < MAX_SUPPORTED_RC_CHANNEL_COUNT; axis++) {
+        rcCommand[axis] = rcInput[axis] - rcControlsConfig()->rc_center;
+    }
 }
 
 INIT_CODE void initRcProcessing(void)
 {
-    rcDeadband[0] = rcControlsConfig()->deadband;
-    rcDeadband[1] = rcControlsConfig()->deadband;
-    rcDeadband[2] = rcControlsConfig()->yaw_deadband;
+    rcDeadband[0] = rcControlsConfig()->rc_deadband;
+    rcDeadband[1] = rcControlsConfig()->rc_deadband;
+    rcDeadband[2] = rcControlsConfig()->rc_yaw_deadband;
     rcDeadband[3] = 0;
 
     currentMult = 1;

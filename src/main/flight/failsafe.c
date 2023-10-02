@@ -247,7 +247,7 @@ void failsafeUpdateState(void)
             case FAILSAFE_IDLE:
                 if (armed) {
                     // Track throttle command below minimum time
-                    if (calculateThrottleStatus() != THROTTLE_LOW) {
+                    if (getThrottleStatus() != THROTTLE_LOW) {
                         failsafeState.throttleLowPeriod = millis() + failsafeConfig()->failsafe_throttle_low_delay * MILLIS_PER_TENTH_SECOND;
                     }
                     if (failsafeSwitchIsOn && (failsafeConfig()->failsafe_switch_mode == FAILSAFE_SWITCH_MODE_KILL)) {
@@ -346,7 +346,7 @@ void failsafeUpdateState(void)
 #ifdef USE_GPS_RESCUE
             case FAILSAFE_GPS_RESCUE:
                 if (receivingRxData) {
-                    if (areSticksActive(failsafeConfig()->failsafe_stick_threshold)) {
+                    if (isHandsOn()) {
                         //  this test requires stick inputs to be received during GPS Rescue see PR #7936 for rationale
                         failsafeState.phase = FAILSAFE_RX_LOSS_RECOVERED;
                         reprocessState = true;
@@ -386,7 +386,7 @@ void failsafeUpdateState(void)
                 break;
 
             case FAILSAFE_RX_LOSS_RECOVERED:
-                // Entering IDLE with the requirement that throttle first must be at min_check for failsafe_throttle_low_delay period.
+                // Entering IDLE with the requirement that throttle first must be at rc_min_throttle for failsafe_throttle_low_delay period.
                 // This is to prevent that JustDisarm is activated on the next iteration.
                 // Because that would have the effect of shutting down failsafe handling on intermittent connections.
                 failsafeState.throttleLowPeriod = millis() + failsafeConfig()->failsafe_throttle_low_delay * MILLIS_PER_TENTH_SECOND;

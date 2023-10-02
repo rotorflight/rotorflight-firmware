@@ -101,7 +101,7 @@ static float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoSmoothne
 
 void setpointUpdateTiming(float frameTimeUs)
 {
-    float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rxConfig()->rx_smoothness);
+    float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rcControlsConfig()->rc_smoothness);
 
     cutoff = MIN(sp.smoothCutoff, cutoff);
     cutoff = constrain(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
@@ -127,7 +127,7 @@ INIT_CODE void setpointInitProfile(void)
     }
 
     for (int i = 0; i < 4; i++) {
-        sp.movementThreshold[i] = sq(rcControlsConfig()->movement_threshold[i] / 1000.0f);
+        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
     }
 
     sp.smoothCutoff = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);

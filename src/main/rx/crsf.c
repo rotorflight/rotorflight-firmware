@@ -622,7 +622,7 @@ bool crsfRxIsTelemetryBufEmpty(void)
 bool crsfRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
     for (int ii = 0; ii < CRSF_MAX_CHANNEL; ++ii) {
-        crsfChannelData[ii] = (16 * rxConfig->midrc) / 10 - 1408;
+        crsfChannelData[ii] = (16 * rcControlsConfig()->rc_center) / 10 - 1408;
     }
 
     rxRuntimeState->channelCount = CRSF_MAX_CHANNEL;

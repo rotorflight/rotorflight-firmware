@@ -108,7 +108,8 @@
 #define MSP_SET_ARMING_CONFIG                62
 #define MSP_RX_MAP                           64
 #define MSP_SET_RX_MAP                       65
-#define MSP_RX_CHANNELS                      66
+#define MSP_RC_CONFIG                        66
+#define MSP_SET_RC_CONFIG                    67
 
 #define MSP_REBOOT                           68
 
@@ -155,6 +156,8 @@
 #define MSP_ANALOG                           110
 #define MSP_RC_TUNING                        111
 #define MSP_PID_TUNING                       112
+#define MSP_RC_COMMAND                       113
+#define MSP_RX_CHANNELS                      114
 
 #define MSP_BOXNAMES                         116
 
@@ -164,7 +167,6 @@
 #define MSP_NAV_CONFIG                       122
 #define MSP_ESC_SENSOR_CONFIG                123
 
-#define MSP_RC_DEADBAND                      125
 #define MSP_SENSOR_ALIGNMENT                 126
 #define MSP_LED_STRIP_MODECOLOR              127
 #define MSP_VOLTAGE_METERS                   128
@@ -232,7 +234,6 @@
 #define MSP_SET_NAV_CONFIG                   215
 #define MSP_SET_ESC_SENSOR_CONFIG            216
 
-#define MSP_SET_RC_DEADBAND                  218
 #define MSP_SET_RESET_CURR_PID               219
 #define MSP_SET_SENSOR_ALIGNMENT             220
 #define MSP_SET_LED_STRIP_MODECOLOR          221

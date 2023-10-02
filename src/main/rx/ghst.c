@@ -316,7 +316,7 @@ static void ghstIdle()
 bool ghstRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
     for (int iChan = 0; iChan < GHST_MAX_NUM_CHANNELS; ++iChan) {
-        ghstChannelData[iChan] = (16 * rxConfig->midrc) / 10 - 1408;
+        ghstChannelData[iChan] = (16 * rcControlsConfig()->rc_center) / 10 - 1408;
     }
 
     rxRuntimeState->channelCount = GHST_MAX_NUM_CHANNELS;
