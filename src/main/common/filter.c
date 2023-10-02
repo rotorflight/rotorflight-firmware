@@ -56,14 +56,76 @@ void nilFilterInit(nilFilter_t *filter, float cutoff, float sampleRate)
 }
 
 
-// PT1 Low Pass filter
+/*
+ * PT1 Low Pass filter
+ *
+ * It is calculated like this:
+ *
+ *   yₙ = yₙ₋₁ + α(xₙ - yₙ₋₁)
+ *
+ * where
+ *
+ *   Fs = Sampling frequency
+ *   Fc = Cutoff frequency
+ *
+ *            Fc
+ *    ω = 2π⋅――――
+ *            Fs
+ *
+ *            1          ω           Fc
+ *    α = ――――――――― = ―――――――― = ――――――――――――
+ *         1/ω + 1     1 + ω      Fc + Fs/2π
+ *
+ *
+ * The transfer function is:
+ *
+ *                  α
+ *   H(z) = ―――――――――――――――――
+ *           1 - (1 - α)⋅z⁻¹
+ *
+ *
+ * This is a first order low-pass filter, which is transformed
+ * from s-domain to z-domain with the backwards difference method:
+ *
+ *         1     z - 1
+ *    s ← ――― ⋅ ―――――――
+ *         T       z
+ *
+ * This is also known as rectangular integration.
+ *
+ * Like the bilinear transform, it is warping frequencies, and
+ * the actual -3dB cutoff frequency can be calculated with
+ *
+ *          Fs         ⎡         α²    ⎤
+ *    Fg = ―――― ⋅ acos ⎢1 - ―――――――――――⎥
+ *          2π         ⎣     2⋅(1 - α) ⎦
+ *
+ *
+ * Or, α can be calculated from the required cutoff frequency:
+ *
+ *     α = cosω - 1 + √(cos²ω - 4⋅cosω + 3)
+ *
+ *
+ * This could be used for correcting the frequency warping, like it is
+ * done with the bilinear transform.
+ *
+ * HOWEVER!
+ *
+ * It is NOT done here, because:
+ *
+ *   - PTx filters have poor performance when cutoff frequency Fc is higher than Fs/10
+ *   - Pre-warping would limit the maximum cutoff to around 83% of Nyquist
+ *   - Nobody is using pre-warping with PT filters
+ *   - It would be surprising for developers
+ *
+ */
 
 float pt1FilterGain(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate / 2);
+    cutoff = limitCutoff(cutoff, sampleRate);
 
-    float omega = tan_approx(M_PIf * cutoff / sampleRate);
-    float alpha = 2.0f / (1.0f / omega + 1.0f);
+    float gamma = M_1_2PIf * sampleRate;
+    float alpha = cutoff / (cutoff + gamma);
 
     return fminf(alpha, 1.0f);
 }
@@ -184,10 +246,10 @@ FAST_CODE float pt3FilterApply(pt3Filter_t *filter, float input)
 
 float ewma1FilterWeight(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate / 2);
+    cutoff = limitCutoff(cutoff, sampleRate);
 
-    float omega = tan_approx(M_PIf * cutoff / sampleRate);
-    float weight = (1.0f / omega + 1.0f) / 2.0f;
+    float gamma = M_1_2PIf * sampleRate;
+    float weight = (cutoff + gamma) / cutoff;
 
     return fmaxf(weight, 1.0f);
 }

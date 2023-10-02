@@ -31,6 +31,7 @@
 #define M_PIf           3.14159265358979323846f
 #define M_PI2f          1.57079632679489661923f
 #define M_2PIf          6.28318530717958647693f
+#define M_1_2PIf        0.15915494309189533577f
 
 #define M_RADf          0.01745329251994329577f
 #define RAD             M_RADf
