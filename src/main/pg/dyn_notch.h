@@ -26,10 +26,10 @@
 
 typedef struct dynNotchConfig_s
 {
+    uint8_t  dyn_notch_count;
+    uint8_t  dyn_notch_q;
     uint16_t dyn_notch_min_hz;
     uint16_t dyn_notch_max_hz;
-    uint16_t dyn_notch_q;
-    uint8_t  dyn_notch_count;
 
 } dynNotchConfig_t;
 

@@ -59,7 +59,7 @@ typedef enum {
     FEATURE_GOVERNOR               = BIT(26),
     FEATURE_ESC_SENSOR             = BIT(27),
     FEATURE_FREQ_SENSOR            = BIT(28),
-    FEATURE_UNUSED_29              = BIT(29),
+    FEATURE_DYN_NOTCH              = BIT(29),
     FEATURE_RPM_FILTER             = BIT(30),
 } features_e;
 
@@ -77,7 +77,6 @@ typedef enum {
     FEATURE_UNUSED_22 | \
     FEATURE_UNUSED_23 | \
     FEATURE_UNUSED_24 | \
-    FEATURE_UNUSED_29 | \
     0)
 
 typedef struct featureConfig_s {

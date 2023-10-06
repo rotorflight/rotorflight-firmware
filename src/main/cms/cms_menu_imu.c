@@ -432,10 +432,10 @@ static const void *cmsx_menuDynFilt_onEnter(displayPort_t *pDisp)
     UNUSED(pDisp);
 
 #ifdef USE_DYN_NOTCH_FILTER
-    dynFiltNotchMaxHz   = dynNotchConfig()->dyn_notch_max_hz;
     dynFiltNotchCount   = dynNotchConfig()->dyn_notch_count;
     dynFiltNotchQ       = dynNotchConfig()->dyn_notch_q;
     dynFiltNotchMinHz   = dynNotchConfig()->dyn_notch_min_hz;
+    dynFiltNotchMaxHz   = dynNotchConfig()->dyn_notch_max_hz;
 #endif
 #ifdef USE_DYN_LPF
     gyroLpfDynMin       = gyroConfig()->gyro_lpf1_dyn_min_hz;
@@ -451,10 +451,10 @@ static const void *cmsx_menuDynFilt_onExit(displayPort_t *pDisp, const OSD_Entry
     UNUSED(self);
 
 #ifdef USE_DYN_NOTCH_FILTER
-    dynNotchConfigMutable()->dyn_notch_max_hz        = dynFiltNotchMaxHz;
     dynNotchConfigMutable()->dyn_notch_count         = dynFiltNotchCount;
     dynNotchConfigMutable()->dyn_notch_q             = dynFiltNotchQ;
     dynNotchConfigMutable()->dyn_notch_min_hz        = dynFiltNotchMinHz;
+    dynNotchConfigMutable()->dyn_notch_max_hz        = dynFiltNotchMaxHz;
 #endif
 #ifdef USE_DYN_LPF
     gyroConfigMutable()->gyro_lpf1_dyn_min_hz        = gyroLpfDynMin;
@@ -470,7 +470,7 @@ static const OSD_Entry cmsx_menuDynFiltEntries[] =
 
 #ifdef USE_DYN_NOTCH_FILTER
     { "NOTCH COUNT",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &dynFiltNotchCount,   0, DYN_NOTCH_COUNT_MAX, 1 } },
-    { "NOTCH Q",        OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltNotchQ,       1, 1000, 1 } },
+    { "NOTCH Q",        OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltNotchQ,       10, 100, 1 } },
     { "NOTCH MIN HZ",   OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltNotchMinHz,   60, 250, 1 } },
     { "NOTCH MAX HZ",   OME_UINT16, NULL, &(OSD_UINT16_t) { &dynFiltNotchMaxHz,   200, 1000, 1 } },
 #endif

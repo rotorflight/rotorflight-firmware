@@ -31,10 +31,9 @@
 #include "common/maths.h"
 #include "common/sdft.h"
 
-#define SDFT_R 0.9999f  // damping factor for guaranteed SDFT stability (r < 1.0f) 
+#define SDFT_R 0.9999f  // damping factor for guaranteed SDFT stability (r < 1.0f)
 
-static FAST_DATA_ZERO_INIT float     rPowerN;  // SDFT_R to the power of SDFT_SAMPLE_SIZE
-static FAST_DATA_ZERO_INIT bool      isInitialized;
+static FAST_DATA_ZERO_INIT float     rPowerN;
 static FAST_DATA_ZERO_INIT complex_t twiddle[SDFT_BIN_COUNT];
 
 static void applySqrt(const sdft_t *sdft, float *data);
@@ -43,15 +42,13 @@ static void updateEdges(sdft_t *sdft, const float value, const int batchIdx);
 
 void sdftInit(sdft_t *sdft, const int startBin, const int endBin, const int numBatches)
 {
-    if (!isInitialized) {
+    if (!rPowerN) {
         rPowerN = powf(SDFT_R, SDFT_SAMPLE_SIZE);
-        const float c = 2.0f * M_PIf / (float)SDFT_SAMPLE_SIZE;
-        float phi = 0.0f;
+        const float c = M_2PIf / SDFT_SAMPLE_SIZE;
         for (int i = 0; i < SDFT_BIN_COUNT; i++) {
-            phi = c * i;
+            const float phi = c * i;
             twiddle[i] = SDFT_R * (cos_approx(phi) + _Complex_I * sin_approx(phi));
         }
-        isInitialized = true;
     }
 
     sdft->idx = 0;
@@ -76,7 +73,7 @@ void sdftInit(sdft_t *sdft, const int startBin, const int endBin, const int numB
 FAST_CODE void sdftPush(sdft_t *sdft, const float sample)
 {
     const float delta = sample - rPowerN * sdft->samples[sdft->idx];
-    
+
     sdft->samples[sdft->idx] = sample;
     sdft->idx = (sdft->idx + 1) % SDFT_SAMPLE_SIZE;
 

@@ -407,6 +407,10 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_FREQ_SENSOR);
 #endif
 
+#ifndef USE_DYN_NOTCH_FILTER
+    featureDisableImmediate(FEATURE_DYN_NOTCH);
+#endif
+
 #ifndef USE_RPM_FILTER
     featureDisableImmediate(FEATURE_RPM_FILTER);
 #endif

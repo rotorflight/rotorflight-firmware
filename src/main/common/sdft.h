@@ -25,8 +25,11 @@
 
 #include <stdint.h>
 #include <complex.h>
-#undef I  // avoid collision of imaginary unit I with variable I in pid.h
-typedef float complex complex_t; // Better readability for type "float complex"
+
+// avoid collision of imaginary unit I with variable I in pid.h
+#undef I
+
+typedef float complex complex_t;
 
 #define SDFT_SAMPLE_SIZE 72
 #define SDFT_BIN_COUNT   (SDFT_SAMPLE_SIZE / 2)
@@ -38,6 +41,7 @@ typedef struct sdft_s {
     int endBin;
     int batchSize;
     int numBatches;
+
     float samples[SDFT_SAMPLE_SIZE];   // circular buffer
     complex_t data[SDFT_BIN_COUNT];    // complex frequency spectrum
 

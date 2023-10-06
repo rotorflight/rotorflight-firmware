@@ -34,6 +34,7 @@
 #include "platform.h"
 
 #ifdef USE_DYN_NOTCH_FILTER
+
 #include "build/debug.h"
 
 #include "common/axis.h"
@@ -153,12 +154,13 @@ static FAST_DATA_ZERO_INIT int     sdftStartBin;
 static FAST_DATA_ZERO_INIT int     sdftEndBin;
 
 
-void dynNotchInit(const dynNotchConfig_t *config, const float looprateHz)
+void dynNotchInit(const dynNotchConfig_t *config)
 {
+    const float looprateHz = gyro.filterRateHz;
     const float nyquistHz = looprateHz / 2.0f;
 
     // always initialise, since the dynamic notch could be activated at any time
-    dynNotch.q = config->dyn_notch_q / 100.0f;
+    dynNotch.q = config->dyn_notch_q / 10.0f;
     dynNotch.minHz = config->dyn_notch_min_hz;
     dynNotch.maxHz = MAX(dynNotch.minHz, config->dyn_notch_max_hz);
     dynNotch.maxHz = MIN(dynNotch.maxHz, nyquistHz); // Ensure to not go above the nyquist limit
@@ -202,18 +204,16 @@ void dynNotchInit(const dynNotchConfig_t *config, const float looprateHz)
     }
 }
 
-// Collect gyro data, to be downsampled and analysed in dynNotchUpdate() function
-FAST_CODE void dynNotchPush(const int axis, const float sample)
-{
-    sampleAccumulator[axis] += sample;
-}
-
 static void dynNotchProcess(void);
 
 // Downsample and analyse gyro data
 FAST_CODE void dynNotchUpdate(void)
 {
-    // samples should have been pushed by `dynNotchPush`
+    DEBUG(DYN_NOTCH_TIME, 7, sampleIndex);
+    DEBUG(DYN_NOTCH_TIME, 6, state.tick);
+
+    DEBUG_TIME_START(DYN_NOTCH_TIME, 0);
+
     // if gyro sampling is > 1kHz, accumulate and average multiple gyro samples
     if (sampleIndex == sampleCount) {
         sampleIndex = 0;
@@ -222,7 +222,7 @@ FAST_CODE void dynNotchUpdate(void)
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             sampleAvg[axis] = sampleAccumulator[axis] * sampleCountRcp;
             sampleAccumulator[axis] = 0;
-            DEBUG_AXIS(FFT, axis, 2, sampleAvg[axis]);
+            DEBUG_AXIS(DYN_NOTCH, axis, 3, sampleAvg[axis]);
         }
 
         // We need DYN_NOTCH_CALC_TICKS ticks to update all axes with newly sampled value
@@ -232,11 +232,16 @@ FAST_CODE void dynNotchUpdate(void)
         state.tick = DYN_NOTCH_CALC_TICKS;
     }
 
+
     // 2us @ F722
+    DEBUG_TIME_START(DYN_NOTCH_TIME, 1);
+
     // SDFT processing in batches to synchronize with incoming downsampled data
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         sdftPushBatch(&sdft[axis], sampleAvg[axis], sampleIndex);
     }
+    DEBUG_TIME_END(DYN_NOTCH_TIME, 1);
+
     sampleIndex++;
 
     // Find frequency peaks and update filters
@@ -244,25 +249,20 @@ FAST_CODE void dynNotchUpdate(void)
         dynNotchProcess();
         --state.tick;
     }
+
+    DEBUG_TIME_END(DYN_NOTCH_TIME, 0);
 }
 
 // Find frequency peaks and update filters
-static FAST_CODE_NOINLINE void dynNotchProcess(void)
+static FAST_CODE void dynNotchProcess(void)
 {
-    uint32_t startTime = 0;
-    if (debugMode == DEBUG_FFT_TIME) {
-        startTime = micros();
-    }
-
-    DEBUG_SET(DEBUG_FFT_TIME, 0, state.step);
+    DEBUG_TIME_START(DYN_NOTCH_TIME, state.step + 2); // 2-5
 
     switch (state.step) {
 
         case STEP_WINDOW: // 4.1us (3-6us) @ F722
         {
             sdftWinSq(&sdft[state.axis], sdftData);
-
-            DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
 
             break;
         }
@@ -293,8 +293,6 @@ static FAST_CODE_NOINLINE void dynNotchProcess(void)
                     bin++; // If bin is peak, next bin can't be peak => skip it
                 }
             }
-
-            DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
 
             break;
         }
@@ -332,14 +330,15 @@ static FAST_CODE_NOINLINE void dynNotchProcess(void)
             }
 
             if (state.axis == debugAxis) {
-                for (int p = 0; p < dynNotch.count && p < 7; p++) {
-                    DEBUG(FFT_FREQ, p + 1, lrintf(dynNotch.centerFreq[state.axis][p] * 10.0f)); // pre-dyn-notch gyro at index 0
+                for (int p = 0; p < dynNotch.count; p++) {
+                    if (p < 8) {
+                        DEBUG(DYN_NOTCH_FREQ, p, lrintf(dynNotch.centerFreq[state.axis][p] * 10.0f));
+                    }
+                    if (p < 4) {
+                        DEBUG(DYN_NOTCH, p+4, lrintf(dynNotch.centerFreq[state.axis][p]));
+                    }
                 }
-                DEBUG_SET(DEBUG_DYN_LPF, 1, lrintf(dynNotch.centerFreq[state.axis][0]));
             }
-
-            DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
-
             break;
         }
         case STEP_UPDATE_FILTERS: // 5.4us (2-9us) @ F722
@@ -351,20 +350,28 @@ static FAST_CODE_NOINLINE void dynNotchProcess(void)
                 }
             }
 
-            DEBUG_SET(DEBUG_FFT_TIME, 1, micros() - startTime);
-
             state.axis = (state.axis + 1) % XYZ_AXIS_COUNT;
+
+            break;
         }
     }
+
+    DEBUG_TIME_END(DYN_NOTCH_TIME, state.step + 2);
 
     state.step = (state.step + 1) % STEP_COUNT;
 }
 
 FAST_CODE float dynNotchFilter(const int axis, float value)
 {
+    sampleAccumulator[axis] += value;
+
+    DEBUG_AXIS(DYN_NOTCH, axis, 0, value);
+
     for (int p = 0; p < dynNotch.count; p++) {
         value = biquadFilterApplyDF1(&dynNotch.notch[axis][p], value);
     }
+
+    DEBUG_AXIS(DYN_NOTCH, axis, 1, value);
 
     return value;
 }

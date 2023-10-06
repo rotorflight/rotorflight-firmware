@@ -63,10 +63,6 @@
 
 #include "fc/runtime_config.h"
 
-#ifdef USE_DYN_NOTCH_FILTER
-#include "flight/dyn_notch_filter.h"
-#endif
-
 #include "pg/gyrodev.h"
 
 #include "sensors/gyro.h"
@@ -177,10 +173,6 @@ void gyroInitFilters(void)
         gyro.filterRateHz,
         0
     );
-
-#ifdef USE_DYN_NOTCH_FILTER
-    dynNotchInit(dynNotchConfig(), gyro.filterRateHz);
-#endif
 }
 
 #if defined(USE_GYRO_SLEW_LIMITER)
@@ -488,8 +480,6 @@ bool gyroInit(void)
     gyro.gyroHasOverflowProtection = true;
 
     switch (debugMode) {
-    case DEBUG_FFT:
-    case DEBUG_FFT_FREQ:
     case DEBUG_GYRO_RAW:
     case DEBUG_GYRO_SCALED:
     case DEBUG_GYRO_FILTERED:

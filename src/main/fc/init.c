@@ -759,6 +759,12 @@ void init(void)
     }
 #endif
 
+#ifdef USE_DYN_NOTCH_FILTER
+    if (featureIsEnabled(FEATURE_DYN_NOTCH)) {
+        dynNotchInit(dynNotchConfig());
+    }
+#endif
+
     if (featureIsEnabled(FEATURE_GOVERNOR)) {
         governorInit(currentPidProfile);
     }

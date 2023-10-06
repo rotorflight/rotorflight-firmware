@@ -28,10 +28,10 @@
 
 #define DYN_NOTCH_COUNT_MAX 8
 
-void dynNotchInit(const dynNotchConfig_t *config, const float looprateHz);
-void dynNotchPush(const int axis, const float sample);
+void dynNotchInit(const dynNotchConfig_t *config);
 void dynNotchUpdate(void);
 float dynNotchFilter(const int axis, float value);
+
 bool isDynNotchActive(void);
 int getMaxFFT(void);
 void resetMaxFFT(void);

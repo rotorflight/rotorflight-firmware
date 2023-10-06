@@ -264,7 +264,7 @@ static const char * const featureNames[] = {
     [26] = "GOVERNOR",
     [27] = "ESC_SENSOR",
     [28] = "FREQ_SENSOR",
-    [29] = "",
+    [29] = "DYN_NOTCH",
     [30] = "RPM_FILTER",
     [31] = NULL
 };

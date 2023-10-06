@@ -47,28 +47,22 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
         gyroADCf = filterApply(&gyro.lowpass2Filter[axis], gyroADCf);
         gyroADCf = filterApply(&gyro.lowpassFilter[axis], gyroADCf);
 
+        // DEBUG_GYRO_SAMPLE(3) Record the post-LPF Filter value for the selected debug axis
+        GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 3, lrintf(gyroADCf));
+
         // apply notch filters
         gyroADCf = filterApply(&gyro.notchFilter2[axis], gyroADCf);
         gyroADCf = filterApply(&gyro.notchFilter1[axis], gyroADCf);
 
-        // DEBUG_GYRO_SAMPLE(3) Record the post-static notch and lowpass filter value for the selected debug axis
-        GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 3, lrintf(gyroADCf));
+        // DEBUG_GYRO_SAMPLE(4) Record the post-Notch Filter value for the selected debug axis
+        GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 4, lrintf(gyroADCf));
 
 #ifdef USE_DYN_NOTCH_FILTER
         if (isDynNotchActive()) {
-            if (axis == debugAxis) {
-                GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 0, lrintf(gyroADCf));
-                GYRO_FILTER_DEBUG_SET(DEBUG_FFT_FREQ, 0, lrintf(gyroADCf));
-                GYRO_FILTER_DEBUG_SET(DEBUG_DYN_LPF, 0, lrintf(gyroADCf));
-            }
-
-            dynNotchPush(axis, gyroADCf);
             gyroADCf = dynNotchFilter(axis, gyroADCf);
 
-            if (axis == debugAxis) {
-                GYRO_FILTER_DEBUG_SET(DEBUG_FFT, 1, lrintf(gyroADCf));
-                GYRO_FILTER_DEBUG_SET(DEBUG_DYN_LPF, 3, lrintf(gyroADCf));
-            }
+            // DEBUG_GYRO_SAMPLE(5) Record the post-Dyn Notch Filter value for the selected debug axis
+            GYRO_FILTER_AXIS_DEBUG_SET(axis, DEBUG_GYRO_SAMPLE, 5, lrintf(gyroADCf));
         }
 #endif
 
