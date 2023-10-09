@@ -522,40 +522,14 @@ void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
     DEBUG_SET(DEBUG_RX_SIGNAL_LOSS, 0, rxSignalReceived);
 }
 
-#if defined(USE_PWM) || defined(USE_PPM)
-static uint16_t calculateChannelMovingAverage(uint8_t chan, uint16_t sample)
-{
-    static int16_t rcSamples[MAX_SUPPORTED_RX_PARALLEL_PWM_OR_PPM_CHANNEL_COUNT][PPM_AND_PWM_SAMPLE_COUNT];
-    static int16_t rcInputMean[MAX_SUPPORTED_RX_PARALLEL_PWM_OR_PPM_CHANNEL_COUNT];
-    static bool rxSamplesCollected = false;
-
-    const uint8_t currentSampleIndex = rcSampleIndex % PPM_AND_PWM_SAMPLE_COUNT;
-
-    // update the recent samples and compute the average of them
-    rcSamples[chan][currentSampleIndex] = sample;
-
-    // avoid returning an incorrect average which would otherwise occur before enough samples
-    if (!rxSamplesCollected) {
-        if (rcSampleIndex < PPM_AND_PWM_SAMPLE_COUNT) {
-            return sample;
-        }
-        rxSamplesCollected = true;
-    }
-
-    rcInputMean[chan] = 0;
-    for (int sampleIndex = 0; sampleIndex < PPM_AND_PWM_SAMPLE_COUNT; sampleIndex++) {
-        rcInputMean[chan] += rcSamples[chan][sampleIndex];
-    }
-    return rcInputMean[chan] / PPM_AND_PWM_SAMPLE_COUNT;
-}
-#endif
-
 static uint16_t getRxfailValue(uint8_t channel)
 {
     const rxFailsafeChannelConfig_t *channelFailsafeConfig = rxFailsafeChannelConfigs(channel);
-    const bool failsafeAuxSwitch = IS_RC_MODE_ACTIVE(BOXFAILSAFE);
 
     switch (channelFailsafeConfig->mode) {
+    case RX_FAILSAFE_MODE_SET:
+        return RXFAIL_STEP_TO_CHANNEL_VALUE(channelFailsafeConfig->step);
+
     case RX_FAILSAFE_MODE_AUTO:
         switch (channel) {
         case ROLL:
@@ -568,16 +542,10 @@ static uint16_t getRxfailValue(uint8_t channel)
         }
 
     FALLTHROUGH;
-    default:
-    case RX_FAILSAFE_MODE_INVALID:
     case RX_FAILSAFE_MODE_HOLD:
-        if (failsafeAuxSwitch) {
-            return rcChannel[channel]; // current values are allowed through on held channels with switch induced failsafe
-        } else {
-            return rcInput[channel]; // last good value
-        }
-    case RX_FAILSAFE_MODE_SET:
-        return RXFAIL_STEP_TO_CHANNEL_VALUE(channelFailsafeConfig->step);
+    case RX_FAILSAFE_MODE_INVALID:
+    default:
+        return rcInput[channel]; // last good value
     }
 }
 
@@ -609,63 +577,34 @@ void detectAndApplySignalLossBehaviour(void)
 
         float sample = rcChannel[channel];
 
-        // if the whole packet is bad, consider all channels bad
-        const bool thisChannelValid = rxFlightChannelsValid && isPulseValid(sample);
+        // Failsafe switch causes control channels to go invalid
+        const bool thisChannelValid = rxSignalReceived && isPulseValid(sample) &&
+            !(failsafeAuxSwitch && channel < CONTROL_CHANNEL_COUNT);
 
         if (thisChannelValid) {
             //  reset the invalid pulse period timer for every good channel
             validRxSignalTimeout[channel] = currentTimeMs + MAX_INVALID_PULSE_TIME_MS;
         }
-
-       if (ARMING_FLAG(ARMED) && failsafeIsActive()) {
-            // while in failsafe Stage 2, whether Rx loss or switch induced, pass valid incoming flight channel values
-            // this allows GPS Rescue to detect the 30% requirement for termination
-            if (channel < CONTROL_CHANNEL_COUNT) {
-                if (!thisChannelValid) {
-                    if (channel == THROTTLE ) {
-                        sample = failsafeConfig()->failsafe_throttle; // stage 2 failsafe throttle value
-                    } else {
-                        sample = rcControlsConfig()->rc_center;
-                    }
-                }
-            } else {
-                //  During Stage 2, set aux channels as per Stage 1 configuration
-                sample = getRxfailValue(channel);
+        else {
+            // Stage 1 failsafe start
+            if (cmp32(currentTimeMs, validRxSignalTimeout[channel]) < 0) {
+                // HOLD last valid value on bad channel/s (300ms)
+                sample = rcInput[channel];
             }
-        } else {
-            if (failsafeAuxSwitch) {
+            // Stage 1 failsafe after timeout (300ms)
+            else {
+                // Set Stage 1 values
                 sample = getRxfailValue(channel);
-                //  set channels to Stage 1 values immediately failsafe switch is activated
-            } else if (!thisChannelValid) {
-                if (cmp32(currentTimeMs, validRxSignalTimeout[channel]) < 0) {
-                    // first 300ms of Stage 1 failsafe
-                    sample = rcInput[channel];
-                    //  HOLD last valid value on bad channel/s for MAX_INVALID_PULSE_TIME_MS (300ms)
-                } else {
-                    // remaining Stage 1 failsafe period after 300ms
-                    if (channel < CONTROL_CHANNEL_COUNT) {
-                        rxFlightChannelsValid = false;
-                        //  declare signal lost after 300ms of any one bad flight channel
-                    }
-                    sample = getRxfailValue(channel);
-                    // set channels that are invalid for more than 300ms to Stage 1 values
+
+                // declare signal lost of any one bad control channel
+                if (channel < CONTROL_CHANNEL_COUNT) {
+                    rxFlightChannelsValid = false;
                 }
             }
         }
 
-        sample = constrainf(sample, PWM_PULSE_MIN, PWM_PULSE_MAX);
-
-#if defined(USE_PWM) || defined(USE_PPM)
-        if (rxRuntimeState.rxProvider == RX_PROVIDER_PARALLEL_PWM || rxRuntimeState.rxProvider == RX_PROVIDER_PPM) {
-            //  smooth output for PWM and PPM using moving average
-            rcInput[channel] = calculateChannelMovingAverage(channel, sample);
-        } else
-#endif
-
-        {
-            //  set rcInput to either validated incoming values, or failsafe-modified values
-            rcInput[channel] = sample;
-        }
+        // Limit to accepted range
+        rcInput[channel] = constrainf(sample, PWM_PULSE_MIN, PWM_PULSE_MAX);
 
         if (channel < 8) {
             DEBUG(RC_DATA, channel, lrintf(sample));
@@ -673,11 +612,11 @@ void detectAndApplySignalLossBehaviour(void)
     }
 
     if (rxFlightChannelsValid) {
-        failsafeOnValidDataReceived();
         //  --> start the timer to exit stage 2 failsafe
+        failsafeOnValidDataReceived();
     } else {
-        failsafeOnValidDataFailed();
         //  -> start timer to enter stage2 failsafe
+        failsafeOnValidDataFailed();
     }
 
     DEBUG_SET(DEBUG_RX_SIGNAL_LOSS, 3, rcInput[THROTTLE]);

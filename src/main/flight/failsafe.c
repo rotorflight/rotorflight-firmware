@@ -131,7 +131,8 @@ bool failsafeIsActive(void) // real or switch-induced stage 2 failsafe
 
 void failsafeStartMonitoring(void)
 {
-    failsafeState.monitoring = true;
+    // RTFL: Keep disabled until code refactored
+    //failsafeState.monitoring = true;
 }
 
 static bool failsafeShouldHaveCausedLandingByNow(void)
