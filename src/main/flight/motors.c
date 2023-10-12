@@ -127,29 +127,24 @@ float getTailGearRatio(void)
     return tailGearRatio;
 }
 
-float getHeadSpeed(void)
+int getHeadSpeed(void)
 {
-    return fmaxf(headSpeed, 0);
+    return lrintf(headSpeed);
 }
 
-float getTailSpeed(void)
+int getTailSpeed(void)
 {
-    return fmaxf(tailSpeed, 0);
+    return lrintf(tailSpeed);
 }
 
 int getMotorRPM(uint8_t motor)
 {
-    return lrintf(fmaxf(motorRpm[motor], 0));
+    return lrintf(motorRpm[motor]);
 }
 
 float getMotorRPMf(uint8_t motor)
 {
-    return fmaxf(motorRpm[motor], 0);
-}
-
-int getMotorRawRPM(uint8_t motor)
-{
-    return lrintf(motorRpmRaw[motor]);
+    return motorRpm[motor];
 }
 
 float getMotorRawRPMf(uint8_t motor)
@@ -157,14 +152,9 @@ float getMotorRawRPMf(uint8_t motor)
     return motorRpmRaw[motor];
 }
 
-int calcMotorRPM(uint8_t motor, int erpm)
+int calcMotorRPM(uint8_t motor, int erpm100)
 {
-    return 100 * erpm / motorRpmDiv[motor];
-}
-
-float calcMotorRPMf(uint8_t motor, int erpm)
-{
-    return 100.0f * erpm / motorRpmDiv[motor];
+    return 100 * erpm100 / motorRpmDiv[motor];
 }
 
 
@@ -244,28 +234,28 @@ INIT_CODE void motorInit(void)
 
 /*** Runtime functions ***/
 
-static int getMotorERPM(uint8_t motor)
+static float getSensorRPMf(uint8_t motor)
 {
-    int erpm;
+    float erpm;
 
 #ifdef USE_FREQ_SENSOR
     if (motorRpmSource[motor] == RPM_SRC_FREQ_SENSOR)
-        erpm = getFreqSensorRPM(motor);
+        erpm = getFreqSensorFreq(motor) * 60;
     else
 #endif
 #ifdef USE_DSHOT_TELEMETRY
     if (motorRpmSource[motor] == RPM_SRC_DSHOT_TELEM)
-        erpm = getDshotTelemetry(motor);
+        erpm = getDshotTelemetry(motor) * 100;
     else
 #endif
 #ifdef USE_ESC_SENSOR
     if (motorRpmSource[motor] == RPM_SRC_ESC_SENSOR)
-        erpm = getEscSensorRPM(motor);
+        erpm = getEscSensorRPM(motor) * 100;
     else
 #endif
         erpm = 0;
 
-    return erpm;
+    return motorRpmFactor[motor] * erpm / motorRpmDiv[motor];
 }
 
 void motorUpdate(void)
@@ -284,9 +274,9 @@ void motorUpdate(void)
     motorWriteAll(motorOutput);
 
     for (int i = 0; i < motorCount; i++) {
-        motorRpmRaw[i] = calcMotorRPMf(i,getMotorERPM(i)) * motorRpmFactor[i];
-        motorRpm[i] = filterApply(&motorRpmFilter[i], motorRpmRaw[i]);
-        DEBUG_SET(DEBUG_RPM_SOURCE, i, lrintf(motorRpmRaw[i]));
+        motorRpmRaw[i] = getSensorRPMf(i);
+        motorRpm[i] = fmaxf(filterApply(&motorRpmFilter[i], motorRpmRaw[i]), 0);
+        DEBUG(RPM_SOURCE, i, motorRpmRaw[i]);
     }
 
     headSpeed = motorRpm[0] * mainGearRatio;

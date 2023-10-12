@@ -181,7 +181,7 @@ typedef struct
 uint16_t getMotorAveragePeriod(void)
 {
     uint16_t period_us;
-    float rpm = 0;
+    uint32_t rpm;
 
     if (!isRpmSourceActive()) {
         return SPEKTRUM_RPM_UNUSED;

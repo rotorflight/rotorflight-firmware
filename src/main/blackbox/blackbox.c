@@ -1181,8 +1181,8 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->voltage = getBatteryVoltageLatest();
     blackboxCurrent->current = getAmperageLatest();
 
-    blackboxCurrent->headspeed = lrintf(getHeadSpeed());
-    blackboxCurrent->tailspeed = lrintf(getTailSpeed());
+    blackboxCurrent->headspeed = getHeadSpeed();
+    blackboxCurrent->tailspeed = getTailSpeed();
 
     for (int i = 0; i < getMotorCount(); i++) {
         blackboxCurrent->motor[i] = getMotorOutput(i);

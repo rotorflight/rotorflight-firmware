@@ -389,7 +389,7 @@ void freqUpdate(void)
     }
 }
 
-float freqRead(uint8_t port)
+float getFreqSensorFreq(uint8_t port)
 {
     if (port < FREQ_SENSOR_PORT_COUNT) {
         return freqInputPorts[port].freq;
@@ -400,7 +400,7 @@ float freqRead(uint8_t port)
 uint16_t getFreqSensorRPM(uint8_t port)
 {
     if (port < FREQ_SENSOR_PORT_COUNT) {
-        // Return eRPM/100 as expected by RPM filter, msp, etc.
+        // Return eRPM/100 as expected by MSP, etc.
         return lrintf(freqInputPorts[port].freq * 0.6f);
     }
     return 0;

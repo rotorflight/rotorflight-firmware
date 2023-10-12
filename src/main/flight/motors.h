@@ -39,8 +39,8 @@ bool areMotorsRunning(void);
 bool isRpmSourceActive(void);
 bool isMotorRpmSourceActive(uint8_t motor);
 
-float getHeadSpeed(void);
-float getTailSpeed(void);
+int getHeadSpeed(void);
+int getTailSpeed(void);
 
 float getMainGearRatio(void);
 float getTailGearRatio(void);
@@ -48,11 +48,9 @@ float getTailGearRatio(void);
 int getMotorRPM(uint8_t motor);
 float getMotorRPMf(uint8_t motor);
 
-int getMotorRawRPM(uint8_t motor);
 float getMotorRawRPMf(uint8_t motor);
 
-int calcMotorRPM(uint8_t motor, int erpm);
-float calcMotorRPMf(uint8_t motor, int erpm);
+int calcMotorRPM(uint8_t motor, int erpm100);
 
 void rpmSourceInit(void);
 
