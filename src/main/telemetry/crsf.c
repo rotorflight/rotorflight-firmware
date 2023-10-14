@@ -52,6 +52,7 @@
 #include "flight/imu.h"
 #include "flight/motors.h"
 #include "flight/position.h"
+#include "flight/governor.h"
 
 #include "io/displayport_crsf.h"
 #include "io/gps.h"
@@ -66,6 +67,7 @@
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 #include "sensors/adcinternal.h"
+#include "sensors/esc_sensor.h"
 
 #include "telemetry/telemetry.h"
 #include "telemetry/msp_shared.h"
@@ -377,16 +379,31 @@ static void crsfFlightModeInfo(char *buf)
     tfp_sprintf(buf, "%s%c", flightMode, armChar);
 }
 
-static void crsfRpmInfo(char *buf)
+static void crsfHeadspeedInfo(char *buf)
 {
-    int val = lrintf(getHeadSpeed());
-    tfp_sprintf(buf, "RPM: %d", val);
+    int val = getHeadSpeed();
+    tfp_sprintf(buf, "%d", val);
 }
 
-static void crsfTempInfo(char *buf)
+static void crsfMCUTempInfo(char *buf)
 {
     int val = getCoreTemperatureCelsius();
-    tfp_sprintf(buf, "Temp: %dC", val);
+    tfp_sprintf(buf, "%d", val);
+}
+
+static void crsfESCTempInfo(char *buf)
+{
+    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
+    if (escData) {
+        int val = escData->temperature;
+        tfp_sprintf(buf, "%d", val);
+    }
+}
+
+static void crsfThrottleInfo(char *buf)
+{
+    int val = lrintf(getGovernorOutput() * 100);
+    tfp_sprintf(buf, "%d", val);
 }
 
 static void crsfAdjFuncInfo(char *buf)
@@ -394,23 +411,26 @@ static void crsfAdjFuncInfo(char *buf)
     if (getAdjustmentsRangeName()) {
         int fun = getAdjustmentsRangeFunc();
         int val = getAdjustmentsRangeValue();
-        tfp_sprintf(buf, "ADJ %d:%d", fun, val);
-    }
-    else {
-        buf[0] = 0;
+        tfp_sprintf(buf, "%d:%d", fun, val);
     }
 }
 
 void crsfFrameFlightMode(sbuf_t *dst)
 {
-    char buff[32];
+    char buff[32] = { 0, };
 
     switch (rxConfig()->crsf_flight_mode_reuse) {
-        case CRSF_FM_REUSE_RPM:
-            crsfRpmInfo(buff);
+        case CRSF_FM_REUSE_HEADSPEED:
+            crsfHeadspeedInfo(buff);
             break;
-        case CRSF_FM_REUSE_TEMP:
-            crsfTempInfo(buff);
+        case CRSF_FM_REUSE_MCU_TEMP:
+            crsfMCUTempInfo(buff);
+            break;
+        case CRSF_FM_REUSE_ESC_TEMP:
+            crsfESCTempInfo(buff);
+            break;
+        case CRSF_FM_REUSE_THROTTLE:
+            crsfThrottleInfo(buff);
             break;
         case CRSF_FM_REUSE_ADJFUNC:
             crsfAdjFuncInfo(buff);

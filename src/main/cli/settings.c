@@ -485,7 +485,7 @@ const char * const lookupTableSwashType[] = {
 };
 
 const char * const lookupTableCrsfFmReuse[] = {
-    "NONE", "RPM", "TEMP", "ADJFUNC",
+    "NONE", "HEADSPEED", "MCU_TEMP", "ESC_TEMP", "THROTTLE", "ADJFUNC",
 };
 
 const char * const lookupTableDtermMode[] = {
