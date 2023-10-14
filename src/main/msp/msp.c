@@ -1743,7 +1743,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, dynNotchConfig()->dyn_notch_max_hz);
 #else
         sbufWriteU8(dst, 0);
-        sbufWriteU16(dst, 0);
+        sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
