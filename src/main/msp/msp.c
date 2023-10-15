@@ -1743,7 +1743,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, dynNotchConfig()->dyn_notch_max_hz);
 #else
         sbufWriteU8(dst, 0);
-        sbufWriteU16(dst, 0);
+        sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
@@ -2483,7 +2483,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         dynNotchConfigMutable()->dyn_notch_max_hz = sbufReadU16(src);
 #else
         sbufReadU8(src);
-        sbufReadU16(src);
+        sbufReadU8(src);
         sbufReadU16(src);
         sbufReadU16(src);
 #endif
