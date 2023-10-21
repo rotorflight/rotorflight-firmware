@@ -68,8 +68,8 @@ static DMA_DATA_ZERO_INIT uint8_t flashWriteBuffer[FLASHFS_WRITE_BUFFER_SIZE];
  * The tail is advanced once a write is complete up to the location behind head. The tail is advanced
  * by a callback from the FLASH write routine. This prevents data being overwritten whilst a write is in progress.
  */
-static uint8_t bufferHead = 0;
-static volatile uint8_t bufferTail = 0;
+static uint16_t bufferHead = 0;
+static volatile uint16_t bufferTail = 0;
 
 /* Track if there is new data to write. Until the contents of the buffer have been completely
  * written flashfsFlushAsync() will be repeatedly called. The tail pointer is only updated
@@ -344,7 +344,7 @@ uint32_t flashfsGetOffset(void)
  * Returns true if all data in the buffer has been flushed to the device, or false if
  * there is still data to be written (call flush again later).
  */
-bool flashfsFlushAsync(bool force)
+bool flashfsFlushAsync(void)
 {
     uint8_t const * buffers[2];
     uint32_t bufferSizes[2];
@@ -354,7 +354,7 @@ bool flashfsFlushAsync(bool force)
         return true; // Nothing to flush
     }
 
-    if (!flashfsNewData()) {
+    if (!flashfsNewData() || !flashIsReady()) {
         // The previous write has yet to complete
         return false;
     }
@@ -374,9 +374,7 @@ bool flashfsFlushAsync(bool force)
 #endif
 
     bufCount = flashfsGetDirtyDataBuffers(buffers, bufferSizes);
-    uint32_t bufferedBytes = bufferSizes[0] + bufferSizes[1];
-
-    if (bufCount && (force || (bufferedBytes >= FLASHFS_WRITE_BUFFER_AUTO_FLUSH_LEN))) {
+    if (bufCount) {
         flashfsWriteBuffers(buffers, bufferSizes, bufCount, false);
     }
 
@@ -450,10 +448,6 @@ void flashfsWriteByte(uint8_t byte)
     if (bufferHead >= FLASHFS_WRITE_BUFFER_SIZE) {
         bufferHead = 0;
     }
-
-    if (flashfsTransmitBufferUsed() >= FLASHFS_WRITE_BUFFER_AUTO_FLUSH_LEN) {
-        flashfsFlushAsync(false);
-    }
 }
 
 /**
@@ -462,28 +456,11 @@ void flashfsWriteByte(uint8_t byte)
  * If writing asynchronously, data will be silently discarded if the buffer overflows.
  * If writing synchronously, the routine will block waiting for the flash to become ready so will never drop data.
  */
-void flashfsWrite(const uint8_t *data, unsigned int len, bool sync)
+void flashfsWrite(const uint8_t *data, unsigned int len)
 {
-    uint8_t const * buffers[2];
-    uint32_t bufferSizes[2];
-    int bufCount;
-    uint32_t totalBufSize;
-
     // Buffer up the data the user supplied instead of writing it right away
     for (unsigned int i = 0; i < len; i++) {
         flashfsWriteByte(data[i]);
-    }
-
-    // There could be two dirty buffers to write out already:
-    bufCount = flashfsGetDirtyDataBuffers(buffers, bufferSizes);
-    totalBufSize = bufferSizes[0] + bufferSizes[1];
-
-    /*
-     * Would writing this data to our buffer cause our buffer to reach the flush threshold? If so try to write through
-     * to the flash now
-     */
-    if (bufCount && (totalBufSize >= FLASHFS_WRITE_BUFFER_AUTO_FLUSH_LEN)) {
-        flashfsWriteBuffers(buffers, bufferSizes, bufCount, sync);
     }
 }
 
@@ -638,7 +615,7 @@ bool flashfsVerifyEntireFlash(void)
 
     for (address = 0; address < testLimit; address += bufferSize) {
         tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", address);
-        flashfsWrite((uint8_t*)buffer, strlen(buffer), true);
+        flashfsWrite((uint8_t*)buffer, strlen(buffer));
     }
     flashfsFlushSync();
     flashfsClose();

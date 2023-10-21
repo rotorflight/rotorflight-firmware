@@ -2745,7 +2745,7 @@ static void cliFlashWrite(const char *cmdName, char *cmdline)
         cliShowInvalidArgumentCountError(cmdName);
     } else {
         flashfsSeekAbs(address);
-        flashfsWrite((uint8_t*)text, strlen(text), true);
+        flashfsWrite((uint8_t*)text, strlen(text));
         flashfsFlushSync();
 
         cliPrintLinef("Wrote %u bytes at %u.", strlen(text), address);
