@@ -35,6 +35,9 @@
 #include "drivers/io.h"
 #include "drivers/time.h"
 
+// 104MHz max SPI frequency
+#define W25N01G_MAX_SPI_CLK_HZ 104000000
+
 // Device size parameters
 #define W25N01G_PAGE_SIZE         2048
 #define W25N01G_PAGES_PER_BLOCK   64
@@ -913,6 +916,7 @@ void w25n01g_writeBBLUT(flashDevice_t *fdevice, uint16_t lba, uint16_t pba)
 
 static void w25n01g_deviceInit(flashDevice_t *flashdev)
 {
-    UNUSED(flashdev);
+    // Adjust the SPI bus clock frequency
+    spiSetClkDivisor(flashdev->io.handle.dev, spiCalculateDivider(W25N01G_MAX_SPI_CLK_HZ));
 }
 #endif
