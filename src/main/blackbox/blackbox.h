@@ -68,8 +68,9 @@ void blackboxLogEvent(FlightLogEvent event, union flightLogEventData_u *data);
 void blackboxLogCustomData(const uint8_t *ptr, size_t length);
 void blackboxLogCustomString(const char *ptr);
 
-void blackboxInit(void);
 void blackboxUpdate(timeUs_t currentTimeUs);
+void blackboxFlush(timeUs_t currentTimeUs);
+void blackboxInit(void);
 
 void blackboxErase(void);
 bool isBlackboxErased(void);

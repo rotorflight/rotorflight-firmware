@@ -1740,9 +1740,6 @@ static void blackboxLogIteration(timeUs_t currentTimeUs)
         }
     }
 #endif
-
-    // Flush every iteration so that our runtime variance is minimized
-    blackboxDeviceFlush();
 }
 
 void blackboxErase(void)
@@ -1944,6 +1941,13 @@ uint8_t blackboxGetRateDenom(void)
     return blackboxPInterval;
 }
 
+void blackboxFlush(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    // Flush every iteration so that our runtime variance is minimized
+    blackboxDeviceFlush();
+}
 
 /**
  * Call during system startup to initialize the blackbox.

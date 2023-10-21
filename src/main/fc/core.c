@@ -623,42 +623,6 @@ void processRxModes(timeUs_t currentTimeUs)
 #endif
 }
 
-static void subTaskPidController(timeUs_t currentTimeUs)
-{
-    DEBUG_TIME_START(PIDLOOP, 1);
-
-    pidController(currentPidProfile, currentTimeUs);
-
-    DEBUG_TIME_END(PIDLOOP, 1);
-}
-
-static void subTaskPidSubprocesses(timeUs_t currentTimeUs)
-{
-    DEBUG_TIME_START(PIDLOOP, 3);
-
-#ifdef USE_FREQ_SENSOR
-    freqUpdate();
-#endif
-
-#ifdef USE_DYN_LPF
-    dynLpfUpdate(currentTimeUs);
-#endif
-
-#ifdef USE_RPM_FILTER
-    rpmFilterUpdate();
-#endif
-
-#ifdef USE_BLACKBOX
-    if (!cliMode && blackboxConfig()->device) {
-        blackboxUpdate(currentTimeUs);
-    }
-#else
-    UNUSED(currentTimeUs);
-#endif
-
-    DEBUG_TIME_END(PIDLOOP, 3);
-}
-
 #ifdef USE_TELEMETRY
 #define GYRO_TEMP_READ_DELAY_US 3e6    // Only read the gyro temp every 3 seconds
 void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
@@ -672,35 +636,6 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
     }
 }
 #endif
-
-static void subTaskMixerUpdate(timeUs_t currentTimeUs)
-{
-    UNUSED(currentTimeUs);
-
-    DEBUG_TIME_START(PIDLOOP, 2);
-
-    if (debugMode == DEBUG_CYCLETIME) {
-        uint32_t startTime = micros();
-        static uint32_t previousUpdateTime;
-        const uint32_t currentDeltaTime = startTime - previousUpdateTime;
-        debug[2] = currentDeltaTime;
-        debug[3] = currentDeltaTime - gyro.targetLooptime;
-        previousUpdateTime = startTime;
-    }
-
-    mixerUpdate();
-
-    if (currentTimeUs > BOOTUP_GRACE_TIME_US) {
-#ifdef USE_SERVOS
-        servoUpdate();
-#endif
-#ifdef USE_MOTOR
-        motorUpdate();
-#endif
-    }
-
-    DEBUG_TIME_END(PIDLOOP, 2);
-}
 
 static void subTaskPosition(timeUs_t currentTimeUs)
 {
@@ -717,53 +652,289 @@ static void subTaskSetpoint(timeUs_t currentTimeUs)
     rescueUpdate();
 }
 
+static void subTaskPidController(timeUs_t currentTimeUs)
+{
+    if (debugMode == DEBUG_CYCLETIME) {
+        static uint32_t previousUpdateTime;
+        uint32_t startTime = micros();
+        uint32_t currentDeltaTime = startTime - previousUpdateTime;
+        debug[0] = getTaskDeltaTimeUs(TASK_SELF);
+        debug[1] = getAverageCPULoadPercent();
+        debug[2] = currentDeltaTime;
+        debug[3] = currentDeltaTime - gyro.targetLooptime;
+        previousUpdateTime = startTime;
+    }
+
+    pidController(currentPidProfile, currentTimeUs);
+
+}
+
+static void subTaskMixerUpdate(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    mixerUpdate();
+}
+
+static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    if (currentTimeUs > BOOTUP_GRACE_TIME_US) {
+#ifdef USE_SERVOS
+        servoUpdate();
+#endif
+#ifdef USE_MOTOR
+        motorUpdate();
+#endif
+    }
+}
+
+static void subTaskFilterUpdate(timeUs_t currentTimeUs)
+{
+#ifdef USE_FREQ_SENSOR
+    freqUpdate();
+#endif
+
+#ifdef USE_DYN_LPF
+    dynLpfUpdate(currentTimeUs);
+#endif
+
+#ifdef USE_RPM_FILTER
+    rpmFilterUpdate();
+#endif
+}
+
+static void subTaskBlackbox(timeUs_t currentTimeUs)
+{
+#ifdef USE_BLACKBOX
+    if (!cliMode && blackboxConfig()->device) {
+        blackboxUpdate(currentTimeUs);
+    }
+#else
+    UNUSED(currentTimeUs);
+#endif
+}
+
+static void subTaskFlush(timeUs_t currentTimeUs)
+{
+#ifdef USE_BLACKBOX
+    if (blackboxConfig()->device) {
+        blackboxFlush(currentTimeUs);
+    }
+#else
+    UNUSED(currentTimeUs);
+#endif
+}
+
 void taskGyroSample(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
-    gyroUpdate();
 
-    pidUpdateCounter = (pidUpdateCounter + 1) % activePidLoopDenom;
+    gyroUpdate();
 }
 
 bool gyroFilterReady(void)
 {
-    return ((pidUpdateCounter + 1) % activeFilterLoopDenom == 0);
+    return (pidUpdateCounter % activeFilterLoopDenom == 0);
 }
 
 bool pidLoopReady(void)
 {
-    return (pidUpdateCounter == 0);
+    return true;
 }
 
 void taskFiltering(timeUs_t currentTimeUs)
 {
+    DEBUG_TIME_START(CYCLETIME, 5);
+
+    if (debugMode == DEBUG_CYCLETIME) {
+        static uint32_t previousUpdateTime;
+        uint32_t startTime = micros();
+        uint32_t currentDeltaTime = startTime - previousUpdateTime;
+        debug[4] = getTaskDeltaTimeUs(TASK_SELF);
+        debug[6] = currentDeltaTime;
+        debug[7] = currentDeltaTime - gyro.filterLooptime;
+        previousUpdateTime = startTime;
+    }
+
     gyroFiltering(currentTimeUs);
 
+    DEBUG_TIME_END(CYCLETIME, 5);
 }
 
-// Function for loop trigger
 void taskMainPidLoop(timeUs_t currentTimeUs)
 {
+    DEBUG_TIME_START(PIDLOOP, pidUpdateCounter & 7);
 
-#if defined(SIMULATOR_BUILD) && defined(SIMULATOR_GYROPID_SYNC)
-    if (lockMainPID() != 0) return;
-#endif
+    if (activePidLoopDenom == 1) {
+        subTaskPosition(currentTimeUs);
+        subTaskSetpoint(currentTimeUs);
+        subTaskPidController(currentTimeUs);
+        subTaskMixerUpdate(currentTimeUs);
+        subTaskMotorsServosUpdate(currentTimeUs);
+        subTaskFilterUpdate(currentTimeUs);
+        subTaskBlackbox(currentTimeUs);
+        subTaskFlush(currentTimeUs);
+    }
+    else if (activePidLoopDenom == 2) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                subTaskPidController(currentTimeUs);
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 1:
+                subTaskMixerUpdate(currentTimeUs);
+                subTaskMotorsServosUpdate(currentTimeUs);
+                subTaskFilterUpdate(currentTimeUs);
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom == 3) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                subTaskPidController(currentTimeUs);
+                subTaskMixerUpdate(currentTimeUs);
+                break;
+            case 1:
+                subTaskMotorsServosUpdate(currentTimeUs);
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 2:
+                subTaskFilterUpdate(currentTimeUs);
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom == 4) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                subTaskPidController(currentTimeUs);
+                break;
+            case 1:
+                subTaskMixerUpdate(currentTimeUs);
+                subTaskMotorsServosUpdate(currentTimeUs);
+                break;
+            case 2:
+                subTaskFilterUpdate(currentTimeUs);
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 3:
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom == 5) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                subTaskPidController(currentTimeUs);
+                break;
+            case 1:
+                subTaskMixerUpdate(currentTimeUs);
+                break;
+            case 2:
+                subTaskMotorsServosUpdate(currentTimeUs);
+                subTaskFilterUpdate(currentTimeUs);
+                break;
+            case 3:
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 4:
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom == 6) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                break;
+            case 1:
+                subTaskPidController(currentTimeUs);
+                break;
+            case 2:
+                subTaskMixerUpdate(currentTimeUs);
+                break;
+            case 3:
+                subTaskMotorsServosUpdate(currentTimeUs);
+                subTaskFilterUpdate(currentTimeUs);
+                break;
+            case 4:
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 5:
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom == 7) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                subTaskSetpoint(currentTimeUs);
+                break;
+            case 1:
+                subTaskPidController(currentTimeUs);
+                break;
+            case 2:
+                subTaskMixerUpdate(currentTimeUs);
+                break;
+            case 3:
+                subTaskMotorsServosUpdate(currentTimeUs);
+                break;
+            case 4:
+                subTaskFilterUpdate(currentTimeUs);
+                break;
+            case 5:
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 6:
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
+    else if (activePidLoopDenom >= 8) {
+        switch (pidUpdateCounter) {
+            case 0:
+                subTaskPosition(currentTimeUs);
+                break;
+            case 1:
+                subTaskSetpoint(currentTimeUs);
+                break;
+            case 2:
+                subTaskPidController(currentTimeUs);
+                break;
+            case 3:
+                subTaskMixerUpdate(currentTimeUs);
+                break;
+            case 4:
+                subTaskMotorsServosUpdate(currentTimeUs);
+                break;
+            case 5:
+                subTaskFilterUpdate(currentTimeUs);
+                break;
+            case 6:
+                subTaskBlackbox(currentTimeUs);
+                break;
+            case 7:
+                subTaskFlush(currentTimeUs);
+                break;
+        }
+    }
 
-    // DEBUG_PIDLOOP, timings for:
-    // 0 - gyroUpdate()
-    // 1 - subTaskPidController()
-    // 2 - subTaskMixerUpdate()
-    // 3 - subTaskPidSubprocesses()
-    DEBUG_SET(DEBUG_PIDLOOP, 0, micros() - currentTimeUs);
+    DEBUG_TIME_END(PIDLOOP, pidUpdateCounter & 7);
 
-    subTaskPosition(currentTimeUs);
-    subTaskSetpoint(currentTimeUs);
-    subTaskPidController(currentTimeUs);
-    subTaskMixerUpdate(currentTimeUs);
-    subTaskPidSubprocesses(currentTimeUs);
-
-    DEBUG_SET(DEBUG_CYCLETIME, 0, getTaskDeltaTimeUs(TASK_SELF));
-    DEBUG_SET(DEBUG_CYCLETIME, 1, getAverageCPULoadPercent());
+    pidUpdateCounter = (pidUpdateCounter + 1) % activePidLoopDenom;
 }
 
 timeUs_t getLastDisarmTimeUs(void)

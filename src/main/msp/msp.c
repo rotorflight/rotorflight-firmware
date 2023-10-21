@@ -1030,7 +1030,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     switch (cmdMSP) {
     case MSP_STATUS:
         {
-            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_PID));
+            sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_PID) * pidConfig()->pid_process_denom);
             sbufWriteU16(dst, getTaskDeltaTimeUs(TASK_GYRO));
 
             sbufWriteU16(dst, sensors(SENSOR_ACC) << 0 |
