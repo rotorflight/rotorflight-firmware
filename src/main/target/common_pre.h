@@ -115,6 +115,7 @@
 #define USE_MCO
 #define USE_DMA_SPEC
 #define USE_TIMER_MGMT
+#define USE_PERSISTENT_OBJECTS
 #define USE_LATE_TASK_STATISTICS
 #endif
 
