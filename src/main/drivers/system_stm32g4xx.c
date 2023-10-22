@@ -84,31 +84,9 @@ void systemResetHard(void)
     NVIC_SystemReset();
 }
 
-void systemResetToBootloader(bootloaderRequestType_e requestType)
-{
-    switch (requestType) {
-    case BOOTLOADER_REQUEST_ROM:
-    default:
-        persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_BOOTLOADER_REQUEST_ROM);
-
-        break;
-    }
-
-    __disable_irq();
-    NVIC_SystemReset();
-}
-
 #define SYSMEMBOOT_VECTOR_TABLE ((uint32_t *)0x1fff0000)
-#define SYSMEMBOOT_LOADER       ((uint32_t *)0x1fff0000)
 
 typedef void *(*bootJumpPtr)(void);
-
-typedef void resetHandler_t(void);
-
-typedef struct isrVector_s {
-    __I uint32_t    stackEnd;
-    resetHandler_t *resetHandler;
-} isrVector_t;
 
 void systemJumpToBootloader(void)
 {
