@@ -70,10 +70,6 @@ static FAST_DATA_ZERO_INIT bool overflowDetected;
 static FAST_DATA_ZERO_INIT timeUs_t overflowTimeUs;
 #endif
 
-static FAST_DATA_ZERO_INIT float accumulatedMeasurements[XYZ_AXIS_COUNT];
-static FAST_DATA_ZERO_INIT float gyroPrevious[XYZ_AXIS_COUNT];
-static FAST_DATA_ZERO_INIT int accumulatedMeasurementCount;
-
 static FAST_DATA_ZERO_INIT int16_t gyroSensorTemperature;
 
 FAST_DATA uint8_t activePidLoopDenom = 1;
@@ -451,34 +447,6 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
         checkForOverflow(currentTimeUs);
     }
 #endif
-
-    if (!overflowDetected) {
-        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            // integrate using trapezium rule to avoid bias
-            accumulatedMeasurements[axis] += 0.5f * (gyroPrevious[axis] + gyro.gyroADCf[axis]) * gyro.filterLooptime;
-            gyroPrevious[axis] = gyro.gyroADCf[axis];
-        }
-        accumulatedMeasurementCount++;
-    }
-}
-
-bool gyroGetAccumulationAverage(float *accumulationAverage)
-{
-    if (accumulatedMeasurementCount) {
-        // If we have gyro data accumulated, calculate average rate that will yield the same rotation
-        const timeUs_t accumulatedMeasurementTimeUs = accumulatedMeasurementCount * gyro.filterLooptime;
-        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            accumulationAverage[axis] = accumulatedMeasurements[axis] / accumulatedMeasurementTimeUs;
-            accumulatedMeasurements[axis] = 0.0f;
-        }
-        accumulatedMeasurementCount = 0;
-        return true;
-    } else {
-        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            accumulationAverage[axis] = 0.0f;
-        }
-        return false;
-    }
 }
 
 int16_t gyroReadSensorTemperature(gyroSensor_t gyroSensor)
@@ -532,9 +500,9 @@ uint16_t gyroAbsRateDps(int axis)
 void dynLpfUpdate(timeUs_t currentTimeUs)
 {
     static timeUs_t lastDynLpfUpdateUs = 0;
-    const float ratio = getFullHeadSpeedRatio();
 
     if (gyro.dynLpfFilter) {
+        const float ratio = getFullHeadSpeedRatio();
         if (cmpTimeUs(currentTimeUs, lastDynLpfUpdateUs) >= DYN_LPF_UPDATE_DELAY_US) {
             const float cutoffFreq = constrainf(ratio * gyro.dynLpfHz, gyro.dynLpfMin, gyro.dynLpfMax);
             DEBUG_SET(DEBUG_DYN_LPF, 2, lrintf(cutoffFreq));

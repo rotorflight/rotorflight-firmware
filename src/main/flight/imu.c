@@ -344,7 +344,7 @@ static bool imuIsAccelerometerHealthy(float *accAverage)
 //   - wait for a 250ms period of low gyro activity to ensure the craft is not moving
 //   - use a large dcmKpGain value for 500ms to allow the attitude estimate to quickly converge
 //   - reset the gain back to the standard setting
-static float imuCalcKpGain(timeUs_t currentTimeUs, bool useAcc, float *gyroAverage)
+static float imuCalcKpGain(timeUs_t currentTimeUs, bool useAcc, const float *gyroAverage)
 {
     static bool lastArmState = false;
     static timeUs_t gyroQuietPeriodTimeEnd = 0;
@@ -502,18 +502,18 @@ static void imuCalculateEstimatedAttitude(timeUs_t currentTimeUs)
 //  printf("[imu]deltaT = %u, imuDeltaT = %u, currentTimeUs = %u, micros64_real = %lu\n", deltaT, imuDeltaT, currentTimeUs, micros64_real());
     deltaT = imuDeltaT;
 #endif
-    float gyroAverage[XYZ_AXIS_COUNT];
-    gyroGetAccumulationAverage(gyroAverage);
-
     if (accGetAccumulationAverage(accAverage)) {
         useAcc = imuIsAccelerometerHealthy(accAverage);
     }
 
     imuMahonyAHRSupdate(deltaT * 1e-6f,
-                        DEGREES_TO_RADIANS(gyroAverage[X]), DEGREES_TO_RADIANS(gyroAverage[Y]), DEGREES_TO_RADIANS(gyroAverage[Z]),
+                        DEGREES_TO_RADIANS(gyro.gyroADCf[X]),
+                        DEGREES_TO_RADIANS(gyro.gyroADCf[Y]),
+                        DEGREES_TO_RADIANS(gyro.gyroADCf[Z]),
                         useAcc, accAverage[X], accAverage[Y], accAverage[Z],
                         useMag,
-                        useCOG, courseOverGround,  imuCalcKpGain(currentTimeUs, useAcc, gyroAverage));
+                        useCOG, courseOverGround,
+                        imuCalcKpGain(currentTimeUs, useAcc, gyro.gyroADCf));
 
     imuUpdateEulerAngles();
 #endif
