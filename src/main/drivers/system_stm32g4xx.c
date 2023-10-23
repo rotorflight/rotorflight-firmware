@@ -89,17 +89,30 @@ void systemResetHard(void)
 typedef void *(*bootJumpPtr)(void);
 
 void systemJumpToBootloader(void)
-{   
-    __SYSCFG_CLK_ENABLE();
-    
-    uint32_t bootStack =  SYSMEMBOOT_VECTOR_TABLE[0];
-    
+{
+    //DeInit all used peripherals
+    HAL_RCC_DeInit();
+
+    //Disable all system timers and set to default values
+    SysTick->CTRL = 0;
+    SysTick->LOAD = 0;
+    SysTick->VAL = 0;
+
+    //Disable all interrupts
+    __disable_irq();
+
+    //remap system memory
+    __HAL_SYSCFG_REMAPMEMORY_SYSTEMFLASH();
+
+    //default bootloader call stack routine
+    uint32_t bootStack = SYSMEMBOOT_VECTOR_TABLE[0];
+
     bootJumpPtr SysMemBootJump = (bootJumpPtr)SYSMEMBOOT_VECTOR_TABLE[1];
-    
+
     __set_MSP(bootStack); //Set the main stack pointer to its default values
-    
+
     SysMemBootJump();
-    
+
     while (1);
 }
 
