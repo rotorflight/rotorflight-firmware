@@ -400,6 +400,8 @@ FAST_CODE void gyroUpdate(void)
 
 FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
 {
+    UNUSED(currentTimeUs);
+
     if (gyro.gyroDebugMode == DEBUG_NONE) {
         filterGyro();
     } else {
@@ -412,6 +414,7 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
     }
 #endif
 
+#ifdef USE_MULTI_GYRO
     if (gyro.useDualGyroDebugging) {
         switch (gyro.gyroToUse) {
         case GYRO_CONFIG_USE_GYRO_1:
@@ -420,16 +423,13 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
             DEBUG_SET(DEBUG_DUAL_GYRO_SCALED, 0, lrintf(gyro.gyroSensor1.gyroDev.gyroADC[X] * gyro.gyroSensor1.gyroDev.scale));
             DEBUG_SET(DEBUG_DUAL_GYRO_SCALED, 1, lrintf(gyro.gyroSensor1.gyroDev.gyroADC[Y] * gyro.gyroSensor1.gyroDev.scale));
             break;
-
-#ifdef USE_MULTI_GYRO
         case GYRO_CONFIG_USE_GYRO_2:
             DEBUG_SET(DEBUG_DUAL_GYRO_RAW, 2, gyro.gyroSensor2.gyroDev.gyroADCRaw[X]);
             DEBUG_SET(DEBUG_DUAL_GYRO_RAW, 3, gyro.gyroSensor2.gyroDev.gyroADCRaw[Y]);
             DEBUG_SET(DEBUG_DUAL_GYRO_SCALED, 2, lrintf(gyro.gyroSensor2.gyroDev.gyroADC[X] * gyro.gyroSensor2.gyroDev.scale));
             DEBUG_SET(DEBUG_DUAL_GYRO_SCALED, 3, lrintf(gyro.gyroSensor2.gyroDev.gyroADC[Y] * gyro.gyroSensor2.gyroDev.scale));
             break;
-
-    case GYRO_CONFIG_USE_GYRO_BOTH:
+        case GYRO_CONFIG_USE_GYRO_BOTH:
             DEBUG_SET(DEBUG_DUAL_GYRO_RAW, 0, gyro.gyroSensor1.gyroDev.gyroADCRaw[X]);
             DEBUG_SET(DEBUG_DUAL_GYRO_RAW, 1, gyro.gyroSensor1.gyroDev.gyroADCRaw[Y]);
             DEBUG_SET(DEBUG_DUAL_GYRO_RAW, 2, gyro.gyroSensor2.gyroDev.gyroADCRaw[X]);
@@ -442,9 +442,9 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
             DEBUG_SET(DEBUG_DUAL_GYRO_DIFF, 1, lrintf((gyro.gyroSensor1.gyroDev.gyroADC[Y] * gyro.gyroSensor1.gyroDev.scale) - (gyro.gyroSensor2.gyroDev.gyroADC[Y] * gyro.gyroSensor2.gyroDev.scale)));
             DEBUG_SET(DEBUG_DUAL_GYRO_DIFF, 2, lrintf((gyro.gyroSensor1.gyroDev.gyroADC[Z] * gyro.gyroSensor1.gyroDev.scale) - (gyro.gyroSensor2.gyroDev.gyroADC[Z] * gyro.gyroSensor2.gyroDev.scale)));
             break;
-#endif
         }
     }
+#endif
 
 #ifdef USE_GYRO_OVERFLOW_CHECK
     if (gyroConfig()->checkOverflow && !gyro.gyroHasOverflowProtection) {
@@ -460,10 +460,6 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
         }
         accumulatedMeasurementCount++;
     }
-
-#if !defined(USE_GYRO_OVERFLOW_CHECK)
-    UNUSED(currentTimeUs);
-#endif
 }
 
 bool gyroGetAccumulationAverage(float *accumulationAverage)
