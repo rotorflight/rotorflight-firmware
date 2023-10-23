@@ -95,7 +95,7 @@ typedef enum {
     STEP_WINDOW,
     STEP_DETECT_PEAKS,
     STEP_CALC_FREQUENCIES,
-    STEP_UPDATE_FILTERS,
+    //STEP_UPDATE_FILTERS,
     STEP_COUNT
 
 } step_e;
@@ -264,16 +264,16 @@ static FAST_CODE void dynNotchProcess(void)
         {
             sdftWinSq(&sdft[state.axis], sdftData);
 
-            break;
-        }
-        case STEP_DETECT_PEAKS: // 5.5us (4-7us) @ F722
-        {
             // Get memory ready for new peak data on current axis
             for (int p = 0; p < dynNotch.count; p++) {
                 peaks[p].bin = 0;
                 peaks[p].value = 0.0f;
             }
 
+            break;
+        }
+        case STEP_DETECT_PEAKS: // 5.5us (4-7us) @ F722
+        {
             // Search for N biggest peaks in frequency spectrum
             for (int bin = (sdftStartBin + 1); bin < sdftEndBin; bin++) {
                 // Check if bin is peak
@@ -339,10 +339,10 @@ static FAST_CODE void dynNotchProcess(void)
                     }
                 }
             }
-            break;
-        }
-        case STEP_UPDATE_FILTERS: // 5.4us (2-9us) @ F722
-        {
+        //    break;
+        //}
+        //case STEP_UPDATE_FILTERS: // 5.4us (2-9us) @ F722
+        //{
             for (int p = 0; p < dynNotch.count; p++) {
                 // Only update notch filter coefficients if the corresponding peak got its center frequency updated in the previous step
                 if (peaks[p].bin != 0 && peaks[p].value > 0.0f) {
