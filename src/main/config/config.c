@@ -236,8 +236,13 @@ static void validateAndFixConfig(void)
         featureDisableImmediate(FEATURE_GPS);
     }
 
-    if ((motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) && (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE)) {
-        motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
+    if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) {
+        if (!motorConfig()->dev.useUnsyncedPwm) {
+            motorConfigMutable()->dev.useUnsyncedPwm = true;
+        }
+        if (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE) {
+            motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
+        }
     }
 
     validateAndFixGyroConfig();
@@ -533,6 +538,9 @@ void validateAndFixGyroConfig(void)
 {
     if (gyro.sampleRateHz > 0)
     {
+        uint32_t pidDenom = pidConfig()->pid_process_denom;
+        uint32_t filtDenom = pidConfig()->filter_process_denom;
+
         // Loop rate restrictions based on motor protocol. Motor times have safety margin
         uint32_t motorUpdateRestriction = 0;
 
@@ -546,6 +554,9 @@ void validateAndFixGyroConfig(void)
 #endif
 
         switch (motorConfig()->dev.motorPwmProtocol) {
+            case PWM_TYPE_STANDARD:
+                motorUpdateRestriction = MOTORS_MAX_PWM_RATE;
+                break;
             case PWM_TYPE_ONESHOT125:
                 motorUpdateRestriction = 2000;
                 break;
@@ -567,9 +578,6 @@ void validateAndFixGyroConfig(void)
                 break;
         }
 
-        uint32_t pidDenom = pidConfig()->pid_process_denom;
-        uint32_t filtDenom = pidConfig()->filter_process_denom;
-
         if (motorUpdateRestriction) {
             if (motorConfig()->dev.useUnsyncedPwm) {
                 if (!checkMotorProtocolDshot(&motorConfig()->dev)) {
@@ -580,11 +588,24 @@ void validateAndFixGyroConfig(void)
                     motorUpdateRestriction /= 2;
                 }
                 while (gyro.sampleRateHz / pidDenom > motorUpdateRestriction && pidDenom < MAX_PID_PROCESS_DENOM) {
-                    pidConfigMutable()->pid_process_denom = ++pidDenom;
+                    pidDenom++;
                 }
             }
         }
 
+        // Maximum PID loop speed
+        while (gyro.sampleRateHz / pidDenom > MAX_PID_PROCESS_SPEED && pidDenom < MAX_PID_PROCESS_DENOM) {
+            pidDenom++;
+        }
+        // Minimum PID loop speed
+        while (gyro.sampleRateHz / pidDenom < MIN_PID_PROCESS_SPEED && pidDenom > 1) {
+            pidDenom--;
+        }
+
+        // Save any changes
+        pidConfigMutable()->pid_process_denom = pidDenom;
+
+        // Check filter denom
         if (filtDenom > 0) {
             if (filtDenom < pidDenom) {
                 while (pidDenom % filtDenom) filtDenom++;
