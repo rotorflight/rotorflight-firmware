@@ -404,12 +404,6 @@ FAST_CODE void gyroFiltering(timeUs_t currentTimeUs)
         filterGyroDebug();
     }
 
-#ifdef USE_DYN_NOTCH_FILTER
-    if (isDynNotchActive()) {
-        dynNotchUpdate();
-    }
-#endif
-
 #ifdef USE_MULTI_GYRO
     if (gyro.useDualGyroDebugging) {
         switch (gyro.gyroToUse) {

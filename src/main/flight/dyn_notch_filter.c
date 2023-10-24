@@ -59,8 +59,7 @@
 // Bin 0 is DC and can't be used.
 // Only bins 1 to 35 are usable.
 
-// A gyro sample is collected every PID loop.
-// sampleCount recent gyro values are accumulated and averaged
+// A gyro sample is collected every FILTER loop. Gyro values are accumulated and averaged
 // to ensure that 72 samples are collected at the right rate for the required SDFT bandwidth.
 
 // For an 8k PID loop, at default 600hz max, 6 sequential gyro data points are averaged, SDFT runs 1333Hz.
@@ -91,33 +90,26 @@
 #define DYN_NOTCH_Q_ADVANCE        0.2f
 
 typedef enum {
-
     STEP_WINDOW,
     STEP_DETECT_PEAKS,
     STEP_CALC_FREQUENCIES,
     STEP_UPDATE_FILTERS,
     STEP_COUNT
-
 } step_e;
 
 typedef struct peak_s {
-
     int bin;
     float value;
-
 } peak_t;
 
+// state machine step information
 typedef struct state_s {
-
-    // state machine step information
     int tick;
     int step;
     int axis;
-
 } state_t;
 
 typedef struct dynNotch_s {
-
     float q;
     float minHz;
     float maxHz;
@@ -126,9 +118,7 @@ typedef struct dynNotch_s {
     int maxCenterFreq;
     float centerFreq[XYZ_AXIS_COUNT][DYN_NOTCH_COUNT_MAX];
 
-    timeUs_t loopRateHz;
     biquadFilter_t notch[XYZ_AXIS_COUNT][DYN_NOTCH_COUNT_MAX];
-
 } dynNotch_t;
 
 // dynamic notch instance (singleton)
@@ -154,29 +144,31 @@ static FAST_DATA_ZERO_INIT int     sdftStartBin;
 static FAST_DATA_ZERO_INIT int     sdftEndBin;
 
 
-void dynNotchInit(const dynNotchConfig_t *config)
+INIT_CODE void dynNotchInit(const dynNotchConfig_t *config)
 {
-    const float looprateHz = gyro.filterRateHz;
-    const float nyquistHz = looprateHz / 2.0f;
+    // dynNotchFilter() call frequency
+    const float filterRateHz = gyro.filterRateHz;
+    // dynNotchUpdate() call frequency
+    const float updateRateHz = gyro.targetRateHz;
+    const float updateNyquistHz = updateRateHz / 2.0f;
 
     // always initialise, since the dynamic notch could be activated at any time
     dynNotch.q = config->dyn_notch_q / 10.0f;
-    dynNotch.minHz = config->dyn_notch_min_hz;
+    dynNotch.minHz = MAX(config->dyn_notch_min_hz, 10);
     dynNotch.maxHz = MAX(dynNotch.minHz, config->dyn_notch_max_hz);
-    dynNotch.maxHz = MIN(dynNotch.maxHz, nyquistHz); // Ensure to not go above the nyquist limit
-    dynNotch.count = config->dyn_notch_count;
-    dynNotch.loopRateHz = looprateHz;
+    dynNotch.maxHz = MIN(dynNotch.maxHz, updateNyquistHz); // Ensure to not go above the nyquist limit
+    dynNotch.count = MIN(config->dyn_notch_count, DYN_NOTCH_COUNT_MAX);
     dynNotch.maxCenterFreq = 0;
 
     // Disable dynamic notch if dynNotchUpdate() would run at less than 1kHz
-    if (looprateHz < DYN_NOTCH_UPDATE_MIN_HZ) {
+    if (updateRateHz < DYN_NOTCH_UPDATE_MIN_HZ) {
         dynNotch.count = 0;
     }
 
-    sampleCount = MAX(1, nyquistHz / dynNotch.maxHz); // 250hz, 2k looptime, 4
-    sampleCountRcp = 1.0f / sampleCount;
+    sampleCount = MAX(1, floorf(updateNyquistHz / dynNotch.maxHz));
+    sampleCountRcp = 1.0f / (sampleCount * (filterRateHz / updateRateHz));
 
-    sdftSampleRateHz = looprateHz / sampleCount;
+    sdftSampleRateHz = updateRateHz / sampleCount;
     // eg 8k, user max 600hz, int(8000/1200) = 6 (6.666), sdftSampleRateHz = 1333hz, range 666Hz, resolution 18.51Hz
     // eg 4k, user max 600hz, int(4000/1200) = 3 (3.333), sdftSampleRateHz = 1333hz, range 666Hz, resolution 18.51Hz
     // eg 2k, user max 600hz, int(2000/1200) = 1 (1.666) sdftSampleRateHz = 2000hz, range 1000Hz, resolution 27.78Hz
@@ -199,7 +191,7 @@ void dynNotchInit(const dynNotchConfig_t *config)
         for (int p = 0; p < dynNotch.count; p++) {
             // any init value is fine, but evenly spreading centerFreqs across frequency range makes notches stick to peaks quicker
             dynNotch.centerFreq[axis][p] = (p + 0.5f) * (dynNotch.maxHz - dynNotch.minHz) / (float)dynNotch.count + dynNotch.minHz;
-            biquadFilterInit(&dynNotch.notch[axis][p], dynNotch.centerFreq[axis][p], dynNotch.loopRateHz, dynNotch.q + p * DYN_NOTCH_Q_ADVANCE, BIQUAD_NOTCH);
+            biquadFilterInit(&dynNotch.notch[axis][p], dynNotch.centerFreq[axis][p], gyro.filterRateHz, dynNotch.q + p * DYN_NOTCH_Q_ADVANCE, BIQUAD_NOTCH);
         }
     }
 }
@@ -214,7 +206,7 @@ FAST_CODE void dynNotchUpdate(void)
 
     DEBUG_TIME_START(DYN_NOTCH_TIME, 0);
 
-    // if gyro sampling is > 1kHz, accumulate and average multiple gyro samples
+    // Accumulate and average multiple gyro samples
     if (sampleIndex == sampleCount) {
         sampleIndex = 0;
 
@@ -232,7 +224,6 @@ FAST_CODE void dynNotchUpdate(void)
         state.tick = DYN_NOTCH_CALC_TICKS;
     }
 
-
     // 2us @ F722
     DEBUG_TIME_START(DYN_NOTCH_TIME, 1);
 
@@ -247,7 +238,7 @@ FAST_CODE void dynNotchUpdate(void)
     // Find frequency peaks and update filters
     if (state.tick > 0) {
         dynNotchProcess();
-        --state.tick;
+        state.tick--;
     }
 
     DEBUG_TIME_END(DYN_NOTCH_TIME, 0);
@@ -346,7 +337,7 @@ static FAST_CODE void dynNotchProcess(void)
             for (int p = 0; p < dynNotch.count; p++) {
                 // Only update notch filter coefficients if the corresponding peak got its center frequency updated in the previous step
                 if (peaks[p].bin != 0 && peaks[p].value > 0.0f) {
-                    biquadFilterUpdate(&dynNotch.notch[state.axis][p], dynNotch.centerFreq[state.axis][p], dynNotch.loopRateHz, dynNotch.q + p * DYN_NOTCH_Q_ADVANCE, BIQUAD_NOTCH);
+                    biquadFilterUpdate(&dynNotch.notch[state.axis][p], dynNotch.centerFreq[state.axis][p], gyro.filterRateHz, dynNotch.q + p * DYN_NOTCH_Q_ADVANCE, BIQUAD_NOTCH);
                 }
             }
 

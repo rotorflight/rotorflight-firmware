@@ -40,7 +40,7 @@ static void applySqrt(const sdft_t *sdft, float *data);
 static void updateEdges(sdft_t *sdft, const float value, const int batchIdx);
 
 
-void sdftInit(sdft_t *sdft, const int startBin, const int endBin, const int numBatches)
+INIT_CODE void sdftInit(sdft_t *sdft, const int startBin, const int endBin, const int numBatches)
 {
     if (!rPowerN) {
         rPowerN = powf(SDFT_R, SDFT_SAMPLE_SIZE);
