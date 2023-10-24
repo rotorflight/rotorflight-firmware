@@ -46,6 +46,10 @@
 // 24 MHz max SPI frequency
 #define ICM426XX_MAX_SPI_CLK_HZ 24000000
 
+#define ICM426XX_INTF_CONFIG1                       0x4D
+#define ICM426XX_INTF_CONFIG1_AFSR_MASK             0xC0
+#define ICM426XX_INTF_CONFIG1_AFSR_DISABLE          0x40
+
 #define ICM426XX_RA_PWR_MGMT0                       0x4E
 
 #define ICM426XX_PWR_MGMT0_ACCEL_MODE_LN            (3 << 0)
@@ -212,6 +216,14 @@ void icm426xxGyroInit(gyroDev_t *gyro)
 
     spiWriteReg(dev, ICM426XX_RA_INT_CONFIG1, intConfig1Value);
 #endif
+
+    // Disable AFSR to prevent stalls in gyro output. See
+    //    https://github.com/ArduPilot/ardupilot/pull/25332
+    //    https://github.com/betaflight/betaflight/pull/13132
+    uint8_t intfConfig1Value = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG1);
+    intfConfig1Value &= ~ICM426XX_INTF_CONFIG1_AFSR_MASK;
+    intfConfig1Value |= ICM426XX_INTF_CONFIG1_AFSR_DISABLE;
+    spiWriteReg(dev, ICM426XX_INTF_CONFIG1, intfConfig1Value);
 }
 
 bool icm426xxSpiGyroDetect(gyroDev_t *gyro)
