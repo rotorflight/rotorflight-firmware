@@ -978,7 +978,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.Kd = pidProfile->governor.d_gain / 1000.0f;
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
-        gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -250.0f;
+        gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
         gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
 
         if (gov.mode >= GM_STANDARD)
