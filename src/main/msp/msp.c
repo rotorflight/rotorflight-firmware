@@ -1257,19 +1257,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RC:
         for (int i = 0; i < rxRuntimeState.channelCount; i++) {
-            sbufWriteU16(dst, lrintf(rcInput[i]));
+            sbufWriteU16(dst, rcInput[i]);
         }
         break;
 
     case MSP_RC_COMMAND:
         for (int i = 0; i < CONTROL_CHANNEL_COUNT; i++) {
-            sbufWriteU16(dst, lrintf(rcCommand[i]));
+            sbufWriteU16(dst, rcCommand[i]);
         }
         break;
 
     case MSP_RX_CHANNELS:
         for (int i = 0; i < rxRuntimeState.channelCount; i++) {
-            sbufWriteU16(dst, lrintf(rcRawChannel[i]));
+            sbufWriteU16(dst, rcRawChannel[i]);
         }
         break;
 
