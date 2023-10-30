@@ -85,6 +85,10 @@ typedef struct telemetryConfig_s {
     uint8_t report_cell_voltage;
     uint8_t flysky_sensors[IBUS_SENSOR_COUNT];
     uint16_t mavlink_mah_as_heading_divisor;
+    uint8_t crsf_flight_mode_reuse;
+    uint8_t crsf_att_pitch_reuse;
+    uint8_t crsf_att_roll_reuse;
+    uint8_t crsf_att_yaw_reuse;
     uint32_t enableSensors;
 } telemetryConfig_t;
 

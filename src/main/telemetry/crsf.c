@@ -64,6 +64,8 @@
 #include "rx/crsf.h"
 #include "rx/crsf_protocol.h"
 
+#include "scheduler/scheduler.h"
+
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 #include "sensors/adcinternal.h"
@@ -330,14 +332,39 @@ static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
     return (int16_t)(RAD * 1000.0f * angle_decidegree);
 }
 
+static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
+{
+    escSensorData_t *escData;
+
+    switch (reuse) {
+        case CRSF_ATT_REUSE_NONE:
+            return decidegrees2Radians10000(attitude);
+        case CRSF_ATT_REUSE_HEADSPEED:
+            return getHeadSpeed() * 3;
+        case CRSF_ATT_REUSE_THROTTLE:
+            return getGovernorOutput() * 10000;
+        case CRSF_ATT_REUSE_ESC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature * 100 : 0;
+        case CRSF_ATT_REUSE_MCU_TEMP:
+            return getCoreTemperatureCelsius() * 100;
+        case CRSF_ATT_REUSE_MCU_LOAD:
+            return getAverageCPULoad() * 10;
+        case CRSF_ATT_REUSE_SYS_LOAD:
+            return getAverageSystemLoad() * 10;
+    }
+
+    return 0;
+}
+
 // fill dst buffer with crsf-attitude telemetry frame
 void crsfFrameAttitude(sbuf_t *dst)
 {
-     sbufWriteU8(dst, CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC);
-     sbufWriteU8(dst, CRSF_FRAMETYPE_ATTITUDE);
-     sbufWriteU16BigEndian(dst, decidegrees2Radians10000(attitude.values.pitch));
-     sbufWriteU16BigEndian(dst, decidegrees2Radians10000(attitude.values.roll));
-     sbufWriteU16BigEndian(dst, decidegrees2Radians10000(attitude.values.yaw));
+    sbufWriteU8(dst, CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC);
+    sbufWriteU8(dst, CRSF_FRAMETYPE_ATTITUDE);
+    sbufWriteU16BigEndian(dst, crsfAttitudeReuse(telemetryConfig()->crsf_att_pitch_reuse, attitude.values.pitch));
+    sbufWriteU16BigEndian(dst, crsfAttitudeReuse(telemetryConfig()->crsf_att_roll_reuse, attitude.values.roll));
+    sbufWriteU16BigEndian(dst, crsfAttitudeReuse(telemetryConfig()->crsf_att_yaw_reuse, attitude.values.yaw));
 }
 
 /*
@@ -379,15 +406,50 @@ static void crsfFlightModeInfo(char *buf)
     tfp_sprintf(buf, "%s%c", flightMode, armChar);
 }
 
+static const char * govStateNames[] = {
+    "OFF",
+    "IDLE",
+    "SPOOLUP",
+    "RECOVERY",
+    "ACTIVE",
+    "THR-OFF",
+    "LOST-HS",
+    "AUTOROT",
+    "BAILOUT",
+};
+
+static void crsfGovernorInfo(char *buf)
+{
+    strcpy(buf, govStateNames[getGovernorState()]);
+}
+
 static void crsfHeadspeedInfo(char *buf)
 {
     int val = getHeadSpeed();
     tfp_sprintf(buf, "%d", val);
 }
 
+static void crsfThrottleInfo(char *buf)
+{
+    int val = lrintf(getGovernorOutput() * 100);
+    tfp_sprintf(buf, "%d", val);
+}
+
 static void crsfMCUTempInfo(char *buf)
 {
     int val = getCoreTemperatureCelsius();
+    tfp_sprintf(buf, "%d", val);
+}
+
+static void crsfMCULoadInfo(char *buf)
+{
+    int val = getAverageCPULoadPercent();
+    tfp_sprintf(buf, "%d", val);
+}
+
+static void crsfSysLoadInfo(char *buf)
+{
+    int val = getAverageSystemLoadPercent();
     tfp_sprintf(buf, "%d", val);
 }
 
@@ -400,12 +462,6 @@ static void crsfESCTempInfo(char *buf)
     }
 }
 
-static void crsfThrottleInfo(char *buf)
-{
-    int val = lrintf(getGovernorOutput() * 100);
-    tfp_sprintf(buf, "%d", val);
-}
-
 static void crsfAdjFuncInfo(char *buf)
 {
     if (getAdjustmentsRangeName()) {
@@ -415,25 +471,49 @@ static void crsfAdjFuncInfo(char *buf)
     }
 }
 
+static void crsfGovAdjFuncInfo(char *buf)
+{
+    if (getAdjustmentsRangeName()) {
+        int fun = getAdjustmentsRangeFunc();
+        int val = getAdjustmentsRangeValue();
+        tfp_sprintf(buf, "%d:%d", fun, val);
+    }
+    else {
+        strcpy(buf, govStateNames[getGovernorState()]);
+    }
+}
+
 void crsfFrameFlightMode(sbuf_t *dst)
 {
     char buff[32] = { 0, };
 
-    switch (rxConfig()->crsf_flight_mode_reuse) {
+    switch (telemetryConfig()->crsf_flight_mode_reuse) {
+        case CRSF_FM_REUSE_GOV_STATE:
+            crsfGovernorInfo(buff);
+            break;
         case CRSF_FM_REUSE_HEADSPEED:
             crsfHeadspeedInfo(buff);
-            break;
-        case CRSF_FM_REUSE_MCU_TEMP:
-            crsfMCUTempInfo(buff);
-            break;
-        case CRSF_FM_REUSE_ESC_TEMP:
-            crsfESCTempInfo(buff);
             break;
         case CRSF_FM_REUSE_THROTTLE:
             crsfThrottleInfo(buff);
             break;
+        case CRSF_FM_REUSE_ESC_TEMP:
+            crsfESCTempInfo(buff);
+            break;
+        case CRSF_FM_REUSE_MCU_TEMP:
+            crsfMCUTempInfo(buff);
+            break;
+        case CRSF_FM_REUSE_MCU_LOAD:
+            crsfMCULoadInfo(buff);
+            break;
+        case CRSF_FM_REUSE_SYS_LOAD:
+            crsfSysLoadInfo(buff);
+            break;
         case CRSF_FM_REUSE_ADJFUNC:
             crsfAdjFuncInfo(buff);
+            break;
+        case CRSF_FM_REUSE_GOV_ADJFUNC:
+            crsfGovAdjFuncInfo(buff);
             break;
         default:
             crsfFlightModeInfo(buff);

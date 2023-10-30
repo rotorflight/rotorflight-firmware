@@ -485,7 +485,11 @@ const char * const lookupTableSwashType[] = {
 };
 
 const char * const lookupTableCrsfFmReuse[] = {
-    "NONE", "HEADSPEED", "MCU_TEMP", "ESC_TEMP", "THROTTLE", "ADJFUNC",
+    "NONE", "GOVERNOR", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "ADJFUNC", "GOV_ADJFUNC",
+};
+
+const char * const lookupTableCrsfAttReuse[] = {
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD",
 };
 
 const char * const lookupTableDtermMode[] = {
@@ -602,6 +606,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
     LOOKUP_TABLE_ENTRY(lookupTableCrsfFmReuse),
+    LOOKUP_TABLE_ENTRY(lookupTableCrsfAttReuse),
     LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
 };
 
@@ -713,7 +718,6 @@ const clivalue_t valueTable[] = {
 #endif
 #if defined(USE_SERIALRX_CRSF)
     { "crsf_use_rx_snr",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_rx_snr) },
-    { "crsf_flight_mode_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_FM_REUSE }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_flight_mode_reuse) },
 
 #if defined(USE_CRSF_V3)
     { "crsf_use_negotiated_baud",    VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_negotiated_baud) },
@@ -1144,6 +1148,11 @@ const clivalue_t valueTable[] = {
     // Set to $size_of_battery to get a percentage of battery used.
     { "mavlink_mah_as_heading_divisor", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, mavlink_mah_as_heading_divisor) },
 #endif
+    { "crsf_flight_mode_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_FM_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_flight_mode_reuse) },
+    { "crsf_att_pitch_reuse",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_pitch_reuse) },
+    { "crsf_att_roll_reuse",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_roll_reuse) },
+    { "crsf_att_yaw_reuse",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_yaw_reuse) },
+
 #ifdef USE_TELEMETRY_ENABLE_SENSORS
     { "telemetry_enable_voltage",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_VOLTAGE),         PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_current",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_CURRENT),         PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},

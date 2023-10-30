@@ -80,6 +80,10 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     },
     .enableSensors = SENSOR_ALL ^ (ESC_SENSOR_ALL | SENSOR_CAP_USED | SENSOR_ADJUSTMENT),
     .mavlink_mah_as_heading_divisor = 0,
+    .crsf_flight_mode_reuse = CRSF_FM_REUSE_NONE,
+    .crsf_att_pitch_reuse = CRSF_ATT_REUSE_NONE,
+    .crsf_att_roll_reuse = CRSF_ATT_REUSE_NONE,
+    .crsf_att_yaw_reuse = CRSF_ATT_REUSE_NONE,
 );
 
 void telemetryInit(void)
