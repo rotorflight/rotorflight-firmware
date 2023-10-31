@@ -420,7 +420,12 @@ static const char * govStateNames[] = {
 
 static void crsfGovernorInfo(char *buf)
 {
-    strcpy(buf, govStateNames[getGovernorState()]);
+    if (!ARMING_FLAG(ARMED)) {
+        strcpy(buf, "DISARMED");
+    }
+    else {
+        strcpy(buf, govStateNames[getGovernorState()]);
+    }
 }
 
 static void crsfHeadspeedInfo(char *buf)
@@ -479,7 +484,7 @@ static void crsfGovAdjFuncInfo(char *buf)
         tfp_sprintf(buf, "%d:%d", fun, val);
     }
     else {
-        strcpy(buf, govStateNames[getGovernorState()]);
+        crsfGovernorInfo(buf);
     }
 }
 
