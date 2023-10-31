@@ -34,7 +34,7 @@
 #define SERVO_SCALE_MIN        100
 #define SERVO_SCALE_MAX       1000
 #define SERVO_RATE_MIN          50
-#define SERVO_RATE_MAX        1000
+#define SERVO_RATE_MAX        2600
 #define SERVO_SPEED_MIN          0
 #define SERVO_SPEED_MAX      60000
 #define SERVO_OVERRIDE_MIN   -2000
