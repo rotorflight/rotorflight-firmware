@@ -275,7 +275,6 @@ extiCallbackRec_t bmi270IntCallbackRec;
 /*
  * Gyro interrupt service routine
  */
-#ifdef USE_GYRO_EXTI
 // Called in ISR context
 // Gyro read has just completed
 busStatus_e bmi270Intcallback(uint32_t arg)
@@ -322,13 +321,6 @@ static void bmi270IntExtiInit(gyroDev_t *gyro)
     EXTIConfig(mpuIntIO, &gyro->exti, NVIC_PRIO_MPU_INT_EXTI, IOCFG_IN_FLOATING, BETAFLIGHT_EXTI_TRIGGER_RISING);
     EXTIEnable(mpuIntIO);
 }
-#else
-void bmi270ExtiHandler(extiCallbackRec_t *cb)
-{
-    gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
-    gyro->dataReady = true;
-}
-#endif
 
 static bool bmi270AccRead(accDev_t *acc)
 {
@@ -383,7 +375,6 @@ static bool bmi270GyroReadRegister(gyroDev_t *gyro)
     {
         // Initialise the tx buffer to all 0x00
         memset(gyro->dev.txBuf, 0x00, 14);
-#ifdef USE_GYRO_EXTI
         // Check that minimum number of interrupts have been detected
 
         // We need some offset from the gyro interrupts to ensure sampling after the interrupt
@@ -403,9 +394,7 @@ static bool bmi270GyroReadRegister(gyroDev_t *gyro)
                 // Interrupts are present, but no DMA
                 gyro->gyroModeSPI = GYRO_EXTI_INT;
             }
-        } else
-#endif
-        {
+        } else {
             gyro->gyroModeSPI = GYRO_EXTI_NO_INT;
         }
         break;
@@ -535,9 +524,7 @@ static void bmi270SpiGyroInit(gyroDev_t *gyro)
 
     bmi270Config(gyro);
 
-#if defined(USE_GYRO_EXTI)
     bmi270IntExtiInit(gyro);
-#endif
 
     spiSetClkDivisor(dev, spiCalculateDivider(BMI270_MAX_SPI_CLK_HZ));
 }

@@ -72,9 +72,6 @@
 #define USE_BEEPER
 
 // MPU interrupt
-#define USE_EXTI
-#define USE_MPU_DATA_READY_SIGNAL
-#define USE_GYRO_EXTI
 #undef  USE_GYRO_DLPF_EXPERIMENTAL
 
 #define USE_ACC

@@ -549,7 +549,6 @@ FAST_CODE void scheduler(void)
 #endif
             lastTargetCycles = nextTargetCycles;
 
-#ifdef USE_GYRO_EXTI
             gyroDev_t *gyro = gyroActiveDev();
 
             // Bring the scheduler into lock with the gyro
@@ -595,7 +594,6 @@ FAST_CODE void scheduler(void)
                     accGyroSkew = 0;
                 }
             }
-#endif
        }
     }
 

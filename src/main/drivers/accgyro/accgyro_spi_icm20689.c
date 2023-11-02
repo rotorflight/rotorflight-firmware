@@ -163,9 +163,7 @@ void icm20689GyroInit(gyroDev_t *gyro)
     // Data ready interrupt configuration
     spiWriteReg(&gyro->dev, MPU_RA_INT_PIN_CFG, ICM20689_INT_ANYRD_2CLEAR);
 
-#ifdef USE_MPU_DATA_READY_SIGNAL
     spiWriteReg(&gyro->dev, MPU_RA_INT_ENABLE, MPU_RF_DATA_RDY_EN);
-#endif
 }
 
 bool icm20689SpiGyroDetect(gyroDev_t *gyro)

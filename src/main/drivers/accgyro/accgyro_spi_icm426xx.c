@@ -206,7 +206,6 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     spiWriteReg(dev, ICM426XX_RA_INT_CONFIG, ICM426XX_INT1_MODE_PULSED | ICM426XX_INT1_DRIVE_CIRCUIT_PP | ICM426XX_INT1_POLARITY_ACTIVE_HIGH);
     spiWriteReg(dev, ICM426XX_RA_INT_CONFIG0, ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR);
 
-#ifdef USE_MPU_DATA_READY_SIGNAL
     spiWriteReg(dev, ICM426XX_RA_INT_SOURCE0, ICM426XX_UI_DRDY_INT1_EN_ENABLED);
 
     uint8_t intConfig1Value = spiReadRegMsk(dev, ICM426XX_RA_INT_CONFIG1);
@@ -215,7 +214,6 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     intConfig1Value |= (ICM426XX_INT_TPULSE_DURATION_8 | ICM426XX_INT_TDEASSERT_DISABLED);
 
     spiWriteReg(dev, ICM426XX_RA_INT_CONFIG1, intConfig1Value);
-#endif
 
     // Disable AFSR to prevent stalls in gyro output. See
     //    https://github.com/ArduPilot/ardupilot/pull/25332

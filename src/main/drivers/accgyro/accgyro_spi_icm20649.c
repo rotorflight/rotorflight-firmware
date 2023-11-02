@@ -136,9 +136,7 @@ void icm20649GyroInit(gyroDev_t *gyro)
     spiWriteReg(&gyro->bus, ICM20649_RA_INT_PIN_CFG, 0x11);  // INT_ANYRD_2CLEAR, BYPASS_EN
     delay(15);
 
-#ifdef USE_MPU_DATA_READY_SIGNAL
     spiWriteReg(&gyro->bus, ICM20649_RA_INT_ENABLE_1, 0x01);
-#endif
 }
 
 bool icm20649SpiGyroDetect(gyroDev_t *gyro)

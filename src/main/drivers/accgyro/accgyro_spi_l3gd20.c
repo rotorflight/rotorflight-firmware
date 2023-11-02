@@ -77,7 +77,6 @@
 
 #define BOOT                          ((uint8_t)0x80)
 
-#if defined(USE_MPU_DATA_READY_SIGNAL)
 static void l3gd20ExtiHandler(extiCallbackRec_t *cb)
 {
     gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
@@ -97,7 +96,6 @@ static void l3gd20IntExtiInit(gyroDev_t *gyro)
     EXTIConfig(mpuIntIO, &gyro->exti, NVIC_PRIO_MPU_INT_EXTI, IOCFG_IN_FLOATING, BETAFLIGHT_EXTI_TRIGGER_RISING);
     EXTIEnable(mpuIntIO);
 }
-#endif
 
 void l3gd20GyroInit(gyroDev_t *gyro)
 {
@@ -115,10 +113,7 @@ void l3gd20GyroInit(gyroDev_t *gyro)
 
     delay(100);
 
-#if defined(USE_MPU_DATA_READY_SIGNAL)
     l3gd20IntExtiInit(gyro);
-#endif
-
 }
 
 static bool l3gd20GyroRead(gyroDev_t *gyro)

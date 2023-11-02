@@ -260,7 +260,6 @@ static int32_t BMI160_do_foc(const extDevice_t *dev)
 
 extiCallbackRec_t bmi160IntCallbackRec;
 
-#ifdef USE_GYRO_EXTI
 // Called in ISR context
 // Gyro read has just completed
 busStatus_e bmi160Intcallback(uint32_t arg)
@@ -307,13 +306,6 @@ static void bmi160IntExtiInit(gyroDev_t *gyro)
     EXTIConfig(mpuIntIO, &gyro->exti, NVIC_PRIO_MPU_INT_EXTI, IOCFG_IN_FLOATING, BETAFLIGHT_EXTI_TRIGGER_RISING);
     EXTIEnable(mpuIntIO);
 }
-#else
-void bmi160ExtiHandler(extiCallbackRec_t *cb)
-{
-    gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
-    gyro->dataReady = true;
-}
-#endif
 
 static bool bmi160AccRead(accDev_t *acc)
 {
@@ -372,7 +364,6 @@ static bool bmi160GyroRead(gyroDev_t *gyro)
     {
         // Initialise the tx buffer to all 0x00
         memset(gyro->dev.txBuf, 0x00, 14);
-#ifdef USE_GYRO_EXTI
         // Check that minimum number of interrupts have been detected
 
         // We need some offset from the gyro interrupts to ensure sampling after the interrupt
@@ -392,9 +383,7 @@ static bool bmi160GyroRead(gyroDev_t *gyro)
                 // Interrupts are present, but no DMA
                 gyro->gyroModeSPI = GYRO_EXTI_INT;
             }
-        } else
-#endif
-        {
+        } else {
             gyro->gyroModeSPI = GYRO_EXTI_NO_INT;
         }
         break;
@@ -442,9 +431,7 @@ static bool bmi160GyroRead(gyroDev_t *gyro)
 void bmi160SpiGyroInit(gyroDev_t *gyro)
 {
     BMI160_Init(&gyro->dev);
-#if defined(USE_GYRO_EXTI)
     bmi160IntExtiInit(gyro);
-#endif
 
     spiSetClkDivisor(dev, spiCalculateDivider(BMI160_MAX_SPI_CLK_HZ));
 }
