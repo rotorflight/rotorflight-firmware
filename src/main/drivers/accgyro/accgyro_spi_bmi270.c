@@ -105,7 +105,7 @@ typedef enum {
     BMI270_VAL_PWR_CONF = 0x02,              // disable advanced power save, enable FIFO self-wake
     BMI270_VAL_ACC_CONF_ODR800 = 0x0B,       // set acc sample rate to 800hz
     BMI270_VAL_ACC_CONF_ODR1600 = 0x0C,      // set acc sample rate to 1600hz
-    BMI270_VAL_ACC_CONF_BWP = 0x02,          // set acc filter in normal mode
+    BMI270_VAL_ACC_CONF_BWP = 0x01,          // set acc filter in osr2 mode (only in high performance mode)
     BMI270_VAL_ACC_CONF_HP = 0x01,           // set acc in high performance mode
     BMI270_VAL_ACC_RANGE_8G = 0x02,          // set acc to 8G full scale
     BMI270_VAL_ACC_RANGE_16G = 0x03,         // set acc to 16G full scale
@@ -122,7 +122,7 @@ typedef enum {
 
     BMI270_VAL_INT_MAP_DATA_DRDY_INT1 = 0x04,// enable the data ready interrupt pin 1
     BMI270_VAL_INT_MAP_FIFO_WM_INT1 = 0x02,  // enable the FIFO watermark interrupt pin 1
-    BMI270_VAL_INT1_IO_CTRL_PINMODE = 0x0A,  // active high, push-pull, output enabled, input disabled 
+    BMI270_VAL_INT1_IO_CTRL_PINMODE = 0x0A,  // active high, push-pull, output enabled, input disabled
     BMI270_VAL_FIFO_CONFIG_0 = 0x00,         // don't stop when full, disable sensortime frame
     BMI270_VAL_FIFO_CONFIG_1 = 0x80,         // only gyro data in FIFO, use headerless mode
     BMI270_VAL_FIFO_DOWNS = 0x00,            // select unfiltered gyro data with no downsampling (6.4KHz samples)
@@ -187,7 +187,7 @@ static void bmi270UploadConfig(const extDevice_t *dev)
     bmi270RegisterWrite(dev, BMI270_REG_INIT_CTRL, 1, 1);
 }
 
-static uint8_t getBmiOsrMode()
+static uint8_t getBmiOsrMode(void)
 {
     switch(gyroConfig()->gyro_hardware_lpf) {
         case GYRO_HARDWARE_LPF_NORMAL:
@@ -200,8 +200,9 @@ static uint8_t getBmiOsrMode()
         case GYRO_HARDWARE_LPF_EXPERIMENTAL:
             return BMI270_VAL_GYRO_CONF_BWP_NORM;
 #endif
+        default:
+            return BMI270_VAL_GYRO_CONF_BWP_OSR4;
     }
-    return BMI270_VAL_GYRO_CONF_BWP_NORM;
 }
 
 static void bmi270Config(gyroDev_t *gyro)
@@ -294,6 +295,8 @@ busStatus_e bmi270Intcallback(uint32_t arg)
 void bmi270ExtiHandler(extiCallbackRec_t *cb)
 {
     gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
+    extDevice_t *dev = &gyro->dev;
+
     // Ideally we'd use a timer to capture such information, but unfortunately the port used for EXTI interrupt does
     // not have an associated timer
     uint32_t nowCycles = getCycleCounter();
@@ -301,7 +304,7 @@ void bmi270ExtiHandler(extiCallbackRec_t *cb)
     gyro->gyroLastEXTI = nowCycles;
 
     if (gyro->gyroModeSPI == GYRO_EXTI_INT_DMA) {
-        spiSequence(&gyro->dev, gyro->segments);
+        spiSequence(dev, gyro->segments);
     }
 
     gyro->detectedEXTI++;
@@ -324,18 +327,20 @@ static void bmi270IntExtiInit(gyroDev_t *gyro)
 
 static bool bmi270AccRead(accDev_t *acc)
 {
+    extDevice_t *dev = &acc->gyro->dev;
+
     switch (acc->gyro->gyroModeSPI) {
     case GYRO_EXTI_INT:
     case GYRO_EXTI_NO_INT:
     {
-        acc->gyro->dev.txBuf[0] = BMI270_REG_ACC_DATA_X_LSB | 0x80;
+        dev->txBuf[0] = BMI270_REG_ACC_DATA_X_LSB | 0x80;
 
         busSegment_t segments[] = {
                 {.u.buffers = {NULL, NULL}, 8, true, NULL},
                 {.u.link = {NULL, NULL}, 0, true, NULL},
         };
-        segments[0].u.buffers.txData = acc->gyro->dev.txBuf;
-        segments[0].u.buffers.rxData = acc->gyro->dev.rxBuf;
+        segments[0].u.buffers.txData = dev->txBuf;
+        segments[0].u.buffers.rxData = dev->rxBuf;
 
         spiSequence(&acc->gyro->dev, &segments[0]);
 
@@ -352,7 +357,7 @@ static bool bmi270AccRead(accDev_t *acc)
         // up an old value.
 
         // This data was read from the gyro, which is the same SPI device as the acc
-        uint16_t *accData = (uint16_t *)acc->gyro->dev.rxBuf;
+        int16_t *accData = (int16_t *)dev->rxBuf;
         acc->ADCRaw[X] = accData[1];
         acc->ADCRaw[Y] = accData[2];
         acc->ADCRaw[Z] = accData[3];
@@ -369,25 +374,28 @@ static bool bmi270AccRead(accDev_t *acc)
 
 static bool bmi270GyroReadRegister(gyroDev_t *gyro)
 {
-    uint16_t *gyroData = (uint16_t *)gyro->dev.rxBuf;
+    extDevice_t *dev = &gyro->dev;
+    int16_t *gyroData = (int16_t *)dev->rxBuf;
+
     switch (gyro->gyroModeSPI) {
     case GYRO_EXTI_INIT:
     {
         // Initialise the tx buffer to all 0x00
-        memset(gyro->dev.txBuf, 0x00, 14);
+        memset(dev->txBuf, 0x00, 14);
+
         // Check that minimum number of interrupts have been detected
 
         // We need some offset from the gyro interrupts to ensure sampling after the interrupt
         gyro->gyroDmaMaxDuration = 5;
         // Using DMA for gyro access upsets the scheduler on the F4
         if (gyro->detectedEXTI > GYRO_EXTI_DETECT_THRESHOLD) {
-            if (spiUseDMA(&gyro->dev)) {
-                gyro->dev.callbackArg = (uint32_t)gyro;
-                gyro->dev.txBuf[0] = BMI270_REG_ACC_DATA_X_LSB | 0x80;
+            if (spiUseDMA(dev)) {
+                dev->callbackArg = (uint32_t)gyro;
+                dev->txBuf[0] = BMI270_REG_ACC_DATA_X_LSB | 0x80;
                 gyro->segments[0].len = 14;
                 gyro->segments[0].callback = bmi270Intcallback;
-                gyro->segments[0].u.buffers.txData = gyro->dev.txBuf;
-                gyro->segments[0].u.buffers.rxData = gyro->dev.rxBuf;
+                gyro->segments[0].u.buffers.txData = dev->txBuf;
+                gyro->segments[0].u.buffers.rxData = dev->rxBuf;
                 gyro->segments[0].negateCS = true;
                 gyro->gyroModeSPI = GYRO_EXTI_INT_DMA;
             } else {
@@ -403,19 +411,19 @@ static bool bmi270GyroReadRegister(gyroDev_t *gyro)
     case GYRO_EXTI_INT:
     case GYRO_EXTI_NO_INT:
     {
-        gyro->dev.txBuf[0] = BMI270_REG_GYR_DATA_X_LSB | 0x80;
+        dev->txBuf[0] = BMI270_REG_GYR_DATA_X_LSB | 0x80;
 
         busSegment_t segments[] = {
                 {.u.buffers = {NULL, NULL}, 8, true, NULL},
                 {.u.link = {NULL, NULL}, 0, true, NULL},
         };
-        segments[0].u.buffers.txData = gyro->dev.txBuf;
-        segments[0].u.buffers.rxData = gyro->dev.rxBuf;
+        segments[0].u.buffers.txData = dev->txBuf;
+        segments[0].u.buffers.rxData = dev->rxBuf;
 
-        spiSequence(&gyro->dev, &segments[0]);
+        spiSequence(dev, &segments[0]);
 
         // Wait for completion
-        spiWait(&gyro->dev);
+        spiWait(dev);
 
         gyro->gyroADCRaw[X] = gyroData[1];
         gyro->gyroADCRaw[Y] = gyroData[2];

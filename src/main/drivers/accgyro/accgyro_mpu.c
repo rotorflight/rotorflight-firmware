@@ -245,7 +245,7 @@ bool mpuAccReadSPI(accDev_t *acc)
         // up an old value.
 
         // This data was read from the gyro, which is the same SPI device as the acc
-        uint16_t *accData = (uint16_t *)acc->gyro->dev.rxBuf;
+        int16_t *accData = (int16_t *)acc->gyro->dev.rxBuf;
         acc->ADCRaw[X] = __builtin_bswap16(accData[1]);
         acc->ADCRaw[Y] = __builtin_bswap16(accData[2]);
         acc->ADCRaw[Z] = __builtin_bswap16(accData[3]);
@@ -262,7 +262,7 @@ bool mpuAccReadSPI(accDev_t *acc)
 
 bool mpuGyroReadSPI(gyroDev_t *gyro)
 {
-    uint16_t *gyroData = (uint16_t *)gyro->dev.rxBuf;
+    int16_t *gyroData = (int16_t *)gyro->dev.rxBuf;
     switch (gyro->gyroModeSPI) {
     case GYRO_EXTI_INIT:
     {
@@ -339,6 +339,9 @@ bool mpuGyroReadSPI(gyroDev_t *gyro)
 typedef uint8_t (*gyroSpiDetectFn_t)(const extDevice_t *dev);
 
 static gyroSpiDetectFn_t gyroSpiDetectFnTable[] = {
+#ifdef USE_GYRO_SPI_ICM20689
+    icm20689SpiDetect,  // icm20689SpiDetect detects ICM20602 and ICM20689
+#endif
 #ifdef USE_GYRO_SPI_MPU6000
     mpu6000SpiDetect,
 #endif
@@ -347,9 +350,6 @@ static gyroSpiDetectFn_t gyroSpiDetectFnTable[] = {
 #endif
 #ifdef  USE_GYRO_SPI_MPU9250
     mpu9250SpiDetect,
-#endif
-#ifdef USE_GYRO_SPI_ICM20689
-    icm20689SpiDetect,  // icm20689SpiDetect detects ICM20602 and ICM20689
 #endif
 #ifdef USE_ACCGYRO_LSM6DSO
     lsm6dsoDetect,
