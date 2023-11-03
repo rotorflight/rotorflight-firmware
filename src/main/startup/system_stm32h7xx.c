@@ -605,6 +605,11 @@ pllConfig_t pll1Config7A3 = {
     .rge = RCC_PLL1VCIRANGE_1,
 };
 
+#ifdef USE_OVERCLOCK
+void SystemCoreClockInitLevel(void) { }
+void OverclockRebootIfNecessary(uint32_t clockLevel) { UNUSED(clockLevel); }
+#endif
+
 // Unlike H743/H750, HCLK can be directly fed with SYSCLK.
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV1
 
@@ -631,6 +636,11 @@ pllConfig_t pll1Config72x = {
     .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
     .rge = RCC_PLL1VCIRANGE_1,
 };
+
+#ifdef USE_OVERCLOCK
+void SystemCoreClockInitLevel(void) { }
+void OverclockRebootIfNecessary(uint32_t clockLevel) { UNUSED(clockLevel); }
+#endif
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
 
@@ -659,6 +669,11 @@ pllConfig_t pll1Config73x = {
     .vos = PWR_REGULATOR_VOLTAGE_SCALE0,
     .rge = RCC_PLL1VCIRANGE_1,
 };
+
+#ifdef USE_OVERCLOCK
+void SystemCoreClockInitLevel(void) { }
+void OverclockRebootIfNecessary(uint32_t clockLevel) { UNUSED(clockLevel); }
+#endif
 
 #define MCU_HCLK_DIVIDER RCC_HCLK_DIV2
 
