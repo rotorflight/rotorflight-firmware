@@ -785,14 +785,6 @@ bool resetEEPROM(bool useCustomDefaults)
     return true;
 }
 
-void ensureEEPROMStructureIsValid(void)
-{
-    if (isEEPROMStructureValid()) {
-        return;
-    }
-    resetEEPROM(false);
-}
-
 void saveConfigAndNotify(void)
 {
     // The write to EEPROM will cause a big delay in the current task, so ignore

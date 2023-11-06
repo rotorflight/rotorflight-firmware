@@ -66,7 +66,6 @@ bool readEEPROM(void);
 void writeEEPROM(void);
 void writeEEPROMDelayed(int delayUs);
 void writeUnmodifiedConfigToEEPROM(void);
-void ensureEEPROMStructureIsValid(void);
 
 void saveConfigAndNotify(void);
 void validateAndFixGyroConfig(void);
