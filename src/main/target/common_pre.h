@@ -394,12 +394,12 @@ extern uint8_t _dmaram_end__;
 #define USE_GPS_PLUS_CODES
 #endif
 
-#if defined(STM32F411xE)
+#if defined(STM32G4)
+#define MAX_PID_PROCESS_SPEED       1600
+#elif defined(STM32F411xE)
 #define MAX_PID_PROCESS_SPEED       1600
 #elif defined(STM32F4)
 #define MAX_PID_PROCESS_SPEED       4000
-#elif defined(STM32G4)
-#define MAX_PID_PROCESS_SPEED       2000
 #elif defined(STM32F7)
 #define MAX_PID_PROCESS_SPEED       4000
 #elif defined(STM32H7)
@@ -408,4 +408,4 @@ extern uint8_t _dmaram_end__;
 #define MAX_PID_PROCESS_SPEED       1000
 #endif
 
-#define MIN_PID_PROCESS_SPEED       500
+#define MIN_PID_PROCESS_SPEED       800
