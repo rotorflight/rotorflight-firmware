@@ -92,6 +92,12 @@ float getThrottle(void)
     return rcDeflection[THROTTLE];
 }
 
+bool isArmingThrottle(void)
+{
+    // Allow slight deadband
+    return (rcInput[THROTTLE] < rcControlsConfig()->rc_arm_throttle + 5);
+}
+
 throttleStatus_e getThrottleStatus(void)
 {
     return (rcInput[THROTTLE] < rcControlsConfig()->rc_min_throttle) ? THROTTLE_LOW : THROTTLE_HIGH;

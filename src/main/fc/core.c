@@ -241,7 +241,7 @@ void updateArmingStatus(void)
             unsetArmingDisabled(ARMING_DISABLED_BOXFAILSAFE);
         }
 
-        if (getThrottleStatus() != THROTTLE_LOW) {
+        if (!isArmingThrottle()) {
             setArmingDisabled(ARMING_DISABLED_THROTTLE);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_THROTTLE);

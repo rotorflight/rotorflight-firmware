@@ -69,6 +69,7 @@ float getThrottle(void);
 static inline float getThrottleCommand(void) { return getThrottle() * 1000; }
 static inline uint8_t getThrottlePercent(void) { return lrintf(getThrottle() * 100); }
 
+bool isArmingThrottle(void);
 throttleStatus_e getThrottleStatus(void);
 
 uint16_t getCurrentRxRefreshRate(void);

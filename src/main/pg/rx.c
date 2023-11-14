@@ -72,6 +72,7 @@ PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONT
 PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .rc_center = RC_CENTER_DEFAULT,
     .rc_deflection = RC_DEFLECTION_DEFAULT,
+    .rc_arm_throttle = 1050,
     .rc_min_throttle = 1100,
     .rc_max_throttle = 1900,
     .rc_deadband = 0,
