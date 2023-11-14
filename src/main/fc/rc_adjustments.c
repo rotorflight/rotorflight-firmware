@@ -624,7 +624,7 @@ void processRcAdjustments(void)
                 if (cmp32(now, adjState->deadTime) < 0)
                     continue;
 
-                const int chValue = lrintf(rcInput[adjRange->adjChannel + CONTROL_CHANNEL_COUNT]);
+                const int chValue = rcInput[adjRange->adjChannel + CONTROL_CHANNEL_COUNT];
 
                 // Stepped adjustment
                 if (adjRange->adjStep) {
@@ -648,15 +648,17 @@ void processRcAdjustments(void)
                 }
                 // Continuous adjustment
                 else {
-                    const int adjWidth = adjRange->adjMax - adjRange->adjMin;
-                    const int chWidth = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.endStep) -
-                                        STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.startStep);
-                    const int chStep  = chWidth / adjWidth / 2;
-                    const int chStart = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.startStep) - chStep;
-                    const int chEnd   = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.endStep) + chStep;
+                    const int rangeLower = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.startStep);
+                    const int rangeUpper = STEP_TO_CHANNEL_VALUE(adjRange->adjRange1.endStep);
+                    const int rangeWidth = rangeUpper - rangeLower;
+                    const int valueWidth = adjRange->adjMax - adjRange->adjMin;
 
-                    if (chValue > chStart && chValue < chEnd) {
-                        adjval = adjRange->adjMin + (chValue - chStart) * adjWidth / chWidth;
+                    if (rangeWidth > 0 && valueWidth > 0) {
+                        const int offset = rangeWidth / 2;
+                        adjval = adjRange->adjMin + ((chValue - rangeLower) * valueWidth + offset) / rangeWidth;
+                    }
+                    else {
+                        adjval = adjRange->adjMin;
                     }
                 }
 
