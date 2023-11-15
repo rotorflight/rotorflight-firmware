@@ -1952,6 +1952,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_autorotation_timeout);
         sbufWriteU16(dst, governorConfig()->gov_autorotation_bailout_time);
         sbufWriteU16(dst, governorConfig()->gov_autorotation_min_entry_time);
+        sbufWriteU8(dst, governorConfig()->gov_handover_throttle);
         sbufWriteU8(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU8(dst, governorConfig()->gov_rpm_filter);
         sbufWriteU8(dst, governorConfig()->gov_tta_filter);
@@ -3253,6 +3254,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
         governorConfigMutable()->gov_autorotation_bailout_time = sbufReadU16(src);
         governorConfigMutable()->gov_autorotation_min_entry_time = sbufReadU16(src);
+        governorConfigMutable()->gov_handover_throttle = sbufReadU8(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU8(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU8(src);
         governorConfigMutable()->gov_tta_filter = sbufReadU8(src);
