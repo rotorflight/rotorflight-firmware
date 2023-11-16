@@ -78,7 +78,14 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
             IBUS_SENSOR_TYPE_RPM_FLYSKY,
             IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
     },
-    .enableSensors = SENSOR_ALL ^ (ESC_SENSOR_ALL | SENSOR_CAP_USED | SENSOR_ADJUSTMENT),
+    .enableSensors =
+        SENSOR_VOLTAGE |
+        SENSOR_CURRENT |
+        SENSOR_FUEL |
+        SENSOR_MODE |
+        SENSOR_CAP_USED |
+        ESC_SENSOR_RPM |
+        ESC_SENSOR_TEMPERATURE,
     .mavlink_mah_as_heading_divisor = 0,
     .crsf_flight_mode_reuse = CRSF_FM_REUSE_NONE,
     .crsf_att_pitch_reuse = CRSF_ATT_REUSE_NONE,
