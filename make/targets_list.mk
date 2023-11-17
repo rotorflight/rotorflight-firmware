@@ -112,7 +112,6 @@ LEGACY_TARGETS := \
     YUPIF7 \
     PYRODRONEF4 \
     AG3XF4 \
-    COLIBRI \
     ELLE0 \
     F4BY \
     FF_FORTINIF4 \
