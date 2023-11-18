@@ -58,8 +58,6 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 
-#define USE_SERVO_GEOMETRY_CORRECTION
-
 #define VOLTAGE_TASK_FREQ_HZ     100
 #define CURRENT_TASK_FREQ_HZ     100
 #define ESC_SENSOR_TASK_FREQ_HZ  100
@@ -87,6 +85,8 @@
 
 #define USE_INVERTER
 
+#undef  USE_MULTI_GYRO
+
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
 #define USE_SPI_DEVICE_3
@@ -96,8 +96,6 @@
 #define TARGET_IO_PORTC 0xffff
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
-
-#define USE_SERVO_GEOMETRY_CORRECTION
 
 #define VOLTAGE_TASK_FREQ_HZ     100
 #define CURRENT_TASK_FREQ_HZ     100
@@ -139,8 +137,6 @@
 #define TARGET_IO_PORTD 0xffff
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
-
-#define USE_SERVO_GEOMETRY_CORRECTION
 
 #define VOLTAGE_TASK_FREQ_HZ     200
 #define CURRENT_TASK_FREQ_HZ     200
@@ -187,8 +183,6 @@
 #define TARGET_IO_PORTE 0xffff
 #define TARGET_IO_PORTF 0xffff
 
-#define USE_SERVO_GEOMETRY_CORRECTION
-
 #define VOLTAGE_TASK_FREQ_HZ     200
 #define CURRENT_TASK_FREQ_HZ     200
 #define ESC_SENSOR_TASK_FREQ_HZ  200
@@ -217,6 +211,8 @@
 #define USE_LPUART1
 
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 6)
+
+#undef  USE_MULTI_GYRO
 
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
@@ -279,8 +275,6 @@
 #define TARGET_IO_PORTF 0xffff
 #define TARGET_IO_PORTG 0xffff
 
-#define USE_SERVO_GEOMETRY_CORRECTION
-
 #define VOLTAGE_TASK_FREQ_HZ     250
 #define CURRENT_TASK_FREQ_HZ     250
 #define ESC_SENSOR_TASK_FREQ_HZ  250
@@ -306,7 +300,6 @@
 #define USE_BEEPER
 
 #undef  USE_GYRO_DLPF_EXPERIMENTAL
-#undef  USE_MULTI_GYRO
 
 #define USE_ACC
 #define USE_GYRO
@@ -389,6 +382,8 @@
 #define USE_ADC
 
 #define USE_FREQ_SENSOR
+
+#define USE_SERVO_GEOMETRY_CORRECTION
 
 #if defined(STM32F405_OSD) || defined(STM32F411_OSD) || defined(STM32F7X2_OSD) || defined(STM32F745_OSD) || defined(STM32G47X_OSD) || defined(STM32H743_OSD)
 #define USE_OSD
