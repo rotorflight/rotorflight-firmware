@@ -50,6 +50,9 @@
 // Throttle mapping in IDLE state
 #define GOV_THROTTLE_OFF_LIMIT          0.05f
 
+// Minimum throttle output from PI algorithms
+#define GOV_MIN_THROTTLE_OUTPUT         0.05f
+
 // Headspeed quality levels
 #define GOV_HS_DETECT_DELAY             100
 #define GOV_HS_DETECT_RATIO             0.05f
@@ -823,11 +826,11 @@ static float govPIDControl(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.maxIdleThrottle && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, gov.maxIdleThrottle, gov.maxThrottle);
+    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
 
     return output;
 }
@@ -868,11 +871,11 @@ static float govMode1Control(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.maxIdleThrottle && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, gov.maxIdleThrottle, gov.maxThrottle);
+    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
 
     return output;
 }
@@ -922,11 +925,11 @@ static float govMode2Control(void)
     output = gov.pidSum * pidGain;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.maxIdleThrottle && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, gov.maxIdleThrottle, gov.maxThrottle);
+    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
 
     return output;
 }
