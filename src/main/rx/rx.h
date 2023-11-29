@@ -100,6 +100,8 @@ typedef enum {
 
 extern const char rcChannelLetters[];
 
+extern uint8_t activeRcChannelCount;
+
 extern float rcRawChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 extern float rcChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 extern float rcInput[MAX_SUPPORTED_RC_CHANNEL_COUNT];

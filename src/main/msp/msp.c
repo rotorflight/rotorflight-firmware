@@ -1256,7 +1256,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
 
     case MSP_RC:
-        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
+        for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcInput[i]);
         }
         break;
@@ -1268,7 +1268,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_RX_CHANNELS:
-        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
+        for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcRawChannel[i]);
         }
         break;
@@ -1553,7 +1553,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_RXFAIL_CONFIG:
-        for (int i = 0; i < rxRuntimeState.channelCount; i++) {
+        for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU8(dst, rxFailsafeChannelConfigs(i)->mode);
             sbufWriteU16(dst, RXFAIL_STEP_TO_CHANNEL_VALUE(rxFailsafeChannelConfigs(i)->step));
         }

@@ -274,21 +274,21 @@ void mavlinkSendRCChannelsAndRSSI(void)
         // port Servo output port (set of 8 outputs = 1 port). Most MAVs will just use one, but this allows to encode more than 8 servos.
         0,
         // chan1_raw RC channel 1 value, in microseconds
-        (rxRuntimeState.channelCount >= 1) ? rcInput[0] : 0,
+        (activeRcChannelCount >= 1) ? rcInput[0] : 0,
         // chan2_raw RC channel 2 value, in microseconds
-        (rxRuntimeState.channelCount >= 2) ? rcInput[1] : 0,
+        (activeRcChannelCount >= 2) ? rcInput[1] : 0,
         // chan3_raw RC channel 3 value, in microseconds
-        (rxRuntimeState.channelCount >= 3) ? rcInput[2] : 0,
+        (activeRcChannelCount >= 3) ? rcInput[2] : 0,
         // chan4_raw RC channel 4 value, in microseconds
-        (rxRuntimeState.channelCount >= 4) ? rcInput[3] : 0,
+        (activeRcChannelCount >= 4) ? rcInput[3] : 0,
         // chan5_raw RC channel 5 value, in microseconds
-        (rxRuntimeState.channelCount >= 5) ? rcInput[4] : 0,
+        (activeRcChannelCount >= 5) ? rcInput[4] : 0,
         // chan6_raw RC channel 6 value, in microseconds
-        (rxRuntimeState.channelCount >= 6) ? rcInput[5] : 0,
+        (activeRcChannelCount >= 6) ? rcInput[5] : 0,
         // chan7_raw RC channel 7 value, in microseconds
-        (rxRuntimeState.channelCount >= 7) ? rcInput[6] : 0,
+        (activeRcChannelCount >= 7) ? rcInput[6] : 0,
         // chan8_raw RC channel 8 value, in microseconds
-        (rxRuntimeState.channelCount >= 8) ? rcInput[7] : 0,
+        (activeRcChannelCount >= 8) ? rcInput[7] : 0,
         // rssi Receive signal strength indicator, 0: 0%, 254: 100%
         scaleRange(getRssi(), 0, RSSI_MAX_VALUE, 0, 254));
     msgLength = mavlink_msg_to_send_buffer(mavBuffer, &mavMsg);

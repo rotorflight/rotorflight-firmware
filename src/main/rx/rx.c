@@ -100,11 +100,12 @@ static bool auxiliaryProcessingRequired = false;
 
 static bool rxSignalReceived = false;
 static bool rxFlightChannelsValid = false;
-static uint8_t rxChannelCount = 0;
 
 static timeUs_t needRxSignalBefore = 0;
 static timeUs_t suspendRxSignalUntil = 0;
 static uint8_t  skipRxSamples = 0;
+
+uint8_t activeRcChannelCount = 0;
 
 float rcRawChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];       // last received "raw" channel value, as it comes
 float rcChannel[MAX_SUPPORTED_RC_CHANNEL_COUNT];          // last received mapped value
@@ -346,7 +347,7 @@ void rxInit(void)
     // Setup source frame RSSI filtering to take averaged values every FRAME_ERR_RESAMPLE_US
     pt1FilterInit(&frameErrFilter, GET_FRAME_ERR_LPF_FREQUENCY(rxConfig()->rssi_src_frame_lpf_period), 1e6f / FRAME_ERR_RESAMPLE_US);
 
-    rxChannelCount = rxRuntimeState.channelCount;
+    activeRcChannelCount = MIN(rxRuntimeState.channelCount, MAX_SUPPORTED_RC_CHANNEL_COUNT);
 }
 
 bool rxIsReceivingSignal(void)
@@ -551,7 +552,7 @@ static uint16_t getRxfailValue(uint8_t channel)
 
 static void readRxChannels(void)
 {
-    for (int channel = 0; channel < rxChannelCount; channel++) {
+    for (int channel = 0; channel < activeRcChannelCount; channel++) {
 
         const uint8_t rawChannel = channel < RX_MAPPABLE_CHANNEL_COUNT ? rxConfig()->rcmap[channel] : channel;
         float sample = rxRuntimeState.rcReadRawFn(&rxRuntimeState, rawChannel);
@@ -573,7 +574,7 @@ void detectAndApplySignalLossBehaviour(void)
     //  set rxFlightChannelsValid false when a packet is bad or we use a failsafe switch
     rxFlightChannelsValid = rxSignalReceived && !failsafeAuxSwitch;
 
-    for (int channel = 0; channel < rxChannelCount; channel++) {
+    for (int channel = 0; channel < activeRcChannelCount; channel++) {
 
         float sample = rcChannel[channel];
 
