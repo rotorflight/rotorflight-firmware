@@ -346,10 +346,7 @@ void rxInit(void)
     // Setup source frame RSSI filtering to take averaged values every FRAME_ERR_RESAMPLE_US
     pt1FilterInit(&frameErrFilter, GET_FRAME_ERR_LPF_FREQUENCY(rxConfig()->rssi_src_frame_lpf_period), 1e6f / FRAME_ERR_RESAMPLE_US);
 
-    if ( rxRuntimeState.channelCount > MAX_SUPPORTED_RC_CHANNEL_COUNT)
-      rxChannelCount = MAX_SUPPORTED_RC_CHANNEL_COUNT;
-    else
-      rxChannelCount = rxRuntimeState.channelCount;
+    rxChannelCount = MIN(rxRuntimeState.channelCount, MAX_SUPPORTED_RC_CHANNEL_COUNT);
 }
 
 bool rxIsReceivingSignal(void)
