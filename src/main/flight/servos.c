@@ -50,6 +50,8 @@ static FAST_DATA_ZERO_INIT uint8_t      servoCount;
 
 static FAST_DATA_ZERO_INIT float        servoInput[MAX_SUPPORTED_SERVOS];
 static FAST_DATA_ZERO_INIT float        servoOutput[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT float        servoResolution[MAX_SUPPORTED_SERVOS];
+
 static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
@@ -121,7 +123,7 @@ void servoInit(void)
 {
     const ioTag_t *ioTags = servoConfig()->ioTags;
     const timerHardware_t *timer[MAX_SUPPORTED_SERVOS];
-    uint32_t rate[MAX_SUPPORTED_SERVOS];
+    uint32_t rates[MAX_SUPPORTED_SERVOS];
     uint8_t index, jndex;
 
     for (index = 0; index < MAX_SUPPORTED_SERVOS; index++)
@@ -148,24 +150,55 @@ void servoInit(void)
 
     for (index = 0; index < servoCount; index++)
     {
-        rate[index] = servoParams(index)->rate;
+        uint32_t update_rate = servoParams(index)->rate;
 
         for (jndex = 0; jndex < servoCount; jndex++) {
             if (timer[index]->tim == timer[jndex]->tim) {
-                uint32_t maxpulse = servoParams(jndex)->max + 10;
-                uint32_t maxrate = MIN(servoParams(jndex)->rate, 1000000 / maxpulse);
-                if (maxrate < rate[index])
-                    rate[index] = maxrate;
+                uint32_t maxpulse = servoParams(jndex)->mid + servoParams(jndex)->max;
+                uint32_t maxrate = MIN(servoParams(jndex)->rate, 950000 / maxpulse);  // 1000000 / (maxpulse +5%)
+                if (maxrate < update_rate)
+                    update_rate = maxrate;
             }
         }
 
-        rate[index] = constrain(rate[index], SERVO_RATE_MIN, SERVO_RATE_MAX);
+        rates[index] = constrain(update_rate, SERVO_RATE_MIN, SERVO_RATE_MAX);
     }
 
     for (index = 0; index < servoCount; index++)
     {
-        servoParamsMutable(index)->rate = rate[index];
-        pwmOutConfig(&servoChannel[index], timer[index], PWM_TIMER_1MHZ, PWM_TIMER_1MHZ / rate[index], 0, 0);
+        const uint32_t timer_clock = timerClock(timer[index]->tim);
+        const uint32_t update_rate = rates[index];
+        uint32_t timebase;
+
+        servoParamsMutable(index)->rate = update_rate;
+
+        if (update_rate > 500) {
+            const uint32_t timer_rate = update_rate * 64000;
+            const uint32_t timer_div = (timer_clock + timer_rate - 1) / timer_rate;
+            timebase = timer_clock / timer_div;
+        }
+        else if (update_rate > 154 && timer_clock % 10000000 == 0) {
+            timebase = 10000000;
+        }
+        else if (update_rate > 124 && timer_clock % 8000000 == 0) {
+            timebase = 8000000;
+        }
+        else if (update_rate > 77 && timer_clock % 5000000 == 0) {
+            timebase = 5000000;
+        }
+        else if (update_rate > 62 && timer_clock % 4000000 == 0) {
+            timebase = 4000000;
+        }
+        else if (update_rate > 31 && timer_clock % 2000000 == 0) {
+            timebase = 2000000;
+        }
+        else {
+            timebase = 1000000;
+        }
+
+        servoResolution[index] = timebase * 1e-6f;
+
+        pwmOutConfig(&servoChannel[index], timer[index], timebase, timebase / update_rate, 0, 0);
     }
 }
 
@@ -182,10 +215,12 @@ void servoShutdown(void)
     delay(100);
 }
 
-static inline void servoWrite(uint8_t index, uint16_t value)
+static inline void servoSetOutput(uint8_t index, float pos)
 {
+    servoOutput[index] = pos;
+
     if (servoChannel[index].ccr)
-        *servoChannel[index].ccr = value;
+        *servoChannel[index].ccr = lrintf(pos * servoResolution[index]);
 }
 
 static inline float limitTravel(uint8_t servo, float pos, float min, float max)
@@ -280,9 +315,7 @@ void servoUpdate(void)
         pos = limitTravel(i, scale * pos, servo->min, servo->max);
         pos = servo->mid + pos;
 
-        servoOutput[i] = pos;
-
-        servoWrite(i, lrintf(servoOutput[i]));
+        servoSetOutput(i, pos);
     }
 }
 
