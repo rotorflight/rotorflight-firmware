@@ -164,11 +164,12 @@ typedef struct
     INT8 dBm_A, // Average signal for A antenna in dBm
     INT8 dBm_B; // Average signal for B antenna in dBm.
     // If only 1 antenna, set B = A
+    UINT16 spare[2]; // Seems to be used as some "Rx fast boot" indicator if non-zero, brown out detection?
 } STRU_TELE_RPM;
 */
 
 #define STRU_TELE_RPM_EMPTY_FIELDS_COUNT 8
-#define STRU_TELE_RPM_EMPTY_FIELDS_VALUE 0xff
+#define STRU_TELE_RPM_EMPTY_FIELDS_VALUE 0
 
 #define SPEKTRUM_RPM_UNUSED 0xffff
 #define SPEKTRUM_TEMP_UNUSED 0x7fff
