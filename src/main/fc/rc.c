@@ -198,10 +198,6 @@ void updateRcCommands(void)
         // Center point
         data = rcInput[axis] - rcControlsConfig()->rc_center;
 
-        // RC yaw rate and gyro yaw rate have opposite signs
-        if (axis == FD_YAW)
-            data = -data;
-
         // Apply deadband
         data = fapplyDeadband(data, rcDeadband[axis]);
         range = rcControlsConfig()->rc_deflection - rcDeadband[axis];

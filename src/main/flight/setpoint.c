@@ -182,7 +182,13 @@ void setpointUpdate(void)
     DEBUG_AXIS(SETPOINT, FD_PITCH, 1, sp.deflection[FD_PITCH] * 1000);
 
     for (int axis = 0; axis < 4; axis++) {
-        float SP = sp.limited[axis] = slewLimit(sp.limited[axis], sp.deflection[axis], sp.accelLimit[axis]);
+        float SP = sp.deflection[axis];
+
+        // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
+        if (axis == FD_YAW)
+            SP = -SP;
+
+        SP = sp.limited[axis] = slewLimit(sp.limited[axis], SP, sp.accelLimit[axis]);
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
         SP = sp.deflection[axis] = filterApply(&sp.filter[axis], SP);
