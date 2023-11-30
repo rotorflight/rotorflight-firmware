@@ -146,7 +146,7 @@
 #define INIT_CODE                   __attribute__((optimize("-Os")))
 
 #ifdef USE_ITCM_RAM
-#if defined(ITCM_RAM_OPTIMISATION) && !defined(DEBUG)
+#if defined(ITCM_RAM_OPTIMISATION) && !defined(DEBUG_BUILD)
 #define FAST_CODE                   __attribute__((section(".tcm_code"))) __attribute__((optimize(ITCM_RAM_OPTIMISATION)))
 #else
 #define FAST_CODE                   __attribute__((section(".tcm_code")))

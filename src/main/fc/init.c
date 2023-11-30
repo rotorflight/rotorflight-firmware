@@ -422,7 +422,7 @@ void init(void)
     delayMicroseconds(10);  // allow configuration to settle // XXX Could be removed, too?
 
     // Allow EEPROM reset with two-button-press without power cycling in DEBUG build
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
 #define EEPROM_RESET_PRECONDITION true
 #else
 #define EEPROM_RESET_PRECONDITION (!isMPUSoftReset())

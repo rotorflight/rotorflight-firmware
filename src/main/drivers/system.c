@@ -256,7 +256,7 @@ void failureMode(failureMode_e mode)
 {
     indicateFailure(mode, 10);
 
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
     systemResetHard();
 #else
     systemReset(RESET_BOOTLOADER_REQUEST_ROM);

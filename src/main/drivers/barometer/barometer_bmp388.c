@@ -180,7 +180,7 @@ STATIC_UNIT_TESTED void bmp388Calculate(int32_t *pressure, int32_t *temperature)
 
 void bmp388_extiHandler(extiCallbackRec_t* cb)
 {
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
     static uint32_t bmp388ExtiCallbackCounter = 0;
 
     bmp388ExtiCallbackCounter++;

@@ -842,7 +842,7 @@ STATIC_UNIT_TESTED void *cliGetValuePointer(const clivalue_t *value)
 static const char *dumpPgValue(const char *cmdName, const clivalue_t *value, dumpFlags_t dumpMask, const char *headingStr)
 {
     const pgRegistry_t *pg = pgFind(value->pgn);
-#ifdef DEBUG
+#ifdef DEBUG_BUILD
     if (!pg) {
         cliPrintLinef("VALUE %s ERROR", value->name);
         return headingStr; // if it's not found, the pgn shouldn't be in the value table!
