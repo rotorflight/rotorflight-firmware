@@ -861,7 +861,7 @@ void init(void)
     cmsInit();
 #endif
 
-#if (defined(USE_OSD) || (defined(USE_MSP_DISPLAYPORT) && defined(USE_CMS)))
+#if defined(USE_OSD)
     displayPort_t *osdDisplayPort = NULL;
     osdDisplayPortDevice_e osdDisplayPortDevice = OSD_DISPLAYPORT_DEVICE_NONE;
 #endif
@@ -928,7 +928,10 @@ void init(void)
 
 #if defined(USE_CMS) && defined(USE_MSP_DISPLAYPORT)
     // If BFOSD is not active, then register MSP_DISPLAYPORT as a CMS device.
-    if (!osdDisplayPort) {
+#if defined(USE_OSD)
+    if (!osdDisplayPort)
+#endif
+    {
         cmsDisplayPortRegister(displayPortMspInit());
     }
 #endif
