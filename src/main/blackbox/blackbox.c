@@ -1413,15 +1413,35 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentControlRateProfile->rate_limit[PITCH],
                                                                             currentControlRateProfile->rate_limit[YAW]);
 
-        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d",                   currentPidProfile->pid[PID_ROLL].P,
+        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d,%d,%d,%d",          currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
-                                                                            currentPidProfile->pid[PID_ROLL].D);
-        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d",                  currentPidProfile->pid[PID_PITCH].P,
+                                                                            currentPidProfile->pid[PID_ROLL].D,
+                                                                            currentPidProfile->pid[PID_ROLL].F,
+                                                                            currentPidProfile->pid[PID_ROLL].B,
+                                                                            currentPidProfile->pid[PID_ROLL].O);
+        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d,%d,%d,%d",         currentPidProfile->pid[PID_PITCH].P,
                                                                             currentPidProfile->pid[PID_PITCH].I,
-                                                                            currentPidProfile->pid[PID_PITCH].D);
-        BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d",                    currentPidProfile->pid[PID_YAW].P,
+                                                                            currentPidProfile->pid[PID_PITCH].D,
+                                                                            currentPidProfile->pid[PID_PITCH].F,
+                                                                            currentPidProfile->pid[PID_PITCH].B,
+                                                                            currentPidProfile->pid[PID_ROLL].O);
+        BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d,%d,%d",              currentPidProfile->pid[PID_YAW].P,
                                                                             currentPidProfile->pid[PID_YAW].I,
-                                                                            currentPidProfile->pid[PID_YAW].D);
+                                                                            currentPidProfile->pid[PID_YAW].D,
+                                                                            currentPidProfile->pid[PID_YAW].F,
+                                                                            currentPidProfile->pid[PID_YAW].B);
+
+// Tail compensation
+        BLACKBOX_PRINT_HEADER_LINE("CW_Stop_gain", "%d",                    currentPidProfile->yaw_cw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("CCW_Stop_gain", "%d",                   currentPidProfile->yaw_ccw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("cyclic_ff_gain", "%d",                  currentPidProfile->yaw_cyclic_ff_gain);
+        BLACKBOX_PRINT_HEADER_LINE("collective_ff_gain", "%d",              currentPidProfile->yaw_collective_ff_gain);
+        BLACKBOX_PRINT_HEADER_LINE("collective_impulse_gain", "%d",         currentPidProfile->yaw_collective_dynamic_gain);
+        BLACKBOX_PRINT_HEADER_LINE("collective_impulse_decay", "%d",        currentPidProfile->yaw_collective_dynamic_decay);
+        BLACKBOX_PRINT_HEADER_LINE("TTA_gain", "%d",                        currentPidProfile->governor.tta_gain);
+        BLACKBOX_PRINT_HEADER_LINE("TTA_limit", "%d",                       currentPidProfile->governor.tta_limit);
+
+        BLACKBOX_PRINT_HEADER_LINE("Tail_ratio", "%d",   motorConfig()->tailRotorGearRatio[1]/motorConfig()->tailRotorGearRatio[0]);
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);
