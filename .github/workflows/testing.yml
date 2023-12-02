@@ -33,7 +33,7 @@ jobs:
         cat ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified unified_osd FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
 
     - name: Move HEX
       run: mv obj/*.hex .

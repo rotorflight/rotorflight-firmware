@@ -24,7 +24,7 @@
  * STM32F405
  */
 
-#if defined(STM32F405) || defined(STM32F405_OSD)
+#if defined(STM32F405)
 
 #define TARGET_BOARD_IDENTIFIER "S405"
 
@@ -67,7 +67,7 @@
  * STM32F411
  */
 
-#elif defined(STM32F411) || defined(STM32F411_OSD)
+#elif defined(STM32F411)
 
 #define TARGET_BOARD_IDENTIFIER "S411"
 
@@ -106,7 +106,7 @@
  * STM32F7x2
  */
 
-#elif defined(STM32F7X2) || defined(STM32F7X2_OSD)
+#elif defined(STM32F7X2)
 
 #define TARGET_BOARD_IDENTIFIER "S7X2"
 
@@ -147,7 +147,7 @@
  * STM32F745
  */
 
-#elif defined(STM32F745) || defined(STM32F745_OSD)
+#elif defined(STM32F745)
 
 #define TARGET_BOARD_IDENTIFIER "S745"
 
@@ -192,7 +192,7 @@
  * STM32G47x
  */
 
-#elif defined(STM32G47X) || defined(STM32G47X_OSD)
+#elif defined(STM32G47X)
 
 #define TARGET_BOARD_IDENTIFIER "SG47"
 
@@ -235,7 +235,7 @@
  * STM32H743
  */
 
-#elif defined(STM32H743) || defined(STM32H743_OSD)
+#elif defined(STM32H743)
 
 #define TARGET_BOARD_IDENTIFIER "SH74"
 
@@ -360,8 +360,6 @@
 #define USE_FLASH_W25M02G          // 2Gb (1Gb x 2 stacked) NAND flash support
 #define USE_FLASH_W25Q128FV        // 16MB Winbond 25Q128
 
-#define USE_MAX7456
-
 #define USE_SPI
 #define SPI_FULL_RECONFIGURABILITY
 
@@ -385,17 +383,6 @@
 
 #define USE_SERVO_GEOMETRY_CORRECTION
 
-#if defined(STM32F405_OSD) || defined(STM32F411_OSD) || defined(STM32F7X2_OSD) || defined(STM32F745_OSD) || defined(STM32G47X_OSD) || defined(STM32H743_OSD)
-#define USE_OSD
-#define USE_CMS
-#define USE_MAX7456
-#define USE_RCDEVICE
-#define USE_VTX_COMMON
-#define USE_VTX_CONTROL
-#define USE_VTX_SMARTAUDIO
-#define USE_VTX_TRAMP
-#define USE_CAMERA_CONTROL
-#else
 #undef USE_OSD
 #undef USE_CMS
 #undef USE_MAX7456
@@ -405,7 +392,6 @@
 #undef USE_VTX_SMARTAUDIO
 #undef USE_VTX_TRAMP
 #undef USE_CAMERA_CONTROL
-#endif
 
 #ifdef USE_RX_SPI
 #define USE_RX_FRSKY_SPI_D

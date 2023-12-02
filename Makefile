@@ -471,9 +471,6 @@ all_all: $(VALID_TARGETS)
 ## unified : build all Unified Targets
 unified: $(UNIFIED_TARGETS)
 
-## osd: : build all Unified Targets with OSD support
-unified_osd: $(OSD_TARGETS)
-
 ## legacy : Build legacy targets
 legacy: $(LEGACY_TARGETS)
 

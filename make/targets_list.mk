@@ -22,14 +22,6 @@ UNIFIED_TARGETS := \
 	STM32G47X  \
 	STM32H743  \
 
-OSD_TARGETS:= \
-	STM32F405_OSD  \
-	STM32F411_OSD  \
-	STM32F7X2_OSD  \
-	STM32F745_OSD  \
-	STM32G47X_OSD  \
-	STM32H743_OSD  \
-
 # Legacy targets are targets that have been replaced by Unified Target configurations
 LEGACY_TARGETS := \
     AG3XF4 \
