@@ -171,6 +171,7 @@ typedef struct
 #define STRU_TELE_RPM_EMPTY_FIELDS_COUNT 8
 #define STRU_TELE_RPM_EMPTY_FIELDS_VALUE 0
 
+#define SPEKTRUM_VOLT_UNUSED 0xffff
 #define SPEKTRUM_RPM_UNUSED 0xffff
 #define SPEKTRUM_TEMP_UNUSED 0x7fff
 #define MICROSEC_PER_MINUTE 60000000
@@ -211,11 +212,17 @@ bool srxlFrameRpm(sbuf_t *dst, timeUs_t currentTimeUs)
     sbufWriteU8(dst, SRXL_FRAMETYPE_TELE_RPM);
     sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
     sbufWriteU16BigEndian(dst, getMotorAveragePeriod());    // pulse leading edges
-    if (telemetryConfig()->report_cell_voltage) {
+
+    if ( isBatteryVoltageConfigured() ) {
+      if (telemetryConfig()->report_cell_voltage) {
         sbufWriteU16BigEndian(dst, getBatteryAverageCellVoltage()); // Cell voltage is in units of 0.01V
-    } else {
+      } else {
         sbufWriteU16BigEndian(dst, getBatteryVoltage());   // vbat is in units of 0.01V
+      }
+    } else {
+      sbufWriteU16(dst, SPEKTRUM_VOLT_UNUSED);   // NA
     }
+
     sbufWriteU16BigEndian(dst, coreTemp);                   // temperature
     sbufFill(dst, STRU_TELE_RPM_EMPTY_FIELDS_VALUE, STRU_TELE_RPM_EMPTY_FIELDS_COUNT);
 
@@ -737,6 +744,12 @@ static void processSrxl(timeUs_t currentTimeUs)
         }
 #endif
 
+    }
+
+    if (srxlFnPtr == srxlFrameFlightPackCurrent) {
+        if ( !isAmperageConfigured() ) {
+          srxlFnPtr = NULL;
+        }
     }
 
     if (srxlFnPtr) {
