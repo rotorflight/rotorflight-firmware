@@ -136,6 +136,9 @@ static void mpuIntExtiHandler(extiCallbackRec_t *cb)
 {
     gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
 
+    // skip specified number of interrupts to keep gyro sampling rate on MPU6500 derivatives
+    if(gyro->gyroEXTICount++ % gyro->gyroEXTIDenom) return;
+
     // Ideally we'd use a timer to capture such information, but unfortunately the port used for EXTI interrupt does
     // not have an associated timer
     uint32_t nowCycles = getCycleCounter();
@@ -491,6 +494,11 @@ void mpuGyroInit(gyroDev_t *gyro)
 uint8_t mpuGyroDLPF(gyroDev_t *gyro)
 {
     uint8_t ret = 0;
+
+    // force gyro to 1k sampling rate and ~180hz lpf
+    if (gyro->gyroRateKHz == GYRO_RATE_1_kHz) {
+        return 1;
+    }
 
     // If gyro is in 32KHz mode then the DLPF bits aren't used
     if (gyro->gyroRateKHz <= GYRO_RATE_8_kHz) {

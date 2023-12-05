@@ -51,6 +51,7 @@ void gyroSetSampleRate(gyroDev_t *gyro)
 {
     uint16_t gyroRateKHz = 0;
     uint16_t gyroDivider = 1;
+    uint16_t gyroEXTIDenom = 1;
     uint16_t gyroSampleRateHz = 0;
     uint16_t accSampleRateHz = 0;
 
@@ -104,12 +105,30 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             accSampleRateHz = 1000;
 #endif
             break;
-        default:
+        case MPU_60x0_SPI:
 #if defined(STM32F411xE) || defined(STM32G4)
-            gyroRateKHz = GYRO_RATE_1_kHz;
+            gyroRateKHz = GYRO_RATE_8_kHz;
             gyroSampleRateHz = 1000;
             accSampleRateHz = 1000;
             gyroDivider = 8;
+#else
+            gyroRateKHz = GYRO_RATE_8_kHz;
+            gyroSampleRateHz = 8000;
+            accSampleRateHz = 1000;
+#endif
+            break;
+        default:
+#if defined(STM32F411xE) || defined(STM32G4)
+            gyroRateKHz = GYRO_RATE_8_kHz;
+            gyroSampleRateHz = 1000;
+            accSampleRateHz = 1000;
+            // MPU6500 and derivatives ignores divider if DLPF=0 (~250hz)
+            // it affects MPU9250 and ICM206xx
+            // therefore skip every N EXTI interrupts instead to achive expected sampling rate
+            gyroEXTIDenom = 8;
+            // You can also force 1k internal gyro sampling rate
+            // in that case DLPF is ~180Hz, delay about 2.9ms
+            //gyroRateKHz = GYRO_RATE_1_kHz;
 #else
             gyroRateKHz = GYRO_RATE_8_kHz;
             gyroSampleRateHz = 8000;
@@ -120,6 +139,7 @@ void gyroSetSampleRate(gyroDev_t *gyro)
 
     gyro->gyroRateKHz = gyroRateKHz;
     gyro->mpuDividerDrops = gyroDivider - 1;
+    gyro->gyroEXTIDenom = gyroEXTIDenom;
     gyro->gyroSampleRateHz = gyroSampleRateHz;
     gyro->accSampleRateHz = accSampleRateHz;
 }
