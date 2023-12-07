@@ -104,12 +104,23 @@ float acroTrainerApply(int axis, float setPoint)
     if (acroTrainer.Active && (axis == FD_ROLL || axis == FD_PITCH))
     {
         const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
-        const float currentAngle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
+        float currentAngle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
         const sign_t angleSign = Sign(currentAngle);
         const sign_t setpointSign = Sign(setPoint);
         float projectedAngle = 0;
         bool resetAxis = false;
 
+        if ( isUpsidedown() && FLIGHT_MODE(HORIZON_MODE) ){
+            switch (axis) {
+              case FD_PITCH:
+                currentAngle *= -1;
+                break;
+              case FD_ROLL:
+                currentAngle = Sign(currentAngle) * 180;
+                break;
+             }
+        }
+  
         // stick has reversed - stop limiting
         if ((acroTrainer.AxisState[axis] != 0) && (acroTrainer.AxisState[axis] != setpointSign)) {  // stick has reversed - stop limiting
             acroTrainer.AxisState[axis] = 0;
