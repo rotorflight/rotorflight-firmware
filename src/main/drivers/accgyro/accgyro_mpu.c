@@ -74,7 +74,7 @@
 #define GYRO_SPI_STARTUP_MS 100
 
 // Need to see at least this many interrupts during initialisation to confirm EXTI connectivity
-#define GYRO_EXTI_DETECT_THRESHOLD 1000
+#define GYRO_EXTI_DETECT_THRESHOLD 100
 
 #ifdef USE_I2C_GYRO
 static void mpu6050FindRevision(gyroDev_t *gyro)
@@ -490,29 +490,15 @@ void mpuGyroInit(gyroDev_t *gyro)
 
 uint8_t mpuGyroDLPF(gyroDev_t *gyro)
 {
-    uint8_t ret = 0;
-
-    // If gyro is in 32KHz mode then the DLPF bits aren't used
-    if (gyro->gyroRateKHz <= GYRO_RATE_8_kHz) {
-        switch (gyro->hardware_lpf) {
-#ifdef USE_GYRO_DLPF_EXPERIMENTAL
-            case GYRO_HARDWARE_LPF_EXPERIMENTAL:
-                // experimental mode not supported for MPU60x0 family
-                if ((gyro->gyroHardware != GYRO_MPU6050) && (gyro->gyroHardware != GYRO_MPU6000)) {
-                    ret = 7;
-                } else {
-                    ret = 0;
-                }
-                break;
-#endif
-
-            case GYRO_HARDWARE_LPF_NORMAL:
-            default:
-                ret = 0;
-                break;
-        }
+    // Only these two options are used by gyros calling this function
+    switch (gyro->gyroRateKHz) {
+        case GYRO_RATE_8_kHz:
+            return 0;
+        case GYRO_RATE_1_kHz:
+            return 1;
+        default:
+            return 0;
     }
-    return ret;
 }
 
 #ifdef USE_GYRO_REGISTER_DUMP

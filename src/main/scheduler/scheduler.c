@@ -555,7 +555,7 @@ FAST_CODE void scheduler(void)
             if (gyro->gyroModeSPI != GYRO_EXTI_NO_INT) {
                 // Track the actual gyro rate over given number of cycle times and set the expected timebase
                 static uint32_t terminalGyroRateCount = 0;
-                static int32_t sampleRateStartCycles;
+                static uint32_t sampleRateStartCycles;
 
                 if ((terminalGyroRateCount == 0)) {
                     terminalGyroRateCount = gyro->detectedEXTI + GYRO_RATE_COUNT;

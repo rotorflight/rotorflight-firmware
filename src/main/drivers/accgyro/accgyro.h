@@ -118,7 +118,6 @@ typedef struct gyroDev_s {
     volatile bool dataReady;
     bool gyro_high_fsr;
     uint8_t hardware_lpf;
-    uint8_t hardware_32khz_lpf;
     uint8_t mpuDividerDrops;
     ioTag_t mpuIntExtiTag;
     uint8_t gyroHasOverflowProtection;

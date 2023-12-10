@@ -55,15 +55,24 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     uint16_t accSampleRateHz = 0;
 
     switch (gyro->mpuDetectionResult.sensor) {
+#ifdef USE_ACCGYRO_LSM6DSO
+        case LSM6DSO_SPI:
+            gyroRateKHz = GYRO_RATE_6664_Hz;
+            gyroSampleRateHz = 6664;   // Rounds to 150us and 6.67KHz
+            accSampleRateHz = 833;
+            break;
+#endif
+
         case BMI_160_SPI:
             gyro->gyroRateKHz = GYRO_RATE_3200_Hz;
             gyroSampleRateHz = 3200;
             accSampleRateHz = 800;
             break;
+
         case BMI_270_SPI:
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
             if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL) {
-                // 6.4KHz sampling, but data is unfiltered (no hardware DLPF)
+                // 6.4KHz sampling used when DLPF is disabled
                 gyroRateKHz = GYRO_RATE_6400_Hz;
                 gyroSampleRateHz = 6400;
             } else
@@ -74,6 +83,7 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             }
             accSampleRateHz = 800;
             break;
+
         case ICM_20649_SPI:
 #if defined(STM32F411xE) || defined(STM32G4)
             gyroRateKHz = GYRO_RATE_1100_Hz;
@@ -85,15 +95,29 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             accSampleRateHz = 1125;
 #endif
             break;
-#ifdef USE_ACCGYRO_LSM6DSO
-        case LSM6DSO_SPI:
-            gyroRateKHz = GYRO_RATE_6664_Hz;
-            gyroSampleRateHz = 6664;   // Yes, this is correct per the datasheet. Will effectively round to 150us and 6.67KHz.
-            accSampleRateHz = 833;
-            break;
-#endif
-        case ICM_42688P_SPI:
+
+        case ICM_20689_SPI:
+        case MPU_9250_SPI:
+        case MPU_65xx_SPI:
 #if defined(STM32F411xE) || defined(STM32G4)
+            gyroRateKHz = GYRO_RATE_1_kHz;
+            gyroSampleRateHz = 1000;
+            accSampleRateHz = 1000;
+#else
+            gyroRateKHz = GYRO_RATE_8_kHz;
+            gyroSampleRateHz = 8000;
+            accSampleRateHz = 1000;
+#endif
+            break;
+
+        case ICM_42688P_SPI:
+        case MPU_60x0_SPI:
+#if defined(STM32F411xE)
+            gyroRateKHz = GYRO_RATE_8_kHz;
+            gyroSampleRateHz = 1000;
+            accSampleRateHz = 1000;
+            gyroDivider = 8;
+#elif defined(STM32G4)
             gyroRateKHz = GYRO_RATE_8_kHz;
             gyroSampleRateHz = 2000;
             accSampleRateHz = 1000;
@@ -104,18 +128,13 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             accSampleRateHz = 1000;
 #endif
             break;
+
         default:
-#if defined(STM32F411xE) || defined(STM32G4)
-            gyroRateKHz = GYRO_RATE_1_kHz;
-            gyroSampleRateHz = 1000;
-            accSampleRateHz = 1000;
-            gyroDivider = 8;
-#else
             gyroRateKHz = GYRO_RATE_8_kHz;
             gyroSampleRateHz = 8000;
             accSampleRateHz = 1000;
-#endif
             break;
+
     }
 
     gyro->gyroRateKHz = gyroRateKHz;

@@ -201,14 +201,12 @@ void gyroInitSensor(gyroSensor_t *gyroSensor, const gyroDeviceConfig_t *config)
     gyroSensor->gyroDev.mpuIntExtiTag = config->extiTag;
     gyroSensor->gyroDev.hardware_lpf = gyroConfig()->gyro_hardware_lpf;
 
-    // The targetLooptime gets set later based on the active sensor's gyroSampleRateHz and pid_process_denom
     gyroSetSampleRate(&gyroSensor->gyroDev);
     gyroSensor->gyroDev.initFn(&gyroSensor->gyroDev);
 
     // As new gyros are supported, be sure to add them below based on whether they are subject to the overflow/inversion bug
     // Any gyro not explicitly defined will default to not having built-in overflow protection as a safe alternative.
     switch (gyroSensor->gyroDev.gyroHardware) {
-    case GYRO_NONE:    // Won't ever actually get here, but included to account for all gyro types
     case GYRO_DEFAULT:
     case GYRO_FAKE:
     case GYRO_MPU6050:
