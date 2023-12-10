@@ -237,9 +237,14 @@ static inline void mixerSaturateMotorOutput(uint8_t index)
     mixerSaturateOutput(index + MIXER_MOTOR_OFFSET);
 }
 
+static inline bool mixerCwMainRotor()
+{
+    return mixerConfig()->main_rotor_dir == DIR_CW;
+}
+
 static inline int mixerRotationSign()
 {
-    return (mixerConfig()->main_rotor_dir == DIR_CW) ? -1 : 1;
+    return mixerCwMainRotor() ? -1 : 1;
 }
 
 static inline bool mixerMotorizedTail(void)

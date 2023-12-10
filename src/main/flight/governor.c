@@ -448,7 +448,9 @@ static void govUpdateData(void)
     if (mixerMotorizedTail() && gov.TTAGain > 0) {
         float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
         float TTA = filterApply(&gov.TTAFilter, YAW) * getSpoolUpRatio() * gov.TTAGain;
-        gov.TTAAdd = constrainf(TTA, 0, gov.TTALimit);
+        gov.TTAAdd = mixerCwMainRotor()
+            ? constrainf(TTA, 0, gov.TTALimit)
+            : -constrainf(TTA, -gov.TTALimit, 0);
     }
     else {
         gov.TTAAdd = 0.0f;
@@ -980,7 +982,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.Kd = pidProfile->governor.d_gain / 1000.0f;
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
-        gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
+        gov.TTAGain   = pidProfile->governor.tta_gain / 125.0f;
         gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
 
         if (gov.mode >= GM_STANDARD)
