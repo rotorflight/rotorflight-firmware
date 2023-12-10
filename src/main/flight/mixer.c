@@ -336,8 +336,8 @@ static void mixerUpdateMotorizedTail(void)
         // Yaw input value - positive is against torque
         const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
-        // No Thrust linearization
-        float throttle = yaw; //sqrtf(fmaxf(yaw,0));
+        // Add center trim
+        float throttle = yaw + mixer.tailCenterTrim;
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
@@ -357,8 +357,8 @@ static void mixerUpdateMotorizedTail(void)
         // Yaw input value - positive is against torque
         const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
-        // No Thrust linearization
-        float throttle = yaw; //copysignf(sqrtf(fabsf(yaw)),yaw);
+        // Add center trim
+        float throttle = yaw + mixer.tailCenterTrim;
 
         // Apply minimum throttle
         if (throttle > -mixer.tailMotorIdle && throttle < mixer.tailMotorIdle)
@@ -438,7 +438,7 @@ static void mixerUpdateSwash(void)
         setMotorOutput(0, ST);
 
         if (mixerMotorizedTail())
-            setMotorOutput(1, SY + TC);
+            setMotorOutput(1, SY);
         else
             setServoOutput(3, SY + TC);
     }
