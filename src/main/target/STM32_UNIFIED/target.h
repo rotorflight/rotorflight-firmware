@@ -360,6 +360,8 @@
 #define USE_FLASH_W25M02G          // 2Gb (1Gb x 2 stacked) NAND flash support
 #define USE_FLASH_W25Q128FV        // 16MB Winbond 25Q128
 
+#define EMFAT_MAX_LOG_ENTRY 200    // Default 100 is not enough with 1Gb flash
+
 #define USE_SPI
 #define SPI_FULL_RECONFIGURABILITY
 
