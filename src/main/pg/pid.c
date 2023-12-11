@@ -49,7 +49,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
             [PID_PITCH] = PID_PITCH_DEFAULT,
             [PID_YAW]   = PID_YAW_DEFAULT,
         },
-        .pid_mode = 2,
+        .pid_mode = 3,
         .dterm_mode = 0,
         .dterm_mode_yaw = 0,
         .error_decay_time_ground = 25,
