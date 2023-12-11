@@ -450,7 +450,7 @@ static void pidApplyCyclicCrossCoupling(void)
     DEBUG(CROSS_COUPLING, 3, pitchComp * 1000);
 }
 
-static float table_lookup(float x, const uint8_t * table, int points)
+static float pidTableLookup(float x, const uint8_t * table, int points)
 {
     /* Number of bins */
     const int bins = points - 1;
@@ -495,8 +495,8 @@ static void pidApplyOffsetBleed(const pidProfile_t * pidProfile)
     const float Py = Ay * Dp;
 
     // Bleed variables
-    float bleedRate = table_lookup(Cx, pidProfile->offset_bleed_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
-    float bleedLimit = table_lookup(Cx, pidProfile->offset_bleed_limit_curve, LOOKUP_CURVE_POINTS);
+    float bleedRate = pidTableLookup(Cx, pidProfile->offset_bleed_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
+    float bleedLimit = pidTableLookup(Cx, pidProfile->offset_bleed_limit_curve, LOOKUP_CURVE_POINTS);
 
     // Offset bleed amount
     float bleedP = limitf(Px * bleedRate, bleedLimit) * pid.dT;
@@ -931,14 +931,16 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
 
     // Get actual collective from the mixer
     const float collective = getCollectiveDeflection();
+
+    // Expand to 0..15° range
     const float curve = fabsf(collective) * 0.8f;
 
     // Apply error decay
     float decayRate, decayLimit, errorDecay;
 
     if (isAirborne()) {
-      decayRate  = table_lookup(curve, pidProfile->error_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
-      decayLimit = table_lookup(curve, pidProfile->error_decay_limit_curve, LOOKUP_CURVE_POINTS);
+      decayRate  = pidTableLookup(curve, pidProfile->error_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
+      decayLimit = pidTableLookup(curve, pidProfile->error_decay_limit_curve, LOOKUP_CURVE_POINTS);
       errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
     }
     else {
@@ -961,7 +963,7 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
     const bool offSaturation = (pidAxisSaturated(axis) && pid.data[axis].axisOffset * itermErrorRate * collective > 0);
 
     // Offset change modulated by collective
-    const float offMod = copysignf(table_lookup(curve, pidProfile->offset_charge_curve, LOOKUP_CURVE_POINTS), collective) / 100.0f;
+    const float offMod = copysignf(pidTableLookup(curve, pidProfile->offset_charge_curve, LOOKUP_CURVE_POINTS), collective) / 100.0f;
     const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod;
 
     // Calculate Offset component
@@ -979,8 +981,8 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
 
     // Apply offset decay
     if (isSpooledUp()) {
-      decayRate  = table_lookup(curve, pidProfile->offset_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
-      decayLimit = table_lookup(curve, pidProfile->offset_decay_limit_curve, LOOKUP_CURVE_POINTS);
+      decayRate  = pidTableLookup(curve, pidProfile->offset_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
+      decayLimit = pidTableLookup(curve, pidProfile->offset_decay_limit_curve, LOOKUP_CURVE_POINTS);
       errorDecay = limitf(pid.data[axis].axisOffset * decayRate, decayLimit);
     }
     else {
@@ -1110,9 +1112,6 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
     // Rotate pitch/roll axis error with yaw rotation
     rotateAxisError();
 
-    // Calculate stabilized collective
-    pidApplyCollective();
-
     // Apply PID for each axis
     switch (pid.pidMode) {
         case 3:
@@ -1139,6 +1138,9 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
             pidApplyMode0(PID_YAW);
             break;
     }
+
+    // Calculate stabilized collective
+    pidApplyCollective();
 
     // Calculate cyclic/collective precompensation
     pidApplyPrecomp();
