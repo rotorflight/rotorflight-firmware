@@ -196,6 +196,7 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 void gyroInitSensor(gyroSensor_t *gyroSensor, const gyroDeviceConfig_t *config)
 {
     gyroSensor->gyroDev.gyro_high_fsr = gyroConfig()->gyro_high_fsr;
+    gyroSensor->gyroDev.gyro_rate_sync = gyroConfig()->gyro_rate_sync;
     gyroSensor->gyroDev.gyroAlign = config->alignment;
     buildRotationMatrixFromAlignment(&config->customAlignment, &gyroSensor->gyroDev.rotationMatrix);
     gyroSensor->gyroDev.mpuIntExtiTag = config->extiTag;

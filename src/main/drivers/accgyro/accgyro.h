@@ -117,6 +117,7 @@ typedef struct gyroDev_s {
     busSegment_t segments[2];
     volatile bool dataReady;
     bool gyro_high_fsr;
+    bool gyro_rate_sync;
     uint8_t hardware_lpf;
     uint8_t mpuDividerDrops;
     ioTag_t mpuIntExtiTag;

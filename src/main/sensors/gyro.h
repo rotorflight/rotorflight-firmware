@@ -142,6 +142,7 @@ typedef struct gyroConfig_s {
     uint8_t gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
     uint8_t gyro_hardware_lpf;                // gyro DLPF setting
     uint8_t gyro_high_fsr;
+    uint8_t gyro_rate_sync;
     uint8_t gyro_to_use;
 
     uint16_t gyro_decimation_hz;

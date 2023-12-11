@@ -552,7 +552,7 @@ FAST_CODE void scheduler(void)
             gyroDev_t *gyro = gyroActiveDev();
 
             // Bring the scheduler into lock with the gyro
-            if (gyro->gyroModeSPI != GYRO_EXTI_NO_INT) {
+            if (gyro->gyroModeSPI != GYRO_EXTI_NO_INT && gyro->gyro_rate_sync) {
                 // Track the actual gyro rate over given number of cycle times and set the expected timebase
                 static uint32_t terminalGyroRateCount = 0;
                 static uint32_t sampleRateStartCycles;
