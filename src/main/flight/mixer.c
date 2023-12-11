@@ -65,7 +65,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .swash_phase = 0,
     .swash_pitch_limit = 0,
     .swash_trim = { 0, 0, 0 },
-    .coll_tta_precomp = 0,
+    .swash_tta_precomp = 0,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
@@ -353,6 +353,7 @@ static void mixerUpdateMotorizedTail(void)
         // Yaw is now tail motor throttle
         mixer.input[MIXER_IN_STABILIZED_YAW] = throttle;
     }
+    // Bidirectional tail motor
     else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
         // Yaw input value - positive is against torque
         const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
@@ -388,44 +389,45 @@ static void mixerUpdateSwash(void)
 {
     if (mixerConfig()->swash_type)
     {
-        const float SR = inputValue(ROLL);
-        const float SP = inputValue(PITCH);
-        const float SY = inputValue(YAW);
-        const float SC = inputValue(COLLECTIVE);
-        const float ST = inputValue(THROTTLE);
+        float SR = inputValue(ROLL);
+        float SP = inputValue(PITCH);
+        float SY = inputValue(YAW);
+        float SC = inputValue(COLLECTIVE);
+        float ST = inputValue(THROTTLE);
 
-        const float T0 = mixer.swashTrim[0];
-        const float T1 = mixer.swashTrim[1];
-        const float T2 = mixer.swashTrim[2];
-        const float TC = mixer.tailCenterTrim;
+        float TC = mixer.tailCenterTrim;
+
+        SR += mixer.swashTrim[0];
+        SP += mixer.swashTrim[1];
+        SC += mixer.swashTrim[2];
 
         switch (mixerConfig()->swash_type) {
             case SWASH_TYPE_120:
-                setServoOutput(0, 0.5f * SC - SP + T0);
-                setServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP + T1);
-                setServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP);
+                setServoOutput(1, 0.5f * SC + 0.86602540f * SR + 0.5f * SP);
+                setServoOutput(2, 0.5f * SC - 0.86602540f * SR + 0.5f * SP);
                 break;
 
             case SWASH_TYPE_135:
-                setServoOutput(0, 0.5f * SC - SP + T0);
-                setServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP + T1);
-                setServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP);
+                setServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP);
+                setServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP);
                 break;
 
             case SWASH_TYPE_140:
-                setServoOutput(0, 0.5f * SC - SP + T0);
-                setServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.76604444f * SP + T1);
-                setServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.76604444f * SP + T2);
+                setServoOutput(0, 0.5f * SC - SP);
+                setServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.76604444f * SP);
+                setServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.76604444f * SP);
                 break;
 
             case SWASH_TYPE_90L:
-                setServoOutput(0, SP + T0);
-                setServoOutput(1, SR + T1);
+                setServoOutput(0, SP);
+                setServoOutput(1, SR);
                 break;
 
             case SWASH_TYPE_90V:
-                setServoOutput(0,  0.70710678f * SR + 0.70710678f * SP + T0);
-                setServoOutput(1, -0.70710678f * SR + 0.70710678f * SP + T1);
+                setServoOutput(0,  0.70710678f * SR + 0.70710678f * SP);
+                setServoOutput(1, -0.70710678f * SR + 0.70710678f * SP);
                 break;
 
             case SWASH_TYPE_THRU:
@@ -502,7 +504,7 @@ static void mixerUpdateInputs(void)
     // Update throttle from governor
     mixerSetInput(MIXER_IN_STABILIZED_THROTTLE, getGovernorOutput());
 
-    // Update motorized tail
+    // Update motorized tail (must be done after governor)
     mixerUpdateMotorizedTail();
 
 #ifdef USE_MIXER_HISTORY
@@ -590,14 +592,10 @@ void INIT_CODE mixerInitConfig(void)
     for (int i = 0; i < 3; i++)
         mixer.swashTrim[i] = mixerConfig()->swash_trim[i] / 1000.0f;
 
+    mixer.collTTAGain = mixerConfig()->swash_tta_precomp / 100.0f;
+
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
-
-    if (mixerMotorizedTail())
-        mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 400.0f;  // 100 => 25%
-    else
-        mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 240.0f;  // 100 => 10°
-
-    mixer.collTTAGain = mixerConfig()->coll_tta_precomp / 100.0f;
+    mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 1000.0f;
 }
 
 static void INIT_CODE setMapping(uint8_t in, uint8_t out)

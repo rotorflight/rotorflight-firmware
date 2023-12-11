@@ -120,19 +120,21 @@ enum {
 
 typedef struct
 {
-    uint8_t   main_rotor_dir;   // Main rotor direction: CW/CCW
+    uint8_t   main_rotor_dir;       // Main rotor direction: CW/CCW
 
-    uint8_t   tail_rotor_mode;  // Tail motor vs. variable pitch tail
-    uint8_t   tail_motor_idle;  // Idle throttle for tail motor
-    int8_t    tail_center_trim; // Tail center position offset
+    uint8_t   tail_rotor_mode;      // Tail motor vs. variable pitch tail
+    uint8_t   tail_motor_idle;      // Idle throttle for tail motor
+    int16_t   tail_center_trim;     // Tail center position offset
 
-    uint8_t   swash_type;       // Swashplate type
-    uint8_t   swash_ring;       // Swash ring size
-    int16_t   swash_phase;      // Swashplate phasing angle
-    uint16_t  swash_pitch_limit; // Maximum main rotor blade pitch
-    int8_t    swash_trim[3];    // Swashplate leveling trim
+    uint8_t   swash_type;           // Swashplate type
+    uint8_t   swash_ring;           // Swash ring size
 
-    uint8_t   coll_tta_precomp;  // TTA Collective correction
+    int16_t   swash_phase;          // Swashplate phasing angle
+    uint16_t  swash_pitch_limit;    // Maximum main rotor blade pitch
+
+    int16_t   swash_trim[3];        // Swash center position trims
+
+    uint8_t   swash_tta_precomp;    // TTA correction %
 
 } mixerConfig_t;
 
