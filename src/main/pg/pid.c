@@ -57,7 +57,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .error_decay_time_yaw = 0,
         .error_decay_limit_cyclic = 20,
         .error_decay_limit_yaw = 0,
-        .error_decay_rate_curve = { 16,16,18,21,25,31,42,62,125,250,250,250,250,250,250,250 },
+        .error_decay_rate_curve = { 12,13,14,15,17,20,23,28,36,49,78,187,250,250,250,250 },
         .error_decay_limit_curve = { 12,12,12,12,12,12,12,12,12,12,12,12,13,14,15,16 },
         .offset_decay_rate_curve = { 250,250,250,250,25,3,1,0,0,0,0,0,0,0,0,0 },
         .offset_decay_limit_curve = { 5,5,4,3,2,2,2,2,2,2,2,2,2,2,2,2 },
