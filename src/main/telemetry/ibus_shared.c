@@ -232,7 +232,7 @@ static uint16_t getFuel()
     if (batteryConfig()->batteryCapacity > 0) {
         fuel = (uint16_t)calculateBatteryPercentageRemaining();
     } else {
-        fuel = (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF);
+        fuel = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
     }
     return fuel;
 }
@@ -383,7 +383,7 @@ static void setValue(uint8_t* bufferPtr, uint8_t sensorType, uint8_t length)
             value.uint16 = (uint16_t)(getBatteryAverageCellVoltage());
             break;
         case IBUS_SENSOR_TYPE_BAT_CURR:
-            value.uint16 = (uint16_t)getAmperage();
+            value.uint16 = (uint16_t)getBatteryCurrent();
             break;
 #if defined(USE_ACC)
         case IBUS_SENSOR_TYPE_ACC_X:

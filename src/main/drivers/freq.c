@@ -397,11 +397,10 @@ float getFreqSensorFreq(uint8_t port)
     return 0;
 }
 
-uint16_t getFreqSensorRPM(uint8_t port)
+uint32_t getFreqSensorRPM(uint8_t port)
 {
     if (port < FREQ_SENSOR_PORT_COUNT) {
-        // Return eRPM/100 as expected by MSP, etc.
-        return lrintf(freqInputPorts[port].freq * 0.6f);
+        return lrintf(freqInputPorts[port].freq * 60);
     }
     return 0;
 }

@@ -763,11 +763,11 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_ANALOG:
-        sbufWriteU8(dst, (uint8_t)constrain(getLegacyBatteryVoltage(), 0, 255));
-        sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF)); // milliamp hours drawn from battery
+        sbufWriteU8(dst, (uint8_t)constrain(getLegacyBatteryVoltage(), 0, UINT8_MAX));
+        sbufWriteU16(dst, (uint16_t)constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));
         sbufWriteU16(dst, getRssi());
-        sbufWriteU16(dst, (int16_t)constrain(getAmperage(), -0x8000, 0x7FFF)); // send current in 0.01 A steps, range is -320A to 320A
-        sbufWriteU16(dst, getBatteryVoltage());
+        sbufWriteU16(dst, (uint16_t)constrain(getBatteryCurrent(), 0, UINT16_MAX));
+        sbufWriteU16(dst, (uint16_t)constrain(getBatteryVoltage(), 0, UINT16_MAX));
         break;
 
     case MSP_DEBUG:
@@ -806,94 +806,75 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 #endif
 
-    case MSP_BATTERY_STATE: {
+    case MSP_BATTERY_STATE:
         // battery characteristics
-        sbufWriteU8(dst, (uint8_t)constrain(getBatteryCellCount(), 0, 255)); // 0 indicates battery not detected.
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity); // in mAh
+        sbufWriteU8(dst, getBatteryCellCount());
+        sbufWriteU16(dst, batteryConfig()->batteryCapacity); // mAh
 
         // battery state
-        sbufWriteU8(dst, (uint8_t)constrain(getLegacyBatteryVoltage(), 0, 255)); // in 0.1V steps
-        sbufWriteU16(dst, (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF)); // milliamp hours drawn from battery
-        sbufWriteU16(dst, (int16_t)constrain(getAmperage(), -0x8000, 0x7FFF)); // send current in 0.01 A steps, range is -320A to 320A
+        sbufWriteU8(dst, constrain(getLegacyBatteryVoltage(), 0, UINT8_MAX));       // in 100mV steps
+        sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh drawn from battery
+        sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // current in 10mA steps
 
         // battery alerts
-        sbufWriteU8(dst, (uint8_t)getBatteryState());
-
-        sbufWriteU16(dst, getBatteryVoltage()); // in 0.01V steps
+        sbufWriteU8(dst, getBatteryState());
+        sbufWriteU16(dst, getBatteryVoltage()); // 10mV steps
         break;
-    }
 
-    case MSP_VOLTAGE_METERS: {
+    case MSP_VOLTAGE_METERS:
         // write out id and voltage meter values, once for each meter we support
-        uint8_t count = supportedVoltageMeterCount;
-#ifdef USE_ESC_SENSOR
-        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();
-#endif
-
-        for (int i = 0; i < count; i++) {
-
+        for (int i = 0; i < voltageMeterCount; i++) {
+            uint8_t id = voltageMeterIds[i];
             voltageMeter_t meter;
-            uint8_t id = (uint8_t)voltageMeterIds[i];
-            voltageMeterRead(id, &meter);
-
-            sbufWriteU8(dst, id);
-            sbufWriteU8(dst, (uint8_t)constrain((meter.displayFiltered + 5) / 10, 0, 255));
+            if (voltageMeterRead(id, &meter)) {
+                sbufWriteU8(dst, id);
+                sbufWriteU16(dst, constrain(meter.voltage, 0, UINT16_MAX));  // mV
+            }
         }
         break;
-    }
 
     case MSP_CURRENT_METERS: {
         // write out id and current meter values, once for each meter we support
-        uint8_t count = supportedCurrentMeterCount;
-#ifdef USE_ESC_SENSOR
-        count -= VOLTAGE_METER_ID_ESC_COUNT - getMotorCount();
-#endif
-        for (int i = 0; i < count; i++) {
-
+        for (int i = 0; i < currentMeterCount; i++) {
+            uint8_t id = currentMeterIds[i];
             currentMeter_t meter;
-            uint8_t id = (uint8_t)currentMeterIds[i];
-            currentMeterRead(id, &meter);
-
-            sbufWriteU8(dst, id);
-            sbufWriteU16(dst, (uint16_t)constrain(meter.mAhDrawn, 0, 0xFFFF)); // milliamp hours drawn from battery
-            sbufWriteU16(dst, (uint16_t)constrain(meter.amperage * 10, 0, 0xFFFF)); // send amperage in 0.001 A steps (mA). Negative range is truncated to zero
+            if (currentMeterRead(id, &meter)) {
+                sbufWriteU8(dst, id);
+                sbufWriteU16(dst, constrain(meter.current / 10, 0, UINT16_MAX));    // 10mA steps
+                sbufWriteU16(dst, constrain(meter.capacity, 0, UINT16_MAX));        // mAh consumed
+            }
         }
         break;
     }
 
     case MSP_VOLTAGE_METER_CONFIG:
-        {
-            // by using a sensor type and a sub-frame length it's possible to configure any type of voltage meter,
-            // e.g. an i2c/spi/can sensor or any sensor not built directly into the FC such as ESC/RX/SPort/SBus that has
-            // different configuration requirements.
-            STATIC_ASSERT(VOLTAGE_SENSOR_ADC_VBAT == 0, VOLTAGE_SENSOR_ADC_VBAT_incorrect); // VOLTAGE_SENSOR_ADC_VBAT should be the first index
-            sbufWriteU8(dst, MAX_VOLTAGE_SENSOR_ADC); // voltage meters in payload
-            for (int i = VOLTAGE_SENSOR_ADC_VBAT; i < MAX_VOLTAGE_SENSOR_ADC; i++) {
-                const uint8_t adcSensorSubframeLength = 1 + 1 + 1 + 1 + 1; // length of id, type, vbatscale, vbatresdivval, vbatresdivmultipler, in bytes
-                sbufWriteU8(dst, adcSensorSubframeLength); // ADC sensor sub-frame length
-
-                sbufWriteU8(dst, voltageMeterADCtoIDMap[i]); // id of the sensor
-                sbufWriteU8(dst, VOLTAGE_SENSOR_TYPE_ADC_RESISTOR_DIVIDER); // indicate the type of sensor that the next part of the payload is for
-
-                sbufWriteU8(dst, voltageSensorADCConfig(i)->vbatscale);
-                sbufWriteU8(dst, voltageSensorADCConfig(i)->vbatresdivval);
-                sbufWriteU8(dst, voltageSensorADCConfig(i)->vbatresdivmultiplier);
-            }
-            // if we had any other voltage sensors, this is where we would output any needed configuration
+        // Number of Voltage meters to follow
+        sbufWriteU8(dst, MAX_VOLTAGE_SENSOR_ADC);
+        // Voltage meters using ADC sensors
+        for (int i = 0; i < MAX_VOLTAGE_SENSOR_ADC; i++) {
+            sbufWriteU8(dst, 7);                                        // Frame length
+            sbufWriteU8(dst, voltageSensorToMeterMap[i]);               // Meter id
+            sbufWriteU8(dst, VOLTAGE_SENSOR_TYPE_ADC);                  // Meter type
+            sbufWriteU16(dst, voltageSensorADCConfig(i)->scale);
+            sbufWriteU16(dst, voltageSensorADCConfig(i)->divider);
+            sbufWriteU8(dst, voltageSensorADCConfig(i)->divmul);
         }
-
+        // Other voltage meter types go here
         break;
-    case MSP_CURRENT_METER_CONFIG: {
-        sbufWriteU8(dst, 1);
-        sbufWriteU8(dst, 1 + 1 + 2 + 2); // length of id, type, scale, offset, in bytes
-        sbufWriteU8(dst, CURRENT_METER_ID_BATTERY_1); // the id of the meter
-        sbufWriteU8(dst, CURRENT_SENSOR_ADC); // indicate the type of sensor that the next part of the payload is for
-        sbufWriteU16(dst, currentSensorADCConfig()->scale);
-        sbufWriteU16(dst, currentSensorADCConfig()->offset);
 
-        // if we had any other current sensors, this is where we would output any needed configuration
+    case MSP_CURRENT_METER_CONFIG:
+        // Number of Current meters to follow
+        sbufWriteU8(dst, MAX_CURRENT_SENSOR_ADC);
+        // Current meters using ADC sensors
+        for (int i = 0; i < MAX_CURRENT_SENSOR_ADC; i++) {
+            sbufWriteU8(dst, 6);                                            // Frame length
+            sbufWriteU8(dst, currentSensorToMeterMap[i]);                   // Meter id
+            sbufWriteU8(dst, CURRENT_SENSOR_TYPE_ADC);                      // Meter type
+            sbufWriteU16(dst, currentSensorADCConfig(i)->scale);
+            sbufWriteU16(dst, currentSensorADCConfig(i)->offset);
+        }
+        // Other current meter types go here
         break;
-    }
 
     case MSP_BATTERY_CONFIG:
         sbufWriteU8(dst, (batteryConfig()->vbatmincellvoltage + 5) / 10);
@@ -1177,20 +1158,22 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (unsigned i = 0; i < getMotorCount(); i++) {
             uint32_t motorRpm = 0;
             uint16_t errorRatio = 0;
-            uint8_t escTemperature = 0;  // degrees celcius
-            uint16_t escVoltage = 0;     // 0.01V per unit
-            uint16_t escCurrent = 0;     // 0.01A per unit
-            uint16_t escConsumption = 0; // mAh
+            uint16_t escVoltage = 0;       // 1mV per unit
+            uint16_t escCurrent = 0;       // 1mA per unit
+            uint16_t escConsumption = 0;   // mAh
+            uint16_t escTemperature = 0;   // 0.1C
+            uint16_t escTemperature2 = 0;  // 0.1C
 
 #ifdef USE_ESC_SENSOR
             if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
                 escSensorData_t *escData = getEscSensorData(i);
-                if (escData && escData->dataAge <= ESC_BATTERY_AGE_MAX) {
-                    motorRpm = calcMotorRPM(i,escData->rpm);
-                    escTemperature = escData->temperature;
+                if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
+                    motorRpm = calcMotorRPM(i, escData->erpm);
                     escVoltage = escData->voltage;
                     escCurrent = escData->current;
                     escConsumption = escData->consumption;
+                    escTemperature = escData->temperature;
+                    escTemperature2 = escData->temperature2;
                 }
             }
 #endif
@@ -1217,10 +1200,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
             sbufWriteU32(dst, motorRpm);
             sbufWriteU16(dst, errorRatio);
-            sbufWriteU8(dst, escTemperature);
             sbufWriteU16(dst, escVoltage);
             sbufWriteU16(dst, escCurrent);
             sbufWriteU16(dst, escConsumption);
+            sbufWriteU16(dst, escTemperature);
+            sbufWriteU16(dst, escTemperature2);
         }
         break;
 
@@ -3277,43 +3261,37 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
 
     switch (cmdMSP) {
     case MSP_SET_VOLTAGE_METER_CONFIG: {
-        int8_t id = sbufReadU8(src);
-
-        //
-        // find and configure an ADC voltage sensor
-        //
-        int8_t voltageSensorADCIndex;
-        for (voltageSensorADCIndex = 0; voltageSensorADCIndex < MAX_VOLTAGE_SENSOR_ADC; voltageSensorADCIndex++) {
-            if (id == voltageMeterADCtoIDMap[voltageSensorADCIndex]) {
+        uint8_t id = sbufReadU8(src);
+        int index;
+        for (index = 0; index < MAX_VOLTAGE_SENSOR_ADC; index++) {
+            if (id == voltageSensorToMeterMap[index])
                 break;
-            }
         }
-
-        if (voltageSensorADCIndex < MAX_VOLTAGE_SENSOR_ADC) {
-            voltageSensorADCConfigMutable(voltageSensorADCIndex)->vbatscale = sbufReadU8(src);
-            voltageSensorADCConfigMutable(voltageSensorADCIndex)->vbatresdivval = sbufReadU8(src);
-            voltageSensorADCConfigMutable(voltageSensorADCIndex)->vbatresdivmultiplier = sbufReadU8(src);
+        if (index < MAX_VOLTAGE_SENSOR_ADC) {
+            voltageSensorADCConfigMutable(index)->scale = sbufReadU16(src);
+            voltageSensorADCConfigMutable(index)->divider = sbufReadU16(src);
+            voltageSensorADCConfigMutable(index)->divmul = sbufReadU8(src);
         } else {
-            // if we had any other types of voltage sensor to configure, this is where we'd do it.
-            sbufReadU8(src);
-            sbufReadU8(src);
+            sbufReadU16(src);
+            sbufReadU16(src);
             sbufReadU8(src);
         }
         break;
     }
 
     case MSP_SET_CURRENT_METER_CONFIG: {
-        int id = sbufReadU8(src);
-
-        switch (id) {
-            case CURRENT_METER_ID_BATTERY_1:
-                currentSensorADCConfigMutable()->scale = sbufReadU16(src);
-                currentSensorADCConfigMutable()->offset = sbufReadU16(src);
+        uint8_t id = sbufReadU8(src);
+        int index;
+        for (index = 0; index < MAX_CURRENT_SENSOR_ADC; index++) {
+            if (id == currentSensorToMeterMap[index])
                 break;
-            default:
-                sbufReadU16(src);
-                sbufReadU16(src);
-                break;
+        }
+        if (index < MAX_CURRENT_SENSOR_ADC) {
+            currentSensorADCConfigMutable(index)->scale = sbufReadU16(src);
+            currentSensorADCConfigMutable(index)->offset = sbufReadU16(src);
+        } else {
+            sbufReadU16(src);
+            sbufReadU16(src);
         }
         break;
     }

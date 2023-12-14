@@ -194,7 +194,7 @@ static void sendTemperature1(void)
 #if defined(USE_ESC_SENSOR_TELEMETRY)
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     if (escData) {
-        data = escData->dataAge < ESC_DATA_INVALID ? escData->temperature : 0;
+        data = escData->age < ESC_DATA_INVALID ? escData->temperature : 0;
     }
 #elif defined(USE_BARO)
     data = (baro.baroTemperature + 50)/ 100; // Airmamaf
@@ -395,7 +395,7 @@ static void sendVoltageAmp(void)
 
 static void sendAmperage(void)
 {
-    frSkyHubWriteFrame(ID_CURRENT, (uint16_t)(getAmperage() / 10));
+    frSkyHubWriteFrame(ID_CURRENT, getLegacyBatteryCurrent());
 }
 
 static void sendFuelLevel(void)
@@ -404,7 +404,7 @@ static void sendFuelLevel(void)
     if (batteryConfig()->batteryCapacity > 0) {
         data = (uint16_t)calculateBatteryPercentageRemaining();
     } else {
-        data = (uint16_t)constrain(getMAhDrawn(), 0, 0xFFFF);
+        data = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
     }
     frSkyHubWriteFrame(ID_FUEL_LEVEL, data);
 }
@@ -556,7 +556,7 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
                 sendVoltageAmp();
             }
 
-            if (isAmperageConfigured()) {
+            if (isBatteryCurrentConfigured()) {
                 if (telemetryIsSensorEnabled(SENSOR_CURRENT)) {
                     sendAmperage();
                 }

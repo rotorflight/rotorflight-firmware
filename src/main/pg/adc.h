@@ -38,14 +38,17 @@ typedef struct adcChannelConfig_t {
 
 typedef struct adcConfig_s {
     adcChannelConfig_t vbat;
-    adcChannelConfig_t rssi;
     adcChannelConfig_t current;
-    adcChannelConfig_t external1;
-    int8_t device; // ADCDevice
+    adcChannelConfig_t rssi;
+    adcChannelConfig_t vbec;
+    adcChannelConfig_t vbus;
+    adcChannelConfig_t vext;
 
     uint16_t vrefIntCalibration;
     uint16_t tempSensorCalibration1;
     uint16_t tempSensorCalibration2;
+
+    int8_t device; // ADCDevice
 
     int8_t dmaopt[ADCDEV_COUNT]; // One per ADCDEV_x
 } adcConfig_t;

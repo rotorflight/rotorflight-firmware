@@ -190,7 +190,7 @@ static void buildTelemetryFrame(uint8_t *packet)
         uint8_t a1Value;
         switch (rxCc2500SpiConfig()->a1Source) {
         case FRSKY_SPI_A1_SOURCE_EXTADC:
-            a1Value = (uint8_t)((adcGetChannel(ADC_EXTERNAL1) & 0xfe0) >> 5);
+            a1Value = (uint8_t)((adcGetChannel(ADC_VEXT) & 0xfe0) >> 5);
             break;
         case FRSKY_SPI_A1_SOURCE_CONST:
             a1Value = A1_CONST_X & 0x7f;
@@ -305,7 +305,7 @@ bool isValidPacket(const uint8_t *packet)
         }
     }
 
-    uint16_t lcrc = calculateCrc(&packet[3], (packetLength - 7)); 
+    uint16_t lcrc = calculateCrc(&packet[3], (packetLength - 7));
 
     if ((lcrc >> 8) == packet[packetLength - 4] && (lcrc & 0x00FF) == packet[packetLength - 3] &&
         (packet[0] == packetLength - 3) &&

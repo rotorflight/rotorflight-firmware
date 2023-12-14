@@ -133,9 +133,9 @@ bool isEscSensorActive(void)
     return escSensorPort != NULL;
 }
 
-uint16_t getEscSensorRPM(uint8_t motorNumber)
+uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
-    return (escSensorData[motorNumber].dataAge <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].rpm : 0;
+    return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
 }
 
 static void combinedDataUpdate(void)
@@ -146,13 +146,15 @@ static void combinedDataUpdate(void)
         memset(&escSensorDataCombined, 0, sizeof(escSensorDataCombined));
 
         for (int i = 0; i < motorCount; i++) {
-            if (escSensorData[i].dataAge < ESC_BATTERY_AGE_MAX) {
-                escSensorDataCombined.dataAge = MAX(escSensorDataCombined.dataAge, escSensorData[i].dataAge);
-                escSensorDataCombined.temperature = MAX(escSensorDataCombined.temperature, escSensorData[i].temperature);
-                escSensorDataCombined.rpm = MAX(escSensorDataCombined.rpm, escSensorData[i].rpm);
+            if (escSensorData[i].age < ESC_BATTERY_AGE_MAX) {
+                escSensorDataCombined.age = MAX(escSensorDataCombined.age, escSensorData[i].age);
+                escSensorDataCombined.pwm = MAX(escSensorDataCombined.pwm, escSensorData[i].pwm);
+                escSensorDataCombined.erpm = MAX(escSensorDataCombined.erpm, escSensorData[i].erpm);
                 escSensorDataCombined.voltage = MAX(escSensorDataCombined.voltage, escSensorData[i].voltage);
                 escSensorDataCombined.current += escSensorData[i].current;
                 escSensorDataCombined.consumption += escSensorData[i].consumption;
+                escSensorDataCombined.temperature = MAX(escSensorDataCombined.temperature, escSensorData[i].temperature);
+                escSensorDataCombined.temperature2 = MAX(escSensorDataCombined.temperature2, escSensorData[i].temperature2);
             }
         }
 
@@ -199,12 +201,12 @@ static void frameSyncError(void)
 
 static void increaseDataAge(uint8_t motor)
 {
-    if (escSensorData[motor].dataAge < ESC_DATA_INVALID) {
-        escSensorData[motor].dataAge++;
+    if (escSensorData[motor].age < ESC_DATA_INVALID) {
+        escSensorData[motor].age++;
         combinedNeedsUpdate = true;
     }
 
-    DEBUG_AXIS(ESC_SENSOR_DATA, motor, DEBUG_DATA_AGE, escSensorData[motor].dataAge);
+    DEBUG_AXIS(ESC_SENSOR_DATA, motor, DEBUG_DATA_AGE, escSensorData[motor].age);
 }
 
 // Only for non-BLHeli32 protocols with single ESC support
@@ -320,12 +322,12 @@ static uint8_t blDecodeTelemetryFrame(void)
         uint16_t capa = buffer[5] << 8 | buffer[6];
         uint16_t erpm = buffer[7] << 8 | buffer[8];
 
-        escSensorData[currentEsc].dataAge = 0;
-        escSensorData[currentEsc].temperature = temp;
-        escSensorData[currentEsc].voltage = volt;
-        escSensorData[currentEsc].current = curr;
+        escSensorData[currentEsc].age = 0;
+        escSensorData[currentEsc].erpm = erpm * 100;
+        escSensorData[currentEsc].voltage = volt * 10;
+        escSensorData[currentEsc].current = curr * 10;
         escSensorData[currentEsc].consumption = capa;
-        escSensorData[currentEsc].rpm = erpm;
+        escSensorData[currentEsc].temperature = temp * 10;
 
         combinedNeedsUpdate = true;
 
@@ -584,12 +586,12 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 uint16_t Vadc = buffer[11] << 8 | buffer[12];
                 uint16_t Iadc = buffer[13] << 8 | buffer[14];
                 uint16_t Tadc = buffer[15] << 8 | buffer[16];
-                //uint16_t Cadc = buffer[17] << 8 | buffer[18];
+                uint16_t Cadc = buffer[17] << 8 | buffer[18];
 
                 float voltage = calcVoltHW(Vadc);
                 float current = calcCurrHW(Iadc);
                 float tempFET = calcTempHW(Tadc);
-                //float tempCAP = calcTempHW(Cadc);
+                float tempCAP = calcTempHW(Cadc);
 
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
@@ -599,11 +601,13 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 setConsumptionCurrent(current);
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = lrintf(tempFET);
-                escSensorData[0].voltage = lrintf(voltage * 100);
-                escSensorData[0].current = lrintf(current * 100);
-                escSensorData[0].rpm = rpm / 100;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm;
+                escSensorData[0].pwm = pwm;
+                escSensorData[0].voltage = lrintf(voltage * 1000);
+                escSensorData[0].current = lrintf(current * 1000);
+                escSensorData[0].temperature = lrintf(tempFET * 10);
+                escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, lrintf(tempFET * 10));
@@ -781,11 +785,13 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
 
                 setConsumptionCurrent(current * 0.1f);
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = tempFET;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 10;
-                escSensorData[0].rpm = rpm / 10;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].pwm = power * 10;
+                escSensorData[0].voltage = voltage * 100;
+                escSensorData[0].current = current * 100;
+                escSensorData[0].temperature = tempFET * 10;
+                escSensorData[0].temperature2 = tempBEC * 10;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
@@ -913,12 +919,13 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
                 uint16_t capacity = buffer[13] << 8 | buffer[12];
                 uint16_t status = buffer[19];
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = temp;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 10;
-                escSensorData[0].rpm = rpm / 20;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm * 5;
+                escSensorData[0].pwm = power * 5;
+                escSensorData[0].voltage = voltage * 1000;
+                escSensorData[0].current = current * 1000;
                 escSensorData[0].consumption = capacity;
+                escSensorData[0].temperature = temp * 10;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1063,20 +1070,22 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 uint16_t voltage = buffer[9] << 8 | buffer[8];
                 uint16_t current = buffer[11] << 8 | buffer[10];
                 uint16_t capacity = buffer[17] << 8 | buffer[16];
-                uint16_t tempFET = buffer[26];
-                uint16_t tempBEC = buffer[27];
+                int16_t  tempFET = (int8_t)buffer[26];
+                int16_t  tempBEC = (int8_t)buffer[27];
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = tempFET;
-                escSensorData[0].voltage = voltage;
-                escSensorData[0].current = current;
-                escSensorData[0].rpm = rpm / 100;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm;
+                escSensorData[0].pwm = pwm * 10;
+                escSensorData[0].voltage = voltage * 10;
+                escSensorData[0].current = current * 100;
                 escSensorData[0].consumption = capacity;
+                escSensorData[0].temperature = tempFET * 10;
+                escSensorData[0].temperature2 = tempBEC * 10;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current);
+                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
 
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
@@ -1174,12 +1183,13 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
                 uint16_t capacity = buffer[15] << 8 | buffer[16];
                 uint16_t status = buffer[13] << 8 | buffer[14];
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = temp;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 10;
-                escSensorData[0].rpm = rpm / 10;
-                escSensorData[0].consumption = 0; // capacity; // FIXME bogus value
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].pwm = pwm * 10;
+                escSensorData[0].voltage = voltage * 100;
+                escSensorData[0].current = current * 100;
+                escSensorData[0].consumption = capacity;
+                escSensorData[0].temperature = temp * 10;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1290,12 +1300,13 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 uint16_t capacity = buffer[15] << 8 | buffer[16];
                 uint16_t status = buffer[13] << 8 | buffer[14];
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = temp;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 10;
-                escSensorData[0].rpm = rpm / 10;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].pwm = power * 10;
+                escSensorData[0].voltage = voltage * 100;
+                escSensorData[0].current = current * 100;
                 escSensorData[0].consumption = capacity;
+                escSensorData[0].temperature = temp * 10;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1430,11 +1441,12 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
                 setConsumptionCurrent(current * 0.08f);
 
-                escSensorData[0].dataAge = 0;
-                escSensorData[0].temperature = lrintf(temp);
-                escSensorData[0].voltage = voltage;
-                escSensorData[0].current = current * 8;
-                escSensorData[0].rpm = rpm / 100;
+                escSensorData[0].age = 0;
+                escSensorData[0].erpm = rpm;
+                escSensorData[0].pwm = power;
+                escSensorData[0].voltage = voltage * 10;
+                escSensorData[0].current = current * 80;
+                escSensorData[0].temperature = lrintf(temp * 10);
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, lrintf(temp * 10));
@@ -1575,10 +1587,10 @@ bool INIT_CODE escSensorInit(void)
     }
 
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        escSensorData[i].dataAge = ESC_DATA_INVALID;
+        escSensorData[i].age = ESC_DATA_INVALID;
     }
 
-    escSensorDataCombined.dataAge = ESC_DATA_INVALID;
+    escSensorDataCombined.age = ESC_DATA_INVALID;
 
     return (escSensorPort != NULL);
 }

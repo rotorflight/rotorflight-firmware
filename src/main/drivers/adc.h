@@ -33,11 +33,9 @@
 #ifndef ADC1_DMA_STREAM
 #define ADC1_DMA_STREAM DMA2_Stream4 // ST0 or ST4
 #endif
-
 #ifndef ADC2_DMA_STREAM
 #define ADC2_DMA_STREAM DMA2_Stream3 // ST2 or ST3
 #endif
-
 #ifndef ADC3_DMA_STREAM
 #define ADC3_DMA_STREAM DMA2_Stream0 // ST0 or ST1
 #endif
@@ -67,15 +65,16 @@ typedef enum ADCDevice {
 typedef enum {
     ADC_BATTERY = 0,
     ADC_CURRENT = 1,
-    ADC_EXTERNAL1 = 2,
-    ADC_RSSI = 3,
+    ADC_RSSI = 2,
+    ADC_VBEC = 3,
+    ADC_VBUS = 4,
+    ADC_VEXT = 5,
 #if defined(STM32H7) || defined(STM32G4)
     // On H7 and G4, internal sensors are treated in the similar fashion as regular ADC inputs
-    ADC_CHANNEL_INTERNAL_FIRST_ID = 4,
-
-    ADC_TEMPSENSOR = 4,
-    ADC_VREFINT = 5,
-    ADC_VBAT4 = 6,
+    ADC_CHANNEL_INTERNAL_FIRST_ID = 6,
+    ADC_TEMPSENSOR = 6,
+    ADC_VREFINT = 7,
+    ADC_VBAT4 = 8,
 #endif
     ADC_CHANNEL_COUNT
 } AdcChannel;
@@ -93,8 +92,11 @@ typedef struct adcOperatingConfig_s {
     uint8_t sampleTime;
 } adcOperatingConfig_t;
 
-struct adcConfig_s;
-void adcInit(const struct adcConfig_s *config);
+typedef struct adcConfig_s adcConfig_t;
+
+void adcInit(const adcConfig_t *config);
+
+bool adcIsEnabled(uint8_t channel);
 uint16_t adcGetChannel(uint8_t channel);
 
 #ifdef USE_ADC_INTERNAL

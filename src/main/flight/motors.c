@@ -152,9 +152,9 @@ float getMotorRawRPMf(uint8_t motor)
     return motorRpmRaw[motor];
 }
 
-int calcMotorRPM(uint8_t motor, int erpm100)
+int calcMotorRPM(uint8_t motor, int erpm)
 {
-    return 100 * erpm100 / motorRpmDiv[motor];
+    return erpm / motorRpmDiv[motor];
 }
 
 
@@ -245,12 +245,12 @@ static float getSensorRPMf(uint8_t motor)
 #endif
 #ifdef USE_DSHOT_TELEMETRY
     if (motorRpmSource[motor] == RPM_SRC_DSHOT_TELEM)
-        erpm = getDshotTelemetry(motor) * 100;
+        erpm = getDshotTelemetry(motor);
     else
 #endif
 #ifdef USE_ESC_SENSOR
     if (motorRpmSource[motor] == RPM_SRC_ESC_SENSOR)
-        erpm = getEscSensorRPM(motor) * 100;
+        erpm = getEscSensorRPM(motor);
     else
 #endif
         erpm = 0;

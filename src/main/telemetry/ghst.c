@@ -102,9 +102,9 @@ void ghstFramePackTelemetry(sbuf_t *dst)
     } else {
         sbufWriteU16(dst, getBatteryVoltage());
     }
-    sbufWriteU16(dst, getAmperage());                           // units of 10mA
+    sbufWriteU16(dst, getBatteryCurrent());                           // units of 10mA
 
-    sbufWriteU16(dst, getMAhDrawn() / 10);                      // units of 10mAh (range of 0-655.36Ah)
+    sbufWriteU16(dst, getBatteryCapacityUsed() / 10);                      // units of 10mAh (range of 0-655.36Ah)
 
     sbufWriteU8(dst, 0x00);                     // Rx Voltage, units of 100mV (not passed from BF, added in Ghost Rx)
 
@@ -142,7 +142,7 @@ void ghstFrameGpsSecondaryTelemetry(sbuf_t *dst)
     sbufWriteU16(dst, gpsSol.groundSpeed);      // speed in 0.1m/s
     sbufWriteU16(dst, gpsSol.groundCourse);     // degrees * 10
     sbufWriteU8(dst, gpsSol.numSat);
-	
+
     sbufWriteU16(dst, (uint16_t) (GPS_distanceToHome / 10));    // use units of 10m to increase range of U16 to 655.36km
     sbufWriteU16(dst, GPS_directionToHome);
 
@@ -192,7 +192,7 @@ void ghstFrameMagBaro(sbuf_t *dst)
     sbufWriteU16(dst, yaw);                 // magHeading, deci-degrees
     sbufWriteU16(dst, altitude);            // baroAltitude, m
     sbufWriteU8(dst, vario);                // cm/s
-	
+
     sbufWriteU16(dst, 0);
     sbufWriteU16(dst, 0);
 
@@ -261,7 +261,7 @@ void initGhstTelemetry(void)
 
     int index = 0;
     if ((isBatteryVoltageConfigured() && telemetryIsSensorEnabled(SENSOR_VOLTAGE))
-        || (isAmperageConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
+        || (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
         ghstSchedule[index++] = BIT(GHST_FRAME_PACK_INDEX);
     }
 
@@ -278,8 +278,8 @@ void initGhstTelemetry(void)
 #endif
 
 #if defined(USE_BARO) || defined(USE_MAG) || defined(USE_VARIO)
-    if ((sensors(SENSOR_BARO) && telemetryIsSensorEnabled(SENSOR_ALTITUDE)) 
-        || (sensors(SENSOR_MAG) && telemetryIsSensorEnabled(SENSOR_HEADING)) 
+    if ((sensors(SENSOR_BARO) && telemetryIsSensorEnabled(SENSOR_ALTITUDE))
+        || (sensors(SENSOR_MAG) && telemetryIsSensorEnabled(SENSOR_HEADING))
         || (sensors(SENSOR_VARIO) && telemetryIsSensorEnabled(SENSOR_VARIO))) {
         ghstSchedule[index++] = BIT(GHST_FRAME_MAGBARO_INDEX);
     }

@@ -288,20 +288,25 @@ void adcInit(const adcConfig_t *config)
         adcOperatingConfig[ADC_BATTERY].tag = config->vbat.ioTag;
         adcOperatingConfig[ADC_BATTERY].adcDevice = config->vbat.device;
     }
-
+    if (config->current.enabled) {
+        adcOperatingConfig[ADC_CURRENT].tag = config->current.ioTag;
+        adcOperatingConfig[ADC_CURRENT].adcDevice = config->current.device;
+    }
     if (config->rssi.enabled) {
-        adcOperatingConfig[ADC_RSSI].tag = config->rssi.ioTag;  //RSSI_ADC_CHANNEL;
+        adcOperatingConfig[ADC_RSSI].tag = config->rssi.ioTag;
         adcOperatingConfig[ADC_RSSI].adcDevice = config->rssi.device;
     }
-
-    if (config->external1.enabled) {
-        adcOperatingConfig[ADC_EXTERNAL1].tag = config->external1.ioTag; //EXTERNAL1_ADC_CHANNEL;
-        adcOperatingConfig[ADC_EXTERNAL1].adcDevice = config->external1.device;
+    if (config->vbec.enabled) {
+        adcOperatingConfig[ADC_VBEC].tag = config->vbec.ioTag;
+        adcOperatingConfig[ADC_VBEC].adcDevice = config->vbec.device;
     }
-
-    if (config->current.enabled) {
-        adcOperatingConfig[ADC_CURRENT].tag = config->current.ioTag;  //CURRENT_METER_ADC_CHANNEL;
-        adcOperatingConfig[ADC_CURRENT].adcDevice = config->current.device;
+    if (config->vbus.enabled) {
+        adcOperatingConfig[ADC_VBUS].tag = config->vbus.ioTag;
+        adcOperatingConfig[ADC_VBUS].adcDevice = config->vbus.device;
+    }
+    if (config->vext.enabled) {
+        adcOperatingConfig[ADC_VEXT].tag = config->vext.ioTag;
+        adcOperatingConfig[ADC_VEXT].adcDevice = config->vext.device;
     }
 
 #ifdef USE_ADC_INTERNAL
@@ -395,7 +400,7 @@ void adcInit(const adcConfig_t *config)
 
         adc->ADCHandle.Instance = adc->ADCx;
 
-        if (HAL_ADC_DeInit(&adc->ADCHandle) != HAL_OK) { 
+        if (HAL_ADC_DeInit(&adc->ADCHandle) != HAL_OK) {
             // ADC de-initialization Error
             errorHandler();
         }

@@ -87,8 +87,8 @@ void updateDshotTelemetryQuality(dshotTelemetryQuality_t *qualityStats, bool pac
 #endif
 #endif
 
-uint16_t getDshotTelemetry(uint8_t index);
 bool isDshotMotorTelemetryActive(uint8_t motorIndex);
 bool isDshotTelemetryActive(void);
 
+uint32_t getDshotTelemetry(uint8_t index);
 int16_t getDshotTelemetryMotorInvalidPercent(uint8_t motorIndex);

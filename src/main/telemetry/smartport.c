@@ -353,7 +353,7 @@ static void initSmartPortSensors(void)
         ADD_SENSOR(FSSP_DATAID_A4);
     }
 
-    if (isAmperageConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT)) {
+    if (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT)) {
 #ifdef USE_ESC_SENSOR_TELEMETRY
         if (!telemetryIsSensorEnabled(ESC_SENSOR_CURRENT))
 #endif
@@ -646,13 +646,13 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             case FSSP_DATAID_VFAS8      :
                 escData = getEscSensorData(id - FSSP_DATAID_VFAS1);
                 if (escData != NULL) {
-                    smartPortSendPackage(id, escData->voltage);
+                    smartPortSendPackage(id, escData->voltage / 10);  // in 10mV steps
                     *clearToSend = false;
                 }
                 break;
 #endif
             case FSSP_DATAID_CURRENT    :
-                smartPortSendPackage(id, getAmperage() / 10); // in 0.1A according to SmartPort spec
+                smartPortSendPackage(id, getLegacyBatteryCurrent()); // in 0.1A according to SmartPort spec
                 *clearToSend = false;
                 break;
 #ifdef USE_ESC_SENSOR_TELEMETRY
@@ -666,7 +666,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             case FSSP_DATAID_CURRENT8   :
                 escData = getEscSensorData(id - FSSP_DATAID_CURRENT1);
                 if (escData != NULL) {
-                    smartPortSendPackage(id, escData->current);
+                    smartPortSendPackage(id, escData->current / 10); // in 10mA steps
                     *clearToSend = false;
                 }
                 break;
@@ -722,14 +722,14 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     if (batteryConfig()->batteryCapacity > 0) {
                         data = calculateBatteryPercentageRemaining();
                     } else {
-                        data = getMAhDrawn();
+                        data = getBatteryCapacityUsed();
                     }
                     smartPortSendPackage(id, data);
                     *clearToSend = false;
                 }
                 break;
             case FSSP_DATAID_CAP_USED   :
-                smartPortSendPackage(id, getMAhDrawn()); // given in mAh, should be in percent according to SmartPort spec
+                smartPortSendPackage(id, getBatteryCapacityUsed()); // given in mAh, should be in percent according to SmartPort spec
                 *clearToSend = false;
                 break;
 #if defined(USE_VARIO)

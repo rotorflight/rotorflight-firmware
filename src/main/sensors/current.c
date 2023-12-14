@@ -1,21 +1,18 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "stdbool.h"
@@ -31,6 +28,9 @@
 #include "common/utils.h"
 #include "common/filter.h"
 
+#include "config/config.h"
+#include "config/config_reset.h"
+
 #include "drivers/adc.h"
 
 #include "pg/pg.h"
@@ -42,210 +42,200 @@
 
 #include "current.h"
 
-const char * const currentMeterSourceNames[CURRENT_METER_COUNT] = {
-    "NONE", "ADC", "ESC", "MSP"
-};
 
-const uint8_t currentMeterIds[] = {
-    CURRENT_METER_ID_BATTERY_1,
-#ifdef USE_ESC_SENSOR
-    CURRENT_METER_ID_ESC_COMBINED_1,
-    CURRENT_METER_ID_ESC_MOTOR_1,
-    CURRENT_METER_ID_ESC_MOTOR_2,
-    CURRENT_METER_ID_ESC_MOTOR_3,
-    CURRENT_METER_ID_ESC_MOTOR_4,
-    CURRENT_METER_ID_ESC_MOTOR_5,
-    CURRENT_METER_ID_ESC_MOTOR_6,
-    CURRENT_METER_ID_ESC_MOTOR_7,
-    CURRENT_METER_ID_ESC_MOTOR_8,
-    CURRENT_METER_ID_ESC_MOTOR_9,
-    CURRENT_METER_ID_ESC_MOTOR_10,
-    CURRENT_METER_ID_ESC_MOTOR_11,
-    CURRENT_METER_ID_ESC_MOTOR_12,
-#endif
-#ifdef USE_MSP_CURRENT_METER
-    CURRENT_METER_ID_MSP_1,
-#endif
-};
-
-const uint8_t supportedCurrentMeterCount = ARRAYLEN(currentMeterIds);
-
-//
-// ADC/ESC/MSP shared
-//
-
-void currentMeterReset(currentMeter_t *meter)
-{
-    meter->amperage = 0;
-    meter->amperageLatest = 0;
-    meter->mAhDrawn = 0;
-}
-
-static filter_t adciBatFilter;
+/** Current Sensors **/
 
 #ifndef CURRENT_METER_SCALE_DEFAULT
-#define CURRENT_METER_SCALE_DEFAULT 400 // for Allegro ACS758LCB-100U (40mV/A)
+#define CURRENT_METER_SCALE_DEFAULT 400
 #endif
 
 #ifndef CURRENT_METER_OFFSET_DEFAULT
 #define CURRENT_METER_OFFSET_DEFAULT 0
 #endif
 
-PG_REGISTER_WITH_RESET_TEMPLATE(currentSensorADCConfig_t, currentSensorADCConfig, PG_CURRENT_SENSOR_ADC_CONFIG, 0);
-
-PG_RESET_TEMPLATE(currentSensorADCConfig_t, currentSensorADCConfig,
-    .scale = CURRENT_METER_SCALE_DEFAULT,
-    .offset = CURRENT_METER_OFFSET_DEFAULT,
-);
-
-static int32_t currentMeterADCToCentiamps(const uint16_t src)
-{
-
-    const currentSensorADCConfig_t *config = currentSensorADCConfig();
-
-    int32_t millivolts = ((uint32_t)src * getVrefMv()) / 4096;
-    // y=x/m+b m is scale in (mV/10A) and b is offset in (mA)
-    int32_t centiAmps = config->scale ? (millivolts * 10000 / (int32_t)config->scale + (int32_t)config->offset) / 10 : 0;
-
-    DEBUG_SET(DEBUG_CURRENT_SENSOR, 0, millivolts);
-    DEBUG_SET(DEBUG_CURRENT_SENSOR, 1, centiAmps);
-
-    return centiAmps; // Returns Centiamps to maintain compatability with the rest of the code
-}
-
-#if defined(USE_ADC)
-static void updateCurrentmAhDrawnState(currentMeterMAhDrawnState_t *state, int32_t amperageLatest, int32_t lastUpdateAt)
-{
-    state->mAhDrawnF = state->mAhDrawnF + (amperageLatest * lastUpdateAt / (100.0f * 1000 * 3600));
-    state->mAhDrawn = state->mAhDrawnF;
-}
+#ifndef CURRENT_METER_CUTOFF_DEFAULT
+#define CURRENT_METER_CUTOFF_DEFAULT 25
 #endif
 
-//
-// ADC
-//
+PG_REGISTER_ARRAY_WITH_RESET_FN(currentSensorADCConfig_t, MAX_CURRENT_SENSOR_ADC, currentSensorADCConfig, PG_CURRENT_SENSOR_ADC_CONFIG, 0);
 
-currentMeterADCState_t currentMeterADCState;
-
-void currentMeterADCInit(void)
+void pgResetFn_currentSensorADCConfig(currentSensorADCConfig_t *instance)
 {
-    memset(&currentMeterADCState, 0, sizeof(currentMeterADCState_t));
-    lowpassFilterInit(&adciBatFilter, LPF_BESSEL, GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod), batteryConfig()->ibatUpdateHz, 0);
-}
-
-void currentMeterADCRefresh(int32_t lastUpdateAt)
-{
-#ifdef USE_ADC
-    const uint16_t iBatSample = adcGetChannel(ADC_CURRENT);
-    currentMeterADCState.amperageLatest = currentMeterADCToCentiamps(iBatSample);
-    currentMeterADCState.amperage = currentMeterADCToCentiamps(filterApply(&adciBatFilter, iBatSample));
-
-    updateCurrentmAhDrawnState(&currentMeterADCState.mahDrawnState, currentMeterADCState.amperageLatest, lastUpdateAt);
-#else
-    UNUSED(lastUpdateAt);
-    UNUSED(currentMeterADCToCentiamps);
-
-    currentMeterADCState.amperageLatest = 0;
-    currentMeterADCState.amperage = 0;
-#endif
-}
-
-void currentMeterADCRead(currentMeter_t *meter)
-{
-    meter->amperageLatest = currentMeterADCState.amperageLatest;
-    meter->amperage = currentMeterADCState.amperage;
-    meter->mAhDrawn = currentMeterADCState.mahDrawnState.mAhDrawn;
-
-    DEBUG_SET(DEBUG_CURRENT_SENSOR, 2, meter->amperageLatest);
-    DEBUG_SET(DEBUG_CURRENT_SENSOR, 3, meter->mAhDrawn);
-}
-
-
-//
-// ESC
-//
-
-#ifdef USE_ESC_SENSOR
-currentMeterESCState_t currentMeterESCState;
-
-void currentMeterESCInit(void)
-{
-    memset(&currentMeterESCState, 0, sizeof(currentMeterESCState_t));
-}
-
-void currentMeterESCRefresh(int32_t lastUpdateAt)
-{
-    UNUSED(lastUpdateAt);
-
-    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
-    if (escData && escData->dataAge <= ESC_BATTERY_AGE_MAX) {
-        currentMeterESCState.amperage = escData->current + escSensorConfig()->current_offset / 10;
-        currentMeterESCState.mAhDrawn = escData->consumption + escSensorConfig()->current_offset * millis() / (1000.0f * 3600);
-    } else {
-        currentMeterESCState.amperage = 0;
-        currentMeterESCState.mAhDrawn = 0;
+    for (int i = 0; i < MAX_CURRENT_SENSOR_ADC; i++) {
+        RESET_CONFIG(currentSensorADCConfig_t, &instance[i],
+            .scale = CURRENT_METER_SCALE_DEFAULT,
+            .offset = CURRENT_METER_OFFSET_DEFAULT,
+            .cutoff = CURRENT_METER_CUTOFF_DEFAULT,
+        );
     }
 }
 
-void currentMeterESCReadCombined(currentMeter_t *meter)
+
+/** Internal state **/
+
+typedef struct {
+    bool enabled;
+    uint32_t sample;        // mA
+    uint32_t current;       // mA
+    uint64_t capacity;      // mAus
+    filter_t filter;
+} currentSensorState_t;
+
+
+/** Current ADC Sensors **/
+
+#ifdef USE_ADC
+
+static currentSensorState_t currentADCSensors[MAX_CURRENT_SENSOR_ADC];
+
+// Current sensor ID to ADC Channel map
+static const uint8_t currentSensorAdcChannelMap[MAX_CURRENT_SENSOR_ADC] = {
+    [CURRENT_SENSOR_ADC_BAT] = ADC_CURRENT,
+};
+
+static float currentSensorADCToCurrent(int sensor, const uint16_t src)
 {
-    meter->amperageLatest = currentMeterESCState.amperage;
-    meter->amperage = currentMeterESCState.amperage;
-    meter->mAhDrawn = currentMeterESCState.mAhDrawn;
+    const currentSensorADCConfig_t *config = currentSensorADCConfig(sensor);
+
+    // y=x/m+b m is scale in (mV/10A) and b is offset in (mA)
+    float voltage = src * getVrefMv() / 0.4095f;
+    float current = config->scale ? (voltage / config->scale + config->offset) : 0;
+
+    return current;
+}
+#endif
+
+void currentSensorADCRefresh(timeUs_t currentTimeUs)
+{
+#ifdef USE_ADC
+    static timeUs_t lastServiced = 0;
+
+    const timeDelta_t udpateDelta = cmp32(currentTimeUs, lastServiced);
+    lastServiced = currentTimeUs;
+
+    for (unsigned i = 0; i < MAX_CURRENT_SENSOR_ADC; i++) {
+        currentSensorState_t * state = &currentADCSensors[i];
+
+        const uint8_t channel = currentSensorAdcChannelMap[i];
+        state->enabled = adcIsEnabled(channel);
+
+        if (state->enabled) {
+            const uint16_t sample = adcGetChannel(channel);
+            const float current = currentSensorADCToCurrent(i, sample);
+
+            state->sample = current;
+            state->current = filterApply(&state->filter, current);
+            state->capacity += current * udpateDelta;
+
+            DEBUG_AXIS(CURRENT_SENSOR, i, 0, sample);
+            DEBUG_AXIS(CURRENT_SENSOR, i, 1, current);
+            DEBUG_AXIS(CURRENT_SENSOR, i, 2, state->current);
+            DEBUG_AXIS(CURRENT_SENSOR, i, 3, state->capacity / 3600000000u);
+        }
+        else {
+            state->sample = 0;
+            state->current = 0;
+        }
+    }
+#else
+    UNUSED(currentTimeUs);
+#endif
 }
 
-void currentMeterESCReadMotor(uint8_t motorNumber, currentMeter_t *meter)
+bool currentSensorADCRead(currentSensorADC_e sensor, currentMeter_t *meter)
+{
+#ifdef USE_ADC
+    currentSensorState_t * state = &currentADCSensors[sensor];
+
+    if (state->enabled) {
+        meter->sample = state->sample;
+        meter->current = state->current;
+        meter->capacity = state->capacity / 3600000000u;
+    }
+
+    return state->enabled;
+#else
+    UNUSED(sensor);
+    currentMeterReset(meter);
+    return false;
+#endif
+}
+
+void currentSensorADCInit(void)
+{
+#ifdef USE_ADC
+    memset(&currentADCSensors, 0, sizeof(currentADCSensors));
+
+    for (unsigned i = 0; i < MAX_CURRENT_SENSOR_ADC; i++) {
+        lowpassFilterInit(&currentADCSensors[i].filter, LPF_BESSEL,
+            currentSensorADCConfig(i)->cutoff,
+            batteryConfig()->ibatUpdateHz, 0);
+    }
+#endif
+}
+
+
+/** Current ESC Sensors **/
+
+#ifdef USE_ESC_SENSOR
+
+currentSensorState_t currentESCSensor;
+
+bool currentSensorESCReadMotor(uint8_t motorNumber, currentMeter_t *meter)
 {
     escSensorData_t *escData = getEscSensorData(motorNumber);
-    if (escData && escData->dataAge <= ESC_BATTERY_AGE_MAX) {
-        meter->amperage = escData->current;
-        meter->amperageLatest = escData->current;
-        meter->mAhDrawn = escData->consumption;
+
+    if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
+        meter->current = meter->sample = escData->current;
+        meter->capacity = escData->consumption;
+        return true;
     } else {
         currentMeterReset(meter);
     }
-}
-#endif
 
-
-#ifdef USE_MSP_CURRENT_METER
-#include "common/streambuf.h"
-
-#include "msp/msp_protocol.h"
-#include "msp/msp_serial.h"
-
-currentMeterMSPState_t currentMeterMSPState;
-
-void currentMeterMSPSet(uint16_t amperage, uint16_t mAhDrawn)
-{
-    // We expect the FC's MSP_ANALOG response handler to call this function
-    currentMeterMSPState.amperage = amperage;
-    currentMeterMSPState.mAhDrawn = mAhDrawn;
+    return false;
 }
 
-void currentMeterMSPInit(void)
+bool currentSensorESCReadTotal(currentMeter_t *meter)
 {
-    memset(&currentMeterMSPState, 0, sizeof(currentMeterMSPState_t));
+    currentSensorState_t * state = &currentESCSensor;
+
+    meter->sample = state->sample;
+    meter->current = state->current;
+    meter->capacity = state->capacity;
+
+    return state->enabled;
 }
 
-void currentMeterMSPRefresh(timeUs_t currentTimeUs)
+void currentSensorESCRefresh(void)
 {
-    // periodically request MSP_ANALOG
-    static timeUs_t streamRequestAt = 0;
-    if (cmp32(currentTimeUs, streamRequestAt) > 0) {
-        streamRequestAt = currentTimeUs + ((1000 * 1000) / 10); // 10hz
+    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
+    currentSensorState_t * state = &currentESCSensor;
 
-        mspSerialPush(SERIAL_PORT_ALL, MSP_ANALOG, NULL, 0, MSP_DIRECTION_REQUEST);
+    if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
+        const uint32_t current = escData->current + escSensorConfig()->current_offset * 10;
+        state->sample = current;
+        state->current = filterApply(&state->filter, current);
+        state->capacity = escData->consumption + (escSensorConfig()->current_offset * millis() / 3600.0f);
+        state->enabled = true;
+    }
+    else {
+        state->sample = 0;
+        state->current = 0;
     }
 }
 
-void currentMeterMSPRead(currentMeter_t *meter)
+void currentSensorESCInit(void)
 {
-    meter->amperageLatest = currentMeterMSPState.amperage;
-    meter->amperage = currentMeterMSPState.amperage;
-    meter->mAhDrawn = currentMeterMSPState.mAhDrawn;
+    memset(&currentESCSensor, 0, sizeof(currentESCSensor));
+
+    lowpassFilterInit(&currentESCSensor.filter, LPF_BESSEL,
+        escSensorConfig()->filter_cutoff,
+        batteryConfig()->ibatUpdateHz, 0);
 }
+
 #endif
+
 
 //
 // API for current meters using IDs
@@ -253,26 +243,46 @@ void currentMeterMSPRead(currentMeter_t *meter)
 // This API is used by MSP, for configuration/status.
 //
 
-void currentMeterRead(currentMeterId_e id, currentMeter_t *meter)
-{
-    if (id == CURRENT_METER_ID_BATTERY_1) {
-        currentMeterADCRead(meter);
-    }
-#ifdef USE_MSP_CURRENT_METER
-    else if (id == CURRENT_METER_ID_MSP_1) {
-        currentMeterMSPRead(meter);
-    }
-#endif
+const uint8_t currentMeterIds[] = {
+    CURRENT_METER_ID_BATTERY,
 #ifdef USE_ESC_SENSOR
-    else if (id == CURRENT_METER_ID_ESC_COMBINED_1) {
-        currentMeterESCReadCombined(meter);
-    }
-    else if (id >= CURRENT_METER_ID_ESC_MOTOR_1 && id <= CURRENT_METER_ID_ESC_MOTOR_20 ) {
-        int motor = id - CURRENT_METER_ID_ESC_MOTOR_1;
-        currentMeterESCReadMotor(motor, meter);
-    }
+    CURRENT_METER_ID_ESC_COMBINED,
+    CURRENT_METER_ID_ESC_1,
+    CURRENT_METER_ID_ESC_2,
+    CURRENT_METER_ID_ESC_3,
+    CURRENT_METER_ID_ESC_4,
 #endif
-    else {
-        currentMeterReset(meter);
+};
+
+const uint8_t currentMeterCount = ARRAYLEN(currentMeterIds);
+
+const uint8_t currentSensorToMeterMap[MAX_CURRENT_SENSOR_ADC] = {
+    [CURRENT_SENSOR_ADC_BAT] = CURRENT_METER_ID_BATTERY,
+};
+
+bool currentMeterRead(currentMeterId_e id, currentMeter_t *meter)
+{
+    switch (id) {
+        case CURRENT_METER_ID_BATTERY:
+            return currentSensorADCRead(CURRENT_SENSOR_ADC_BAT, meter);
+#ifdef USE_ESC_SENSOR
+        case CURRENT_METER_ID_ESC_COMBINED:
+            return currentSensorESCReadTotal(meter);
+        case CURRENT_METER_ID_ESC_1:
+        case CURRENT_METER_ID_ESC_2:
+        case CURRENT_METER_ID_ESC_3:
+        case CURRENT_METER_ID_ESC_4:
+            return currentSensorESCReadMotor(id - CURRENT_METER_ID_ESC_1, meter);
+#endif
+        default:
+            currentMeterReset(meter);
     }
+
+    return false;
 }
+
+void currentMeterReset(currentMeter_t *meter)
+{
+    memset(meter, 0, sizeof(currentMeter_t));
+}
+

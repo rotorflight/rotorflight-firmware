@@ -424,8 +424,8 @@ typedef struct
 
 bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    uint16_t amps = getAmperage() / 10;
-    uint16_t mah  = getMAhDrawn();
+    uint16_t amps = getLegacyBatteryCurrent();
+    uint16_t mah  = getBatteryCapacityUsed();
     static uint16_t sentAmps;
     static uint16_t sentMah;
     static timeUs_t lastTimeSentFPmAh = 0;
@@ -747,7 +747,7 @@ static void processSrxl(timeUs_t currentTimeUs)
     }
 
     if (srxlFnPtr == srxlFrameFlightPackCurrent) {
-        if ( !isAmperageConfigured() ) {
+        if ( !isBatteryCurrentConfigured() ) {
           srxlFnPtr = NULL;
         }
     }

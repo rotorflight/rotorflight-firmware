@@ -327,7 +327,7 @@ void initTelemetry(void)
         tlmSensors |= BIT(CRSF_FRAME_ATTITUDE_INDEX);
     }
     if ((isBatteryVoltageConfigured() && telemetryIsSensorEnabled(SENSOR_VOLTAGE))
-        || (isAmperageConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
+        || (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
         tlmSensors |= BIT(CRSF_FRAME_BATTERY_SENSOR_INDEX);
     }
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {

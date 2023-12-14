@@ -1107,7 +1107,7 @@ static void osdElementLogStatus(osdElementParms_t *element)
 
 static void osdElementMahDrawn(osdElementParms_t *element)
 {
-    tfp_sprintf(element->buff, "%4d%c", getMAhDrawn(), SYM_MAH);
+    tfp_sprintf(element->buff, "%4d%c", getBatteryCapacityUsed(), SYM_MAH);
 }
 
 static void osdElementMainBatteryUsage(osdElementParms_t *element)
@@ -1115,7 +1115,7 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
     // Set length of indicator bar
     #define MAIN_BATT_USAGE_STEPS 11 // Use an odd number so the bar can be centered.
 
-    const int usedCapacity = getMAhDrawn();
+    const int usedCapacity = getBatteryCapacityUsed();
     int displayBasis = usedCapacity;
 
     switch (element->type) {
@@ -1271,7 +1271,7 @@ static void osdElementRcChannels(osdElementParms_t *element)
 
 static void osdElementRemainingTimeEstimate(osdElementParms_t *element)
 {
-    const int mAhDrawn = getMAhDrawn();
+    const int mAhDrawn = getBatteryCapacityUsed();
 
     if (mAhDrawn <= 0.1 * osdConfig()->cap_alarm) {  // also handles the mAhDrawn == 0 condition
         tfp_sprintf(element->buff, "--:--");
@@ -1859,7 +1859,7 @@ void osdUpdateAlarms(void)
         }
     }
 
-    if (getMAhDrawn() >= osdConfig()->cap_alarm) {
+    if (getBatteryCapacityUsed() >= osdConfig()->cap_alarm) {
         SET_BLINK(OSD_MAH_DRAWN);
         SET_BLINK(OSD_MAIN_BATT_USAGE);
         SET_BLINK(OSD_REMAINING_TIME_ESTIMATE);

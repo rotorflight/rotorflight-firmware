@@ -119,7 +119,7 @@ static void buildTelemetryFrame(uint8_t *packet)
     uint8_t a1Value;
     switch (rxCc2500SpiConfig()->a1Source) {
     case FRSKY_SPI_A1_SOURCE_EXTADC:
-        a1Value = (adcGetChannel(ADC_EXTERNAL1) & 0xff0) >> 4;
+        a1Value = (adcGetChannel(ADC_VEXT) & 0xff0) >> 4;
         break;
     case FRSKY_SPI_A1_SOURCE_CONST:
         a1Value = A1_CONST_D & 0xff;

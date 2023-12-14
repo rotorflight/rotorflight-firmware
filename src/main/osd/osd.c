@@ -520,7 +520,7 @@ static void osdUpdateStats(void)
         stats.min_voltage = value;
     }
 
-    value = getAmperage() / 100;
+    value = getBatteryCurrent() / 100;
     if (stats.max_current < value) {
         stats.max_current = value;
     }
@@ -742,7 +742,7 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
 
     case OSD_STAT_USED_MAH:
         if (batteryConfig()->currentMeterSource != CURRENT_METER_NONE) {
-            tfp_sprintf(buff, "%d%c", getMAhDrawn(), SYM_MAH);
+            tfp_sprintf(buff, "%d%c", getBatteryCapacityUsed(), SYM_MAH);
             osdDisplayStatisticLabel(displayRow, "USED MAH", buff);
             return true;
         }

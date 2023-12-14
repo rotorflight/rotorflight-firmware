@@ -50,7 +50,7 @@ float getMotorRPMf(uint8_t motor);
 
 float getMotorRawRPMf(uint8_t motor);
 
-int calcMotorRPM(uint8_t motor, int erpm100);
+int calcMotorRPM(uint8_t motor, int erpm);
 
 void rpmSourceInit(void);
 

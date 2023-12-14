@@ -465,10 +465,10 @@ static void showBatteryPage(void)
 
     if (batteryConfig()->currentMeterSource != CURRENT_METER_NONE) {
 
-        int32_t amperage = getAmperage();
+        int32_t amperage = getBatteryCurrent();
         // 123456789012345678901
         // Amp: DDD.D mAh: DDDDD
-        tfp_sprintf(lineBuffer, "Amp: %d.%d mAh: %d", amperage / 100, (amperage % 100) / 10, getMAhDrawn());
+        tfp_sprintf(lineBuffer, "Amp: %d.%d mAh: %d", amperage / 100, (amperage % 100) / 10, getBatteryCapacityUsed());
         padLineBuffer();
         i2c_OLED_set_line(dev, rowIndex++);
         i2c_OLED_send_string(dev, lineBuffer);

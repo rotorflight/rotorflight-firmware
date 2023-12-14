@@ -49,17 +49,20 @@ typedef struct escSensorConfig_s {
     uint16_t hw4_current_offset;    // HobbyWing V4 raw current offset
     uint8_t hw4_current_gain;       // HobbyWing V4 current gain
     uint8_t hw4_voltage_gain;       // HobbyWing V4 voltage gain
+    uint8_t filter_cutoff;          // Frequency cutoff in Hz
 } escSensorConfig_t;
 
 PG_DECLARE(escSensorConfig_t, escSensorConfig);
 
 typedef struct {
-    uint8_t dataAge;
-    int8_t temperature;  // C degrees
-    int16_t voltage;     // x0.01V
-    int32_t current;     // x0.01A
-    int32_t consumption; // mAh
-    int16_t rpm;         // x100erpm
+    uint8_t   age;          // Data age
+    uint16_t  pwm;          // Output duty cycle 0.1%
+    uint32_t  erpm;         // eRPM
+    uint32_t  voltage;      // mV
+    uint32_t  current;      // mA
+    uint32_t  consumption;  // mAh
+    int16_t   temperature;  // 0.1°C
+    int16_t   temperature2; // 0.1°C
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255
@@ -73,5 +76,5 @@ void escSensorProcess(timeUs_t currentTime);
 
 bool isEscSensorActive(void);
 
-uint16_t getEscSensorRPM(uint8_t motorNumber);
+uint32_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);

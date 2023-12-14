@@ -28,95 +28,66 @@
 #define VOLTAGE_TASK_FREQ_HZ 50
 #endif
 
-//
-// meters
-//
+#define VOLTAGE_SCALE_MIN 0
+#define VOLTAGE_SCALE_MAX 65535
+
+#define VOLTAGE_DIVIDER_MIN 1
+#define VOLTAGE_DIVIDER_MAX 65535
+
+#define VOLTAGE_MULTIPLIER_MIN 1
+#define VOLTAGE_MULTIPLIER_MAX 255
 
 typedef enum {
-    VOLTAGE_METER_NONE = 0,
-    VOLTAGE_METER_ADC,
-    VOLTAGE_METER_ESC,
-    VOLTAGE_METER_COUNT
-} voltageMeterSource_e;
+    VOLTAGE_SENSOR_ADC_BAT = 0,
+    VOLTAGE_SENSOR_ADC_BEC = 1,
+    VOLTAGE_SENSOR_ADC_BUS = 2,
+    VOLTAGE_SENSOR_ADC_EXT = 3,
+    MAX_VOLTAGE_SENSOR_ADC
+} voltageSensorADC_e;
 
-extern const char * const voltageMeterSourceNames[VOLTAGE_METER_COUNT];
-
-// WARNING - do not mix usage of VOLTAGE_METER_* and VOLTAGE_SENSOR_*, they are separate concerns.
-
-typedef struct voltageMeter_s {
-    uint16_t displayFiltered;                      // voltage in 0.01V steps
-    uint16_t unfiltered;                    // voltage in 0.01V steps
-    bool lowVoltageCutoff;
-} voltageMeter_t;
-
-
-//
-// sensors
-//
-
-typedef enum {
-    VOLTAGE_SENSOR_TYPE_ADC_RESISTOR_DIVIDER = 0,
-    VOLTAGE_SENSOR_TYPE_ESC
-} voltageSensorType_e;
-
-
-//
-// adc sensors
-//
-
-#define VBAT_SCALE_MIN 0
-#define VBAT_SCALE_MAX 255
-
-#define VBAT_DIVIDER_MIN 1
-#define VBAT_DIVIDER_MAX 255
-
-#define VBAT_MULTIPLIER_MIN 1
-#define VBAT_MULTIPLIER_MAX 255
-
-#ifndef MAX_VOLTAGE_SENSOR_ADC
-#define MAX_VOLTAGE_SENSOR_ADC 1 // VBAT - some boards have external, 12V, 9V and 5V meters.
-#endif
-
-#define VOLTAGE_METER_ID_ESC_COUNT 12
-
-typedef enum {
-    VOLTAGE_SENSOR_ADC_VBAT = 0,
-    VOLTAGE_SENSOR_ADC_12V = 1,
-    VOLTAGE_SENSOR_ADC_9V = 2,
-    VOLTAGE_SENSOR_ADC_5V = 3
-} voltageSensorADC_e; // see also voltageMeterADCtoIDMap
-
-
-typedef struct voltageSensorADCConfig_s {
-    uint8_t vbatscale;                      // adjust this to match battery voltage to reported value
-    uint8_t vbatresdivval;                  // resistor divider R2 (default NAZE 10(K))
-    uint8_t vbatresdivmultiplier;           // multiplier for scale (e.g. 2.5:1 ratio with multiplier of 4 can use '100' instead of '25' in ratio) to get better precision
+typedef struct {
+    uint16_t scale;                     // adjust scale and divider to match voltage to measured value
+    uint16_t divider;
+    uint8_t divmul;                     // extra multiplier for divider (backwards compatibility)
+    uint8_t cutoff;                     // filter cutoff in Hz
 } voltageSensorADCConfig_t;
 
 PG_DECLARE_ARRAY(voltageSensorADCConfig_t, MAX_VOLTAGE_SENSOR_ADC, voltageSensorADCConfig);
 
-//
-// Main API
-//
-void voltageMeterReset(voltageMeter_t *voltageMeter);
 
-void voltageMeterGenericInit(void);
+typedef enum {
+    VOLTAGE_SENSOR_TYPE_NONE = 0,
+    VOLTAGE_SENSOR_TYPE_ADC,
+    VOLTAGE_SENSOR_TYPE_ESC,
+} voltageSensorType_e;
 
-void voltageMeterADCInit(void);
-void voltageMeterADCRefresh(void);
-void voltageMeterADCRead(voltageSensorADC_e adcChannel, voltageMeter_t *voltageMeter);
-
-void voltageMeterESCInit(void);
-void voltageMeterESCRefresh(void);
-void voltageMeterESCReadCombined(voltageMeter_t *voltageMeter);
-void voltageMeterESCReadMotor(uint8_t motor, voltageMeter_t *voltageMeter);
+typedef struct voltageMeter_s {
+    uint32_t sample;
+    uint32_t voltage;
+} voltageMeter_t;
 
 
 //
-// API for reading/configuring current meters by id.
+// Voltage Sensor API
 //
-extern const uint8_t voltageMeterADCtoIDMap[MAX_VOLTAGE_SENSOR_ADC];
 
-extern const uint8_t supportedVoltageMeterCount;
+void voltageSensorADCInit(void);
+void voltageSensorADCRefresh(void);
+bool voltageSensorADCRead(voltageSensorADC_e sensor, voltageMeter_t *voltageMeter);
+
+void voltageSensorESCInit(void);
+void voltageSensorESCRefresh(void);
+bool voltageSensorESCReadTotal(voltageMeter_t *voltageMeter);
+bool voltageSensorESCReadMotor(uint8_t motor, voltageMeter_t *voltageMeter);
+
+
+//
+// Voltage Meter API
+//
+
+extern const uint8_t voltageSensorToMeterMap[MAX_VOLTAGE_SENSOR_ADC];
 extern const uint8_t voltageMeterIds[];
-void voltageMeterRead(voltageMeterId_e id, voltageMeter_t *voltageMeter);
+extern const uint8_t voltageMeterCount;
+
+bool voltageMeterRead(voltageMeterId_e id, voltageMeter_t *voltageMeter);
+void voltageMeterReset(voltageMeter_t *voltageMeter);

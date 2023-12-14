@@ -515,8 +515,8 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableBlackboxDevice),
     LOOKUP_TABLE_ENTRY(lookupTableBlackboxMode),
 #endif
-    LOOKUP_TABLE_ENTRY(currentMeterSourceNames),
-    LOOKUP_TABLE_ENTRY(voltageMeterSourceNames),
+    LOOKUP_TABLE_ENTRY(batteryCurrentSourceNames),
+    LOOKUP_TABLE_ENTRY(batteryVoltageSourceNames),
 #ifdef USE_SERIAL_RX
     LOOKUP_TABLE_ENTRY(lookupTableSerialRX),
 #endif
@@ -769,6 +769,8 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_gps",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_GPS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #endif
     { "blackbox_log_battery",       VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BATTERY, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_vbec",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_vbus",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBUS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_rssi",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RSSI, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_rpm",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RPM, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_motors",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_MOTOR, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
@@ -827,12 +829,12 @@ const clivalue_t valueTable[] = {
     { "current_meter",              VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CURRENT_METER }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, currentMeterSource) },
     { "battery_meter",              VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_VOLTAGE_METER }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, voltageMeterSource) },
     { "vbat_detect_cell_voltage",   VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 2000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatnotpresentcellvoltage) },
-    { "use_vbat_alerts",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, useVBatAlerts) },
+    { "use_vbat_alerts",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, useVoltageAlerts) },
     { "use_cbat_alerts",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, useConsumptionAlerts) },
     { "cbat_alert_percent",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, consumptionWarningPercentage) },
     { "vbat_cutoff_percent",        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, lvcPercentage) },
     { "force_battery_cell_count",   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 24 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, forceBatteryCellCount) },
-    { "vbat_display_lpf_period",    VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, UINT8_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatDisplayLpfPeriod) },
+    { "vbat_display_lpf_period",    VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, UINT8_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatLpfPeriod) },
     { "ibat_lpf_period",            VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT8_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, ibatLpfPeriod) },
     { "vbat_duration_for_warning",  VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, 150 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatDurationForWarning) },
     { "vbat_duration_for_critical", VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, 150 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatDurationForCritical) },
@@ -840,13 +842,30 @@ const clivalue_t valueTable[] = {
     { "ibat_update_hz",             VAR_UINT16 | MASTER_VALUE, .config.minmax = { 10, 1000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, ibatUpdateHz) },
 
 //  PG_VOLTAGE_SENSOR_ADC_CONFIG
-    { "vbat_scale",                 VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VBAT_SCALE_MIN, VBAT_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, offsetof(voltageSensorADCConfig_t, vbatscale) },
-    { "vbat_divider",               VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VBAT_DIVIDER_MIN, VBAT_DIVIDER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, offsetof(voltageSensorADCConfig_t, vbatresdivval) },
-    { "vbat_multiplier",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VBAT_MULTIPLIER_MIN, VBAT_MULTIPLIER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, offsetof(voltageSensorADCConfig_t, vbatresdivmultiplier) },
+    { "vbat_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, scale) },
+    { "vbat_divider",               VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_DIVIDER_MIN, VOLTAGE_DIVIDER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, divider) },
+    { "vbat_multiplier",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_MULTIPLIER_MIN, VOLTAGE_MULTIPLIER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, divmul) },
+    { "vbat_cutoff",                VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, cutoff) },
+
+    { "vbec_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BEC, scale) },
+    { "vbec_divider",               VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_DIVIDER_MIN, VOLTAGE_DIVIDER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BEC, divider) },
+    { "vbec_multiplier",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_MULTIPLIER_MIN, VOLTAGE_MULTIPLIER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BEC, divmul) },
+    { "vbec_cutoff",                VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BEC, cutoff) },
+
+    { "vbus_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BUS, scale) },
+    { "vbus_divider",               VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_DIVIDER_MIN, VOLTAGE_DIVIDER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BUS, divider) },
+    { "vbus_multiplier",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_MULTIPLIER_MIN, VOLTAGE_MULTIPLIER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BUS, divmul) },
+    { "vbus_cutoff",                VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BUS, cutoff) },
+
+    { "vext_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_EXT, scale) },
+    { "vext_divider",               VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_DIVIDER_MIN, VOLTAGE_DIVIDER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_EXT, divider) },
+    { "vext_multiplier",            VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_MULTIPLIER_MIN, VOLTAGE_MULTIPLIER_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_EXT, divmul) },
+    { "vext_cutoff",                VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_EXT, cutoff) },
 
 // PG_CURRENT_SENSOR_ADC_CONFIG
-    { "ibata_scale",                VAR_INT16  | HARDWARE_VALUE, .config.minmax = { -16000, 16000 }, PG_CURRENT_SENSOR_ADC_CONFIG, offsetof(currentSensorADCConfig_t, scale) },
-    { "ibata_offset",               VAR_INT16  | HARDWARE_VALUE, .config.minmax = { -32000, 32000 }, PG_CURRENT_SENSOR_ADC_CONFIG, offsetof(currentSensorADCConfig_t, offset) },
+    { "ibata_scale",                VAR_INT16  | HARDWARE_VALUE, .config.minmax = { -16000, 16000 }, PG_CURRENT_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(currentSensorADCConfig_t, CURRENT_SENSOR_ADC_BAT, scale) },
+    { "ibata_offset",               VAR_INT16  | HARDWARE_VALUE, .config.minmax = { -32000, 32000 }, PG_CURRENT_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(currentSensorADCConfig_t, CURRENT_SENSOR_ADC_BAT, offset) },
+    { "ibata_cutoff",               VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CURRENT_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(currentSensorADCConfig_t, CURRENT_SENSOR_ADC_BAT, cutoff) },
 // PG_CURRENT_SENSOR_ADC_CONFIG
 
 #ifdef USE_BEEPER
@@ -1491,6 +1510,7 @@ const clivalue_t valueTable[] = {
     { "esc_sensor_hw4_current_offset",  VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_offset) },
     { "esc_sensor_hw4_current_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_gain) },
     { "esc_sensor_hw4_voltage_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_voltage_gain) },
+    { "esc_sensor_filter_cutoff",       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, filter_cutoff) },
 #endif
 
 #ifdef USE_RX_FRSKY_SPI

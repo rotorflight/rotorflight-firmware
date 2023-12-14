@@ -36,7 +36,6 @@
 
 #include "adc.h"
 
-//#define DEBUG_ADC_CHANNELS
 
 adcOperatingConfig_t adcOperatingConfig[ADC_CHANNEL_COUNT];
 
@@ -85,24 +84,15 @@ ADCDevice adcDeviceByInstance(ADC_TypeDef *instance)
     return ADCINVALID;
 }
 
+bool adcIsEnabled(uint8_t channel)
+{
+    return adcOperatingConfig[channel].enabled;
+}
+
 uint16_t adcGetChannel(uint8_t channel)
 {
     adcGetChannelValues();
 
-#ifdef DEBUG_ADC_CHANNELS
-    if (adcOperatingConfig[0].enabled) {
-        debug[0] = adcValues[adcOperatingConfig[0].dmaIndex];
-    }
-    if (adcOperatingConfig[1].enabled) {
-        debug[1] = adcValues[adcOperatingConfig[1].dmaIndex];
-    }
-    if (adcOperatingConfig[2].enabled) {
-        debug[2] = adcValues[adcOperatingConfig[2].dmaIndex];
-    }
-    if (adcOperatingConfig[3].enabled) {
-        debug[3] = adcValues[adcOperatingConfig[3].dmaIndex];
-    }
-#endif
     return adcValues[adcOperatingConfig[channel].dmaIndex];
 }
 
@@ -146,10 +136,12 @@ int16_t adcInternalComputeTemperature(uint16_t tempAdcValue, uint16_t vrefValue)
 }
 #endif // USE_ADC_INTERNAL
 
-#else
+#else // USE_ADC
+
 uint16_t adcGetChannel(uint8_t channel)
 {
     UNUSED(channel);
     return 0;
 }
-#endif
+
+#endif // USE_DC

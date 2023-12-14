@@ -5036,9 +5036,11 @@ const cliResourceValue_t resourceTable[] = {
 #endif
 #ifdef USE_ADC
     DEFS( OWNER_ADC_BATT,      PG_ADC_CONFIG, adcConfig_t, vbat.ioTag ),
-    DEFS( OWNER_ADC_RSSI,      PG_ADC_CONFIG, adcConfig_t, rssi.ioTag ),
     DEFS( OWNER_ADC_CURR,      PG_ADC_CONFIG, adcConfig_t, current.ioTag ),
-    DEFS( OWNER_ADC_EXT,       PG_ADC_CONFIG, adcConfig_t, external1.ioTag ),
+    DEFS( OWNER_ADC_RSSI,      PG_ADC_CONFIG, adcConfig_t, rssi.ioTag ),
+    DEFS( OWNER_ADC_BEC,       PG_ADC_CONFIG, adcConfig_t, vbec.ioTag ),
+    DEFS( OWNER_ADC_BUS,       PG_ADC_CONFIG, adcConfig_t, vbus.ioTag ),
+    DEFS( OWNER_ADC_EXT,       PG_ADC_CONFIG, adcConfig_t, vext.ioTag ),
 #endif
 #ifdef USE_BARO
     DEFS( OWNER_BARO_CS,       PG_BAROMETER_CONFIG, barometerConfig_t, baro_spi_csn ),
@@ -6068,7 +6070,7 @@ static void cliDshotTelemetryInfo(const char *cmdName, char *cmdline)
 #endif
         for (uint8_t i = 0; i < getMotorCount(); i++) {
             cliPrintf("%5d   %7d   %6d   %5d   ", i,
-                      getDshotTelemetry(i) * 100,
+                      getDshotTelemetry(i),
                       calcMotorRPM(i,getDshotTelemetry(i)),
                       calcMotorRPM(i,getDshotTelemetry(i)) / 60);
 #ifdef USE_DSHOT_TELEMETRY_STATS

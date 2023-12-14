@@ -151,16 +151,6 @@ static void taskHandleSerial(timeUs_t currentTimeUs)
     mspSerialProcess(evaluateMspData, mspFcProcessCommand, mspFcProcessReply);
 }
 
-static void taskBatteryAlerts(timeUs_t currentTimeUs)
-{
-    if (!ARMING_FLAG(ARMED)) {
-        // the battery *might* fall out in flight, but if that happens the FC will likely be off too unless the user has battery backup.
-        batteryUpdatePresence();
-    }
-    batteryUpdateStates(currentTimeUs);
-    batteryUpdateAlarms();
-}
-
 #ifdef USE_ACC
 static void taskUpdateAccelerometer(timeUs_t currentTimeUs)
 {
@@ -331,8 +321,8 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_MAIN] = DEFINE_TASK("SYSTEM", "UPDATE", NULL, taskMain, TASK_PERIOD_HZ(1000), TASK_PRIORITY_MEDIUM_HIGH),
     [TASK_SERIAL] = DEFINE_TASK("SERIAL", NULL, NULL, taskHandleSerial, TASK_PERIOD_HZ(100), TASK_PRIORITY_LOW), // 100 Hz should be enough to flush up to 115 bytes @ 115200 baud
     [TASK_BATTERY_ALERTS] = DEFINE_TASK("BATTERY_ALERTS", NULL, NULL, taskBatteryAlerts, TASK_PERIOD_HZ(5), TASK_PRIORITY_MEDIUM),
-    [TASK_BATTERY_VOLTAGE] = DEFINE_TASK("BATTERY_VOLTAGE", NULL, NULL, batteryUpdateVoltage, TASK_PERIOD_HZ(VOLTAGE_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM),
-    [TASK_BATTERY_CURRENT] = DEFINE_TASK("BATTERY_CURRENT", NULL, NULL, batteryUpdateCurrentMeter, TASK_PERIOD_HZ(CURRENT_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM),
+    [TASK_BATTERY_VOLTAGE] = DEFINE_TASK("BATTERY_VOLTAGE", NULL, NULL, taskBatteryVoltageUpdate, TASK_PERIOD_HZ(VOLTAGE_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM),
+    [TASK_BATTERY_CURRENT] = DEFINE_TASK("BATTERY_CURRENT", NULL, NULL, taskBatteryCurrentUpdate, TASK_PERIOD_HZ(CURRENT_TASK_FREQ_HZ), TASK_PRIORITY_MEDIUM),
 
 #ifdef USE_STACK_CHECK
     [TASK_STACK_CHECK] = DEFINE_TASK("STACKCHECK", NULL, NULL, taskStackCheck, TASK_PERIOD_HZ(10), TASK_PRIORITY_LOWEST),
@@ -444,14 +434,14 @@ void tasksInit(void)
     rescheduleTask(TASK_SERIAL, TASK_PERIOD_HZ(serialConfig()->serial_update_rate_hz));
 
     rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(batteryConfig()->vbatUpdateHz));
-    const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
-    setTaskEnabled(TASK_BATTERY_VOLTAGE, useBatteryVoltage);
+    setTaskEnabled(TASK_BATTERY_VOLTAGE, true);
 
     rescheduleTask(TASK_BATTERY_CURRENT, TASK_PERIOD_HZ(batteryConfig()->ibatUpdateHz));
-    const bool useBatteryCurrent = batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
-    setTaskEnabled(TASK_BATTERY_CURRENT, useBatteryCurrent);
+    setTaskEnabled(TASK_BATTERY_CURRENT, true);
 
-    const bool useBatteryAlerts = batteryConfig()->useVBatAlerts || batteryConfig()->useConsumptionAlerts || featureIsEnabled(FEATURE_OSD);
+    const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
+    const bool useBatteryCurrent = batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
+    const bool useBatteryAlerts = batteryConfig()->useVoltageAlerts || batteryConfig()->useConsumptionAlerts || featureIsEnabled(FEATURE_OSD);
     setTaskEnabled(TASK_BATTERY_ALERTS, (useBatteryVoltage || useBatteryCurrent) && useBatteryAlerts);
 
 #ifdef USE_STACK_CHECK

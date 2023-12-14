@@ -25,7 +25,7 @@ void freqInit(const struct freqConfig_s *freqConfig);
 void freqUpdate(void);
 
 float getFreqSensorFreq(uint8_t port);
-uint16_t getFreqSensorRPM(uint8_t port);
+uint32_t getFreqSensorRPM(uint8_t port);
 
 bool isFreqSensorPortInitialized(uint8_t port);
 bool isFreqSensorInitialized(void);

@@ -424,8 +424,8 @@ static void govUpdateInputs(void)
     gov.nominalVoltage = getBatteryCellCount() * GOV_NOMINAL_CELL_VOLTAGE;
 
     // Voltage & current filters
-    gov.motorVoltage = filterApply(&gov.motorVoltageFilter, getBatteryVoltageLatest() * 0.01f);
-    gov.motorCurrent = filterApply(&gov.motorCurrentFilter, getAmperageLatest() * 0.01f);
+    gov.motorVoltage = filterApply(&gov.motorVoltageFilter, getBatteryVoltageSample() * 0.01f);
+    gov.motorCurrent = filterApply(&gov.motorCurrentFilter, getBatteryCurrentSample() * 0.01f);
 }
 
 static void govUpdateData(void)

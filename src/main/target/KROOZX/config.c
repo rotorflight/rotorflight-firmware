@@ -40,7 +40,7 @@ void targetConfiguration(void)
     pinioConfigMutable()->ioTag[0] = IO_TAG(OSD_CH_SWITCH);
     pinioConfigMutable()->config[0] = PINIO_CONFIG_MODE_OUT_PP; // Default state is LOW
 
-    voltageSensorADCConfigMutable(VOLTAGE_SENSOR_ADC_VBAT)->vbatscale = VBAT_SCALE;
+    voltageSensorADCConfigMutable(VOLTAGE_SENSOR_ADC_BAT)->scale = VBAT_SCALE;
     barometerConfigMutable()->baro_hardware = 0;
     compassConfigMutable()->mag_hardware = 0;
     osdElementConfigMutable()->item_pos[OSD_MAIN_BATT_VOLTAGE] = OSD_POS(12, 1) | OSD_PROFILE_1_FLAG;

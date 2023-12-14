@@ -98,9 +98,9 @@ FAST_CODE uint16_t prepareDshotPacket(dshotProtocolControl_t *pcb)
 #ifdef USE_DSHOT_TELEMETRY
 FAST_DATA_ZERO_INIT dshotTelemetryState_t dshotTelemetryState;
 
-uint16_t getDshotTelemetry(uint8_t index)
+uint32_t getDshotTelemetry(uint8_t index)
 {
-    return dshotTelemetryState.motorState[index].telemetryValue;
+    return dshotTelemetryState.motorState[index].telemetryValue * 100;
 }
 
 #endif
