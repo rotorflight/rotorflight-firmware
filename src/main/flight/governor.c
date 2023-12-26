@@ -54,8 +54,12 @@
 #define GOV_MIN_THROTTLE_OUTPUT         0.05f
 
 // Headspeed quality levels
-#define GOV_HS_DETECT_DELAY             100
+#define GOV_HS_DETECT_DELAY             500
 #define GOV_HS_DETECT_RATIO             0.05f
+
+// RPM glitch ratio
+#define GOV_HS_GLITCH_DELTA             0.1f
+#define GOV_HS_GLITCH_LIMIT             2.0f
 
 // Lost headspeed levels
 #define GOV_HS_INVALID_RATIO            0.01f
@@ -131,14 +135,16 @@ typedef struct {
     bool            motorRPMError;
     bool            motorRPMPresent;
 
-    // Input data filters
+    // RPM filter & detection
     float           motorRPM;
     filter_t        motorRPMFilter;
-    uint32_t        motorRPMGood;
+    float           motorRPMGlitchDelta;
+    float           motorRPMGlitchLimit;
+    uint32_t        motorRPMDetectTime;
 
+    // Battery voltage & current
     float           motorVoltage;
     filter_t        motorVoltageFilter;
-
     float           motorCurrent;
     filter_t        motorCurrentFilter;
 
@@ -391,22 +397,28 @@ static void govUpdateInputs(void)
     // Calculate HS vs FullHS ratio
     gov.fullHeadSpeedRatio = gov.actualHeadSpeed / gov.fullHeadSpeed;
 
+    // Detect stuck motor / startup problem
+    bool rpmError = ((gov.fullHeadSpeedRatio < GOV_HS_INVALID_RATIO || gov.motorRPM < 10) && gov.throttle > GOV_HS_INVALID_THROTTLE);
+
+    // Detect RPM glitches
+    bool rpmGlitch = (gov.motorRPM - filteredRPM > gov.motorRPMGlitchDelta || gov.motorRPM > gov.motorRPMGlitchLimit);
+
+    // Error cases
+    gov.motorRPMError = rpmError || rpmGlitch;
+
     // Evaluate RPM signal quality
-    if (gov.motorRPM > 0 && gov.fullHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
-        if (!gov.motorRPMGood) {
-            gov.motorRPMGood = millis();
+    if (!gov.motorRPMError && gov.motorRPM > 0 && gov.fullHeadSpeedRatio > GOV_HS_DETECT_RATIO) {
+        if (!gov.motorRPMDetectTime) {
+            gov.motorRPMDetectTime = millis();
         }
     } else {
-        if (gov.motorRPMGood) {
-            gov.motorRPMGood = 0;
+        if (gov.motorRPMDetectTime) {
+            gov.motorRPMDetectTime = 0;
         }
     }
 
-    // Headspeed is present if RPM is stable
-    gov.motorRPMPresent = (gov.motorRPMGood && cmp32(millis(),gov.motorRPMGood) > GOV_HS_DETECT_DELAY);
-
-    // Headspeed should be available if throttle is high enough
-    gov.motorRPMError = ((gov.fullHeadSpeedRatio < GOV_HS_INVALID_RATIO || gov.motorRPM < 1) && gov.throttle > GOV_HS_INVALID_THROTTLE);
+    // Headspeed is present if RPM is stable long enough
+    gov.motorRPMPresent = (gov.motorRPMDetectTime && cmp32(millis(),gov.motorRPMDetectTime) > GOV_HS_DETECT_DELAY);
 
     // Battery state - zero when battery unplugged
     gov.nominalVoltage = getBatteryCellCount() * GOV_NOMINAL_CELL_VOLTAGE;
@@ -998,6 +1010,9 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.headSpeedTrackingRate = gov.throttleTrackingRate * gov.fullHeadSpeed;
         gov.headSpeedRecoveryRate = gov.throttleRecoveryRate * gov.fullHeadSpeed;
         gov.headSpeedBailoutRate  = gov.throttleBailoutRate  * gov.fullHeadSpeed;
+
+        gov.motorRPMGlitchDelta = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_DELTA;
+        gov.motorRPMGlitchLimit = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_LIMIT;
     }
 }
 
