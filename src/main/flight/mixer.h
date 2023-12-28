@@ -136,6 +136,8 @@ typedef struct
 
     uint8_t   swash_tta_precomp;    // TTA correction %
 
+    int8_t    swash_geo_correction; // Head geometry correction (collective assymetry)
+
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

@@ -1500,6 +1500,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, mixerConfig()->swash_trim[1]);
         sbufWriteU16(dst, mixerConfig()->swash_trim[2]);
         sbufWriteU8(dst, mixerConfig()->swash_tta_precomp);
+        sbufWriteU8(dst, mixerConfig()->swash_geo_correction);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2964,6 +2965,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_trim[1] = sbufReadU16(src);
         mixerConfigMutable()->swash_trim[2] = sbufReadU16(src);
         mixerConfigMutable()->swash_tta_precomp = sbufReadU8(src);
+        mixerConfigMutable()->swash_geo_correction = sbufReadU8(src);
         mixerInitConfig();
         break;
 
