@@ -1733,7 +1733,7 @@ static void cliAdjustmentRange(const char *cmdName, char *cmdline)
             ptr = nextArg(ptr);
             if (ptr) {
                 val = atoi(ptr);
-                if (val >= 0 && val < MAX_AUX_CHANNEL_COUNT) {
+                if ((val >= 0 && val < MAX_AUX_CHANNEL_COUNT) || val == 0xff) {
                     ar->enaChannel = val;
                     validArgumentCount++;
                 }
