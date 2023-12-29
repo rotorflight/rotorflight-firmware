@@ -358,10 +358,10 @@ static void mixerUpdateMotorizedTail(void)
 
         // Slow spoolup
         if (!isSpooledUp()) {
-            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.05f)
                 throttle = 0;
-            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.20f)
-                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.20f;
+            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.10f)
+                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.10f;
         }
 
         // Yaw is now tail motor throttle
@@ -381,10 +381,10 @@ static void mixerUpdateMotorizedTail(void)
 
         // Slow spoolup
         if (!isSpooledUp()) {
-            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.01f)
+            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.05f)
                 throttle = 0;
-            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.20f)
-                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.20f;
+            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.10f)
+                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.10f;
         }
 
         // Direction sign
