@@ -327,7 +327,14 @@ static void rescueClimb(void)
 
 static inline bool rescueClimbDone(void)
 {
-    return (rescueStateTime() > rescue.climbTime);
+    if (rescue.mode == RESCUE_MODE_CLIMB) {
+        return (rescueStateTime() > rescue.climbTime);
+    }
+    else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
+        return (rescueStateTime() > rescue.climbTime || fabsf(rescue.hoverAltitude - getAltitude()) < 0.5f);
+    }
+
+    return true;
 }
 
 static void rescueHover(void)
@@ -473,6 +480,6 @@ void INIT_CODE rescueInitProfile(const pidProfile_t *pidProfile)
     rescue.hoverAltitude = pidProfile->rescue.hover_altitude / 100.0f;
 
     rescue.alt_Kp = pidProfile->rescue.alt_p_gain;
-    rescue.alt_Ki = pidProfile->rescue.alt_i_gain * pidGetDT();
+    rescue.alt_Ki = pidProfile->rescue.alt_i_gain * pidGetDT() / 10.0f;
     rescue.alt_Kd = pidProfile->rescue.alt_d_gain * -1.0f;
 }
