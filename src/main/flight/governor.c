@@ -460,14 +460,15 @@ static void govUpdateData(void)
     if (mixerMotorizedTail() && gov.TTAGain != 0) {
         float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
         float TTA = filterApply(&gov.TTAFilter, YAW) * getSpoolUpRatio() * gov.TTAGain;
-        gov.TTAAdd = constrainf(TTA, 0, gov.TTALimit);
+        float headroom = 2 * fmaxf(gov.TTALimit - gov.fullHeadSpeedRatio, 0);
+        gov.TTAAdd = constrainf(TTA, 0, headroom);
     }
     else {
-        gov.TTAAdd = 0.0f;
+        gov.TTAAdd = 0;
     }
 
     // Normalized RPM error
-    float newError = (gov.targetHeadSpeed + gov.targetHeadSpeed * gov.TTAAdd - gov.actualHeadSpeed) / gov.fullHeadSpeed;
+    float newError = (gov.targetHeadSpeed - gov.actualHeadSpeed) / gov.fullHeadSpeed + gov.TTAAdd;
 
     // Update PIDF terms
     gov.P = gov.K * gov.Kp * newError;
@@ -993,7 +994,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
         gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
-        gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
+        gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f + 1.0f;
 
         if (gov.mode >= GM_STANDARD)
             gov.TTAGain /= gov.K * gov.Kp;
