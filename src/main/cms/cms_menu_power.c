@@ -101,7 +101,7 @@ static const OSD_Entry cmsx_menuPowerEntries[] =
     { "VBAT CLMAX", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatmaxcellvoltage, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
     { "VBAT CLWARN", OME_UINT16, NULL, &(OSD_UINT16_t) { &batteryConfig_vbatwarningcellvoltage, VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX, 1 } },
 
-    { "VBAT SCALE", OME_UINT16, NULL, &(OSD_UINT8_t){ &voltageSensorADCConfig_vbatscale, VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX, 1 } },
+    { "VBAT SCALE", OME_UINT16, NULL, &(OSD_UINT16_t){ &voltageSensorADCConfig_vbatscale, VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX, 1 } },
 
     { "IBAT SCALE", OME_INT16, NULL, &(OSD_INT16_t){ &currentSensorADCConfig_scale, -16000, 16000, 5 } },
     { "IBAT OFFSET", OME_INT16, NULL, &(OSD_INT16_t){ &currentSensorADCConfig_offset, -32000, 32000, 5 } },

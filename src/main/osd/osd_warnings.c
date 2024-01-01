@@ -232,7 +232,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
             if (osdConfig()->esc_temp_alarm != ESC_TEMP_ALARM_OFF && escData->temperature >= osdConfig()->esc_temp_alarm) {
                 warnFlag = 'T';
             }
-            if (ARMING_FLAG(ARMED) && osdConfig()->esc_current_alarm != ESC_CURRENT_ALARM_OFF && escData->current >= osdConfig()->esc_current_alarm) {
+            if (ARMING_FLAG(ARMED) && osdConfig()->esc_current_alarm != ESC_CURRENT_ALARM_OFF && (int16_t)escData->current >= osdConfig()->esc_current_alarm) {
                 warnFlag = 'C';
             }
 

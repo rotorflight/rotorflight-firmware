@@ -792,7 +792,7 @@ static void osdElementCrosshairs(osdElementParms_t *element)
 
 static void osdElementCurrentDraw(osdElementParms_t *element)
 {
-    const float amperage = fabsf(getAmperage() / 100.0f);
+    const float amperage = getBatteryCurrent() / 100.0f;
     osdPrintFloat(element->buff, SYM_NONE, amperage, "%3u", 2, false, SYM_AMP);
 }
 
@@ -1022,7 +1022,7 @@ static void osdElementEfficiency(osdElementParms_t *element)
     int efficiency = 0;
     if (sensors(SENSOR_GPS) && ARMING_FLAG(ARMED) && STATE(GPS_FIX) && gpsSol.groundSpeed >= EFFICIENCY_MINIMUM_SPEED_CM_S) {
         const float speed = (float)osdGetSpeedToSelectedUnit(gpsSol.groundSpeed);
-        const float mAmperage = (float)getAmperage() * 10.f; // Current in mA
+        const float mAmperage = (float)getBatteryCurrent() * 10.f; // Current in mA
         efficiency = lrintf(pt1FilterApply(&batteryEfficiencyFilt, (mAmperage / speed)));
     }
 
@@ -1246,7 +1246,7 @@ static void osdElementPidsYaw(osdElementParms_t *element)
 
 static void osdElementPower(osdElementParms_t *element)
 {
-    tfp_sprintf(element->buff, "%4dW", getAmperage() * getBatteryVoltage() / 10000);
+    tfp_sprintf(element->buff, "%4dW", getBatteryCurrent() * getBatteryVoltage() / 10000);
 }
 
 static void osdElementRcChannels(osdElementParms_t *element)

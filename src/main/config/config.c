@@ -367,7 +367,7 @@ static void validateAndFixConfig(void)
         rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D);
 
     // The FrSky D and X SPI RX sends EXT_ADC_PIN (if configured) as A1
-    adcConfigMutable()->ext.enabled |= (featureIsEnabled(FEATURE_RX_SPI) && (
+    adcConfigMutable()->vext.enabled |= (featureIsEnabled(FEATURE_RX_SPI) && (
         rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D ||
         rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X ||
         rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_V2 ||
