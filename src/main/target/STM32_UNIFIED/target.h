@@ -383,8 +383,9 @@
 
 #define USE_SERVO_GEOMETRY_CORRECTION
 
+#define USE_CMS
+
 #undef USE_OSD
-#undef USE_CMS
 #undef USE_MAX7456
 #undef USE_RCDEVICE
 #undef USE_VTX_COMMON
