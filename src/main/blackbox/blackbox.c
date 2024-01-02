@@ -81,9 +81,11 @@
 #include "rx/rx.h"
 
 #include "sensors/acceleration.h"
+#include "sensors/adcinternal.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/compass.h"
+#include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
 #include "sensors/rangefinder.h"
 
@@ -283,6 +285,9 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"Vbec",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(VBEC)},
     {"Vbus",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(VBUS)},
 
+    {"Tmcu",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(TMCU)},
+    {"Tesc",       -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(TESC)},
+
     {"headspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(HEADSPEED)},
     {"tailspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(TAILSPEED)},
 
@@ -393,6 +398,9 @@ typedef struct blackboxMainState_s {
 
     uint16_t vbec;
     uint16_t vbus;
+
+    int16_t tmcu;
+    int16_t tesc;
 
     uint16_t rssi;
 
@@ -565,6 +573,11 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(RPM));
     case CONDITION(TAILSPEED):
         return (getMotorCount() >= 2) && isFieldEnabled(FIELD_SELECT(RPM));
+
+    case CONDITION(TMCU):
+        return isFieldEnabled(FIELD_SELECT(TEMP));
+    case CONDITION(TESC):
+        return featureIsEnabled(FEATURE_ESC_SENSOR) && isFieldEnabled(FIELD_SELECT(TEMP));
 
     case CONDITION(MOTOR_1):
         return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(MOTOR));
@@ -756,6 +769,12 @@ static void writeIntraframe(void)
     if (testBlackboxCondition(CONDITION(VBUS))) {
         blackboxWriteUnsignedVB(blackboxCurrent->vbus);
     }
+    if (testBlackboxCondition(CONDITION(TMCU))) {
+        blackboxWriteSignedVB(blackboxCurrent->tmcu);
+    }
+    if (testBlackboxCondition(CONDITION(TESC))) {
+        blackboxWriteSignedVB(blackboxCurrent->tesc);
+    }
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         blackboxWriteUnsignedVB(blackboxCurrent->headspeed);
     }
@@ -928,6 +947,13 @@ static void writeInterframe(void)
     }
     if (testBlackboxCondition(CONDITION(VBUS))) {
         blackboxWriteSignedVB((int32_t) blackboxCurrent->vbus - blackboxPrev->vbus);
+    }
+
+    if (testBlackboxCondition(CONDITION(TMCU))) {
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->tmcu - blackboxPrev->tmcu);
+    }
+    if (testBlackboxCondition(CONDITION(TESC))) {
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->tesc - blackboxPrev->tesc);
     }
 
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
@@ -1212,9 +1238,17 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     voltageMeter_t meter;
     voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BEC, &meter);
-    blackboxCurrent->vbec = meter.voltage;
+    blackboxCurrent->vbec = meter.voltage / 10;
     voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BUS, &meter);
-    blackboxCurrent->vbus = meter.voltage;
+    blackboxCurrent->vbus = meter.voltage / 10;
+
+    blackboxCurrent->tmcu = getCoreTemperatureCelsius();
+
+    const escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
+    if (escData && escData->age <= ESC_BATTERY_AGE_MAX)
+        blackboxCurrent->tesc = escData->temperature / 10;
+    else
+        blackboxCurrent->tesc = 0;
 
     blackboxCurrent->headspeed = getHeadSpeed();
     blackboxCurrent->tailspeed = getTailSpeed();
