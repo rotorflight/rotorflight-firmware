@@ -345,7 +345,7 @@ static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
             return getGovernorOutput() * 10000;
         case CRSF_ATT_REUSE_ESC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
-            return (escData) ? escData->temperature * 100 : 0;
+            return (escData) ? escData->temperature * 10 : 0;
         case CRSF_ATT_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 100;
         case CRSF_ATT_REUSE_MCU_LOAD:
