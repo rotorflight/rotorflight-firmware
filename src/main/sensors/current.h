@@ -32,8 +32,8 @@ typedef enum {
 } currentSensorADC_e;
 
 typedef struct {
-    uint16_t scale;              // scale the current sensor output voltage to milliamps. Value in mV/10A
-    uint16_t offset;             // offset of the current sensor in mA
+    int16_t scale;               // scale the current sensor output voltage to milliamps. Value in mV/10A
+    int16_t offset;              // offset of the current sensor in mA
     uint8_t cutoff;              // filter cutoff frequency in Hz
 } currentSensorADCConfig_t;
 

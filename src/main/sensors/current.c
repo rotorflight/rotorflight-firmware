@@ -15,9 +15,10 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "stdbool.h"
-#include "stdint.h"
-#include "string.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+#include <math.h>
 
 #include "platform.h"
 
@@ -101,7 +102,7 @@ static float currentSensorADCToCurrent(int sensor, const uint16_t src)
     float voltage = src * getVrefMv() / 0.4095f;
     float current = config->scale ? (voltage / config->scale + config->offset) : 0;
 
-    return current;
+    return fmaxf(current, 0);
 }
 #endif
 
