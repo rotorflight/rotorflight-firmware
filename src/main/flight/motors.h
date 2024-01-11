@@ -38,6 +38,7 @@ bool areMotorsRunning(void);
 
 bool isRpmSourceActive(void);
 bool isMotorRpmSourceActive(uint8_t motor);
+bool isMotorFastRpmSourceActive(uint8_t motor);
 
 int getHeadSpeed(void);
 int getTailSpeed(void);

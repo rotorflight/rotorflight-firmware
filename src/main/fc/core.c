@@ -288,14 +288,6 @@ void updateArmingStatus(void)
         }
 #endif
 
-#ifdef USE_RPM_FILTER
-        if (featureIsEnabled(FEATURE_RPM_FILTER) && !isRpmSourceActive()) {
-            setArmingDisabled(ARMING_DISABLED_RPMFILTER);
-        } else {
-            unsetArmingDisabled(ARMING_DISABLED_RPMFILTER);
-        }
-#endif
-
 #ifdef USE_DSHOT_BITBANG
         if (isDshotBitbangActive(&motorConfig()->dev) && dshotBitbangGetStatus() != DSHOT_BITBANG_STATUS_OK) {
             setArmingDisabled(ARMING_DISABLED_DSHOT_BITBANG);

@@ -163,6 +163,11 @@ bool isMotorRpmSourceActive(uint8_t motor)
     return (motor < motorCount && motorRpmSource[motor] != RPM_SRC_NONE);
 }
 
+bool isMotorFastRpmSourceActive(uint8_t motor)
+{
+    return (motor < motorCount && (motorRpmSource[motor] == RPM_SRC_DSHOT_TELEM || motorRpmSource[motor] == RPM_SRC_FREQ_SENSOR));
+}
+
 bool isRpmSourceActive(void)
 {
     return (motorRpmSource[0] != RPM_SRC_NONE);

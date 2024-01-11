@@ -29,13 +29,13 @@
 
 #include "config/feature.h"
 
+#include "fc/core.h"
+#include "fc/runtime_config.h"
+
 #include "scheduler/scheduler.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
-#include "drivers/dshot.h"
 #include "flight/mixer.h"
-#include "flight/pid.h"
-#include "pg/motor.h"
 
 #include "rpm_filter.h"
 
@@ -72,12 +72,12 @@ INIT_CODE void rpmFilterInit(void)
     const float mainGearRatio = getMainGearRatio();
     const float tailGearRatio = getTailGearRatio();
 
-    const bool enable1x = isMotorRpmSourceActive(mainMotorIndex);
-    const bool enable10 = (enable1x && mainGearRatio != 1.0f);
-    const bool enable2x = isMotorRpmSourceActive(tailMotorIndex);
-    const bool enable20 = (enable2x && tailGearRatio != 1.0f);
+    const bool enable10 = mainGearRatio != 1.0f;
+    const bool enable20 = tailGearRatio != 1.0f && mixerMotorizedTail();
 
     int bankNumber = 0;
+
+    #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto error
 
     for (int index = 0; index < RPM_FILTER_BANK_COUNT; index++)
     {
@@ -111,6 +111,7 @@ INIT_CODE void rpmFilterInit(void)
 
         // Motor RPM based notches
         if (source >= 1 && source <= getMotorCount()) {
+            CHECK_SOURCE(source - 1);
             bank->motor  = source - 1;
             bank->ratio  = ratio;
             bank->minHz  = constrainf(config->filter_bank_rpm_limit[index] * ratio, 10, minHzLimit);
@@ -120,6 +121,7 @@ INIT_CODE void rpmFilterInit(void)
         }
         // Main Motor (M1)
         else if (source == 10 && enable10) {
+            CHECK_SOURCE(mainMotorIndex);
             bank->motor  = mainMotorIndex;
             bank->ratio  = ratio;
             bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / mainGearRatio) * ratio, 10, minHzLimit);
@@ -128,7 +130,8 @@ INIT_CODE void rpmFilterInit(void)
             bankNumber++;
         }
         // Main Rotor harmonics
-        else if (source >= 11 && source <= 18 && enable1x) {
+        else if (source >= 11 && source <= 18) {
+            CHECK_SOURCE(mainMotorIndex);
             const int harmonic = source - 10;
             bank->motor  = mainMotorIndex;
             bank->ratio  = mainGearRatio * harmonic * ratio;
@@ -139,6 +142,7 @@ INIT_CODE void rpmFilterInit(void)
         }
         // Tail Motor (M2)
         else if (source == 20 && enable20) {
+            CHECK_SOURCE(tailMotorIndex);
             bank->motor  = tailMotorIndex;
             bank->ratio  = ratio;
             bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / tailGearRatio) * ratio, 10, minHzLimit);
@@ -147,7 +151,8 @@ INIT_CODE void rpmFilterInit(void)
             bankNumber++;
         }
         // Tail Rotor harmonics
-        else if (source >= 21 && source <= 28 && enable2x) {
+        else if (source >= 21 && source <= 28) {
+            CHECK_SOURCE(tailMotorIndex);
             const int harmonic = source - 20;
             bank->motor  = tailMotorIndex;
             bank->ratio  = tailGearRatio * harmonic * ratio;
@@ -155,6 +160,9 @@ INIT_CODE void rpmFilterInit(void)
             bank->maxHz  = maxHzLimit;
             bank->notchQ = notchQ;
             bankNumber++;
+        }
+        else {
+            goto error;
         }
     }
 
@@ -168,6 +176,13 @@ INIT_CODE void rpmFilterInit(void)
             biquadFilterInit(&bank->notch[axis], bank->minHz, gyro.filterRateHz, bank->notchQ, BIQUAD_NOTCH);
         }
     }
+
+    return;
+
+error:
+    activeBankCount = 0;
+
+    setArmingDisabled(ARMING_DISABLED_RPMFILTER);
 }
 
 FAST_CODE float rpmFilterGyro(int axis, float value)
