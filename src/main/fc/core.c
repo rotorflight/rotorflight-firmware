@@ -160,7 +160,10 @@ void resetArmingDisabled(void)
 static bool accNeedsCalibration(void)
 {
     if (sensors(SENSOR_ACC)) {
-
+#if 1
+        // Always require ACC calibration
+        return !accHasBeenCalibrated();
+#else
         // Check to see if the ACC has already been calibrated
         if (accHasBeenCalibrated()) {
             return false;
@@ -194,6 +197,7 @@ static bool accNeedsCalibration(void)
         if (failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE) {
             return true;
         }
+#endif
 #endif
     }
 
