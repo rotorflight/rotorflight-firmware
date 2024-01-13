@@ -86,11 +86,14 @@ static uint32_t taskGuardDeltaUpCycles;
 
 static timeUs_t taskTotalExecutionTime = 0;
 
+static uint32_t maxRealTimeCycles = 0;
+
 static uint32_t totalWaitingTaskCount = 0;
 static uint32_t totalWaitingTaskSamples = 0;
 
-FAST_DATA_ZERO_INIT uint16_t averageCPULoad = 0;
-FAST_DATA_ZERO_INIT uint16_t averageSystemLoad = 0;
+static uint32_t averageCPULoad = 0;
+static uint32_t averageSystemLoad = 0;
+static uint32_t maxRealTimeLoad = 0;
 
 static FAST_DATA_ZERO_INIT int taskQueuePos = 0;
 STATIC_UNIT_TESTED FAST_DATA_ZERO_INIT int taskQueueSize = 0;
@@ -199,6 +202,11 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     } else {
         schedulerIgnoreTaskExecTime();
     }
+
+    // Update max RT load
+    unsigned RTLoad = 100000 * maxRealTimeCycles / desiredPeriodCycles;
+    maxRealTimeLoad = (RTLoad > maxRealTimeLoad) ? RTLoad : maxRealTimeLoad - ((maxRealTimeLoad - RTLoad) >> 3);
+    maxRealTimeCycles = 0;
 
 #if defined(SIMULATOR_BUILD)
     averageCPULoad = 0;
@@ -391,6 +399,7 @@ FAST_CODE timeUs_t schedulerExecuteTask(task_t *selectedTask, timeUs_t currentTi
         ignoreCurrentTaskExecTime = false;
         taskNextStateTime = -1;
         float period = currentTimeUs - selectedTask->lastExecutedAtUs;
+
         selectedTask->lastExecutedAtUs = currentTimeUs;
         selectedTask->lastDesiredAt += selectedTask->attribute->desiredPeriodUs;
         selectedTask->dynamicPriority = 0;
@@ -398,8 +407,11 @@ FAST_CODE timeUs_t schedulerExecuteTask(task_t *selectedTask, timeUs_t currentTi
         // Execute task
         const timeUs_t currentTimeBeforeTaskCallUs = micros();
         selectedTask->attribute->taskFunc(currentTimeBeforeTaskCallUs);
-        taskExecutionTimeUs = micros() - currentTimeBeforeTaskCallUs;
+        const timeUs_t currentTimeAfterTaskCallUs = micros();
+
+        taskExecutionTimeUs = currentTimeAfterTaskCallUs - currentTimeBeforeTaskCallUs;
         taskTotalExecutionTime += taskExecutionTimeUs;
+
         selectedTask->movingSumExecutionTime10thUs += (taskExecutionTimeUs * 10) - selectedTask->movingSumExecutionTime10thUs / TASK_STATS_MOVING_SUM_COUNT;
         if (!ignoreCurrentTaskExecRate) {
             // Record task execution rate and max execution time
@@ -453,8 +465,9 @@ FAST_CODE void scheduler(void)
     const timeUs_t schedulerStartTimeUs = micros();
 #endif
     timeUs_t currentTimeUs;
-    uint32_t nowCycles;
     timeUs_t taskExecutionTimeUs = 0;
+    uint32_t nowCycles;
+    uint32_t startCycles;
     task_t *selectedTask = NULL;
     uint16_t selectedTaskDynamicPriority = 0;
     uint32_t nextTargetCycles = 0;
@@ -470,7 +483,7 @@ FAST_CODE void scheduler(void)
     if (gyroEnabled) {
         // Realtime gyro/filtering/PID tasks get complete priority
         task_t *gyroTask = getTask(TASK_GYRO);
-        nowCycles = getCycleCounter();
+        nowCycles = startCycles = getCycleCounter();
 #if defined(UNIT_TEST)
         lastTargetCycles = clockMicrosToCycles(gyroTask->lastExecutedAtUs);
 #endif
@@ -514,6 +527,9 @@ FAST_CODE void scheduler(void)
             if (pidLoopReady()) {
                 taskExecutionTimeUs += schedulerExecuteTask(getTask(TASK_PID), currentTimeUs);
             }
+
+            // Update real time execution time
+            maxRealTimeCycles = MAX(maxRealTimeCycles, getCycleCounter() - startCycles);
 
             // Check for incoming RX data. Don't do this in the checker as that is called repeatedly within
             // a given gyro loop, and ELRS takes a long time to process this and so can only be safely processed
@@ -758,6 +774,16 @@ uint16_t getAverageSystemLoad(void)
 uint8_t getAverageSystemLoadPercent(void)
 {
     return averageSystemLoad / 10;
+}
+
+uint16_t getMaxRealTimeLoad(void)
+{
+    return maxRealTimeLoad / 100;
+}
+
+uint8_t getMaxRealTimeLoadPercent(void)
+{
+    return maxRealTimeLoad / 1000;
 }
 
 float schedulerGetCycleTimeMultiplier(void)

@@ -257,7 +257,7 @@ void updateArmingStatus(void)
             unsetArmingDisabled(ARMING_DISABLED_ANGLE);
         }
 
-        if (getAverageCPULoad() > 750 || getAverageSystemLoad() > 750) {
+        if (getMaxRealTimeLoad() > 750 || getAverageCPULoad() > 750 || getAverageSystemLoad() > 750) {
             setArmingDisabled(ARMING_DISABLED_LOAD);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_LOAD);

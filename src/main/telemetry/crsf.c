@@ -352,6 +352,8 @@ static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
             return getAverageCPULoad() * 10;
         case CRSF_ATT_REUSE_SYS_LOAD:
             return getAverageSystemLoad() * 10;
+        case CRSF_ATT_REUSE_RT_LOAD:
+            return getMaxRealTimeLoad() * 10;
     }
 
     return 0;
@@ -458,6 +460,12 @@ static void crsfSysLoadInfo(char *buf)
     tfp_sprintf(buf, "%d", val);
 }
 
+static void crsfRTLoadInfo(char *buf)
+{
+    int val = getMaxRealTimeLoadPercent();
+    tfp_sprintf(buf, "%d", val);
+}
+
 static void crsfESCTempInfo(char *buf)
 {
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
@@ -513,6 +521,9 @@ void crsfFrameFlightMode(sbuf_t *dst)
             break;
         case CRSF_FM_REUSE_SYS_LOAD:
             crsfSysLoadInfo(buff);
+            break;
+        case CRSF_FM_REUSE_RT_LOAD:
+            crsfRTLoadInfo(buff);
             break;
         case CRSF_FM_REUSE_ADJFUNC:
             crsfAdjFuncInfo(buff);

@@ -485,11 +485,11 @@ const char * const lookupTableSwashType[] = {
 };
 
 const char * const lookupTableCrsfFmReuse[] = {
-    "NONE", "GOVERNOR", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "ADJFUNC", "GOV_ADJFUNC",
+    "NONE", "GOVERNOR", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "ADJFUNC", "GOV_ADJFUNC",
 };
 
 const char * const lookupTableCrsfAttReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD",
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD"
 };
 
 const char * const lookupTableDtermMode[] = {

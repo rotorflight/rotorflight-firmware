@@ -238,4 +238,6 @@ uint16_t getAverageCPULoad(void);
 uint16_t getAverageSystemLoad(void);
 uint8_t getAverageCPULoadPercent(void);
 uint8_t getAverageSystemLoadPercent(void);
+uint16_t getMaxRealTimeLoad(void);
+uint8_t getMaxRealTimeLoadPercent(void);
 float schedulerGetCycleTimeMultiplier(void);
