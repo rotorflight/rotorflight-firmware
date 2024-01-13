@@ -1247,7 +1247,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_RC_COMMAND:
         for (int i = 0; i < CONTROL_CHANNEL_COUNT; i++) {
-            sbufWriteU16(dst, (int16_t)rcCommand[i]);
+            // Try to round more "visually correct"
+            sbufWriteU16(dst, (int16_t)roundf(rcCommand[i]));
         }
         break;
 
