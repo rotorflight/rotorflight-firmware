@@ -54,11 +54,11 @@
 #define GOV_MIN_THROTTLE_OUTPUT         0.05f
 
 // Headspeed quality levels
-#define GOV_HS_DETECT_DELAY             500
+#define GOV_HS_DETECT_DELAY             200
 #define GOV_HS_DETECT_RATIO             0.05f
 
 // RPM glitch ratio
-#define GOV_HS_GLITCH_DELTA             0.1f
+#define GOV_HS_GLITCH_DELTA             0.25f
 #define GOV_HS_GLITCH_LIMIT             2.0f
 
 // Lost headspeed levels
