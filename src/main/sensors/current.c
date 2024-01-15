@@ -214,10 +214,10 @@ void currentSensorESCRefresh(void)
     currentSensorState_t * state = &currentESCSensor;
 
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
-        const uint32_t current = escData->current + escSensorConfig()->current_offset * 10;
+        const uint32_t current = escData->current + escSensorConfig()->current_offset;
         state->sample = current;
         state->current = filterApply(&state->filter, current);
-        state->capacity = escData->consumption + (escSensorConfig()->current_offset * millis() / 3600.0f);
+        state->capacity = escData->consumption + (escSensorConfig()->current_offset * millis() / 3600000u);
         state->enabled = true;
     }
     else {
