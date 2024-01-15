@@ -233,19 +233,17 @@ const char * getBatteryStateString(void)
 
 uint8_t calculateBatteryPercentageRemaining(void)
 {
-    uint8_t batteryPercentage = 0;
+    int batteryPercentage = 0;
+    int batteryCapacity = batteryConfig()->batteryCapacity;
 
-    if (batteryCellCount > 0) {
-        uint16_t batteryCapacity = batteryConfig()->batteryCapacity;
-
-        if (batteryCapacity > 0) {
-            batteryPercentage = constrain((batteryCapacity - currentMeter.capacity) * 100 / batteryCapacity, 0, 100);
-        } else {
-            batteryPercentage = constrain((((uint32_t)getBatteryVoltage() - (batteryConfig()->vbatmincellvoltage * batteryCellCount)) * 100) / ((batteryConfig()->vbatmaxcellvoltage - batteryConfig()->vbatmincellvoltage) * batteryCellCount), 0, 100);
-        }
+    if (batteryCapacity > 0) {
+        batteryPercentage = 100 * (batteryCapacity - (int)currentMeter.capacity) / batteryCapacity;
+    } else if (batteryCellCount > 0) {
+        batteryPercentage = 100 * ((int)getBatteryAverageCellVoltage() - (int)batteryConfig()->vbatmincellvoltage) /
+            (batteryConfig()->vbatmaxcellvoltage - batteryConfig()->vbatmincellvoltage);
     }
 
-    return batteryPercentage;
+    return constrain(batteryPercentage, 0, 100);
 }
 
 
