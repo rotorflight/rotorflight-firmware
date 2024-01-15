@@ -922,8 +922,8 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 5;
                 escSensorData[0].pwm = power * 5;
-                escSensorData[0].voltage = voltage * 1000;
-                escSensorData[0].current = current * 1000;
+                escSensorData[0].voltage = voltage * 100;
+                escSensorData[0].current = current * 100;
                 escSensorData[0].consumption = capacity;
                 escSensorData[0].temperature = temp * 10;
 
