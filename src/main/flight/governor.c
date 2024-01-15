@@ -462,6 +462,16 @@ static void govUpdateData(void)
         float TTA = filterApply(&gov.TTAFilter, YAW) * getSpoolUpRatio() * gov.TTAGain;
         float headroom = 2 * fmaxf(gov.TTALimit - gov.fullHeadSpeedRatio, 0);
         gov.TTAAdd = constrainf(TTA, 0, headroom);
+
+        DEBUG(TTA, 0, YAW * 1000);
+        DEBUG(TTA, 1, TTA * 1000);
+        DEBUG(TTA, 2, headroom * 1000);
+        DEBUG(TTA, 3, gov.TTAAdd * 1000);
+
+        DEBUG(TTA, 4, gov.P * 1000);
+        DEBUG(TTA, 5, gov.I * 1000);
+        DEBUG(TTA, 6, gov.pidSum * 1000);
+        DEBUG(TTA, 7, gov.targetHeadSpeed);
     }
     else {
         gov.TTAAdd = 0;
