@@ -807,18 +807,13 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 #endif
 
     case MSP_BATTERY_STATE:
-        // battery characteristics
-        sbufWriteU8(dst, getBatteryCellCount());
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity); // mAh
-
-        // battery state
-        sbufWriteU8(dst, constrain(getLegacyBatteryVoltage(), 0, UINT8_MAX));       // in 100mV steps
-        sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh drawn from battery
-        sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // current in 10mA steps
-
-        // battery alerts
         sbufWriteU8(dst, getBatteryState());
-        sbufWriteU16(dst, getBatteryVoltage()); // 10mV steps
+        sbufWriteU8(dst, getBatteryCellCount());
+        sbufWriteU16(dst, batteryConfig()->batteryCapacity);                        // mAh
+        sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh
+        sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
+        sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
+        sbufWriteU8(dst, calculateBatteryPercentageRemaining());                    // %
         break;
 
     case MSP_VOLTAGE_METERS:
