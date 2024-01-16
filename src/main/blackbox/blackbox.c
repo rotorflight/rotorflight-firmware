@@ -1482,6 +1482,13 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentControlRateProfile->rates[PITCH],
                                                                             currentControlRateProfile->rates[YAW]);
 
+        BLACKBOX_PRINT_HEADER_LINE("response_time", "%d,%d,%d",             currentControlRateProfile->response_time[ROLL],
+                                                                            currentControlRateProfile->response_time[PITCH],
+                                                                            currentControlRateProfile->response_time[YAW]);
+        BLACKBOX_PRINT_HEADER_LINE("accel_limit", "%d,%d,%d",               currentControlRateProfile->accel_limit[ROLL],
+                                                                            currentControlRateProfile->accel_limit[PITCH],
+                                                                            currentControlRateProfile->accel_limit[YAW]);
+
         BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d",                   currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
                                                                             currentPidProfile->pid[PID_ROLL].D);

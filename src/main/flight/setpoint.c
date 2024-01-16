@@ -40,8 +40,8 @@
 #include "setpoint.h"
 
 
-#define SP_SMOOTHING_FILTER_MIN_HZ             5
-#define SP_SMOOTHING_FILTER_MAX_HZ           500
+#define SP_SMOOTHING_FILTER_MIN_HZ             1
+#define SP_SMOOTHING_FILTER_MAX_HZ          1000
 
 #define SP_MAX_UP_CUTOFF                   20.0f
 #define SP_MAX_DN_CUTOFF                    0.5f
@@ -63,8 +63,10 @@ typedef struct
 
     filter_t filter[4];
 
-    uint16_t smoothCutoff;
-    uint16_t activeCutoff;
+    float smoothingFactor;
+
+    uint16_t responseCutoff[4];
+    uint16_t activeCutoff[4];
 
 } setpointData_t;
 
@@ -81,38 +83,29 @@ float getDeflection(int axis)
     return sp.deflection[axis];
 }
 
-uint16_t setpointFilterGetCutoffFreq(void)
-{
-    return sp.activeCutoff;
-}
 
-
-static float setpointAutoSmoothingCutoff(float frameTimeUs, uint8_t autoSmoothnessFactor)
+static float setpointAutoSmoothingCutoff(float frameTimeUs)
 {
     float cutoff = 0;
 
     if (frameTimeUs > 0) {
-        float factor = 1.5f / (1.0f + (autoSmoothnessFactor / 10.0f));
-        cutoff = factor * (1.0f / (frameTimeUs * 1e-6f));
+        cutoff = sp.smoothingFactor / frameTimeUs;
     }
 
-    return cutoff;
+    return constrainf(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
 }
 
 void setpointUpdateTiming(float frameTimeUs)
 {
-    float cutoff = setpointAutoSmoothingCutoff(frameTimeUs, rcControlsConfig()->rc_smoothness);
+    float maxCutoff = setpointAutoSmoothingCutoff(frameTimeUs);
 
-    cutoff = MIN(sp.smoothCutoff, cutoff);
-    cutoff = constrain(cutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
-
-    DEBUG(SETPOINT, 6, cutoff);
-
-    if (sp.activeCutoff != cutoff) {
-        for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
+        float cutoff = MIN(sp.responseCutoff[i], maxCutoff);
+        if (sp.activeCutoff[i] != cutoff) {
             filterUpdate(&sp.filter[i], cutoff, pidGetPidFrequency());
+            sp.activeCutoff[i] = cutoff;
+            DEBUG_AXIS(SETPOINT, i, 6, cutoff);
         }
-        sp.activeCutoff = cutoff;
     }
 
     DEBUG(SETPOINT, 7, frameTimeUs);
@@ -124,26 +117,26 @@ INIT_CODE void setpointInitProfile(void)
 
     for (int i = 0; i < 4; i++) {
         sp.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
+        sp.responseCutoff[i] = constrain(
+            2500 / (10 * currentControlRateProfile->response_time[i] + 1),
+            SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
     }
-
-    for (int i = 0; i < 4; i++) {
-        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
-    }
-
-    sp.smoothCutoff = 1000.0f / constrain(currentControlRateProfile->rates_smoothness, 1, 250);
-    sp.activeCutoff = constrain(sp.smoothCutoff, SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
 }
 
 INIT_CODE void setpointInit(void)
 {
-    setpointInitProfile();
-
-    for (int i = 0; i < 4; i++) {
-        lowpassFilterInit(&sp.filter[i], LPF_PT3, sp.activeCutoff, pidGetPidFrequency(), 0);
-    }
+    sp.smoothingFactor = 15e6f / (10 + rcControlsConfig()->rc_smoothness);
 
     sp.maxGainUp = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetPidFrequency());
     sp.maxGainDown = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetPidFrequency());
+
+    setpointInitProfile();
+
+    for (int i = 0; i < 4; i++) {
+        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
+        sp.activeCutoff[i] = sp.responseCutoff[i];
+        lowpassFilterInit(&sp.filter[i], LPF_PT3, sp.activeCutoff[i], pidGetPidFrequency(), 0);
+    }
 }
 
 void setpointUpdate(void)

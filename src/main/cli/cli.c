@@ -4957,7 +4957,6 @@ static void cliSetpointInfo(const char *cmdName, char *cmdline)
     } else {
         cliPrintLine("NO SIGNAL");
     }
-    cliPrintf("# Active filter cutoff: %dHz ", setpointFilterGetCutoffFreq());
 }
 
 #if defined(USE_RESOURCE_MGMT)

@@ -77,7 +77,7 @@ PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .rc_max_throttle = 1900,
     .rc_deadband = 0,
     .rc_yaw_deadband = 0,
-    .rc_smoothness = 40,
+    .rc_smoothness = 50,
     .rc_threshold = { 25, 25, 25, 50 },
 );
 

@@ -28,8 +28,6 @@
 float getSetpoint(int axis);
 float getDeflection(int axis);
 
-uint16_t setpointFilterGetCutoffFreq(void);
-
 void setpointInit(void);
 void setpointInitProfile(void);
 

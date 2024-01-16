@@ -60,9 +60,9 @@ typedef struct controlRateConfig_s {
     uint8_t levelExpo[2];                   // roll/pitch level mode expo
     uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
 
+    uint8_t response_time[4];
     uint16_t accel_limit[4];
 
-    uint8_t rates_smoothness;
     uint8_t cyclic_ring;
 
 } controlRateConfig_t;
