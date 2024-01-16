@@ -1035,6 +1035,22 @@ void governorInit(const pidProfile_t *pidProfile)
         gov.mode  = governorConfig()->gov_mode;
         gov.state = GS_THROTTLE_OFF;
 
+        // Check RPM input
+        if (gov.mode >= GM_STANDARD) {
+            if (!isMotorFastRpmSourceActive(0)) {
+                setArmingDisabled(ARMING_DISABLED_GOVERNOR);
+                gov.mode = GM_OFF;
+            }
+        }
+
+        // Check Voltage input
+        if (gov.mode >= GM_MODE2) {
+            if (!isBatteryVoltageConfigured()) {
+                setArmingDisabled(ARMING_DISABLED_GOVERNOR);
+                gov.mode = GM_OFF;
+            }
+        }
+
         // Mode specific handler functions
         switch (gov.mode) {
             case GM_PASSTHROUGH:
