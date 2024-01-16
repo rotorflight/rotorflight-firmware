@@ -219,6 +219,9 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Collective dynamic filter
     pt1FilterInit(&pid.precomp.collFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
 
+    // Yaw precomp lowpass filter
+    lowpassFilterInit(&pid.precomp.yawFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+
     // Tail/yaw precomp
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
@@ -403,7 +406,10 @@ static void pidApplyPrecomp(void)
     float yawCyclicFF = fabsf(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
 
     // Calculate total precompensation
-    float yawPrecomp = (yawCollectiveFF + yawCollectiveHF + yawCyclicFF) * masterGain;
+    float yawPrecomp = yawCollectiveFF + yawCollectiveHF + yawCyclicFF;
+
+    // Lowpass filter
+    yawPrecomp = filterApply(&pid.precomp.yawFilter, yawPrecomp) * masterGain;
 
     // Add to YAW feedforward
     pid.data[FD_YAW].F += yawPrecomp;

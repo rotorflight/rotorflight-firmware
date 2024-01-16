@@ -1765,6 +1765,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[2]);
         sbufWriteU8(dst, currentPidProfile->yaw_cw_stop_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_ccw_stop_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_precomp_cutoff);
         sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_dynamic_gain);
@@ -2511,6 +2512,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->iterm_relax_cutoff[2] = sbufReadU8(src);
         currentPidProfile->yaw_cw_stop_gain = sbufReadU8(src);
         currentPidProfile->yaw_ccw_stop_gain = sbufReadU8(src);
+        currentPidProfile->yaw_precomp_cutoff = sbufReadU8(src);
         currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_dynamic_gain = sbufReadU8(src);

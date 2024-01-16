@@ -77,6 +77,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .gyro_filter_type = LPF_1ST_ORDER,
         .yaw_cw_stop_gain = 100,
         .yaw_ccw_stop_gain = 100,
+        .yaw_precomp_cutoff = 0,
+        .yaw_precomp_filter_type = LPF_1ST_ORDER,
         .yaw_cyclic_ff_gain = 0,
         .yaw_collective_ff_gain = 40,
         .yaw_collective_dynamic_gain = 0,
