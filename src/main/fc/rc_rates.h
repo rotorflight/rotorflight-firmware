@@ -28,9 +28,6 @@
 #define CONTROL_RATE_CONFIG_RC_RATES_MAX        255
 #define CONTROL_RATE_CONFIG_SUPER_RATE_MAX      255
 
-#define CONTROL_RATE_CONFIG_RATE_LIMIT_MIN      200
-#define CONTROL_RATE_CONFIG_RATE_LIMIT_MAX      2000
-
 #define SETPOINT_RATE_LIMIT 2000
 
 typedef enum {
@@ -63,7 +60,6 @@ typedef struct controlRateConfig_s {
     uint8_t levelExpo[2];                   // roll/pitch level mode expo
     uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
 
-    uint16_t rate_limit[4];
     uint16_t accel_limit[4];
 
     uint8_t rates_smoothness;

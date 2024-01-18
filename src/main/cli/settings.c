@@ -931,11 +931,6 @@ const clivalue_t valueTable[] = {
     { "yaw_srate",                  VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rates[FD_YAW]) },
     { "collective_srate",           VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rates[FD_COLL]) },
 
-    { "roll_rate_limit",            VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { CONTROL_RATE_CONFIG_RATE_LIMIT_MIN, CONTROL_RATE_CONFIG_RATE_LIMIT_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rate_limit[FD_ROLL]) },
-    { "pitch_rate_limit",           VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { CONTROL_RATE_CONFIG_RATE_LIMIT_MIN, CONTROL_RATE_CONFIG_RATE_LIMIT_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rate_limit[FD_PITCH]) },
-    { "yaw_rate_limit",             VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { CONTROL_RATE_CONFIG_RATE_LIMIT_MIN, CONTROL_RATE_CONFIG_RATE_LIMIT_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rate_limit[FD_YAW]) },
-    { "collective_limit",           VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { CONTROL_RATE_CONFIG_RATE_LIMIT_MIN, CONTROL_RATE_CONFIG_RATE_LIMIT_MAX }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, rate_limit[FD_COLL]) },
-
     { "roll_accel_limit",           VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, accel_limit[FD_ROLL]) },
     { "pitch_accel_limit",          VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, accel_limit[FD_PITCH]) },
     { "yaw_accel_limit",            VAR_UINT16 | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, accel_limit[FD_YAW]) },

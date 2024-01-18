@@ -1299,7 +1299,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->rcRates[i]);
             sbufWriteU8(dst, currentControlRateProfile->rcExpo[i]);
             sbufWriteU8(dst, currentControlRateProfile->rates[i]);
-            sbufWriteU16(dst, currentControlRateProfile->rate_limit[i]);
         }
         sbufWriteU8(dst, currentControlRateProfile->rates_smoothness);
         break;
@@ -2291,7 +2290,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->rcRates[i] = sbufReadU8(src);
             currentControlRateProfile->rcExpo[i] = sbufReadU8(src);
             currentControlRateProfile->rates[i] = sbufReadU8(src);
-            currentControlRateProfile->rate_limit[i] = sbufReadU16(src);
         }
         currentControlRateProfile->rates_smoothness = sbufReadU8(src);
         loadControlRateProfile();

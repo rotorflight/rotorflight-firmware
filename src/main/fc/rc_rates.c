@@ -62,10 +62,6 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .levelExpo[FD_ROLL] = 0,
             .levelExpo[FD_PITCH] = 0,
             .quickRatesRcExpo = 0,
-            .rate_limit[FD_ROLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
-            .rate_limit[FD_PITCH] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
-            .rate_limit[FD_YAW] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
-            .rate_limit[FD_COLL] = CONTROL_RATE_CONFIG_RATE_LIMIT_MAX,
             .accel_limit[FD_ROLL] = 0,
             .accel_limit[FD_PITCH] = 0,
             .accel_limit[FD_YAW] = 0,
@@ -144,7 +140,7 @@ static float applyKissRates(const int axis, float rcCommandf)
 
     float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
     float kissRcCommandf = (POWER3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (currentControlRateProfile->rcRates[axis] / 1000.0f);
-    float kissAngle = constrainf(((2000.0f * kissRpyUseRates) * kissRcCommandf), -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+    float kissAngle = 2000.0f * kissRpyUseRates * kissRcCommandf;
 
     return kissAngle;
 }
@@ -178,11 +174,11 @@ static float applyQuickRates(const int axis, float rcCommandf)
     if (currentControlRateProfile->quickRatesRcExpo) {
         curve = POWER3(rcCommandf) * expof + rcCommandf * (1 - expof);
         superFactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * superFactorConfig), 0.01f, 1.00f));
-        angleRate = constrainf(curve * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+        angleRate = curve * rcRate * superFactor;
     } else {
         curve = POWER3(rcCommandfAbs) * expof + rcCommandfAbs * (1 - expof);
         superFactor = 1.0f / (constrainf(1.0f - (curve * superFactorConfig), 0.01f, 1.00f));
-        angleRate = constrainf(rcCommandf * rcRate * superFactor, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
+        angleRate = rcCommandf * rcRate * superFactor;
     }
 
     return angleRate;
@@ -192,7 +188,7 @@ float applyRatesCurve(const int axis, float rcCommandf)
 {
     float rate = applyRatesFn(axis, rcCommandf);
 
-    rate = constrainf(rate, -currentControlRateProfile->rate_limit[axis], currentControlRateProfile->rate_limit[axis]);
+    rate = constrainf(rate, -SETPOINT_RATE_LIMIT, SETPOINT_RATE_LIMIT);
 
     // Collective is an angle - scale it here so that 480°/s => 12°
     if (axis == COLLECTIVE)
