@@ -536,11 +536,7 @@ void tasksInit(void)
 #endif
 
 #ifdef USE_CMS
-#ifdef USE_MSP_DISPLAYPORT
-    setTaskEnabled(TASK_CMS, true);
-#else
-    setTaskEnabled(TASK_CMS, featureIsEnabled(FEATURE_OSD) || featureIsEnabled(FEATURE_DASHBOARD));
-#endif
+    setTaskEnabled(TASK_CMS, featureIsEnabled(FEATURE_CMS));
 #endif
 
 #ifdef USE_VTX_CONTROL

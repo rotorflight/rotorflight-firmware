@@ -236,7 +236,7 @@ static char __attribute__ ((section(".custom_defaults_end_address"))) *customDef
 // sync this with features_e
 static const char * const featureNames[] = {
     [ 0] = "RX_PPM",
-    [ 1]  = "",
+    [ 1] = "",
     [ 2] = "",
     [ 3] = "RX_SERIAL",
     [ 4] = "",
@@ -254,7 +254,7 @@ static const char * const featureNames[] = {
     [16] = "LED_STRIP",
     [17] = "DASHBOARD",
     [18] = "OSD",
-    [19] = "",
+    [19] = "CMS",
     [20] = "",
     [21] = "",
     [22] = "",
