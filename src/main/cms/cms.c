@@ -1000,9 +1000,9 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
 
 // Stick/key detection and key codes
 
-#define IS_HI(X)  (rcCommand[X] > 250)
-#define IS_LO(X)  (rcCommand[X] < -250)
-#define IS_MID(X) (!IS_LO(X) && !IS_HI(X))
+#define IS_HI(X)  (rcCommand[X] > 400)
+#define IS_LO(X)  (rcCommand[X] < -400)
+#define IS_MID(X) (rcCommand[X] > -100 && rcCommand[X] < 100)
 
 #define BUTTON_TIME   250 // msec
 #define BUTTON_PAUSE  500 // msec
