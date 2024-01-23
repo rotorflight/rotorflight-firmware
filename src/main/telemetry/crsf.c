@@ -332,6 +332,16 @@ static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
     return (int16_t)(RAD * 1000.0f * angle_decidegree);
 }
 
+static int getVoltageMeter(voltageMeterId_e id)
+{
+    voltageMeter_t meter;
+
+    voltageMeterRead(id, &meter);
+
+    // Use ratio 20 in EdgeTx - Max voltage 25.5V
+    return meter.voltage * 255 / 200;
+}
+
 static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
 {
     escSensorData_t *escData;
@@ -354,6 +364,12 @@ static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
             return getAverageSystemLoad() * 10;
         case CRSF_ATT_REUSE_RT_LOAD:
             return getMaxRealTimeLoad() * 10;
+        case CRSF_ATT_REUSE_BEC_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BEC);
+        case CRSF_ATT_REUSE_BUS_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BUS);
+        case CRSF_ATT_REUSE_MCU_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_MCU);
     }
 
     return 0;
@@ -475,6 +491,16 @@ static void crsfESCTempInfo(char *buf)
     }
 }
 
+static void crsfVoltageMetereInfo(char *buf, voltageMeterId_e id)
+{
+    voltageMeter_t meter;
+
+    if (voltageMeterRead(id, &meter)) {
+        int voltage = meter.voltage / 10;
+        tfp_sprintf(buf, "%d.%02d", voltage / 100, voltage % 100);
+    }
+}
+
 static void crsfAdjFuncInfo(char *buf)
 {
     if (getAdjustmentsRangeName()) {
@@ -524,6 +550,15 @@ void crsfFrameFlightMode(sbuf_t *dst)
             break;
         case CRSF_FM_REUSE_RT_LOAD:
             crsfRTLoadInfo(buff);
+            break;
+        case CRSF_FM_REUSE_BEC_VOLTAGE:
+            crsfVoltageMetereInfo(buff, VOLTAGE_METER_ID_BEC);
+            break;
+        case CRSF_FM_REUSE_BUS_VOLTAGE:
+            crsfVoltageMetereInfo(buff, VOLTAGE_METER_ID_BUS);
+            break;
+        case CRSF_FM_REUSE_MCU_VOLTAGE:
+            crsfVoltageMetereInfo(buff, VOLTAGE_METER_ID_MCU);
             break;
         case CRSF_FM_REUSE_ADJFUNC:
             crsfAdjFuncInfo(buff);
