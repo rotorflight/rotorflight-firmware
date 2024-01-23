@@ -693,7 +693,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             case FSSP_DATAID_TEMP        :
                 escData = getEscSensorData(ESC_SENSOR_COMBINED);
                 if (escData != NULL) {
-                    smartPortSendPackage(id, escData->temperature);
+                    smartPortSendPackage(id, escData->temperature / 10);
                     *clearToSend = false;
                 }
                 break;
@@ -707,7 +707,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             case FSSP_DATAID_TEMP8      :
                 escData = getEscSensorData(id - FSSP_DATAID_TEMP1);
                 if (escData != NULL) {
-                    smartPortSendPackage(id, escData->temperature);
+                    smartPortSendPackage(id, escData->temperature / 10);
                     *clearToSend = false;
                 }
                 break;

@@ -486,7 +486,7 @@ static void crsfESCTempInfo(char *buf)
 {
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     if (escData) {
-        int val = escData->temperature;
+        int val = escData->temperature / 10;
         tfp_sprintf(buf, "%d", val);
     }
 }
@@ -496,8 +496,8 @@ static void crsfVoltageMetereInfo(char *buf, voltageMeterId_e id)
     voltageMeter_t meter;
 
     if (voltageMeterRead(id, &meter)) {
-        int voltage = meter.voltage / 10;
-        tfp_sprintf(buf, "%d.%02d", voltage / 100, voltage % 100);
+        int val = meter.voltage / 10;
+        tfp_sprintf(buf, "%d.%02d", val / 100, val % 100);
     }
 }
 

@@ -194,7 +194,7 @@ static void sendTemperature1(void)
 #if defined(USE_ESC_SENSOR_TELEMETRY)
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     if (escData) {
-        data = escData->age < ESC_DATA_INVALID ? escData->temperature : 0;
+        data = (escData->age < ESC_DATA_INVALID) ? escData->temperature / 10: 0;
     }
 #elif defined(USE_BARO)
     data = (baro.baroTemperature + 50)/ 100; // Airmamaf

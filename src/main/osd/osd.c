@@ -565,7 +565,7 @@ static void osdUpdateStats(void)
 
 #ifdef USE_ESC_SENSOR
     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-        value = osdEscDataCombined->temperature;
+        value = osdEscDataCombined->temperature / 10;
         if (stats.max_esc_temp < value) {
             stats.max_esc_temp = value;
         }
