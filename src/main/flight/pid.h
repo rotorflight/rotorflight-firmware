@@ -53,10 +53,6 @@
 
 #define CROSS_COUPLING_SCALE        0.25e-6f
 
-#define PID_ROLL_DEFAULT            { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, .O = 0, }
-#define PID_PITCH_DEFAULT           { .P = 50, .I = 100, .D = 0, .F = 100, .B = 0, .O = 0, }
-#define PID_YAW_DEFAULT             { .P = 50, .I =  50, .D = 0, .F =   0, .B = 0, .O = 0, }
-
 typedef struct {
     float P;
     float I;
