@@ -2982,20 +2982,21 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_RX_CONFIG:
-        rxConfigMutable()->serialrx_provider = sbufReadU8(src);
-        rxConfigMutable()->serialrx_inverted = sbufReadU8(src);
-        rxConfigMutable()->halfDuplex = sbufReadU8(src);
-        rxConfigMutable()->rx_pulse_min = sbufReadU16(src);
-        rxConfigMutable()->rx_pulse_max = sbufReadU16(src);
-#ifdef USE_RX_SPI
-        rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
-        rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
-        rxSpiConfigMutable()->rx_spi_rf_channel_count = sbufReadU8(src);
-#else
-        sbufReadU8(src);
-        sbufReadU32(src);
-        sbufReadU8(src);
-#endif
+        // Make sure ELRS commands don't confuse us
+        if (sbufBytesRemaining(src) >= 7) {
+            rxConfigMutable()->serialrx_provider = sbufReadU8(src);
+            rxConfigMutable()->serialrx_inverted = sbufReadU8(src);
+            rxConfigMutable()->halfDuplex = sbufReadU8(src);
+            rxConfigMutable()->rx_pulse_min = sbufReadU16(src);
+            rxConfigMutable()->rx_pulse_max = sbufReadU16(src);
+        }
+    #ifdef USE_RX_SPI
+        if (sbufBytesRemaining(src) >= 6) {
+            rxSpiConfigMutable()->rx_spi_protocol = sbufReadU8(src);
+            rxSpiConfigMutable()->rx_spi_id = sbufReadU32(src);
+            rxSpiConfigMutable()->rx_spi_rf_channel_count = sbufReadU8(src);
+        }
+    #endif
         break;
 
     case MSP_SET_FAILSAFE_CONFIG:
