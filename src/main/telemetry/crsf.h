@@ -59,6 +59,17 @@ enum {
     CRSF_ATT_REUSE_MCU_VOLTAGE,
 };
 
+enum {
+    CRSF_GPS_REUSE_NONE = 0,
+    CRSF_GPS_REUSE_MCU_TEMP,
+    CRSF_GPS_REUSE_MCU_LOAD,
+    CRSF_GPS_REUSE_SYS_LOAD,
+    CRSF_GPS_REUSE_RT_LOAD,
+    CRSF_GPS_REUSE_BEC_VOLTAGE,
+    CRSF_GPS_REUSE_BUS_VOLTAGE,
+    CRSF_GPS_REUSE_MCU_VOLTAGE,
+};
+
 void initCrsfTelemetry(void);
 uint32_t getCrsfDesiredSpeed(void);
 void setCrsfDefaultSpeed(void);

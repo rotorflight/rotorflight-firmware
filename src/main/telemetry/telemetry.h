@@ -89,6 +89,9 @@ typedef struct telemetryConfig_s {
     uint8_t crsf_att_pitch_reuse;
     uint8_t crsf_att_roll_reuse;
     uint8_t crsf_att_yaw_reuse;
+    uint8_t crsf_gps_heading_reuse;
+    uint8_t crsf_gps_ground_speed_reuse;
+    uint8_t crsf_gps_altitude_reuse;
     uint32_t enableSensors;
 } telemetryConfig_t;
 

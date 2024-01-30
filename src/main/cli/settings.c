@@ -492,6 +492,10 @@ const char * const lookupTableCrsfAttReuse[] = {
     "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
 };
 
+const char * const lookupTableCrsfGpsReuse[] = {
+    "NONE", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
+};
+
 const char * const lookupTableDtermMode[] = {
     "GYRO", "ERROR",
 };
@@ -607,6 +611,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
     LOOKUP_TABLE_ENTRY(lookupTableCrsfFmReuse),
     LOOKUP_TABLE_ENTRY(lookupTableCrsfAttReuse),
+    LOOKUP_TABLE_ENTRY(lookupTableCrsfGpsReuse),
     LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
 };
 
@@ -1179,6 +1184,10 @@ const clivalue_t valueTable[] = {
     { "crsf_att_pitch_reuse",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_pitch_reuse) },
     { "crsf_att_roll_reuse",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_roll_reuse) },
     { "crsf_att_yaw_reuse",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_yaw_reuse) },
+
+    { "crsf_gps_heading_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_heading_reuse) },
+    { "crsf_gps_ground_speed_reuse", VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_ground_speed_reuse) },
+    { "crsf_gps_altitude_reuse",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_altitude_reuse) },
 
 #ifdef USE_TELEMETRY_ENABLE_SENSORS
     { "telemetry_enable_voltage",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_VOLTAGE),         PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},

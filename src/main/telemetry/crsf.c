@@ -236,6 +236,43 @@ uint16_t    GPS heading ( degree / 100 )
 uint16      Altitude ( meter ­1000m offset )
 uint8_t     Satellites in use ( counter )
 */
+static int getVoltageMeter(voltageMeterId_e id)
+{
+    voltageMeter_t meter;
+
+    voltageMeterRead(id, &meter);
+
+    // Use ratio 20 in EdgeTx - Max voltage 25.5V
+    return meter.voltage * 255 / 200;
+}
+
+static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
+{
+    // based on crsfAttitudeReuse
+    // remapped values required are 1/10 to corresponding attitude values
+    // ESC telemetry values excluded
+    switch (reuse) {
+        case CRSF_GPS_REUSE_NONE:
+            return value;
+        case CRSF_GPS_REUSE_MCU_TEMP:
+            return getCoreTemperatureCelsius() * 10;
+        case CRSF_GPS_REUSE_MCU_LOAD:
+            return getAverageCPULoad();
+        case CRSF_GPS_REUSE_SYS_LOAD:
+            return getAverageSystemLoad();
+        case CRSF_GPS_REUSE_RT_LOAD:
+            return getMaxRealTimeLoad();
+        case CRSF_GPS_REUSE_BEC_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BEC) / 10;
+        case CRSF_GPS_REUSE_BUS_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BUS) / 10;
+        case CRSF_GPS_REUSE_MCU_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_MCU) / 10;
+    }
+
+    return 0;
+}
+
 void crsfFrameGps(sbuf_t *dst)
 {
     // use sbufWrite since CRC does not include frame length
@@ -243,9 +280,9 @@ void crsfFrameGps(sbuf_t *dst)
     sbufWriteU8(dst, CRSF_FRAMETYPE_GPS);
     sbufWriteU32BigEndian(dst, gpsSol.llh.lat); // CRSF and betaflight use same units for degrees
     sbufWriteU32BigEndian(dst, gpsSol.llh.lon);
-    sbufWriteU16BigEndian(dst, (gpsSol.groundSpeed * 36 + 50) / 100); // gpsSol.groundSpeed is in cm/s
-    sbufWriteU16BigEndian(dst, gpsSol.groundCourse * 10); // gpsSol.groundCourse is degrees * 10
-    const uint16_t altitude = (constrain(getEstimatedAltitudeCm(), 0 * 100, 5000 * 100) / 100) + 1000; // constrain altitude from 0 to 5,000m
+    sbufWriteU16BigEndian(dst, crsfGpsReuse(telemetryConfig()->crsf_gps_ground_speed_reuse, (gpsSol.groundSpeed * 36 + 50) / 100)); // gpsSol.groundSpeed is in cm/s
+    sbufWriteU16BigEndian(dst, crsfGpsReuse(telemetryConfig()->crsf_gps_heading_reuse, gpsSol.groundCourse * 10)); // gpsSol.groundCourse is degrees * 10
+    const uint16_t altitude = crsfGpsReuse(telemetryConfig()->crsf_gps_altitude_reuse, (constrain(getEstimatedAltitudeCm(), 0 * 100, 5000 * 100) / 100)) + 1000; // constrain altitude from 0 to 5,000m
     sbufWriteU16BigEndian(dst, altitude);
     sbufWriteU8(dst, gpsSol.numSat);
 }
@@ -330,16 +367,6 @@ static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
         angle_decidegree += 3600;
     }
     return (int16_t)(RAD * 1000.0f * angle_decidegree);
-}
-
-static int getVoltageMeter(voltageMeterId_e id)
-{
-    voltageMeter_t meter;
-
-    voltageMeterRead(id, &meter);
-
-    // Use ratio 20 in EdgeTx - Max voltage 25.5V
-    return meter.voltage * 255 / 200;
 }
 
 static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
@@ -889,8 +916,11 @@ void initCrsfTelemetry(void)
         crsfSchedule[index++] = BIT(CRSF_FRAME_FLIGHT_MODE_INDEX);
     }
 #ifdef USE_GPS
-    if (featureIsEnabled(FEATURE_GPS)
-       && telemetryIsSensorEnabled(SENSOR_ALTITUDE | SENSOR_LAT_LONG | SENSOR_GROUND_SPEED | SENSOR_HEADING)) {
+    if ((featureIsEnabled(FEATURE_GPS)
+       && telemetryIsSensorEnabled(SENSOR_ALTITUDE | SENSOR_LAT_LONG | SENSOR_GROUND_SPEED | SENSOR_HEADING))
+       || telemetryConfig()->crsf_gps_ground_speed_reuse != CRSF_GPS_REUSE_NONE
+       || telemetryConfig()->crsf_gps_heading_reuse != CRSF_GPS_REUSE_NONE
+       || telemetryConfig()->crsf_gps_altitude_reuse != CRSF_GPS_REUSE_NONE) {
         crsfSchedule[index++] = BIT(CRSF_FRAME_GPS_INDEX);
     }
 #endif
