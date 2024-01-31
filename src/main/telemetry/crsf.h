@@ -68,6 +68,7 @@ enum {
     CRSF_GPS_REUSE_BEC_VOLTAGE,
     CRSF_GPS_REUSE_BUS_VOLTAGE,
     CRSF_GPS_REUSE_MCU_VOLTAGE,
+    CRSF_GPS_REUSE_PROFILE_INDEX,
 };
 
 void initCrsfTelemetry(void);

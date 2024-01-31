@@ -268,6 +268,8 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
             return getVoltageMeter(VOLTAGE_METER_ID_BUS) / 10;
         case CRSF_GPS_REUSE_MCU_VOLTAGE:
             return getVoltageMeter(VOLTAGE_METER_ID_MCU) / 10;
+        case CRSF_GPS_REUSE_PROFILE_INDEX:
+            return getCurrentPidProfileIndex() * 10;
     }
 
     return 0;

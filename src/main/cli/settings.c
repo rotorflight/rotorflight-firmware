@@ -493,7 +493,7 @@ const char * const lookupTableCrsfAttReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
+    "NONE", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE", "PROFILE_INDEX",
 };
 
 const char * const lookupTableDtermMode[] = {
