@@ -86,6 +86,7 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_pwr_filter = 20,
     .gov_rpm_filter = 20,
     .gov_tta_filter = 0,
+    .gov_ff_filter = 0,
 );
 
 
@@ -173,6 +174,7 @@ typedef struct {
     float           yawWeight;
     float           cyclicWeight;
     float           collectiveWeight;
+    filter_t        FFFilter;
 
     // Tail Torque Assist
     float           TTAAdd;
@@ -455,6 +457,9 @@ static void govUpdateData(void)
 
     // Angle-of-attack vs. FeedForward curve
     float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
+
+    // Filtered FeedForward
+    totalFF = filterApply(&gov.FFFilter, totalFF);
 
     // Tail Torque Assist
     if (mixerMotorizedTail() && gov.TTAGain != 0) {
@@ -1115,6 +1120,7 @@ void governorInit(const pidProfile_t *pidProfile)
         lowpassFilterInit(&gov.motorCurrentFilter, LPF_BESSEL, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
         lowpassFilterInit(&gov.motorRPMFilter, LPF_BESSEL, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
         lowpassFilterInit(&gov.TTAFilter, LPF_BESSEL, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.FFFilter, LPF_BESSEL, governorConfig()->gov_ff_filter, gyro.targetRateHz, 0);
 
         governorInitProfile(pidProfile);
     }
