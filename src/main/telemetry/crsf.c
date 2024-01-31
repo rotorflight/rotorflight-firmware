@@ -270,6 +270,23 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
             return getVoltageMeter(VOLTAGE_METER_ID_MCU) / 10;
         case CRSF_GPS_REUSE_PROFILE_INDEX:
             return getCurrentPidProfileIndex() * 10;
+        case CRSF_GPS_REUSE_RATE_INDEX:
+            return getCurrentControlRateProfileIndex() * 10;
+    }
+
+    return 0;
+}
+
+static int8_t crsfGpsSatsReuse(uint8_t reuse, int8_t value)
+{
+    // 8-bit version of crsfGpsReuse
+    switch (reuse) {
+        case CRSF_GPS_REUSE_NONE:
+            return value;
+        case CRSF_GPS_SATS_REUSE_PROFILE_INDEX:
+            return getCurrentPidProfileIndex();
+        case CRSF_GPS_SATS_REUSE_RATE_INDEX:
+            return getCurrentControlRateProfileIndex();
     }
 
     return 0;
@@ -286,7 +303,7 @@ void crsfFrameGps(sbuf_t *dst)
     sbufWriteU16BigEndian(dst, crsfGpsReuse(telemetryConfig()->crsf_gps_heading_reuse, gpsSol.groundCourse * 10)); // gpsSol.groundCourse is degrees * 10
     const uint16_t altitude = crsfGpsReuse(telemetryConfig()->crsf_gps_altitude_reuse, (constrain(getEstimatedAltitudeCm(), 0 * 100, 5000 * 100) / 100)) + 1000; // constrain altitude from 0 to 5,000m
     sbufWriteU16BigEndian(dst, altitude);
-    sbufWriteU8(dst, gpsSol.numSat);
+    sbufWriteU8(dst, crsfGpsSatsReuse(telemetryConfig()->crsf_gps_sats_reuse, gpsSol.numSat));
 }
 
 /*
@@ -922,7 +939,8 @@ void initCrsfTelemetry(void)
        && telemetryIsSensorEnabled(SENSOR_ALTITUDE | SENSOR_LAT_LONG | SENSOR_GROUND_SPEED | SENSOR_HEADING))
        || telemetryConfig()->crsf_gps_ground_speed_reuse != CRSF_GPS_REUSE_NONE
        || telemetryConfig()->crsf_gps_heading_reuse != CRSF_GPS_REUSE_NONE
-       || telemetryConfig()->crsf_gps_altitude_reuse != CRSF_GPS_REUSE_NONE) {
+       || telemetryConfig()->crsf_gps_altitude_reuse != CRSF_GPS_REUSE_NONE
+       || telemetryConfig()->crsf_gps_sats_reuse != CRSF_GPS_SATS_REUSE_NONE) {
         crsfSchedule[index++] = BIT(CRSF_FRAME_GPS_INDEX);
     }
 #endif

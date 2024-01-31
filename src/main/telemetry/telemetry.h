@@ -92,6 +92,7 @@ typedef struct telemetryConfig_s {
     uint8_t crsf_gps_heading_reuse;
     uint8_t crsf_gps_ground_speed_reuse;
     uint8_t crsf_gps_altitude_reuse;
+    uint8_t crsf_gps_sats_reuse;
     uint32_t enableSensors;
 } telemetryConfig_t;
 
