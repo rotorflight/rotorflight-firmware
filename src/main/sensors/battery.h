@@ -25,14 +25,11 @@
 #include "sensors/current.h"
 #include "sensors/voltage.h"
 
-#define CELL_VOLTAGE_FULL_CV            420
-
 #define VBAT_CELL_VOTAGE_RANGE_MIN      100
 #define VBAT_CELL_VOTAGE_RANGE_MAX      500
 #define VBAT_CELL_VOLTAGE_DEFAULT_MIN   330
 #define VBAT_CELL_VOLTAGE_DEFAULT_MAX   430
-
-#define MAX_AUTO_DETECT_CELL_COUNT      8
+#define VBAT_CELL_VOLTAGE_DEFAULT_FULL  410
 
 #define GET_BATTERY_LPF_FREQUENCY(period) (10.0f / period)
 
