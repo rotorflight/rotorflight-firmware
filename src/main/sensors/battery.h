@@ -50,7 +50,8 @@ typedef enum {
 typedef struct batteryConfig_s {
 
     // battery size
-    uint8_t forceBatteryCellCount;          // Number of cells in battery, used for overwriting auto-detected cell count if someone has issues with it.
+    uint16_t batteryCapacity;               // mAh
+    uint8_t batteryCellCount;               // Number of cells in battery, zero for autodetection
 
     // sources
     uint8_t currentMeterSource;             // source of battery current meter used
@@ -64,9 +65,6 @@ typedef struct batteryConfig_s {
     uint16_t vbatnotpresentcellvoltage;     // Between vbatmaxcellvoltage and 2*this is considered to be USB powered. Below this it is notpresent
     uint8_t vbathysteresis;                 // hysteresis for alarm in 0.01V units, default 1 = 0.01V
     uint8_t lvcPercentage;                  // Percentage of throttle when lvc is triggered
-
-    // current & capacity
-    uint16_t batteryCapacity;               // mAh
     uint8_t consumptionWarningPercentage;   // Percentage of remaining capacity that should trigger a battery warning
 
     // warnings / alerts

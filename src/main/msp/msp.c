@@ -872,15 +872,16 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU8(dst, (batteryConfig()->vbatmincellvoltage + 5) / 10);
-        sbufWriteU8(dst, (batteryConfig()->vbatmaxcellvoltage + 5) / 10);
-        sbufWriteU8(dst, (batteryConfig()->vbatwarningcellvoltage + 5) / 10);
         sbufWriteU16(dst, batteryConfig()->batteryCapacity);
+        sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
         sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage);
         sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage);
+        sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage);
         sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
+        sbufWriteU8(dst, batteryConfig()->lvcPercentage);
+        sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
         break;
 
     case MSP_OSD_CONFIG: {
@@ -3296,17 +3297,16 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->vbatmincellvoltage = sbufReadU8(src) * 10;      // vbatlevel_warn1 in MWC2.3 GUI
-        batteryConfigMutable()->vbatmaxcellvoltage = sbufReadU8(src) * 10;      // vbatlevel_warn2 in MWC2.3 GUI
-        batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU8(src) * 10;  // vbatlevel when buzzer starts to alert
         batteryConfigMutable()->batteryCapacity = sbufReadU16(src);
+        batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
-        if (sbufBytesRemaining(src) >= 6) {
-            batteryConfigMutable()->vbatmincellvoltage = sbufReadU16(src);
-            batteryConfigMutable()->vbatmaxcellvoltage = sbufReadU16(src);
-            batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
-        }
+        batteryConfigMutable()->vbatmincellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->vbatmaxcellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->vbatfullcellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
+        batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
         break;
 
 #if defined(USE_OSD)

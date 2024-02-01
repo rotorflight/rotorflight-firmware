@@ -76,7 +76,7 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 3);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
-    .forceBatteryCellCount = 0,
+    .batteryCellCount = 0,
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
     .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
@@ -294,8 +294,8 @@ void batteryUpdatePresence(void)
         // Battery has just been connected - calculate cells, warning voltages and reset state
         consumptionState = voltageState = BATTERY_OK;
 
-        if (batteryConfig()->forceBatteryCellCount != 0) {
-            batteryCellCount = batteryConfig()->forceBatteryCellCount;
+        if (batteryConfig()->batteryCellCount != 0) {
+            batteryCellCount = batteryConfig()->batteryCellCount;
         }
         else {
             static const unsigned auto_cells[] = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 12 };
