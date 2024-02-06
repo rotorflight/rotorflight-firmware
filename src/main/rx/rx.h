@@ -33,9 +33,6 @@
 #define RX_PWM_PULSE_MID        1500
 #define RX_PWM_PULSE_MAX        2115
 
-#define RC_CENTER_DEFAULT       1500
-#define RC_DEFLECTION_DEFAULT   500
-
 #define PWM_RANGE_MIN           1000
 #define PWM_RANGE_MAX           2000
 #define PWM_RANGE               1000
