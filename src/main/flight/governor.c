@@ -83,10 +83,10 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_autorotation_bailout_time = 0,
     .gov_autorotation_min_entry_time = 50,
     .gov_handover_throttle = 20,
-    .gov_pwr_filter = 20,
-    .gov_rpm_filter = 20,
+    .gov_pwr_filter = 5,
+    .gov_rpm_filter = 10,
     .gov_tta_filter = 0,
-    .gov_ff_filter = 0,
+    .gov_ff_filter = 10,
 );
 
 
@@ -1116,11 +1116,11 @@ void governorInit(const pidProfile_t *pidProfile)
 
         difFilterInit(&gov.differentiator, diff_cutoff, gyro.targetRateHz);
 
-        lowpassFilterInit(&gov.motorVoltageFilter, LPF_BESSEL, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.motorCurrentFilter, LPF_BESSEL, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.motorRPMFilter, LPF_BESSEL, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.TTAFilter, LPF_BESSEL, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.FFFilter, LPF_BESSEL, governorConfig()->gov_ff_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorVoltageFilter, LPF_DAMPED, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorCurrentFilter, LPF_DAMPED, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorRPMFilter, LPF_DAMPED, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.TTAFilter, LPF_DAMPED, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.FFFilter, LPF_DAMPED, governorConfig()->gov_ff_filter, gyro.targetRateHz, 0);
 
         governorInitProfile(pidProfile);
     }
