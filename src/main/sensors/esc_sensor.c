@@ -1483,6 +1483,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  *     - Serial protocol is 115200,8N1
  *     - Little-Endian byte order
+ *     - Thanks Fabian!
  *
  * Data Frame Format
  * ―――――――――――――――――――――――――――――――――――――――――――――――
@@ -1503,6 +1504,28 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *    20:       reserved1;   // indexed-data
  *    21:       reserved2;   // indexed data
  * 22,23:       crc16;       // CCITT, poly: 0x1021
+ * 
+ * Data Frame Format (wip)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *     0:       Number for protocol compat. (0 for first tests)
+ *     1:       temperature; // C degrees
+ *   2,3:       voltage;     // 0.01V    Little endian!
+ *   4,5:       current;     // 0.01A    Little endian!
+ *   6,7:       consumption; // mAh      Little endian!
+ *   8,9:       rpm;         // 0.1rpm   Little endian!
+ *    10:       pwm;         // %
+ *    11:       throttle;    // %
+ *    12:       bec_temp;    // C degrees
+ *    13:                    // alignment
+ * 14,15:       bec_voltage; // 0.01V    Little endian!
+ * 16,17:       bec_current; // 0.01A    Little endian!
+ *    18:       status1;     // see documentation
+ *    19:       status2;     // Debug/Reserved
+ *    20:       index;       // reserved
+ *    21:       reserved1;   // indexed-data
+ *    22:       reserved2;   // indexed data
+ *    23:                    // allignment
+ * 24,25:       crc16;       // CCITT, poly: 0x1021
  *
  */
 
@@ -1511,7 +1534,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 #define OPENYGE_RAMP_INTERVAL           10000                 // 10 seconds
 #define OPENYGE_FRAME_PERIOD_INITIAL    900                   // intially 800 w/ progressive decreasing frame-period during ramp time...
 #define OPENYGE_FRAME_PERIOD_FINAL      60                    // ...to the final 50ms
-#define OPENYGE_FRAME_SIZE              10                    // TODO = 24
+#define OPENYGE_FRAME_SIZE              26                    // TODO = 24
 
 enum {
     OPENYGE_FRAME_FAILED    = 0,
@@ -1596,8 +1619,8 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
         escSensorData[0].pwm = pwm * 10;
-        escSensorData[0].voltage = volt;
-        escSensorData[0].current = curr;
+        escSensorData[0].voltage = volt * 10;
+        escSensorData[0].current = curr * 10;
         escSensorData[0].consumption = capa;
         escSensorData[0].temperature = temp * 10;
 
