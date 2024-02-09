@@ -1479,6 +1479,150 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
+ * OpenYGE Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Little-Endian byte order
+ *
+ * Data Frame Format
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *     0:       Number for protocol compat. (0 for first tests)
+ *     1:       temperature; // C degrees
+ *   2,3:       voltage;     // 0.01V    Little endian!
+ *   4,5:       current;     // 0.01A    Little endian!
+ *   6,7:       consumption; // mAh      Little endian!
+ *   8,9:       rpm;         // 0.1rpm   Little endian!
+ *    10:       pwm;         // %
+ *    11:       throttle;    // %
+ *    12:       bec_temp;    // C degrees
+ * 13,14:       bec_voltage; // 0.01V    Little endian!
+ * 15,16:       bec_current; // 0.01A    Little endian!
+ *    17:       status1;     // see documentation
+ *    18:       status2;     // Debug/Reserved
+ *    19:       index;       // reserved
+ *    20:       reserved1;   // indexed-data
+ *    21:       reserved2;   // indexed data
+ * 22,23:       crc16;       // CCITT, poly: 0x1021
+ *
+ */
+
+#define OPENYGE_BOOT_DELAY        5000                  // 5 seconds
+#define OPENYGE_FRAME_TIMEOUT     1000                  // intially 800 w/ progressive decreasing frame-period to the final 50ms
+#define OPENYGE_V0_FRAME_SIZE     10                    // TODO = 24
+
+enum {
+    OPENYGE_FRAME_FAILED    = 0,
+    OPENYGE_FRAME_PENDING   = 1,
+    OPENYGE_FRAME_COMPLETE  = 2,
+};
+
+static uint32_t oygeFrameTimestamp = 0;
+static uint8_t oygeFrameSize = OPENYGE_V0_FRAME_SIZE;   // assume version 0 frame, may change once version recognized
+
+
+static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
+{
+    UNUSED(data);
+
+    totalByteCount++;
+
+    if (bufferPos < bufferSize) {
+        buffer[bufferPos++] = c;
+    }
+}
+
+static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
+{
+    bufferPos = 0;
+    bufferSize = oygeFrameSize;
+
+    oygeFrameTimestamp = currentTimeMs;
+}
+
+static uint8_t oygeDecodeTelemetryFrame(void)
+{
+    // First, check the variables that can change in the interrupt
+    if (bufferPos < bufferSize)
+        return OPENYGE_FRAME_PENDING;
+
+    // Verify CRC8 checksum
+    uint16_t chksum = crc8_kiss_update(0, buffer, BLHELI32_FRAME_SIZE - 1);
+    uint16_t tlmsum = buffer[BLHELI32_FRAME_SIZE - 1];
+
+    if (chksum == tlmsum) {
+        uint16_t temp = buffer[0];
+        uint16_t volt = buffer[1] << 8 | buffer[2];
+        uint16_t curr = buffer[3] << 8 | buffer[4];
+        uint16_t capa = buffer[5] << 8 | buffer[6];
+        uint16_t erpm = buffer[7] << 8 | buffer[8];
+
+        escSensorData[0].age = 0;
+        escSensorData[0].erpm = erpm * 100;
+        escSensorData[0].voltage = volt * 10;
+        escSensorData[0].current = curr * 10;
+        escSensorData[0].consumption = capa;
+        escSensorData[0].temperature = temp * 10;
+
+        totalFrameCount++;
+
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 100);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr);
+
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+        return OPENYGE_FRAME_COMPLETE;
+    }
+
+    totalCrcErrorCount++;
+
+    return OPENYGE_FRAME_FAILED;
+}
+
+static void oygeSensorProcess(timeUs_t currentTimeUs)
+{
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
+
+    // wait before initializing
+    if (currentTimeMs < OPENYGE_BOOT_DELAY) 
+        return;
+
+    // one time init
+    if (oygeFrameTimestamp == 0) {
+        oygeStartTelemetryFrame(currentTimeMs);
+        return;
+    }
+
+    // timeout waiting for frame?
+    if (currentTimeMs > oygeFrameTimestamp + OPENYGE_FRAME_TIMEOUT) {
+        increaseDataAge(0);
+        oygeStartTelemetryFrame(currentTimeMs);
+        totalTimeoutCount++;
+        return;
+    }
+
+    // attempt to decode frame
+    uint8_t state = oygeDecodeTelemetryFrame();
+    switch (state) {
+        case OPENYGE_FRAME_PENDING:
+            break;
+        case OPENYGE_FRAME_FAILED:
+            increaseDataAge(0);
+            FALLTHROUGH;
+        case OPENYGE_FRAME_COMPLETE:
+            oygeStartTelemetryFrame(currentTimeMs);
+            return;
+    }
+}
+
+
+/*
  * Raw Telemetry Data Recorder
  */
 
@@ -1528,6 +1672,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_APD:
                 apdSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_OPENYGE:
+                oygeSensorProcess(currentTimeUs);
+                break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
@@ -1575,6 +1722,10 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_ZTW:
         case ESC_SENSOR_PROTO_HW5:
         case ESC_SENSOR_PROTO_APD:
+            baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_OPENYGE:
+            callback = oygeDataReceive;
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:
