@@ -1506,11 +1506,12 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  */
 
+#define OPENYGE_PROTOCOL_VERSION        0
 #define OPENYGE_BOOT_DELAY              5000                  // 5 seconds
 #define OPENYGE_RAMP_INTERVAL           10000                 // 10 seconds
 #define OPENYGE_FRAME_PERIOD_INITIAL    900                   // intially 800 w/ progressive decreasing frame-period during ramp time...
 #define OPENYGE_FRAME_PERIOD_FINAL      60                    // ...to the final 50ms
-#define OPENYGE_V0_FRAME_SIZE           10                    // TODO = 24
+#define OPENYGE_FRAME_SIZE              10                    // TODO = 24
 
 enum {
     OPENYGE_FRAME_FAILED    = 0,
@@ -1521,9 +1522,34 @@ enum {
 static timeMs_t oygeRampTimer = 0;
 static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
-static uint8_t oygeFrameSize = OPENYGE_V0_FRAME_SIZE;          // assume version 0 frame, may change once version recognized
 
 
+static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
+{
+    uint16_t crc = 0;
+
+    for(uint16_t j = 0; j < len; j++)
+    {
+        crc = crc ^ ptr[j] << 8;
+        for(uint16_t i = 0; i < 8; i++)
+        {
+            if(crc & 0x8000)
+                crc = crc << 1 ^ 0x1021;
+            else
+                crc = crc << 1;
+        }
+    }
+  return crc;
+}
+
+static void oygeFrameSyncError(void)
+{
+    bufferPos = 0;
+    syncCount = 0;
+
+    totalSyncErrorCount++;
+}
+  
 static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
@@ -1532,13 +1558,20 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 
     if (bufferPos < bufferSize) {
         buffer[bufferPos++] = c;
+
+        if (bufferPos == 1) {
+            if (c != OPENYGE_PROTOCOL_VERSION)
+                oygeFrameSyncError();
+            else
+                syncCount++;
+        }
     }
 }
 
 static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 {
     bufferPos = 0;
-    bufferSize = oygeFrameSize;
+    bufferSize = OPENYGE_FRAME_SIZE;
 
     oygeFrameTimestamp = currentTimeMs;
 }
@@ -1549,21 +1582,22 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     if (bufferPos < bufferSize)
         return OPENYGE_FRAME_PENDING;
 
-    // Verify CRC8 checksum
-    uint16_t chksum = crc8_kiss_update(0, buffer, BLHELI32_FRAME_SIZE - 1);
-    uint16_t tlmsum = buffer[BLHELI32_FRAME_SIZE - 1];
+    // verify CRC16 checksum
+    uint16_t crc = buffer[OPENYGE_FRAME_SIZE - 1] << 8 | buffer[OPENYGE_FRAME_SIZE - 2];
 
-    if (chksum == tlmsum) {
-        uint16_t temp = buffer[0];
-        uint16_t volt = buffer[1] << 8 | buffer[2];
-        uint16_t curr = buffer[3] << 8 | buffer[4];
-        uint16_t capa = buffer[5] << 8 | buffer[6];
-        uint16_t erpm = buffer[7] << 8 | buffer[8];
+    if (oygeCalculateCRC16_CCITT(buffer, OPENYGE_FRAME_SIZE - 2) == crc) {
+        uint16_t temp = buffer[1];
+        uint16_t volt = buffer[3] << 8 | buffer[2];
+        uint16_t curr = buffer[5] << 8 | buffer[4];
+        uint16_t capa = buffer[7] << 8 | buffer[6];
+        uint16_t erpm = buffer[9] << 8 | buffer[8];
+        uint8_t pwm = buffer[10];
 
         escSensorData[0].age = 0;
-        escSensorData[0].erpm = erpm * 100;
-        escSensorData[0].voltage = volt * 10;
-        escSensorData[0].current = curr * 10;
+        escSensorData[0].erpm = erpm * 10;
+        escSensorData[0].pwm = pwm * 10;
+        escSensorData[0].voltage = volt;
+        escSensorData[0].current = curr;
         escSensorData[0].consumption = capa;
         escSensorData[0].temperature = temp * 10;
 
@@ -1625,13 +1659,10 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
             oygeStartTelemetryFrame(currentTimeMs);
             break;
         case OPENYGE_FRAME_COMPLETE:
-            oygeStartTelemetryFrame(currentTimeMs);
-
-            // first frame seen?
-            if (oygeRampTimer == 0) {
-                // ...start ramp timer
+            // start ramp timer if first frame seen
+            if (oygeRampTimer == 0)
                 oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
-            }
+            oygeStartTelemetryFrame(currentTimeMs);
             return;
     }
 }
