@@ -1483,6 +1483,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  *     - Serial protocol is 115200,8N1
  *     - Little-Endian byte order
+ *     - Frame rate 20Hz
  *     - Thanks Fabian!
  *
  * Data Frame Format
@@ -1507,17 +1508,36 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  */
 
+enum {
+    OPENYGE_MOTOR_STATE_DISARMED            = 0x00,         // Motor stopped
+    OPENYGE_MOTOR_STATE_POWER_CUT           = 0x01,         // Power cut maybe Overvoltage
+    OPENYGE_MOTOR_STATE_FAST_START          = 0x02,         // "Bailout" State
+    OPENYGE_MOTOR_STATE_RESERVED2           = 0x03,         // reserved
+    OPENYGE_MOTOR_STATE_ALIGN_FOR_POS       = 0x04,         // "Positioning"
+    OPENYGE_MOTOR_STATE_RESERVED3           = 0x05,         // reserved
+    OPENYGE_MOTOR_STATE_BRAKEING_NORM_FINI  = 0x06,
+    OPENYGE_MOTOR_STATE_BRAKEING_SYNC_FINI  = 0x07,
+    OPENYGE_MOTOR_STATE_STARTING            = 0x08,         // "Starting"
+    OPENYGE_MOTOR_STATE_BRAKEING_NORM       = 0x09,
+    OPENYGE_MOTOR_STATE_BRAKEING_SYNC       = 0x0A,
+    OPENYGE_MOTOR_STATE_RESERVED4           = 0x0B,         // reserved
+    OPENYGE_MOTOR_STATE_WINDMILLING         = 0x0C,         // still rotating no power drive can be named "Idle"
+    OPENYGE_MOTOR_STATE_RESERVED5           = 0x0D,
+    OPENYGE_MOTOR_STATE_RUNNING_NORM        = 0x0E,         // normal "Running"
+    OPENYGE_MOTOR_STATE_RESERVED6           = 0x0F,
+};
+
 #define OPENYGE_PROTOCOL_VERSION        0
-#define OPENYGE_BOOT_DELAY              5000                  // 5 seconds
-#define OPENYGE_RAMP_INTERVAL           10000                 // 10 seconds
-#define OPENYGE_FRAME_PERIOD_INITIAL    900                   // intially 800 w/ progressive decreasing frame-period during ramp time...
-#define OPENYGE_FRAME_PERIOD_FINAL      60                    // ...to the final 50ms
-#define OPENYGE_FRAME_SIZE              24                    // 24 bytes
+#define OPENYGE_BOOT_DELAY              5000                // 5 seconds
+#define OPENYGE_RAMP_INTERVAL           10000               // 10 seconds
+#define OPENYGE_FRAME_PERIOD_INITIAL    900                 // intially 800 w/ progressive decreasing frame-period during ramp time...
+#define OPENYGE_FRAME_PERIOD_FINAL      60                  // ...to the final 50ms
+#define OPENYGE_FRAME_SIZE              24                  // 24 bytes
 
 enum {
-    OPENYGE_FRAME_FAILED    = 0,
-    OPENYGE_FRAME_PENDING   = 1,
-    OPENYGE_FRAME_COMPLETE  = 2,
+    OPENYGE_FRAME_FAILED                = 0,
+    OPENYGE_FRAME_PENDING               = 1,
+    OPENYGE_FRAME_COMPLETE              = 2,
 };
 
 static timeMs_t oygeRampTimer = 0;
