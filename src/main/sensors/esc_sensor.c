@@ -1624,8 +1624,9 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         uint16_t curr = buffer[5] << 8 | buffer[4];
         uint16_t capa = buffer[7] << 8 | buffer[6];
         uint16_t erpm = buffer[9] << 8 | buffer[8];
-        uint8_t  pwm = buffer[10];
+        uint8_t   pwm = buffer[10];
         uint16_t voltBEC = buffer[13] << 8 | buffer[12];
+        uint16_t tempBEC = buffer[16];
 
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
@@ -1634,6 +1635,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         escSensorData[0].current = curr * 10;
         escSensorData[0].consumption = capa;
         escSensorData[0].temperature = temp * 10;
+        escSensorData[0].temperature2 = tempBEC * 10;
 
         totalFrameCount++;
 
@@ -1689,15 +1691,18 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
     uint8_t state = oygeDecodeTelemetryFrame();
     switch (state) {
         case OPENYGE_FRAME_PENDING:
+            // frame not ready yet
             break;
         case OPENYGE_FRAME_FAILED:
             increaseDataAge(0);
+            // next frame
             oygeStartTelemetryFrame(currentTimeMs);
             break;
         case OPENYGE_FRAME_COMPLETE:
             // start ramp timer if first frame seen
             if (oygeRampTimer == 0)
                 oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
+            // next frame
             oygeStartTelemetryFrame(currentTimeMs);
             break;
     }
