@@ -1488,54 +1488,54 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * 
  * Motor states (4 LSB of status1)
  * ―――――――――――――――――――――――――――――――――――――――――――――――
- *      STATE_DISARMED              = 0x00,         // Motor stopped
- *      STATE_POWER_CUT             = 0x01,         // Power cut maybe Overvoltage
- *      STATE_FAST_START            = 0x02,         // "Bailout" State
- *      STATE_RESERVED2             = 0x03,         // reserved
- *      STATE_ALIGN_FOR_POS         = 0x04,         // "Positioning"
- *      STATE_RESERVED3             = 0x05,         // reserved
+ *      STATE_DISARMED              = 0x00,     // Motor stopped
+ *      STATE_POWER_CUT             = 0x01,     // Power cut maybe Overvoltage
+ *      STATE_FAST_START            = 0x02,     // "Bailout" State
+ *      STATE_RESERVED2             = 0x03,     // reserved
+ *      STATE_ALIGN_FOR_POS         = 0x04,     // "Positioning"
+ *      STATE_RESERVED3             = 0x05,     // reserved
  *      STATE_BRAKEING_NORM_FINI    = 0x06,
  *      STATE_BRAKEING_SYNC_FINI    = 0x07,
- *      STATE_STARTING              = 0x08,         // "Starting"
+ *      STATE_STARTING              = 0x08,     // "Starting"
  *      STATE_BRAKEING_NORM         = 0x09,
  *      STATE_BRAKEING_SYNC         = 0x0A,
- *      STATE_RESERVED4             = 0x0B,         // reserved
- *      STATE_WINDMILLING           = 0x0C,         // still rotating no power drive can be named "Idle"
+ *      STATE_RESERVED4             = 0x0B,     // reserved
+ *      STATE_WINDMILLING           = 0x0C,     // still rotating no power drive can be named "Idle"
  *      STATE_RESERVED5             = 0x0D,
- *      STATE_RUNNING_NORM          = 0x0E,         // normal "Running"
+ *      STATE_RUNNING_NORM          = 0x0E,     // normal "Running"
  *      STATE_RESERVED6             = 0x0F,
  * 
  * Warning/error codes (4 MSB of status1)
  * ―――――――――――――――――――――――――――――――――――――――――――――――
- *      WARN_DEVICE_MASK            = 0xC0          // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
- *      WARN_DEVICE_ESC             = 0x00          // warning indicators are for ESC
- *      WARN_DEVICE_BEC             = 0x80          // warning indicators are for BEC
+ *      WARN_DEVICE_MASK            = 0xC0       // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
+ *      WARN_DEVICE_ESC             = 0x00       // warning indicators are for ESC
+ *      WARN_DEVICE_BEC             = 0x80       // warning indicators are for BEC
  * 
- *      WARN_OK                     = 0x00          // Overvoltage if Motor Status == STATE_POWER_CUT
- *      WARN_UNDERVOLTAGE           = 0x10          // Fail if Motor Status < STATE_STARTING
- *      WARN_OVERTEMP               = 0x20          // Fail if Motor Status == STATE_POWER_CUT
- *      WARN_OVERAMP                = 0x40          // Fail if Motor Status == STATE_POWER_CUT
- *      WARN_SETPOINT_NOISE         = 0xC0          // note this is special case (can never have OVERAMP w/ BEC hence reuse)
+ *      WARN_OK                     = 0x00       // Overvoltage if Motor Status == STATE_POWER_CUT
+ *      WARN_UNDERVOLTAGE           = 0x10       // Fail if Motor Status < STATE_STARTING
+ *      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
  *
  * Data Frame Format
  * ―――――――――――――――――――――――――――――――――――――――――――――――
  *     0:       Number for protocol compat. (0 for first tests)
- *     1:       temperature; // C degrees
- *   2,3:       voltage;     // 0.01V    Little endian!
- *   4,5:       current;     // 0.01A    Little endian!
- *   6,7:       consumption; // mAh      Little endian!
- *   8,9:       rpm;         // 0.1rpm   Little endian!
- *    10:       pwm;         // %
- *    11:       throttle;    // %
- * 12,13:       bec_voltage; // 0.01V    Little endian!
- * 14,15:       bec_current; // 0.01A    Little endian!
- *    16:       bec_temp;    // C degrees
- *    17:       status1;     // see documentation
- *    18:       status2;     // Debug/Reserved
- *    19:       index;       // reserved
- *    20:       reserved1;   // indexed-data
- *    21:       reserved2;   // indexed data
- * 22,23:       crc16;       // CCITT, poly: 0x1021
+ *     1:       temperature;        // C degrees
+ *   2,3:       voltage;            // 0.01V    Little endian!
+ *   4,5:       current;            // 0.01A    Little endian!
+ *   6,7:       consumption;        // mAh      Little endian!
+ *   8,9:       rpm;                // 0.1rpm   Little endian!
+ *    10:       pwm;                // %
+ *    11:       throttle;           // %
+ * 12,13:       bec_voltage;        // 0.01V    Little endian!
+ * 14,15:       bec_current;        // 0.01A    Little endian!
+ *    16:       bec_temp;           // C degrees
+ *    17:       status1;            // see documentation
+ *    18:       status2;            // Debug/Reserved
+ *    19:       index;              // reserved
+ *    20:       reserved1;          // indexed-data
+ *    21:       reserved2;          // indexed data
+ * 22,23:       crc16;              // CCITT, poly: 0x1021
  *
  */
 
@@ -1624,7 +1624,8 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         uint16_t curr = buffer[5] << 8 | buffer[4];
         uint16_t capa = buffer[7] << 8 | buffer[6];
         uint16_t erpm = buffer[9] << 8 | buffer[8];
-        uint8_t pwm = buffer[10];
+        uint8_t  pwm = buffer[10];
+        uint16_t voltBEC = buffer[13] << 8 | buffer[12];
 
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
@@ -1636,16 +1637,18 @@ static uint8_t oygeDecodeTelemetryFrame(void)
 
         totalFrameCount++;
 
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 100);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
         DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
         DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt);
         DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr);
 
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
         return OPENYGE_FRAME_COMPLETE;
@@ -1696,7 +1699,7 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
             if (oygeRampTimer == 0)
                 oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
             oygeStartTelemetryFrame(currentTimeMs);
-            return;
+            break;
     }
 }
 
