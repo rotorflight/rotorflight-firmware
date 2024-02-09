@@ -1479,6 +1479,269 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
+ * OpenYGE Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Little-Endian byte order
+ *     - Frame rate 20Hz
+ *     - Thanks Fabian!
+ *
+ * Motor states (4 LSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      STATE_DISARMED              = 0x00,     // Motor stopped
+ *      STATE_POWER_CUT             = 0x01,     // Power cut maybe Overvoltage
+ *      STATE_FAST_START            = 0x02,     // "Bailout" State
+ *      STATE_RESERVED2             = 0x03,     // reserved
+ *      STATE_ALIGN_FOR_POS         = 0x04,     // "Positioning"
+ *      STATE_RESERVED3             = 0x05,     // reserved
+ *      STATE_BRAKEING_NORM_FINI    = 0x06,
+ *      STATE_BRAKEING_SYNC_FINI    = 0x07,
+ *      STATE_STARTING              = 0x08,     // "Starting"
+ *      STATE_BRAKEING_NORM         = 0x09,
+ *      STATE_BRAKEING_SYNC         = 0x0A,
+ *      STATE_RESERVED4             = 0x0B,     // reserved
+ *      STATE_WINDMILLING           = 0x0C,     // still rotating no power drive can be named "Idle"
+ *      STATE_RESERVED5             = 0x0D,
+ *      STATE_RUNNING_NORM          = 0x0E,     // normal "Running"
+ *      STATE_RESERVED6             = 0x0F,
+ *
+ * Warning/error codes (4 MSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      WARN_DEVICE_MASK            = 0xC0       // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
+ *      WARN_DEVICE_ESC             = 0x00       // warning indicators are for ESC
+ *      WARN_DEVICE_BEC             = 0x80       // warning indicators are for BEC
+ *
+ *      WARN_OK                     = 0x00       // Overvoltage if Motor Status == STATE_POWER_CUT
+ *      WARN_UNDERVOLTAGE           = 0x10       // Fail if Motor Status < STATE_STARTING
+ *      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
+ *
+ * Data Frame Format
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ * Header...
+ *     0:       sync;               // sync, 0xA5
+ *     1:       version;            // frame version
+ *     2:       frame_type          // telemetry data = 0
+ *     3:       frame_length;       // frame length including header and CRC
+ *
+ * Payload...
+ *     4:       reserved            // reserved
+ *     5:       temperature;        // C degrees (0-> -40°C, 255->215°C)
+ *   6,7:       voltage;            // 0.01V    Little endian!
+ *   8,9:       current;            // 0.01A    Little endian!
+ * 10,11:       consumption;        // mAh      Little endian!
+ * 12,13:       rpm;                // 0.1rpm   Little endian!
+ *    14:       pwm;                // %
+ *    15:       throttle;           // %
+ * 16,17:       bec_voltage;        // 0.01V    Little endian!
+ * 18,19:       bec_current;        // 0.01A    Little endian!
+ *    20:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    21:       status1;            // see documentation
+ *    22:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    23:       aux_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    24:       status2;            // reserved
+ *    25:       reserved1;          // reserved
+ * 26,27:       idx;                // maybe future use
+ * 28,29:       idx_data;           // maybe future use
+ *
+ * 30,31:       crc16;              // CCITT, poly: 0x1021
+ *
+ */
+
+#define OPENYGE_SYNC                    0xA5                // sync
+#define OPENYGE_BOOT_DELAY              5000                // 5 seconds
+#define OPENYGE_RAMP_INTERVAL           6000                // 6 seconds
+#define OPENYGE_FRAME_PERIOD_INITIAL    900                 // intially 800 w/ progressive decreasing frame-period during ramp time...
+#define OPENYGE_FRAME_PERIOD_FINAL      60                  // ...to the final 50ms
+#define OPENYGE_FRAME_MIN_LENGTH        6                   // assume minimum frame (header + CRC) until actual length of current frame known
+
+#define OPENYGE_TEMP_OFFSET             40
+
+enum {
+    OPENYGE_FRAME_FAILED                = 0,
+    OPENYGE_FRAME_PENDING               = 1,
+    OPENYGE_FRAME_COMPLETE              = 2,
+};
+
+static timeMs_t oygeRampTimer = 0;
+static uint32_t oygeFrameTimestamp = 0;
+static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
+static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
+
+
+static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
+{
+    uint16_t crc = 0;
+
+    for (uint16_t j = 0; j < len; j++)
+    {
+        crc = crc ^ ptr[j] << 8;
+        for (uint16_t i = 0; i < 8; i++)
+        {
+            if (crc & 0x8000)
+                crc = crc << 1 ^ 0x1021;
+            else
+                crc = crc << 1;
+        }
+    }
+
+    return crc;
+}
+
+static void oygeFrameSyncError(void)
+{
+    readBytes = 0;
+    syncCount = 0;
+
+    totalSyncErrorCount++;
+}
+
+static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
+{
+    UNUSED(data);
+
+    totalByteCount++;
+
+    if (readBytes < oygeFrameLength) {
+        buffer[readBytes++] = c;
+
+        if (readBytes == 1) {
+            // sync
+            if (c != OPENYGE_SYNC)
+                oygeFrameSyncError();
+        }
+        else if (readBytes == 3) {
+            if (c != 0) {
+                // unsupported frame type
+                oygeFrameSyncError();
+            }
+        }
+        else if (readBytes == 4) {
+            // frame length
+            // protect against buffer overflow
+            if (c > TELEMETRY_BUFFER_SIZE)
+                oygeFrameSyncError();
+            else
+                syncCount++;
+            oygeFrameLength = c;
+        }
+    }
+}
+
+static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
+{
+    readBytes = 0;
+
+    oygeFrameTimestamp = currentTimeMs;
+}
+
+static uint8_t oygeDecodeTelemetryFrame(void)
+{
+    // First, check the variables that can change in the interrupt
+    if (readBytes < oygeFrameLength)
+        return OPENYGE_FRAME_PENDING;
+
+    // verify CRC16 checksum
+    uint16_t crc = buffer[oygeFrameLength - 1] << 8 | buffer[oygeFrameLength - 2];
+    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) != crc) {
+        totalCrcErrorCount++;
+        return OPENYGE_FRAME_FAILED;
+    }
+
+    uint8_t version = buffer[1];
+    int16_t temp = buffer[5];
+    uint16_t volt = buffer[7] << 8 | buffer[6];
+    uint16_t curr = buffer[9] << 8 | buffer[8];
+    uint16_t capa = buffer[11] << 8 | buffer[10];
+    uint16_t erpm = buffer[13] << 8 | buffer[12];
+    uint8_t pwm = buffer[14];
+    uint16_t voltBEC = buffer[17] << 8 | buffer[16];
+    int16_t tempBEC = buffer[20];
+
+    if (version >= 2) {
+        // apply temperature mapping offsets
+        temp    -= OPENYGE_TEMP_OFFSET;
+        tempBEC -= OPENYGE_TEMP_OFFSET;
+    }
+
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = erpm * 10;
+    escSensorData[0].pwm = pwm * 10;
+    escSensorData[0].voltage = volt * 10;
+    escSensorData[0].current = curr * 10;
+    escSensorData[0].consumption = capa;
+    escSensorData[0].temperature = temp * 10;
+    escSensorData[0].temperature2 = tempBEC * 10;
+
+    totalFrameCount++;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    return OPENYGE_FRAME_COMPLETE;
+}
+
+static void oygeSensorProcess(timeUs_t currentTimeUs)
+{
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
+
+    // wait before initializing
+    if (currentTimeMs < OPENYGE_BOOT_DELAY)
+        return;
+
+    // one time init
+    if (oygeFrameTimestamp == 0) {
+        oygeStartTelemetryFrame(currentTimeMs);
+        return;
+    }
+
+    // switch to final frame timeout if ramp time complete
+    if (oygeFramePeriod == OPENYGE_FRAME_PERIOD_INITIAL && oygeRampTimer != 0 && currentTimeMs > oygeRampTimer)
+        oygeFramePeriod = OPENYGE_FRAME_PERIOD_FINAL;
+
+    // timeout waiting for frame?
+    if (currentTimeMs > oygeFrameTimestamp + oygeFramePeriod) {
+        increaseDataAge(0);
+        oygeStartTelemetryFrame(currentTimeMs);
+        totalTimeoutCount++;
+        return;
+    }
+
+    // attempt to decode frame
+    uint8_t state = oygeDecodeTelemetryFrame();
+    switch (state) {
+        case OPENYGE_FRAME_PENDING:
+            // frame not ready yet
+            break;
+        case OPENYGE_FRAME_FAILED:
+            increaseDataAge(0);
+            // next frame
+            oygeStartTelemetryFrame(currentTimeMs);
+            break;
+        case OPENYGE_FRAME_COMPLETE:
+            // start ramp timer if first frame seen
+            if (oygeRampTimer == 0)
+                oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
+            // next frame
+            oygeStartTelemetryFrame(currentTimeMs);
+            break;
+    }
+}
+
+
+/*
  * Raw Telemetry Data Recorder
  */
 
@@ -1528,6 +1791,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_APD:
                 apdSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_OPENYGE:
+                oygeSensorProcess(currentTimeUs);
+                break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
@@ -1575,6 +1841,10 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_ZTW:
         case ESC_SENSOR_PROTO_HW5:
         case ESC_SENSOR_PROTO_APD:
+            baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_OPENYGE:
+            callback = oygeDataReceive;
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:
