@@ -1485,6 +1485,37 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *     - Little-Endian byte order
  *     - Frame rate 20Hz
  *     - Thanks Fabian!
+ * 
+ * Motor states (4 LSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      STATE_DISARMED              = 0x00,         // Motor stopped
+ *      STATE_POWER_CUT             = 0x01,         // Power cut maybe Overvoltage
+ *      STATE_FAST_START            = 0x02,         // "Bailout" State
+ *      STATE_RESERVED2             = 0x03,         // reserved
+ *      STATE_ALIGN_FOR_POS         = 0x04,         // "Positioning"
+ *      STATE_RESERVED3             = 0x05,         // reserved
+ *      STATE_BRAKEING_NORM_FINI    = 0x06,
+ *      STATE_BRAKEING_SYNC_FINI    = 0x07,
+ *      STATE_STARTING              = 0x08,         // "Starting"
+ *      STATE_BRAKEING_NORM         = 0x09,
+ *      STATE_BRAKEING_SYNC         = 0x0A,
+ *      STATE_RESERVED4             = 0x0B,         // reserved
+ *      STATE_WINDMILLING           = 0x0C,         // still rotating no power drive can be named "Idle"
+ *      STATE_RESERVED5             = 0x0D,
+ *      STATE_RUNNING_NORM          = 0x0E,         // normal "Running"
+ *      STATE_RESERVED6             = 0x0F,
+ * 
+ * Warning/error codes (4 MSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      WARN_DEVICE_MASK            = 0xC0          // device warning bits
+ *      WARN_DEVICE_ESC             = 0x00          // warning indicators are for ESC
+ *      WARN_DEVICE_BEC             = 0x80          // warning indicators are for BEC
+ * 
+ *      WARN_OK                     = 0x00          // Overvoltage if Motor Status == STATE_POWER_CUT
+ *      WARN_UNDERVOLTAGE           = 0x10          // Fail if Motor Status < STATE_STARTING
+ *      WARN_OVERTEMP               = 0x20          // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_OVERAMP                = 0x40          // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_SETPOINT_NOISE         = 0xC0          // note this is special case (can never have OVERAMP w/ BEC hence reuse)
  *
  * Data Frame Format
  * ―――――――――――――――――――――――――――――――――――――――――――――――
@@ -1507,25 +1538,6 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * 22,23:       crc16;       // CCITT, poly: 0x1021
  *
  */
-
-enum {
-    OPENYGE_MOTOR_STATE_DISARMED            = 0x00,         // Motor stopped
-    OPENYGE_MOTOR_STATE_POWER_CUT           = 0x01,         // Power cut maybe Overvoltage
-    OPENYGE_MOTOR_STATE_FAST_START          = 0x02,         // "Bailout" State
-    OPENYGE_MOTOR_STATE_RESERVED2           = 0x03,         // reserved
-    OPENYGE_MOTOR_STATE_ALIGN_FOR_POS       = 0x04,         // "Positioning"
-    OPENYGE_MOTOR_STATE_RESERVED3           = 0x05,         // reserved
-    OPENYGE_MOTOR_STATE_BRAKEING_NORM_FINI  = 0x06,
-    OPENYGE_MOTOR_STATE_BRAKEING_SYNC_FINI  = 0x07,
-    OPENYGE_MOTOR_STATE_STARTING            = 0x08,         // "Starting"
-    OPENYGE_MOTOR_STATE_BRAKEING_NORM       = 0x09,
-    OPENYGE_MOTOR_STATE_BRAKEING_SYNC       = 0x0A,
-    OPENYGE_MOTOR_STATE_RESERVED4           = 0x0B,         // reserved
-    OPENYGE_MOTOR_STATE_WINDMILLING         = 0x0C,         // still rotating no power drive can be named "Idle"
-    OPENYGE_MOTOR_STATE_RESERVED5           = 0x0D,
-    OPENYGE_MOTOR_STATE_RUNNING_NORM        = 0x0E,         // normal "Running"
-    OPENYGE_MOTOR_STATE_RESERVED6           = 0x0F,
-};
 
 #define OPENYGE_PROTOCOL_VERSION        0
 #define OPENYGE_BOOT_DELAY              5000                // 5 seconds
