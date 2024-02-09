@@ -1507,7 +1507,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * 
  * Warning/error codes (4 MSB of status1)
  * ―――――――――――――――――――――――――――――――――――――――――――――――
- *      WARN_DEVICE_MASK            = 0xC0          // device warning bits
+ *      WARN_DEVICE_MASK            = 0xC0          // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
  *      WARN_DEVICE_ESC             = 0x00          // warning indicators are for ESC
  *      WARN_DEVICE_BEC             = 0x80          // warning indicators are for BEC
  * 
