@@ -1506,9 +1506,11 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  */
 
-#define OPENYGE_BOOT_DELAY        5000                  // 5 seconds
-#define OPENYGE_FRAME_TIMEOUT     1000                  // intially 800 w/ progressive decreasing frame-period to the final 50ms
-#define OPENYGE_V0_FRAME_SIZE     10                    // TODO = 24
+#define OPENYGE_BOOT_DELAY              5000                  // 5 seconds
+#define OPENYGE_RAMP_INTERVAL           10000                 // 10 seconds
+#define OPENYGE_FRAME_PERIOD_INITIAL    900                   // intially 800 w/ progressive decreasing frame-period during ramp time...
+#define OPENYGE_FRAME_PERIOD_FINAL      60                    // ...to the final 50ms
+#define OPENYGE_V0_FRAME_SIZE           10                    // TODO = 24
 
 enum {
     OPENYGE_FRAME_FAILED    = 0,
@@ -1516,8 +1518,10 @@ enum {
     OPENYGE_FRAME_COMPLETE  = 2,
 };
 
+static timeMs_t oygeRampTimer = 0;
 static uint32_t oygeFrameTimestamp = 0;
-static uint8_t oygeFrameSize = OPENYGE_V0_FRAME_SIZE;   // assume version 0 frame, may change once version recognized
+static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
+static uint8_t oygeFrameSize = OPENYGE_V0_FRAME_SIZE;          // assume version 0 frame, may change once version recognized
 
 
 static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
@@ -1599,8 +1603,12 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
         return;
     }
 
+    // switch to final frame timeout if ramp time complete
+    if (oygeFramePeriod == OPENYGE_FRAME_PERIOD_INITIAL && oygeRampTimer != 0 && currentTimeMs > oygeRampTimer)
+        oygeFramePeriod = OPENYGE_FRAME_PERIOD_FINAL;
+
     // timeout waiting for frame?
-    if (currentTimeMs > oygeFrameTimestamp + OPENYGE_FRAME_TIMEOUT) {
+    if (currentTimeMs > oygeFrameTimestamp + oygeFramePeriod) {
         increaseDataAge(0);
         oygeStartTelemetryFrame(currentTimeMs);
         totalTimeoutCount++;
@@ -1614,9 +1622,16 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
             break;
         case OPENYGE_FRAME_FAILED:
             increaseDataAge(0);
-            FALLTHROUGH;
+            oygeStartTelemetryFrame(currentTimeMs);
+            break;
         case OPENYGE_FRAME_COMPLETE:
             oygeStartTelemetryFrame(currentTimeMs);
+
+            // first frame seen?
+            if (oygeRampTimer == 0) {
+                // ...start ramp timer
+                oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
+            }
             return;
     }
 }
