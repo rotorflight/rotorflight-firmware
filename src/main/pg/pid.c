@@ -69,7 +69,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .iterm_relax_level = { 40, 40, 40 },
         .iterm_relax_cutoff = { 10, 10, 15 },
         .offset_limit = { 45, 45 },
-        .error_limit = { 15, 15, 45 },
+        .error_limit = { 30, 30, 45 },
         .error_cutoff = { 0, 0, 0 },
         .dterm_cutoff = { 15, 15, 20 },
         .bterm_cutoff = { 15, 15, 20 },
