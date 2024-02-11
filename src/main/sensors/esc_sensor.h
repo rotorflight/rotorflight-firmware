@@ -64,9 +64,10 @@ typedef struct {
     uint32_t  consumption;      // mAh
     int16_t   temperature;      // 0.1°C
     int16_t   temperature2;     // 0.1°C
-    int16_t   temperature3;     // 0.1°C
     uint32_t  bec_voltage;      // mV
     uint32_t  bec_current;      // mA
+    uint16_t  extra1;           // extra data
+    uint16_t  extra2;           // extra data
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255

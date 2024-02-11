@@ -1651,6 +1651,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         escSensorData[0].temperature2 = tempBEC * 10;
         escSensorData[0].bec_voltage = voltBEC * 10;
         escSensorData[0].bec_current = currBEC * 10;
+        escSensorData[0].extra1 = status1;
 
         totalFrameCount++;
 
