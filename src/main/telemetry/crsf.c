@@ -263,6 +263,24 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
         case CRSF_GPS_REUSE_ESC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->temperature : 0;
+        case CRSF_GPS_REUSE_ESC_PWM:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->pwm : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_VOLTAGE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_voltage : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_CURRENT:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_current : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature2 : 0;
+        case CRSF_GPS_REUSE_ESC_EXTRA1:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->extra1 : 0;
+        case CRSF_GPS_REUSE_ESC_EXTRA2:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->extra2 : 0;
         case CRSF_GPS_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 10;
         case CRSF_GPS_REUSE_MCU_LOAD:

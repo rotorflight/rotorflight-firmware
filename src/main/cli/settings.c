@@ -493,7 +493,7 @@ const char * const lookupTableCrsfAttReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE", "PROFILE_INDEX", "RATE_INDEX",
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_EXTRA1", "ESC_EXTRA2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE", "PROFILE_INDEX", "RATE_INDEX",
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
