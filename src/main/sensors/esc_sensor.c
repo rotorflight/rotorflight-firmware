@@ -776,6 +776,8 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
                 uint16_t current = buffer[18] << 8 | buffer[17];
                 uint16_t tempFET = buffer[19];
                 uint16_t tempBEC = buffer[20];
+                uint16_t voltBEC = buffer[22];
+                uint16_t currBEC = buffer[23];
 
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
@@ -791,7 +793,8 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
                 escSensorData[0].temperature = tempFET * 10;
-                escSensorData[0].temperature2 = tempBEC * 10;
+                escSensorData[0].bec_voltage = voltBEC * 100;
+                escSensorData[0].bec_current = currBEC * 100;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
@@ -918,6 +921,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
                 uint16_t current = buffer[9] << 8 | buffer[8];
                 uint16_t capacity = buffer[13] << 8 | buffer[12];
                 uint16_t status = buffer[19];
+                uint16_t voltBEC = buffer[16];
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 5;
@@ -926,6 +930,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].current = current * 100;
                 escSensorData[0].consumption = capacity;
                 escSensorData[0].temperature = temp * 10;
+                escSensorData[0].bec_voltage = voltBEC * 100;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1072,6 +1077,8 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 uint16_t capacity = buffer[17] << 8 | buffer[16];
                 int16_t  tempFET = (int8_t)buffer[26];
                 int16_t  tempBEC = (int8_t)buffer[27];
+                uint16_t currBEC = buffer[19] << 8 | buffer[18];
+                uint16_t voltBEC = buffer[21] << 8 | buffer[20];
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
@@ -1081,6 +1088,8 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].consumption = capacity;
                 escSensorData[0].temperature = tempFET * 10;
                 escSensorData[0].temperature2 = tempBEC * 10;
+                escSensorData[0].bec_voltage = voltBEC;
+                escSensorData[0].bec_current = currBEC;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
@@ -1299,6 +1308,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 uint16_t current = buffer[5] << 8 | buffer[6];
                 uint16_t capacity = buffer[15] << 8 | buffer[16];
                 uint16_t status = buffer[13] << 8 | buffer[14];
+                uint16_t voltBEC = buffer[19];
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
@@ -1307,6 +1317,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].current = current * 100;
                 escSensorData[0].consumption = capacity;
                 escSensorData[0].temperature = temp * 10;
+                escSensorData[0].bec_voltage = voltBEC * 1000;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1626,7 +1637,9 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         uint16_t erpm = buffer[9] << 8 | buffer[8];
         uint8_t   pwm = buffer[10];
         uint16_t voltBEC = buffer[13] << 8 | buffer[12];
+        uint16_t currBEC = buffer[15] << 8 | buffer[14];
         uint16_t tempBEC = buffer[16];
+        uint8_t  status1 = buffer[17];
 
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
@@ -1636,6 +1649,8 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         escSensorData[0].consumption = capa;
         escSensorData[0].temperature = temp * 10;
         escSensorData[0].temperature2 = tempBEC * 10;
+        escSensorData[0].bec_voltage = voltBEC * 10;
+        escSensorData[0].bec_current = currBEC * 10;
 
         totalFrameCount++;
 
@@ -1650,7 +1665,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status1);
         DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
         return OPENYGE_FRAME_COMPLETE;

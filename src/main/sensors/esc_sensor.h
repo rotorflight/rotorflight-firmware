@@ -56,14 +56,17 @@ typedef struct escSensorConfig_s {
 PG_DECLARE(escSensorConfig_t, escSensorConfig);
 
 typedef struct {
-    uint8_t   age;          // Data age
-    uint16_t  pwm;          // Output duty cycle 0.1%
-    uint32_t  erpm;         // eRPM
-    uint32_t  voltage;      // mV
-    uint32_t  current;      // mA
-    uint32_t  consumption;  // mAh
-    int16_t   temperature;  // 0.1°C
-    int16_t   temperature2; // 0.1°C
+    uint8_t   age;              // Data age
+    uint16_t  pwm;              // Output duty cycle 0.1%
+    uint32_t  erpm;             // eRPM
+    uint32_t  voltage;          // mV
+    uint32_t  current;          // mA
+    uint32_t  consumption;      // mAh
+    int16_t   temperature;      // 0.1°C
+    int16_t   temperature2;     // 0.1°C
+    int16_t   temperature3;     // 0.1°C
+    uint32_t  bec_voltage;      // mV
+    uint32_t  bec_current;      // mA
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255
