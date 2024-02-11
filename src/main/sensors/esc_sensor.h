@@ -40,6 +40,7 @@ enum {
     ESC_SENSOR_PROTO_APD,
     ESC_SENSOR_PROTO_OPENYGE,
     ESC_SENSOR_PROTO_RECORD,
+    ESC_SENSOR_PROTO_CALIBRATE,
 };
 
 typedef struct escSensorConfig_s {

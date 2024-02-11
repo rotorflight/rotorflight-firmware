@@ -1781,6 +1781,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_CALIBRATE:
+                // nop
+                break;
         }
 
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BYTE_COUNT, totalByteCount);
@@ -1791,6 +1794,22 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
     }
+}
+
+void calibrateSensorInit(void)
+{
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = 1234 *10;
+    escSensorData[0].pwm = 24 * 10;
+    escSensorData[0].voltage = 45678;
+    escSensorData[0].current = 65432;
+    escSensorData[0].consumption = 1234;
+    escSensorData[0].temperature = 45 * 10;
+    escSensorData[0].temperature2 = 56 * 10;
+    escSensorData[0].bec_voltage = 7654;
+    escSensorData[0].bec_current = 1234;
+    escSensorData[0].extra1 = 123;
+    escSensorData[0].extra2 = 234;
 }
 
 bool INIT_CODE escSensorInit(void)
@@ -1834,6 +1853,9 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
             break;
+        case ESC_SENSOR_PROTO_CALIBRATE:
+            calibrateSensorInit();
+            return true;
     }
 
     if (baudrate) {
