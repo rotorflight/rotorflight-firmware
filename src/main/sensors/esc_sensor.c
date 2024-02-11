@@ -1577,7 +1577,7 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 
 static void oygeFrameSyncError(void)
 {
-    bufferPos = 0;
+    readBytes = 0;
     syncCount = 0;
 
     totalSyncErrorCount++;
@@ -1589,10 +1589,10 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 
     totalByteCount++;
 
-    if (bufferPos < bufferSize) {
-        buffer[bufferPos++] = c;
+    if (readBytes < bufferSize) {
+        buffer[readBytes++] = c;
 
-        if (bufferPos == 1) {
+        if (readBytes == 1) {
             if (c != OPENYGE_PROTOCOL_VERSION)
                 oygeFrameSyncError();
             else
@@ -1603,7 +1603,7 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 
 static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 {
-    bufferPos = 0;
+    readBytes = 0;
     bufferSize = OPENYGE_FRAME_SIZE;
 
     oygeFrameTimestamp = currentTimeMs;
@@ -1612,7 +1612,7 @@ static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 static uint8_t oygeDecodeTelemetryFrame(void)
 {
     // First, check the variables that can change in the interrupt
-    if (bufferPos < bufferSize)
+    if (readBytes < bufferSize)
         return OPENYGE_FRAME_PENDING;
 
     // verify CRC16 checksum
