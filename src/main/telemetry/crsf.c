@@ -254,6 +254,8 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
     switch (reuse) {
         case CRSF_GPS_REUSE_NONE:
             return value;
+        case CRSF_GPS_REUSE_HEADSPEED:
+            return getHeadSpeed() * 3;
         case CRSF_GPS_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 10;
         case CRSF_GPS_REUSE_MCU_LOAD:
