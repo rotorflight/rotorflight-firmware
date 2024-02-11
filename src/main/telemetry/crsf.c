@@ -251,11 +251,18 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
     // based on crsfAttitudeReuse
     // remapped values required are 1/10 to corresponding attitude values
     // ESC telemetry values excluded
+    escSensorData_t *escData;
+
     switch (reuse) {
         case CRSF_GPS_REUSE_NONE:
             return value;
         case CRSF_GPS_REUSE_HEADSPEED:
             return getHeadSpeed() * 3;
+        case CRSF_GPS_REUSE_THROTTLE:
+            return getGovernorOutput() * 1000;
+        case CRSF_GPS_REUSE_ESC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature : 0;
         case CRSF_GPS_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 10;
         case CRSF_GPS_REUSE_MCU_LOAD:
