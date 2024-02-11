@@ -489,15 +489,15 @@ const char * const lookupTableCrsfFmReuse[] = {
 };
 
 const char * const lookupTableCrsfAttReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
+    "NONE", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
 };
 
 const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "HEADSPEED", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE", "PROFILE_INDEX", "RATE_INDEX",
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD",
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
-    "NONE", "PROFILE_INDEX", "RATE_INDEX",
+    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "LED_PROFILE",
 };
 
 const char * const lookupTableDtermMode[] = {
@@ -1194,7 +1194,6 @@ const clivalue_t valueTable[] = {
     { "crsf_gps_heading_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_heading_reuse) },
     { "crsf_gps_ground_speed_reuse", VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_ground_speed_reuse) },
     { "crsf_gps_altitude_reuse",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_altitude_reuse) },
-
     { "crsf_gps_sats_reuse",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_SATS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_sats_reuse) },
 
 #ifdef USE_TELEMETRY_ENABLE_SENSORS
