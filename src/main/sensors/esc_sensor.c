@@ -1519,32 +1519,37 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *
  * Data Frame Format
  * ―――――――――――――――――――――――――――――――――――――――――――――――
- *     0:       Number for protocol compat. (0 for first tests)
- *     1:       temperature;        // C degrees
- *   2,3:       voltage;            // 0.01V    Little endian!
- *   4,5:       current;            // 0.01A    Little endian!
- *   6,7:       consumption;        // mAh      Little endian!
- *   8,9:       rpm;                // 0.1rpm   Little endian!
- *    10:       pwm;                // %
- *    11:       throttle;           // %
- * 12,13:       bec_voltage;        // 0.01V    Little endian!
- * 14,15:       bec_current;        // 0.01A    Little endian!
- *    16:       bec_temp;           // C degrees
- *    17:       status1;            // see documentation
- *    18:       status2;            // Debug/Reserved
- *    19:       index;              // reserved
- *    20:       reserved1;          // indexed-data
- *    21:       reserved2;          // indexed data
- * 22,23:       crc16;              // CCITT, poly: 0x1021
+ *     0:       sync;               // sync 0xA5
+ *     1:       version;            // frame version
+ *     2:       length;             // frame length including header and CRC
+ *     3:       temperature;        // C degrees
+ *   4,5:       voltage;            // 0.01V    Little endian!
+ *   6,7:       current;            // 0.01A    Little endian!
+ *   8,9:       consumption;        // mAh      Little endian!
+ * 10,11:       rpm;                // 0.1rpm   Little endian!
+ *    12:       pwm;                // %
+ *    13:       throttle;           // %
+ * 14,15:       bec_voltage;        // 0.01V    Little endian!
+ * 16,17:       bec_current;        // 0.01A    Little endian!
+ *    18:       bec_temp;           // C degrees
+ *    19:       status1;            // see documentation
+ *    20:       cap_temp;           // C degrees
+ *    21:       aux_temp;           // C degrees
+ *    22:       status2;            // Debug/Reserved
+ *    23:       reserved1;          // reserved
+ *    24:       idx_L;              // maybe future use
+ *    25:       idx_H;              // maybe future use
+ * 26,27:       idx_data;           // maybe future use
+ * 28,29:       crc16;              // CCITT, poly: 0x1021
  *
  */
 
-#define OPENYGE_PROTOCOL_VERSION        0
+#define OPENYGE_SYNC                    0xA5                // sync
 #define OPENYGE_BOOT_DELAY              5000                // 5 seconds
 #define OPENYGE_RAMP_INTERVAL           10000               // 10 seconds
 #define OPENYGE_FRAME_PERIOD_INITIAL    900                 // intially 800 w/ progressive decreasing frame-period during ramp time...
 #define OPENYGE_FRAME_PERIOD_FINAL      60                  // ...to the final 50ms
-#define OPENYGE_FRAME_SIZE              24                  // 24 bytes
+#define OPENYGE_FRAME_LENGTH            30                  // assume minimum frame version 1, will be replaced by actual length on receipt of first valid frame
 
 enum {
     OPENYGE_FRAME_FAILED                = 0,
@@ -1555,6 +1560,7 @@ enum {
 static timeMs_t oygeRampTimer = 0;
 static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
+static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_LENGTH;
 
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
@@ -1589,14 +1595,22 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 
     totalByteCount++;
 
-    if (readBytes < bufferSize) {
+    if (readBytes < oygeFrameLength) {
         buffer[readBytes++] = c;
 
         if (readBytes == 1) {
-            if (c != OPENYGE_PROTOCOL_VERSION)
+            // sync
+            if (c != OPENYGE_SYNC)
+                oygeFrameSyncError();
+        }
+        else if (readBytes == 3) {
+            // frame length
+            // protect against buffer overflow
+            if (c > TELEMETRY_BUFFER_SIZE)
                 oygeFrameSyncError();
             else
                 syncCount++;
+            oygeFrameLength = c;
         }
     }
 }
@@ -1604,7 +1618,6 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 {
     readBytes = 0;
-    bufferSize = OPENYGE_FRAME_SIZE;
 
     oygeFrameTimestamp = currentTimeMs;
 }
@@ -1612,21 +1625,21 @@ static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 static uint8_t oygeDecodeTelemetryFrame(void)
 {
     // First, check the variables that can change in the interrupt
-    if (readBytes < bufferSize)
+    if (readBytes < oygeFrameLength)
         return OPENYGE_FRAME_PENDING;
 
     // verify CRC16 checksum
-    uint16_t crc = buffer[OPENYGE_FRAME_SIZE - 1] << 8 | buffer[OPENYGE_FRAME_SIZE - 2];
+    uint16_t crc = buffer[oygeFrameLength - 1] << 8 | buffer[oygeFrameLength - 2];
 
-    if (oygeCalculateCRC16_CCITT(buffer, OPENYGE_FRAME_SIZE - 2) == crc) {
-        uint16_t temp = buffer[1];
-        uint16_t volt = buffer[3] << 8 | buffer[2];
-        uint16_t curr = buffer[5] << 8 | buffer[4];
-        uint16_t capa = buffer[7] << 8 | buffer[6];
-        uint16_t erpm = buffer[9] << 8 | buffer[8];
-        uint8_t   pwm = buffer[10];
-        uint16_t voltBEC = buffer[13] << 8 | buffer[12];
-        uint16_t tempBEC = buffer[16];
+    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) == crc) {
+        uint16_t temp = buffer[3];
+        uint16_t volt = buffer[5] << 8 | buffer[4];
+        uint16_t curr = buffer[7] << 8 | buffer[6];
+        uint16_t capa = buffer[9] << 8 | buffer[8];
+        uint16_t erpm = buffer[11] << 8 | buffer[10];
+        uint8_t   pwm = buffer[12];
+        uint16_t voltBEC = buffer[15] << 8 | buffer[14];
+        uint16_t tempBEC = buffer[18];
 
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
