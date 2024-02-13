@@ -804,6 +804,15 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
         break;
+
+    case MSP_ESC_PARAMETERS:
+        {
+            uint8_t count = getEscParameterCount();
+            uint16_t *params = getEscParameters();
+            for(int i = 0; i < count; i++)
+                sbufWriteU16(dst, params[i]);
+        }
+        break;
 #endif
 
     case MSP_BATTERY_STATE:
@@ -2636,6 +2645,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
         escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
         escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
+        break;
+
+    case MSP_SET_ESC_PARAMETERS:
+        // TODO
         break;
 #endif
 

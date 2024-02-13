@@ -1577,6 +1577,21 @@ static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
 static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_LENGTH;
 
+#define ESC_PARAM_MAX                   40
+
+static uint16_t escParameters[ESC_PARAM_MAX] = { 0xFF, };
+
+
+uint8_t getEscParameterCount(void)
+{
+    return ESC_PARAM_MAX;
+}
+
+uint16_t *getEscParameters(void)
+{
+    return escParameters;
+}
+
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 {
@@ -1664,6 +1679,9 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         uint16_t tempBEC = buffer[20];
         uint8_t  status1 = buffer[21];
 
+        uint8_t pidx = buffer[26];
+        uint16_t pdata = buffer[29] << 8 | buffer[28];
+
         escSensorData[0].age = 0;
         escSensorData[0].erpm = erpm * 10;
         escSensorData[0].pwm = pwm * 10;
@@ -1675,6 +1693,10 @@ static uint8_t oygeDecodeTelemetryFrame(void)
         escSensorData[0].bec_voltage = voltBEC * 10;
         escSensorData[0].bec_current = currBEC * 10;
         escSensorData[0].extra1 = status1;
+
+        // collect ESC parameters
+        if (pidx < ESC_PARAM_MAX)
+            escParameters[pidx] = pdata;
 
         totalFrameCount++;
 
