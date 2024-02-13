@@ -1839,6 +1839,7 @@ bool INIT_CODE escSensorInit(void)
 {
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_ESC_SENSOR);
     serialReceiveCallbackPtr callback = NULL;
+    portMode_e mode = MODE_RX;
     portOptions_e options = 0;
     uint32_t baudrate = 0;
 
@@ -1872,6 +1873,7 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_OPENYGE:
             callback = oygeDataReceive;
             baudrate = 115200;
+            mode = MODE_RXTX;
             options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
@@ -1883,7 +1885,7 @@ bool INIT_CODE escSensorInit(void)
     }
 
     if (baudrate) {
-        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, MODE_RX, options);
+        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, mode, options);
     }
 
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
