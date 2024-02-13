@@ -1607,6 +1607,12 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
             if (c != OPENYGE_SYNC)
                 oygeFrameSyncError();
         }
+        else if (readBytes == 3) {
+            if (c != 0) {
+                // unsupported frame type
+                oygeFrameSyncError();
+            }
+        }
         else if (readBytes == 4) {
             // frame length
             // protect against buffer overflow
