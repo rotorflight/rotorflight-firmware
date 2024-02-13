@@ -1837,6 +1837,7 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_OPENYGE:
             callback = oygeDataReceive;
             baudrate = 115200;
+            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
