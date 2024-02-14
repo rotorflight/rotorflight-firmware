@@ -1520,14 +1520,14 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * Data Frame Format
  * ―――――――――――――――――――――――――――――――――――――――――――――――
  * Header...
- *     0:       sync;               // sync 0xA5
+ *     0:       sync;               // sync, 0xA5
  *     1:       version;            // frame version
  *     2:       frame_type          // telemetry data = 0
  *     3:       frame_length;       // frame length including header and CRC
  * 
  * Payload...
- *     4:       reserved            // reserved, start of payload
- *     5:       temperature;        // C degrees
+ *     4:       reserved            // reserved
+ *     5:       temperature;        // C degrees (0-> -40°C, 255->215°C)
  *   6,7:       voltage;            // 0.01V    Little endian!
  *   8,9:       current;            // 0.01A    Little endian!
  * 10,11:       consumption;        // mAh      Little endian!
@@ -1536,24 +1536,27 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *    15:       throttle;           // %
  * 16,17:       bec_voltage;        // 0.01V    Little endian!
  * 18,19:       bec_current;        // 0.01A    Little endian!
- *    20:       bec_temp;           // C degrees
+ *    20:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
  *    21:       status1;            // see documentation
- *    22:       cap_temp;           // C degrees
- *    23:       aux_temp;           // C degrees
+ *    22:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    23:       aux_temp;           // C degrees (0-> -40°C, 255->215°C)
  *    24:       status2;            // reserved
  *    25:       reserved1;          // reserved
  * 26,27:       idx;                // maybe future use
  * 28,29:       idx_data;           // maybe future use
+ * 
  * 30,31:       crc16;              // CCITT, poly: 0x1021
  *
  */
 
 #define OPENYGE_SYNC                    0xA5                // sync
 #define OPENYGE_BOOT_DELAY              5000                // 5 seconds
-#define OPENYGE_RAMP_INTERVAL           10000               // 10 seconds
+#define OPENYGE_RAMP_INTERVAL           6000                // 6 seconds
 #define OPENYGE_FRAME_PERIOD_INITIAL    900                 // intially 800 w/ progressive decreasing frame-period during ramp time...
 #define OPENYGE_FRAME_PERIOD_FINAL      60                  // ...to the final 50ms
-#define OPENYGE_FRAME_LENGTH            30                  // assume minimum frame version 1, will be replaced by actual length on receipt of first valid frame
+#define OPENYGE_FRAME_MIN_LENGTH        6                   // assume minimum frame (header + CRC) until actual length of current frame known
+
+#define OPENYGE_TEMP_OFFSET             40
 
 enum {
     OPENYGE_FRAME_FAILED                = 0,
@@ -1564,7 +1567,7 @@ enum {
 static timeMs_t oygeRampTimer = 0;
 static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
-static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_LENGTH;
+static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
 
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
@@ -1640,48 +1643,53 @@ static uint8_t oygeDecodeTelemetryFrame(void)
 
     // verify CRC16 checksum
     uint16_t crc = buffer[oygeFrameLength - 1] << 8 | buffer[oygeFrameLength - 2];
-
-    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) == crc) {
-        uint16_t temp = buffer[5];
-        uint16_t volt = buffer[7] << 8 | buffer[6];
-        uint16_t curr = buffer[9] << 8 | buffer[8];
-        uint16_t capa = buffer[11] << 8 | buffer[10];
-        uint16_t erpm = buffer[13] << 8 | buffer[12];
-        uint8_t   pwm = buffer[14];
-        uint16_t voltBEC = buffer[17] << 8 | buffer[16];
-        uint16_t tempBEC = buffer[20];
-
-        escSensorData[0].age = 0;
-        escSensorData[0].erpm = erpm * 10;
-        escSensorData[0].pwm = pwm * 10;
-        escSensorData[0].voltage = volt * 10;
-        escSensorData[0].current = curr * 10;
-        escSensorData[0].consumption = capa;
-        escSensorData[0].temperature = temp * 10;
-        escSensorData[0].temperature2 = tempBEC * 10;
-
-        totalFrameCount++;
-
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr);
-
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-        return OPENYGE_FRAME_COMPLETE;
+    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) != crc) {
+        totalCrcErrorCount++;
+        return OPENYGE_FRAME_FAILED;
     }
 
-    totalCrcErrorCount++;
+    uint8_t version = buffer[1];
+    int16_t  temp = buffer[5];
+    uint16_t volt = buffer[7] << 8 | buffer[6];
+    uint16_t curr = buffer[9] << 8 | buffer[8];
+    uint16_t capa = buffer[11] << 8 | buffer[10];
+    uint16_t erpm = buffer[13] << 8 | buffer[12];
+    uint8_t   pwm = buffer[14];
+    uint16_t voltBEC = buffer[17] << 8 | buffer[16];
+    int16_t  tempBEC = buffer[20];
 
-    return OPENYGE_FRAME_FAILED;
+    if (version >= 2) {
+        // apply temperature mapping offsets
+        temp    -= OPENYGE_TEMP_OFFSET;
+        tempBEC -= OPENYGE_TEMP_OFFSET;
+    }
+
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = erpm * 10;
+    escSensorData[0].pwm = pwm * 10;
+    escSensorData[0].voltage = volt * 10;
+    escSensorData[0].current = curr * 10;
+    escSensorData[0].consumption = capa;
+    escSensorData[0].temperature = temp * 10;
+    escSensorData[0].temperature2 = tempBEC * 10;
+
+    totalFrameCount++;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    return OPENYGE_FRAME_COMPLETE;
 }
 
 static void oygeSensorProcess(timeUs_t currentTimeUs)
