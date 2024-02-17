@@ -130,6 +130,7 @@ static uint32_t syncCount = 0;
 
 static uint8_t escParameterCount = 0;
 static uint16_t escParameterCache[PARAMETER_CACHE_SIZE] = { 0, };
+static uint16_t escParameterUpdateCache[PARAMETER_CACHE_SIZE] = { 0, };
 
 
 bool isEscSensorActive(void)
@@ -188,19 +189,6 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     }
 
     return NULL;
-}
-
-uint8_t getEscParameterCount(void)
-{
-    return escParameterCount;
-}
-
-uint16_t *getEscParameters(void)
-{
-    if(escParameterCount == 0)
-        return NULL;
-
-    return escParameterCache;
 }
 
 
@@ -1805,6 +1793,11 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
     }
 }
 
+bool oygeCommitParameters()
+{
+    return false;
+}
+
 
 /*
  * Raw Telemetry Data Recorder
@@ -1953,6 +1946,40 @@ bool INIT_CODE escSensorInit(void)
     escSensorDataCombined.age = ESC_DATA_INVALID;
 
     return (escSensorPort != NULL);
+}
+
+
+uint8_t escGetParameterCount(void)
+{
+    return escParameterCount;
+}
+
+uint16_t escGetParameter(uint8_t index)
+{
+    if (index >= escParameterCount)
+        return 0;
+
+    return escParameterCache[index];
+}
+
+bool escSetParameter(uint8_t index, uint16_t param)
+{
+    if (index >= escParameterCount)
+        return false;
+
+    escParameterUpdateCache[index] = param;
+    return true;
+}
+
+bool escCommitParameters()
+{
+    switch (escSensorConfig()->protocol) {
+        case ESC_SENSOR_PROTO_OPENYGE:
+            return oygeCommitParameters();
+        default:
+            break;
+    }
+    return false;
 }
 
 #endif
