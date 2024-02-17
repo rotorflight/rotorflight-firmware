@@ -808,9 +808,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_ESC_PARAMETERS:
         {
             uint8_t count = getEscParameterCount();
-            uint16_t *params = getEscParameters();
+            if (count == 0)
+                return false;
+
+            uint16_t *parameters = getEscParameters();
             for(int i = 0; i < count; i++)
-                sbufWriteU16(dst, params[i]);
+                sbufWriteU16(dst, parameters[i]);
         }
         break;
 #endif

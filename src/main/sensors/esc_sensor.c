@@ -100,6 +100,7 @@ enum {
 };
 
 #define TELEMETRY_BUFFER_SIZE    40
+#define PARAMETER_CACHE_SIZE     40     // <== size must not exceed 64
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -126,6 +127,9 @@ static volatile uint8_t bufferPos = 0;
 
 static uint8_t  readBytes = 0;
 static uint32_t syncCount = 0;
+
+static uint8_t escParameterCount = 0;
+static uint16_t escParameterCache[PARAMETER_CACHE_SIZE] = { 0, };
 
 
 bool isEscSensorActive(void)
@@ -184,6 +188,19 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     }
 
     return NULL;
+}
+
+uint8_t getEscParameterCount(void)
+{
+    return escParameterCount;
+}
+
+uint16_t *getEscParameters(void)
+{
+    if(escParameterCount == 0)
+        return NULL;
+
+    return escParameterCache;
 }
 
 
@@ -1580,20 +1597,7 @@ static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
 static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
 
-#define ESC_PARAM_MAX                   40
-
-static uint16_t escParameters[ESC_PARAM_MAX] = { 0xFF, };
-
-
-uint8_t getEscParameterCount(void)
-{
-    return ESC_PARAM_MAX;
-}
-
-uint16_t *getEscParameters(void)
-{
-    return escParameters;
-}
+static uint64_t oygeCachedParams = 0;
 
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
@@ -1661,6 +1665,32 @@ static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
     oygeFrameTimestamp = currentTimeMs;
 }
 
+static uint8_t oygeCountBits(uint64_t bits) 
+{
+    uint8_t count = 0;
+    for (; bits != 0; bits >>= 1ULL)
+        count += (bits & 1);
+    return count;
+}
+
+static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
+{
+    if (pidx >= PARAMETER_CACHE_SIZE)
+        return;
+
+    escParameterCache[pidx] = pdata;
+    oygeCachedParams |= (1ULL << pidx);
+
+    // skip if count already known or count parameter not yet seen (param[0] for YGE)
+    if (escParameterCount > 0 || (oygeCachedParams & 0x01) == 0)
+        return;
+
+    // image is ready if all expected parameters have been cached
+    uint16_t ygeParameterCount = escParameterCache[0];
+    if (oygeCountBits(oygeCachedParams) == ygeParameterCount)
+        escParameterCount = ygeParameterCount;
+}
+
 static uint8_t oygeDecodeTelemetryFrame(void)
 {
     // First, check the variables that can change in the interrupt
@@ -1707,9 +1737,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     escSensorData[0].bec_current = currBEC * 10;
     escSensorData[0].extra1 = status1;
 
-    // collect ESC parameters
-    if (pidx < ESC_PARAM_MAX)
-        escParameters[pidx] = pdata;
+    oygeCacheParam(pidx, pdata);
 
     totalFrameCount++;
 
