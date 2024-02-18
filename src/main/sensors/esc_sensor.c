@@ -1588,6 +1588,37 @@ static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
 static uint64_t oygeCachedParams = 0;
 
 
+static uint8_t oygeCountParamBits(uint64_t bits) 
+{
+    uint8_t count = 0;
+    for (; bits != 0; bits >>= 1ULL)
+        count += (bits & 1);
+    return count;
+}
+
+static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
+{
+    if (pidx >= PARAMETER_CACHE_SIZE)
+        return;
+
+    escParameterCache[pidx] = pdata;
+    oygeCachedParams |= (1ULL << pidx);
+
+    // skip if count already known or count parameter not yet seen (param[0] for YGE)
+    if (escParameterCount > 0 || (oygeCachedParams & 0x01) == 0)
+        return;
+
+    // image is ready if all expected parameters have been cached
+    uint16_t ygeParameterCount = escParameterCache[0];
+    if (oygeCountParamBits(oygeCachedParams) == ygeParameterCount)
+        escParameterCount = ygeParameterCount;
+}
+
+bool oygeCommitParameters()
+{
+    return false;
+}
+
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 {
     uint16_t crc = 0;
@@ -1651,32 +1682,6 @@ static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
     readBytes = 0;
 
     oygeFrameTimestamp = currentTimeMs;
-}
-
-static uint8_t oygeCountBits(uint64_t bits) 
-{
-    uint8_t count = 0;
-    for (; bits != 0; bits >>= 1ULL)
-        count += (bits & 1);
-    return count;
-}
-
-static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
-{
-    if (pidx >= PARAMETER_CACHE_SIZE)
-        return;
-
-    escParameterCache[pidx] = pdata;
-    oygeCachedParams |= (1ULL << pidx);
-
-    // skip if count already known or count parameter not yet seen (param[0] for YGE)
-    if (escParameterCount > 0 || (oygeCachedParams & 0x01) == 0)
-        return;
-
-    // image is ready if all expected parameters have been cached
-    uint16_t ygeParameterCount = escParameterCache[0];
-    if (oygeCountBits(oygeCachedParams) == ygeParameterCount)
-        escParameterCount = ygeParameterCount;
 }
 
 static uint8_t oygeDecodeTelemetryFrame(void)
@@ -1791,11 +1796,6 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
             oygeStartTelemetryFrame(currentTimeMs);
             break;
     }
-}
-
-bool oygeCommitParameters()
-{
-    return false;
 }
 
 
