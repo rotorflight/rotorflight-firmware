@@ -101,7 +101,7 @@ enum {
 
 #define TELEMETRY_BUFFER_SIZE    40
 #define REQUEST_BUFFER_SIZE      40
-#define PARAMETER_CACHE_SIZE     40     // <== size must not exceed 64
+#define PARAM_BUFFER_SIZE        80
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -129,11 +129,11 @@ static volatile uint8_t bufferPos = 0;
 static uint8_t  readBytes = 0;
 static uint32_t syncCount = 0;
 
-static uint8_t txbuffer[REQUEST_BUFFER_SIZE] = { 0, };
+static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
-static uint8_t escParameterCount = 0;
-static uint16_t escParameterCache[PARAMETER_CACHE_SIZE] = { 0, };
-static uint16_t escParameterUpdateCache[PARAMETER_CACHE_SIZE] = { 0, };
+static uint8_t paramBufferLength = 0;
+static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
+static uint8_t paramUpdateBuffer[PARAM_BUFFER_SIZE] = { 0, };
 
 
 bool isEscSensorActive(void)
@@ -1534,21 +1534,18 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * 
  * Telemetry Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      Header Sync (0x55)
- *      1:      Message format version (0x00)
- *      2:      Message Length incl. header and CRC (22)
- *      3:      Device ID
- *    4-6:      Timestamp ms
- *      7:      Throttle in 0.5%
- *    8-9:      Current in 0.1A
- *  10-11:      Voltage in 0.1V
- *  12-13:      Consumption in mAh
- *     14:      Temperature in °C
- *     15:      PWM duty cycle in 0.5%
- *     16:      BEC voltage in 0.1V
- *  17-18:      RPM in 5rpm steps
- *     19:      Error code
- *  20-21:      CRC16 CCITT
+ *    0-5:      Header
+ *    6-8:      Timestamp ms
+ *      9:      Throttle in 0.5%
+ *  10-11:      Current in 0.1A
+ *  12-13:      Voltage in 0.1V
+ *  14-15:      Consumption in mAh
+ *     16:      Temperature in °C
+ *     17:      PWM duty cycle in 0.5%
+ *     18:      BEC voltage in 0.1V
+ *  19-20:      RPM in 5rpm steps
+ *     21:      Error code
+ *  22-23:      CRC16 CCITT
  *
  */
 #define TRIB_SIG                        0x50
@@ -1600,13 +1597,13 @@ static void tribStartFrame(timeMs_t currentTimeMs)
 
 static void tribReqTelemetryFrame(timeUs_t currentTimeMs)
 {
-        txbuffer[0] = 0x51;     // req: read, status
-        txbuffer[1] = 0;        // addr: 0x000000, current measurements
-        txbuffer[2] = 0;
-        txbuffer[3] = 0;
-        txbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
-        txbuffer[5] = 0;
-        serialWriteBuf(escSensorPort, txbuffer, 6);
+        reqbuffer[0] = 0x51;     // req: read, status
+        reqbuffer[1] = 0;        // addr: 0x000000, current measurements
+        reqbuffer[2] = 0;
+        reqbuffer[3] = 0;
+        reqbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
+        reqbuffer[5] = 0;
+        serialWriteBuf(escSensorPort, reqbuffer, 6);
 
         // expect response
         tribStartFrame(currentTimeMs);
@@ -1656,7 +1653,7 @@ static bool tribDecodeResponse(void)
 {
     // validate against request header, must match
     for (int i = 0; i < 6; i++) {
-        if (buffer[i] != txbuffer[i])
+        if (buffer[i] != reqbuffer[i])
             return false;
     }
 
@@ -1837,6 +1834,8 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
 
 #define OPENYGE_TEMP_OFFSET             40
 
+#define OPENYGE_MAX_CACHE_SIZE          64                  // limited by use of uint64_t as bit array for oygeCachedParams
+
 enum {
     OPENYGE_FRAME_FAILED                = 0,
     OPENYGE_FRAME_PENDING               = 1,
@@ -1849,6 +1848,7 @@ static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
 static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
 
 static uint64_t oygeCachedParams = 0;
+static uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
 
 
 static uint8_t oygeCountParamBits(uint64_t bits) 
@@ -1861,23 +1861,24 @@ static uint8_t oygeCountParamBits(uint64_t bits)
 
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
-    if (pidx >= PARAMETER_CACHE_SIZE)
+    uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
+    if (pidx >= maxParams || pidx >= OPENYGE_MAX_CACHE_SIZE)
         return;
 
-    escParameterCache[pidx] = pdata;
+    oygeParamCache[pidx] = pdata;
     oygeCachedParams |= (1ULL << pidx);
 
-    // skip if count already known or count parameter not yet seen (param[0] for YGE)
-    if (escParameterCount > 0 || (oygeCachedParams & 0x01) == 0)
+    // skip if count already known (parameter data ready) or count parameter not yet seen (param[0] for YGE)
+    if (paramBufferLength > 0 || (oygeCachedParams & 0x01) == 0)
         return;
 
-    // image is ready if all expected parameters have been cached
-    uint16_t ygeParameterCount = escParameterCache[0];
+    // image is ready if all expected parameters now resident in cache
+    uint16_t ygeParameterCount = oygeParamCache[0];
     if (oygeCountParamBits(oygeCachedParams) == ygeParameterCount)
-        escParameterCount = ygeParameterCount;
+        paramBufferLength = ygeParameterCount * 2;
 }
 
-bool oygeCommitParameters()
+static bool oygeCommitParameters()
 {
     return false;
 }
@@ -2220,26 +2221,19 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParameterCount(void)
+uint8_t escGetParamBufferLength(void)
 {
-    return escParameterCount;
+    return paramBufferLength;
 }
 
-uint16_t escGetParameter(uint8_t index)
+uint8_t *escGetParamBuffer()
 {
-    if (index >= escParameterCount)
-        return 0;
-
-    return escParameterCache[index];
+    return paramBuffer;
 }
 
-bool escSetParameter(uint8_t index, uint16_t param)
+uint8_t *escGetParamUpdateBuffer()
 {
-    if (index >= escParameterCount)
-        return false;
-
-    escParameterUpdateCache[index] = param;
-    return true;
+    return paramUpdateBuffer;
 }
 
 bool escCommitParameters()

@@ -807,12 +807,11 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
     case MSP_ESC_PARAMETERS:
         {
-            uint8_t count = escGetParameterCount();
-            if (count == 0)
+            uint8_t len = escGetParamBufferLength();
+            if (len == 0)
                 return false;
 
-            for(int i = 0; i < count; i++)
-                sbufWriteU16(dst, escGetParameter(i));
+            sbufWriteData(dst, escGetParamBuffer(), len);
         }
         break;
 #endif
@@ -2651,12 +2650,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ESC_PARAMETERS:
         {
-            uint8_t count = escGetParameterCount();
-            if (count == 0)
+            uint8_t len = escGetParamBufferLength();
+            if (len == 0)
                 return MSP_RESULT_ERROR;
 
-            for (int i = 0; i < count; i++)
-                escSetParameter(i, sbufReadU32(src));
+            sbufReadData(src, escGetParamUpdateBuffer(), len);
 
             if (!escCommitParameters())
                 return MSP_RESULT_ERROR;
