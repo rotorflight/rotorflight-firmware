@@ -100,6 +100,7 @@ enum {
 };
 
 #define TELEMETRY_BUFFER_SIZE    40
+#define REQUEST_BUFFER_SIZE      40
 #define PARAMETER_CACHE_SIZE     40     // <== size must not exceed 64
 
 static serialPort_t *escSensorPort = NULL;
@@ -127,6 +128,8 @@ static volatile uint8_t bufferPos = 0;
 
 static uint8_t  readBytes = 0;
 static uint32_t syncCount = 0;
+
+static uint8_t txbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
 static uint8_t escParameterCount = 0;
 static uint16_t escParameterCache[PARAMETER_CACHE_SIZE] = { 0, };
@@ -1495,6 +1498,266 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
+ * Scorpion Telemetry
+
+ *    - Serial protocol is 38400,8N1
+ *    - Frame rate running:10Hz idle:1Hz
+ *    - Little-Endian fields
+ *    - CRC16-CCITT
+ *    - Error Code bits:
+ *         0:  N/A
+ *         1:  BEC voltage error
+ *         2:  Temperature error
+ *         3:  Consumption error
+ *         4:  Input voltage error
+ *         5:  Current error
+ *         6:  N/A
+ *         7:  Throttle error
+ *
+ * Request Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      Req: MSN - read = 0x5, write = 0xD, LSN - region
+ *  1,2,3:      Address: Starting address in region to access
+ *      4:      Length: Data length to read/write, does not include Data crc
+ *              Requested data length in bytes should not be more than 32 bytes and should  be a multiple of 2 bytes
+ *      5:      CRC: Header CRC. 0 value means that crc is not used. And no additional bytes for data crc
+ * Regions
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ * 0 – System region, read only
+ * 1 – Status region, read only
+ * 2 – Control region, stay away
+ * 3 – Settings region, read/write access
+ * 4 – FW region, write only, encrypted. Stay away
+ * 5 - Log region, read only
+ * 6 – User data
+
+ * 
+ * Telemetry Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      Header Sync (0x55)
+ *      1:      Message format version (0x00)
+ *      2:      Message Length incl. header and CRC (22)
+ *      3:      Device ID
+ *    4-6:      Timestamp ms
+ *      7:      Throttle in 0.5%
+ *    8-9:      Current in 0.1A
+ *  10-11:      Voltage in 0.1V
+ *  12-13:      Consumption in mAh
+ *     14:      Temperature in °C
+ *     15:      PWM duty cycle in 0.5%
+ *     16:      BEC voltage in 0.1V
+ *  17-18:      RPM in 5rpm steps
+ *     19:      Error code
+ *  20-21:      CRC16 CCITT
+ *
+ */
+#define TRIB_SIG                        0x50
+#define TRIB_BOOT_DELAY                 5000                // 4 seconds
+#define TRIB_FRAME_PERIOD               50                  // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
+#define TRIB_FRAME_TIMEOUT              200                 // Response timeout depends on ESC business but no more than 200ms.
+                                                            // Host must wait ESC response or timeout before sending new packe
+#define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
+
+static uint32_t tribFramePeriod = 0;
+static uint32_t tribFrameTimestamp = 0;
+static uint16_t tribFrameTimeout = TRIB_FRAME_TIMEOUT;
+static volatile uint8_t tribFrameLength = TRIB_HEADER_LENGTH;
+
+// smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
+// sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
+// static uint8_t tribSettingAddresses[] = {
+//     0x00,   // device name (32 byte string)
+//     0x10,   // device mode (uint16_t)
+//     0x11,   // bec voltage (uint16_t)
+//     0x12,   // rotation (uint16_t)
+//     0x23,   // protection delay (ms: uint16_t)
+//     0x24,   // protection low voltage (smeas_t: uint16_t)
+//     0x25,   // protection maximum temperature (smeas_t: uint16_t)
+//     0x26,   // protection maximum current (smeas_t: uint16_t)
+//     0x27,   // protection cutoff value (smeas_t: uint16_t)
+//     0x28,   // protection maximum consumption (smeas_t: uint16_t)
+//     0x31,   // firmware version (uint16_t)
+
+//     0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+//     0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+//     0x46,   // serial no. (uint32_t)
+// };
+
+static void tribFrameSyncError(void)
+{
+    readBytes = 0;
+    syncCount = 0;
+
+    totalSyncErrorCount++;
+}
+
+static void tribStartFrame(timeMs_t currentTimeMs)
+{
+    readBytes = 0;
+    tribFrameLength = TRIB_HEADER_LENGTH;
+    tribFrameTimestamp = currentTimeMs;
+}
+
+static void tribReqTelemetryFrame(timeUs_t currentTimeMs)
+{
+        txbuffer[0] = 0x51;     // req: read, status
+        txbuffer[1] = 0;        // addr: 0x000000, current measurements
+        txbuffer[2] = 0;
+        txbuffer[3] = 0;
+        txbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
+        txbuffer[5] = 0;
+        serialWriteBuf(escSensorPort, txbuffer, 6);
+
+        // expect response
+        tribStartFrame(currentTimeMs);
+}
+
+static bool tribDecodeTelemetryFrame(void)
+{
+    // payload: 16 byte (Log_rec_t)
+    uint16_t rpm = buffer[20] << 8 | buffer[19];
+    uint16_t temp = buffer[16];
+    uint16_t power = buffer[17];
+    uint16_t voltage = buffer[13] << 8 | buffer[12];
+    uint16_t current = buffer[11] << 8 | buffer[10];
+    uint16_t capacity = buffer[15] << 8 | buffer[14];
+    uint16_t status = buffer[21];
+    uint16_t voltBEC = buffer[18];
+
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = rpm * 5;
+    escSensorData[0].pwm = power * 5;
+    escSensorData[0].voltage = voltage * 100;
+    escSensorData[0].current = current * 100;
+    escSensorData[0].consumption = capacity;
+    escSensorData[0].temperature = temp * 10;
+    escSensorData[0].bec_voltage = voltBEC * 100;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    totalFrameCount++;
+
+    return true;
+}
+
+static bool tribDecodeResponse(void)
+{
+    // validate against request header, must match
+    for (int i = 0; i < 6; i++) {
+        if (buffer[i] != txbuffer[i])
+            return false;
+    }
+
+    uint8_t req = buffer[0];
+    switch (req)
+    {
+        case 0x51:
+            return tribDecodeTelemetryFrame();
+        default:
+            return false;
+    }
+}
+  
+static FAST_CODE void tribDataReceive(uint16_t c, void *data)
+{
+    UNUSED(data);
+
+    totalByteCount++;
+
+    if (readBytes < tribFrameLength) {
+        buffer[readBytes++] = c;
+
+        if (readBytes == 1) {
+            // req / singature
+            if ((c & TRIB_SIG) != TRIB_SIG)
+                tribFrameSyncError();
+        }
+        else if (readBytes == 5) {
+            // frame length
+            if (c > TELEMETRY_BUFFER_SIZE) {
+                // protect against buffer overflow
+                tribFrameSyncError();
+            }
+            else if((c & 0x01) || c > 32) {
+                // invalid length (must not be more than 32 bytes and should be a multiple of 2 bytes)
+                tribFrameSyncError();
+            }
+            else {
+                // new frame length for this frame (header + data)
+                tribFrameLength = TRIB_HEADER_LENGTH + c;
+                syncCount++;
+            }
+        }
+    }
+}
+
+static void tribSensorProcess(timeUs_t currentTimeUs)
+{
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
+
+    // wait before initializing
+    if (currentTimeMs < TRIB_BOOT_DELAY) 
+        return;
+
+    // one time init, request first frame
+    if (tribFrameTimestamp == 0) {
+        tribReqTelemetryFrame(currentTimeMs);
+        return;
+    }
+
+    // in frame period?
+    if (tribFramePeriod != 0) {
+        // request next frame if elapsed
+        if (currentTimeMs > tribFrameTimestamp + tribFramePeriod) {
+            tribFramePeriod = 0;
+            tribReqTelemetryFrame(currentTimeMs);
+        }
+        return;
+    }
+
+    // timeout waiting for frame? request next frame
+    if (currentTimeMs > tribFrameTimestamp + tribFrameTimeout) {
+        increaseDataAge(0);
+        totalTimeoutCount++;
+        tribReqTelemetryFrame(currentTimeMs);
+        return;
+    }
+    
+    // First, check the variables that can change in the interrupt
+    if (readBytes < tribFrameLength) {
+        // frame not ready yet
+        return;
+    }
+
+    // CRC validation (Tribunis ESC does not use CRC for (request/rwesponse) communication)
+    uint16_t crc = 0;
+    if (crc != 0 || !tribDecodeResponse()) {
+        increaseDataAge(0);
+        totalCrcErrorCount++;
+        tribReqTelemetryFrame(currentTimeMs);
+        return;
+    }
+
+    // next, after frame period elapsed
+    totalFrameCount++;
+    tribFramePeriod = TRIB_FRAME_PERIOD;
+    tribStartFrame(currentTimeMs);
+}
+
+
+/*
  * OpenYGE Telemetry
  *
  *     - Serial protocol is 115200,8N1
@@ -1667,12 +1930,15 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
         }
         else if (readBytes == 4) {
             // frame length
-            // protect against buffer overflow
-            if (c > TELEMETRY_BUFFER_SIZE)
+            if (c > TELEMETRY_BUFFER_SIZE) {
+                // protect against buffer overflow
                 oygeFrameSyncError();
-            else
+            }
+            else {
+                // new frame length for this frame
+                oygeFrameLength = c;
                 syncCount++;
-            oygeFrameLength = c;
+            }
         }
     }
 }
@@ -1823,6 +2089,8 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
+    UNUSED(uncSensorProcess);
+
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
@@ -1835,7 +2103,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 hw5SensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_SCORPION:
-                uncSensorProcess(currentTimeUs);
+                tribSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
@@ -1909,7 +2177,10 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_SCORPION:
+            callback = tribDataReceive;
             baudrate = 38400;
+            mode = MODE_RXTX;
+            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_KONTRONIK:
             baudrate = 115200;
