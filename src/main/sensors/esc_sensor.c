@@ -1535,17 +1535,17 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  * Telemetry Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
  *    0-5:      Header
- *    6-8:      Timestamp ms
- *      9:      Throttle in 0.5%
- *  10-11:      Current in 0.1A
- *  12-13:      Voltage in 0.1V
- *  14-15:      Consumption in mAh
- *     16:      Temperature in °C
- *     17:      PWM duty cycle in 0.5%
- *     18:      BEC voltage in 0.1V
- *  19-20:      RPM in 5rpm steps
- *     21:      Error code
- *  22-23:      CRC16 CCITT
+ *  +0-+2:      Timestamp ms
+ *     +3:      Throttle in 0.5%
+ *  +4-+5:      Current in 0.1A
+ *  +6-+7:      Voltage in 0.1V
+ *  +8-+9:      Consumption in mAh
+ *    +10:      Temperature in °C
+ *    +11:      PWM duty cycle in 0.5%
+ *    +12:      BEC voltage in 0.1V
+ *+13-+14:      RPM in 5rpm steps
+ *    +15:      Error code
+ *+16-+17:      CRC16 CCITT
  *
  */
 #define TRIB_SIG                        0x50
@@ -1560,32 +1560,70 @@ static uint32_t tribFrameTimestamp = 0;
 static uint16_t tribFrameTimeout = TRIB_FRAME_TIMEOUT;
 static volatile uint8_t tribFrameLength = TRIB_HEADER_LENGTH;
 
+static bool tribUncMode = false;
+
+static uint64_t tribCachedParams = 0;
+static uint16_t *tribParamCache = (uint16_t*)paramBuffer;
+
 // smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
 // sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
-// static uint8_t tribSettingAddresses[] = {
-//     0x00,   // device name (32 byte string)
-//     0x10,   // device mode (uint16_t)
-//     0x11,   // bec voltage (uint16_t)
-//     0x12,   // rotation (uint16_t)
-//     0x23,   // protection delay (ms: uint16_t)
-//     0x24,   // protection low voltage (smeas_t: uint16_t)
-//     0x25,   // protection maximum temperature (smeas_t: uint16_t)
-//     0x26,   // protection maximum current (smeas_t: uint16_t)
-//     0x27,   // protection cutoff value (smeas_t: uint16_t)
-//     0x28,   // protection maximum consumption (smeas_t: uint16_t)
-//     0x31,   // firmware version (uint16_t)
+static uint8_t tribSettingAddresses[] = {
+    0x00,   // device name (32 byte string)
+    0x10,   // device mode (uint16_t)
+    0x11,   // bec voltage (uint16_t)
+    0x12,   // rotation (uint16_t)
+    0x23,   // protection delay (ms: uint16_t)
+    0x24,   // protection low voltage (smeas_t: uint16_t)
+    0x25,   // protection maximum temperature (smeas_t: uint16_t)
+    0x26,   // protection maximum current (smeas_t: uint16_t)
+    0x27,   // protection cutoff value (smeas_t: uint16_t)
+    0x28,   // protection maximum consumption (smeas_t: uint16_t)
+    0x31,   // firmware version (uint16_t)
 
-//     0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-//     0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-//     0x46,   // serial no. (uint32_t)
-// };
+    0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+    0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+    0x46,   // serial no. (uint32_t)
+};
+
+
+// return index of missing param, or -1 if all there
+static uint8_t tribFindInvalidParam(uint64_t bits) 
+{
+    uint8_t count = sizeof(tribSettingAddresses);
+    for (uint8_t i = 0; i < count; i++, bits >>= 1ULL) {
+        if ((bits & 1) == 0)
+            return i;
+    }
+    return -1;
+}
+
+static void tribInvalidateParam(uint8_t pidx)
+{
+    tribCachedParams &= ~(1ULL << pidx);
+}
+
 
 static void tribFrameSyncError(void)
 {
+    // just keep compiler happy for now
+    UNUSED(tribSettingAddresses);
+    UNUSED(tribParamCache);
+    UNUSED(tribFindInvalidParam);
+    UNUSED(tribInvalidateParam);
+
     readBytes = 0;
     syncCount = 0;
 
     totalSyncErrorCount++;
+}
+
+static bool tripValidateResponseHeader()
+{
+    for (int i = 0; i < 6; i++) {
+        if (buffer[i] != reqbuffer[i])
+            return false;
+    }
+    return true;
 }
 
 static void tribStartFrame(timeMs_t currentTimeMs)
@@ -1595,31 +1633,31 @@ static void tribStartFrame(timeMs_t currentTimeMs)
     tribFrameTimestamp = currentTimeMs;
 }
 
-static void tribReqTelemetryFrame(timeUs_t currentTimeMs)
+static void tribSendReadStatusReq(timeUs_t currentTimeMs)
 {
-        reqbuffer[0] = 0x51;     // req: read, status
-        reqbuffer[1] = 0;        // addr: 0x000000, current measurements
-        reqbuffer[2] = 0;
-        reqbuffer[3] = 0;
-        reqbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
-        reqbuffer[5] = 0;
-        serialWriteBuf(escSensorPort, reqbuffer, 6);
+    reqbuffer[0] = 0x51;     // req: read, status
+    reqbuffer[1] = 0;        // addr: 0x000000, current measurements
+    reqbuffer[2] = 0;
+    reqbuffer[3] = 0;
+    reqbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
+    reqbuffer[5] = 0;
+    serialWriteBuf(escSensorPort, reqbuffer, 6);
 
-        // expect response
-        tribStartFrame(currentTimeMs);
+    // expect response
+    tribStartFrame(currentTimeMs);
 }
 
-static bool tribDecodeTelemetryFrame(void)
+static bool tribDecodeLogRecord(uint8_t hl)
 {
     // payload: 16 byte (Log_rec_t)
-    uint16_t rpm = buffer[20] << 8 | buffer[19];
-    uint16_t temp = buffer[16];
-    uint16_t power = buffer[17];
-    uint16_t voltage = buffer[13] << 8 | buffer[12];
-    uint16_t current = buffer[11] << 8 | buffer[10];
-    uint16_t capacity = buffer[15] << 8 | buffer[14];
-    uint16_t status = buffer[21];
-    uint16_t voltBEC = buffer[18];
+    uint16_t rpm = buffer[hl + 14] << 8 | buffer[hl + 13];
+    uint16_t temp = buffer[hl + 10];
+    uint16_t power = buffer[hl + 11];
+    uint16_t voltage = buffer[hl + 7] << 8 | buffer[hl + 6];
+    uint16_t current = buffer[hl + 5] << 8 | buffer[hl + 4];
+    uint16_t capacity = buffer[hl + 9] << 8 | buffer[hl + 8];
+    uint16_t status = buffer[hl + 15];
+    uint16_t voltBEC = buffer[hl + 12];
 
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
@@ -1644,24 +1682,95 @@ static bool tribDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
-    totalFrameCount++;
+    return true;
+}
+
+static bool tribDecodeReadStatusResp(void)
+{
+    // validate header
+    if (!tripValidateResponseHeader())
+        return false;
+
+    // 6 byte header + 16 byte (Log_rec_t) payload, no CRC
+    return tribDecodeLogRecord(6);
+}
+
+static bool tribDecodeUNCFrame(void)
+{
+    // // validate CRC
+    // uint16_t crc = buffer[tribFrameLength - 2] << 8 | buffer[tribFrameLength - 1];
+    // if (calculateCRC16_CCITT(buffer, 20) != crc) {
+    //     return false;
+    // }
+
+    // 4 byte header + 16 byte (Log_rec_t) payload
+    if (!tribDecodeLogRecord(4))
+        return false;
+
+    // switch to UNC mode if first UNC frame received
+    if (!tribUncMode)
+        tribUncMode = true;
+
+    return true;
+}
+
+static void tribSendReadSettingReq(timeUs_t currentTimeMs, uint8_t pidx, uint8_t len)
+{
+        reqbuffer[0] = 0x53;     // req: read, setting
+        reqbuffer[3] = pidx;     // addr
+        reqbuffer[2] = 0;
+        reqbuffer[1] = 0;
+        reqbuffer[4] = len;      // length
+        reqbuffer[5] = 0;
+        serialWriteBuf(escSensorPort, reqbuffer, 6);
+
+        // expect response
+        tribStartFrame(currentTimeMs);
+}
+
+static bool tribDecodeReadSettingResp(void)
+{
+    // validate header
+    if (!tripValidateResponseHeader())
+        return false;
+
+    uint8_t addr = buffer[1];
+    uint16_t pdata = buffer[7] << 8 | buffer[6];
+
+    escSensorData[0].age = 0;
+    switch (addr)
+    {
+        case 0x10:
+            escSensorData[0].voltage = pdata * 1000;
+            break;
+        case 0x11:
+            escSensorData[0].current = pdata * 1000;
+            break;
+        case 0x12:
+            escSensorData[0].consumption = pdata;
+            break;
+        case 0x13:
+            escSensorData[0].temperature = pdata * 10;
+            break;
+        case 0x31:
+            escSensorData[0].bec_voltage = pdata * 100;
+            break;
+    }
 
     return true;
 }
 
 static bool tribDecodeResponse(void)
 {
-    // validate against request header, must match
-    for (int i = 0; i < 6; i++) {
-        if (buffer[i] != reqbuffer[i])
-            return false;
-    }
-
     uint8_t req = buffer[0];
     switch (req)
     {
         case 0x51:
-            return tribDecodeTelemetryFrame();
+            return tribDecodeReadStatusResp();
+        case 0x53:
+            return tribDecodeReadSettingResp();
+        case 0x55:
+            return tribDecodeUNCFrame();
         default:
             return false;
     }
@@ -1681,8 +1790,20 @@ static FAST_CODE void tribDataReceive(uint16_t c, void *data)
             if ((c & TRIB_SIG) != TRIB_SIG)
                 tribFrameSyncError();
         }
-        else if (readBytes == 5) {
-            // frame length
+        else if (buffer[0] == 0x55 && readBytes == 3) {
+            // UNC length
+            if (c > TELEMETRY_BUFFER_SIZE) {
+                // protect against buffer overflow
+                tribFrameSyncError();
+            }
+            else {
+                // new frame length for this frame (header + data)
+                tribFrameLength = c;
+                syncCount++;
+            }
+        }
+        else if (buffer[0] != 0x55 && readBytes == 5) {
+            // STD length
             if (c > TELEMETRY_BUFFER_SIZE) {
                 // protect against buffer overflow
                 tribFrameSyncError();
@@ -1700,8 +1821,37 @@ static FAST_CODE void tribDataReceive(uint16_t c, void *data)
     }
 }
 
+static void tribNextTelemetryFrame(timeUs_t currentTimeMs)
+{
+    // req status or just listen if in UNC mode
+    if (tribUncMode)
+        tribStartFrame(currentTimeMs);
+    else
+        tribSendReadStatusReq(currentTimeMs);
+}
+
+static uint8_t tpidx = 0;
+static void tribNextTelemetryFrameDebug(timeUs_t currentTimeMs)
+{
+    uint8_t len = 2;
+    uint8_t pidx = tpidx++;
+    if(pidx == 0) {
+        len = 32;
+    } else if (pidx == 1) {
+        pidx = 0x31;
+    }
+    else {
+        pidx = 0x10 + (pidx % 4);
+    }
+
+    tribSendReadSettingReq(currentTimeMs, pidx, len);
+}
+
 static void tribSensorProcess(timeUs_t currentTimeUs)
 {
+    // just keep compiler happy for now
+    UNUSED(tribNextTelemetryFrameDebug);
+
     const timeMs_t currentTimeMs = currentTimeUs / 1000;
 
     // wait before initializing
@@ -1710,7 +1860,7 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
 
     // one time init, request first frame
     if (tribFrameTimestamp == 0) {
-        tribReqTelemetryFrame(currentTimeMs);
+        tribNextTelemetryFrame(currentTimeMs);
         return;
     }
 
@@ -1719,7 +1869,7 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
         // request next frame if elapsed
         if (currentTimeMs > tribFrameTimestamp + tribFramePeriod) {
             tribFramePeriod = 0;
-            tribReqTelemetryFrame(currentTimeMs);
+            tribNextTelemetryFrame(currentTimeMs);
         }
         return;
     }
@@ -1728,22 +1878,21 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
     if (currentTimeMs > tribFrameTimestamp + tribFrameTimeout) {
         increaseDataAge(0);
         totalTimeoutCount++;
-        tribReqTelemetryFrame(currentTimeMs);
+        tribNextTelemetryFrame(currentTimeMs);
         return;
     }
     
-    // First, check the variables that can change in the interrupt
+    // frame complete?
     if (readBytes < tribFrameLength) {
         // frame not ready yet
         return;
     }
 
     // CRC validation (Tribunis ESC does not use CRC for (request/rwesponse) communication)
-    uint16_t crc = 0;
-    if (crc != 0 || !tribDecodeResponse()) {
+    if (!tribDecodeResponse()) {
         increaseDataAge(0);
         totalCrcErrorCount++;
-        tribReqTelemetryFrame(currentTimeMs);
+        tribNextTelemetryFrame(currentTimeMs);
         return;
     }
 
@@ -2136,6 +2285,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
+        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);
     }
 }
 
