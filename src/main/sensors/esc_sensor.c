@@ -1550,17 +1550,18 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  */
 #define TRIB_SIG                        0x50
 #define TRIB_BOOT_DELAY                 5000                // 4 seconds
-#define TRIB_FRAME_PERIOD               50                  // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
-#define TRIB_FRAME_TIMEOUT              200                 // Response timeout depends on ESC business but no more than 200ms.
-                                                            // Host must wait ESC response or timeout before sending new packe
+#define TRIB_FRAME_PERIOD               100                 // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
+#define TRIB_RESP_FRAME_TIMEOUT         200                 // Response timeout depends on ESC business but no more than 200ms
+#define TRIB_UNC_FRAME_TIMEOUT          1200                // Timeout for UNC packets
+                                                            // Host must wait ESC response or timeout before sending new packet
 #define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
 
 static uint32_t tribFramePeriod = 0;
 static uint32_t tribFrameTimestamp = 0;
-static uint16_t tribFrameTimeout = TRIB_FRAME_TIMEOUT;
+static uint16_t tribFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;  // TODO: refactor UNC vs RESP
 static volatile uint8_t tribFrameLength = TRIB_HEADER_LENGTH;
 
-static bool tribUncMode = false;
+static bool tribUncMode = true;
 
 static uint64_t tribCachedParams = 0;
 static uint16_t *tribParamCache = (uint16_t*)paramBuffer;
@@ -1617,7 +1618,7 @@ static void tribFrameSyncError(void)
     totalSyncErrorCount++;
 }
 
-static bool tripValidateResponseHeader()
+static bool tribValidateResponseHeader()
 {
     for (int i = 0; i < 6; i++) {
         if (buffer[i] != reqbuffer[i])
@@ -1633,12 +1634,12 @@ static void tribStartFrame(timeMs_t currentTimeMs)
     tribFrameTimestamp = currentTimeMs;
 }
 
-static void tribSendReadStatusReq(timeUs_t currentTimeMs)
+static void tribSendReadStatusReq(timeUs_t currentTimeMs, uint8_t addr)
 {
     reqbuffer[0] = 0x51;     // req: read, status
     reqbuffer[1] = 0;        // addr: 0x000000, current measurements
     reqbuffer[2] = 0;
-    reqbuffer[3] = 0;
+    reqbuffer[3] = addr;
     reqbuffer[4] = 0x10;      // length: 16 bytes (Log_rec_t)
     reqbuffer[5] = 0;
     serialWriteBuf(escSensorPort, reqbuffer, 6);
@@ -1688,41 +1689,43 @@ static bool tribDecodeLogRecord(uint8_t hl)
 static bool tribDecodeReadStatusResp(void)
 {
     // validate header
-    if (!tripValidateResponseHeader())
+    if (!tribValidateResponseHeader())
         return false;
 
     // 6 byte header + 16 byte (Log_rec_t) payload, no CRC
-    return tribDecodeLogRecord(6);
-}
-
-static bool tribDecodeUNCFrame(void)
-{
-    // // validate CRC
-    // uint16_t crc = buffer[tribFrameLength - 2] << 8 | buffer[tribFrameLength - 1];
-    // if (calculateCRC16_CCITT(buffer, 20) != crc) {
-    //     return false;
-    // }
-
-    // 4 byte header + 16 byte (Log_rec_t) payload
-    if (!tribDecodeLogRecord(4))
+    if (!tribDecodeLogRecord(6))
         return false;
 
-    // switch to UNC mode if first UNC frame received
-    if (!tribUncMode)
-        tribUncMode = true;
+    // wait before next status request
+    tribFramePeriod = TRIB_FRAME_PERIOD;
 
     return true;
 }
 
 static void tribSendReadSettingReq(timeUs_t currentTimeMs, uint8_t pidx, uint8_t len)
 {
-        reqbuffer[0] = 0x53;     // req: read, setting
+        reqbuffer[0] = 0x53;    // req: read, setting
+        reqbuffer[1] = 0;       // addr
+        reqbuffer[2] = 0;
+        reqbuffer[3] = pidx;
+        reqbuffer[4] = len;     // length
+        reqbuffer[5] = 0;
+        serialWriteBuf(escSensorPort, reqbuffer, 6);
+
+        // expect response
+        tribStartFrame(currentTimeMs);
+}
+
+static void tribSendWriteSettingReq(timeUs_t currentTimeMs, uint8_t pidx, void *src, uint8_t len)
+{
+        reqbuffer[0] = 0xD3;     // req: write, setting
         reqbuffer[3] = pidx;     // addr
         reqbuffer[2] = 0;
         reqbuffer[1] = 0;
         reqbuffer[4] = len;      // length
         reqbuffer[5] = 0;
-        serialWriteBuf(escSensorPort, reqbuffer, 6);
+        memcpy(reqbuffer + 6, src, len);
+        serialWriteBuf(escSensorPort, reqbuffer, 6 + len);
 
         // expect response
         tribStartFrame(currentTimeMs);
@@ -1731,31 +1734,52 @@ static void tribSendReadSettingReq(timeUs_t currentTimeMs, uint8_t pidx, uint8_t
 static bool tribDecodeReadSettingResp(void)
 {
     // validate header
-    if (!tripValidateResponseHeader())
+    if (!tribValidateResponseHeader())
         return false;
 
     uint8_t addr = buffer[1];
     uint16_t pdata = buffer[7] << 8 | buffer[6];
 
-    escSensorData[0].age = 0;
-    switch (addr)
-    {
-        case 0x10:
-            escSensorData[0].voltage = pdata * 1000;
-            break;
-        case 0x11:
-            escSensorData[0].current = pdata * 1000;
-            break;
-        case 0x12:
-            escSensorData[0].consumption = pdata;
-            break;
-        case 0x13:
-            escSensorData[0].temperature = pdata * 10;
-            break;
-        case 0x31:
-            escSensorData[0].bec_voltage = pdata * 100;
-            break;
+escSensorData[0].age = 0;
+switch (addr)
+{
+    case 0x10:
+        escSensorData[0].voltage = pdata * 1000;
+        break;
+    case 0x11:
+        escSensorData[0].current = pdata * 1000;
+        break;
+    case 0x12:
+        escSensorData[0].consumption = pdata;
+        break;
+    case 0x13:
+        escSensorData[0].temperature = pdata * 10;
+        break;
+    case 0x31:
+        escSensorData[0].bec_voltage = pdata * 100;
+        break;
+}
+
+    return true;
+}
+
+static bool tribDecodeUNCFrame(void)
+{
+    // validate CRC
+    uint16_t crc = buffer[tribFrameLength - 1] << 8 | buffer[tribFrameLength - 2];
+    if (calculateCRC16_CCITT(buffer, 20) != crc) {
+        return false;
     }
+
+    // 4 byte header + 16 byte (Log_rec_t) payload
+    if (!tribDecodeLogRecord(4))
+        return false;
+    
+    // switch to UNC mode if first UNC frame received
+    if (!tribUncMode)
+        tribUncMode = true;
+
+    tribFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
 
     return true;
 }
@@ -1821,17 +1845,22 @@ static FAST_CODE void tribDataReceive(uint16_t c, void *data)
     }
 }
 
+static uint8_t addr = 0;
 static void tribNextTelemetryFrame(timeUs_t currentTimeMs)
 {
     // req status or just listen if in UNC mode
     if (tribUncMode)
         tribStartFrame(currentTimeMs);
     else
-        tribSendReadStatusReq(currentTimeMs);
+        tribSendReadStatusReq(currentTimeMs, addr);
+
+    // addr = (addr + 1) % 10;
+    // if (addr == 8)
+    //     addr++;
 }
 
 static uint8_t tpidx = 0;
-static void tribNextTelemetryFrameDebug(timeUs_t currentTimeMs)
+static void tribNextTelemetryFrameDebug2(timeUs_t currentTimeMs)
 {
     uint8_t len = 2;
     uint8_t pidx = tpidx++;
@@ -1844,13 +1873,32 @@ static void tribNextTelemetryFrameDebug(timeUs_t currentTimeMs)
         pidx = 0x10 + (pidx % 4);
     }
 
-    tribSendReadSettingReq(currentTimeMs, pidx, len);
+    if (tribUncMode)
+        tribStartFrame(currentTimeMs);
+    else
+        tribSendReadSettingReq(currentTimeMs, pidx, len);
+}
+
+static void tribNextTelemetryFrameDebug(timeUs_t currentTimeMs)
+{
+    uint8_t pidx = tpidx++;
+    if(pidx == 0) {
+        // read tele protocol
+        tribSendReadSettingReq(currentTimeMs, 0x13, 2);
+    } else if (pidx == 1) {
+        // write tele protocol
+        uint16_t protocol = 3;
+        tribSendWriteSettingReq(currentTimeMs, 0x13, &protocol, 2);
+    }
+
+    tribStartFrame(currentTimeMs);
 }
 
 static void tribSensorProcess(timeUs_t currentTimeUs)
 {
     // just keep compiler happy for now
     UNUSED(tribNextTelemetryFrameDebug);
+    UNUSED(tribNextTelemetryFrameDebug2);
 
     const timeMs_t currentTimeMs = currentTimeUs / 1000;
 
@@ -1896,9 +1944,8 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
         return;
     }
 
-    // next, after frame period elapsed
+    // next, ready for next frame
     totalFrameCount++;
-    tribFramePeriod = TRIB_FRAME_PERIOD;
     tribStartFrame(currentTimeMs);
 }
 
@@ -2285,7 +2332,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);
+        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);   // TODO: remove before shipping
     }
 }
 
