@@ -70,13 +70,13 @@ void pgResetFn_rxConfig(rxConfig_t *rxConfig)
 PG_REGISTER_WITH_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 
 PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
-    .rc_center = RC_CENTER_DEFAULT,
-    .rc_deflection = RC_DEFLECTION_DEFAULT,
+    .rc_center = 1500,
+    .rc_deflection = 510,
     .rc_arm_throttle = 1050,
     .rc_min_throttle = 1100,
     .rc_max_throttle = 1900,
-    .rc_deadband = 0,
-    .rc_yaw_deadband = 0,
+    .rc_deadband = 2,
+    .rc_yaw_deadband = 2,
     .rc_smoothness = 50,
     .rc_threshold = { 25, 25, 25, 50 },
 );

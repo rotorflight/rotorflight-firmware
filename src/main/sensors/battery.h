@@ -25,14 +25,11 @@
 #include "sensors/current.h"
 #include "sensors/voltage.h"
 
-#define CELL_VOLTAGE_FULL_CV            420
-
 #define VBAT_CELL_VOTAGE_RANGE_MIN      100
 #define VBAT_CELL_VOTAGE_RANGE_MAX      500
 #define VBAT_CELL_VOLTAGE_DEFAULT_MIN   330
 #define VBAT_CELL_VOLTAGE_DEFAULT_MAX   430
-
-#define MAX_AUTO_DETECT_CELL_COUNT      8
+#define VBAT_CELL_VOLTAGE_DEFAULT_FULL  410
 
 #define GET_BATTERY_LPF_FREQUENCY(period) (10.0f / period)
 
@@ -53,7 +50,8 @@ typedef enum {
 typedef struct batteryConfig_s {
 
     // battery size
-    uint8_t forceBatteryCellCount;          // Number of cells in battery, used for overwriting auto-detected cell count if someone has issues with it.
+    uint16_t batteryCapacity;               // mAh
+    uint8_t batteryCellCount;               // Number of cells in battery, zero for autodetection
 
     // sources
     uint8_t currentMeterSource;             // source of battery current meter used
@@ -67,9 +65,6 @@ typedef struct batteryConfig_s {
     uint16_t vbatnotpresentcellvoltage;     // Between vbatmaxcellvoltage and 2*this is considered to be USB powered. Below this it is notpresent
     uint8_t vbathysteresis;                 // hysteresis for alarm in 0.01V units, default 1 = 0.01V
     uint8_t lvcPercentage;                  // Percentage of throttle when lvc is triggered
-
-    // current & capacity
-    uint16_t batteryCapacity;               // mAh
     uint8_t consumptionWarningPercentage;   // Percentage of remaining capacity that should trigger a battery warning
 
     // warnings / alerts
