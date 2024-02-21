@@ -1496,7 +1496,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *     - Little-Endian byte order
  *     - Frame rate 20Hz
  *     - Thanks Fabian!
- * 
+ *
  * Motor states (4 LSB of status1)
  * ―――――――――――――――――――――――――――――――――――――――――――――――
  *      STATE_DISARMED              = 0x00,     // Motor stopped
@@ -1515,13 +1515,13 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *      STATE_RESERVED5             = 0x0D,
  *      STATE_RUNNING_NORM          = 0x0E,     // normal "Running"
  *      STATE_RESERVED6             = 0x0F,
- * 
+ *
  * Warning/error codes (4 MSB of status1)
  * ―――――――――――――――――――――――――――――――――――――――――――――――
  *      WARN_DEVICE_MASK            = 0xC0       // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
  *      WARN_DEVICE_ESC             = 0x00       // warning indicators are for ESC
  *      WARN_DEVICE_BEC             = 0x80       // warning indicators are for BEC
- * 
+ *
  *      WARN_OK                     = 0x00       // Overvoltage if Motor Status == STATE_POWER_CUT
  *      WARN_UNDERVOLTAGE           = 0x10       // Fail if Motor Status < STATE_STARTING
  *      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
@@ -1535,7 +1535,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *     1:       version;            // frame version
  *     2:       frame_type          // telemetry data = 0
  *     3:       frame_length;       // frame length including header and CRC
- * 
+ *
  * Payload...
  *     4:       reserved            // reserved
  *     5:       temperature;        // C degrees (0-> -40°C, 255->215°C)
@@ -1555,7 +1555,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *    25:       reserved1;          // reserved
  * 26,27:       idx;                // maybe future use
  * 28,29:       idx_data;           // maybe future use
- * 
+ *
  * 30,31:       crc16;              // CCITT, poly: 0x1021
  *
  */
@@ -1585,18 +1585,19 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 {
     uint16_t crc = 0;
 
-    for(uint16_t j = 0; j < len; j++)
+    for (uint16_t j = 0; j < len; j++)
     {
         crc = crc ^ ptr[j] << 8;
-        for(uint16_t i = 0; i < 8; i++)
+        for (uint16_t i = 0; i < 8; i++)
         {
-            if(crc & 0x8000)
+            if (crc & 0x8000)
                 crc = crc << 1 ^ 0x1021;
             else
                 crc = crc << 1;
         }
     }
-  return crc;
+
+    return crc;
 }
 
 static void oygeFrameSyncError(void)
@@ -1606,7 +1607,7 @@ static void oygeFrameSyncError(void)
 
     totalSyncErrorCount++;
 }
-  
+
 static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
@@ -1660,15 +1661,15 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     }
 
     uint8_t version = buffer[1];
-    int16_t  temp = buffer[5];
+    int16_t temp = buffer[5];
     uint16_t volt = buffer[7] << 8 | buffer[6];
     uint16_t curr = buffer[9] << 8 | buffer[8];
     uint16_t capa = buffer[11] << 8 | buffer[10];
     uint16_t erpm = buffer[13] << 8 | buffer[12];
-    uint8_t   pwm = buffer[14];
+    uint8_t pwm = buffer[14];
     uint16_t voltBEC = buffer[17] << 8 | buffer[16];
     uint16_t currBEC = buffer[19] << 8 | buffer[18];
-    int16_t  tempBEC = buffer[20];
+    int16_t tempBEC = buffer[20];
     uint8_t  status1 = buffer[21];
 
     if (version >= 2) {
@@ -1713,7 +1714,7 @@ static void oygeSensorProcess(timeUs_t currentTimeUs)
     const timeMs_t currentTimeMs = currentTimeUs / 1000;
 
     // wait before initializing
-    if (currentTimeMs < OPENYGE_BOOT_DELAY) 
+    if (currentTimeMs < OPENYGE_BOOT_DELAY)
         return;
 
     // one time init
@@ -1881,8 +1882,6 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_OPENYGE:
             callback = oygeDataReceive;
             baudrate = 115200;
-            mode = MODE_RXTX;
-            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];

@@ -13,7 +13,7 @@ jobs:
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 500
 
@@ -21,7 +21,7 @@ jobs:
       run: git push origin :${GITHUB_REF}
 
     - name: Cache ARM tools
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       env:
         cache-name: cache-arm-tools
       with:
@@ -81,7 +81,7 @@ jobs:
         ! grep -F -H '**FAILURE**' *.out
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: rotorflight-history-${{ env.GIT_VER }}
         path: 0*.out
