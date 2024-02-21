@@ -58,6 +58,7 @@ typedef struct governorConfig_s {
     uint8_t  gov_pwr_filter;
     uint8_t  gov_rpm_filter;
     uint8_t  gov_tta_filter;
+    uint8_t  gov_ff_filter;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);
