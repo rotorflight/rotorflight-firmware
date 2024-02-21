@@ -76,12 +76,12 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 3);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
-    .forceBatteryCellCount = 0,
+    .batteryCellCount = 0,
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
     .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
     .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
-    .vbatfullcellvoltage = 410,
+    .vbatfullcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_FULL,
     .vbatwarningcellvoltage = 350,
     .vbatnotpresentcellvoltage = 300,
     .vbathysteresis = 1,
@@ -294,15 +294,21 @@ void batteryUpdatePresence(void)
         // Battery has just been connected - calculate cells, warning voltages and reset state
         consumptionState = voltageState = BATTERY_OK;
 
-        if (batteryConfig()->forceBatteryCellCount != 0) {
-            batteryCellCount = batteryConfig()->forceBatteryCellCount;
-        } else {
-            unsigned cells = (getBatteryVoltage() / batteryConfig()->vbatmaxcellvoltage) + 1;
-            if (cells > MAX_AUTO_DETECT_CELL_COUNT) {
-                // something is wrong, we expect MAX_CELL_COUNT cells maximum (and autodetection will be problematic at 6+ cells)
-                cells = MAX_AUTO_DETECT_CELL_COUNT;
+        if (batteryConfig()->batteryCellCount != 0) {
+            batteryCellCount = batteryConfig()->batteryCellCount;
+        }
+        else {
+            static const unsigned auto_cells[] = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 12 };
+            unsigned voltage = getBatteryVoltage();
+            batteryCellCount = 1;
+
+            for (unsigned index = 0; index < ARRAYLEN(auto_cells); index++) {
+                if (voltage >= auto_cells[index] * batteryConfig()->vbatmincellvoltage &&
+                    voltage <= auto_cells[index] * batteryConfig()->vbatmaxcellvoltage) {
+                    batteryCellCount = auto_cells[index];
+                    break;
+                }
             }
-            batteryCellCount = cells;
         }
 
         batteryWarningVoltage = batteryCellCount * batteryConfig()->vbatwarningcellvoltage;
