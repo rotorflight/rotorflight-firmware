@@ -1574,7 +1574,6 @@ static volatile uint8_t tribFrameLength = TRIB_HEADER_LENGTH;
 static bool tribUncMode = true;
 
 static uint64_t tribCachedParams = 0;
-static uint16_t *tribParamCache = (uint16_t*)paramBuffer;
 
 // smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
 // sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
@@ -1618,7 +1617,6 @@ static void tribFrameSyncError(void)
 {
     // just keep compiler happy for now
     UNUSED(tribSettingAddresses);
-    UNUSED(tribParamCache);
     UNUSED(tribFindInvalidParam);
     UNUSED(tribInvalidateParam);
 
@@ -2054,7 +2052,6 @@ static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
 static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
 
 static uint64_t oygeCachedParams = 0;
-static uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
 
 
 static uint8_t oygeCountParamBits(uint64_t bits) 
@@ -2071,6 +2068,7 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
     if (pidx >= maxParams || pidx >= OPENYGE_MAX_CACHE_SIZE)
         return;
 
+    uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
     oygeParamCache[pidx] = pdata;
     oygeCachedParams |= (1ULL << pidx);
 
@@ -2086,6 +2084,8 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 
 static bool oygeCommitParameters()
 {
+    // keep compiler happy until parameter writes implemented
+    UNUSED(reqbuffer);
     return false;
 }
 
