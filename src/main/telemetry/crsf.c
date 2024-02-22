@@ -264,12 +264,12 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
         case CRSF_GPS_REUSE_ESC_BEC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->temperature2 : 0;
-        case CRSF_GPS_REUSE_ESC_EXTRA1:
+        case CRSF_GPS_REUSE_ESC_STATUS:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
-            return (escData) ? escData->extra1 : 0;
-        case CRSF_GPS_REUSE_ESC_EXTRA2:
+            return (escData) ? (escData->status & 0xFFFF) : 0;
+        case CRSF_GPS_REUSE_ESC_STATUS2:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
-            return (escData) ? escData->extra2 : 0;
+            return (escData) ? (escData->status >> 16) : 0;
         case CRSF_GPS_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 10;
         case CRSF_GPS_REUSE_MCU_LOAD:

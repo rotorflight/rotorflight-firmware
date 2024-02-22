@@ -472,7 +472,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "RECORD", "CALIBRATE"
+    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "RECORD",
 };
 #endif
 
@@ -493,7 +493,7 @@ const char * const lookupTableCrsfAttReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_EXTRA1", "ESC_EXTRA2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD",
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_STATUS", "ESC_STATUS2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD",
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
