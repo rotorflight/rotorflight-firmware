@@ -100,7 +100,8 @@ enum {
 };
 
 #define TELEMETRY_BUFFER_SIZE    40
-#define PARAMETER_CACHE_SIZE     40     // <== size must not exceed 64
+#define REQUEST_BUFFER_SIZE      40
+#define PARAM_BUFFER_SIZE        80
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -128,9 +129,11 @@ static volatile uint8_t bufferPos = 0;
 static uint8_t  readBytes = 0;
 static uint32_t syncCount = 0;
 
-static uint8_t escParameterCount = 0;
-static uint16_t escParameterCache[PARAMETER_CACHE_SIZE] = { 0, };
-static uint16_t escParameterUpdateCache[PARAMETER_CACHE_SIZE] = { 0, };
+static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
+
+static uint8_t paramBufferLength = 0;
+static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
+static uint8_t paramUpdateBuffer[PARAM_BUFFER_SIZE] = { 0, };
 
 
 bool isEscSensorActive(void)
@@ -1584,6 +1587,8 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 #define OPENYGE_TEMP_OFFSET             40
 
+#define OPENYGE_MAX_CACHE_SIZE          64                  // limited by use of uint64_t as bit array for oygeCachedParams
+
 enum {
     OPENYGE_FRAME_FAILED                = 0,
     OPENYGE_FRAME_PENDING               = 1,
@@ -1608,24 +1613,28 @@ static uint8_t oygeCountParamBits(uint64_t bits)
 
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
-    if (pidx >= PARAMETER_CACHE_SIZE)
+    uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
+    if (pidx >= maxParams || pidx >= OPENYGE_MAX_CACHE_SIZE)
         return;
 
-    escParameterCache[pidx] = pdata;
+    uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
+    oygeParamCache[pidx] = pdata;
     oygeCachedParams |= (1ULL << pidx);
 
-    // skip if count already known or count parameter not yet seen (param[0] for YGE)
-    if (escParameterCount > 0 || (oygeCachedParams & 0x01) == 0)
+    // skip if count already known (parameter data ready) or count parameter not yet seen (param[0] for YGE)
+    if (paramBufferLength > 0 || (oygeCachedParams & 0x01) == 0)
         return;
 
-    // image is ready if all expected parameters have been cached
-    uint16_t ygeParameterCount = escParameterCache[0];
+    // image is ready if all expected parameters now resident in cache
+    uint16_t ygeParameterCount = oygeParamCache[0];
     if (oygeCountParamBits(oygeCachedParams) == ygeParameterCount)
-        escParameterCount = ygeParameterCount;
+        paramBufferLength = ygeParameterCount * 2;
 }
 
-bool oygeCommitParameters()
+static bool oygeCommitParameters()
 {
+    // keep compiler happy until parameter writes implemented
+    UNUSED(reqbuffer);
     return false;
 }
 
@@ -1936,26 +1945,19 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParameterCount(void)
+uint8_t escGetParamBufferLength(void)
 {
-    return escParameterCount;
+    return paramBufferLength;
 }
 
-uint16_t escGetParameter(uint8_t index)
+uint8_t *escGetParamBuffer()
 {
-    if (index >= escParameterCount)
-        return 0;
-
-    return escParameterCache[index];
+    return paramBuffer;
 }
 
-bool escSetParameter(uint8_t index, uint16_t param)
+uint8_t *escGetParamUpdateBuffer()
 {
-    if (index >= escParameterCount)
-        return false;
-
-    escParameterUpdateCache[index] = param;
-    return true;
+    return paramUpdateBuffer;
 }
 
 bool escCommitParameters()
