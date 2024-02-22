@@ -353,7 +353,7 @@ void freqInit(const freqConfig_t *freqConfig)
                 timerChConfigCallbacks(timer, &input->edgeCb, &input->overflowCb);
             }
 
-            freqICConfig(timer, true, 4);
+            freqICConfig(timer, false, 4);
             freqSetBaseClock(input, input->prescaler);
             freqResetCapture(input, port);
         }
