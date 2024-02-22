@@ -40,7 +40,6 @@ enum {
     ESC_SENSOR_PROTO_APD,
     ESC_SENSOR_PROTO_OPENYGE,
     ESC_SENSOR_PROTO_RECORD,
-    ESC_SENSOR_PROTO_CALIBRATE,
 };
 
 typedef struct escSensorConfig_s {
@@ -67,8 +66,7 @@ typedef struct {
     int16_t   temperature2;     // 0.1°C
     uint32_t  bec_voltage;      // mV
     uint32_t  bec_current;      // mA
-    uint16_t  extra1;           // extra data
-    uint16_t  extra2;           // extra data
+    uint32_t  status;           // status / fault codes
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255
