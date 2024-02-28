@@ -1510,8 +1510,144 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
- * Scorpion Telemetry
+ * RRFSM
+ *
+ */
+// > 0: frame accepted, count as synced (may not be complete), continue accepting
+// < 0: frame rejected, will be logged as sync error
+//   0: continue accepting
+typedef int8_t (*rrfsmAcceptCallbackPtr)(uint16_t c);
 
+typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default initialization (if in doubt return true)
+typedef bool (*rrfsmDecodeCallbackPtr)(timeMs_t currentTimeMs); // return true if frame was decoded successfully
+
+static rrfsmAcceptCallbackPtr rrfsmAccept = NULL;
+static rrfsmStartCallbackPtr rrfsmStart = NULL;
+static rrfsmDecodeCallbackPtr rrfsmDecode = NULL;
+
+static uint16_t rrfsmBootDelayMs = 5000;
+static uint8_t rrfsmMinFrameLength = 0;
+
+static uint32_t rrfsmFrameTimestamp = 0;
+static uint8_t rrfsmFrameLength = 0;
+static uint16_t rrfsmFramePeriod = 0;
+static uint16_t rrfsmFrameTimeout = 0;
+
+static void rrfsmFrameSyncError(void)
+{
+    readBytes = 0;
+    syncCount = 0;
+
+    totalSyncErrorCount++;
+}
+
+static void rrfsmStartFrame(timeMs_t currentTimeMs)
+{
+    readBytes = 0;
+    rrfsmFrameLength = rrfsmMinFrameLength;
+    rrfsmFrameTimestamp = currentTimeMs;
+}
+
+static void rrfsmStartFrameAndSendPendingReq(timeMs_t currentTimeMs)
+{    
+    rrfsmStartFrame(currentTimeMs);
+
+    rrfsmFramePeriod = 0;
+    readIngoreBytes = reqLength;
+    if (reqLength != 0)
+        serialWriteBuf(escSensorPort, reqbuffer, reqLength);
+}
+
+static void rrfsmInvalidateReq()
+{
+    reqbuffer[0] = 0x00;     // no req
+    reqLength = 0;
+    rrfsmFrameTimeout = 0;
+}
+  
+static FAST_CODE void rrfsmDataReceive(uint16_t c, void *data)
+{
+    UNUSED(data);
+
+    // don't listen to self
+    if (readIngoreBytes > 0) {
+        readIngoreBytes--;
+        return;
+    }
+
+    totalByteCount++;
+
+    if (readBytes >= TELEMETRY_BUFFER_SIZE) {
+        // avoid buffer overrun
+        rrfsmFrameSyncError();
+    }
+    else if (readBytes < rrfsmFrameLength) {
+        buffer[readBytes++] = c;
+
+        int8_t accepted = (rrfsmAccept != NULL ) ? rrfsmAccept(c) : -1;
+        if (accepted > 0) {
+            // frame accepted (may not be complete)
+            syncCount++;
+        }
+        else if (accepted < 0) {
+            // frame rejected
+            rrfsmFrameSyncError();
+        }
+    }
+}
+
+static void rrfsmSensorProcess(timeUs_t currentTimeUs)
+{
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
+
+    // wait before initializing
+    if (currentTimeMs < rrfsmBootDelayMs) 
+        return;
+
+    // request first log record or just listen if in e.g. UNC mode
+    if (rrfsmFrameTimestamp == 0) {
+        if (rrfsmStart == NULL || rrfsmStart(currentTimeMs))
+            rrfsmStartFrame(currentTimeMs);
+        return;
+    }
+
+    // frame period in effect? request next frame if elapsed
+    if (rrfsmFramePeriod != 0) {
+        if (currentTimeMs > rrfsmFrameTimestamp + rrfsmFramePeriod) {
+            rrfsmStartFrameAndSendPendingReq(currentTimeMs);
+        }
+        return;
+    }
+
+    // timeout waiting for frame? log error, request again
+    if (rrfsmFrameTimeout != 0 && currentTimeMs > rrfsmFrameTimestamp + rrfsmFrameTimeout) {
+        increaseDataAge(0);
+        totalTimeoutCount++;
+        rrfsmStartFrameAndSendPendingReq(currentTimeMs);
+        return;
+    }
+    
+    // frame incomplete? check later
+    if (readBytes < rrfsmFrameLength) {
+        return;
+    }
+
+    // frame complate, process, prepare for next frame
+    if (rrfsmDecode == NULL || rrfsmDecode(currentTimeMs)) {
+        // good frame, log, response handler will have prep'ed next request
+        totalFrameCount++;
+    }
+    else {
+        // bad frame, log error, retry
+        increaseDataAge(0);
+        totalCrcErrorCount++;
+    }
+    rrfsmStartFrame(currentTimeMs);
+}
+
+
+/*
+ * Scorpion Telemetry
  *    - Serial protocol is 38400,8N1
  *    - Frame rate running:10Hz idle:1Hz
  *    - Little-Endian fields
@@ -1571,72 +1707,46 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
                                                             // Host must wait ESC response or timeout before sending new packet
 #define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
 
-static uint32_t tribFrameTimestamp = 0;
-static uint16_t tribFramePeriod = 0;
-static uint16_t tribFrameTimeout = TRIB_RESP_FRAME_TIMEOUT;
-static volatile uint8_t tribFrameLength = TRIB_HEADER_LENGTH;
-
 static bool tribUncMode = false;
 
-static uint64_t tribCachedParams = 0;
+// static uint64_t tribCachedParams = 0;
 
-// smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
-// sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
-static uint8_t tribSettingAddresses[] = {
-    0x00,   // device name (32 byte string)
-    0x10,   // device mode (uint16_t)
-    0x11,   // bec voltage (uint16_t)
-    0x12,   // rotation (uint16_t)
-    0x23,   // protection delay (ms: uint16_t)
-    0x24,   // protection low voltage (smeas_t: uint16_t)
-    0x25,   // protection maximum temperature (smeas_t: uint16_t)
-    0x26,   // protection maximum current (smeas_t: uint16_t)
-    0x27,   // protection cutoff value (smeas_t: uint16_t)
-    0x28,   // protection maximum consumption (smeas_t: uint16_t)
-    0x31,   // firmware version (uint16_t)
+// // smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
+// // sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
+// static uint8_t tribSettingAddresses[] = {
+//     0x00,   // device name (32 byte string)
+//     0x10,   // device mode (uint16_t)
+//     0x11,   // bec voltage (uint16_t)
+//     0x12,   // rotation (uint16_t)
+//     0x23,   // protection delay (ms: uint16_t)
+//     0x24,   // protection low voltage (smeas_t: uint16_t)
+//     0x25,   // protection maximum temperature (smeas_t: uint16_t)
+//     0x26,   // protection maximum current (smeas_t: uint16_t)
+//     0x27,   // protection cutoff value (smeas_t: uint16_t)
+//     0x28,   // protection maximum consumption (smeas_t: uint16_t)
+//     0x31,   // firmware version (uint16_t)
 
-    0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-    0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-    0x46,   // serial no. (uint32_t)
-};
-
-
-// return index of missing param, or -1 if all there
-static uint8_t tribFindInvalidParam(uint64_t bits) 
-{
-    uint8_t count = sizeof(tribSettingAddresses);
-    for (uint8_t i = 0; i < count; i++, bits >>= 1ULL) {
-        if ((bits & 1) == 0)
-            return i;
-    }
-    return -1;
-}
-
-static void tribInvalidateParam(uint8_t pidx)
-{
-    tribCachedParams &= ~(1ULL << pidx);
-}
+//     0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+//     0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
+//     0x46,   // serial no. (uint32_t)
+// };
 
 
-static void tribFrameSyncError(void)
-{
-    // just keep compiler happy for now
-    UNUSED(tribSettingAddresses);
-    UNUSED(tribFindInvalidParam);
-    UNUSED(tribInvalidateParam);
+// // return index of missing param, or -1 if all there
+// static uint8_t tribFindInvalidParam(uint64_t bits) 
+// {
+//     uint8_t count = sizeof(tribSettingAddresses);
+//     for (uint8_t i = 0; i < count; i++, bits >>= 1ULL) {
+//         if ((bits & 1) == 0)
+//             return i;
+//     }
+//     return -1;
+// }
 
-    readBytes = 0;
-    syncCount = 0;
-
-    totalSyncErrorCount++;
-}
-
-static void tribStartFrame(timeMs_t currentTimeMs)
-{
-    readBytes = 0;
-    tribFrameLength = TRIB_HEADER_LENGTH;
-    tribFrameTimestamp = currentTimeMs;
-}
+// static void tribInvalidateParam(uint8_t pidx)
+// {
+//     tribCachedParams &= ~(1ULL << pidx);
+// }
 
 static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
@@ -1651,25 +1761,8 @@ static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint
         memcpy(reqbuffer + 6, src, len);
         reqLength += len;
     }
-    tribFramePeriod = framePeriod;
-    tribFrameTimeout = frameTimeout;
-}
-
-static void tribInvalidateReq()
-{
-    reqbuffer[0] = 0x00;     // no req
-    reqLength = 0;
-    tribFrameTimeout = 0;
-}
-
-static void tribStartFrameAndSendPendingReq(timeMs_t currentTimeMs)
-{    
-    tribStartFrame(currentTimeMs);
-
-    tribFramePeriod = 0;
-    readIngoreBytes = reqLength;
-    if (reqLength != 0)
-        serialWriteBuf(escSensorPort, reqbuffer, reqLength);
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
 }
 
 static bool tribValidateResponseHeader()
@@ -1702,7 +1795,7 @@ static bool tribDecodeReadSettingResp(void)
         tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
     }
     else {
-        tribInvalidateReq();
+        rrfsmInvalidateReq();
     }
 
     return true;
@@ -1717,7 +1810,7 @@ static bool tribDecodeWriteSettingResp(void)
     uint8_t addr = buffer[3];
 
     if (addr == 0x13) {
-        tribInvalidateReq();
+        rrfsmInvalidateReq();
     }
 
     return true;
@@ -1764,32 +1857,33 @@ static bool tribDecodeLogRecord(uint8_t hl)
 static bool tribDecodeReadStatusResp(void)
 {
     // validate header (no CRC), decode as 6 byte header + 16 byte (Log_rec_t) payload
-    bool br = tribValidateResponseHeader() && tribDecodeLogRecord(6);
+    if (!tribValidateResponseHeader() || !tribDecodeLogRecord(6))
+        return false;
 
     // next request
-    // tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-    // tribInvalidateReq();
-    tribBuildReq(0x53, 0x13, NULL, 2, TRIB_FRAME_PERIOD, TRIB_REQ_READ_TIMEOUT);
-    return br;
+    tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+    return true;
 }
 
 static bool tribDecodeUNCFrame(void)
 {
     // validate CRC, decode as 4 byte header + 16 byte (Log_rec_t) payload
-    uint16_t crc = buffer[tribFrameLength - 1] << 8 | buffer[tribFrameLength - 2];
-    bool br = calculateCRC16_CCITT(buffer, 20) == crc && tribDecodeLogRecord(4);
+    uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
+    if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(4))
+        return false;
     
-    // switch to UNC mode if first UNC frame received
+    // switch to UNC mode on UNC frame received
     if (!tribUncMode) {
         tribUncMode = true;
-        tribFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
+        rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
     }
-
-    return br;
+    return true;
 }
 
-static bool tribDecodeResponse()
+static bool tribDecode(timeMs_t currentTimeMs)
 {
+    UNUSED(currentTimeMs);
+    
     uint8_t req = buffer[0];
     switch (req)
     {
@@ -1805,105 +1899,52 @@ static bool tribDecodeResponse()
             return false;
     }
 }
-  
-static FAST_CODE void tribDataReceive(uint16_t c, void *data)
+
+static bool tribStart(timeMs_t currentTimeMs)
 {
-    UNUSED(data);
-
-    // dont listen to self
-    if (readIngoreBytes > 0) {
-        readIngoreBytes--;
-        return;
-    }
-
-    totalByteCount++;
-
-    if (readBytes < tribFrameLength) {
-        buffer[readBytes++] = c;
-
-        if (readBytes == 1) {
-            // req / singature
-            if ((c & TRIB_REQ_SIG) != TRIB_REQ_SIG)
-                tribFrameSyncError();
-        }
-        else if (buffer[0] == 0x55 && readBytes == 3) {
-            // UNC length
-            if (c > TELEMETRY_BUFFER_SIZE) {
-                // protect against buffer overflow
-                tribFrameSyncError();
-            }
-            else {
-                // new frame length for this frame (header + data)
-                tribFrameLength = c;
-                syncCount++;
-            }
-        }
-        else if (buffer[0] != 0x55 && readBytes == 5) {
-            // STD length
-            if (c > TELEMETRY_BUFFER_SIZE) {
-                // protect against buffer overflow
-                tribFrameSyncError();
-            }
-            else if((c & 0x01) || c > 32) {
-                // invalid length (must not be more than 32 bytes and should be a multiple of 2 bytes)
-                tribFrameSyncError();
-            }
-            else {
-                // new frame length for this frame - read = (header + data), write = (header)
-                tribFrameLength = (buffer[0] & TRIB_REQ_WRITE) == 0 ? TRIB_HEADER_LENGTH + c : TRIB_HEADER_LENGTH;
-                syncCount++;
-            }
-        }
-    }
+    UNUSED(currentTimeMs);
+    
+    // disabled for UNC
+    // tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+    return true;
 }
 
-static void tribSensorProcess(timeUs_t currentTimeUs)
+static int8_t tribAccept(uint16_t c)
 {
-    const timeMs_t currentTimeMs = currentTimeUs / 1000;
-
-    // wait before initializing
-    if (currentTimeMs < TRIB_BOOT_DELAY) 
-        return;
-
-    // request first log record or just listen if in UNC mode
-    if (tribFrameTimestamp == 0) {
-        tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-        tribStartFrame(currentTimeMs);
-        return;
+    if (readBytes == 1) {
+        // req / singature
+        if ((c & TRIB_REQ_SIG) != TRIB_REQ_SIG)
+            return -1;
     }
-
-    // frame period in effect? request next frame if elapsed
-    if (tribFramePeriod != 0) {
-        if (currentTimeMs > tribFrameTimestamp + tribFramePeriod) {
-            tribStartFrameAndSendPendingReq(currentTimeMs);
+    else if (buffer[0] == 0x55 && readBytes == 3) {
+        // UNC length
+        if (c > TELEMETRY_BUFFER_SIZE) {
+            // protect against buffer overflow
+            return -1;
         }
-        return;
+        else {
+            // new frame length for this frame (header + data)
+            rrfsmFrameLength = c;
+            return 1;
+        }
     }
-
-    // timeout waiting for frame? log error, request again
-    if (tribFrameTimeout != 0 && currentTimeMs > tribFrameTimestamp + tribFrameTimeout) {
-        increaseDataAge(0);
-        totalTimeoutCount++;
-        tribStartFrameAndSendPendingReq(currentTimeMs);
-        return;
+    else if (buffer[0] != 0x55 && readBytes == 5) {
+        // STD length
+        if (c > TELEMETRY_BUFFER_SIZE) {
+            // protect against buffer overflow
+            return -1;
+        }
+        else if((c & 0x01) || c > 32) {
+            // invalid length (must not be more than 32 bytes and should be a multiple of 2 bytes)
+            return -1;
+        }
+        else {
+            // new frame length for this frame - read = (header + data), write = (header)
+            rrfsmFrameLength = (buffer[0] & TRIB_REQ_WRITE) == 0 ? TRIB_HEADER_LENGTH + c : TRIB_HEADER_LENGTH;
+            return 1;
+        }
     }
-    
-    // frame incomplete? check later
-    if (readBytes < tribFrameLength) {
-        return;
-    }
-
-    // frame complate, process, prepare for next frame
-    if (tribDecodeResponse()) {
-        // good frame, log, response handler will have prep'ed next request
-        totalFrameCount++;
-    }
-    else {
-        // bad frame, log error, retry
-        increaseDataAge(0);
-        totalCrcErrorCount++;
-    }
-    tribStartFrame(currentTimeMs);
+    return 0;
 }
 
 
@@ -1978,28 +2019,17 @@ static void tribSensorProcess(timeUs_t currentTimeUs)
  *
  */
 
-#define OPENYGE_SYNC                    0xA5                // sync
-#define OPENYGE_BOOT_DELAY              5000                // 5 seconds
-#define OPENYGE_RAMP_INTERVAL           6000                // 6 seconds
-#define OPENYGE_FRAME_PERIOD_INITIAL    900                 // intially 800 w/ progressive decreasing frame-period during ramp time...
-#define OPENYGE_FRAME_PERIOD_FINAL      60                  // ...to the final 50ms
-#define OPENYGE_FRAME_MIN_LENGTH        6                   // assume minimum frame (header + CRC) until actual length of current frame known
+#define OPENYGE_SYNC                        0xA5                // sync
+#define OPENYGE_BOOT_DELAY                  5000                // 5 seconds
+#define OPENYGE_MIN_FRAME_LENGTH            6                   // assume minimum frame (header + CRC) until actual length of current frame known
+#define OPENYGE_UNC_INITIAL_FRAME_TIMEOUT   900                 // intially ~800ms w/ progressive decreasing frame-period...
+#define OPENYGE_UNC_MIN_FRAME_TIMEOUT       60U                 // ...to final ~50ms (no less)
 
-#define OPENYGE_TEMP_OFFSET             40
+#define OPENYGE_TEMP_OFFSET                 40
 
-#define OPENYGE_MAX_CACHE_SIZE          64                  // limited by use of uint64_t as bit array for oygeCachedParams
+#define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
-enum {
-    OPENYGE_FRAME_FAILED                = 0,
-    OPENYGE_FRAME_PENDING               = 1,
-    OPENYGE_FRAME_COMPLETE              = 2,
-};
-
-static timeMs_t oygeRampTimer = 0;
-static uint32_t oygeFrameTimestamp = 0;
-static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
-static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
-
+static uint16_t oygeUNCFrameTimeout = OPENYGE_UNC_INITIAL_FRAME_TIMEOUT;
 static uint64_t oygeCachedParams = 0;
 
 
@@ -2014,7 +2044,7 @@ static uint8_t oygeCountParamBits(uint64_t bits)
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
     uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
-    if (pidx >= maxParams || pidx >= OPENYGE_MAX_CACHE_SIZE)
+    if (pidx >= maxParams || pidx >= OPENYGE_MAX_PARAM_CACHE_SIZE)
         return;
 
     uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
@@ -2057,68 +2087,14 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
     return crc;
 }
 
-static void oygeFrameSyncError(void)
+static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
 {
-    readBytes = 0;
-    syncCount = 0;
-
-    totalSyncErrorCount++;
-}
-
-static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
-{
-    UNUSED(data);
-
-    totalByteCount++;
-
-    if (readBytes < oygeFrameLength) {
-        buffer[readBytes++] = c;
-
-        if (readBytes == 1) {
-            // sync
-            if (c != OPENYGE_SYNC)
-                oygeFrameSyncError();
-        }
-        else if (readBytes == 3) {
-            if (c != 0) {
-                // unsupported frame type
-                oygeFrameSyncError();
-            }
-        }
-        else if (readBytes == 4) {
-            // frame length
-            if (c > TELEMETRY_BUFFER_SIZE) {
-                // protect against buffer overflow
-                oygeFrameSyncError();
-            }
-            else {
-                // new frame length for this frame
-                oygeFrameLength = c;
-                syncCount++;
-            }
-        }
-    }
-}
-
-static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
-{
-    readBytes = 0;
-
-    oygeFrameTimestamp = currentTimeMs;
-}
-
-static uint8_t oygeDecodeTelemetryFrame(void)
-{
-    // First, check the variables that can change in the interrupt
-    if (readBytes < oygeFrameLength)
-        return OPENYGE_FRAME_PENDING;
+    UNUSED(currentTimeMs);
 
     // verify CRC16 checksum
-    uint16_t crc = buffer[oygeFrameLength - 1] << 8 | buffer[oygeFrameLength - 2];
-    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) != crc) {
-        totalCrcErrorCount++;
-        return OPENYGE_FRAME_FAILED;
-    }
+    uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
+    if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
+        return false;
 
     uint8_t version = buffer[1];
     int16_t temp = buffer[5];
@@ -2137,8 +2113,8 @@ static uint8_t oygeDecodeTelemetryFrame(void)
 
     if (version >= 2) {
         // apply temperature mapping offsets
-        temp    -= OPENYGE_TEMP_OFFSET;
-        tempBEC -= OPENYGE_TEMP_OFFSET;
+        temp    += OPENYGE_TEMP_OFFSET;
+        tempBEC += OPENYGE_TEMP_OFFSET;
     }
 
     escSensorData[0].age = 0;
@@ -2155,7 +2131,11 @@ static uint8_t oygeDecodeTelemetryFrame(void)
 
     oygeCacheParam(pidx, pdata);
 
-    totalFrameCount++;
+    // adjust UNC frame timeout
+    if (oygeUNCFrameTimeout > OPENYGE_UNC_MIN_FRAME_TIMEOUT && currentTimeMs - rrfsmFrameTimestamp < oygeUNCFrameTimeout) {
+        oygeUNCFrameTimeout = MIN(OPENYGE_UNC_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp);
+    }
+    rrfsmFrameTimeout = oygeUNCFrameTimeout;
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -2171,54 +2151,54 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
-    return OPENYGE_FRAME_COMPLETE;
+    return true;
 }
 
-static void oygeSensorProcess(timeUs_t currentTimeUs)
+static bool oygeDecode(timeMs_t currentTimeMs)
 {
-    const timeMs_t currentTimeMs = currentTimeUs / 1000;
-
-    // wait before initializing
-    if (currentTimeMs < OPENYGE_BOOT_DELAY)
-        return;
-
-    // one time init
-    if (oygeFrameTimestamp == 0) {
-        oygeStartTelemetryFrame(currentTimeMs);
-        return;
+    uint8_t req = buffer[2];
+    switch (req)
+    {
+        case 0x00:
+            return oygeDecodeTelemetryFrame(currentTimeMs);
+        default:
+            return false;
     }
+}
 
-    // switch to final frame timeout if ramp time complete
-    if (oygeFramePeriod == OPENYGE_FRAME_PERIOD_INITIAL && oygeRampTimer != 0 && currentTimeMs > oygeRampTimer)
-        oygeFramePeriod = OPENYGE_FRAME_PERIOD_FINAL;
+static bool oygeStart(timeMs_t currentTimeMs)
+{
+    UNUSED(currentTimeMs);
 
-    // timeout waiting for frame?
-    if (currentTimeMs > oygeFrameTimestamp + oygeFramePeriod) {
-        increaseDataAge(0);
-        oygeStartTelemetryFrame(currentTimeMs);
-        totalTimeoutCount++;
-        return;
+    return true;
+}
+
+static int8_t oygeAccept(uint16_t c)
+{
+    if (readBytes == 1) {
+        // sync
+        if (c != OPENYGE_SYNC)
+            return -1;
     }
-
-    // attempt to decode frame
-    uint8_t state = oygeDecodeTelemetryFrame();
-    switch (state) {
-        case OPENYGE_FRAME_PENDING:
-            // frame not ready yet
-            break;
-        case OPENYGE_FRAME_FAILED:
-            increaseDataAge(0);
-            // next frame
-            oygeStartTelemetryFrame(currentTimeMs);
-            break;
-        case OPENYGE_FRAME_COMPLETE:
-            // start ramp timer if first frame seen
-            if (oygeRampTimer == 0)
-                oygeRampTimer = currentTimeMs + OPENYGE_RAMP_INTERVAL;
-            // next frame
-            oygeStartTelemetryFrame(currentTimeMs);
-            break;
+    else if (readBytes == 3) {
+        if (c != 0x00) {
+            // unsupported frame type
+            return -1;
+        }
     }
+    else if (readBytes == 4) {
+        // frame length
+        if (c > TELEMETRY_BUFFER_SIZE) {
+            // protect against buffer overflow
+            return -1;
+        }
+        else {
+            // new frame length for this frame
+            rrfsmFrameLength = c;
+            return 1;
+        }
+    }
+    return 0;
 }
 
 
@@ -2260,7 +2240,8 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 hw5SensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_SCORPION:
-                tribSensorProcess(currentTimeUs);
+                rrfsmSensorProcess(currentTimeUs);
+                // tribSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
@@ -2275,7 +2256,8 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 apdSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_OPENYGE:
-                oygeSensorProcess(currentTimeUs);
+                rrfsmSensorProcess(currentTimeUs);
+                // oygeSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
@@ -2290,6 +2272,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);   // TODO: remove before shipping
+        // DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, oygeUNCFrameTimeout);   // TODO: remove before shipping
     }
 }
 
@@ -2316,7 +2299,13 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_SCORPION:
-            callback = tribDataReceive;
+            rrfsmBootDelayMs = TRIB_BOOT_DELAY;
+            rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
+            rrfsmAccept = tribAccept;
+            rrfsmStart = tribStart;
+            rrfsmDecode = tribDecode;
+            callback = rrfsmDataReceive;
+            // callback = tribDataReceive;
             baudrate = 38400;
             mode = MODE_RXTX;
             options |= SERIAL_BIDIR;
@@ -2332,8 +2321,16 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_OPENYGE:
-            callback = oygeDataReceive;
+            rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
+            rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
+            rrfsmAccept = oygeAccept;
+            rrfsmStart = oygeStart;
+            rrfsmDecode = oygeDecode;
+            callback = rrfsmDataReceive;
+            // callback = oygeDataReceive;
             baudrate = 115200;
+            mode = MODE_RXTX;
+            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
