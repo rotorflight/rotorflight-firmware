@@ -2131,9 +2131,9 @@ static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
 
     oygeCacheParam(pidx, pdata);
 
-    // adjust UNC frame timeout
+    // adjust UNC frame timeout (10ms + last seen decreasing interval until min)
     if (oygeUNCFrameTimeout > OPENYGE_UNC_MIN_FRAME_TIMEOUT && currentTimeMs - rrfsmFrameTimestamp < oygeUNCFrameTimeout) {
-        oygeUNCFrameTimeout = MIN(OPENYGE_UNC_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp);
+        oygeUNCFrameTimeout = MAX(OPENYGE_UNC_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp + 10);
     }
     rrfsmFrameTimeout = oygeUNCFrameTimeout;
 
@@ -2271,7 +2271,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);   // TODO: remove before shipping
+        // DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);   // TODO: remove before shipping
         // DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, oygeUNCFrameTimeout);   // TODO: remove before shipping
     }
 }
