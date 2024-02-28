@@ -101,7 +101,7 @@ enum {
 
 #define TELEMETRY_BUFFER_SIZE    40
 #define REQUEST_BUFFER_SIZE      40
-#define PARAM_BUFFER_SIZE        80
+#define PARAM_BUFFER_SIZE        96
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -1712,7 +1712,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 static bool tribUncMode = false;
 
 // param ranges - hibyte=addr (system region if 0x80 set, setting otherwise), lobyte=length
-static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808 };
+static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
 // one bit per param range not yet available
 static uint8_t tribParamInvalid = 0;
 
