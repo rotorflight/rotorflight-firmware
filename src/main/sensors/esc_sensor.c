@@ -1711,8 +1711,10 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
 static bool tribUncMode = false;
 
-static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230C, 0x8204, 0x8502 };    // param ranges - hibyte=addr (system region if 0x80 set, setting otherwise), lobyte=length
-static uint8_t tribParamInvalid = 0;                                                // one bit per param range not yet available
+// param ranges - hibyte=addr (system region if 0x80 set, setting otherwise), lobyte=length
+static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808 };
+// one bit per param range not yet available
+static uint8_t tribParamInvalid = 0;
 
 // smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
 // sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
