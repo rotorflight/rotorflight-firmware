@@ -1709,7 +1709,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_FRAME_TIMEOUT        200                 // usually less than 200Us
 #define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
 
-static bool tribUncMode = false;
+static bool tribUncMode = true;
 
 // param ranges - hibyte=addr (system region if 0x80 set, setting otherwise), lobyte=length
 static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
@@ -1821,8 +1821,23 @@ static bool tribDecodeReadSystemResp(void)
         return false;
 
     uint8_t addr = buffer[3];
-    tribHandleParamResp(addr | 0x80);
-    tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+    if (tribUncMode) {
+        if (tribHandleParamResp(addr | 0x80)) {
+            if (!tribNextParamReq())
+                rrfsmInvalidateReq();
+        }
+        else {
+            rrfsmInvalidateReq();
+        }
+    }
+    else {
+        if (tribHandleParamResp(addr))
+            tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+        else
+            rrfsmInvalidateReq();
+    }
+    // tribHandleParamResp(addr | 0x80);
+    // tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
 
     return true;
 }
@@ -1834,22 +1849,33 @@ static bool tribDecodeReadSettingResp(void)
         return false;
 
     uint8_t addr = buffer[3];
-    uint16_t pdata = buffer[7] << 8 | buffer[6];
 
-    if (addr == 0x13 && pdata == 2) {
-        uint16_t mode = 3;
-        tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
-    }
-    else  if (addr == 0x13 && pdata == 3) {
-        uint16_t mode = 2;
-        tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
-    }
-    else // TODO - remove IF ... here, debug code
+    // uint16_t pdata = buffer[7] << 8 | buffer[6];
+    // if (addr == 0x13 && pdata == 1) {
+    //     uint16_t mode = 3;
+    //     tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
+    // }
+    // else  if (addr == 0x13 && pdata == 3) {
+    //     uint16_t mode = 1;
+    //     tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
+    // }
+    // else // TODO - remove IF ... here, debug code
     
-    if (tribHandleParamResp(addr))
-        tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-    else
-        rrfsmInvalidateReq();
+    if (tribUncMode) {
+        if (tribHandleParamResp(addr)) {
+            if (!tribNextParamReq())
+                rrfsmInvalidateReq();
+        }
+        else {
+            rrfsmInvalidateReq();
+        }
+    }
+    else {
+        if (tribHandleParamResp(addr))
+            tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+        else
+            rrfsmInvalidateReq();
+    }
 
     return true;
 }
@@ -1962,9 +1988,10 @@ static bool tribStart(timeMs_t currentTimeMs)
     UNUSED(currentTimeMs);
 
     tribInvalidateParams();
-    
-    // disabled for UNC
-    tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+
+    if (!tribNextParamReq() && !tribUncMode)
+        tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+
     return true;
 }
 
