@@ -309,7 +309,11 @@ static int8_t crsfGpsSatsReuse(uint8_t reuse, int8_t value)
         case CRSF_GPS_SATS_REUSE_RATE_PROFILE:
             return getCurrentControlRateProfileIndex() + 1;
         case CRSF_GPS_SATS_REUSE_LED_PROFILE:
+#ifdef USE_LED_STRIP
             return getLedProfile() + 1;
+#else
+            return 0;
+#endif
     }
 
     return 0;
