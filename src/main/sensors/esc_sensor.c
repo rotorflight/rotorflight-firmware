@@ -1699,6 +1699,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_REQ_WRITE                  0x80                // request write bit
 #define TRIB_REQ_SIG                    0x50                // request signature bits
 #define TRIB_BOOT_DELAY                 4000                // 4 seconds
+#define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
 #define TRIB_FRAME_PERIOD               100                 // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
 #define TRIB_REQ_READ_TIMEOUT           200                 // Response timeout for read requests
 #define TRIB_REQ_WRITE_TIMEOUT          1200                // Response timeout for write requests
@@ -1706,39 +1707,35 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
                                                             // Host must wait ESC response or timeout before sending new packet
 #define TRIB_UNC_FRAME_TIMEOUT          1200                // Timeout for UNC packets
 #define TRIB_PARAM_FRAME_PERIOD         2                   // asap
-#define TRIB_PARAM_FRAME_TIMEOUT        200                 // usually less than 200Us
-#define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
+#define TRIB_PARAM_READ_TIMEOUT         200                 // usually less than 200Us
+#define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 
-static bool tribUncMode = true;
+static bool tribUncMode = false;
 
-// param ranges - hibyte=addr (system region if 0x80 set, setting otherwise), lobyte=length
+// param ranges - hibyte=addr (system region if 0x80 set or setting region otherwise), lobyte=length
 static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
 // one bit per param range not yet available
-static uint8_t tribParamInvalid = 0;
+static uint16_t tribParamInvalid = 0;
+static uint16_t tribParamModified = 0;
 
-// smeas_t – 16 bits unsigned, used to set values with 0.01 precision. For example 123.45 Voltes will be coded as 12345 value of this type.
-// sprc_t – 16 bits unsigned, used to set percents values. For example 100% will be coded as 10000 and 1.5% as 150.
-// static uint8_t tribSettingAddresses[] = {
-//     0x00,   // device name (32 byte string)
-//     0x10,   // device mode (uint16_t)
-//     0x11,   // bec voltage (uint16_t)
-//     0x12,   // rotation (uint16_t)
-//     0x13,   // telemetry protocol
-
-//     0x23,   // protection delay (ms: uint16_t)
-//     0x24,   // protection low voltage (smeas_t: uint16_t)
-//     0x25,   // protection maximum temperature (smeas_t: uint16_t)
-//     0x26,   // protection maximum current (smeas_t: uint16_t)
-//     0x27,   // protection cutoff value (smeas_t: uint16_t)
-//     0x28,   // protection maximum consumption (smeas_t: uint16_t)
-
-//     0x31,   // firmware version (uint16_t)
-
-//     0x34,   // max throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-//     0x36,   // zero throttle pwm (uint32_t) Stored in MCU ticks. 1ms – 60000, cache as ms in uint16_t
-
-//     0x46,   // serial no. (uint32_t)
-// };
+static bool tribCommitParameters(void)
+{
+    uint8_t offset = 0;
+    for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
+        uint16_t *pal = tribParamAddrLen + i;
+        uint8_t len = *pal & 0x00FF;
+        if ((*pal & 0x8000) == 0) {
+            // settings only
+            if (memcmp(paramBuffer + offset, paramUpdateBuffer + offset, len) != 0) {
+                // modify and schedule for update
+                memcpy(paramBuffer + offset, paramUpdateBuffer + offset, len);
+                tribParamModified |= (1U << i);
+            }
+        }
+        offset += len;
+    }
+    return true;
+}
 
 static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
@@ -1757,7 +1754,7 @@ static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint
     rrfsmFrameTimeout = frameTimeout;
 }
 
-static void tribInvalidateParams()
+static void tribInvalidateParams(void)
 {
     tribParamInvalid = ~(~1U << (ARRAYLEN(tribParamAddrLen) - 1));
 }
@@ -1770,18 +1767,32 @@ static uint8_t tribCalcParamBufferLength()
     return len;
 }
 
-static bool tribNextParamReq()
+static bool tribBuildNextParamReq(void)
 {
+    // schedule pending read request
     for (uint16_t *pal = tribParamAddrLen, pinv = tribParamInvalid; pinv != 0; pal++, pinv >>= 1) {
         if ((pinv & 0x01) != 0) {
-            tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_FRAME_TIMEOUT);
+            tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_READ_TIMEOUT);
             return true;
         }
     }
+
+    // ...or pending write request
+    uint8_t offset = 0;
+    for (uint16_t *pal = tribParamAddrLen, pmod = tribParamModified; pmod != 0; pal++, pmod >>= 1) {
+        uint8_t len = *pal & 0x00FF;
+        if ((pmod & 0x01) != 0) {
+            tribBuildReq(0xD3, *pal >> 8, paramBuffer + offset, len, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
+            return true;
+        }
+        offset += len;
+    }
+
+    // ...or nothing pending
     return false;
 }
 
-static bool tribHandleParamResp(uint8_t addr)
+static bool tribDecodeReadParamResp(uint8_t addr)
 {
     uint8_t offset = 0;
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
@@ -1802,7 +1813,27 @@ static bool tribHandleParamResp(uint8_t addr)
     return false;
 }
 
-static bool tribValidateResponseHeader()
+static bool tribDecodeWriteParamResp(uint8_t addr)
+{
+    for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
+        uint16_t *pal = tribParamAddrLen + i;
+        if ((*pal >> 8) == addr) {
+            // clear modified bit and set cached bit force read
+            uint16_t parambit = (1 << i);
+            tribParamModified &= ~parambit;
+            tribParamInvalid |= parambit;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void tribBuildNextStatusReq(void)
+{
+    tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+}
+
+static bool tribValidateResponseHeader(void)
 {
     // req and resp headers should match except for len ([4]) which may differ
     for (int i = 0; i < 6; i++) {
@@ -1814,7 +1845,7 @@ static bool tribValidateResponseHeader()
     return true;
 }
 
-static bool tribDecodeReadSystemResp(void)
+static bool tribDecodeReadSettingResp(uint8_t sysbit)
 {
     // validate header
     if (!tribValidateResponseHeader())
@@ -1822,59 +1853,13 @@ static bool tribDecodeReadSystemResp(void)
 
     uint8_t addr = buffer[3];
     if (tribUncMode) {
-        if (tribHandleParamResp(addr | 0x80)) {
-            if (!tribNextParamReq())
-                rrfsmInvalidateReq();
-        }
-        else {
+        if (!tribDecodeReadParamResp(addr | sysbit) || !tribBuildNextParamReq()) {
             rrfsmInvalidateReq();
         }
     }
     else {
-        if (tribHandleParamResp(addr))
-            tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-        else
-            rrfsmInvalidateReq();
-    }
-    // tribHandleParamResp(addr | 0x80);
-    // tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-
-    return true;
-}
-
-static bool tribDecodeReadSettingResp(void)
-{
-    // validate header
-    if (!tribValidateResponseHeader())
-        return false;
-
-    uint8_t addr = buffer[3];
-
-    // uint16_t pdata = buffer[7] << 8 | buffer[6];
-    // if (addr == 0x13 && pdata == 1) {
-    //     uint16_t mode = 3;
-    //     tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
-    // }
-    // else  if (addr == 0x13 && pdata == 3) {
-    //     uint16_t mode = 1;
-    //     tribBuildReq(0xD3, 0x13, &mode, 2, TRIB_FRAME_PERIOD, TRIB_REQ_WRITE_TIMEOUT);
-    // }
-    // else // TODO - remove IF ... here, debug code
-    
-    if (tribUncMode) {
-        if (tribHandleParamResp(addr)) {
-            if (!tribNextParamReq())
-                rrfsmInvalidateReq();
-        }
-        else {
-            rrfsmInvalidateReq();
-        }
-    }
-    else {
-        if (tribHandleParamResp(addr))
-            tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-        else
-            rrfsmInvalidateReq();
+        tribDecodeReadParamResp(addr | sysbit);
+        tribBuildNextStatusReq();
     }
 
     return true;
@@ -1887,9 +1872,14 @@ static bool tribDecodeWriteSettingResp(void)
         return false;
 
     uint8_t addr = buffer[3];
-
-    if (addr == 0x13) {
-        rrfsmInvalidateReq();
+    if (tribUncMode) {
+        if (!tribDecodeWriteParamResp(addr) || !tribBuildNextParamReq()) {
+            rrfsmInvalidateReq();
+        }
+    }
+    else {
+        tribDecodeWriteParamResp(addr);
+        tribBuildNextStatusReq();
     }
 
     return true;
@@ -1939,10 +1929,10 @@ static bool tribDecodeReadStatusResp(void)
     if (!tribValidateResponseHeader() || !tribDecodeLogRecord(6))
         return false;
 
-    if (!tribNextParamReq()) {
-        // next telemetry request
-        tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-    }
+    // schedule next request
+    if (!tribBuildNextParamReq())
+        tribBuildNextStatusReq();
+
     return true;
 }
 
@@ -1968,12 +1958,12 @@ static bool tribDecode(timeMs_t currentTimeMs)
     uint8_t req = buffer[0];
     switch (req)
     {
-        case 0x50:
-            return tribDecodeReadSystemResp();
         case 0x51:
             return tribDecodeReadStatusResp();
+        case 0x50:
+            return tribDecodeReadSettingResp(0x80);
         case 0x53:
-            return tribDecodeReadSettingResp();
+            return tribDecodeReadSettingResp(0x00);
         case 0xD3:
             return tribDecodeWriteSettingResp();
         case 0x55:
@@ -1989,7 +1979,9 @@ static bool tribStart(timeMs_t currentTimeMs)
 
     tribInvalidateParams();
 
-    if (!tribNextParamReq() && !tribUncMode)
+    if (tribUncMode)
+        tribBuildNextParamReq();
+    else
         tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
 
     return true;
@@ -2357,9 +2349,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        // DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncMode);   // TODO: remove before shipping
-        // DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, oygeUNCFrameTimeout);   // TODO: remove before shipping
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribParamInvalid);   // TODO: remove before shipping
+        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribParamModified);   // TODO: remove before shipping
     }
 }
 
@@ -2456,6 +2446,8 @@ uint8_t *escGetParamUpdateBuffer()
 bool escCommitParameters()
 {
     switch (escSensorConfig()->protocol) {
+        case ESC_SENSOR_PROTO_SCORPION:
+            return tribCommitParameters();
         case ESC_SENSOR_PROTO_OPENYGE:
             return oygeCommitParameters();
         default:
