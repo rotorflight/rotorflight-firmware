@@ -2191,8 +2191,8 @@ static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
 
     if (version >= 2) {
         // apply temperature mapping offsets
-        temp    += OPENYGE_TEMP_OFFSET;
-        tempBEC += OPENYGE_TEMP_OFFSET;
+        temp    -= OPENYGE_TEMP_OFFSET;
+        tempBEC -= OPENYGE_TEMP_OFFSET;
     }
 
     escSensorData[0].age = 0;
