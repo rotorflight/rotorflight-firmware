@@ -2656,7 +2656,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             if (len == 0)
                 return MSP_RESULT_ERROR;
 
-            sbufReadData(src, escGetParamUpdateBuffer(), len);
+            sbufReadData(src, escGetParamUpdBuffer(), len);
 
             if (!escCommitParameters())
                 return MSP_RESULT_ERROR;

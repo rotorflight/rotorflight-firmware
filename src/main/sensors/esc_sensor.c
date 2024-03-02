@@ -102,6 +102,9 @@ enum {
 #define TELEMETRY_BUFFER_SIZE    40
 #define REQUEST_BUFFER_SIZE      40
 #define PARAM_BUFFER_SIZE        96
+#define PARAM_HEADER_SIG         0
+#define PARAM_HEADER_VER         1
+#define PARAM_HEADER_SIZE        2
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -133,9 +136,13 @@ static uint32_t syncCount = 0;
 static uint8_t reqLength = 0;
 static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
-static uint8_t paramBufferLength = 0;
+static uint8_t paramPayloadLength = 0;
 static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
-static uint8_t paramUpdateBuffer[PARAM_BUFFER_SIZE] = { 0, };
+static uint8_t paramUpdBuffer[PARAM_BUFFER_SIZE] = { 0, };
+static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
+static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
+static uint8_t paramSig = 0;
+static uint8_t paramVer = 0;
 
 
 bool isEscSensorActive(void)
@@ -1709,14 +1716,15 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_FRAME_PERIOD         2                   // asap
 #define TRIB_PARAM_READ_TIMEOUT         200                 // usually less than 200Us
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
+#define TRIB_PARAM_SIG                  0x53
 
 static bool tribUncMode = false;
 
 // param ranges - hibyte=addr (system region if 0x80 set or setting region otherwise), lobyte=length
 static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
-// one bit per param range not yet available
-static uint16_t tribParamInvalid = 0;
-static uint16_t tribParamModified = 0;
+
+static uint16_t tribInvalidParams = 0;   // bit per param address range not yet received from ESC
+static uint16_t tribDirtyParams = 0;     // bit per param address that needs to be written to ESC
 
 static bool tribCommitParameters(void)
 {
@@ -1725,11 +1733,11 @@ static bool tribCommitParameters(void)
         uint16_t *pal = tribParamAddrLen + i;
         uint8_t len = *pal & 0x00FF;
         if ((*pal & 0x8000) == 0) {
-            // settings only
-            if (memcmp(paramBuffer + offset, paramUpdateBuffer + offset, len) != 0) {
-                // modify and schedule for update
-                memcpy(paramBuffer + offset, paramUpdateBuffer + offset, len);
-                tribParamModified |= (1U << i);
+            // for settings only - schedule writes for dirty address ranges
+            // TODO: (also update param buffer now until better 'saving' feedback possible)
+            if (memcmp(paramPayload + offset, paramUpdPayload + offset, len) != 0) {
+                memcpy(paramPayload + offset, paramUpdPayload + offset, len);
+                tribDirtyParams |= (1U << i);
             }
         }
         offset += len;
@@ -1756,7 +1764,7 @@ static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint
 
 static void tribInvalidateParams(void)
 {
-    tribParamInvalid = ~(~1U << (ARRAYLEN(tribParamAddrLen) - 1));
+    tribInvalidParams = ~(~1U << (ARRAYLEN(tribParamAddrLen) - 1));
 }
 
 static uint8_t tribCalcParamBufferLength()
@@ -1770,19 +1778,19 @@ static uint8_t tribCalcParamBufferLength()
 static bool tribBuildNextParamReq(void)
 {
     // schedule pending read request
-    for (uint16_t *pal = tribParamAddrLen, pinv = tribParamInvalid; pinv != 0; pal++, pinv >>= 1) {
-        if ((pinv & 0x01) != 0) {
+    for (uint16_t *pal = tribParamAddrLen, invalidbits = tribInvalidParams; invalidbits != 0; pal++, invalidbits >>= 1) {
+        if ((invalidbits & 0x01) != 0) {
             tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_READ_TIMEOUT);
             return true;
         }
     }
 
-    // ...or pending write request
+    // ...or pending write request...
     uint8_t offset = 0;
-    for (uint16_t *pal = tribParamAddrLen, pmod = tribParamModified; pmod != 0; pal++, pmod >>= 1) {
+    for (uint16_t *pal = tribParamAddrLen, dirtybits = tribDirtyParams; dirtybits != 0; pal++, dirtybits >>= 1) {
         uint8_t len = *pal & 0x00FF;
-        if ((pmod & 0x01) != 0) {
-            tribBuildReq(0xD3, *pal >> 8, paramBuffer + offset, len, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
+        if ((dirtybits & 0x01) != 0) {
+            tribBuildReq(0xD3, *pal >> 8, paramUpdPayload + offset, len, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
             return true;
         }
         offset += len;
@@ -1800,12 +1808,14 @@ static bool tribDecodeReadParamResp(uint8_t addr)
         uint8_t len = *pal & 0x00FF;
         if ((*pal >> 8) == addr) {
             // cache params by addr
-            memcpy(paramBuffer + offset, buffer + TRIB_HEADER_LENGTH, len);
-            tribParamInvalid &= ~(1 << i);
+            memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
+            tribInvalidParams &= ~(1 << i);
 
-            // make param data available (set param buffer length) if all cached
-            if (tribParamInvalid == 0 && paramBufferLength == 0)
-                paramBufferLength = tribCalcParamBufferLength();
+            // make param payload available (set length and sign) if all params cached
+            if (tribInvalidParams == 0 && paramPayloadLength == 0) {
+                paramPayloadLength = tribCalcParamBufferLength();
+                paramSig = TRIB_PARAM_SIG;
+            }
             return true;
         }
         offset += len;
@@ -1818,10 +1828,10 @@ static bool tribDecodeWriteParamResp(uint8_t addr)
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
         uint16_t *pal = tribParamAddrLen + i;
         if ((*pal >> 8) == addr) {
-            // clear modified bit and set cached bit force read
-            uint16_t parambit = (1 << i);
-            tribParamModified &= ~parambit;
-            tribParamInvalid |= parambit;
+            // clear dirty bit and set invalid bit force read
+            uint16_t addrbit = (1 << i);
+            tribDirtyParams &= ~addrbit;
+            tribInvalidParams |= addrbit;
             return true;
         }
     }
@@ -2106,45 +2116,13 @@ static int8_t tribAccept(uint16_t c)
 #define OPENYGE_TEMP_OFFSET                 40
 
 #define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
+#define OPENYGE_PARAM_FRAME_PERIOD          2                   // asap
+#define OPENYGE_PARAM_WRITE_TIMEOUT         500                 // TODO unknown ATM
+#define OPENYGE_PARAM_SYNC                  0xA5                // parameter payload
 
 static uint16_t oygeUNCFrameTimeout = OPENYGE_UNC_INITIAL_FRAME_TIMEOUT;
 static uint64_t oygeCachedParams = 0;
-
-
-static uint8_t oygeCountParamBits(uint64_t bits) 
-{
-    uint8_t count = 0;
-    for (; bits != 0; bits >>= 1ULL)
-        count += (bits & 1);
-    return count;
-}
-
-static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
-{
-    uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
-    if (pidx >= maxParams || pidx >= OPENYGE_MAX_PARAM_CACHE_SIZE)
-        return;
-
-    uint16_t *oygeParamCache = (uint16_t*)paramBuffer;
-    oygeParamCache[pidx] = pdata;
-    oygeCachedParams |= (1ULL << pidx);
-
-    // skip if count already known (parameter data ready) or count parameter not yet seen (param[0] for YGE)
-    if (paramBufferLength > 0 || (oygeCachedParams & 0x01) == 0)
-        return;
-
-    // image is ready if all expected parameters now resident in cache
-    uint16_t ygeParameterCount = oygeParamCache[0];
-    if (oygeCountParamBits(oygeCachedParams) == ygeParameterCount)
-        paramBufferLength = ygeParameterCount * 2;
-}
-
-static bool oygeCommitParameters()
-{
-    // keep compiler happy until parameter writes implemented
-    UNUSED(reqbuffer);
-    return false;
-}
+static uint64_t oygeDirtyParams = 0;
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 {
@@ -2165,15 +2143,110 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
     return crc;
 }
 
-static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
+static bool oygeCommitParameters()
 {
-    UNUSED(currentTimeMs);
-
-    // verify CRC16 checksum
-    uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
-    if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
+    // find dirty params, skip para[0] (parameter count)
+    uint16_t *ygeParams = (uint16_t*)paramPayload;
+    uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
+    if (ygeParams[0] != ygeUpdParams[0])
         return false;
 
+    uint16_t ygeParamCount = ygeParams[0];
+    for (uint8_t i = 1; i < ygeParamCount; i++) {
+        // schedule writes for dirty params
+        // TODO: (also update param buffer now until better 'saving' feedback possible)
+        if (ygeParams[i] != ygeUpdParams[i]) {
+            ygeParams[i] = ygeUpdParams[i];
+            oygeDirtyParams |= (1ULL << i);
+        }
+    }
+    return true;
+}
+
+static void oygeBuildParamReq(uint8_t req, uint16_t pidx, uint16_t pdata, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    reqbuffer[0] = OPENYGE_SYNC;    // sync
+    reqbuffer[1] = 0;               // request version
+    reqbuffer[2] = req;             // frame_type, request, e.g. 0x81 to set an ESC parameter where 0x80 
+                                    // (high bit indicates write operation, lower 4 bits are operation, extra three bit could be request ID for overlapping async requests - future?)
+    reqbuffer[3] = 10;              // frame length including header, payload and CRC
+    reqbuffer[4] = pidx & 0x00FF;   // YGE index of parameter
+    reqbuffer[5] = pidx >> 8;
+    reqbuffer[6] = pdata & 0x00FF;  // YGE value of parameter
+    reqbuffer[7] = pdata >> 8;
+
+    uint16_t crc = oygeCalculateCRC16_CCITT(reqbuffer, 8);
+    reqbuffer[8] = crc & 0x00FF;
+    reqbuffer[9] = crc >> 8;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+}
+
+static bool oygeBuildNextParamReq(void)
+{
+    // schedule pending write request...
+    uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
+    for (uint8_t i, dirtybits = oygeDirtyParams; dirtybits != 0; i++, dirtybits >>= 1) {
+        if ((dirtybits & 0x01) != 0) {
+            oygeBuildParamReq(0x81, i, ygeUpdParams[i], OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_PARAM_WRITE_TIMEOUT);
+            return true;
+        }
+    }
+
+    // ...or nothing pending
+    return false;
+}
+
+static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
+{
+    uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
+    if (pidx >= maxParams || pidx >= OPENYGE_MAX_PARAM_CACHE_SIZE)
+        return;
+
+    uint16_t *ygeParams = (uint16_t*)paramPayload;
+    ygeParams[pidx] = pdata;
+    oygeCachedParams |= (1ULL << pidx);
+
+    // skip if count already known (parameter data ready) or count parameter not yet seen (param[0] for YGE)
+    if (paramPayloadLength > 0 || (oygeCachedParams & 0x01) == 0)
+        return;
+
+    // make param payload available (set length and sign) if all params cached
+    uint16_t ygeParamCount = ygeParams[0];
+    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE && 
+        ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
+        paramPayloadLength = ygeParamCount * 2;
+        paramSig = OPENYGE_PARAM_SYNC;;
+    }
+}
+
+static bool oygeValidateResponseHeader(void)
+{
+    // req and resp headers should match except for len ([3]) which may differ
+    for (int i = 0; i < 3; i++) {
+        if (buffer[i] != reqbuffer[i])
+            return false;
+    }
+    return true;
+}
+
+static bool oygeDecodeWriteParamResp()
+{
+    // validate header
+    if (!oygeValidateResponseHeader())
+        return false;
+
+    // clear dirty bit and cached bit
+    uint8_t pidx = buffer[4];
+    uint16_t pidxbit = (1 << pidx);
+    oygeDirtyParams &= ~pidxbit;
+    oygeCachedParams &= ~pidxbit;
+    return true;
+}
+
+static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
+{
     uint8_t version = buffer[1];
     int16_t temp = buffer[5];
     uint16_t volt = buffer[7] << 8 | buffer[6];
@@ -2229,16 +2302,25 @@ static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
+    oygeBuildNextParamReq();
+
     return true;
 }
 
 static bool oygeDecode(timeMs_t currentTimeMs)
 {
-    uint8_t req = buffer[2];
-    switch (req)
+    // verify CRC16 checksum
+    uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
+    if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
+        return false;
+
+    uint8_t type = buffer[2];
+    switch (type)
     {
         case 0x00:
             return oygeDecodeTelemetryFrame(currentTimeMs);
+        case 0x81:
+            return oygeDecodeWriteParamResp();
         default:
             return false;
     }
@@ -2349,7 +2431,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribParamModified);   // TODO: remove before shipping
+        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribDirtyParams);   // TODO: remove before shipping
     }
 }
 
@@ -2382,7 +2464,6 @@ bool INIT_CODE escSensorInit(void)
             rrfsmStart = tribStart;
             rrfsmDecode = tribDecode;
             callback = rrfsmDataReceive;
-            // callback = tribDataReceive;
             baudrate = 38400;
             mode = MODE_RXTX;
             options |= SERIAL_BIDIR;
@@ -2404,7 +2485,6 @@ bool INIT_CODE escSensorInit(void)
             rrfsmStart = oygeStart;
             rrfsmDecode = oygeDecode;
             callback = rrfsmDataReceive;
-            // callback = oygeDataReceive;
             baudrate = 115200;
             mode = MODE_RXTX;
             options |= SERIAL_BIDIR;
@@ -2430,21 +2510,27 @@ bool INIT_CODE escSensorInit(void)
 
 uint8_t escGetParamBufferLength(void)
 {
-    return paramBufferLength;
+    return paramPayloadLength == 0 ? 0 : PARAM_HEADER_SIZE + paramPayloadLength;
 }
 
 uint8_t *escGetParamBuffer()
 {
+    paramBuffer[PARAM_HEADER_SIG] = paramSig;
+    paramBuffer[PARAM_HEADER_VER] = paramVer;
     return paramBuffer;
 }
 
-uint8_t *escGetParamUpdateBuffer()
+uint8_t *escGetParamUpdBuffer()
 {
-    return paramUpdateBuffer;
+    return paramUpdBuffer;
 }
 
 bool escCommitParameters()
 {
+    if (paramBuffer[PARAM_HEADER_SIG] != paramUpdBuffer[PARAM_HEADER_SIG] || 
+        paramBuffer[PARAM_HEADER_VER] != paramUpdBuffer[PARAM_HEADER_VER])
+        return false;
+
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_SCORPION:
             return tribCommitParameters();
