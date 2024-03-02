@@ -174,7 +174,7 @@ float angleModeApply(int axis, float pidSetpoint)
         if (!isAirborne())
             errorAngle *= 0.25f;
 
-        pidSetpoint = errorAngle * level.Gain;
+        pidSetpoint += errorAngle * level.Gain;
     }
 
     return pidSetpoint;
