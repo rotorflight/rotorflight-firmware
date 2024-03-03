@@ -339,7 +339,7 @@ void freqInit(const freqConfig_t *freqConfig)
 
             input->pin = IOGetByTag(freqConfig->ioTag[port]);
             IOInit(input->pin, OWNER_FREQ, RESOURCE_INDEX(port));
-            IOConfigGPIOAF(input->pin, IOCFG_AF_PP_PD, timer->alternateFunction);
+            IOConfigGPIOAF(input->pin, IOCFG_AF_PP_UP, timer->alternateFunction);
 
             timerConfigure(timer, 0, timerClock(timer->tim));
 
@@ -353,7 +353,7 @@ void freqInit(const freqConfig_t *freqConfig)
                 timerChConfigCallbacks(timer, &input->edgeCb, &input->overflowCb);
             }
 
-            freqICConfig(timer, true, 4);
+            freqICConfig(timer, false, 4);
             freqSetBaseClock(input, input->prescaler);
             freqResetCapture(input, port);
         }

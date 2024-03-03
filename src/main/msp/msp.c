@@ -1103,7 +1103,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_SERVO_CONFIGURATIONS:
-        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        sbufWriteU8(dst, getServoCount());
+
+        for (int i = 0; i < getServoCount(); i++) {
             sbufWriteU16(dst, servoParams(i)->mid);
             sbufWriteU16(dst, servoParams(i)->min);
             sbufWriteU16(dst, servoParams(i)->max);
