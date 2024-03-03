@@ -2236,12 +2236,19 @@ static bool oygeDecodeWriteParamResp()
     // validate header
     if (!oygeValidateResponseHeader())
         return false;
+    
+    // examine payload
+    // - 0x8000 set on pidx indicates operation failed (enhance UI to indicate)
+    // - replace cached value with pdata which is actual value from ESC
+    uint16_t pidx = buffer[5] << 8 | buffer[4];
+    uint16_t pdata = buffer[7] << 8 | buffer[6];
+    
+    uint16_t *ygeParams = (uint16_t*)paramPayload;
+    ygeParams[pidx] = pdata;
 
-    // clear dirty bit and cached bit
-    uint8_t pidx = buffer[4];
-    uint16_t pidxbit = (1 << pidx);
-    oygeDirtyParams &= ~pidxbit;
-    oygeCachedParams &= ~pidxbit;
+    // clear dirty bit
+    uint16_t dirtybit = (1 << pidx);
+    oygeDirtyParams &= ~dirtybit;
     return true;
 }
 
