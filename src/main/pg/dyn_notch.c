@@ -30,7 +30,7 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(dynNotchConfig_t, dynNotchConfig, PG_DYN_NOTCH_CONFIG, 0);
 
 PG_RESET_TEMPLATE(dynNotchConfig_t, dynNotchConfig,
-    .dyn_notch_count = 0,
+    .dyn_notch_count = 4,
     .dyn_notch_q = 20,
     .dyn_notch_min_hz = 25,
     .dyn_notch_max_hz = 245,
