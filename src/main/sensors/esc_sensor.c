@@ -143,6 +143,7 @@ static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
 static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramSig = 0;
 static uint8_t paramVer = 0;
+static bool paramQuery = false;
 
 
 bool isEscSensorActive(void)
@@ -1527,10 +1528,12 @@ typedef int8_t (*rrfsmAcceptCallbackPtr)(uint16_t c);
 
 typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default initialization (if in doubt return true)
 typedef bool (*rrfsmDecodeCallbackPtr)(timeMs_t currentTimeMs); // return true if frame was decoded successfully
+typedef bool (*rrfsmCrankCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default loop (advanced, if in doubt return true)
 
 static rrfsmAcceptCallbackPtr rrfsmAccept = NULL;
 static rrfsmStartCallbackPtr rrfsmStart = NULL;
 static rrfsmDecodeCallbackPtr rrfsmDecode = NULL;
+static rrfsmCrankCallbackPtr rrfsmCrank = NULL;
 
 static uint16_t rrfsmBootDelayMs = 5000;
 static uint8_t rrfsmMinFrameLength = 0;
@@ -1633,6 +1636,11 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
         rrfsmStartFrameAndSendPendingReq(currentTimeMs);
         return;
     }
+
+    // custom execution (advanced)
+    if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeMs)) {
+        return;
+    }
     
     // frame incomplete? check later
     if (readBytes < rrfsmFrameLength) {
@@ -1718,7 +1726,8 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 #define TRIB_PARAM_SIG                  0x53
 
-static bool tribUncMode = false;
+static bool tribUncMode = true;
+static uint8_t tribUncSetup = 0;
 
 // param ranges - hibyte=addr (system region if 0x80 set or setting region otherwise), lobyte=length
 static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
@@ -1813,7 +1822,12 @@ static bool tribDecodeReadParamResp(uint8_t addr)
 
             // make param payload available (set length and sign) if all params cached
             if (tribInvalidParams == 0 && paramPayloadLength == 0) {
-                paramPayloadLength = tribCalcParamBufferLength();
+                if (tribUncMode) {
+                    tribUncSetup = 1;
+                }
+                else {
+                    paramPayloadLength = tribCalcParamBufferLength();
+                }
                 paramSig = TRIB_PARAM_SIG;
             }
             return true;
@@ -1936,12 +1950,23 @@ static bool tribDecodeLogRecord(uint8_t hl)
 static bool tribDecodeReadStatusResp(void)
 {
     // validate header (no CRC), decode as 6 byte header + 16 byte (Log_rec_t) payload
-    if (!tribValidateResponseHeader() || !tribDecodeLogRecord(6))
+    if (!tribValidateResponseHeader())
         return false;
+        
+    uint8_t addr = buffer[3];
+    if (tribUncSetup == 2 && addr == 0) {
+        paramPayloadLength = tribCalcParamBufferLength();
+        tribUncSetup = 3;
+        rrfsmInvalidateReq();
+    }
+    else{
+        if (!tribDecodeLogRecord(6))
+            return false;
 
-    // schedule next request
-    if (!tribBuildNextParamReq())
-        tribBuildNextStatusReq();
+        // schedule next request
+        if (!tribBuildNextParamReq())
+            tribBuildNextStatusReq();
+    }
 
     return true;
 }
@@ -1981,6 +2006,22 @@ static bool tribDecode(timeMs_t currentTimeMs)
         default:
             return false;
     }
+}
+
+static bool tribCrank(timeMs_t currentTimeMs)
+{
+    if (tribUncSetup == 1 && paramQuery && currentTimeMs < rrfsmFrameTimestamp + 4000) {
+        tribUncSetup = 2;
+        tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+    }
+    else if (tribUncSetup == 3 && tribBuildNextParamReq()) {
+        tribUncSetup = 4;
+    }
+    else if (tribUncSetup == 4 && tribInvalidParams == 0 && tribDirtyParams == 0) {
+        tribUncSetup = 3;
+        rrfsmInvalidateReq();
+    }
+    return true;
 }
 
 static bool tribStart(timeMs_t currentTimeMs)
@@ -2242,7 +2283,7 @@ static bool oygeDecodeWriteParamResp()
     // - replace cached value with pdata which is actual value from ESC
     uint16_t pidx = buffer[5] << 8 | buffer[4];
     uint16_t pdata = buffer[7] << 8 | buffer[6];
-    
+
     uint16_t *ygeParams = (uint16_t*)paramPayload;
     ygeParams[pidx] = pdata;
 
@@ -2438,7 +2479,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribDirtyParams);   // TODO: remove before shipping
+        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncSetup);   // TODO: remove before shipping
     }
 }
 
@@ -2470,6 +2511,7 @@ bool INIT_CODE escSensorInit(void)
             rrfsmAccept = tribAccept;
             rrfsmStart = tribStart;
             rrfsmDecode = tribDecode;
+            rrfsmCrank = tribCrank;
             callback = rrfsmDataReceive;
             baudrate = 38400;
             mode = MODE_RXTX;
@@ -2517,6 +2559,7 @@ bool INIT_CODE escSensorInit(void)
 
 uint8_t escGetParamBufferLength(void)
 {
+    paramQuery = true;
     return paramPayloadLength == 0 ? 0 : PARAM_HEADER_SIZE + paramPayloadLength;
 }
 
