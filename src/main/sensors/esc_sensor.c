@@ -1726,8 +1726,16 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 #define TRIB_PARAM_SIG                  0x53
 
+typedef enum {
+    TRIB_UNCSETUP_INACTIVE = 0,
+    TRIB_UNCSETUP_PARAMSREADY,
+    TRIB_UNCSETUP_HALTINGUNC,
+    TRIB_UNCSETUP_ACTIVE,
+    TRIB_UNCSETUP_WAITING,
+} tribUncSetup_e;
+
 static bool tribUncMode = true;
-static uint8_t tribUncSetup = 0;
+static tribUncSetup_e tribUncSetup = TRIB_UNCSETUP_INACTIVE;
 
 // param ranges - hibyte=addr (system region if 0x80 set or setting region otherwise), lobyte=length
 static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0x1406, 0x1808, 0x3408 };
@@ -1823,12 +1831,12 @@ static bool tribDecodeReadParamResp(uint8_t addr)
             // make param payload available (set length and sign) if all params cached
             if (tribInvalidParams == 0 && paramPayloadLength == 0) {
                 if (tribUncMode) {
-                    tribUncSetup = 1;
+                    tribUncSetup = TRIB_UNCSETUP_PARAMSREADY;
                 }
                 else {
                     paramPayloadLength = tribCalcParamBufferLength();
+                    paramSig = TRIB_PARAM_SIG;
                 }
-                paramSig = TRIB_PARAM_SIG;
             }
             return true;
         }
@@ -1949,24 +1957,26 @@ static bool tribDecodeLogRecord(uint8_t hl)
 
 static bool tribDecodeReadStatusResp(void)
 {
-    // validate header (no CRC), decode as 6 byte header + 16 byte (Log_rec_t) payload
+    // validate header (no CRC)
     if (!tribValidateResponseHeader())
         return false;
         
     uint8_t addr = buffer[3];
-    if (tribUncSetup == 2 && addr == 0) {
+    if (tribUncSetup == TRIB_UNCSETUP_HALTINGUNC && addr == 0) {
+        tribUncSetup = TRIB_UNCSETUP_ACTIVE;
         paramPayloadLength = tribCalcParamBufferLength();
-        tribUncSetup = 3;
+        paramSig = TRIB_PARAM_SIG;
         rrfsmInvalidateReq();
+        return true;
     }
-    else{
-        if (!tribDecodeLogRecord(6))
-            return false;
 
-        // schedule next request
-        if (!tribBuildNextParamReq())
-            tribBuildNextStatusReq();
-    }
+    // decode as 6 byte header + 16 byte (Log_rec_t) payload
+    if (!tribDecodeLogRecord(6))
+        return false;
+
+    // schedule next request
+    if (!tribBuildNextParamReq())
+        tribBuildNextStatusReq();
 
     return true;
 }
@@ -1981,6 +1991,7 @@ static bool tribDecodeUNCFrame(void)
     // switch to UNC mode on UNC frame received
     if (!tribUncMode) {
         tribUncMode = true;
+        tribUncSetup = TRIB_UNCSETUP_INACTIVE;
         rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
     }
     return true;
@@ -1991,8 +2002,7 @@ static bool tribDecode(timeMs_t currentTimeMs)
     UNUSED(currentTimeMs);
     
     uint8_t req = buffer[0];
-    switch (req)
-    {
+    switch (req) {
         case 0x51:
             return tribDecodeReadStatusResp();
         case 0x50:
@@ -2010,16 +2020,24 @@ static bool tribDecode(timeMs_t currentTimeMs)
 
 static bool tribCrank(timeMs_t currentTimeMs)
 {
-    if (tribUncSetup == 1 && paramQuery && currentTimeMs < rrfsmFrameTimestamp + 4000) {
-        tribUncSetup = 2;
-        tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-    }
-    else if (tribUncSetup == 3 && tribBuildNextParamReq()) {
-        tribUncSetup = 4;
-    }
-    else if (tribUncSetup == 4 && tribInvalidParams == 0 && tribDirtyParams == 0) {
-        tribUncSetup = 3;
-        rrfsmInvalidateReq();
+    switch(tribUncSetup) {
+        case TRIB_UNCSETUP_PARAMSREADY:
+            if (paramQuery && currentTimeMs < rrfsmFrameTimestamp + 4000) {
+                tribUncSetup = TRIB_UNCSETUP_HALTINGUNC;
+                tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
+            }
+            break;
+        case TRIB_UNCSETUP_ACTIVE:
+            if (tribBuildNextParamReq()) {
+                tribUncSetup = TRIB_UNCSETUP_WAITING;
+            }
+            break;
+        case TRIB_UNCSETUP_WAITING:
+            if (tribInvalidParams == 0 && tribDirtyParams == 0) {
+                tribUncSetup = TRIB_UNCSETUP_ACTIVE;
+                rrfsmInvalidateReq();
+            }
+            break;
     }
     return true;
 }
@@ -2363,8 +2381,7 @@ static bool oygeDecode(timeMs_t currentTimeMs)
         return false;
 
     uint8_t type = buffer[2];
-    switch (type)
-    {
+    switch (type) {
         case 0x00:
             return oygeDecodeTelemetryFrame(currentTimeMs);
         case 0x81:
