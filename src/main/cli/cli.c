@@ -6450,6 +6450,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("mcu_id", "id of the microcontroller", NULL, cliMcuId),
     CLI_COMMAND_DEF("mixer", "configure mixer",
                     "status\r\n\t"
+                    "reset\r\n\t"
                     "input\r\n\t"
                     "input reset\r\n\t"
                     "input <input> <min> <max> <rate>\r\n\t"
