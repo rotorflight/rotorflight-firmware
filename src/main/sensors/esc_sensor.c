@@ -1729,9 +1729,9 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 typedef enum {
     TRIB_UNCSETUP_INACTIVE = 0,
     TRIB_UNCSETUP_PARAMSREADY,
-    TRIB_UNCSETUP_HALTINGUNC,
+    TRIB_UNCSETUP_ABORTUNC,
     TRIB_UNCSETUP_ACTIVE,
-    TRIB_UNCSETUP_WAITING,
+    TRIB_UNCSETUP_WAIT,
 } tribUncSetup_e;
 
 static bool tribUncMode = true;
@@ -1962,7 +1962,7 @@ static bool tribDecodeReadStatusResp(void)
         return false;
         
     uint8_t addr = buffer[3];
-    if (tribUncSetup == TRIB_UNCSETUP_HALTINGUNC && addr == 0) {
+    if (tribUncSetup == TRIB_UNCSETUP_ABORTUNC && addr == 0) {
         tribUncSetup = TRIB_UNCSETUP_ACTIVE;
         paramPayloadLength = tribCalcParamBufferLength();
         paramSig = TRIB_PARAM_SIG;
@@ -2021,18 +2021,23 @@ static bool tribDecode(timeMs_t currentTimeMs)
 static bool tribCrank(timeMs_t currentTimeMs)
 {
     switch(tribUncSetup) {
+        case TRIB_UNCSETUP_INACTIVE:
+        case TRIB_UNCSETUP_ABORTUNC:
+            // unexpected but required to keep compiler happy
+            break;
         case TRIB_UNCSETUP_PARAMSREADY:
             if (paramQuery && currentTimeMs < rrfsmFrameTimestamp + 4000) {
-                tribUncSetup = TRIB_UNCSETUP_HALTINGUNC;
+                // try to abort UNC mode
+                tribUncSetup = TRIB_UNCSETUP_ABORTUNC;
                 tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
             }
             break;
         case TRIB_UNCSETUP_ACTIVE:
             if (tribBuildNextParamReq()) {
-                tribUncSetup = TRIB_UNCSETUP_WAITING;
+                tribUncSetup = TRIB_UNCSETUP_WAIT;
             }
             break;
-        case TRIB_UNCSETUP_WAITING:
+        case TRIB_UNCSETUP_WAIT:
             if (tribInvalidParams == 0 && tribDirtyParams == 0) {
                 tribUncSetup = TRIB_UNCSETUP_ACTIVE;
                 rrfsmInvalidateReq();
