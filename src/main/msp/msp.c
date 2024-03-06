@@ -1647,7 +1647,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, ledStripConfigMutable()->ledstrip_beacon_period_ms);
         sbufWriteU16(dst, ledStripConfigMutable()->ledstrip_blink_period_ms);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_brightness);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_dimmer_rate);
+        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_fade_rate);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_flicker_rate);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_grb_rgb);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_profile);
@@ -3132,7 +3132,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         ledStripConfigMutable()->ledstrip_beacon_period_ms = sbufReadU16(src);
         ledStripConfigMutable()->ledstrip_blink_period_ms = sbufReadU16(src);
         ledStripConfigMutable()->ledstrip_brightness = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_dimmer_rate = sbufReadU8(src);
+        ledStripConfigMutable()->ledstrip_fade_rate = sbufReadU8(src);
         ledStripConfigMutable()->ledstrip_flicker_rate = sbufReadU8(src);
         ledStripConfigMutable()->ledstrip_grb_rgb = sbufReadU8(src);
         ledStripConfigMutable()->ledstrip_profile = sbufReadU8(src);

@@ -135,7 +135,7 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_brightness = 100;
     ledStripConfig->ledstrip_blink_period_ms = 100;
     ledStripConfig->ledstrip_flicker_rate = 50;
-    ledStripConfig->ledstrip_dimmer_rate = 50;
+    ledStripConfig->ledstrip_fade_rate = 50;
     ledStripConfig->ledstrip_inverted_format = 0;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
@@ -1007,12 +1007,12 @@ static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
     }
 
     if (dimmerParameters.previousLedProfile != ledStripConfig()->ledstrip_profile) {
-        if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_DIMMED) {
-            // Start dimming
+        if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_ALT) {
+            // Transition to alternate color
             dimmerParameters.direction = -1;
             dimmerParameters.currentBrightness = maxBrightness;
         } else {
-            // Start brightening
+            // Transition to normal color
             dimmerParameters.direction = 1;
             dimmerParameters.currentBrightness = 0;
         }
@@ -1020,10 +1020,10 @@ static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
     }
 
     if (dimmerParameters.direction != 0) {
-        int8_t step = ledStripConfig()->ledstrip_dimmer_rate;
+        int8_t step = ledStripConfig()->ledstrip_fade_rate;
 
         if (dimmerParameters.direction == -1) {
-            if (ledStripConfig()->ledstrip_dimmer_rate <= 20 && dimmerParameters.currentBrightness < 50) {
+            if (ledStripConfig()->ledstrip_fade_rate <= 20 && dimmerParameters.currentBrightness < 50) {
                 // Slow down dimming even more when dimmer rate is low.
                 step = -MIN(1 + dimmerParameters.currentBrightness/5, step);
             } else {
@@ -1391,7 +1391,7 @@ void ledStripUpdate(timeUs_t currentTimeUs)
         switch (ledStripConfig()->ledstrip_profile) {
 #ifdef USE_LED_STRIP_STATUS_MODE
             case LED_PROFILE_STATUS:
-            case LED_PROFILE_STATUS_DIMMED: {
+            case LED_PROFILE_STATUS_ALT: {
                 applyStatusProfile(currentTimeUs);
                 break;
             }
