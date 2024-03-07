@@ -378,7 +378,7 @@ static const char * const lookupTableSdcardMode[] = {
 #ifdef USE_LED_STRIP
 #ifdef USE_LED_STRIP_STATUS_MODE
 static const char * const lookupTableLEDProfile[] = {
-    "RACE", "BEACON", "STATUS", "STATUS_DIMMED"
+    "RACE", "BEACON", "STATUS", "STATUS_ALT"
 };
 #else
 static const char * const lookupTableLEDProfile[] = {
@@ -1238,7 +1238,7 @@ const clivalue_t valueTable[] = {
     { "ledstrip_brightness",        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 5, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_brightness) },
     { "ledstrip_blink_period_ms",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 10, 500 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_blink_period_ms) },
     { "ledstrip_flicker_rate",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_flicker_rate) },
-    { "ledstrip_dimmer_rate",       VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_dimmer_rate) },
+    { "ledstrip_fade_rate",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_fade_rate) },
     { "ledstrip_inverted_format",   VAR_UINT32 | MASTER_VALUE, .config.u32Max = UINT32_MAX, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_inverted_format) },
 #endif
 
