@@ -1726,6 +1726,8 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 #define TRIB_PARAM_SIG                  0x53
 
+#define TRIB_PARAM_IQ22_ADDR            0x18                // address of param range w/ IQ22 params
+
 typedef enum {
     TRIB_UNCSETUP_INACTIVE = 0,
     TRIB_UNCSETUP_PARAMSREADY,
@@ -1805,9 +1807,26 @@ static bool tribBuildNextParamReq(void)
     // ...or pending write request...
     uint8_t offset = 0;
     for (uint16_t *pal = tribParamAddrLen, dirtybits = tribDirtyParams; dirtybits != 0; pal++, dirtybits >>= 1) {
+        uint8_t addr = *pal >> 8;
         uint8_t len = *pal & 0x00FF;
         if ((dirtybits & 0x01) != 0) {
-            tribBuildReq(0xD3, *pal >> 8, paramUpdPayload + offset, len, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
+            void *payload;
+            uint32_t iq22Payload[2];
+            if (addr == TRIB_PARAM_IQ22_ADDR) {
+                // convert scaled uint32 -> IQ22
+                uint32_t q22 = 1 << 22;
+                uint32_t *pw = iq22Payload;
+                uint32_t *pp = (uint32_t*)(paramUpdPayload + offset);
+                *pw = (((double)*pp) / 100 * q22);
+                pw++;
+                pp++;
+                *pw = (((double)*pp) / 100000 * q22);
+                payload = iq22Payload;
+            }
+            else {
+                payload = paramUpdPayload + offset;
+            }
+            tribBuildReq(0xD3, addr, payload, len, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
             return true;
         }
         offset += len;
@@ -1825,7 +1844,19 @@ static bool tribDecodeReadParamResp(uint8_t addr)
         uint8_t len = *pal & 0x00FF;
         if ((*pal >> 8) == addr) {
             // cache params by addr
-            memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
+            if (addr == TRIB_PARAM_IQ22_ADDR) {
+                // convert IQ22 -> scaled uint32
+                uint32_t q22 = 1 << 22;
+                uint32_t *pr = (uint32_t*)(buffer + TRIB_HEADER_LENGTH);
+                uint32_t *pp = (uint32_t*)(paramPayload + offset);
+                *pp = round(((double)*pr) / q22 * 100);
+                pr++;
+                pp++;
+                *pp = round(((double)*pr) / q22 * 100000);
+            }
+            else {
+                memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
+            }
             tribInvalidParams &= ~(1 << i);
 
             // make param payload available (set length and sign) if all params cached
