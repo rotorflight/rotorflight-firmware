@@ -105,6 +105,8 @@ enum {
 #define PARAM_HEADER_SIG         0
 #define PARAM_HEADER_VER         1
 #define PARAM_HEADER_SIZE        2
+#define PARAM_HEADER_VER_MASK    0x3F
+#define PARAM_HEADER_CMD_MASK    0xC0
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -1725,8 +1727,8 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_READ_TIMEOUT         200                 // usually less than 200Us
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 #define TRIB_PARAM_SIG                  0x53
-
 #define TRIB_PARAM_IQ22_ADDR            0x18                // address of param range w/ IQ22 params
+#define TRIB_PARAM_CMD_RESET            0x80                // reset ESC
 
 typedef enum {
     TRIB_UNCSETUP_INACTIVE = 0,
@@ -1744,9 +1746,15 @@ static uint16_t tribParamAddrLen[] = { 0x0020, 0x1008, 0x230E, 0x8204, 0x8502, 0
 
 static uint16_t tribInvalidParams = 0;   // bit per param address range not yet received from ESC
 static uint16_t tribDirtyParams = 0;     // bit per param address that needs to be written to ESC
+static bool tribResetEsc = false;
 
-static bool tribCommitParameters(void)
+static bool tribCommitParameters(uint8_t cmd)
 {
+    if (cmd == TRIB_PARAM_CMD_RESET) {
+        tribResetEsc = true;
+        return true;
+    }
+
     uint8_t offset = 0;
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
         uint16_t *pal = tribParamAddrLen + i;
@@ -1796,7 +1804,21 @@ static uint8_t tribCalcParamBufferLength()
 
 static bool tribBuildNextParamReq(void)
 {
-    // schedule pending read request
+    // pending reset request...
+    if (tribResetEsc) {
+        tribResetEsc = false;
+
+        tribUncSetup = TRIB_UNCSETUP_INACTIVE;
+        tribInvalidParams = 0;
+        tribDirtyParams = 0;
+        paramQuery = false;
+
+        uint16_t reset = 0;
+        tribBuildReq(0xD0, 0x00, &reset, 2, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
+        return true;
+    }
+
+    // ...or schedule pending read request...
     for (uint16_t *pal = tribParamAddrLen, invalidbits = tribInvalidParams; invalidbits != 0; pal++, invalidbits >>= 1) {
         if ((invalidbits & 0x01) != 0) {
             tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_READ_TIMEOUT);
@@ -2234,8 +2256,10 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
     return crc;
 }
 
-static bool oygeCommitParameters()
+static bool oygeCommitParameters(uint8_t cmd)
 {
+    UNUSED(cmd);
+
     // find dirty params, skip para[0] (parameter count)
     uint16_t *ygeParams = (uint16_t*)paramPayload;
     uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
@@ -2626,15 +2650,16 @@ uint8_t *escGetParamUpdBuffer()
 
 bool escCommitParameters()
 {
-    if (paramBuffer[PARAM_HEADER_SIG] != paramUpdBuffer[PARAM_HEADER_SIG] || 
-        paramBuffer[PARAM_HEADER_VER] != paramUpdBuffer[PARAM_HEADER_VER])
+    if (paramUpdBuffer[PARAM_HEADER_SIG] != paramBuffer[PARAM_HEADER_SIG] || 
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) != paramBuffer[PARAM_HEADER_VER])
         return false;
 
+    uint8_t cmd = paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK;
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_SCORPION:
-            return tribCommitParameters();
+            return tribCommitParameters(cmd);
         case ESC_SENSOR_PROTO_OPENYGE:
-            return oygeCommitParameters();
+            return oygeCommitParameters(cmd);
         default:
             break;
     }
