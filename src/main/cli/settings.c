@@ -497,7 +497,7 @@ const char * const lookupTableCrsfGpsReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
-    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "LED_PROFILE",
+    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "MODEL_ID","LED_PROFILE",
 };
 
 const char * const lookupTableDtermMode[] = {
@@ -968,7 +968,6 @@ const clivalue_t valueTable[] = {
 // PG_ARMING_CONFIG
     { "auto_disarm_delay",          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, auto_disarm_delay) },
     { PARAM_NAME_GYRO_CAL_ON_FIRST_ARM, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, gyro_cal_on_first_arm) },
-
 
 // PG_GPS_CONFIG
 #ifdef USE_GPS
@@ -1462,6 +1461,7 @@ const clivalue_t valueTable[] = {
     { "pwr_on_arm_grace",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, powerOnArmingGraceTime) },
     { "enable_stick_arming",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, enableStickArming) },
     { "enable_stick_commands",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, enableStickCommands) },
+    { "model_id",                   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 25}, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, model_Id) },
 
 // PG_VTX_CONFIG
 #ifdef USE_VTX_COMMON
