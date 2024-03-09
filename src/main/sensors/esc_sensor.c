@@ -145,7 +145,11 @@ static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
 static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramSig = 0;
 static uint8_t paramVer = 0;
-static bool paramQuery = false;
+static bool paramMspActive = false;
+
+// called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
+typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
+static paramCommitCallbackPtr paramCommit = NULL;
 
 
 bool isEscSensorActive(void)
@@ -1748,7 +1752,7 @@ static uint16_t tribInvalidParams = 0;   // bit per param address range not yet 
 static uint16_t tribDirtyParams = 0;     // bit per param address that needs to be written to ESC
 static bool tribResetEsc = false;
 
-static bool tribCommitParameters(uint8_t cmd)
+static bool tribParamCommit(uint8_t cmd)
 {
     if (cmd == TRIB_PARAM_CMD_RESET) {
         tribResetEsc = true;
@@ -1811,7 +1815,7 @@ static bool tribBuildNextParamReq(void)
         tribUncSetup = TRIB_UNCSETUP_INACTIVE;
         tribInvalidParams = 0;
         tribDirtyParams = 0;
-        paramQuery = false;
+        paramMspActive = false;
 
         uint16_t reset = 0;
         tribBuildReq(0xD0, 0x00, &reset, 2, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_WRITE_TIMEOUT);
@@ -2075,7 +2079,7 @@ static bool tribCrank(timeMs_t currentTimeMs)
             // unexpected but required to keep compiler happy
             break;
         case TRIB_UNCSETUP_PARAMSREADY:
-            if (paramQuery && currentTimeMs < rrfsmFrameTimestamp + 4000) {
+            if (paramMspActive && currentTimeMs < rrfsmFrameTimestamp + 4000) {
                 // try to abort UNC mode
                 tribUncSetup = TRIB_UNCSETUP_ABORTUNC;
                 tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
@@ -2146,6 +2150,17 @@ static int8_t tribAccept(uint16_t c)
         }
     }
     return 0;
+}
+
+static void tribSensorInit(void)
+{
+    rrfsmBootDelayMs = TRIB_BOOT_DELAY;
+    rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
+    rrfsmAccept = tribAccept;
+    rrfsmStart = tribStart;
+    rrfsmDecode = tribDecode;
+    rrfsmCrank = tribCrank;
+    paramCommit = tribParamCommit;
 }
 
 
@@ -2256,7 +2271,7 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
     return crc;
 }
 
-static bool oygeCommitParameters(uint8_t cmd)
+static bool oygeParamCommit(uint8_t cmd)
 {
     UNUSED(cmd);
 
@@ -2482,6 +2497,16 @@ static int8_t oygeAccept(uint16_t c)
     return 0;
 }
 
+static void oygeSensorInit(void)
+{
+    rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
+    rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
+    rrfsmAccept = oygeAccept;
+    rrfsmStart = oygeStart;
+    rrfsmDecode = oygeDecode;
+    paramCommit = oygeParamCommit;
+}
+
 
 /*
  * Raw Telemetry Data Recorder
@@ -2579,12 +2604,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_SCORPION:
-            rrfsmBootDelayMs = TRIB_BOOT_DELAY;
-            rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
-            rrfsmAccept = tribAccept;
-            rrfsmStart = tribStart;
-            rrfsmDecode = tribDecode;
-            rrfsmCrank = tribCrank;
+            tribSensorInit();
             callback = rrfsmDataReceive;
             baudrate = 38400;
             mode = MODE_RXTX;
@@ -2601,11 +2621,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_OPENYGE:
-            rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
-            rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
-            rrfsmAccept = oygeAccept;
-            rrfsmStart = oygeStart;
-            rrfsmDecode = oygeDecode;
+            oygeSensorInit();
             callback = rrfsmDataReceive;
             baudrate = 115200;
             mode = MODE_RXTX;
@@ -2632,7 +2648,7 @@ bool INIT_CODE escSensorInit(void)
 
 uint8_t escGetParamBufferLength(void)
 {
-    paramQuery = true;
+    paramMspActive = true;
     return paramPayloadLength == 0 ? 0 : PARAM_HEADER_SIZE + paramPayloadLength;
 }
 
@@ -2650,20 +2666,9 @@ uint8_t *escGetParamUpdBuffer()
 
 bool escCommitParameters()
 {
-    if (paramUpdBuffer[PARAM_HEADER_SIG] != paramBuffer[PARAM_HEADER_SIG] || 
-        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) != paramBuffer[PARAM_HEADER_VER])
-        return false;
-
-    uint8_t cmd = paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK;
-    switch (escSensorConfig()->protocol) {
-        case ESC_SENSOR_PROTO_SCORPION:
-            return tribCommitParameters(cmd);
-        case ESC_SENSOR_PROTO_OPENYGE:
-            return oygeCommitParameters(cmd);
-        default:
-            break;
-    }
-    return false;
+    return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == paramBuffer[PARAM_HEADER_VER] &&
+        paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
 }
 
 #endif
