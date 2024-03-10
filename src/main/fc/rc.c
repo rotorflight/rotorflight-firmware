@@ -51,10 +51,10 @@
 #include "rc.h"
 
 
-#define RX_REFRESH_RATE_MIN_US          950
-#define RX_REFRESH_RATE_MAX_US        65000
+#define RX_REFRESH_RATE_MIN_US          490
+#define RX_REFRESH_RATE_MAX_US        40000
 
-#define RX_REFRESH_RATE_AVERAGING       100
+#define RX_REFRESH_RATE_AVERAGING        64
 
 #define RX_RANGE_COUNT                    4
 
@@ -66,7 +66,6 @@ static FAST_DATA_ZERO_INIT float rcDeadband[4];
 
 static FAST_DATA_ZERO_INIT uint16_t currentRxRefreshRate;
 static FAST_DATA_ZERO_INIT float    averageRxRefreshRate;
-static FAST_DATA_ZERO_INIT uint16_t averagingLength;
 static FAST_DATA_ZERO_INIT timeUs_t lastRxTimeUs;
 
 static FAST_DATA_ZERO_INIT uint32_t changeCount;
@@ -152,6 +151,8 @@ void updateRcRefreshRate(timeUs_t currentTimeUs)
     timeDelta_t frameDeltaUs = rxGetFrameDelta(&frameAgeUs);
     timeDelta_t localDeltaUs = cmpTimeUs(currentTimeUs, lastRxTimeUs);
 
+    lastRxTimeUs = currentTimeUs;
+
     DEBUG(RX_TIMING, 4, frameDeltaUs);
     DEBUG(RX_TIMING, 5, localDeltaUs);
     DEBUG(RX_TIMING, 6, frameAgeUs);
@@ -161,24 +162,11 @@ void updateRcRefreshRate(timeUs_t currentTimeUs)
     }
 
     currentRxRefreshRate = frameDeltaUs;
-    lastRxTimeUs = currentTimeUs;
 
-    float currentRateUs = frameDeltaUs;
-
-    if (averagingLength >= RX_REFRESH_RATE_AVERAGING) {
-        if (rxIsReceivingSignal() && currentRxRefreshRate > RX_REFRESH_RATE_MIN_US && currentRxRefreshRate < RX_REFRESH_RATE_MAX_US) {
-            currentRateUs = constrainf(currentRateUs, 0.75f * averageRxRefreshRate, 1.25f * averageRxRefreshRate);
-        } else {
-            currentRateUs = averageRxRefreshRate;
-        }
+    if (rxIsReceivingSignal() && currentRxRefreshRate > RX_REFRESH_RATE_MIN_US && currentRxRefreshRate < RX_REFRESH_RATE_MAX_US) {
+        averageRxRefreshRate += (frameDeltaUs - averageRxRefreshRate) / RX_REFRESH_RATE_AVERAGING;
+        updateRcChange();
     }
-    else {
-        averagingLength++;
-    }
-
-    averageRxRefreshRate += (currentRateUs - averageRxRefreshRate) / averagingLength;
-
-    updateRcChange();
 
     DEBUG(RX_TIMING, 0, averageRxRefreshRate);
     DEBUG(RX_TIMING, 1, averageRxRefreshRate * currentMult);
@@ -232,6 +220,8 @@ INIT_CODE void initRcProcessing(void)
     rcDeadband[1] = rcControlsConfig()->rc_deadband;
     rcDeadband[2] = rcControlsConfig()->rc_yaw_deadband;
     rcDeadband[3] = 0;
+
+    averageRxRefreshRate = 10000;
 
     currentMult = 1;
 }
