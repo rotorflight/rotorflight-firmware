@@ -1650,14 +1650,16 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     }
 
     uint8_t version = buffer[1];
-    int16_t temp = buffer[5];
-    uint16_t volt = buffer[7] << 8 | buffer[6];
-    uint16_t curr = buffer[9] << 8 | buffer[8];
-    uint16_t capa = buffer[11] << 8 | buffer[10];
-    uint16_t erpm = buffer[13] << 8 | buffer[12];
-    uint8_t pwm = buffer[14];
-    uint16_t voltBEC = buffer[17] << 8 | buffer[16];
-    int16_t tempBEC = buffer[20];
+    uint8_t hl = (version >= 3) ? 6 : 4;
+
+    int16_t temp = buffer[hl+1];
+    uint16_t volt = buffer[hl+3] << 8 | buffer[hl+2];
+    uint16_t curr = buffer[hl+5] << 8 | buffer[hl+4];
+    uint16_t capa = buffer[hl+7] << 8 | buffer[hl+6];
+    uint16_t erpm = buffer[hl+9] << 8 | buffer[hl+8];
+    uint8_t pwm = buffer[hl+10];
+    uint16_t voltBEC = buffer[hl+13] << 8 | buffer[hl+12];
+    int16_t tempBEC = buffer[hl+16];
 
     if (version >= 2) {
         // apply temperature mapping offsets
