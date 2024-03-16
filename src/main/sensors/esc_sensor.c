@@ -107,6 +107,7 @@ enum {
 #define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_VER_MASK    0x3F
 #define PARAM_HEADER_CMD_MASK    0xC0
+#define PARAM_HEADER_RDONLY      0x40
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -2661,7 +2662,7 @@ uint8_t escGetParamBufferLength(void)
 uint8_t *escGetParamBuffer()
 {
     paramBuffer[PARAM_HEADER_SIG] = paramSig;
-    paramBuffer[PARAM_HEADER_VER] = paramVer;
+    paramBuffer[PARAM_HEADER_VER] = paramVer | (escSensorConfig()->halfDuplex ? 0 : PARAM_HEADER_RDONLY);
     return paramBuffer;
 }
 
