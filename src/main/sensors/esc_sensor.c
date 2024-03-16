@@ -2104,8 +2104,6 @@ static bool tribStart(timeMs_t currentTimeMs)
 {
     UNUSED(currentTimeMs);
 
-    tribInvalidateParams();
-
     if (tribUncMode)
         tribBuildNextParamReq();
     else
@@ -2152,8 +2150,12 @@ static int8_t tribAccept(uint16_t c)
     return 0;
 }
 
-static void tribSensorInit(void)
+static serialReceiveCallbackPtr tribSensorInit(bool bidir)
 {
+    // trigger param reads from ESC (bi-directional mode only)
+    if (bidir)
+        tribInvalidateParams();
+
     rrfsmBootDelayMs = TRIB_BOOT_DELAY;
     rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
     rrfsmAccept = tribAccept;
@@ -2161,6 +2163,8 @@ static void tribSensorInit(void)
     rrfsmDecode = tribDecode;
     rrfsmCrank = tribCrank;
     paramCommit = tribParamCommit;
+
+    return rrfsmDataReceive;
 }
 
 
@@ -2501,14 +2505,18 @@ static int8_t oygeAccept(uint16_t c)
     return 0;
 }
 
-static void oygeSensorInit(void)
+static serialReceiveCallbackPtr oygeSensorInit(bool bidir)
 {
+    UNUSED(bidir);
+
     rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
     rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
     rrfsmAccept = oygeAccept;
     rrfsmStart = oygeStart;
     rrfsmDecode = oygeDecode;
     paramCommit = oygeParamCommit;
+
+    return rrfsmDataReceive;
 }
 
 
@@ -2587,9 +2595,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
 
 bool INIT_CODE escSensorInit(void)
 {
+    const bool escHalfDuplex = escSensorConfig()->halfDuplex;
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_ESC_SENSOR);
     serialReceiveCallbackPtr callback = NULL;
-    portMode_e mode = MODE_RX;
     portOptions_e options = 0;
     uint32_t baudrate = 0;
 
@@ -2597,7 +2605,7 @@ bool INIT_CODE escSensorInit(void)
         return false;
     }
 
-    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | (escSensorConfig()->halfDuplex ? SERIAL_BIDIR : 0);
+    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | (escHalfDuplex ? SERIAL_BIDIR : 0);
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:
@@ -2608,11 +2616,8 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_SCORPION:
-            tribSensorInit();
-            callback = rrfsmDataReceive;
+            callback = tribSensorInit(escHalfDuplex);
             baudrate = 38400;
-            mode = MODE_RXTX;
-            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_KONTRONIK:
             baudrate = 115200;
@@ -2625,11 +2630,8 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_OPENYGE:
-            oygeSensorInit();
-            callback = rrfsmDataReceive;
+            callback = oygeSensorInit(escHalfDuplex);
             baudrate = 115200;
-            mode = MODE_RXTX;
-            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
@@ -2637,7 +2639,7 @@ bool INIT_CODE escSensorInit(void)
     }
 
     if (baudrate) {
-        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, mode, options);
+        escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, escHalfDuplex ? MODE_RXTX : MODE_RX, options);
     }
 
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
