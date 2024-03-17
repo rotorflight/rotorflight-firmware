@@ -1524,28 +1524,30 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *     1:       version;            // frame version
  *     2:       frame_type          // telemetry data = 0
  *     3:       frame_length;       // frame length including header and CRC
+ *     4:       reserved            // reserved
+ *     5:       reserved            // reserved
  *
  * Payload...
- *     4:       reserved            // reserved
- *     5:       temperature;        // C degrees (0-> -40°C, 255->215°C)
- *   6,7:       voltage;            // 0.01V    Little endian!
- *   8,9:       current;            // 0.01A    Little endian!
- * 10,11:       consumption;        // mAh      Little endian!
- * 12,13:       rpm;                // 0.1rpm   Little endian!
- *    14:       pwm;                // %
- *    15:       throttle;           // %
- * 16,17:       bec_voltage;        // 0.01V    Little endian!
- * 18,19:       bec_current;        // 0.01A    Little endian!
- *    20:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    21:       status1;            // see documentation
- *    22:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    23:       aux_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    24:       status2;            // reserved
- *    25:       reserved1;          // reserved
- * 26,27:       idx;                // maybe future use
- * 28,29:       idx_data;           // maybe future use
+ *    +0:       reserved            // reserved
+ *     1:       temperature;        // C degrees (0-> -40°C, 255->215°C)
+ *   2,3:       voltage;            // 0.01V    Little endian!
+ *   4,5:       current;            // 0.01A    Little endian!
+ *   6,7:       consumption;        // mAh      Little endian!
+ *   8,9:       rpm;                // 0.1rpm   Little endian!
+ *    10:       pwm;                // %
+ *    11:       throttle;           // %
+ * 12,13:       bec_voltage;        // 0.01V    Little endian!
+ * 14,15:       bec_current;        // 0.01A    Little endian!
+ *    16:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    17:       status1;            // see documentation
+ *    18:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    19:       aux_temp;           // C degrees (0-> -40°C, 255->215°C)
+ *    20:       status2;            // reserved
+ *    21:       reserved1;          // reserved
+ * 22,23:       idx;                // maybe future use
+ * 24,25:       idx_data;           // maybe future use
  *
- * 30,31:       crc16;              // CCITT, poly: 0x1021
+ * 32,33:       crc16;              // CCITT, poly: 0x1021
  *
  */
 
@@ -1650,14 +1652,16 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     }
 
     uint8_t version = buffer[1];
-    int16_t temp = buffer[5];
-    uint16_t volt = buffer[7] << 8 | buffer[6];
-    uint16_t curr = buffer[9] << 8 | buffer[8];
-    uint16_t capa = buffer[11] << 8 | buffer[10];
-    uint16_t erpm = buffer[13] << 8 | buffer[12];
-    uint8_t pwm = buffer[14];
-    uint16_t voltBEC = buffer[17] << 8 | buffer[16];
-    int16_t tempBEC = buffer[20];
+    uint8_t hl = (version >= 3) ? 6 : 4;
+
+    int16_t temp = buffer[hl+1];
+    uint16_t volt = buffer[hl+3] << 8 | buffer[hl+2];
+    uint16_t curr = buffer[hl+5] << 8 | buffer[hl+4];
+    uint16_t capa = buffer[hl+7] << 8 | buffer[hl+6];
+    uint16_t erpm = buffer[hl+9] << 8 | buffer[hl+8];
+    uint8_t pwm = buffer[hl+10];
+    uint16_t voltBEC = buffer[hl+13] << 8 | buffer[hl+12];
+    int16_t tempBEC = buffer[hl+16];
 
     if (version >= 2) {
         // apply temperature mapping offsets
