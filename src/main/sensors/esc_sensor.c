@@ -2215,12 +2215,11 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_MIN_FRAME_LENGTH            6                   // assume minimum frame (header + CRC) until actual length of current frame known
 #define OPENYGE_AUTO_INITIAL_FRAME_TIMEOUT  900                 // intially ~800ms w/ progressive decreasing frame-period...
 #define OPENYGE_AUTO_MIN_FRAME_TIMEOUT      60U                 // ...to final ~50ms (no less)
-#define OPENYGE_FRAME_PERIOD                50                  // aim for approx. 50ms/20Hz
+
+#define OPENYGE_FRAME_PERIOD                32                  // aim for approx. 50ms/20Hz
 #define OPENYGE_PARAM_FRAME_PERIOD          50                  // TBD ASAP?
 #define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: should be much smaller
 #define OPENYGE_REQ_WRITE_TIMEOUT           1200                // Response timeout for write requests  TBD: should be much smaller
-
-#define OPENYGE_TEMP_OFFSET                 40
 
 #define OPENYGE_PARAM_SYNC                  0xA5                // parameter payload
 #define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
@@ -2230,6 +2229,8 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 
 #define OPENYGE_REQ_READ_TELEMETRY          OPENYGE_FTYPE_TELEMETRY         // request telemetry frame
 #define OPENYGE_REQ_WRITE_PARAM             (OPENYGE_FTYPE_PARAM | 0x80)    // write single parameter to ESC
+
+#define OPENYGE_TEMP_OFFSET                 40
 
 typedef struct {
     uint8_t  sync;                      // sync 0xA5
@@ -2427,7 +2428,7 @@ static bool oygeDecodeAuto(timeMs_t currentTimeMs)
     // decode payload
     oygeDecodeTelemetryFrame();
 
-    // adjust UNC frame timeout (10ms + last seen decreasing interval until min)
+    // adjust auto frame timeout (10ms + last seen decreasing interval until min)
     if (oygeAutoFrameTimeout > OPENYGE_AUTO_MIN_FRAME_TIMEOUT && currentTimeMs - rrfsmFrameTimestamp < oygeAutoFrameTimeout) {
         oygeAutoFrameTimeout = MAX(OPENYGE_AUTO_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp + 10);
     }
@@ -2546,7 +2547,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 break;
             case ESC_SENSOR_PROTO_SCORPION:
                 rrfsmSensorProcess(currentTimeUs);
-                // tribSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
@@ -2562,7 +2562,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 break;
             case ESC_SENSOR_PROTO_OPENYGE:
                 rrfsmSensorProcess(currentTimeUs);
-                // oygeSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
@@ -2576,7 +2575,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-        DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER + 1, tribUncSetup);   // TODO: remove before shipping
     }
 }
 
