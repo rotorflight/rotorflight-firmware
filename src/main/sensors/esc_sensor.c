@@ -1762,8 +1762,8 @@ static bool tribParamCommit(uint8_t cmd)
 
     uint8_t offset = 0;
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
-        uint16_t *pal = tribParamAddrLen + i;
-        uint8_t len = *pal & 0x00FF;
+        const uint16_t *pal = tribParamAddrLen + i;
+        const uint8_t len = *pal & 0x00FF;
         if ((*pal & 0x8000) == 0) {
             // for settings only - schedule writes for dirty address ranges
             // TODO: (also update param buffer now until better 'saving' feedback possible)
@@ -1834,14 +1834,14 @@ static bool tribBuildNextParamReq(void)
     // ...or pending write request...
     uint8_t offset = 0;
     for (uint16_t *pal = tribParamAddrLen, dirtybits = tribDirtyParams; dirtybits != 0; pal++, dirtybits >>= 1) {
-        uint8_t addr = *pal >> 8;
-        uint8_t len = *pal & 0x00FF;
+        const uint8_t addr = *pal >> 8;
+        const uint8_t len = *pal & 0x00FF;
         if ((dirtybits & 0x01) != 0) {
             void *payload;
             uint32_t iq22Payload[2];
             if (addr == TRIB_PARAM_IQ22_ADDR) {
                 // convert scaled uint32 -> IQ22
-                uint32_t q22 = 1 << 22;
+                const uint32_t q22 = 1 << 22;
                 uint32_t *pw = iq22Payload;
                 uint32_t *pp = (uint32_t*)(paramUpdPayload + offset);
                 *pw++ = (((double)*pp++) / 100 * q22);
@@ -1865,13 +1865,13 @@ static bool tribDecodeReadParamResp(uint8_t addr)
 {
     uint8_t offset = 0;
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
-        uint16_t *pal = tribParamAddrLen + i;
-        uint8_t len = *pal & 0x00FF;
+        const uint16_t *pal = tribParamAddrLen + i;
+        const uint8_t len = *pal & 0x00FF;
         if ((*pal >> 8) == addr) {
             // cache params by addr
             if (addr == TRIB_PARAM_IQ22_ADDR) {
                 // convert IQ22 -> scaled uint32
-                uint32_t q22 = 1 << 22;
+                const uint32_t q22 = 1 << 22;
                 uint32_t *pr = (uint32_t*)(buffer + TRIB_HEADER_LENGTH);
                 uint32_t *pp = (uint32_t*)(paramPayload + offset);
                 *pp++ = round(((double)*pr++) / q22 * 100);
@@ -1902,10 +1902,10 @@ static bool tribDecodeReadParamResp(uint8_t addr)
 static bool tribDecodeWriteParamResp(uint8_t addr)
 {
     for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
-        uint16_t *pal = tribParamAddrLen + i;
+        const uint16_t *pal = tribParamAddrLen + i;
         if ((*pal >> 8) == addr) {
             // clear dirty bit and set invalid bit force read
-            uint16_t addrbit = (1 << i);
+            const uint16_t addrbit = (1 << i);
             tribDirtyParams &= ~addrbit;
             tribInvalidParams |= addrbit;
             return true;
@@ -1937,7 +1937,7 @@ static bool tribDecodeReadSettingResp(uint8_t sysbit)
     if (!tribValidateResponseHeader())
         return false;
 
-    uint8_t addr = buffer[3];
+    const uint8_t addr = buffer[3];
     if (tribUncMode) {
         if (!tribDecodeReadParamResp(addr | sysbit) || !tribBuildNextParamReq()) {
             rrfsmInvalidateReq();
@@ -1957,7 +1957,7 @@ static bool tribDecodeWriteSettingResp(void)
     if (!tribValidateResponseHeader())
         return false;
 
-    uint8_t addr = buffer[3];
+    const uint8_t addr = buffer[3];
     if (tribUncMode) {
         if (!tribDecodeWriteParamResp(addr) || !tribBuildNextParamReq()) {
             rrfsmInvalidateReq();
@@ -1974,14 +1974,14 @@ static bool tribDecodeWriteSettingResp(void)
 static bool tribDecodeLogRecord(uint8_t hl)
 {
     // payload: 16 byte (Log_rec_t)
-    uint16_t rpm = buffer[hl + 14] << 8 | buffer[hl + 13];
-    uint16_t temp = buffer[hl + 10];
-    uint16_t power = buffer[hl + 11];
-    uint16_t voltage = buffer[hl + 7] << 8 | buffer[hl + 6];
-    uint16_t current = buffer[hl + 5] << 8 | buffer[hl + 4];
-    uint16_t capacity = buffer[hl + 9] << 8 | buffer[hl + 8];
-    uint16_t status = buffer[hl + 15];
-    uint16_t voltBEC = buffer[hl + 12];
+    const uint16_t rpm = buffer[hl + 14] << 8 | buffer[hl + 13];
+    const uint16_t temp = buffer[hl + 10];
+    const uint16_t power = buffer[hl + 11];
+    const uint16_t voltage = buffer[hl + 7] << 8 | buffer[hl + 6];
+    const uint16_t current = buffer[hl + 5] << 8 | buffer[hl + 4];
+    const uint16_t capacity = buffer[hl + 9] << 8 | buffer[hl + 8];
+    const uint16_t status = buffer[hl + 15];
+    const uint16_t voltBEC = buffer[hl + 12];
 
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
@@ -1994,8 +1994,8 @@ static bool tribDecodeLogRecord(uint8_t hl)
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 100);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 100);
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
@@ -2015,7 +2015,7 @@ static bool tribDecodeReadStatusResp(void)
     if (!tribValidateResponseHeader())
         return false;
         
-    uint8_t addr = buffer[3];
+    const uint8_t addr = buffer[3];
     if (tribUncSetup == TRIB_UNCSETUP_ABORTUNC && addr == 0) {
         tribUncSetup = TRIB_UNCSETUP_ACTIVE;
         paramPayloadLength = tribCalcParamBufferLength();
@@ -2038,7 +2038,7 @@ static bool tribDecodeReadStatusResp(void)
 static bool tribDecodeUNCFrame(void)
 {
     // validate CRC, decode as 4 byte header + 16 byte (Log_rec_t) payload
-    uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
+    const uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
     if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(4))
         return false;
     
@@ -2055,7 +2055,7 @@ static bool tribDecode(timeMs_t currentTimeMs)
 {
     UNUSED(currentTimeMs);
     
-    uint8_t req = buffer[0];
+    const uint8_t req = buffer[0];
     switch (req) {
         case 0x51:
             return tribDecodeReadStatusResp();

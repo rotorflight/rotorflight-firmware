@@ -807,7 +807,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
     case MSP_ESC_PARAMETERS:
         {
-            uint8_t len = escGetParamBufferLength();
+            const uint8_t len = escGetParamBufferLength();
             if (len == 0)
                 return false;
 
@@ -2654,7 +2654,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ESC_PARAMETERS:
         {
-            uint8_t len = escGetParamBufferLength();
+            const uint8_t len = escGetParamBufferLength();
             if (len == 0)
                 return MSP_RESULT_ERROR;
 
