@@ -2151,10 +2151,10 @@ static int8_t tribAccept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr tribSensorInit(bool bidir)
+static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 {
     // trigger param reads from ESC (bi-directional mode only)
-    if (bidir)
+    if (bidirectional)
         tribInvalidateParams();
 
     rrfsmBootDelayMs = TRIB_BOOT_DELAY;
@@ -2207,58 +2207,69 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidir)
  *      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
  *      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
  *      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
- *
- * Data Frame Format
- * ―――――――――――――――――――――――――――――――――――――――――――――――
- * Header...
- *     0:       sync;               // sync, 0xA5
- *     1:       version;            // frame version
- *     2:       frame_type          // telemetry data = 0
- *     3:       frame_length;       // frame length including header and CRC
- *     4:       reserved            // reserved
- *     5:       reserved            // reserved
- *
- * Payload...
- *    +0:       reserved            // reserved
- *     1:       temperature;        // C degrees (0-> -40°C, 255->215°C)
- *   2,3:       voltage;            // 0.01V    Little endian!
- *   4,5:       current;            // 0.01A    Little endian!
- *   6,7:       consumption;        // mAh      Little endian!
- *   8,9:       rpm;                // 0.1rpm   Little endian!
- *    10:       pwm;                // %
- *    11:       throttle;           // %
- * 12,13:       bec_voltage;        // 0.01V    Little endian!
- * 14,15:       bec_current;        // 0.01A    Little endian!
- *    16:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    17:       status1;            // see documentation
- *    18:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    19:       aux_temp;           // C degrees (0-> -40°C, 255->215°C)
- *    20:       status2;            // reserved
- *    21:       reserved1;          // reserved
- * 22,23:       idx;                // maybe future use
- * 24,25:       idx_data;           // maybe future use
- *
- * 32,33:       crc16;              // CCITT, poly: 0x1021
- *
  */
 
 #define OPENYGE_SYNC                        0xA5                // sync
+#define OPENYGE_VERSION                     3                   // protocol version
 #define OPENYGE_BOOT_DELAY                  5000                // 5 seconds
 #define OPENYGE_MIN_FRAME_LENGTH            6                   // assume minimum frame (header + CRC) until actual length of current frame known
-#define OPENYGE_UNC_INITIAL_FRAME_TIMEOUT   900                 // intially ~800ms w/ progressive decreasing frame-period...
-#define OPENYGE_UNC_MIN_FRAME_TIMEOUT       60U                 // ...to final ~50ms (no less)
+#define OPENYGE_AUTO_INITIAL_FRAME_TIMEOUT  900                 // intially ~800ms w/ progressive decreasing frame-period...
+#define OPENYGE_AUTO_MIN_FRAME_TIMEOUT      60U                 // ...to final ~50ms (no less)
+#define OPENYGE_FRAME_PERIOD                50                  // aim for approx. 50ms/20Hz
+#define OPENYGE_PARAM_FRAME_PERIOD          50                  // TBD ASAP?
+#define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: should be much smaller
+#define OPENYGE_REQ_WRITE_TIMEOUT           1200                // Response timeout for write requests  TBD: should be much smaller
 
 #define OPENYGE_TEMP_OFFSET                 40
 
-#define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
-#define OPENYGE_PARAM_FRAME_PERIOD          2                   // asap
-#define OPENYGE_PARAM_WRITE_TIMEOUT         500                 // TODO unknown ATM
 #define OPENYGE_PARAM_SYNC                  0xA5                // parameter payload
+#define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
-static uint16_t oygeUNCFrameTimeout = OPENYGE_UNC_INITIAL_FRAME_TIMEOUT;
+#define OPENYGE_FTYPE_TELEMETRY             0x00                            // telemetry frame type
+#define OPENYGE_FTYPE_PARAM                 0x01                            // single parameter frame type
+
+#define OPENYGE_REQ_READ_TELEMETRY          OPENYGE_FTYPE_TELEMETRY         // request telemetry frame
+#define OPENYGE_REQ_WRITE_PARAM             (OPENYGE_FTYPE_PARAM | 0x80)    // write single parameter to ESC
+
+typedef struct {
+    uint8_t  sync;                      // sync 0xA5
+    uint8_t  version;                   // version
+    uint8_t  frame_type;                // high bit 0x00 for read, 0x80 for write, e.g 0x00 - telemetry frame data, 0x81 - update parameter
+    uint8_t  frame_length;              // frame length
+    uint8_t  seq;                       // count for packet-control/assignment master counts, slave(ESC) sends this value back
+    uint8_t  device;                    // ESC address, 0x80 for master and 7 bits for ESC address 0x01…0x7F where 0x00 might mean all ESCs
+} OpenYGEHeader_t;
+
+typedef struct {
+    uint8_t  reserved;                  // reserved
+    uint8_t  temperature;               // C degrees+40 (-40..215°C)
+    uint16_t voltage;                   // 0.01V
+    uint16_t current;                   // 0.01A
+    uint16_t consumption;               // mAh
+    uint16_t rpm;                       // 0.1erpm
+    int8_t   pwm;                       // %
+    int8_t   throttle;                  // %
+    uint16_t bec_voltage;               // 0.001V
+    uint16_t bec_current;               // 0.001A
+    uint8_t  bec_temp;                  // C degrees
+    uint8_t  status1;                   // see documentation
+    uint8_t  cap_temp;                  // C degrees+40 (-40..215°C)
+    uint8_t  aux_temp;                  // C degrees+40 (-40..215°C)
+    uint8_t  status2;                   // Debug/Reserved
+    uint8_t  reserved1;                 // Debug/Reserved maybe consumption high-byte for more than 65Ah(industrial)
+    uint16_t pidx;                      // maybe future use
+    uint16_t pdata;                     // maybe future use
+} OpenYGETelemetryFrame_t;
+
+typedef struct {
+    uint16_t index;                     // parameter addr
+    uint16_t param;                     // parameter value
+} OpenYGEControlFrame_t;
+
+
+static uint16_t oygeAutoFrameTimeout = OPENYGE_AUTO_INITIAL_FRAME_TIMEOUT;
 static uint64_t oygeCachedParams = 0;
 static uint64_t oygeDirtyParams = 0;
-static bool oygeASTMode = true;
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 {
@@ -2290,50 +2301,15 @@ static bool oygeParamCommit(uint8_t cmd)
         return false;
 
     const uint16_t ygeParamCount = ygeParams[0];
-    for (uint8_t i = 1; i < ygeParamCount; i++) {
+    for (uint8_t idx = 1; idx < ygeParamCount; idx++) {
         // schedule writes for dirty params
         // TODO: (also update param buffer now until better 'saving' feedback possible)
-        if (ygeParams[i] != ygeUpdParams[i]) {
-            ygeParams[i] = ygeUpdParams[i];
-            oygeDirtyParams |= (1ULL << i);
+        if (ygeParams[idx] != ygeUpdParams[idx]) {
+            ygeParams[idx] = ygeUpdParams[idx];
+            oygeDirtyParams |= (1ULL << idx);
         }
     }
     return true;
-}
-
-static void oygeBuildParamReq(uint8_t req, uint16_t pidx, uint16_t pdata, uint16_t framePeriod, uint16_t frameTimeout)
-{
-    reqbuffer[0] = OPENYGE_SYNC;    // sync
-    reqbuffer[1] = 0;               // request version
-    reqbuffer[2] = req;             // frame_type, request, e.g. 0x81 to set an ESC parameter where 0x80 
-                                    // (high bit indicates write operation, lower 4 bits are operation, extra three bit could be request ID for overlapping async requests - future?)
-    reqbuffer[3] = 10;              // frame length including header, payload and CRC
-    reqbuffer[4] = pidx & 0x00FF;   // YGE index of parameter
-    reqbuffer[5] = pidx >> 8;
-    reqbuffer[6] = pdata & 0x00FF;  // YGE value of parameter
-    reqbuffer[7] = pdata >> 8;
-
-    const uint16_t crc = oygeCalculateCRC16_CCITT(reqbuffer, 8);
-    reqbuffer[8] = crc & 0x00FF;
-    reqbuffer[9] = crc >> 8;
-
-    rrfsmFramePeriod = framePeriod;
-    rrfsmFrameTimeout = frameTimeout;
-}
-
-static bool oygeBuildNextParamReq(void)
-{
-    // schedule pending write request...
-    uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
-    for (uint8_t i, dirtybits = oygeDirtyParams; dirtybits != 0; i++, dirtybits >>= 1) {
-        if ((dirtybits & 0x01) != 0) {
-            oygeBuildParamReq(0x81, i, ygeUpdParams[i], OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_PARAM_WRITE_TIMEOUT);
-            return true;
-        }
-    }
-
-    // ...or nothing pending
-    return false;
 }
 
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
@@ -2359,102 +2335,103 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
     }
 }
 
-static bool oygeValidateResponseHeader(void)
+static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
-    // req and resp headers should match except for len ([3]) which may differ
-    for (int i = 0; i < 3; i++) {
-        if (buffer[i] != reqbuffer[i])
-            return false;
-    }
-    return true;
+    OpenYGEHeader_t *hdr = (OpenYGEHeader_t*)reqbuffer;
+    reqLength = sizeof(*hdr) + len + 2;     // header + payload + crc
+    if (reqLength > REQUEST_BUFFER_SIZE)
+        return;
+
+    hdr->sync = OPENYGE_SYNC;
+    hdr->version = OPENYGE_VERSION;
+    hdr->frame_type = req;
+    hdr->frame_length = reqLength;
+    hdr->seq++;                             // advance sequence number, overlapped operations not supported by this implementation
+    hdr->device = device | 0x80;            // as master
+
+    if (payload != NULL)
+        memcpy(hdr + 1, payload, len);
+
+    *((uint16_t*)(reqbuffer + reqLength - 2)) = oygeCalculateCRC16_CCITT(reqbuffer, reqLength - 2);
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
 }
 
-static bool oygeDecodeWriteParamResp()
+static void oygeBuildNextReq(void)
 {
-    // validate header
-    if (!oygeValidateResponseHeader())
-        return false;
-    
-    // examine payload
-    // - 0x8000 set on pidx indicates operation failed (enhance UI to indicate)
-    // - replace cached value with pdata which is actual value from ESC
-    uint16_t pidx = buffer[5] << 8 | buffer[4];
-    uint16_t pdata = buffer[7] << 8 | buffer[6];
+    // schedule pending write request...
+    const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
+    for (uint8_t idx = 0, dirtybits = oygeDirtyParams; dirtybits != 0; idx++, dirtybits >>= 1) {
+        if ((dirtybits & 0x01) != 0) {    
+            // clear dirty bit
+            oygeDirtyParams &= ~(1ULL << idx);
 
-    uint16_t *ygeParams = (uint16_t*)paramPayload;
-    ygeParams[pidx] = pdata;
+            // schedule request
+            OpenYGEControlFrame_t ctl;
+            ctl.index = idx;
+            ctl.param = ygeUpdParams[idx];
+            oygeBuildReq(OPENYGE_REQ_WRITE_PARAM, 1, &ctl, sizeof(ctl), OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_REQ_WRITE_TIMEOUT);
+            return;
+        }
+    }
 
-    // clear dirty bit
-    uint16_t dirtybit = (1 << pidx);
-    oygeDirtyParams &= ~dirtybit;
-    return true;
+    // ...or nothing pending, schedule read telemetry request
+    oygeBuildReq(OPENYGE_REQ_READ_TELEMETRY, 1, NULL, 0, OPENYGE_FRAME_PERIOD, OPENYGE_REQ_READ_TIMEOUT);
 }
 
-static void oygeDecodeTelemetry(void)
+static void oygeDecodeTelemetryFrame(void)
 {
-    const uint8_t version = buffer[1];
-    const uint8_t hl = (version >= 3) ? 6 : 4;
+    const OpenYGEHeader_t *hdr = (OpenYGEHeader_t*)buffer;
+    const OpenYGETelemetryFrame_t *tele = (OpenYGETelemetryFrame_t*)(buffer + (hdr->version >= 3 ? 6 : 4));
 
-    int16_t temp = buffer[hl+1];
-    const uint16_t volt = buffer[hl+3] << 8 | buffer[hl+2];
-    const uint16_t curr = buffer[hl+5] << 8 | buffer[hl+4];
-    const uint16_t capa = buffer[hl+7] << 8 | buffer[hl+6];
-    const uint16_t erpm = buffer[hl+9] << 8 | buffer[hl+8];
-    const uint8_t pwm = buffer[hl+10];
-    const uint16_t voltBEC = buffer[hl+13] << 8 | buffer[hl+12];
-    const uint16_t currBEC = buffer[hl+15] << 8 | buffer[hl+14];
-    int16_t tempBEC = buffer[hl+16];
-    const uint8_t status = buffer[hl+17];
-
-    const uint8_t pidx = buffer[26];
-    const uint16_t pdata = buffer[29] << 8 | buffer[28];
-
-    if (version >= 2) {
-        // apply temperature mapping offsets
-        temp    -= OPENYGE_TEMP_OFFSET;
-        tempBEC -= OPENYGE_TEMP_OFFSET;
-    }
+    int16_t temp = tele->temperature - OPENYGE_TEMP_OFFSET;
+    int16_t tempBEC = tele->bec_temp - OPENYGE_TEMP_OFFSET;
 
     escSensorData[0].age = 0;
-    escSensorData[0].erpm = erpm * 10;
-    escSensorData[0].pwm = pwm * 10;
-    escSensorData[0].voltage = volt * 10;
-    escSensorData[0].current = curr * 10;
-    escSensorData[0].consumption = capa;
+    escSensorData[0].erpm = tele->rpm * 10;
+    escSensorData[0].pwm = tele->pwm * 10;
+    escSensorData[0].voltage = tele->voltage * 10;
+    escSensorData[0].current = tele->current * 10;
+    escSensorData[0].consumption = tele->consumption;
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
-    escSensorData[0].bec_voltage = voltBEC * 10;
-    escSensorData[0].bec_current = currBEC * 10;
-    escSensorData[0].status = status;
+    escSensorData[0].bec_voltage = tele->bec_voltage * 10;
+    escSensorData[0].bec_current = tele->bec_current * 10;
+    escSensorData[0].status = tele->status1;
 
-    oygeCacheParam(pidx, pdata);
+    oygeCacheParam(tele->pidx, tele->pdata);
 
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, erpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, volt * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, curr * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, tele->voltage * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, tele->current * 10);
 
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, erpm);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, tele->rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, tele->pwm);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, volt);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, curr);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capa);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, tele->consumption);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->status1);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
-static bool oygeDecodeTelemetryFrame(timeMs_t currentTimeMs)
+static bool oygeDecodeAuto(timeMs_t currentTimeMs)
 {
-    oygeDecodeTelemetry();
+    // verify CRC16 checksum
+    const uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
+    if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
+        return false;
+        
+    // decode payload
+    oygeDecodeTelemetryFrame();
 
     // adjust UNC frame timeout (10ms + last seen decreasing interval until min)
-    if (oygeUNCFrameTimeout > OPENYGE_UNC_MIN_FRAME_TIMEOUT && currentTimeMs - rrfsmFrameTimestamp < oygeUNCFrameTimeout) {
-        oygeUNCFrameTimeout = MAX(OPENYGE_UNC_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp + 10);
+    if (oygeAutoFrameTimeout > OPENYGE_AUTO_MIN_FRAME_TIMEOUT && currentTimeMs - rrfsmFrameTimestamp < oygeAutoFrameTimeout) {
+        oygeAutoFrameTimeout = MAX(OPENYGE_AUTO_MIN_FRAME_TIMEOUT, currentTimeMs - rrfsmFrameTimestamp + 10);
     }
-    rrfsmFrameTimeout = oygeUNCFrameTimeout;
-
-    oygeBuildNextParamReq();
+    rrfsmFrameTimeout = oygeAutoFrameTimeout;
 
     return true;
 }
@@ -2466,20 +2443,24 @@ static bool oygeDecode(timeMs_t currentTimeMs)
     if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
         return false;
 
-    const uint8_t type = buffer[2];
-    switch (type) {
-        case 0x00:
-            return oygeDecodeTelemetryFrame(currentTimeMs);
-        case 0x81:
-            return oygeDecodeWriteParamResp();
-        default:
-            return false;
+    const OpenYGEHeader_t *req = (OpenYGEHeader_t*)reqbuffer;
+    const OpenYGEHeader_t *resp = (OpenYGEHeader_t*)buffer;
+    
+    // switch to auto telemetry mode if ESC FW too old
+    if (resp->version < 3) {
+        rrfsmDecode = oygeDecodeAuto;
+        return oygeDecodeAuto(currentTimeMs);
     }
-}
 
-static bool oygeStart(timeMs_t currentTimeMs)
-{
-    UNUSED(currentTimeMs);
+    // response sequence number should match request or 0 (auto telemetry / first frame received)
+    if (resp->seq != 0 && resp->seq != req->seq)
+        return false;
+
+    // decode payload
+    oygeDecodeTelemetryFrame();
+
+    // schedule next request
+    oygeBuildNextReq();
 
     return true;
 }
@@ -2492,7 +2473,7 @@ static int8_t oygeAccept(uint16_t c)
             return -1;
     }
     else if (readBytes == 3) {
-        if (c != 0x00) {
+        if (c != OPENYGE_FTYPE_TELEMETRY) {
             // unsupported frame type
             return -1;
         }
@@ -2512,16 +2493,15 @@ static int8_t oygeAccept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr oygeSensorInit(bool bidir)
+static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
 {
-    oygeASTMode = !bidir;
-
     rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
     rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
     rrfsmAccept = oygeAccept;
-    rrfsmStart = oygeStart;
-    rrfsmDecode = oygeDecode;
     paramCommit = oygeParamCommit;
+
+    // enable request/response mode if bi-directional comms available, auto mode if not
+    rrfsmDecode = bidirectional ? oygeDecode : oygeDecodeAuto;
 
     return rrfsmDataReceive;
 }
