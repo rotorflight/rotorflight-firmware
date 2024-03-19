@@ -102,12 +102,13 @@ enum {
 #define TELEMETRY_BUFFER_SIZE    40
 #define REQUEST_BUFFER_SIZE      40
 #define PARAM_BUFFER_SIZE        96
+#define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_SIG         0
 #define PARAM_HEADER_VER         1
-#define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_VER_MASK    0x3F
 #define PARAM_HEADER_CMD_MASK    0xC0
 #define PARAM_HEADER_RDONLY      0x40
+#define PARAM_HEADER_USER        0x80
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -1731,9 +1732,9 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_FRAME_PERIOD         2                   // asap
 #define TRIB_PARAM_READ_TIMEOUT         200                 // usually less than 200Us
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
-#define TRIB_PARAM_SIG                  0x53
+#define TRIB_PARAM_SIG                  0x53                // parameter payload signature for this ESC
 #define TRIB_PARAM_IQ22_ADDR            0x18                // address of param range w/ IQ22 params
-#define TRIB_PARAM_CMD_RESET            0x80                // reset ESC
+#define TRIB_PARAM_CMD_RESET            PARAM_HEADER_USER   // reset ESC
 
 typedef enum {
     TRIB_UNCSETUP_INACTIVE = 0,
@@ -2153,17 +2154,19 @@ static int8_t tribAccept(uint16_t c)
 
 static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 {
-    // trigger param reads from ESC (bi-directional mode only)
-    if (bidirectional)
-        tribInvalidateParams();
-
     rrfsmBootDelayMs = TRIB_BOOT_DELAY;
     rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
     rrfsmAccept = tribAccept;
     rrfsmStart = tribStart;
     rrfsmDecode = tribDecode;
     rrfsmCrank = tribCrank;
-    paramCommit = tribParamCommit;
+
+    if (bidirectional) {
+        // enable ESC parameter reads and writes
+        paramSig = TRIB_PARAM_SIG;
+        paramCommit = tribParamCommit;
+        tribInvalidateParams();
+    }
 
     return rrfsmDataReceive;
 }
@@ -2221,7 +2224,7 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: should be much smaller
 #define OPENYGE_REQ_WRITE_TIMEOUT           1200                // Response timeout for write requests  TBD: should be much smaller
 
-#define OPENYGE_PARAM_SYNC                  0xA5                // parameter payload
+#define OPENYGE_PARAM_SIG                   0xA5                // parameter payload signature for this ESC
 #define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
 #define OPENYGE_FTYPE_TELEMETRY             0x00                            // telemetry frame type
@@ -2332,7 +2335,6 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
     if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE && 
         ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
         paramPayloadLength = ygeParamCount * 2;
-        paramSig = OPENYGE_PARAM_SYNC;;
     }
 }
 
@@ -2499,10 +2501,18 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
     rrfsmBootDelayMs = OPENYGE_BOOT_DELAY;
     rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
     rrfsmAccept = oygeAccept;
-    paramCommit = oygeParamCommit;
 
-    // enable request/response mode if bi-directional comms available, auto mode if not
-    rrfsmDecode = bidirectional ? oygeDecode : oygeDecodeAuto;
+    paramSig = OPENYGE_PARAM_SIG;
+    
+    if (bidirectional) {
+        // use request/response telemetry mode, enable parameter writes to ESC
+        rrfsmDecode = oygeDecode;
+        paramCommit = oygeParamCommit;
+    }
+    else {
+        // use auto telemetry mode
+        rrfsmDecode = oygeDecodeAuto;
+    }
 
     return rrfsmDataReceive;
 }
@@ -2640,13 +2650,13 @@ bool INIT_CODE escSensorInit(void)
 uint8_t escGetParamBufferLength(void)
 {
     paramMspActive = true;
-    return paramPayloadLength == 0 ? 0 : PARAM_HEADER_SIZE + paramPayloadLength;
+    return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
 uint8_t *escGetParamBuffer()
 {
     paramBuffer[PARAM_HEADER_SIG] = paramSig;
-    paramBuffer[PARAM_HEADER_VER] = paramVer | (escSensorConfig()->halfDuplex ? 0 : PARAM_HEADER_RDONLY);
+    paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
     return paramBuffer;
 }
 
