@@ -2399,8 +2399,8 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].consumption = tele->consumption;
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
-    escSensorData[0].bec_voltage = tele->bec_voltage * 10;
-    escSensorData[0].bec_current = tele->bec_current * 10;
+    escSensorData[0].bec_voltage = tele->bec_voltage;
+    escSensorData[0].bec_current = tele->bec_current;
     escSensorData[0].status = tele->status1;
 
     oygeCacheParam(tele->pidx, tele->pdata);
