@@ -132,7 +132,7 @@ enum
     FSSP_DATAID_ADJFUNC    = 0x5110 , // custom
     FSSP_DATAID_ADJVALUE   = 0x5111 , // custom
     FSSP_DATAID_CAP_USED   = 0x5250 ,
-    FSSP_DATAID_GMODE      = 0x5450 , //custom
+    FSSP_DATAID_GOV_MODE      = 0x5450 , //custom
 #if defined(USE_ACC)
     FSSP_DATAID_PITCH      = 0x5230 , // custom
     FSSP_DATAID_ROLL       = 0x5240 , // custom
@@ -216,11 +216,6 @@ static smartPortWriteFrameFn *smartPortWriteFrame;
 #if defined(USE_MSP_OVER_TELEMETRY)
 static bool smartPortMspReplyPending = false;
 #endif
-
-
-
-
-
 
 smartPortPayload_t *smartPortDataReceive(uint16_t c, bool *clearToSend, smartPortReadyToSendFn *readyToSend, bool useChecksum)
 {
@@ -340,7 +335,7 @@ static void initSmartPortSensors(void)
     frSkyDataIdTableInfo.index = 0;
 
     //prob need configurator option for these?
-    ADD_SENSOR(FSSP_DATAID_GMODE);
+    ADD_SENSOR(FSSP_DATAID_GOV_MODE);
 
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {
         ADD_SENSOR(FSSP_DATAID_T1);
@@ -436,8 +431,6 @@ static void initSmartPortSensors(void)
         ADD_SENSOR(FSSP_DATAID_ADJFUNC);
         ADD_SENSOR(FSSP_DATAID_ADJVALUE);
     }
-
-
 
     frSkyDataIdTableInfo.size = frSkyDataIdTableInfo.index;
     frSkyDataIdTableInfo.index = 0;
@@ -643,7 +636,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
 #endif
 
         switch (id) {
-            case FSSP_DATAID_GMODE   :
+            case FSSP_DATAID_GOV_MODE   :
                 if (!ARMING_FLAG(ARMED)) {
                     if (isArmingDisabled())
                         smartPortSendPackage(id, 100);  //DISABLED
