@@ -1557,8 +1557,8 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
  *   8,9:       rpm;                // 0.1rpm   Little endian!
  *    10:       pwm;                // %
  *    11:       throttle;           // %
- * 12,13:       bec_voltage;        // 0.01V    Little endian!
- * 14,15:       bec_current;        // 0.01A    Little endian!
+ * 12,13:       bec_voltage;        // 0.001V   Little endian!
+ * 14,15:       bec_current;        // 0.001A   Little endian!
  *    16:       bec_temp;           // C degrees (0-> -40°C, 255->215°C)
  *    17:       status1;            // see documentation
  *    18:       cap_temp;           // C degrees (0-> -40°C, 255->215°C)
@@ -1700,8 +1700,8 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     escSensorData[0].consumption = capa;
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
-    escSensorData[0].bec_voltage = voltBEC * 10;
-    escSensorData[0].bec_current = currBEC * 10;
+    escSensorData[0].bec_voltage = voltBEC;
+    escSensorData[0].bec_current = currBEC;
     escSensorData[0].status = status;
 
     totalFrameCount++;
