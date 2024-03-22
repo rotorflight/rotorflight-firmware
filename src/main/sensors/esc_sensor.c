@@ -2219,7 +2219,8 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_AUTO_INITIAL_FRAME_TIMEOUT  900                 // intially ~800ms w/ progressive decreasing frame-period...
 #define OPENYGE_AUTO_MIN_FRAME_TIMEOUT      60U                 // ...to final ~50ms (no less)
 
-#define OPENYGE_FRAME_PERIOD                32                  // aim for approx. 50ms/20Hz
+#define OPENYGE_FRAME_PERIOD_INIT           20                  // delay before sending first master request after v3+ auto telemetry frame seen (possibly last chained)
+#define OPENYGE_FRAME_PERIOD                48                  // aim for approx. 50ms/20Hz
 #define OPENYGE_PARAM_FRAME_PERIOD          50                  // TBD ASAP?
 #define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: should be much smaller
 #define OPENYGE_REQ_WRITE_TIMEOUT           1200                // Response timeout for write requests  TBD: should be much smaller
@@ -2350,6 +2351,8 @@ static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len
     hdr->frame_type = req;
     hdr->frame_length = reqLength;
     hdr->seq++;                             // advance sequence number, overlapped operations not supported by this implementation
+    if (hdr->seq == 0)                      // advance past zero - special meaning to this master
+        hdr->seq++;
     hdr->device = device | 0x80;            // as master
 
     if (payload != NULL)
@@ -2361,7 +2364,7 @@ static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len
     rrfsmFrameTimeout = frameTimeout;
 }
 
-static void oygeBuildNextReq(void)
+static void oygeBuildNextReq(bool init)
 {
     // schedule pending write request...
     const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
@@ -2380,7 +2383,7 @@ static void oygeBuildNextReq(void)
     }
 
     // ...or nothing pending, schedule read telemetry request
-    oygeBuildReq(OPENYGE_REQ_READ_TELEMETRY, 1, NULL, 0, OPENYGE_FRAME_PERIOD, OPENYGE_REQ_READ_TIMEOUT);
+    oygeBuildReq(OPENYGE_REQ_READ_TELEMETRY, 1, NULL, 0, init ? OPENYGE_FRAME_PERIOD_INIT : OPENYGE_FRAME_PERIOD, OPENYGE_REQ_READ_TIMEOUT);
 }
 
 static void oygeDecodeTelemetryFrame(void)
@@ -2463,7 +2466,7 @@ static bool oygeDecode(timeMs_t currentTimeMs)
     oygeDecodeTelemetryFrame();
 
     // schedule next request
-    oygeBuildNextReq();
+    oygeBuildNextReq(resp->seq == 0);
 
     return true;
 }
