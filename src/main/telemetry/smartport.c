@@ -160,7 +160,7 @@ enum
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
-#define MAX_DATAIDS 26
+#define MAX_DATAIDS 25
 
 static uint16_t frSkyDataIdTable[MAX_DATAIDS];
 
