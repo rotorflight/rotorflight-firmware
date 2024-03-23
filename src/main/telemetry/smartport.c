@@ -132,7 +132,7 @@ enum
     FSSP_DATAID_ADJFUNC    = 0x5110 , // custom
     FSSP_DATAID_ADJVALUE   = 0x5111 , // custom
     FSSP_DATAID_CAP_USED   = 0x5250 ,
-    FSSP_DATAID_GOV_MODE      = 0x5450 , //custom
+    FSSP_DATAID_GOV_MODE   = 0x5450 , //custom
 #if defined(USE_ACC)
     FSSP_DATAID_PITCH      = 0x5230 , // custom
     FSSP_DATAID_ROLL       = 0x5240 , // custom
