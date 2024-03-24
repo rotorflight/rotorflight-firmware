@@ -1543,7 +1543,7 @@ static rrfsmStartCallbackPtr rrfsmStart = NULL;
 static rrfsmDecodeCallbackPtr rrfsmDecode = NULL;
 static rrfsmCrankCallbackPtr rrfsmCrank = NULL;
 
-static uint16_t rrfsmBootDelayMs = 5000;
+static uint16_t rrfsmBootDelayMs = 0;
 static uint8_t rrfsmMinFrameLength = 0;
 
 static uint32_t rrfsmFrameTimestamp = 0;
@@ -1890,7 +1890,6 @@ static bool tribDecodeReadParamResp(uint8_t addr)
                 }
                 else {
                     paramPayloadLength = tribCalcParamBufferLength();
-                    paramSig = TRIB_PARAM_SIG;
                 }
             }
             return true;
@@ -2020,7 +2019,6 @@ static bool tribDecodeReadStatusResp(void)
     if (tribUncSetup == TRIB_UNCSETUP_ABORTUNC && addr == 0) {
         tribUncSetup = TRIB_UNCSETUP_ACTIVE;
         paramPayloadLength = tribCalcParamBufferLength();
-        paramSig = TRIB_PARAM_SIG;
         rrfsmInvalidateReq();
         return true;
     }
@@ -2220,19 +2218,19 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_AUTO_MIN_FRAME_TIMEOUT      60U                 // ...to final ~50ms (no less)
 
 #define OPENYGE_FRAME_PERIOD_INIT           20                  // delay before sending first master request after v3+ auto telemetry frame seen (possibly last chained)
-#define OPENYGE_FRAME_PERIOD                48                  // aim for approx. 50ms/20Hz
-#define OPENYGE_PARAM_FRAME_PERIOD          50                  // TBD ASAP?
-#define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: should be much smaller
-#define OPENYGE_REQ_WRITE_TIMEOUT           1200                // Response timeout for write requests  TBD: should be much smaller
+#define OPENYGE_FRAME_PERIOD                38                  // aim for approx. 50ms/20Hz
+#define OPENYGE_PARAM_FRAME_PERIOD          4                   // TBD ASAP?
+#define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: confirm
+#define OPENYGE_REQ_WRITE_TIMEOUT           400                 // Response timeout for write requests  TBD: confirm
 
 #define OPENYGE_PARAM_SIG                   0xA5                // parameter payload signature for this ESC
 #define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
-#define OPENYGE_FTYPE_TELEMETRY             0x00                            // telemetry frame type
-#define OPENYGE_FTYPE_PARAM                 0x01                            // single parameter frame type
-
-#define OPENYGE_REQ_READ_TELEMETRY          OPENYGE_FTYPE_TELEMETRY         // request telemetry frame
-#define OPENYGE_REQ_WRITE_PARAM             (OPENYGE_FTYPE_PARAM | 0x80)    // write single parameter to ESC
+#define OPENYGE_FTYPE_TELE_AUTO             0x00                // auto telemetry frame
+#define OPENYGE_FTYPE_TELE_RESP             0x02                // telemetry response
+#define OPENYGE_FTYPE_TELE_REQ              0x03                // telemetry request
+#define OPENYGE_FTYPE_WRITE_PARAM_RESP      0x04                // write param response
+#define OPENYGE_FTYPE_WRITE_PARAM_REQ       0x05                // write param request
 
 #define OPENYGE_TEMP_OFFSET                 40
 
@@ -2308,10 +2306,11 @@ static bool oygeParamCommit(uint8_t cmd)
     const uint16_t ygeParamCount = ygeParams[0];
     for (uint8_t idx = 1; idx < ygeParamCount; idx++) {
         // schedule writes for dirty params
-        // TODO: (also update param buffer now until better 'saving' feedback possible)
         if (ygeParams[idx] != ygeUpdParams[idx]) {
-            ygeParams[idx] = ygeUpdParams[idx];
+            // set dirty bit
             oygeDirtyParams |= (1ULL << idx);
+            // clear cached bit
+            oygeCachedParams &= ~(1ULL << idx);
         }
     }
     return true;
@@ -2351,8 +2350,6 @@ static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len
     hdr->frame_type = req;
     hdr->frame_length = reqLength;
     hdr->seq++;                             // advance sequence number, overlapped operations not supported by this implementation
-    if (hdr->seq == 0)                      // advance past zero - special meaning to this master
-        hdr->seq++;
     hdr->device = device | 0x80;            // as master
 
     if (payload != NULL)
@@ -2364,26 +2361,31 @@ static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len
     rrfsmFrameTimeout = frameTimeout;
 }
 
-static void oygeBuildNextReq(bool init)
+static void oygeBuildNextReq(const OpenYGEHeader_t *hdr)
 {
+    OpenYGEControlFrame_t ctl;
+    
     // schedule pending write request...
     const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
-    for (uint8_t idx = 0, dirtybits = oygeDirtyParams; dirtybits != 0; idx++, dirtybits >>= 1) {
-        if ((dirtybits & 0x01) != 0) {    
+    for (uint8_t idx = 0; oygeDirtyParams != 0; idx++) {
+        uint64_t bit = 1ULL << idx;
+        // index dirty?
+        if ((oygeDirtyParams & bit) != 0) {    
             // clear dirty bit
-            oygeDirtyParams &= ~(1ULL << idx);
+            oygeDirtyParams &= ~(bit);
 
             // schedule request
-            OpenYGEControlFrame_t ctl;
             ctl.index = idx;
             ctl.param = ygeUpdParams[idx];
-            oygeBuildReq(OPENYGE_REQ_WRITE_PARAM, 1, &ctl, sizeof(ctl), OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_REQ_WRITE_TIMEOUT);
+            oygeBuildReq(OPENYGE_FTYPE_WRITE_PARAM_REQ, 1, &ctl, sizeof(ctl), OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_REQ_WRITE_TIMEOUT);
             return;
         }
     }
 
     // ...or nothing pending, schedule read telemetry request
-    oygeBuildReq(OPENYGE_REQ_READ_TELEMETRY, 1, NULL, 0, init ? OPENYGE_FRAME_PERIOD_INIT : OPENYGE_FRAME_PERIOD, OPENYGE_REQ_READ_TIMEOUT);
+    ctl.index = ctl.param = 0;
+    const uint8_t framePeriod = hdr->frame_type == OPENYGE_FTYPE_TELE_AUTO ? OPENYGE_FRAME_PERIOD_INIT : OPENYGE_FRAME_PERIOD;
+    oygeBuildReq(OPENYGE_FTYPE_TELE_REQ, 1, &ctl, sizeof(ctl), framePeriod, OPENYGE_REQ_READ_TIMEOUT);
 }
 
 static void oygeDecodeTelemetryFrame(void)
@@ -2442,6 +2444,28 @@ static bool oygeDecodeAuto(timeMs_t currentTimeMs)
     return true;
 }
 
+static bool oygeDecodeTelemetry(const OpenYGEHeader_t *hdr, timeMs_t currentTimeMs)
+{    
+    // switch to auto telemetry mode if ESC FW too old
+    if (hdr->version < 3) {
+        rrfsmDecode = oygeDecodeAuto;
+        return oygeDecodeAuto(currentTimeMs);
+    }
+
+    // response sequence number should match request (ignore auto telemetry)
+    const OpenYGEHeader_t *req = (OpenYGEHeader_t*)reqbuffer;
+    if (hdr->frame_type != OPENYGE_FTYPE_TELE_AUTO && hdr->seq != req->seq)
+        return false;
+
+    // decode payload
+    oygeDecodeTelemetryFrame();
+
+    // schedule next request
+    oygeBuildNextReq(hdr);
+
+    return true;
+}
+
 static bool oygeDecode(timeMs_t currentTimeMs)
 {
     // verify CRC16 checksum
@@ -2449,26 +2473,15 @@ static bool oygeDecode(timeMs_t currentTimeMs)
     if (oygeCalculateCRC16_CCITT(buffer, rrfsmFrameLength - 2) != crc)
         return false;
 
-    const OpenYGEHeader_t *req = (OpenYGEHeader_t*)reqbuffer;
-    const OpenYGEHeader_t *resp = (OpenYGEHeader_t*)buffer;
-    
-    // switch to auto telemetry mode if ESC FW too old
-    if (resp->version < 3) {
-        rrfsmDecode = oygeDecodeAuto;
-        return oygeDecodeAuto(currentTimeMs);
+    const OpenYGEHeader_t *hdr = (OpenYGEHeader_t*)buffer;
+    switch (hdr->frame_type) {
+        case OPENYGE_FTYPE_TELE_AUTO:
+        case OPENYGE_FTYPE_TELE_RESP:
+        case OPENYGE_FTYPE_WRITE_PARAM_RESP:
+            return oygeDecodeTelemetry(hdr, currentTimeMs);
+        default:
+            return false;
     }
-
-    // response sequence number should match request or 0 (auto telemetry / first frame received)
-    if (resp->seq != 0 && resp->seq != req->seq)
-        return false;
-
-    // decode payload
-    oygeDecodeTelemetryFrame();
-
-    // schedule next request
-    oygeBuildNextReq(resp->seq == 0);
-
-    return true;
 }
 
 static int8_t oygeAccept(uint16_t c)
@@ -2479,9 +2492,16 @@ static int8_t oygeAccept(uint16_t c)
             return -1;
     }
     else if (readBytes == 3) {
-        if (c != OPENYGE_FTYPE_TELEMETRY) {
-            // unsupported frame type
-            return -1;
+        switch (c) {
+            case OPENYGE_FTYPE_TELE_AUTO:
+            case OPENYGE_FTYPE_TELE_REQ:
+            case OPENYGE_FTYPE_TELE_RESP:
+            case OPENYGE_FTYPE_WRITE_PARAM_REQ:
+            case OPENYGE_FTYPE_WRITE_PARAM_RESP:
+                break;
+            default:
+                // unsupported frame type
+                return -1;
         }
     }
     else if (readBytes == 4) {

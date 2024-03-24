@@ -84,6 +84,6 @@ uint32_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
 
 uint8_t escGetParamBufferLength(void);
-uint8_t *escGetParamBuffer();
-uint8_t *escGetParamUpdBuffer();
-bool escCommitParameters();
+uint8_t *escGetParamBuffer(void);
+uint8_t *escGetParamUpdBuffer(void);
+bool escCommitParameters(void);
