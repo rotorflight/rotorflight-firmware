@@ -467,6 +467,24 @@ static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
         case CRSF_ATT_REUSE_ESC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->temperature * 10 : 0;
+        case CRSF_ATT_REUSE_ESC_PWM:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->pwm : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_VOLTAGE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_voltage : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_CURRENT:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_current : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature2 * 10 : 0;
+        case CRSF_ATT_REUSE_ESC_STATUS:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status & 0xFFFF) : 0;
+        case CRSF_ATT_REUSE_ESC_STATUS2:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status >> 16) : 0;
         case CRSF_ATT_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 100;
         case CRSF_ATT_REUSE_MCU_LOAD:
