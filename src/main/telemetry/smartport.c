@@ -335,7 +335,9 @@ static void initSmartPortSensors(void)
     frSkyDataIdTableInfo.index = 0;
 
     //prob need configurator option for these?
+    if (telemetryIsSensorEnabled(SENSOR_GOV_MODE)) {
     ADD_SENSOR(FSSP_DATAID_GOV_MODE);
+    }    
 
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {
         ADD_SENSOR(FSSP_DATAID_T1);
