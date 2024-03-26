@@ -128,6 +128,9 @@ static inline float tan_approx(float x)
     __typeof__ (x) _x = (x); \
     _x > 0 ? _x : -_x; })
 
+#define SIGN(x) \
+  __extension__ ({ __typeof__ (x) _x = (x); \
+  (_x > 0) - (_x < 0); })
 
 /*
  * Basic math operations
