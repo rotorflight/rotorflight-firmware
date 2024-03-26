@@ -25,6 +25,8 @@
 #include "common/maths.h"
 #include "pg/pg.h"
 
+bool isUpsidedown(void);
+
 // Exported symbols
 extern bool canUseGPSHeading;
 extern float accAverage[XYZ_AXIS_COUNT];
