@@ -101,16 +101,16 @@ static float calcLevelErrorAngle(int axis)
     angle = constrainf(angle, -level.AngleLimit, level.AngleLimit);
 
     float currentAngle = ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
-        if ( isUpsidedown() && FLIGHT_MODE(HORIZON_MODE) ){
+    if ( isUpsidedown() && FLIGHT_MODE(HORIZON_MODE) ){
         switch (axis) {
-              case FD_PITCH:
+            case FD_PITCH:
                 currentAngle *= -1;
                 break;
-              case FD_ROLL:
-                //currentAngle -= SIGN(currentAngle) * 180;
-              break;
-              }
-           }
+            case FD_ROLL:
+                currentAngle -= SIGN(currentAngle) * 180;
+                break;
+        }
+    }
 
     float error = angle - currentAngle;
     return error;
