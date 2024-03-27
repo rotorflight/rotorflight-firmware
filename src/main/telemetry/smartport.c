@@ -57,6 +57,8 @@
 #include "flight/mixer.h"
 #include "flight/pid.h"
 #include "flight/position.h"
+#include "flight/motors.h"
+#include "flight/governor.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -130,6 +132,7 @@ enum
     FSSP_DATAID_ADJFUNC    = 0x5110 , // custom
     FSSP_DATAID_ADJVALUE   = 0x5111 , // custom
     FSSP_DATAID_CAP_USED   = 0x5250 ,
+    FSSP_DATAID_GOV_MODE   = 0x5450 , //custom
 #if defined(USE_ACC)
     FSSP_DATAID_PITCH      = 0x5230 , // custom
     FSSP_DATAID_ROLL       = 0x5240 , // custom
@@ -157,7 +160,7 @@ enum
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
-#define MAX_DATAIDS 24
+#define MAX_DATAIDS 25
 
 static uint16_t frSkyDataIdTable[MAX_DATAIDS];
 
@@ -330,6 +333,11 @@ static void smartPortSendPackage(uint16_t id, uint32_t val)
 static void initSmartPortSensors(void)
 {
     frSkyDataIdTableInfo.index = 0;
+
+    //prob need configurator option for these?
+    if (telemetryIsSensorEnabled(SENSOR_GOV_MODE)) {
+    ADD_SENSOR(FSSP_DATAID_GOV_MODE);
+    }    
 
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {
         ADD_SENSOR(FSSP_DATAID_T1);
@@ -630,6 +638,28 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
 #endif
 
         switch (id) {
+            case FSSP_DATAID_GOV_MODE   :
+                if (!ARMING_FLAG(ARMED)) {
+                    if (isArmingDisabled())
+                        smartPortSendPackage(id, 100);  //DISABLED
+                    else
+                       smartPortSendPackage(id, 101); //DISAMED
+                } else {     
+                    /* 
+                        0, //"OFF",
+                        1, //"IDLE",
+                        2, // "SPOOLUP",
+                        3, //"RECOVERY",
+                        4, //"ACTIVE",
+                        5, //"THR-OFF",
+                        6, //"LOST-HS",
+                        7, //"AUTOROT",
+                        8, //"BAILOUT",     
+                    */                    
+                    smartPortSendPackage(id, getGovernorState());
+                }
+                *clearToSend = false;
+                break;           
             case FSSP_DATAID_VFAS       :
                 vfasVoltage = telemetryConfig()->report_cell_voltage ? getBatteryAverageCellVoltage() : getBatteryVoltage();
                 smartPortSendPackage(id, vfasVoltage); // in 0.01V according to SmartPort spec
