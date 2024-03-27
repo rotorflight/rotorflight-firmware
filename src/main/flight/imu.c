@@ -640,6 +640,6 @@ bool isUpsidedown(void)
 #ifdef USE_ACC
     return !sensors(SENSOR_ACC) || (attitudeIsEstablished && getCosTiltAngle() < 0);
 #else
-    return true;
+    return false;
 #endif
 }
