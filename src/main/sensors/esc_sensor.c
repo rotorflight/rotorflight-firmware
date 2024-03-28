@@ -2374,7 +2374,7 @@ static void oygeBuildNextReq(const OpenYGEHeader_t *hdr)
             // clear dirty bit
             oygeDirtyParams &= ~(bit);
 
-            // schedule request
+            // schedule write request
             ctl.index = idx;
             ctl.param = ygeUpdParams[idx];
             oygeBuildReq(OPENYGE_FTYPE_WRITE_PARAM_REQ, 1, &ctl, sizeof(ctl), OPENYGE_PARAM_FRAME_PERIOD, OPENYGE_REQ_WRITE_TIMEOUT);
@@ -2449,6 +2449,7 @@ static bool oygeDecodeTelemetry(const OpenYGEHeader_t *hdr, timeMs_t currentTime
     // switch to auto telemetry mode if ESC FW too old
     if (hdr->version < 3) {
         rrfsmDecode = oygeDecodeAuto;
+        paramCommit = NULL;
         return oygeDecodeAuto(currentTimeMs);
     }
 
