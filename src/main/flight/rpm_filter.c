@@ -120,14 +120,16 @@ INIT_CODE void rpmFilterInit(void)
             bankNumber++;
         }
         // Main Motor (M1)
-        else if (source == 10 && enable10) {
-            CHECK_SOURCE(mainMotorIndex);
-            bank->motor  = mainMotorIndex;
-            bank->ratio  = ratio;
-            bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / mainGearRatio) * ratio, 10, minHzLimit);
-            bank->maxHz  = maxHzLimit;
-            bank->notchQ = notchQ;
-            bankNumber++;
+        else if (source == 10) {
+            if (enable10) {
+                CHECK_SOURCE(mainMotorIndex);
+                bank->motor  = mainMotorIndex;
+                bank->ratio  = ratio;
+                bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / mainGearRatio) * ratio, 10, minHzLimit);
+                bank->maxHz  = maxHzLimit;
+                bank->notchQ = notchQ;
+                bankNumber++;
+            }
         }
         // Main Rotor harmonics
         else if (source >= 11 && source <= 18) {
@@ -141,14 +143,16 @@ INIT_CODE void rpmFilterInit(void)
             bankNumber++;
         }
         // Tail Motor (M2)
-        else if (source == 20 && enable20) {
-            CHECK_SOURCE(tailMotorIndex);
-            bank->motor  = tailMotorIndex;
-            bank->ratio  = ratio;
-            bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / tailGearRatio) * ratio, 10, minHzLimit);
-            bank->maxHz  = maxHzLimit;
-            bank->notchQ = notchQ;
-            bankNumber++;
+        else if (source == 20) {
+            if (enable20) {
+                CHECK_SOURCE(tailMotorIndex);
+                bank->motor  = tailMotorIndex;
+                bank->ratio  = ratio;
+                bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / tailGearRatio) * ratio, 10, minHzLimit);
+                bank->maxHz  = maxHzLimit;
+                bank->notchQ = notchQ;
+                bankNumber++;
+            }
         }
         // Tail Rotor harmonics
         else if (source >= 21 && source <= 28) {
