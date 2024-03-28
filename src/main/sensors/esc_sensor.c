@@ -1734,7 +1734,8 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
 #define TRIB_PARAM_SIG                  0x53                // parameter payload signature for this ESC
 #define TRIB_PARAM_IQ22_ADDR            0x18                // address of param range w/ IQ22 params
-#define TRIB_PARAM_CMD_RESET            PARAM_HEADER_USER   // reset ESC
+#define TRIB_PARAM_CAP_RESET            PARAM_HEADER_USER   // reset ESC capable
+#define TRIB_PARAM_CMD_RESET            PARAM_HEADER_USER   // reset ESC command
 
 typedef enum {
     TRIB_UNCSETUP_INACTIVE = 0,
@@ -1756,26 +1757,37 @@ static bool tribResetEsc = false;
 
 static bool tribParamCommit(uint8_t cmd)
 {
-    if (cmd == TRIB_PARAM_CMD_RESET) {
+    if (cmd == 0) {
+        // save page
+        // find dirty params, settings only
+        uint8_t offset = 0;
+        for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
+            const uint16_t *pal = tribParamAddrLen + i;
+            const uint8_t len = *pal & 0x00FF;
+            if ((*pal & 0x8000) == 0) {
+                // schedule writes for dirty address ranges
+                if (memcmp(paramPayload + offset, paramUpdPayload + offset, len) != 0) {
+                    // set dirty bit
+                    tribDirtyParams |= (1U << i);
+                    // invalidate param
+                    tribInvalidParams |= (1 << i);
+                    // invalidate param payload - will be available again when all params again cached
+                    paramPayloadLength = 0;
+                }
+            }
+            offset += len;
+        }
+        return true;
+    }
+    else if (cmd == TRIB_PARAM_CMD_RESET) {
+        // reset ESC
         tribResetEsc = true;
         return true;
     }
-
-    uint8_t offset = 0;
-    for (uint8_t i = 0; i < ARRAYLEN(tribParamAddrLen); i++) {
-        const uint16_t *pal = tribParamAddrLen + i;
-        const uint8_t len = *pal & 0x00FF;
-        if ((*pal & 0x8000) == 0) {
-            // for settings only - schedule writes for dirty address ranges
-            // TODO: (also update param buffer now until better 'saving' feedback possible)
-            if (memcmp(paramPayload + offset, paramUpdPayload + offset, len) != 0) {
-                memcpy(paramPayload + offset, paramUpdPayload + offset, len);
-                tribDirtyParams |= (1U << i);
-            }
-        }
-        offset += len;
+    else {
+        // invalid command
+        return false;
     }
-    return true;
 }
 
 static void tribBuildReq(uint8_t req, uint8_t addr, void *src, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
@@ -1824,14 +1836,6 @@ static bool tribBuildNextParamReq(void)
         return true;
     }
 
-    // ...or schedule pending read request...
-    for (uint16_t *pal = tribParamAddrLen, invalidbits = tribInvalidParams; invalidbits != 0; pal++, invalidbits >>= 1) {
-        if ((invalidbits & 0x01) != 0) {
-            tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_READ_TIMEOUT);
-            return true;
-        }
-    }
-
     // ...or pending write request...
     uint8_t offset = 0;
     for (uint16_t *pal = tribParamAddrLen, dirtybits = tribDirtyParams; dirtybits != 0; pal++, dirtybits >>= 1) {
@@ -1858,6 +1862,14 @@ static bool tribBuildNextParamReq(void)
         offset += len;
     }
 
+    // ...or schedule pending read request if no pending writes...
+    for (uint16_t *pal = tribParamAddrLen, invalidbits = tribInvalidParams; invalidbits != 0; pal++, invalidbits >>= 1) {
+        if ((invalidbits & 0x01) != 0) {
+            tribBuildReq((*pal & 0x8000) != 0 ? 0x50 : 0x53, (*pal & 0x7F00) >> 8, NULL, *pal & 0x00FF, TRIB_PARAM_FRAME_PERIOD, TRIB_PARAM_READ_TIMEOUT);
+            return true;
+        }
+    }
+
     // ...or nothing pending
     return false;
 }
@@ -1881,9 +1893,10 @@ static bool tribDecodeReadParamResp(uint8_t addr)
             else {
                 memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
             }
+            // clear invalid bit
             tribInvalidParams &= ~(1 << i);
 
-            // make param payload available (set length and sign) if all params cached
+            // make param payload available if all params cached
             if (tribInvalidParams == 0 && paramPayloadLength == 0) {
                 if (tribUncMode) {
                     tribUncSetup = TRIB_UNCSETUP_PARAMSREADY;
@@ -2160,8 +2173,9 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
     rrfsmCrank = tribCrank;
 
     if (bidirectional) {
-        // enable ESC parameter reads and writes
+        // enable ESC parameter reads and writes, reset
         paramSig = TRIB_PARAM_SIG;
+        paramVer = 0 | TRIB_PARAM_CAP_RESET;
         paramCommit = tribParamCommit;
         tribInvalidateParams();
     }
@@ -2295,31 +2309,41 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 
 static bool oygeParamCommit(uint8_t cmd)
 {
-    UNUSED(cmd);
+    if (cmd == 0) {
+        // save page
+        // find dirty params, skip para[0] (parameter count)
+        uint16_t *ygeParams = (uint16_t*)paramPayload;
+        const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
+        if (ygeParams[0] != ygeUpdParams[0])
+            return false;
 
-    // find dirty params, skip para[0] (parameter count)
-    uint16_t *ygeParams = (uint16_t*)paramPayload;
-    const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
-    if (ygeParams[0] != ygeUpdParams[0])
-        return false;
-
-    const uint16_t ygeParamCount = ygeParams[0];
-    for (uint8_t idx = 1; idx < ygeParamCount; idx++) {
-        // schedule writes for dirty params
-        if (ygeParams[idx] != ygeUpdParams[idx]) {
-            // set dirty bit
-            oygeDirtyParams |= (1ULL << idx);
-            // clear cached bit
-            oygeCachedParams &= ~(1ULL << idx);
+        const uint16_t ygeParamCount = ygeParams[0];
+        for (uint8_t idx = 1; idx < ygeParamCount; idx++) {
+            // schedule writes for dirty params
+            if (ygeParams[idx] != ygeUpdParams[idx]) {
+                // set dirty bit
+                oygeDirtyParams |= (1ULL << idx);
+                // invalidate param
+                oygeCachedParams &= ~(1ULL << idx);
+                // invalidate param payload - will be available again when all params again cached
+                paramPayloadLength = 0;
+            }
         }
+        return true;
     }
-    return true;
+    else {
+        return false;
+    }
 }
 
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
     const uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
     if (pidx >= maxParams || pidx >= OPENYGE_MAX_PARAM_CACHE_SIZE)
+        return;
+
+    // don't accept params until pending writes cleared
+    if (oygeDirtyParams != 0)
         return;
 
     uint16_t *ygeParams = (uint16_t*)paramPayload;
@@ -2330,7 +2354,7 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
     if (paramPayloadLength > 0 || (oygeCachedParams & 0x01) == 0)
         return;
 
-    // make param payload available (set length and sign) if all params cached
+    // make param payload available if all params cached
     const uint16_t ygeParamCount = ygeParams[0];
     if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE && 
         ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
@@ -2692,7 +2716,7 @@ uint8_t *escGetParamUpdBuffer()
 bool escCommitParameters()
 {
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
-        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == paramBuffer[PARAM_HEADER_VER] &&
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
         paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
 }
 
