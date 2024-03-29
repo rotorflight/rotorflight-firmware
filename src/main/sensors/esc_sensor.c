@@ -1569,7 +1569,7 @@ enum {
 static timeMs_t oygeRampTimer = 0;
 static uint32_t oygeFrameTimestamp = 0;
 static uint16_t oygeFramePeriod = OPENYGE_FRAME_PERIOD_INITIAL;
-static volatile uint8_t oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
+static volatile uint8_t oygeFrameLength = 0;
 
 
 static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
@@ -1622,11 +1622,13 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
         else if (readBytes == 4) {
             // frame length
             // protect against buffer overflow
-            if (c > TELEMETRY_BUFFER_SIZE)
+            if (c < OPENYGE_FRAME_MIN_LENGTH || c > TELEMETRY_BUFFER_SIZE) {
                 oygeFrameSyncError();
-            else
+            }
+            else {
+                oygeFrameLength = c;
                 syncCount++;
-            oygeFrameLength = c;
+            }
         }
     }
 }
@@ -1634,7 +1636,7 @@ static FAST_CODE void oygeDataReceive(uint16_t c, void *data)
 static void oygeStartTelemetryFrame(timeMs_t currentTimeMs)
 {
     readBytes = 0;
-
+    oygeFrameLength = OPENYGE_FRAME_MIN_LENGTH;
     oygeFrameTimestamp = currentTimeMs;
 }
 
@@ -1644,9 +1646,15 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     if (readBytes < oygeFrameLength)
         return OPENYGE_FRAME_PENDING;
 
+    // paranoid length check
+    uint8_t len = buffer[3];
+    if (len < OPENYGE_FRAME_MIN_LENGTH || len > TELEMETRY_BUFFER_SIZE) {
+        totalCrcErrorCount++;
+        return OPENYGE_FRAME_FAILED;
+    }
     // verify CRC16 checksum
-    uint16_t crc = buffer[oygeFrameLength - 1] << 8 | buffer[oygeFrameLength - 2];
-    if (oygeCalculateCRC16_CCITT(buffer, oygeFrameLength - 2) != crc) {
+    uint16_t crc = buffer[len - 1] << 8 | buffer[len - 2];
+    if (oygeCalculateCRC16_CCITT(buffer, len - 2) != crc) {
         totalCrcErrorCount++;
         return OPENYGE_FRAME_FAILED;
     }
