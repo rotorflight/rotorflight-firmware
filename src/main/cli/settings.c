@@ -1219,6 +1219,7 @@ const clivalue_t valueTable[] = {
     { "telemetry_enable_temperature",     VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_TEMPERATURE),     PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_cap_used",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_CAP_USED),        PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_adjustment",      VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_ADJUSTMENT),      PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
+    { "telemetry_enable_gov_mode",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_GOV_MODE),        PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #else
     { "telemetry_enable_sensors", VAR_UINT32 | MASTER_VALUE, .config.u32Max = SENSOR_ALL, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #endif
