@@ -2429,7 +2429,7 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
     escSensorData[0].bec_current = tele->bec_current;
-    escSensorData[0].status = tele->status1;
+    escSensorData[0].status = tele->status1 | 0x0100;
 
     oygeCacheParam(tele->pidx, tele->pdata);
 
