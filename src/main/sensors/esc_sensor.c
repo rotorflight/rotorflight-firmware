@@ -603,6 +603,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
                 escSensorData[0].voltage = lrintf(voltage * 1000);
                 escSensorData[0].current = lrintf(current * 1000);
@@ -790,6 +791,7 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = power * 10;
                 escSensorData[0].pwm = power * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -919,6 +921,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
             if (calculateCRC16_CCITT(buffer, 20) == crc) {
                 uint16_t rpm = buffer[18] << 8 | buffer[17];
                 uint16_t temp = buffer[14];
+                uint16_t throttle = buffer[7];
                 uint16_t power = buffer[15];
                 uint16_t voltage = buffer[11] << 8 | buffer[10];
                 uint16_t current = buffer[9] << 8 | buffer[8];
@@ -928,6 +931,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 5;
+                escSensorData[0].throttle = throttle * 5;
                 escSensorData[0].pwm = power * 5;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1076,6 +1080,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
             if (calculateCRC32(buffer, 36) == crc) {
                 uint32_t rpm = buffer[7] << 24 | buffer[6] << 16 | buffer[5] << 8 | buffer[4];
+                int16_t  throttle = (int8_t)buffer[24];
                 uint16_t pwm = buffer[23] << 8 | buffer[22];
                 uint16_t voltage = buffer[9] << 8 | buffer[8];
                 uint16_t current = buffer[11] << 8 | buffer[10];
@@ -1089,6 +1094,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = (throttle + 100) * 5;
                 escSensorData[0].pwm = pwm * 10;
                 escSensorData[0].voltage = voltage * 10;
                 escSensorData[0].current = current * 100;
@@ -1193,6 +1199,7 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
             // Make sure this is OMP M4 ESC
             if (buffer[1] == 0x01 && buffer[2] == 0x20 && buffer[11] == 0 && buffer[18] == 0 && buffer[20] == 0) {
                 uint16_t rpm = buffer[8] << 8 | buffer[9];
+                uint16_t throttle = buffer[7];
                 uint16_t pwm = buffer[12];
                 uint16_t temp = buffer[10];
                 uint16_t voltage = buffer[3] << 8 | buffer[4];
@@ -1202,6 +1209,7 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = pwm * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1312,6 +1320,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
             if (buffer[1] == 0x01 && buffer[2] == 0x20) {
                 uint16_t rpm = buffer[8] << 8 | buffer[9];
                 uint16_t temp = buffer[10];
+                uint16_t throttle = buffer[7];
                 uint16_t power = buffer[12];
                 uint16_t voltage = buffer[3] << 8 | buffer[4];
                 uint16_t current = buffer[5] << 8 | buffer[6];
@@ -1321,6 +1330,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = power * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1453,6 +1463,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
             if (calculateFletcher16(buffer + 2, 18) == crc) {
                 uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
                 uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint16_t throttle = buffer[15] << 8 | buffer[14];
                 uint16_t power = buffer[17] << 8 | buffer[16];
                 uint16_t voltage = buffer[1] << 8 | buffer[0];
                 uint16_t current = buffer[5] << 8 | buffer[4];
@@ -1464,6 +1475,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = throttle;
                 escSensorData[0].pwm = power;
                 escSensorData[0].voltage = voltage * 10;
                 escSensorData[0].current = current * 80;
@@ -1690,6 +1702,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     uint16_t capa = buffer[hl+7] << 8 | buffer[hl+6];
     uint16_t erpm = buffer[hl+9] << 8 | buffer[hl+8];
     uint8_t pwm = buffer[hl+10];
+    uint8_t throttle = buffer[hl+11];
     uint16_t voltBEC = buffer[hl+13] << 8 | buffer[hl+12];
     uint16_t currBEC = buffer[hl+15] << 8 | buffer[hl+14];
     int16_t tempBEC = buffer[hl+16];
@@ -1704,6 +1717,7 @@ static uint8_t oygeDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = erpm * 10;
     escSensorData[0].pwm = pwm * 10;
+    escSensorData[0].throttle = throttle * 10;
     escSensorData[0].voltage = volt * 10;
     escSensorData[0].current = curr * 10;
     escSensorData[0].consumption = capa;
