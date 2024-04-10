@@ -25,7 +25,7 @@ jobs:
 
     - name: Set build variables
       run: |
-        echo "GIT_VER=${GITHUB_SHA:0:7}" >> ${GITHUB_ENV}
+        echo "GIT_VER=CI-${GITHUB_SHA:0:7}" >> ${GITHUB_ENV}
         cat ${GITHUB_ENV}
 
     - name: Build HEX files for multiple targets
@@ -37,6 +37,6 @@ jobs:
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: rotorflight-CI-${{ env.GIT_VER }}
+        name: rotorflight-${{ env.GIT_VER }}
         path: rotorflight*.hex
 
