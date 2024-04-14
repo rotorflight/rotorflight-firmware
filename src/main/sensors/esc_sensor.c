@@ -1008,7 +1008,8 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
  *  28-31:      Error Flags
  *     32:      Operational condition
  *     33:      Timing 0..30
- *  34-37:      CRC32
+ *  34-35:      Reserved
+ *  36-39:      CRC32
  *
  */
 
