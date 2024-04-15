@@ -629,6 +629,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
                 escSensorData[0].voltage = lrintf(voltage * 1000);
                 escSensorData[0].current = lrintf(current * 1000);
@@ -816,6 +817,7 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = power * 10;
                 escSensorData[0].pwm = power * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -945,6 +947,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
             if (calculateCRC16_CCITT(buffer, 20) == crc) {
                 uint16_t rpm = buffer[18] << 8 | buffer[17];
                 uint16_t temp = buffer[14];
+                uint16_t throttle = buffer[7];
                 uint16_t power = buffer[15];
                 uint16_t voltage = buffer[11] << 8 | buffer[10];
                 uint16_t current = buffer[9] << 8 | buffer[8];
@@ -954,6 +957,7 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 5;
+                escSensorData[0].throttle = throttle * 5;
                 escSensorData[0].pwm = power * 5;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1043,7 +1047,8 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
  *  28-31:      Error Flags
  *     32:      Operational condition
  *     33:      Timing 0..30
- *  34-37:      CRC32
+ *  34-35:      Reserved
+ *  36-39:      CRC32
  *
  */
 
@@ -1084,7 +1089,7 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
         else
             syncCount++;
     }
-    else if (readBytes == 38) {
+    else if (readBytes == 40) {
         readBytes = 0;
         return true;
     }
@@ -1097,10 +1102,11 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         if (processKontronikTelemetryStream(serialRead(escSensorPort))) {
-            uint32_t crc = buffer[37] << 24 | buffer[36] << 16 | buffer[35] << 8 | buffer[34];
+            uint32_t crc = buffer[39] << 24 | buffer[38] << 16 | buffer[37] << 8 | buffer[36];
 
-            if (calculateCRC32(buffer, 34) == crc) {
+            if (calculateCRC32(buffer, 36) == crc) {
                 uint32_t rpm = buffer[7] << 24 | buffer[6] << 16 | buffer[5] << 8 | buffer[4];
+                int16_t  throttle = (int8_t)buffer[24];
                 uint16_t pwm = buffer[23] << 8 | buffer[22];
                 uint16_t voltage = buffer[9] << 8 | buffer[8];
                 uint16_t current = buffer[11] << 8 | buffer[10];
@@ -1114,6 +1120,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = (throttle + 100) * 5;
                 escSensorData[0].pwm = pwm * 10;
                 escSensorData[0].voltage = voltage * 10;
                 escSensorData[0].current = current * 100;
@@ -1218,6 +1225,7 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
             // Make sure this is OMP M4 ESC
             if (buffer[1] == 0x01 && buffer[2] == 0x20 && buffer[11] == 0 && buffer[18] == 0 && buffer[20] == 0) {
                 uint16_t rpm = buffer[8] << 8 | buffer[9];
+                uint16_t throttle = buffer[7];
                 uint16_t pwm = buffer[12];
                 uint16_t temp = buffer[10];
                 uint16_t voltage = buffer[3] << 8 | buffer[4];
@@ -1227,6 +1235,7 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = pwm * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1337,6 +1346,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
             if (buffer[1] == 0x01 && buffer[2] == 0x20) {
                 uint16_t rpm = buffer[8] << 8 | buffer[9];
                 uint16_t temp = buffer[10];
+                uint16_t throttle = buffer[7];
                 uint16_t power = buffer[12];
                 uint16_t voltage = buffer[3] << 8 | buffer[4];
                 uint16_t current = buffer[5] << 8 | buffer[6];
@@ -1346,6 +1356,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
+                escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = power * 10;
                 escSensorData[0].voltage = voltage * 100;
                 escSensorData[0].current = current * 100;
@@ -1478,6 +1489,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
             if (calculateFletcher16(buffer + 2, 18) == crc) {
                 uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
                 uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint16_t throttle = buffer[15] << 8 | buffer[14];
                 uint16_t power = buffer[17] << 8 | buffer[16];
                 uint16_t voltage = buffer[1] << 8 | buffer[0];
                 uint16_t current = buffer[5] << 8 | buffer[4];
@@ -1489,6 +1501,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
+                escSensorData[0].throttle = throttle;
                 escSensorData[0].pwm = power;
                 escSensorData[0].voltage = voltage * 10;
                 escSensorData[0].current = current * 80;
@@ -1567,7 +1580,7 @@ static void rrfsmStartFrame(timeMs_t currentTimeMs)
 }
 
 static void rrfsmStartFrameAndSendPendingReq(timeMs_t currentTimeMs)
-{    
+{
     rrfsmStartFrame(currentTimeMs);
 
     rrfsmFramePeriod = 0;
@@ -1582,7 +1595,7 @@ static void rrfsmInvalidateReq()
     reqLength = 0;
     rrfsmFrameTimeout = 0;
 }
-  
+
 static FAST_CODE void rrfsmDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
@@ -1619,7 +1632,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     const timeMs_t currentTimeMs = currentTimeUs / 1000;
 
     // wait before initializing
-    if (currentTimeMs < rrfsmBootDelayMs) 
+    if (currentTimeMs < rrfsmBootDelayMs)
         return;
 
     // request first log record or just listen if in e.g. UNC mode
@@ -1649,7 +1662,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeMs)) {
         return;
     }
-    
+
     // frame incomplete? check later
     if (readBytes < rrfsmFrameLength) {
         return;
@@ -1702,7 +1715,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
  * 5 - Log region, read only
  * 6 – User data
 
- * 
+ *
  * Telemetry Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
  *    0-5:      Header
@@ -2027,7 +2040,7 @@ static bool tribDecodeReadStatusResp(void)
     // validate header (no CRC)
     if (!tribValidateResponseHeader())
         return false;
-        
+
     const uint8_t addr = buffer[3];
     if (tribUncSetup == TRIB_UNCSETUP_ABORTUNC && addr == 0) {
         tribUncSetup = TRIB_UNCSETUP_ACTIVE;
@@ -2053,7 +2066,7 @@ static bool tribDecodeUNCFrame(void)
     const uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
     if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(4))
         return false;
-    
+
     // switch to UNC mode on UNC frame received
     if (!tribUncMode) {
         tribUncMode = true;
@@ -2066,7 +2079,7 @@ static bool tribDecodeUNCFrame(void)
 static bool tribDecode(timeMs_t currentTimeMs)
 {
     UNUSED(currentTimeMs);
-    
+
     const uint8_t req = buffer[0];
     switch (req) {
         case 0x51:
@@ -2355,7 +2368,7 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 
     // make param payload available if all params cached
     const uint16_t ygeParamCount = ygeParams[0];
-    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE && 
+    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE &&
         ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
         paramPayloadLength = ygeParamCount * 2;
     }
@@ -2387,13 +2400,13 @@ static void oygeBuildReq(uint8_t req, uint8_t device, void *payload, uint8_t len
 static void oygeBuildNextReq(const OpenYGEHeader_t *hdr)
 {
     OpenYGEControlFrame_t ctl;
-    
+
     // schedule pending write request...
     const uint16_t *ygeUpdParams = (uint16_t*)paramUpdPayload;
     for (uint8_t idx = 0; oygeDirtyParams != 0; idx++) {
         uint64_t bit = 1ULL << idx;
         // index dirty?
-        if ((oygeDirtyParams & bit) != 0) {    
+        if ((oygeDirtyParams & bit) != 0) {
             // clear dirty bit
             oygeDirtyParams &= ~(bit);
 
@@ -2422,6 +2435,7 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].pwm = tele->pwm * 10;
+    escSensorData[0].throttle = tele->throttle * 10;
     escSensorData[0].voltage = tele->voltage * 10;
     escSensorData[0].current = tele->current * 10;
     escSensorData[0].consumption = tele->consumption;
@@ -2470,7 +2484,7 @@ static bool oygeDecodeAuto(timeMs_t currentTimeMs)
     const OpenYGEHeader_t *hdr = oygeGetHeaderWithCrcCheck();
     if (hdr == NULL)
         return false;
-        
+
     // decode payload
     oygeDecodeTelemetryFrame();
 
@@ -2484,7 +2498,7 @@ static bool oygeDecodeAuto(timeMs_t currentTimeMs)
 }
 
 static bool oygeDecodeTelemetry(const OpenYGEHeader_t *hdr, timeMs_t currentTimeMs)
-{    
+{
     // switch to auto telemetry mode if ESC FW too old
     if (hdr->version < 3) {
         rrfsmDecode = oygeDecodeAuto;
@@ -2565,7 +2579,7 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
     rrfsmAccept = oygeAccept;
 
     paramSig = OPENYGE_PARAM_SIG;
-    
+
     if (bidirectional) {
         // use request/response telemetry mode, enable parameter writes to ESC
         rrfsmDecode = oygeDecode;

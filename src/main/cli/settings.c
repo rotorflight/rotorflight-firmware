@@ -378,7 +378,7 @@ static const char * const lookupTableSdcardMode[] = {
 #ifdef USE_LED_STRIP
 #ifdef USE_LED_STRIP_STATUS_MODE
 static const char * const lookupTableLEDProfile[] = {
-    "RACE", "BEACON", "STATUS", "STATUS_DIMMED"
+    "RACE", "BEACON", "STATUS", "STATUS_ALT"
 };
 #else
 static const char * const lookupTableLEDProfile[] = {
@@ -493,7 +493,7 @@ const char * const lookupTableCrsfAttReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_STATUS", "ESC_STATUS2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD",
+    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_THROTTLE", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_STATUS", "ESC_STATUS2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD",
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
@@ -1219,6 +1219,7 @@ const clivalue_t valueTable[] = {
     { "telemetry_enable_temperature",     VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_TEMPERATURE),     PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_cap_used",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_CAP_USED),        PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_adjustment",      VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_ADJUSTMENT),      PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
+    { "telemetry_enable_gov_mode",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_GOV_MODE),        PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #else
     { "telemetry_enable_sensors", VAR_UINT32 | MASTER_VALUE, .config.u32Max = SENSOR_ALL, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #endif
@@ -1238,7 +1239,7 @@ const clivalue_t valueTable[] = {
     { "ledstrip_brightness",        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 5, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_brightness) },
     { "ledstrip_blink_period_ms",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 10, 500 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_blink_period_ms) },
     { "ledstrip_flicker_rate",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_flicker_rate) },
-    { "ledstrip_dimmer_rate",       VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_dimmer_rate) },
+    { "ledstrip_fade_rate",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_fade_rate) },
     { "ledstrip_inverted_format",   VAR_UINT32 | MASTER_VALUE, .config.u32Max = UINT32_MAX, PG_LED_STRIP_CONFIG, offsetof(ledStripConfig_t, ledstrip_inverted_format) },
 #endif
 

@@ -40,7 +40,7 @@
 #include "setpoint.h"
 
 
-#define SP_SMOOTHING_FILTER_MIN_HZ             1
+#define SP_SMOOTHING_FILTER_MIN_HZ            10
 #define SP_SMOOTHING_FILTER_MAX_HZ          1000
 
 #define SP_MAX_UP_CUTOFF                   20.0f
@@ -118,14 +118,14 @@ INIT_CODE void setpointInitProfile(void)
     for (int i = 0; i < 4; i++) {
         sp.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
         sp.responseCutoff[i] = constrain(
-            2500 / (10 * currentControlRateProfile->response_time[i] + 1),
+            2500 / constrain(10 * currentControlRateProfile->response_time[i], 1, 1000),
             SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
     }
 }
 
 INIT_CODE void setpointInit(void)
 {
-    sp.smoothingFactor = 15e6f / (10 + rcControlsConfig()->rc_smoothness);
+    sp.smoothingFactor = 25e6f / constrain(rcControlsConfig()->rc_smoothness, 1, 250);
 
     sp.maxGainUp = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetPidFrequency());
     sp.maxGainDown = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetPidFrequency());

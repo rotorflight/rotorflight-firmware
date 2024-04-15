@@ -255,6 +255,9 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
         case CRSF_GPS_REUSE_ESC_PWM:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->pwm : 0;
+        case CRSF_GPS_REUSE_ESC_THROTTLE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->throttle : 0;
         case CRSF_GPS_REUSE_ESC_BEC_VOLTAGE:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->bec_voltage : 0;

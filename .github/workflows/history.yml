@@ -20,14 +20,6 @@ jobs:
     - name: Delete tag
       run: git push origin :${GITHUB_REF}
 
-    - name: Cache ARM tools
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-arm-tools
-      with:
-        path: downloads/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2
-        key: gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux
-
     - name: Install ARM tools
       run: make arm_sdk_install
 

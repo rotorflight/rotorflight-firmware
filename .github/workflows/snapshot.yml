@@ -15,14 +15,6 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v4
 
-    - name: Cache ARM tools
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-arm-tools
-      with:
-        path: downloads/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2
-        key: gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux
-
     - name: Install ARM tools
       run: make arm_sdk_install
 
@@ -46,7 +38,8 @@ jobs:
 
     - name: Create Snapshot
       run: |
-        gh release create ${{ env.GIT_TAG }} --prerelease --notes-file "Snapshot.md" --title "Rotorflight Snapshot ${{ env.GIT_VER }}" obj/*.hex
+        .github/scripts/extract-release-notes.py "${{ env.GIT_VER }}" Releases.md > Notes.md
+        gh release create ${{ env.GIT_TAG }} --prerelease --notes-file Notes.md --title "Rotorflight Snapshot ${{ env.GIT_VER }}" obj/*.hex
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

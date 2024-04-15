@@ -58,6 +58,7 @@ PG_DECLARE(escSensorConfig_t, escSensorConfig);
 typedef struct {
     uint8_t   age;              // Data age
     uint16_t  pwm;              // Output duty cycle 0.1%
+    uint16_t  throttle;         // Input setpoint 0.1%
     uint32_t  erpm;             // eRPM
     uint32_t  voltage;          // mV
     uint32_t  current;          // mA
