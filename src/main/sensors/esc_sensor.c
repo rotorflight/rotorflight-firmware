@@ -1008,7 +1008,8 @@ static void uncSensorProcess(timeUs_t currentTimeUs)
  *  28-31:      Error Flags
  *     32:      Operational condition
  *     33:      Timing 0..30
- *  34-37:      CRC32
+ *  34-35:      Reserved
+ *  36-39:      CRC32
  *
  */
 
@@ -1049,7 +1050,7 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
         else
             syncCount++;
     }
-    else if (readBytes == 38) {
+    else if (readBytes == 40) {
         readBytes = 0;
         return true;
     }
@@ -1062,9 +1063,9 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         if (processKontronikTelemetryStream(serialRead(escSensorPort))) {
-            uint32_t crc = buffer[37] << 24 | buffer[36] << 16 | buffer[35] << 8 | buffer[34];
+            uint32_t crc = buffer[39] << 24 | buffer[38] << 16 | buffer[37] << 8 | buffer[36];
 
-            if (calculateCRC32(buffer, 34) == crc) {
+            if (calculateCRC32(buffer, 36) == crc) {
                 uint32_t rpm = buffer[7] << 24 | buffer[6] << 16 | buffer[5] << 8 | buffer[4];
                 uint16_t pwm = buffer[23] << 8 | buffer[22];
                 uint16_t voltage = buffer[9] << 8 | buffer[8];
