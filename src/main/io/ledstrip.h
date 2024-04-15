@@ -164,7 +164,7 @@ typedef enum {
     LED_PROFILE_BEACON,
 #ifdef USE_LED_STRIP_STATUS_MODE
     LED_PROFILE_STATUS,
-    LED_PROFILE_STATUS_DIMMED,
+    LED_PROFILE_STATUS_ALT,
 #endif
     LED_PROFILE_COUNT
 } ledProfile_e;
@@ -198,10 +198,10 @@ typedef struct ledStripConfig_s {
     uint8_t ledstrip_beacon_percent;
     uint8_t ledstrip_beacon_armed_only;
     colorId_e ledstrip_visual_beeper_color;
-    uint8_t ledstrip_brightness;    
+    uint8_t ledstrip_brightness;
     uint16_t ledstrip_blink_period_ms;
     uint8_t ledstrip_flicker_rate;
-    uint8_t ledstrip_dimmer_rate;
+    uint8_t ledstrip_fade_rate;
     uint32_t ledstrip_inverted_format;
 } ledStripConfig_t;
 

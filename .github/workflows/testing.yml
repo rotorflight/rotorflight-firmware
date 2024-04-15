@@ -15,14 +15,6 @@ jobs:
     - name: Check out repository
       uses: actions/checkout@v4
 
-    - name: Cache ARM tools
-      uses: actions/cache@v4
-      env:
-        cache-name: cache-arm-tools
-      with:
-        path: downloads/gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux.tar.bz2
-        key: gcc-arm-none-eabi-9-2020-q2-update-x86_64-linux
-
     - name: Install ARM tools
       run: make arm_sdk_install
 
@@ -32,11 +24,16 @@ jobs:
         echo "GIT_TAG=${GITHUB_REF##refs/tags/}" >> ${GITHUB_ENV}
         cat ${GITHUB_ENV}
 
+    - name: Machine details
+      run: |
+        free
+        cat /proc/cpuinfo  | grep -E '^(processor)|(vendor_id)|(model name)|(cpu MHz)|(cache size)'
+
     - name: Build HEX files for unified targets
       run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
 
     - name: Move HEX
-      run: mv obj/*.hex .
+      run: mv -v obj/*.hex .
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
