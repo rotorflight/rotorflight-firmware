@@ -238,6 +238,17 @@ uint16      Altitude ( meter ­1000m offset )
 uint8_t     Satellites in use ( counter )
 */
 
+static int getVoltageMeter(voltageMeterId_e id)
+{
+    voltageMeter_t meter;
+
+    voltageMeterRead(id, &meter);
+
+    // Use ratio 200 in EdgeTx 2.9.3 and 20 in earlier versions
+    // Max voltage 25.5V
+    return meter.voltage * 255 / 200;
+}
+
 static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
 {
     escSensorData_t *escData;
@@ -281,6 +292,12 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
             return getAverageSystemLoad();
         case CRSF_GPS_REUSE_RT_LOAD:
             return getMaxRealTimeLoad();
+        case CRSF_GPS_REUSE_BEC_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BEC);
+        case CRSF_GPS_REUSE_BUS_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BUS);
+        case CRSF_GPS_REUSE_MCU_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_MCU);
     }
 
     return 0;
@@ -436,17 +453,6 @@ static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
         angle_decidegree += 3600;
     }
     return (int16_t)(RAD * 1000.0f * angle_decidegree);
-}
-
-static int getVoltageMeter(voltageMeterId_e id)
-{
-    voltageMeter_t meter;
-
-    voltageMeterRead(id, &meter);
-
-    // Use ratio 200 in EdgeTx 2.9.3 and 20 in earlier versions
-    // Max voltage 25.5V
-    return meter.voltage * 255 / 200;
 }
 
 static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
