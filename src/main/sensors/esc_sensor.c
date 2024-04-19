@@ -1734,9 +1734,10 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
  */
 #define TRIB_REQ_WRITE                  0x80                // request write bit
 #define TRIB_REQ_SIG                    0x50                // request signature bits
-#define TRIB_BOOT_DELAY                 4000                // 4 seconds
+#define TRIB_BOOT_DELAY                 10000               // 10 seconds quiet time before expecting first frame
 #define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
 #define TRIB_FRAME_PERIOD               100                 // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
+#define TRIB_REQ_BOOT_DELAY             4000                // 4 seconds quiet time before ESC requests
 #define TRIB_REQ_READ_TIMEOUT           200                 // Response timeout for read requests
 #define TRIB_REQ_WRITE_TIMEOUT          1200                // Response timeout for write requests
 #define TRIB_RESP_FRAME_TIMEOUT         200                 // Response timeout depends on ESC business but no more than 200ms
@@ -2067,11 +2068,12 @@ static bool tribDecodeUNCFrame(void)
     if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(4))
         return false;
 
+    rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
+
     // switch to UNC mode on UNC frame received
     if (!tribUncMode) {
         tribUncMode = true;
         tribUncSetup = TRIB_UNCSETUP_INACTIVE;
-        rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
     }
     return true;
 }
@@ -2097,7 +2099,7 @@ static bool tribDecode(timeMs_t currentTimeMs)
     }
 }
 
-static bool tribCrank(timeMs_t currentTimeMs)
+static bool tribCrankUncSetup(timeMs_t currentTimeMs)
 {
     switch(tribUncSetup) {
         case TRIB_UNCSETUP_INACTIVE:
@@ -2178,19 +2180,28 @@ static int8_t tribAccept(uint16_t c)
 
 static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 {
-    rrfsmBootDelayMs = TRIB_BOOT_DELAY;
     rrfsmMinFrameLength = TRIB_HEADER_LENGTH;
     rrfsmAccept = tribAccept;
-    rrfsmStart = tribStart;
     rrfsmDecode = tribDecode;
-    rrfsmCrank = tribCrank;
 
     if (bidirectional) {
+        // request/response telemetry
+        rrfsmBootDelayMs = TRIB_REQ_BOOT_DELAY;
+        rrfsmStart = tribStart;
+    
         // enable ESC parameter reads and writes, reset
         paramSig = TRIB_PARAM_SIG;
         paramVer = 0 | TRIB_PARAM_CAP_RESET;
         paramCommit = tribParamCommit;
         tribInvalidateParams();
+        
+        // enable UNC setup FSM 
+        rrfsmCrank = tribCrankUncSetup;
+    }
+    else {
+        // telemetry data only
+        rrfsmBootDelayMs = TRIB_BOOT_DELAY;
+        rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
     }
 
     return rrfsmDataReceive;
@@ -2251,7 +2262,7 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_REQ_WRITE_TIMEOUT           400                 // Response timeout for write requests  TBD: confirm
 
 #define OPENYGE_PARAM_SIG                   0xA5                // parameter payload signature for this ESC
-#define OPENYGE_MAX_PARAM_CACHE_SIZE        64                  // limited by use of uint64_t as bit array for oygeCachedParams
+#define OPENYGE_PARAM_CACHE_SIZE_MAX        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
 #define OPENYGE_FTYPE_TELE_AUTO             0x00                // auto telemetry frame
 #define OPENYGE_FTYPE_TELE_RESP             0x02                // telemetry response
@@ -2351,7 +2362,7 @@ static bool oygeParamCommit(uint8_t cmd)
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
     const uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
-    if (pidx >= maxParams || pidx >= OPENYGE_MAX_PARAM_CACHE_SIZE)
+    if (pidx >= maxParams || pidx >= OPENYGE_PARAM_CACHE_SIZE_MAX)
         return;
 
     // don't accept params until pending writes cleared
@@ -2368,7 +2379,7 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 
     // make param payload available if all params cached
     const uint16_t ygeParamCount = ygeParams[0];
-    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_MAX_PARAM_CACHE_SIZE &&
+    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_PARAM_CACHE_SIZE_MAX &&
         ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
         paramPayloadLength = ygeParamCount * 2;
     }
