@@ -1736,6 +1736,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define TRIB_REQ_SIG                    0x50                // request signature bits
 #define TRIB_BOOT_DELAY                 10000               // 10 seconds quiet time before expecting first frame
 #define TRIB_HEADER_LENGTH              6                   // assume header only until actual length of current frame known
+#define TRIB_UNC_HEADER_LENGTH          4                   // UNC packet header length
 #define TRIB_FRAME_PERIOD               100                 // aim for approx. 20Hz (note UNC is 10Hz, may have to reduce this)
 #define TRIB_REQ_BOOT_DELAY             4000                // 4 seconds quiet time before ESC requests
 #define TRIB_REQ_READ_TIMEOUT           200                 // Response timeout for read requests
@@ -1759,7 +1760,6 @@ typedef enum {
     TRIB_UNCSETUP_WAIT,
 } tribUncSetup_e;
 
-static bool tribUncMode = true;
 static tribUncSetup_e tribUncSetup = TRIB_UNCSETUP_INACTIVE;
 
 // param ranges - hibyte=addr (system region if 0x80 set or setting region otherwise), lobyte=length
@@ -1911,14 +1911,8 @@ static bool tribDecodeReadParamResp(uint8_t addr)
             tribInvalidParams &= ~(1 << i);
 
             // make param payload available if all params cached
-            if (tribInvalidParams == 0 && paramPayloadLength == 0) {
-                if (tribUncMode) {
-                    tribUncSetup = TRIB_UNCSETUP_PARAMSREADY;
-                }
-                else {
-                    paramPayloadLength = tribCalcParamBufferLength();
-                }
-            }
+            if (tribInvalidParams == 0 && paramPayloadLength == 0)
+                tribUncSetup = TRIB_UNCSETUP_PARAMSREADY;
             return true;
         }
         offset += len;
@@ -1941,11 +1935,6 @@ static bool tribDecodeWriteParamResp(uint8_t addr)
     return false;
 }
 
-static void tribBuildNextStatusReq(void)
-{
-    tribBuildReq(0x51, 0, NULL, 16, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-}
-
 static bool tribValidateResponseHeader(void)
 {
     // req and resp headers should match except for len ([4]) which may differ
@@ -1965,15 +1954,8 @@ static bool tribDecodeReadSettingResp(uint8_t sysbit)
         return false;
 
     const uint8_t addr = buffer[3];
-    if (tribUncMode) {
-        if (!tribDecodeReadParamResp(addr | sysbit) || !tribBuildNextParamReq()) {
-            rrfsmInvalidateReq();
-        }
-    }
-    else {
-        tribDecodeReadParamResp(addr | sysbit);
-        tribBuildNextStatusReq();
-    }
+    if (!tribDecodeReadParamResp(addr | sysbit) || !tribBuildNextParamReq())
+        rrfsmInvalidateReq();
 
     return true;
 }
@@ -1985,15 +1967,8 @@ static bool tribDecodeWriteSettingResp(void)
         return false;
 
     const uint8_t addr = buffer[3];
-    if (tribUncMode) {
-        if (!tribDecodeWriteParamResp(addr) || !tribBuildNextParamReq()) {
-            rrfsmInvalidateReq();
-        }
-    }
-    else {
-        tribDecodeWriteParamResp(addr);
-        tribBuildNextStatusReq();
-    }
+    if (!tribDecodeWriteParamResp(addr) || !tribBuildNextParamReq())
+        rrfsmInvalidateReq();
 
     return true;
 }
@@ -2049,32 +2024,17 @@ static bool tribDecodeReadStatusResp(void)
         rrfsmInvalidateReq();
         return true;
     }
-
-    // decode as 6 byte header + 16 byte (Log_rec_t) payload
-    if (!tribDecodeLogRecord(6))
-        return false;
-
-    // schedule next request
-    if (!tribBuildNextParamReq())
-        tribBuildNextStatusReq();
-
-    return true;
+    return false;
 }
 
 static bool tribDecodeUNCFrame(void)
 {
     // validate CRC, decode as 4 byte header + 16 byte (Log_rec_t) payload
     const uint16_t crc = buffer[rrfsmFrameLength - 1] << 8 | buffer[rrfsmFrameLength - 2];
-    if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(4))
+    if (calculateCRC16_CCITT(buffer, 20) != crc || !tribDecodeLogRecord(TRIB_UNC_HEADER_LENGTH))
         return false;
 
     rrfsmFrameTimeout = TRIB_UNC_FRAME_TIMEOUT;
-
-    // switch to UNC mode on UNC frame received
-    if (!tribUncMode) {
-        tribUncMode = true;
-        tribUncSetup = TRIB_UNCSETUP_INACTIVE;
-    }
     return true;
 }
 
@@ -2132,11 +2092,7 @@ static bool tribStart(timeMs_t currentTimeMs)
 {
     UNUSED(currentTimeMs);
 
-    if (tribUncMode)
-        tribBuildNextParamReq();
-    else
-        tribBuildReq(0x51, 0, NULL, 0x10, TRIB_FRAME_PERIOD, TRIB_RESP_FRAME_TIMEOUT);
-
+    tribBuildNextParamReq();
     return true;
 }
 
