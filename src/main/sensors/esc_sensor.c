@@ -1085,7 +1085,7 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
     }
     else if (kontronikPacketLength == 0 && readBytes == KON_FRAME_LENGTH) {
         // auto detect 40 byte packet...
-        uint32_t crc = kontronikDecodeCRC(40 - KON_CRC_LENGTH);
+        uint32_t crc = kontronikDecodeCRC(KON_FRAME_LENGTH - KON_CRC_LENGTH);
         if (calculateCRC32(buffer, KON_FRAME_LENGTH - KON_CRC_LENGTH) == crc) {
             // ...w/ 36 byte payload
             kontronikPacketLength = KON_FRAME_LENGTH;
