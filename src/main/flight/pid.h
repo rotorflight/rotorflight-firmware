@@ -120,6 +120,8 @@ typedef struct pid_s {
 
     float collective;
 
+    float exampleFloat;            // Active value to be used in PID
+
     pidPrecomp_t precomp;
 
     pidAxisCoef_t coef[PID_ITEM_COUNT];

@@ -238,6 +238,10 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     difFilterInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff, pid.freq);
     difFilterInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff, pid.freq);
 
+    // Copy new parameter into the active value store
+    // Here you can do preprocessing, like scaling, range limits, etc.
+    pid.exampleFloat = pidProfile->example_parameter / 1000.0f;
+
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
 #ifdef USE_ACC
@@ -1008,7 +1012,8 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+    // Use the new parameter in your fancy algorithm!
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint + pid.exampleFloat;
 
 
   //// Feedforward Boost (FF Derivative)
