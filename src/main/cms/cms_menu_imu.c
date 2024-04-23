@@ -67,6 +67,8 @@ static uint8_t pidProfileIndex;
 static char pidProfileIndexString[MAX_PROFILE_NAME_LENGTH + 5];
 static uint8_t tempPid[3][3];
 static uint16_t tempPidF[3];
+static uint16_t tempPidO[3];
+static uint16_t tempPidB[3];
 
 static uint8_t tmpRateProfileIndex;
 static uint8_t rateProfileIndex;
@@ -157,6 +159,8 @@ static const void *cmsx_PidRead(void)
         tempPid[i][1] = pidProfile->pid[i].I;
         tempPid[i][2] = pidProfile->pid[i].D;
         tempPidF[i] = pidProfile->pid[i].F;
+        tempPidO[i] = pidProfile->pid[i].O;
+        tempPidB[i] = pidProfile->pid[i].B;
     }
 
     return NULL;
@@ -183,6 +187,8 @@ static const void *cmsx_PidWriteback(displayPort_t *pDisp, const OSD_Entry *self
         pidProfile->pid[i].I = tempPid[i][1];
         pidProfile->pid[i].D = tempPid[i][2];
         pidProfile->pid[i].F = tempPidF[i];
+        pidProfile->pid[i].O = tempPidO[i];
+        pidProfile->pid[i].B = tempPidB[i];
     }
     pidInitProfile(currentPidProfile);
 
@@ -197,16 +203,22 @@ static OSD_Entry cmsx_menuPidEntries[] =
     { "ROLL  I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][1],  0, 200, 1 }},
     { "ROLL  D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_ROLL][2],  0, 200, 1 }},
     { "ROLL  F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_ROLL],  0, 2000, 1 }},
+    { "ROLL  O", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidO[PID_ROLL],  0, 200, 1 }},
+    { "ROLL  B", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidB[PID_ROLL],  0, 200, 1 }},
 
     { "PITCH P", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][0], 0, 200, 1 }},
     { "PITCH I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][1], 0, 200, 1 }},
     { "PITCH D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_PITCH][2], 0, 200, 1 }},
     { "PITCH F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_PITCH], 0, 2000, 1 }},
+    { "PITCH O", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidO[PID_PITCH], 0, 200, 1 }},
+    { "PITCH B", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidB[PID_PITCH], 0, 200, 1 }},
 
     { "YAW   P", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][0],   0, 200, 1 }},
     { "YAW   I", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][1],   0, 200, 1 }},
     { "YAW   D", OME_UINT8, NULL, &(OSD_UINT8_t){ &tempPid[PID_YAW][2],   0, 200, 1 }},
     { "YAW   F", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidF[PID_YAW],   0, 2000, 1 }},
+    { "YAW   O", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidO[PID_YAW],   0, 200, 1 }},
+    { "YAW   B", OME_UINT16, NULL, &(OSD_UINT16_t){ &tempPidB[PID_YAW],   0, 200, 1 }},
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
@@ -288,11 +300,79 @@ static CMS_Menu cmsx_menuRateProfile = {
     .entries = cmsx_menuRateProfileEntries
 };
 
+/////////////////// Yaw Profile menu items ///////////////////////
+
+static uint8_t  cmsx_yawStopCW;
+static uint8_t  cmsx_yawStopCCW;
+static uint8_t  cmsx_yawCollectiveFF;
+static uint8_t  cmsx_yawCyclicFF;
+static uint8_t  cmsx_yawTTA;
+
+static const void *cmsx_profileYawOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    cmsx_yawStopCW =         pidProfile->yaw_cw_stop_gain;
+    cmsx_yawStopCCW =        pidProfile->yaw_ccw_stop_gain;
+    cmsx_yawCyclicFF =       pidProfile->yaw_cyclic_ff_gain;
+    cmsx_yawCollectiveFF =   pidProfile->yaw_collective_ff_gain;
+    cmsx_yawTTA =            pidProfile->governor.tta_gain;
+
+    return NULL;
+}
+
+static const void *cmsx_profileYawOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->yaw_cw_stop_gain =       cmsx_yawStopCW;
+    pidProfile->yaw_ccw_stop_gain =      cmsx_yawStopCCW;
+    pidProfile->yaw_cyclic_ff_gain =     cmsx_yawCyclicFF;
+    pidProfile->yaw_collective_ff_gain = cmsx_yawCollectiveFF;
+    pidProfile->governor.tta_gain =      cmsx_yawTTA;
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileYawEntries[] = {
+    { "-- YAW --",  OME_Label, NULL, pidProfileIndexString },
+    { "STOP CW",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawStopCW,       25,    250,   1  }    },
+    { "STOP CCW",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawStopCCW,      25,    250,   1  }    },
+    { "CYCl FF",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawCyclicFF,      0,    250,   1  }    },
+    { "COLL FF",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawCollectiveFF,  0,    250,   1  }    },
+    { "TTA GAIN",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawTTA,           0,    250,   1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileYaw = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPROFYAW",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileYawOnEnter,
+    .onExit = cmsx_profileYawOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileYawEntries,
+};
+
+/////////////////// Level Modes Profile menu items ///////////////////////
+
 static uint8_t  cmsx_angleStrength;
+static uint8_t  cmsx_angleLimit;
 static uint8_t  cmsx_horizonStrength;
 static uint8_t  cmsx_horizonTransition;
 
-static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
+static const void *cmsx_profileLevelOnEnter(displayPort_t *pDisp)
 {
     UNUSED(pDisp);
 
@@ -301,13 +381,14 @@ static const void *cmsx_profileOtherOnEnter(displayPort_t *pDisp)
     const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
 
     cmsx_angleStrength =     pidProfile->angle.level_strength;
+    cmsx_angleLimit =        pidProfile->angle.level_limit;
     cmsx_horizonStrength =   pidProfile->horizon.level_strength;
     cmsx_horizonTransition = pidProfile->horizon.transition;
 
     return NULL;
 }
 
-static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+static const void *cmsx_profileLevelOnExit(displayPort_t *pDisp, const OSD_Entry *self)
 {
     UNUSED(pDisp);
     UNUSED(self);
@@ -315,16 +396,18 @@ static const void *cmsx_profileOtherOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
     pidInitProfile(currentPidProfile);
 
-    pidProfile->angle.level_strength = cmsx_angleStrength;
+    pidProfile->angle.level_strength =   cmsx_angleStrength;
+    pidProfile->angle.level_limit =      cmsx_angleLimit;
     pidProfile->horizon.level_strength = cmsx_horizonStrength;
-    pidProfile->horizon.transition = cmsx_horizonTransition;
+    pidProfile->horizon.transition =     cmsx_horizonTransition;
 
     return NULL;
 }
 
-static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
-    { "-- OTHER PP --", OME_Label, NULL, pidProfileIndexString },
+static const OSD_Entry cmsx_menuProfileLevelEntries[] = {
+    { "-- LEVEL --", OME_Label, NULL, pidProfileIndexString },
     { "ANGLE STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleStrength,          0,    200,   1  }    },
+    { "ANGLE LIMIT", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_angleLimit,            10,     90,   1  }    },
     { "HORZN STR",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonStrength,        0,    200,   1  }    },
     { "HORZN TRS",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_horizonTransition,      0,    200,   1  }    },
 
@@ -332,15 +415,15 @@ static const OSD_Entry cmsx_menuProfileOtherEntries[] = {
     { NULL, OME_END, NULL, NULL}
 };
 
-static CMS_Menu cmsx_menuProfileOther = {
+static CMS_Menu cmsx_menuProfileLevel = {
 #ifdef CMS_MENU_DEBUG
     .GUARD_text = "XPROFOTHER",
     .GUARD_type = OME_MENU,
 #endif
-    .onEnter = cmsx_profileOtherOnEnter,
-    .onExit = cmsx_profileOtherOnExit,
+    .onEnter = cmsx_profileLevelOnEnter,
+    .onExit = cmsx_profileLevelOnExit,
     .onDisplayUpdate = NULL,
-    .entries = cmsx_menuProfileOtherEntries,
+    .entries = cmsx_menuProfileLevelEntries,
 };
 
 
@@ -614,7 +697,8 @@ static const OSD_Entry cmsx_menuImuEntries[] =
 
     {"PID PROF",  OME_UINT8,   cmsx_profileIndexOnChange,     &(OSD_UINT8_t){ &tmpPidProfileIndex, 1, PID_PROFILE_COUNT, 1}},
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
-    {"MISC PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileOther},
+    {"YAW",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileYaw},
+    {"LEVEL",     OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileLevel},
     //{"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 
     {"RATE PROF", OME_UINT8,   cmsx_rateProfileIndexOnChange, &(OSD_UINT8_t){ &tmpRateProfileIndex, 1, CONTROL_RATE_PROFILE_COUNT, 1}},
