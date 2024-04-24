@@ -417,13 +417,82 @@ static const OSD_Entry cmsx_menuProfileLevelEntries[] = {
 
 static CMS_Menu cmsx_menuProfileLevel = {
 #ifdef CMS_MENU_DEBUG
-    .GUARD_text = "XPROFOTHER",
+    .GUARD_text = "XPROFLEVEL",
     .GUARD_type = OME_MENU,
 #endif
     .onEnter = cmsx_profileLevelOnEnter,
     .onExit = cmsx_profileLevelOnExit,
     .onDisplayUpdate = NULL,
     .entries = cmsx_menuProfileLevelEntries,
+};
+
+/////////////////// Governor Profile menu items ///////////////////////
+
+static uint16_t  cmsx_govHeadspeed;
+static uint8_t   cmsx_govMasterGain;
+static uint8_t  cmsx_govP;
+static uint8_t  cmsx_govI;
+static uint8_t  cmsx_govD;
+static uint8_t  cmsx_govF;
+
+static const void *cmsx_profileGovernorOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    cmsx_govHeadspeed =     pidProfile->governor.headspeed;
+    cmsx_govMasterGain =    pidProfile->governor.gain;
+    cmsx_govP =             pidProfile->governor.p_gain;
+    cmsx_govI =             pidProfile->governor.i_gain;
+    cmsx_govD =             pidProfile->governor.d_gain;
+    cmsx_govF =             pidProfile->governor.f_gain;
+
+    return NULL;
+}
+
+static const void *cmsx_profileGovernorOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->governor.headspeed = cmsx_govHeadspeed;
+    pidProfile->governor.gain =      cmsx_govMasterGain;
+    pidProfile->governor.p_gain =    cmsx_govP;
+    pidProfile->governor.i_gain =    cmsx_govI;
+    pidProfile->governor.d_gain =    cmsx_govD;
+    pidProfile->governor.f_gain =    cmsx_govF;
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileGovernorEntries[] = {
+    { "-- GOV --", OME_Label,  NULL, pidProfileIndexString },
+    { "HEAD SPD",  OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_govHeadspeed,  0, 50000, 1  }    },
+    { "GAIN",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_govMasterGain, 0,   250, 1  }    },
+    { "P",         OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_govP,          0,   250, 1  }    },
+    { "I",         OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_govI,          0,   250, 1  }    },
+    { "D",         OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_govD,          0,   250, 1  }    },
+    { "FF",        OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_govF,          0,   250, 1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileGovernor = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPROFGOV",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileGovernorOnEnter,
+    .onExit = cmsx_profileGovernorOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileGovernorEntries,
 };
 
 
@@ -699,6 +768,7 @@ static const OSD_Entry cmsx_menuImuEntries[] =
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
     {"YAW",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileYaw},
     {"LEVEL",     OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileLevel},
+    {"GOV",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileGovernor},
     //{"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 
     {"RATE PROF", OME_UINT8,   cmsx_rateProfileIndexOnChange, &(OSD_UINT8_t){ &tmpRateProfileIndex, 1, CONTROL_RATE_PROFILE_COUNT, 1}},
