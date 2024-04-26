@@ -502,6 +502,10 @@ bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
     static uint8_t lineNo = 0;
     int lineCount = 0;
 
+    if (!featureIsEnabled(FEATURE_CMS)) {
+      return false;
+    }
+
     // Skip already sent lines...
     while (lineSent[lineNo] &&
            lineCount < SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS) {
@@ -517,9 +521,6 @@ bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
     lineSent[lineNo] = true;
     lineNo = (lineNo + 1) % SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS;
 
-    // Always send something, Always one user frame after the two mandatory frames
-    // I.e. All of the three frame prep routines QOS, RPM, TEXT should always return true
-    // too keep the "Waltz" sequence intact.
     return true;
 }
 #endif
@@ -779,7 +780,7 @@ void initSrxlTelemetry(void)
     }
 
 #if defined(USE_SPEKTRUM_CMS_TELEMETRY)
-    if (srxlTelemetryEnabled) {
+    if (srxlTelemetryEnabled && featureIsEnabled(FEATURE_CMS)) {
         srxlDisplayportRegister();
     }
 #endif
