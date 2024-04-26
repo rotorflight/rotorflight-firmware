@@ -99,8 +99,8 @@ enum {
     DEBUG_FRAME_BUFFER,
 };
 
-#define TELEMETRY_BUFFER_SIZE    40
-#define REQUEST_BUFFER_SIZE      40
+#define TELEMETRY_BUFFER_SIZE    140
+#define REQUEST_BUFFER_SIZE      64
 #define PARAM_BUFFER_SIZE        96
 #define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_SIG         0
@@ -1586,11 +1586,25 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 /*
  * PL5 POC
 */
-#define PL5_MIN_FRAME_LENGTH                        8
-#define PL5_BOOT_DELAY                              5000
-#define PL5_TELE_FRAME_TIMEOUT                      500
+#define PL5_MIN_FRAME_LENGTH                8
+#define PL5_BOOT_DELAY                      5000
+#define PL5_TELE_FRAME_TIMEOUT              500
+#define PL5_PARAM_FRAME_PERIOD              4
+#define PL5_PARAM_READ_TIMEOUT              800
 
-#define PL5_FTYPE_TELE                              0x5C30
+#define PL5_PARAM_SIG                       0xFD                // parameter payload signature for this ESC
+
+#define PL5_FRAME_TELE_TYPE                 0x5C30
+#define PL5_FRAME_TELE_LENGTH               32
+#define PL5_FRAME_DEVINFO_TYPE              0x252C
+#define PL5_FRAME_DEVINFO_LENGTH            73
+#define PL5_FRAME_DEVINFO_PAYLOAD_LENGTH    48
+#define PL5_FRAME_GETPARAMS_TYPE            0x0C30
+#define PL5_FRAME_GETPARAMS_LENGTH          137
+#define PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH  31
+
+static uint8_t pl5DevInfoReq[] = { 0x01, 0xFD, 0x03, 0x03, 0x2C, 0x25, 0x00, 0x20, 0xF1, 0xB8 };
+static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x30, 0xC, 0x0, 0x40, 0x27, 0xC8 };
 
 typedef struct {
     uint8_t  throttle;                  // Throttle value in %
@@ -1606,6 +1620,43 @@ typedef struct {
     uint8_t  bec_current;               // BEC Current in 0.1A
     uint8_t  reserved1[6];              // reserved
 } Pl5TelemetryFrame_t;
+
+// static bool pl5CachedParams = false;
+
+static bool pl5ParamCommit(uint8_t cmd)
+{
+    if (cmd == 0) {
+        return true;
+    }
+    else {
+        // unsupported command
+        return false;
+    }
+}
+
+static bool pl5BuildReq(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    if (len > REQUEST_BUFFER_SIZE)
+        return false;
+
+    memcpy(reqbuffer, req, len);
+    reqLength = len;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+
+    return true;
+}
+
+// static void pl5BuildNextReq()
+// {
+//     if (pl5CachedParams)
+//         return;
+
+//     pl5BuildReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+//     pl5CachedParams = true;
+// }
+static uint8_t count = 0;
 
 static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
 {
@@ -1646,6 +1697,37 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     dataUpdateUs = currentTimeUs;
 
     rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
+
+    // schedule next request
+    // pl5BuildNextReq();
+    if (count == 10)
+        pl5BuildReq(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+    else
+        count++;
+
+    return true;
+}
+
+static bool pl5DecodeGetDevInfoFrame()
+{
+    // cache device info
+    memcpy(paramPayload, buffer + 7, PL5_FRAME_DEVINFO_PAYLOAD_LENGTH);
+
+    // schedule request parameters...
+    pl5BuildReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+
+    return true;
+}
+
+static bool pl5DecodeGetParamsFrame()
+{
+    // cache parameters, payload complete
+    memcpy(paramPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH);
+    paramPayloadLength = PL5_FRAME_DEVINFO_PAYLOAD_LENGTH + PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH;
+
+    // clear request
+    rrfsmInvalidateReq();
+
     return true;
 }
 
@@ -1659,8 +1741,12 @@ static bool pl5Decode(timeUs_t currentTimeUs)
     // decode
     const uint16_t type = *(uint16_t*)(buffer + 4);
     switch(type) {
-        case PL5_FTYPE_TELE:
+        case PL5_FRAME_TELE_TYPE:
             return pl5DecodeTeleFrame(currentTimeUs);
+        case PL5_FRAME_DEVINFO_TYPE:
+            return pl5DecodeGetDevInfoFrame();
+        case PL5_FRAME_GETPARAMS_TYPE:
+            return pl5DecodeGetParamsFrame();
         default:
             return false;
     }
@@ -1675,9 +1761,25 @@ static int8_t pl5Accept(uint16_t c)
     }
     else if (readBytes == 6) {
         // [3: version] [4-5: type]
+        uint8_t len = 0;
         const uint16_t type = *(uint16_t*)(buffer + 4);
-        if (buffer[3] == 3 && type == PL5_FTYPE_TELE) {
-            rrfsmFrameLength = 32;
+        switch (type)
+        {
+            case PL5_FRAME_TELE_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_FRAME_TELE_LENGTH;
+                break;
+            case PL5_FRAME_DEVINFO_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_FRAME_DEVINFO_LENGTH;
+                break;
+            case PL5_FRAME_GETPARAMS_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_FRAME_GETPARAMS_LENGTH;
+                break;
+        }
+        if (len != 0) {
+            rrfsmFrameLength = len;
             return 1;
         }
         return -1;
@@ -1687,15 +1789,20 @@ static int8_t pl5Accept(uint16_t c)
 
 static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
 {
-    UNUSED(bidirectional);
-
+    rrfsmBootDelayMs = PL5_BOOT_DELAY;
     rrfsmMinFrameLength = PL5_MIN_FRAME_LENGTH;
     rrfsmAccept = pl5Accept;
     rrfsmDecode = pl5Decode;
 
+    paramSig = PL5_PARAM_SIG;
+
     // telemetry data only
-    rrfsmBootDelayMs = PL5_BOOT_DELAY;
     rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
+
+    if (bidirectional) {
+        // enable parameter writes to ESC
+        paramCommit = pl5ParamCommit;
+    }
 
     return rrfsmDataReceive;
 }
