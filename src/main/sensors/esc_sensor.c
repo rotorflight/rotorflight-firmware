@@ -1591,26 +1591,34 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define PL5_TELE_FRAME_TIMEOUT              500
 #define PL5_PARAM_FRAME_PERIOD              4
 #define PL5_PARAM_READ_TIMEOUT              100
+#define PL5_PARAM_WRITE_TIMEOUT             100
 
 #define PL5_PING_FRAME_PERIOD               480
 #define PL5_PING_TIMEOUT                    1600
 
 #define PL5_PARAM_SIG                       0xFD                // parameter payload signature for this ESC
 
+#define PL5_ERR                             0x80
+
 #define PL5_FRAME_TELE_TYPE                 0x5C30
 #define PL5_FRAME_TELE_LENGTH               32
-#define PL5_FRAME_PING_TYPE                 0x242C
-#define PL5_FRAME_PING_LENGTH               11
-#define PL5_FRAME_DEVINFO_TYPE              0x252C
-#define PL5_FRAME_DEVINFO_LENGTH            73
-#define PL5_FRAME_DEVINFO_PAYLOAD_LENGTH    48
-#define PL5_FRAME_GETPARAMS_TYPE            0x0C30
-#define PL5_FRAME_GETPARAMS_LENGTH          137
-#define PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH  31
+#define PL5_RESP_PING_TYPE                  0x242C
+#define PL5_RESP_PING_LENGTH                11
+#define PL5_RESP_DEVINFO_TYPE               0x252C
+#define PL5_RESP_DEVINFO_LENGTH             73
+#define PL5_RESP_DEVINFO_PAYLOAD_LENGTH     48
+#define PL5_RESP_GETPARAMS_TYPE             0x0C30
+#define PL5_RESP_GETPARAMS_LENGTH           137
+#define PL5_RESP_GETPARAMS_PAYLOAD_LENGTH   31
+#define PL5_REQ_WRITEPARAMS_LENGTH          63
+#define PL5_RESP_WRITEPARAMS_TYPE           0x3835
+#define PL5_RESP_WRITEPARAMS_LENGTH         58
+#define PL5_RESP_WRITEPARAMS_ERR_LENGTH     9
 
 static uint8_t pl5Ping[] = { 0x1, 0xFD, 0x3, 0x3, 0x2C, 0x24, 0x0, 0x1, 0x60, 0x60 };
 static uint8_t pl5DevInfoReq[] = { 0x01, 0xFD, 0x03, 0x03, 0x2C, 0x25, 0x00, 0x20, 0xF1, 0xB8 };
 static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x30, 0xC, 0x0, 0x40, 0x27, 0xC8 };
+static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30, 0x0 };
 
 typedef struct {
     uint8_t  throttle;                  // Throttle value in %
@@ -1635,13 +1643,13 @@ static bool pl5ParamCommit(uint8_t cmd)
 {
     if (cmd == 0) {
         // info should never change
-        if (memcmp(paramPayload, paramUpdPayload, PL5_FRAME_DEVINFO_PAYLOAD_LENGTH) != 0)
+        if (memcmp(paramPayload, paramUpdPayload, PL5_RESP_DEVINFO_PAYLOAD_LENGTH) != 0)
             return false;
 
         // params dirty?
-        if (memcmp(paramPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, 
-            paramUpdPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, 
-            PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH) != 0) {
+        if (memcmp(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
+            paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
+            PL5_RESP_GETPARAMS_PAYLOAD_LENGTH) != 0) {
             // set dirty flag, will schedule read
             pl5DirtyParams = true;
             // clear cached flag, will schedule write
@@ -1650,7 +1658,7 @@ static bool pl5ParamCommit(uint8_t cmd)
             paramPayloadLength = 0;
 
             // TODO: update just for testing
-            // memcpy(paramPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, paramUpdPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH);
+            // memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
         }
             return false;
 
@@ -1662,7 +1670,19 @@ static bool pl5ParamCommit(uint8_t cmd)
     }
 }
 
-static bool pl5BuildReq(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+static bool pl5FrameReq(uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    *(uint16_t*)(reqbuffer + len - 2) = calculateCRC16_MODBUS(reqbuffer, len - 2);
+
+    reqLength = len;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+
+    return true;
+}
+
+static bool pl5SendReq(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
     if (len > REQUEST_BUFFER_SIZE)
         return false;
@@ -1678,29 +1698,26 @@ static bool pl5BuildReq(void *req, uint8_t len, uint16_t framePeriod, uint16_t f
 
 static void pl5BuildNextReq()
 {
-    // schedule pending param write request...
+    // schedule pending param write, schedule request...
     if (pl5DirtyParams) {
+        memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
+        const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
+        memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
+        memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        pl5FrameReq(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
-    // ...or pending device info request...
+    // ...or pending device info, schedule request...
     else if (!pl5CachedDevInfo) {
-        pl5BuildReq(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+        pl5SendReq(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
     }
-    // ...or pending param read request...
+    // ...or pending param read, schedule request...
     else if (!pl5CachedParams) {
-        pl5BuildReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+        pl5SendReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
     }
-    // ...or nothing, 480ms ping
+    // ...or nothing, schedule 480ms ping
     else {
-        pl5BuildReq(pl5Ping, sizeof(pl5Ping), PL5_PING_FRAME_PERIOD, PL5_PING_TIMEOUT);
+        pl5SendReq(pl5Ping, sizeof(pl5Ping), PL5_PING_FRAME_PERIOD, PL5_PING_TIMEOUT);
     }
-
-    // pl5BuildReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
-    // pl5CachedParams = true;
-
-    // if (count == 10)
-    //     pl5BuildReq(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
-    // else
-    //     count++;
 }
 
 static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
@@ -1750,17 +1767,17 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     return true;
 }
 
-static bool pl5DecodePingFrame()
+static bool pl5DecodePingResp()
 {
     pl5BuildNextReq();
 
     return true;
 }
 
-static bool pl5DecodeGetDevInfoFrame()
+static bool pl5DecodeGetDevInfoResp()
 {
     // cache device info
-    memcpy(paramPayload, buffer + 7, PL5_FRAME_DEVINFO_PAYLOAD_LENGTH);
+    memcpy(paramPayload, buffer + 7, PL5_RESP_DEVINFO_PAYLOAD_LENGTH);
     pl5CachedDevInfo = true;
 
     pl5BuildNextReq();
@@ -1768,14 +1785,33 @@ static bool pl5DecodeGetDevInfoFrame()
     return true;
 }
 
-static bool pl5DecodeGetParamsFrame()
+static bool pl5DecodeGetParamsResp()
 {
     // cache parameters, payload complete
-    memcpy(paramPayload + PL5_FRAME_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH);
+    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
     pl5CachedParams = true;
 
     // make param payload available
-    paramPayloadLength = PL5_FRAME_DEVINFO_PAYLOAD_LENGTH + PL5_FRAME_GETPARAMS_PAYLOAD_LENGTH;
+    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodeWriteParamsResp()
+{
+    if ((buffer[3] & PL5_ERR) == 0) {
+        // success, cache parameters
+        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        pl5CachedParams = true;
+    }
+
+    // make param payload available
+    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+
+    // success or failure don't repeat
+    pl5DirtyParams = false;
 
     pl5BuildNextReq();
 
@@ -1794,12 +1830,14 @@ static bool pl5Decode(timeUs_t currentTimeUs)
     switch(type) {
         case PL5_FRAME_TELE_TYPE:
             return pl5DecodeTeleFrame(currentTimeUs);
-        case PL5_FRAME_PING_TYPE:
-            return pl5DecodePingFrame();
-        case PL5_FRAME_DEVINFO_TYPE:
-            return pl5DecodeGetDevInfoFrame();
-        case PL5_FRAME_GETPARAMS_TYPE:
-            return pl5DecodeGetParamsFrame();
+        case PL5_RESP_PING_TYPE:
+            return pl5DecodePingResp();
+        case PL5_RESP_DEVINFO_TYPE:
+            return pl5DecodeGetDevInfoResp();
+        case PL5_RESP_GETPARAMS_TYPE:
+            return pl5DecodeGetParamsResp();
+        case PL5_RESP_WRITEPARAMS_TYPE:
+            return pl5DecodeWriteParamsResp();
         default:
             return false;
     }
@@ -1822,17 +1860,23 @@ static int8_t pl5Accept(uint16_t c)
                 if (buffer[3] == 3)
                     len = PL5_FRAME_TELE_LENGTH;
                 break;
-            case PL5_FRAME_PING_TYPE:
+            case PL5_RESP_PING_TYPE:
                 if (buffer[3] == 3)
-                    len = PL5_FRAME_PING_LENGTH;
+                    len = PL5_RESP_PING_LENGTH;
                 break;
-            case PL5_FRAME_DEVINFO_TYPE:
+            case PL5_RESP_DEVINFO_TYPE:
                 if (buffer[3] == 3)
-                    len = PL5_FRAME_DEVINFO_LENGTH;
+                    len = PL5_RESP_DEVINFO_LENGTH;
                 break;
-            case PL5_FRAME_GETPARAMS_TYPE:
+            case PL5_RESP_GETPARAMS_TYPE:
                 if (buffer[3] == 3)
-                    len = PL5_FRAME_GETPARAMS_LENGTH;
+                    len = PL5_RESP_GETPARAMS_LENGTH;
+                break;
+            case PL5_RESP_WRITEPARAMS_TYPE:
+                if (buffer[3] == 0x17)
+                    len = PL5_RESP_WRITEPARAMS_LENGTH;
+                else if (buffer[3] == (PL5_ERR|0x17))
+                    len = PL5_RESP_WRITEPARAMS_ERR_LENGTH;
                 break;
         }
         if (len != 0) {
