@@ -914,6 +914,12 @@ static void hw5SensorProcess(timeUs_t currentTimeUs)
  *  36-39:      CRC32
  *
  */
+#define KON_FRAME_LENGTH                40
+#define KON_FRAME_LENGTH_LEGACY         38
+#define KON_CRC_LENGTH                  4
+
+static uint8_t kontronikPacketLength    = 0;    // 40 or 38 byte
+static uint8_t kontronikCrcExclude      = 0;    // 0 or 2
 
 static uint32_t calculateCRC32(const uint8_t *ptr, size_t len)
 {
@@ -926,6 +932,11 @@ static uint32_t calculateCRC32(const uint8_t *ptr, size_t len)
     }
 
     return ~crc;
+}
+
+static uint32_t kontronikDecodeCRC(uint8_t index)
+{
+    return buffer[index + 3] << 24 | buffer[index + 2] << 16 | buffer[index + 1] << 8 | buffer[index];
 }
 
 static bool processKontronikTelemetryStream(uint8_t dataByte)
@@ -952,7 +963,36 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
         else
             syncCount++;
     }
-    else if (readBytes == 40) {
+    else if (readBytes == kontronikPacketLength) {
+        readBytes = 0;
+        return true;
+    }
+    else if (kontronikPacketLength == 0 && readBytes == KON_FRAME_LENGTH_LEGACY) {
+        // auto detect legacy 38 byte packet...
+        uint32_t crc = kontronikDecodeCRC(KON_FRAME_LENGTH_LEGACY - KON_CRC_LENGTH);
+        if (calculateCRC32(buffer, KON_FRAME_LENGTH_LEGACY - 2 - KON_CRC_LENGTH) == crc) {
+            // ...w/ 32 byte payload (2 bytes excluded)
+            kontronikPacketLength = KON_FRAME_LENGTH_LEGACY;
+            kontronikCrcExclude = 2;
+            readBytes = 0;
+            return true;
+        }
+        else if (calculateCRC32(buffer, KON_FRAME_LENGTH_LEGACY - KON_CRC_LENGTH) == crc) {
+            // ...w/ 34 byte payload
+            kontronikPacketLength = KON_FRAME_LENGTH_LEGACY;
+            kontronikCrcExclude = 0;
+            readBytes = 0;
+            return true;
+        }
+    }
+    else if (kontronikPacketLength == 0 && readBytes == KON_FRAME_LENGTH) {
+        // auto detect 40 byte packet...
+        uint32_t crc = kontronikDecodeCRC(KON_FRAME_LENGTH - KON_CRC_LENGTH);
+        if (calculateCRC32(buffer, KON_FRAME_LENGTH - KON_CRC_LENGTH) == crc) {
+            // ...w/ 36 byte payload
+            kontronikPacketLength = KON_FRAME_LENGTH;
+            kontronikCrcExclude = 0;
+        }
         readBytes = 0;
         return true;
     }
@@ -965,9 +1005,8 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         if (processKontronikTelemetryStream(serialRead(escSensorPort))) {
-            uint32_t crc = buffer[39] << 24 | buffer[38] << 16 | buffer[37] << 8 | buffer[36];
-
-            if (calculateCRC32(buffer, 36) == crc) {
+            uint32_t crc = kontronikDecodeCRC(kontronikPacketLength - KON_CRC_LENGTH);
+            if (calculateCRC32(buffer, kontronikPacketLength - kontronikCrcExclude - KON_CRC_LENGTH) == crc) {
                 uint32_t rpm = buffer[7] << 24 | buffer[6] << 16 | buffer[5] << 8 | buffer[4];
                 int16_t  throttle = (int8_t)buffer[24];
                 uint16_t pwm = buffer[23] << 8 | buffer[22];
