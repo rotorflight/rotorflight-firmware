@@ -426,6 +426,79 @@ static CMS_Menu cmsx_menuProfileLevel = {
     .entries = cmsx_menuProfileLevelEntries,
 };
 
+/////////////////// Rescue Profile menu items ///////////////////////
+
+static uint16_t cmsx_rescuePullupCollective;
+static uint8_t  cmsx_rescuePullupTime;
+static uint16_t cmsx_rescueClimbCollective;
+static uint8_t  cmsx_rescueClimbTime;
+static uint16_t cmsx_rescueHoverCollective;
+static uint8_t  cmsx_rescueLevelGain;
+static uint8_t  cmsx_rescueFlipGain;
+
+static const void *cmsx_profileRescueOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    cmsx_rescuePullupCollective = pidProfile->rescue.pull_up_collective;
+    cmsx_rescuePullupTime =       pidProfile->rescue.pull_up_time;
+    cmsx_rescueClimbCollective =  pidProfile->rescue.climb_collective;
+    cmsx_rescueClimbTime =        pidProfile->rescue.climb_time;
+    cmsx_rescueHoverCollective =  pidProfile->rescue.hover_collective;
+    cmsx_rescueLevelGain =        pidProfile->rescue.level_gain;
+    cmsx_rescueFlipGain =         pidProfile->rescue.flip_gain;
+
+    return NULL;
+}
+
+static const void *cmsx_profileRescueOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->rescue.pull_up_collective = cmsx_rescuePullupCollective;
+    pidProfile->rescue.pull_up_time =       cmsx_rescuePullupTime;
+    pidProfile->rescue.climb_collective =   cmsx_rescueClimbCollective;
+    pidProfile->rescue.climb_time =         cmsx_rescueClimbTime;
+    pidProfile->rescue.hover_collective =   cmsx_rescueHoverCollective;
+    pidProfile->rescue.level_gain =         cmsx_rescueLevelGain;
+    pidProfile->rescue.flip_gain =          cmsx_rescueFlipGain;
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileRescueEntries[] = {
+    { "-- RESCUE --", OME_Label,  NULL, pidProfileIndexString },
+    { "PU COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescuePullupCollective, 0,    1000,  10  }    },
+    { "PU TIME",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescuePullupTime,       0,     250,   1  }    },
+    { "CL COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescueClimbCollective,  0,    1000,  10  }    },
+    { "CL TIME",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueClimbTime,        0,     250,   1  }    },
+    { "HO COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescueHoverCollective,  0,    1000,  10  }    },
+    { "LVL GAIN",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueLevelGain,        5,     250,   1  }    },
+    { "FLP GAIN",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueFlipGain,         5,     250,   1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileRescue = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPRORESC",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileRescueOnEnter,
+    .onExit = cmsx_profileRescueOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileRescueEntries,
+};
+
 /////////////////// Governor Profile menu items ///////////////////////
 
 static uint16_t  cmsx_govHeadspeed;
@@ -768,6 +841,7 @@ static const OSD_Entry cmsx_menuImuEntries[] =
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
     {"YAW",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileYaw},
     {"LEVEL",     OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileLevel},
+    {"RESCUE",    OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileRescue},
     {"GOV",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileGovernor},
     //{"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 
