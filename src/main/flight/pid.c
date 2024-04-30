@@ -179,13 +179,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
         pid.offsetLimit[i] = pidProfile->offset_limit[i];
 
     // Exponential error decay rates
-    pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10 * pid.dT / pidProfile->error_decay_time_ground) : 0;
-    pid.errorDecayRateCyclic = (pidProfile->error_decay_time_cyclic) ? (10 * pid.dT / pidProfile->error_decay_time_cyclic) : 0;
-    pid.errorDecayRateYaw    = (pidProfile->error_decay_time_yaw)    ? (10 * pid.dT / pidProfile->error_decay_time_yaw) : 0;
+    pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
+    pid.errorDecayRateCyclic = (pidProfile->error_decay_time_cyclic) ? (10.0f / pidProfile->error_decay_time_cyclic) : 0;
+    pid.errorDecayRateYaw    = (pidProfile->error_decay_time_yaw)    ? (10.0f / pidProfile->error_decay_time_yaw) : 0;
 
     // Max decay speeds in degs/s (linear decay)
-    pid.errorDecayLimitCyclic = (pidProfile->error_decay_limit_cyclic) ? (pid.dT * pidProfile->error_decay_limit_cyclic) : 1e6;
-    pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? (pid.dT * pidProfile->error_decay_limit_yaw) : 1e6;
+    pid.errorDecayLimitCyclic = (pidProfile->error_decay_limit_cyclic) ? pidProfile->error_decay_limit_cyclic : 3600;
+    pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? pidProfile->error_decay_limit_yaw : 3600;
 
     // Error Rotation enable
     pid.errorRotation = pidProfile->error_rotation;
@@ -769,9 +769,9 @@ static void pidApplyCyclicMode2(uint8_t axis)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    pid.data[axis].axisError -= isAirborne() ?
-      limitf(pid.data[axis].axisError * pid.errorDecayRateCyclic, pid.errorDecayLimitCyclic):
-      pid.data[axis].axisError * pid.errorDecayRateGround;
+    pid.data[axis].axisError -= pid.dT * (isAirborne() ?
+      limitf(pid.data[axis].axisError * pid.errorDecayRateCyclic, pid.errorDecayLimitCyclic) :
+      pid.data[axis].axisError * pid.errorDecayRateGround);
 
 
   //// Feedforward
@@ -847,9 +847,9 @@ static void pidApplyYawMode2(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply I-term error decay
-    pid.data[axis].axisError -= isSpooledUp() ?
-      limitf(pid.data[axis].axisError * pid.errorDecayRateYaw, pid.errorDecayLimitYaw):
-      pid.data[axis].axisError * pid.errorDecayRateGround;
+    pid.data[axis].axisError -= pid.dT * (isSpooledUp() ?
+      limitf(pid.data[axis].axisError * pid.errorDecayRateYaw, pid.errorDecayLimitYaw) :
+      pid.data[axis].axisError * pid.errorDecayRateGround);
 
 
   //// Feedforward
@@ -942,23 +942,23 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
     const float curve = fabsf(collective) * 0.8f;
 
     // Apply error decay
-    float decayRate, decayLimit, errorDecay;
+    float errorDecayRate, errorDecayLimit;
 
-    if (isAirborne()) {
-      decayRate  = pidTableLookup(curve, pidProfile->error_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
-      decayLimit = pidTableLookup(curve, pidProfile->error_decay_limit_curve, LOOKUP_CURVE_POINTS);
-      errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
+    if (isAirborne() || pid.errorDecayRateGround == 0) {
+      errorDecayRate  = pid.errorDecayRateCyclic * pidTableLookup(curve, pidProfile->error_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.08f;
+      errorDecayLimit = pid.errorDecayLimitCyclic * pidTableLookup(curve, pidProfile->error_decay_limit_curve, LOOKUP_CURVE_POINTS) * 0.08f;
     }
     else {
-      decayRate  = pid.errorDecayRateGround / pid.dT;
-      decayLimit = 0;
-      errorDecay = pid.data[axis].axisError * decayRate;
+      errorDecayRate  = pid.errorDecayRateGround;
+      errorDecayLimit = 3600;
     }
+
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 
-    DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 0, errorDecayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 1, errorDecayLimit);
     DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
 
@@ -986,22 +986,24 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
     DEBUG_AXIS(HS_OFFSET, axis, 7, pid.data[axis].I * 1000);
 
     // Apply offset decay
-    if (isSpooledUp()) {
-      decayRate  = pidTableLookup(curve, pidProfile->offset_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
-      decayLimit = pidTableLookup(curve, pidProfile->offset_decay_limit_curve, LOOKUP_CURVE_POINTS);
-      errorDecay = limitf(pid.data[axis].axisOffset * decayRate, decayLimit);
+    float offsetDecayRate, offsetDecayLimit;
+
+    if (isAirborne() || pid.errorDecayRateGround == 0) {
+      offsetDecayRate  = pidTableLookup(curve, pidProfile->offset_decay_rate_curve, LOOKUP_CURVE_POINTS) * 0.04f;
+      offsetDecayLimit = pidTableLookup(curve, pidProfile->offset_decay_limit_curve, LOOKUP_CURVE_POINTS);
     }
     else {
-      decayRate  = pid.errorDecayRateGround / pid.dT;
-      decayLimit = 0;
-      errorDecay = pid.data[axis].axisOffset * decayRate;
+      offsetDecayRate  = pid.errorDecayRateGround;
+      offsetDecayLimit = 3600;
     }
 
-    pid.data[axis].axisOffset -= errorDecay * pid.dT;
+    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit);
 
-    DEBUG_AXIS(ERROR_DECAY, axis, 4, decayRate * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 5, decayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 6, errorDecay * 100);
+    pid.data[axis].axisOffset -= offsetDecay * pid.dT;
+
+    DEBUG_AXIS(ERROR_DECAY, axis, 4, offsetDecayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 5, offsetDecayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 10);
 
 
@@ -1079,9 +1081,27 @@ static void pidApplyYawMode3(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply error decay
-    pid.data[axis].axisError -= isSpooledUp() ?
-      limitf(pid.data[axis].axisError * pid.errorDecayRateYaw, pid.errorDecayLimitYaw):
-      pid.data[axis].axisError * pid.errorDecayRateGround;
+    float decayRate, decayLimit, errorDecay;
+
+    if (isSpooledUp() || !pid.errorDecayRateGround) {
+      decayRate = pid.errorDecayRateYaw;
+      decayLimit = pid.errorDecayLimitYaw;
+    }
+    else {
+      decayRate = pid.errorDecayRateGround;
+      decayLimit = 3600;
+    }
+
+    errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
+
+    pid.data[axis].axisError -= pid.dT * limitf(pid.data[axis].axisError *
+      (isSpooledUp() ? pid.errorDecayRateYaw : pid.errorDecayRateGround),
+      pid.errorDecayLimitYaw);
+
+    DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
 
 
   //// Feedforward
