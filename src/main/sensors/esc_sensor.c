@@ -1017,8 +1017,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 int16_t  tempBEC = (int8_t)buffer[27];
                 uint16_t currBEC = buffer[19] << 8 | buffer[18];
                 uint16_t voltBEC = buffer[21] << 8 | buffer[20];
-                uint16_t status1 = buffer[29] << 8 | buffer[28];
-                uint16_t status2 = buffer[31] << 8 | buffer[30];
+                uint32_t status = buffer[31] << 24 | buffer[30] << 16 | buffer[29] << 8 | buffer[28];
 
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
@@ -1031,7 +1030,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].temperature2 = tempBEC * 10;
                 escSensorData[0].bec_voltage = voltBEC;
                 escSensorData[0].bec_current = currBEC;
-                escSensorData[0].status = status2 << 16 | status1;
+                escSensorData[0].status = status;
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
@@ -1491,7 +1490,7 @@ static void rrfsmStartFrameAndSendPendingReq(timeMs_t currentTimeMs)
         serialWriteBuf(escSensorPort, reqbuffer, reqLength);
 }
 
-static void rrfsmInvalidateReq()
+static void rrfsmInvalidateReq(void)
 {
     reqbuffer[0] = 0x00;     // no req
     reqLength = 0;
@@ -2627,19 +2626,19 @@ uint8_t escGetParamBufferLength(void)
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
-uint8_t *escGetParamBuffer()
+uint8_t *escGetParamBuffer(void)
 {
     paramBuffer[PARAM_HEADER_SIG] = paramSig;
     paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
     return paramBuffer;
 }
 
-uint8_t *escGetParamUpdBuffer()
+uint8_t *escGetParamUpdBuffer(void)
 {
     return paramUpdBuffer;
 }
 
-bool escCommitParameters()
+bool escCommitParameters(void)
 {
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
