@@ -527,7 +527,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = govPrev = slewLimit(govPrev, throttleInput, gov.throttleStartupRate);
+                govMain = govPrev = slewUpLimit(govPrev, throttleInput, gov.throttleStartupRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (throttleInput > gov.maxIdleThrottle)
@@ -556,7 +556,7 @@ static void governorUpdatePassthrough(void)
                 govMain = govPrev + govPrev * gov.TTAAdd;
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
-                else if (govMain < gov.maxIdleThrottle) {
+                else if (throttleInput < gov.maxIdleThrottle) {
                     if (gov.autoEnabled && govStateTime() > gov.autoMinEntry)
                         govChangeState(GS_AUTOROTATION);
                     else
