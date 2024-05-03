@@ -216,11 +216,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
 
-    // Collective dynamic filter
-    pt1FilterInit(&pid.precomp.collFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
+    // Collective/cyclic deflection lowpass filters
+    lowpassFilterInit(&pid.precomp.collDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+    lowpassFilterInit(&pid.precomp.pitchDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+    lowpassFilterInit(&pid.precomp.rollDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
 
-    // Yaw precomp lowpass filter
-    lowpassFilterInit(&pid.precomp.yawFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+    // Collective dynamic filter
+    pt1FilterInit(&pid.precomp.collDynamicFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
 
     // Tail/yaw precomp
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
@@ -389,12 +391,17 @@ static void pidApplyPrecomp(void)
     const float masterGain = mixerRotationSign() * getSpoolUpRatio();
 
     // Get actual control deflections (from previous cycle)
-    const float cyclicDeflection = getCyclicDeflection();
-    const float collectiveDeflection = getCollectiveDeflection();
+    const float collectiveDeflection = filterApply(&pid.precomp.collDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE));
+    const float pitchDeflection = filterApply(&pid.precomp.pitchDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_PITCH));
+    const float rollDeflection = filterApply(&pid.precomp.rollDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_ROLL));
+
+    // Calculate cyclic deflection from the filtered controls
+    const float cyclicDeflection = sqrtf(sq(pitchDeflection) + sq(rollDeflection));
 
     // Collective High Pass Filter (this is possible with PT1)
-    const float collectiveLF = pt1FilterApply(&pid.precomp.collFilter, collectiveDeflection);
+    const float collectiveLF = pt1FilterApply(&pid.precomp.collDynamicFilter, collectiveDeflection);
     const float collectiveHF = collectiveDeflection - collectiveLF;
+
 
   //// Collective-to-Yaw Precomp
 
@@ -406,10 +413,7 @@ static void pidApplyPrecomp(void)
     float yawCyclicFF = fabsf(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
 
     // Calculate total precompensation
-    float yawPrecomp = yawCollectiveFF + yawCollectiveHF + yawCyclicFF;
-
-    // Lowpass filter
-    yawPrecomp = filterApply(&pid.precomp.yawFilter, yawPrecomp) * masterGain;
+    float yawPrecomp = (yawCollectiveFF + yawCollectiveHF + yawCyclicFF) * masterGain;
 
     // Add to YAW feedforward
     pid.data[FD_YAW].F += yawPrecomp;
