@@ -110,6 +110,9 @@ enum {
 #define PARAM_HEADER_RDONLY      0x40
 #define PARAM_HEADER_USER        0x80
 
+#define PARAM_OOB_FLAG           0x0F00
+#define PARAM_OOB_NEED_RESTART   0xFF
+
 static serialPort_t *escSensorPort = NULL;
 
 static escSensorData_t escSensorData[MAX_SUPPORTED_MOTORS];
@@ -152,6 +155,23 @@ static bool paramMspActive = false;
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
+
+
+static void paramOobEscNeedRestart(void)
+{
+    escSensorData[0].age = 0;
+    escSensorData[0].status = PARAM_OOB_FLAG | PARAM_OOB_NEED_RESTART;
+}
+
+static void paramOobEscSig(void)
+{
+    // every 128'th call
+    static uint8_t oobSigSpin = 0;
+    if (((oobSigSpin++) & 0x7F) != 0)
+        return;
+    escSensorData[0].age = 0;
+    escSensorData[0].status = PARAM_OOB_FLAG | paramSig;
+}
 
 
 bool isEscSensorActive(void)
@@ -2246,6 +2266,9 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].consumption = capacity;
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
+    escSensorData[0].status = status;
+
+    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -2330,6 +2353,7 @@ static bool tribCrankUncSetup(timeMs_t currentTimeMs)
             if (tribBuildNextParamReq()) {
                 tribUncSetup = TRIB_UNCSETUP_WAIT;
             }
+            paramOobEscNeedRestart();
             break;
         case TRIB_UNCSETUP_WAIT:
             if (tribInvalidParams == 0 && tribDirtyParams == 0) {
@@ -2668,9 +2692,10 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
     escSensorData[0].bec_current = tele->bec_current;
-    escSensorData[0].status = tele->status1 | 0x0100;
+    escSensorData[0].status = tele->status1;
 
     oygeCacheParam(tele->pidx, tele->pdata);
+    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
