@@ -1604,8 +1604,43 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
- * PL5 POC
-*/
+ * Hobbywing V5 Telemetry
+ *
+ *    - Serial protocol 115200,8N1
+ *    - Frame rate running:50Hz idle:2.5Hz
+ *    - Little-Endian fields
+ *    - Frame length over data (23)
+ *    - CRC16-MODBUS (poly 0x8005, init 0xffff)
+ *    - Fault code bits:
+ *         0:  Motor locked protection
+ *         1:  Over-temp protection
+ *         2:  Input throttle error at startup
+ *         3:  Throttle signal lost
+ *         4:  Over-current error
+ *         5:  Low-voltage error
+ *         6:  Input-voltage error
+ *         7:  Motor connection error
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
+ *      6:      Data frame length (23)
+ *    7-8:      Data type 0x06 0x00
+ *      9:      Throttle value in %
+ *  10-11:      Unknown
+ *     12:      Fault code
+ *  13-14:      RPM in 10rpm steps
+ *  15-16:      Voltage in 0.1V
+ *  17-18:      Current in 0.1A
+ *     19:      ESC Temperature in °C
+ *     20:      BEC Temperature in °C
+ *     21:      Motor Temperature in °C
+ *     22:      BEC Voltage in 0.1V
+ *     23:      BEC Current in 0.1A
+ *  24-29:      Unused 0xFF
+ *  30-31:      CRC16 MODBUS
+ *
+ */
 #define PL5_MIN_FRAME_LENGTH                8
 #define PL5_BOOT_DELAY                      5000
 #define PL5_TELE_FRAME_TIMEOUT              500
@@ -1763,6 +1798,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].bec_current = tele->bec_current * 100;
     escSensorData[0].status = tele->fault;
 
+    paramOobEscSig();
+
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, tele->voltage * 10);
@@ -1790,6 +1827,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
 static bool pl5DecodePingResp()
 {
     pl5BuildNextReq();
+
+    paramOobEscNeedRestart();
 
     return true;
 }
