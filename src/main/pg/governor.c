@@ -19,6 +19,8 @@
 
 #include "config/config_reset.h"
 
+#include "common/filter.h"
+
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 
@@ -43,5 +45,6 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_rpm_filter = 10,
     .gov_tta_filter = 0,
     .gov_ff_filter = 10,
+    .gov_ff_filter_type = LPF_DAMPED,
 );
 
