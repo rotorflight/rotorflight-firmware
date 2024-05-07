@@ -1100,6 +1100,7 @@ const clivalue_t valueTable[] = {
     { "yaw_cw_stop_gain",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cw_stop_gain) },
     { "yaw_ccw_stop_gain",          VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_ccw_stop_gain) },
 
+    { "yaw_precomp_exp",            VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_exp) },
     { "yaw_precomp_cutoff",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_cutoff) },
     { "yaw_precomp_filter_type",    VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_filter_type) },
 

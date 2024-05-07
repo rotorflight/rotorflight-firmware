@@ -225,6 +225,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pt1FilterInit(&pid.precomp.collDynamicFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
 
     // Tail/yaw precomp
+    pid.precomp.exponent = pidProfile->yaw_precomp_exp / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCollectiveDynamicGain = pidProfile->yaw_collective_dynamic_gain / 100.0f;
@@ -406,11 +407,11 @@ static void pidApplyPrecomp(void)
   //// Collective-to-Yaw Precomp
 
     // Collective components
-    const float yawCollectiveFF = fabsf(collectiveDeflection) * pid.precomp.yawCollectiveFFGain;
+    const float yawCollectiveFF = pow_approx(fabsf(collectiveDeflection), pid.precomp.exponent) * pid.precomp.yawCollectiveFFGain;
     const float yawCollectiveHF = fabsf(collectiveHF) * pid.precomp.yawCollectiveDynamicGain;
 
     // Cyclic component
-    float yawCyclicFF = fabsf(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
+    const float yawCyclicFF = pow_approx(fabsf(cyclicDeflection), pid.precomp.exponent) * pid.precomp.yawCyclicFFGain;
 
     // Calculate total precompensation
     float yawPrecomp = (yawCollectiveFF + yawCollectiveHF + yawCyclicFF) * masterGain;
