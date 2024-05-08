@@ -151,6 +151,8 @@ static const void *cmsx_profileIndexOnChange(displayPort_t *displayPort, const v
 
     pidProfileIndex = tmpPidProfileIndex - 1;
     changePidProfile(pidProfileIndex);
+    pidProfile = pidProfilesMutable(pidProfileIndex);
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, pidProfile->profileName);
 
     return NULL;
 }
@@ -162,6 +164,8 @@ static const void *cmsx_rateProfileIndexOnChange(displayPort_t *displayPort, con
 
     rateProfileIndex = tmpRateProfileIndex - 1;
     changeControlRateProfile(rateProfileIndex);
+    memcpy(&rateProfile, controlRateProfiles(rateProfileIndex), sizeof(controlRateConfig_t));
+    setProfileIndexString(rateProfileIndexString, rateProfileIndex, controlRateProfilesMutable(rateProfileIndex)->profileName);
 
     return NULL;
 }
