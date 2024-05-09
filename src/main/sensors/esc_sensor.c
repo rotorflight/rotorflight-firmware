@@ -1787,8 +1787,8 @@ static bool tribBuildNextParamReq(void)
                 const uint32_t q22 = 1 << 22;
                 uint32_t *pw = iq22Payload;
                 uint32_t *pp = (uint32_t*)(paramUpdPayload + offset);
-                *pw++ = (((double)*pp++) / 100 * q22);
-                *pw = (((double)*pp) / 100000 * q22);
+                *pw++ = (((float)*pp++) / 100 * q22);
+                *pw = (((float)*pp) / 100000 * q22);
                 payload = iq22Payload;
             }
             else {
@@ -1828,8 +1828,8 @@ static bool tribDecodeReadParamResp(uint8_t addr)
                 const uint32_t q22 = 1 << 22;
                 uint32_t *pr = (uint32_t*)(buffer + TRIB_HEADER_LENGTH);
                 uint32_t *pp = (uint32_t*)(paramPayload + offset);
-                *pp++ = round(((double)*pr++) / q22 * 100);
-                *pp = round(((double)*pr) / q22 * 100000);
+                *pp++ = round(((float)*pr++) / q22 * 100);
+                *pp = round(((float)*pr) / q22 * 100000);
             }
             else {
                 memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
