@@ -1828,8 +1828,8 @@ static bool tribDecodeReadParamResp(uint8_t addr)
                 const uint32_t q22 = 1 << 22;
                 uint32_t *pr = (uint32_t*)(buffer + TRIB_HEADER_LENGTH);
                 uint32_t *pp = (uint32_t*)(paramPayload + offset);
-                *pp++ = round(((float)*pr++) / q22 * 100);
-                *pp = round(((float)*pr) / q22 * 100000);
+                *pp++ = roundf(((float)*pr++) / q22 * 100);
+                *pp = roundf(((float)*pr) / q22 * 100000);
             }
             else {
                 memcpy(paramPayload + offset, buffer + TRIB_HEADER_LENGTH, len);
