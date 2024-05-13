@@ -307,6 +307,7 @@ static uint8_t  cmsx_yawStopCCW;
 static uint8_t  cmsx_yawCollectiveFF;
 static uint8_t  cmsx_yawCyclicFF;
 static uint8_t  cmsx_yawTTA;
+static uint8_t  cmsx_yawPrecompCutoff;
 
 static const void *cmsx_profileYawOnEnter(displayPort_t *pDisp)
 {
@@ -321,7 +322,7 @@ static const void *cmsx_profileYawOnEnter(displayPort_t *pDisp)
     cmsx_yawCyclicFF =       pidProfile->yaw_cyclic_ff_gain;
     cmsx_yawCollectiveFF =   pidProfile->yaw_collective_ff_gain;
     cmsx_yawTTA =            pidProfile->governor.tta_gain;
-
+    cmsx_yawPrecompCutoff =  pidProfile->yaw_precomp_cutoff;
     return NULL;
 }
 
@@ -338,6 +339,7 @@ static const void *cmsx_profileYawOnExit(displayPort_t *pDisp, const OSD_Entry *
     pidProfile->yaw_cyclic_ff_gain =     cmsx_yawCyclicFF;
     pidProfile->yaw_collective_ff_gain = cmsx_yawCollectiveFF;
     pidProfile->governor.tta_gain =      cmsx_yawTTA;
+    pidProfile->yaw_precomp_cutoff =     cmsx_yawPrecompCutoff;
 
     return NULL;
 }
@@ -346,6 +348,7 @@ static const OSD_Entry cmsx_menuProfileYawEntries[] = {
     { "-- YAW --",  OME_Label, NULL, pidProfileIndexString },
     { "STOP CW",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawStopCW,       25,    250,   1  }    },
     { "STOP CCW",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawStopCCW,      25,    250,   1  }    },
+    { "PRECOMP CUT",OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawPrecompCutoff,25,    250,   1  }    },
     { "CYCl FF",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawCyclicFF,      0,    250,   1  }    },
     { "COLL FF",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawCollectiveFF,  0,    250,   1  }    },
     { "TTA GAIN",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_yawTTA,           0,    250,   1  }    },
@@ -364,6 +367,151 @@ static CMS_Menu cmsx_menuProfileYaw = {
     .onDisplayUpdate = NULL,
     .entries = cmsx_menuProfileYawEntries,
 };
+
+/////////////////// PID controller Profile menu items ///////////////////////
+
+static uint8_t  cmsx_pidCyclicCrossCouplingGain;
+static uint8_t  cmsx_pidCyclicCrossCouplingRatio;
+static uint8_t  cmsx_pidCyclicCrossCouplingCutOff;
+static uint8_t  cmsx_pidItermRelaxCutoff[3];
+
+static const void *cmsx_profileCtrlOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    cmsx_pidCyclicCrossCouplingGain =         pidProfile->cyclic_cross_coupling_gain;
+    cmsx_pidCyclicCrossCouplingRatio =        pidProfile->cyclic_cross_coupling_ratio;
+    cmsx_pidCyclicCrossCouplingCutOff =       pidProfile->cyclic_cross_coupling_cutoff;
+
+    for (uint8_t i = 0; i < 3; i++) {
+      cmsx_pidItermRelaxCutoff[i] = pidProfile->iterm_relax_cutoff[i];
+    }
+
+    return NULL;
+}
+
+static const void *cmsx_profileCtrlOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->cyclic_cross_coupling_gain = cmsx_pidCyclicCrossCouplingGain;
+    pidProfile->cyclic_cross_coupling_ratio = cmsx_pidCyclicCrossCouplingRatio;
+    pidProfile->cyclic_cross_coupling_cutoff= cmsx_pidCyclicCrossCouplingCutOff;
+
+    for (uint8_t i = 0; i < 3; i++) {
+      pidProfile->iterm_relax_cutoff[i] = cmsx_pidItermRelaxCutoff[i];
+    }
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileCtrlEntries[] = {
+    { "- PID CTRL -", OME_Label, NULL, pidProfileIndexString },
+    { "CYCL GAIN",    OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidCyclicCrossCouplingGain,   0,    250,   1  }    },
+    { "CYCL RATIO",   OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidCyclicCrossCouplingRatio,  0,    200,   1  }    },
+    { "CYCL CUT",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidCyclicCrossCouplingCutOff, 0,    250,   1  }    },
+    { "I RLX CUT R",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidItermRelaxCutoff[0],       1,    100,   1  }    },
+    { "I RLX CUT P",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidItermRelaxCutoff[1],       1,    100,   1  }    },
+    { "I RLX CUT Y",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidItermRelaxCutoff[2],       1,    100,   1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileCtrl = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPROFCTRL",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileCtrlOnEnter,
+    .onExit = cmsx_profileCtrlOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileCtrlEntries,
+};
+
+/*
+*/
+
+/////////////////// PID controller Bandwieth Profile menu items ///////////////////////
+
+static uint8_t  cmsx_pidBandwidth[3];
+static uint8_t  cmsx_pidDCutoff[3];
+static uint8_t  cmsx_pidBCutoff[3];
+
+static const void *cmsx_profileCtrlBwOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    for (uint8_t i = 0; i < 3; i++) {
+      cmsx_pidBandwidth[i] = pidProfile->gyro_cutoff[i];
+      cmsx_pidDCutoff[i] =   pidProfile->dterm_cutoff[i];
+      cmsx_pidBCutoff[i] =   pidProfile->bterm_cutoff[i];
+    }
+
+    return NULL;
+}
+
+static const void *cmsx_profileCtrlBwOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->cyclic_cross_coupling_gain = cmsx_pidCyclicCrossCouplingGain;
+    pidProfile->cyclic_cross_coupling_ratio = cmsx_pidCyclicCrossCouplingRatio;
+    pidProfile->cyclic_cross_coupling_cutoff= cmsx_pidCyclicCrossCouplingCutOff;
+
+    for (uint8_t i = 0; i < 3; i++) {
+      pidProfile->gyro_cutoff[i] =  cmsx_pidBandwidth[i];
+      pidProfile->dterm_cutoff[i] = cmsx_pidDCutoff[i];
+      pidProfile->bterm_cutoff[i] = cmsx_pidBCutoff[i];
+    }
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileCtrlBWEntries[] = {
+    { "- PID BW -",  OME_Label, NULL, pidProfileIndexString },
+    { "BANDWIDTH R", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBandwidth[0],     0,    250,   1  }    },
+    { "BANDWIDTH P", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBandwidth[1],     0,    250,   1  }    },
+    { "BANDWIDTH Y", OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBandwidth[2],     0,    250,   1  }    },
+    { "D CUTOFF R",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidDCutoff[0],       0,    250,   1  }    },
+    { "D CUTOFf P",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidDCutoff[1],       0,    250,   1  }    },
+    { "D CUTOFF Y",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidDCutoff[2],       0,    250,   1  }    },
+    { "B CUTOFF R",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBCutoff[0],       0,    250,   1  }    },
+    { "B CUTOFf P",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBCutoff[1],       0,    250,   1  }    },
+    { "B CUTOFF Y",  OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_pidBCutoff[2],       0,    250,   1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileCtrlBw = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPROFCBW",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileCtrlBwOnEnter,
+    .onExit = cmsx_profileCtrlBwOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileCtrlBWEntries,
+};
+
+
 
 /////////////////// Level Modes Profile menu items ///////////////////////
 
@@ -424,6 +572,79 @@ static CMS_Menu cmsx_menuProfileLevel = {
     .onExit = cmsx_profileLevelOnExit,
     .onDisplayUpdate = NULL,
     .entries = cmsx_menuProfileLevelEntries,
+};
+
+/////////////////// Rescue Profile menu items ///////////////////////
+
+static uint16_t cmsx_rescuePullupCollective;
+static uint8_t  cmsx_rescuePullupTime;
+static uint16_t cmsx_rescueClimbCollective;
+static uint8_t  cmsx_rescueClimbTime;
+static uint16_t cmsx_rescueHoverCollective;
+static uint8_t  cmsx_rescueLevelGain;
+static uint8_t  cmsx_rescueFlipGain;
+
+static const void *cmsx_profileRescueOnEnter(displayPort_t *pDisp)
+{
+    UNUSED(pDisp);
+
+    setProfileIndexString(pidProfileIndexString, pidProfileIndex, currentPidProfile->profileName);
+
+    const pidProfile_t *pidProfile = pidProfiles(pidProfileIndex);
+
+    cmsx_rescuePullupCollective = pidProfile->rescue.pull_up_collective;
+    cmsx_rescuePullupTime =       pidProfile->rescue.pull_up_time;
+    cmsx_rescueClimbCollective =  pidProfile->rescue.climb_collective;
+    cmsx_rescueClimbTime =        pidProfile->rescue.climb_time;
+    cmsx_rescueHoverCollective =  pidProfile->rescue.hover_collective;
+    cmsx_rescueLevelGain =        pidProfile->rescue.level_gain;
+    cmsx_rescueFlipGain =         pidProfile->rescue.flip_gain;
+
+    return NULL;
+}
+
+static const void *cmsx_profileRescueOnExit(displayPort_t *pDisp, const OSD_Entry *self)
+{
+    UNUSED(pDisp);
+    UNUSED(self);
+
+    pidProfile_t *pidProfile = pidProfilesMutable(pidProfileIndex);
+    pidInitProfile(currentPidProfile);
+
+    pidProfile->rescue.pull_up_collective = cmsx_rescuePullupCollective;
+    pidProfile->rescue.pull_up_time =       cmsx_rescuePullupTime;
+    pidProfile->rescue.climb_collective =   cmsx_rescueClimbCollective;
+    pidProfile->rescue.climb_time =         cmsx_rescueClimbTime;
+    pidProfile->rescue.hover_collective =   cmsx_rescueHoverCollective;
+    pidProfile->rescue.level_gain =         cmsx_rescueLevelGain;
+    pidProfile->rescue.flip_gain =          cmsx_rescueFlipGain;
+
+    return NULL;
+}
+
+static const OSD_Entry cmsx_menuProfileRescueEntries[] = {
+    { "-- RESCUE --", OME_Label,  NULL, pidProfileIndexString },
+    { "PU COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescuePullupCollective, 0,    1000,  10  }    },
+    { "PU TIME",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescuePullupTime,       0,     250,   1  }    },
+    { "CL COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescueClimbCollective,  0,    1000,  10  }    },
+    { "CL TIME",      OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueClimbTime,        0,     250,   1  }    },
+    { "HO COLL",      OME_UINT16, NULL, &(OSD_UINT16_t) { &cmsx_rescueHoverCollective,  0,    1000,  10  }    },
+    { "LVL GAIN",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueLevelGain,        5,     250,   1  }    },
+    { "FLP GAIN",     OME_UINT8,  NULL, &(OSD_UINT8_t)  { &cmsx_rescueFlipGain,         5,     250,   1  }    },
+
+    { "BACK", OME_Back, NULL, NULL },
+    { NULL, OME_END, NULL, NULL}
+};
+
+static CMS_Menu cmsx_menuProfileRescue = {
+#ifdef CMS_MENU_DEBUG
+    .GUARD_text = "XPRORESC",
+    .GUARD_type = OME_MENU,
+#endif
+    .onEnter = cmsx_profileRescueOnEnter,
+    .onExit = cmsx_profileRescueOnExit,
+    .onDisplayUpdate = NULL,
+    .entries = cmsx_menuProfileRescueEntries,
 };
 
 /////////////////// Governor Profile menu items ///////////////////////
@@ -766,8 +987,11 @@ static const OSD_Entry cmsx_menuImuEntries[] =
 
     {"PID PROF",  OME_UINT8,   cmsx_profileIndexOnChange,     &(OSD_UINT8_t){ &tmpPidProfileIndex, 1, PID_PROFILE_COUNT, 1}},
     {"PID",       OME_Submenu, cmsMenuChange,                 &cmsx_menuPid},
+    {"PID CTRL",  OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileCtrl},
+    {"PID BW",    OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileCtrlBw},
     {"YAW",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileYaw},
     {"LEVEL",     OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileLevel},
+    {"RESCUE",    OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileRescue},
     {"GOV",       OME_Submenu, cmsMenuChange,                 &cmsx_menuProfileGovernor},
     //{"FILT PP",   OME_Submenu, cmsMenuChange,                 &cmsx_menuFilterPerProfile},
 

@@ -588,7 +588,18 @@ static int cmsDrawMenuEntry(displayPort_t *pDisplay, const OSD_Entry *p, uint8_t
     case OME_Label:
         if (IS_PRINTVALUE(*flags) && p->data) {
             // A label with optional string, immediately following text
-            cnt = cmsDisplayWrite(pDisplay, leftMenuColumn + 1 + (uint8_t)strlen(p->text), row, DISPLAYPORT_ATTR_NONE, p->data);
+            uint8_t start_column = leftMenuColumn;
+            if (smallScreen) {
+#ifdef CMS_OSD_RIGHT_ALIGNED_VALUES
+                if ((uint8_t)strlen(p->data) <= rightMenuColumn) {
+                    start_column = rightMenuColumn - (uint8_t)strlen(p->data);
+                }
+#endif
+            }
+            else {
+              start_column += (uint8_t)strlen(p->text) +1;
+            }
+            cnt = cmsDisplayWrite(pDisplay, start_column, row, DISPLAYPORT_ATTR_NONE, p->data);
             CLR_PRINTVALUE(*flags);
         }
         break;

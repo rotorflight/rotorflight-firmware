@@ -79,9 +79,11 @@ typedef struct {
 
 typedef struct {
 
-    filter_t yawFilter;
+    filter_t collDeflectionFilter;
+    filter_t pitchDeflectionFilter;
+    filter_t rollDeflectionFilter;
 
-    pt1Filter_t collFilter;
+    pt1Filter_t collDynamicFilter;
 
     float yawCyclicFFGain;
     float yawCollectiveFFGain;
