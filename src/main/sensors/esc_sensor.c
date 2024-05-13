@@ -1303,9 +1303,9 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 //   0: continue accepting
 typedef int8_t (*rrfsmAcceptCallbackPtr)(uint16_t c);
 
-typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default initialization (if in doubt return true)
+typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeUs);  // return true to continue w/ default initialization (if in doubt return true)
 typedef bool (*rrfsmDecodeCallbackPtr)(timeUs_t currentTimeUs); // return true if frame was decoded successfully
-typedef bool (*rrfsmCrankCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default loop (advanced, if in doubt return true)
+typedef bool (*rrfsmCrankCallbackPtr)(timeMs_t currentTimeUs);  // return true to continue w/ default loop (advanced, if in doubt return true)
 
 static rrfsmAcceptCallbackPtr rrfsmAccept = NULL;
 static rrfsmStartCallbackPtr rrfsmStart = NULL;
@@ -1393,7 +1393,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
     // request first log record or just listen if in e.g. UNC mode
     if (rrfsmFrameTimestamp == 0) {
-        if (rrfsmStart == NULL || rrfsmStart(currentTimeMs))
+        if (rrfsmStart == NULL || rrfsmStart(currentTimeUs))
             rrfsmStartFrame(currentTimeMs);
         return;
     }
@@ -1415,7 +1415,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     }
 
     // custom execution (advanced)
-    if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeMs)) {
+    if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeUs)) {
         return;
     }
 
@@ -2222,8 +2222,9 @@ static bool tribDecode(timeUs_t currentTimeUs)
     }
 }
 
-static bool tribCrankUncSetup(timeMs_t currentTimeMs)
+static bool tribCrankUncSetup(timeMs_t currentTimeUs)
 {
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
     switch(tribUncSetup) {
         case TRIB_UNCSETUP_INACTIVE:
         case TRIB_UNCSETUP_ABORTUNC:
@@ -2252,9 +2253,9 @@ static bool tribCrankUncSetup(timeMs_t currentTimeMs)
     return true;
 }
 
-static bool tribStart(timeMs_t currentTimeMs)
+static bool tribStart(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeMs);
+    UNUSED(currentTimeUs);
 
     tribBuildNextParamReq();
     return true;
