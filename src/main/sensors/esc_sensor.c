@@ -714,171 +714,6 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
 
 /*
- * Hobbywing V5 Telemetry
- *
- *    - Serial protocol 115200,8N1
- *    - Frame rate running:50Hz idle:2.5Hz
- *    - Little-Endian fields
- *    - Frame length over data (23)
- *    - CRC16-MODBUS (poly 0x8005, init 0xffff)
- *    - Fault code bits:
- *         0:  Motor locked protection
- *         1:  Over-temp protection
- *         2:  Input throttle error at startup
- *         3:  Throttle signal lost
- *         4:  Over-current error
- *         5:  Low-voltage error
- *         6:  Input-voltage error
- *         7:  Motor connection error
- *
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
- *      6:      Data frame length (23)
- *    7-8:      Data type 0x06 0x00
- *      9:      Throttle value in %
- *  10-11:      Unknown
- *     12:      Fault code
- *  13-14:      RPM in 10rpm steps
- *  15-16:      Voltage in 0.1V
- *  17-18:      Current in 0.1A
- *     19:      ESC Temperature in °C
- *     20:      BEC Temperature in °C
- *     21:      Motor Temperature in °C
- *     22:      BEC Voltage in 0.1V
- *     23:      BEC Current in 0.1A
- *  24-29:      Unused 0xFF
- *  30-31:      CRC16 MODBUS
- *
- */
-
-static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
-{
-    uint16_t crc = ~0;
-
-    while (len--) {
-        crc ^= *ptr++;
-        for (int i = 0; i < 8; i++)
-            crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
-    }
-
-    return crc;
-}
-
-static bool processHW5TelemetryStream(uint8_t dataByte)
-{
-    totalByteCount++;
-
-    buffer[readBytes++] = dataByte;
-
-    if (readBytes == 1) {
-        if (dataByte != 0xFE)
-            frameSyncError();
-    }
-    else if (readBytes == 2) {
-        if (dataByte != 0x01)
-            frameSyncError();
-    }
-    else if (readBytes == 3) {
-        if (dataByte != 0x00)
-            frameSyncError();
-    }
-    else if (readBytes == 4) {
-        if (dataByte != 0x03)
-            frameSyncError();
-    }
-    else if (readBytes == 5) {
-        if (dataByte != 0x30)
-            frameSyncError();
-    }
-    else if (readBytes == 6) {
-        if (dataByte != 0x5C)
-            frameSyncError();
-    }
-    else if (readBytes == 7) {
-        if (dataByte != 0x17)
-            frameSyncError();
-        else
-            syncCount++;
-    }
-    else if (readBytes == 32) {
-        readBytes = 0;
-        return true;
-    }
-
-    return false;
-}
-
-static void hw5SensorProcess(timeUs_t currentTimeUs)
-{
-    // check for any available bytes in the rx buffer
-    while (serialRxBytesWaiting(escSensorPort)) {
-        if (processHW5TelemetryStream(serialRead(escSensorPort))) {
-            uint16_t crc = buffer[31] << 8 | buffer[30];
-
-            if (calculateCRC16_MODBUS(buffer, 30) == crc) {
-                uint32_t rpm = buffer[14] << 8 | buffer[13];
-                uint16_t power = buffer[9];
-                uint16_t fault = buffer[12];
-                uint16_t voltage = buffer[16] << 8 | buffer[15];
-                uint16_t current = buffer[18] << 8 | buffer[17];
-                uint16_t tempFET = buffer[19];
-                uint16_t tempBEC = buffer[20];
-                uint16_t voltBEC = buffer[22];
-                uint16_t currBEC = buffer[23];
-
-                // When throttle changes to zero, the last current reading is
-                // repeated until the motor has totally stopped.
-                if (power == 0) {
-                    current = 0;
-                }
-
-                setConsumptionCurrent(current * 0.1f);
-
-                escSensorData[0].age = 0;
-                escSensorData[0].erpm = rpm * 10;
-                escSensorData[0].throttle = power * 10;
-                escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].temperature = tempFET * 10;
-                escSensorData[0].temperature2 = tempBEC * 10;
-                escSensorData[0].bec_voltage = voltBEC * 100;
-                escSensorData[0].bec_current = currBEC * 100;
-                escSensorData[0].status = fault;
-
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tempFET);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tempBEC);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-                dataUpdateUs = currentTimeUs;
-
-                totalFrameCount++;
-            }
-            else {
-                totalCrcErrorCount++;
-            }
-        }
-    }
-
-    // Update consumption on every cycle
-    updateConsumption(currentTimeUs);
-
-    // Maximum frame spacing 400ms
-    checkFrameTimeout(currentTimeUs, 500000);
-}
-
-
-/*
  * Kontronik Telemetry V4 (23.11.2018)
  *
  *    - Serial protocol is 115200,8E1
@@ -1693,6 +1528,19 @@ typedef struct {
 static bool pl5CachedDevInfo = false;
 static bool pl5CachedParams = false;
 static bool pl5DirtyParams = false;
+
+static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
+{
+    uint16_t crc = ~0;
+
+    while (len--) {
+        crc ^= *ptr++;
+        for (int i = 0; i < 8; i++)
+            crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
+    }
+
+    return crc;
+}
 
 static bool pl5ParamCommit(uint8_t cmd)
 {
@@ -2816,11 +2664,12 @@ static bool oygeDecode(timeUs_t currentTimeUs)
     if (hdr == NULL)
         return false;
 
+    timeMs_t currentTimeMs = currentTimeUs / 1000;
     switch (hdr->frame_type) {
         case OPENYGE_FTYPE_TELE_AUTO:
         case OPENYGE_FTYPE_TELE_RESP:
         case OPENYGE_FTYPE_WRITE_PARAM_RESP:
-            return oygeDecodeTelemetry(hdr, currentTimeUs / 1000);
+            return oygeDecodeTelemetry(hdr, currentTimeMs);
         default:
             return false;
     }
@@ -2907,8 +2756,6 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
-    UNUSED(hw5SensorProcess);
-
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
@@ -2918,7 +2765,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 hw4SensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_HW5:
-                // hw5SensorProcess(currentTimeUs);
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_SCORPION:
@@ -2986,7 +2832,6 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
         case ESC_SENSOR_PROTO_ZTW:
-        // case ESC_SENSOR_PROTO_HW5:
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
             break;
