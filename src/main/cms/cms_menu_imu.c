@@ -189,7 +189,6 @@ static const void *cmsx_PidOnEnter(displayPort_t *pDisp)
     UNUSED(pDisp);
 
     cmsx_PidRead();
-
     return NULL;
 }
 
@@ -206,7 +205,7 @@ static const void *cmsx_PidWriteback(displayPort_t *pDisp, const OSD_Entry *self
         pidProfile->pid[i].O = tempPidO[i];
         pidProfile->pid[i].B = tempPidB[i];
     }
-    pidInitProfile(pidProfile);
+    changePidProfile(pidProfileIndex);
 
     return NULL;
 }
@@ -340,8 +339,7 @@ static const void *cmsx_profileYawOnExit(displayPort_t *pDisp, const OSD_Entry *
     pidProfile->governor.tta_gain =      cmsx_yawTTA;
     pidProfile->yaw_precomp_cutoff =     cmsx_yawPrecompCutoff;
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
@@ -404,8 +402,7 @@ static const void *cmsx_profileCtrlOnExit(displayPort_t *pDisp, const OSD_Entry 
       pidProfile->iterm_relax_cutoff[i] = cmsx_pidItermRelaxCutoff[i];
     }
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
@@ -466,8 +463,7 @@ static const void *cmsx_profileCtrlBwOnExit(displayPort_t *pDisp, const OSD_Entr
       pidProfile->bterm_cutoff[i] = cmsx_pidBCutoff[i];
     }
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
@@ -529,8 +525,7 @@ static const void *cmsx_profileLevelOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->horizon.level_strength = cmsx_horizonStrength;
     pidProfile->horizon.transition =     cmsx_horizonTransition;
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
@@ -594,8 +589,7 @@ static const void *cmsx_profileRescueOnExit(displayPort_t *pDisp, const OSD_Entr
     pidProfile->rescue.level_gain =         cmsx_rescueLevelGain;
     pidProfile->rescue.flip_gain =          cmsx_rescueFlipGain;
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
@@ -659,8 +653,7 @@ static const void *cmsx_profileGovernorOnExit(displayPort_t *pDisp, const OSD_En
     pidProfile->governor.d_gain =    cmsx_govD;
     pidProfile->governor.f_gain =    cmsx_govF;
 
-    pidInitProfile(pidProfile);
-
+    changePidProfile(pidProfileIndex);
     return NULL;
 }
 
