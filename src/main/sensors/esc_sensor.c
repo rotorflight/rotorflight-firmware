@@ -1559,11 +1559,7 @@ static bool pl5ParamCommit(uint8_t cmd)
             pl5CachedParams = false;
             // invalidate param payload - will be available again when params again cached (write response or re-read)
             paramPayloadLength = 0;
-
-            // TODO: update just for testing
-            // memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
         }
-            return false;
 
         return true;
     }
@@ -1573,7 +1569,7 @@ static bool pl5ParamCommit(uint8_t cmd)
     }
 }
 
-static bool pl5FrameReq(uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+static bool pl5SignSendFrame(uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
     *(uint16_t*)(reqbuffer + len - 2) = calculateCRC16_MODBUS(reqbuffer, len - 2);
 
@@ -1585,7 +1581,7 @@ static bool pl5FrameReq(uint8_t len, uint16_t framePeriod, uint16_t frameTimeout
     return true;
 }
 
-static bool pl5SendReq(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+static bool pl5CopySendFrame(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
 {
     if (len > REQUEST_BUFFER_SIZE)
         return false;
@@ -1607,19 +1603,19 @@ static void pl5BuildNextReq()
         const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
         memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
         memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
-        pl5FrameReq(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
+        pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
     // ...or pending device info, schedule request...
     else if (!pl5CachedDevInfo) {
-        pl5SendReq(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+        pl5CopySendFrame(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
     }
     // ...or pending param read, schedule request...
     else if (!pl5CachedParams) {
-        pl5SendReq(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+        pl5CopySendFrame(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
     }
     // ...or nothing, schedule 480ms ping
     else {
-        pl5SendReq(pl5Ping, sizeof(pl5Ping), PL5_PING_FRAME_PERIOD, PL5_PING_TIMEOUT);
+        pl5CopySendFrame(pl5Ping, sizeof(pl5Ping), PL5_PING_FRAME_PERIOD, PL5_PING_TIMEOUT);
     }
 }
 
