@@ -114,6 +114,15 @@ static void cmsx_initPidProfile()
     setProfileIndexString(pidProfileIndexString, pidProfileIndex, pidProfile->profileName);
 }
 
+void cmsx_updateCurrentPidProfile()
+{
+  // Update current active PID profile only if it is the same as the one CMS has been working on 
+  if (pidProfileIndex == getCurrentPidProfileIndex() ) {
+    pidInitProfile(currentPidProfile);
+  }
+}
+
+
 static void cmsx_initRateProfile()
 {
     rateProfileIndex = getCurrentControlRateProfileIndex();
@@ -138,7 +147,7 @@ static const void *cmsx_menuImu_onExit(displayPort_t *pDisp, const OSD_Entry *se
     UNUSED(pDisp);
     UNUSED(self);
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     changeControlRateProfile(rateProfileIndex);
 
     return NULL;
@@ -205,8 +214,8 @@ static const void *cmsx_PidWriteback(displayPort_t *pDisp, const OSD_Entry *self
         pidProfile->pid[i].O = tempPidO[i];
         pidProfile->pid[i].B = tempPidB[i];
     }
-    changePidProfile(pidProfileIndex);
 
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -324,6 +333,7 @@ static const void *cmsx_profileYawOnEnter(displayPort_t *pDisp)
     cmsx_yawCollectiveFF =   pidProfile->yaw_collective_ff_gain;
     cmsx_yawTTA =            pidProfile->governor.tta_gain;
     cmsx_yawPrecompCutoff =  pidProfile->yaw_precomp_cutoff;
+
     return NULL;
 }
 
@@ -339,7 +349,7 @@ static const void *cmsx_profileYawOnExit(displayPort_t *pDisp, const OSD_Entry *
     pidProfile->governor.tta_gain =      cmsx_yawTTA;
     pidProfile->yaw_precomp_cutoff =     cmsx_yawPrecompCutoff;
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -402,7 +412,7 @@ static const void *cmsx_profileCtrlOnExit(displayPort_t *pDisp, const OSD_Entry 
       pidProfile->iterm_relax_cutoff[i] = cmsx_pidItermRelaxCutoff[i];
     }
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -463,7 +473,7 @@ static const void *cmsx_profileCtrlBwOnExit(displayPort_t *pDisp, const OSD_Entr
       pidProfile->bterm_cutoff[i] = cmsx_pidBCutoff[i];
     }
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -525,7 +535,7 @@ static const void *cmsx_profileLevelOnExit(displayPort_t *pDisp, const OSD_Entry
     pidProfile->horizon.level_strength = cmsx_horizonStrength;
     pidProfile->horizon.transition =     cmsx_horizonTransition;
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -589,7 +599,7 @@ static const void *cmsx_profileRescueOnExit(displayPort_t *pDisp, const OSD_Entr
     pidProfile->rescue.level_gain =         cmsx_rescueLevelGain;
     pidProfile->rescue.flip_gain =          cmsx_rescueFlipGain;
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
@@ -653,7 +663,7 @@ static const void *cmsx_profileGovernorOnExit(displayPort_t *pDisp, const OSD_En
     pidProfile->governor.d_gain =    cmsx_govD;
     pidProfile->governor.f_gain =    cmsx_govF;
 
-    changePidProfile(pidProfileIndex);
+    cmsx_updateCurrentPidProfile();
     return NULL;
 }
 
