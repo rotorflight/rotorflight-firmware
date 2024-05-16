@@ -1303,9 +1303,9 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 //   0: continue accepting
 typedef int8_t (*rrfsmAcceptCallbackPtr)(uint16_t c);
 
-typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeUs);  // return true to continue w/ default initialization (if in doubt return true)
+typedef bool (*rrfsmStartCallbackPtr)(timeUs_t currentTimeUs);  // return true to continue w/ default initialization (if in doubt return true)
 typedef bool (*rrfsmDecodeCallbackPtr)(timeUs_t currentTimeUs); // return true if frame was decoded successfully
-typedef bool (*rrfsmCrankCallbackPtr)(timeMs_t currentTimeUs);  // return true to continue w/ default loop (advanced, if in doubt return true)
+typedef bool (*rrfsmCrankCallbackPtr)(timeUs_t currentTimeUs);  // return true to continue w/ default loop (advanced, if in doubt return true)
 
 static rrfsmAcceptCallbackPtr rrfsmAccept = NULL;
 static rrfsmStartCallbackPtr rrfsmStart = NULL;
@@ -1595,7 +1595,7 @@ static bool pl5CopySendFrame(void *req, uint8_t len, uint16_t framePeriod, uint1
     return true;
 }
 
-static void pl5BuildNextReq()
+static void pl5BuildNextReq(void)
 {
     // schedule pending param write, schedule request...
     if (pl5DirtyParams) {
@@ -1668,7 +1668,7 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     return true;
 }
 
-static bool pl5DecodePingResp()
+static bool pl5DecodePingResp(void)
 {
     pl5BuildNextReq();
 
@@ -1677,7 +1677,7 @@ static bool pl5DecodePingResp()
     return true;
 }
 
-static bool pl5DecodeGetDevInfoResp()
+static bool pl5DecodeGetDevInfoResp(void)
 {
     // cache device info
     memcpy(paramPayload, buffer + 7, PL5_RESP_DEVINFO_PAYLOAD_LENGTH);
@@ -1688,7 +1688,7 @@ static bool pl5DecodeGetDevInfoResp()
     return true;
 }
 
-static bool pl5DecodeGetParamsResp()
+static bool pl5DecodeGetParamsResp(void)
 {
     // cache parameters, payload complete
     memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
@@ -1702,7 +1702,7 @@ static bool pl5DecodeGetParamsResp()
     return true;
 }
 
-static bool pl5DecodeWriteParamsResp()
+static bool pl5DecodeWriteParamsResp(void)
 {
     if ((buffer[3] & PL5_ERR) == 0) {
         // success, cache parameters
@@ -2218,7 +2218,7 @@ static bool tribDecode(timeUs_t currentTimeUs)
     }
 }
 
-static bool tribCrankUncSetup(timeMs_t currentTimeUs)
+static bool tribCrankUncSetup(timeUs_t currentTimeUs)
 {
     const timeMs_t currentTimeMs = currentTimeUs / 1000;
     switch(tribUncSetup) {
