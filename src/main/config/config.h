@@ -39,7 +39,7 @@ typedef struct pilotConfig_s {
     uint8_t modelId;
 } pilotConfig_t;
 
-PG_DECLARE(pilotConfig_t, pilotConfig);   
+PG_DECLARE(pilotConfig_t, pilotConfig);
 
 typedef struct systemConfig_s {
     uint8_t pidProfileIndex;
