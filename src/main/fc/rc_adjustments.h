@@ -122,6 +122,10 @@ typedef enum {
     ADJUSTMENT_CROSS_COUPLING_RATIO     = 62,
     ADJUSTMENT_CROSS_COUPLING_CUTOFF    = 63,
 
+    // Accelerometer
+    ADJUSTMENT_ACC_TRIM_PITCH           = 64,
+    ADJUSTMENT_ACC_TRIM_ROLL            = 65,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunction_e;
 
@@ -131,6 +135,7 @@ typedef enum {
     ADJUSTMENT_TYPE_PROF  = BIT(1),
     ADJUSTMENT_TYPE_GOV   = BIT(2),
     ADJUSTMENT_TYPE_MIX   = BIT(3),
+    ADJUSTMENT_TYPE_ACC   = BIT(4),
 } adjustmentType_e;
 
 typedef struct {
