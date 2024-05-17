@@ -99,8 +99,8 @@ enum {
     DEBUG_FRAME_BUFFER,
 };
 
-#define TELEMETRY_BUFFER_SIZE    40
-#define REQUEST_BUFFER_SIZE      40
+#define TELEMETRY_BUFFER_SIZE    140
+#define REQUEST_BUFFER_SIZE      64
 #define PARAM_BUFFER_SIZE        96
 #define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_SIG         0
@@ -109,6 +109,9 @@ enum {
 #define PARAM_HEADER_CMD_MASK    0xC0
 #define PARAM_HEADER_RDONLY      0x40
 #define PARAM_HEADER_USER        0x80
+
+#define PARAM_OOB_FLAG           0x0F00
+#define PARAM_OOB_NEED_RESTART   0xFF
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -152,6 +155,23 @@ static bool paramMspActive = false;
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
+
+
+static void paramOobEscNeedRestart(void)
+{
+    escSensorData[0].age = 0;
+    escSensorData[0].status = PARAM_OOB_FLAG | PARAM_OOB_NEED_RESTART;
+}
+
+static void paramOobEscSig(void)
+{
+    // every 128'th call
+    static uint8_t oobSigSpin = 0;
+    if (((oobSigSpin++) & 0x7F) != 0)
+        return;
+    escSensorData[0].age = 0;
+    escSensorData[0].status = PARAM_OOB_FLAG | paramSig;
+}
 
 
 bool isEscSensorActive(void)
@@ -689,171 +709,6 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
     updateConsumption(currentTimeUs);
 
     // Maximum data frame spacing 400ms
-    checkFrameTimeout(currentTimeUs, 500000);
-}
-
-
-/*
- * Hobbywing V5 Telemetry
- *
- *    - Serial protocol 115200,8N1
- *    - Frame rate running:50Hz idle:2.5Hz
- *    - Little-Endian fields
- *    - Frame length over data (23)
- *    - CRC16-MODBUS (poly 0x8005, init 0xffff)
- *    - Fault code bits:
- *         0:  Motor locked protection
- *         1:  Over-temp protection
- *         2:  Input throttle error at startup
- *         3:  Throttle signal lost
- *         4:  Over-current error
- *         5:  Low-voltage error
- *         6:  Input-voltage error
- *         7:  Motor connection error
- *
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
- *      6:      Data frame length (23)
- *    7-8:      Data type 0x06 0x00
- *      9:      Throttle value in %
- *  10-11:      Unknown
- *     12:      Fault code
- *  13-14:      RPM in 10rpm steps
- *  15-16:      Voltage in 0.1V
- *  17-18:      Current in 0.1A
- *     19:      ESC Temperature in °C
- *     20:      BEC Temperature in °C
- *     21:      Motor Temperature in °C
- *     22:      BEC Voltage in 0.1V
- *     23:      BEC Current in 0.1A
- *  24-29:      Unused 0xFF
- *  30-31:      CRC16 MODBUS
- *
- */
-
-static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
-{
-    uint16_t crc = ~0;
-
-    while (len--) {
-        crc ^= *ptr++;
-        for (int i = 0; i < 8; i++)
-            crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
-    }
-
-    return crc;
-}
-
-static bool processHW5TelemetryStream(uint8_t dataByte)
-{
-    totalByteCount++;
-
-    buffer[readBytes++] = dataByte;
-
-    if (readBytes == 1) {
-        if (dataByte != 0xFE)
-            frameSyncError();
-    }
-    else if (readBytes == 2) {
-        if (dataByte != 0x01)
-            frameSyncError();
-    }
-    else if (readBytes == 3) {
-        if (dataByte != 0x00)
-            frameSyncError();
-    }
-    else if (readBytes == 4) {
-        if (dataByte != 0x03)
-            frameSyncError();
-    }
-    else if (readBytes == 5) {
-        if (dataByte != 0x30)
-            frameSyncError();
-    }
-    else if (readBytes == 6) {
-        if (dataByte != 0x5C)
-            frameSyncError();
-    }
-    else if (readBytes == 7) {
-        if (dataByte != 0x17)
-            frameSyncError();
-        else
-            syncCount++;
-    }
-    else if (readBytes == 32) {
-        readBytes = 0;
-        return true;
-    }
-
-    return false;
-}
-
-static void hw5SensorProcess(timeUs_t currentTimeUs)
-{
-    // check for any available bytes in the rx buffer
-    while (serialRxBytesWaiting(escSensorPort)) {
-        if (processHW5TelemetryStream(serialRead(escSensorPort))) {
-            uint16_t crc = buffer[31] << 8 | buffer[30];
-
-            if (calculateCRC16_MODBUS(buffer, 30) == crc) {
-                uint32_t rpm = buffer[14] << 8 | buffer[13];
-                uint16_t power = buffer[9];
-                uint16_t fault = buffer[12];
-                uint16_t voltage = buffer[16] << 8 | buffer[15];
-                uint16_t current = buffer[18] << 8 | buffer[17];
-                uint16_t tempFET = buffer[19];
-                uint16_t tempBEC = buffer[20];
-                uint16_t voltBEC = buffer[22];
-                uint16_t currBEC = buffer[23];
-
-                // When throttle changes to zero, the last current reading is
-                // repeated until the motor has totally stopped.
-                if (power == 0) {
-                    current = 0;
-                }
-
-                setConsumptionCurrent(current * 0.1f);
-
-                escSensorData[0].age = 0;
-                escSensorData[0].erpm = rpm * 10;
-                escSensorData[0].throttle = power * 10;
-                escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].temperature = tempFET * 10;
-                escSensorData[0].temperature2 = tempBEC * 10;
-                escSensorData[0].bec_voltage = voltBEC * 100;
-                escSensorData[0].bec_current = currBEC * 100;
-                escSensorData[0].status = fault;
-
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tempFET * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tempFET);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tempBEC);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-                dataUpdateUs = currentTimeUs;
-
-                totalFrameCount++;
-            }
-            else {
-                totalCrcErrorCount++;
-            }
-        }
-    }
-
-    // Update consumption on every cycle
-    updateConsumption(currentTimeUs);
-
-    // Maximum frame spacing 400ms
     checkFrameTimeout(currentTimeUs, 500000);
 }
 
@@ -1448,9 +1303,9 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 //   0: continue accepting
 typedef int8_t (*rrfsmAcceptCallbackPtr)(uint16_t c);
 
-typedef bool (*rrfsmStartCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default initialization (if in doubt return true)
-typedef bool (*rrfsmDecodeCallbackPtr)(timeMs_t currentTimeMs); // return true if frame was decoded successfully
-typedef bool (*rrfsmCrankCallbackPtr)(timeMs_t currentTimeMs);  // return true to continue w/ default loop (advanced, if in doubt return true)
+typedef bool (*rrfsmStartCallbackPtr)(timeUs_t currentTimeUs);  // return true to continue w/ default initialization (if in doubt return true)
+typedef bool (*rrfsmDecodeCallbackPtr)(timeUs_t currentTimeUs); // return true if frame was decoded successfully
+typedef bool (*rrfsmCrankCallbackPtr)(timeUs_t currentTimeUs);  // return true to continue w/ default loop (advanced, if in doubt return true)
 
 static rrfsmAcceptCallbackPtr rrfsmAccept = NULL;
 static rrfsmStartCallbackPtr rrfsmStart = NULL;
@@ -1538,7 +1393,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
     // request first log record or just listen if in e.g. UNC mode
     if (rrfsmFrameTimestamp == 0) {
-        if (rrfsmStart == NULL || rrfsmStart(currentTimeMs))
+        if (rrfsmStart == NULL || rrfsmStart(currentTimeUs))
             rrfsmStartFrame(currentTimeMs);
         return;
     }
@@ -1560,7 +1415,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     }
 
     // custom execution (advanced)
-    if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeMs)) {
+    if (rrfsmCrank != NULL && !rrfsmCrank(currentTimeUs)) {
         return;
     }
 
@@ -1570,7 +1425,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     }
 
     // frame complate, process, prepare for next frame
-    if (rrfsmDecode == NULL || rrfsmDecode(currentTimeMs)) {
+    if (rrfsmDecode == NULL || rrfsmDecode(currentTimeUs)) {
         // good frame, log, response handler will have prep'ed next request
         totalFrameCount++;
     }
@@ -1580,6 +1435,380 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
         totalCrcErrorCount++;
     }
     rrfsmStartFrame(currentTimeMs);
+}
+
+
+/*
+ * Hobbywing V5 Telemetry
+ *
+ *    - Serial protocol 115200,8N1
+ *    - Frame rate running:50Hz idle:2.5Hz
+ *    - Little-Endian fields
+ *    - Frame length over data (23)
+ *    - CRC16-MODBUS (poly 0x8005, init 0xffff)
+ *    - Fault code bits:
+ *         0:  Motor locked protection
+ *         1:  Over-temp protection
+ *         2:  Input throttle error at startup
+ *         3:  Throttle signal lost
+ *         4:  Over-current error
+ *         5:  Low-voltage error
+ *         6:  Input-voltage error
+ *         7:  Motor connection error
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
+ *      6:      Data frame length (23)
+ *    7-8:      Data type 0x06 0x00
+ *      9:      Throttle value in %
+ *  10-11:      Unknown
+ *     12:      Fault code
+ *  13-14:      RPM in 10rpm steps
+ *  15-16:      Voltage in 0.1V
+ *  17-18:      Current in 0.1A
+ *     19:      ESC Temperature in °C
+ *     20:      BEC Temperature in °C
+ *     21:      Motor Temperature in °C
+ *     22:      BEC Voltage in 0.1V
+ *     23:      BEC Current in 0.1A
+ *  24-29:      Unused 0xFF
+ *  30-31:      CRC16 MODBUS
+ *
+ */
+#define PL5_MIN_FRAME_LENGTH                8
+#define PL5_BOOT_DELAY                      5000
+#define PL5_TELE_FRAME_TIMEOUT              500
+#define PL5_PARAM_FRAME_PERIOD              4
+#define PL5_PARAM_READ_TIMEOUT              100
+#define PL5_PARAM_WRITE_TIMEOUT             100
+
+#define PL5_PING_FRAME_PERIOD               480
+#define PL5_PING_TIMEOUT                    1600
+
+#define PL5_PARAM_SIG                       0xFD                // parameter payload signature for this ESC
+
+#define PL5_ERR                             0x80
+
+#define PL5_FRAME_TELE_TYPE                 0x5C30
+#define PL5_FRAME_TELE_LENGTH               32
+#define PL5_RESP_PING_TYPE                  0x242C
+#define PL5_RESP_PING_LENGTH                11
+#define PL5_RESP_DEVINFO_TYPE               0x252C
+#define PL5_RESP_DEVINFO_LENGTH             73
+#define PL5_RESP_DEVINFO_PAYLOAD_LENGTH     48
+#define PL5_RESP_GETPARAMS_TYPE             0x0C30
+#define PL5_RESP_GETPARAMS_LENGTH           137
+#define PL5_RESP_GETPARAMS_PAYLOAD_LENGTH   31
+#define PL5_REQ_WRITEPARAMS_LENGTH          63
+#define PL5_RESP_WRITEPARAMS_TYPE           0x3835
+#define PL5_RESP_WRITEPARAMS_LENGTH         58
+#define PL5_RESP_WRITEPARAMS_ERR_LENGTH     9
+
+static uint8_t pl5Ping[] = { 0x1, 0xFD, 0x3, 0x3, 0x2C, 0x24, 0x0, 0x1, 0x60, 0x60 };
+static uint8_t pl5DevInfoReq[] = { 0x01, 0xFD, 0x03, 0x03, 0x2C, 0x25, 0x00, 0x20, 0xF1, 0xB8 };
+static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x30, 0xC, 0x0, 0x40, 0x27, 0xC8 };
+static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30, 0x0 };
+
+typedef struct {
+    uint8_t  throttle;                  // Throttle value in %
+    uint8_t  reserved0[2];              // reserved
+    uint8_t  fault;                     // Fault code
+    uint16_t rpm;                       // RPM in 10rpm steps
+    uint16_t voltage;                   // Voltage in 0.1V
+    uint16_t current;                   // Current in 0.1A
+    uint8_t  temperature;               // ESC Temperature in °C
+    uint8_t  bec_temp;                  // BEC Temperature in °C
+    uint8_t  motor_temp;                // Motor Temperature in °C
+    uint8_t  bec_voltage;               // BEC Voltage in 0.1V
+    uint8_t  bec_current;               // BEC Current in 0.1A
+    uint8_t  reserved1[6];              // reserved
+} Pl5TelemetryFrame_t;
+
+static bool pl5CachedDevInfo = false;
+static bool pl5CachedParams = false;
+static bool pl5DirtyParams = false;
+
+static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
+{
+    uint16_t crc = ~0;
+
+    while (len--) {
+        crc ^= *ptr++;
+        for (int i = 0; i < 8; i++)
+            crc = (crc & 1) ? (crc >> 1) ^ 0xA001 : (crc >> 1);
+    }
+
+    return crc;
+}
+
+static bool pl5ParamCommit(uint8_t cmd)
+{
+    if (cmd == 0) {
+        // info should never change
+        if (memcmp(paramPayload, paramUpdPayload, PL5_RESP_DEVINFO_PAYLOAD_LENGTH) != 0)
+            return false;
+
+        // params dirty?
+        if (memcmp(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
+            paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
+            PL5_RESP_GETPARAMS_PAYLOAD_LENGTH) != 0) {
+            // set dirty flag, will schedule read
+            pl5DirtyParams = true;
+            // clear cached flag, will schedule write
+            pl5CachedParams = false;
+            // invalidate param payload - will be available again when params again cached (write response or re-read)
+            paramPayloadLength = 0;
+        }
+
+        return true;
+    }
+    else {
+        // unsupported command
+        return false;
+    }
+}
+
+static bool pl5SignSendFrame(uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    *(uint16_t*)(reqbuffer + len - 2) = calculateCRC16_MODBUS(reqbuffer, len - 2);
+
+    reqLength = len;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+
+    return true;
+}
+
+static bool pl5CopySendFrame(void *req, uint8_t len, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    if (len > REQUEST_BUFFER_SIZE)
+        return false;
+
+    memcpy(reqbuffer, req, len);
+    reqLength = len;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+
+    return true;
+}
+
+static void pl5BuildNextReq(void)
+{
+    // schedule pending param write, schedule request...
+    if (pl5DirtyParams) {
+        memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
+        const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
+        memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
+        memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
+    }
+    // ...or pending device info, schedule request...
+    else if (!pl5CachedDevInfo) {
+        pl5CopySendFrame(pl5DevInfoReq, sizeof(pl5DevInfoReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+    }
+    // ...or pending param read, schedule request...
+    else if (!pl5CachedParams) {
+        pl5CopySendFrame(pl5GetParamsReq, sizeof(pl5GetParamsReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_READ_TIMEOUT);
+    }
+    // ...or nothing, schedule 480ms ping
+    else {
+        pl5CopySendFrame(pl5Ping, sizeof(pl5Ping), PL5_PING_FRAME_PERIOD, PL5_PING_TIMEOUT);
+    }
+}
+
+static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
+{
+    const Pl5TelemetryFrame_t *tele = (Pl5TelemetryFrame_t*)(buffer + 9);
+
+    // When throttle changes to zero, the last current reading is
+    // repeated until the motor has totally stopped.
+    uint16_t current = tele->current;
+    if (tele->throttle == 0)
+        current = 0;
+    setConsumptionCurrent(current * 0.1f);
+
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = tele->rpm * 10;
+    escSensorData[0].throttle = tele->throttle * 10;
+    escSensorData[0].pwm = tele->throttle * 10;
+    escSensorData[0].voltage = tele->voltage * 100;
+    escSensorData[0].current = current * 100;
+    escSensorData[0].temperature = tele->temperature * 10;
+    escSensorData[0].temperature2 = tele->bec_temp * 10;
+    escSensorData[0].bec_voltage = tele->bec_voltage * 100;
+    escSensorData[0].bec_current = tele->bec_current * 100;
+    escSensorData[0].status = tele->fault;
+
+    paramOobEscSig();
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, tele->voltage * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, tele->current * 10);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, tele->rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, tele->throttle);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->temperature);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->bec_temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    dataUpdateUs = currentTimeUs;
+
+    rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
+
+    // schedule next request
+    if (paramMspActive)
+        pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodePingResp(void)
+{
+    pl5BuildNextReq();
+
+    paramOobEscNeedRestart();
+
+    return true;
+}
+
+static bool pl5DecodeGetDevInfoResp(void)
+{
+    // cache device info
+    memcpy(paramPayload, buffer + 7, PL5_RESP_DEVINFO_PAYLOAD_LENGTH);
+    pl5CachedDevInfo = true;
+
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodeGetParamsResp(void)
+{
+    // cache parameters, payload complete
+    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+    pl5CachedParams = true;
+
+    // make param payload available
+    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodeWriteParamsResp(void)
+{
+    if ((buffer[3] & PL5_ERR) == 0) {
+        // success, cache parameters
+        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        pl5CachedParams = true;
+    }
+
+    // make param payload available
+    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+
+    // success or failure don't repeat
+    pl5DirtyParams = false;
+
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5Decode(timeUs_t currentTimeUs)
+{
+    // check CRC
+    const uint16_t crc = *(uint16_t*)(buffer + rrfsmFrameLength - 2);
+    if (calculateCRC16_MODBUS(buffer, rrfsmFrameLength - 2) != crc)
+        return false;
+
+    // decode
+    const uint16_t type = *(uint16_t*)(buffer + 4);
+    switch(type) {
+        case PL5_FRAME_TELE_TYPE:
+            return pl5DecodeTeleFrame(currentTimeUs);
+        case PL5_RESP_PING_TYPE:
+            return pl5DecodePingResp();
+        case PL5_RESP_DEVINFO_TYPE:
+            return pl5DecodeGetDevInfoResp();
+        case PL5_RESP_GETPARAMS_TYPE:
+            return pl5DecodeGetParamsResp();
+        case PL5_RESP_WRITEPARAMS_TYPE:
+            return pl5DecodeWriteParamsResp();
+        default:
+            return false;
+    }
+}
+
+static int8_t pl5Accept(uint16_t c)
+{
+    if (readBytes == 1) {
+        // frame signature
+        if (c != 0xFD && c != 0xFE)
+            return -1;
+    }
+    else if (readBytes == 6) {
+        // [3: version] [4-5: type]
+        uint8_t len = 0;
+        const uint16_t type = *(uint16_t*)(buffer + 4);
+        switch (type)
+        {
+            case PL5_FRAME_TELE_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_FRAME_TELE_LENGTH;
+                break;
+            case PL5_RESP_PING_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_RESP_PING_LENGTH;
+                break;
+            case PL5_RESP_DEVINFO_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_RESP_DEVINFO_LENGTH;
+                break;
+            case PL5_RESP_GETPARAMS_TYPE:
+                if (buffer[3] == 3)
+                    len = PL5_RESP_GETPARAMS_LENGTH;
+                break;
+            case PL5_RESP_WRITEPARAMS_TYPE:
+                if (buffer[3] == 0x17)
+                    len = PL5_RESP_WRITEPARAMS_LENGTH;
+                else if (buffer[3] == (PL5_ERR|0x17))
+                    len = PL5_RESP_WRITEPARAMS_ERR_LENGTH;
+                break;
+        }
+        if (len != 0) {
+            rrfsmFrameLength = len;
+            return 1;
+        }
+        return -1;
+    }
+    return 0;
+}
+
+static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
+{
+    rrfsmBootDelayMs = PL5_BOOT_DELAY;
+    rrfsmMinFrameLength = PL5_MIN_FRAME_LENGTH;
+    rrfsmAccept = pl5Accept;
+    rrfsmDecode = pl5Decode;
+
+    paramSig = PL5_PARAM_SIG;
+
+    // telemetry data only
+    rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
+
+    if (bidirectional) {
+        // enable parameter writes to ESC
+        paramCommit = pl5ParamCommit;
+    }
+
+    return rrfsmDataReceive;
 }
 
 
@@ -1920,6 +2149,9 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].consumption = capacity;
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
+    escSensorData[0].status = status;
+
+    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -1965,9 +2197,9 @@ static bool tribDecodeUNCFrame(void)
     return true;
 }
 
-static bool tribDecode(timeMs_t currentTimeMs)
+static bool tribDecode(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeMs);
+    UNUSED(currentTimeUs);
 
     const uint8_t req = buffer[0];
     switch (req) {
@@ -1986,8 +2218,9 @@ static bool tribDecode(timeMs_t currentTimeMs)
     }
 }
 
-static bool tribCrankUncSetup(timeMs_t currentTimeMs)
+static bool tribCrankUncSetup(timeUs_t currentTimeUs)
 {
+    const timeMs_t currentTimeMs = currentTimeUs / 1000;
     switch(tribUncSetup) {
         case TRIB_UNCSETUP_INACTIVE:
         case TRIB_UNCSETUP_ABORTUNC:
@@ -2004,6 +2237,7 @@ static bool tribCrankUncSetup(timeMs_t currentTimeMs)
             if (tribBuildNextParamReq()) {
                 tribUncSetup = TRIB_UNCSETUP_WAIT;
             }
+            paramOobEscNeedRestart();
             break;
         case TRIB_UNCSETUP_WAIT:
             if (tribInvalidParams == 0 && tribDirtyParams == 0) {
@@ -2015,9 +2249,9 @@ static bool tribCrankUncSetup(timeMs_t currentTimeMs)
     return true;
 }
 
-static bool tribStart(timeMs_t currentTimeMs)
+static bool tribStart(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeMs);
+    UNUSED(currentTimeUs);
 
     tribBuildNextParamReq();
     return true;
@@ -2342,9 +2576,10 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
     escSensorData[0].bec_current = tele->bec_current;
-    escSensorData[0].status = tele->status1 | 0x0100;
+    escSensorData[0].status = tele->status1;
 
     oygeCacheParam(tele->pidx, tele->pdata);
+    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -2419,13 +2654,14 @@ static bool oygeDecodeTelemetry(const OpenYGEHeader_t *hdr, timeMs_t currentTime
     return true;
 }
 
-static bool oygeDecode(timeMs_t currentTimeMs)
+static bool oygeDecode(timeUs_t currentTimeUs)
 {
     // get header w/ CRC check
     const OpenYGEHeader_t *hdr = oygeGetHeaderWithCrcCheck();
     if (hdr == NULL)
         return false;
 
+    timeMs_t currentTimeMs = currentTimeUs / 1000;
     switch (hdr->frame_type) {
         case OPENYGE_FTYPE_TELE_AUTO:
         case OPENYGE_FTYPE_TELE_RESP:
@@ -2526,7 +2762,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 hw4SensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_HW5:
-                hw5SensorProcess(currentTimeUs);
+                rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_SCORPION:
                 rrfsmSensorProcess(currentTimeUs);
@@ -2593,8 +2829,11 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
         case ESC_SENSOR_PROTO_ZTW:
-        case ESC_SENSOR_PROTO_HW5:
         case ESC_SENSOR_PROTO_APD:
+            baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_HW5:
+            callback = pl5SensorInit(escHalfDuplex);
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_OPENYGE:
