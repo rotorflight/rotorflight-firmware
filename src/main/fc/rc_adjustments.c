@@ -56,6 +56,8 @@
 
 #include "rx/rx.h"
 
+#include "sensors/acceleration.h"
+
 #include "rc_adjustments.h"
 
 PG_REGISTER_ARRAY(adjustmentRange_t, MAX_ADJUSTMENT_RANGE_COUNT, adjustmentRanges, PG_ADJUSTMENT_RANGE_CONFIG, 3);
@@ -155,6 +157,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(CROSS_COUPLING_GAIN,     PROF,  0, 250),
     ADJ_CONFIG(CROSS_COUPLING_RATIO,    PROF,  0, 200),
     ADJ_CONFIG(CROSS_COUPLING_CUTOFF,   PROF,  1, 250),
+
+    ADJ_CONFIG(ACC_TRIM_PITCH,          NONE,  -300, 300),
+    ADJ_CONFIG(ACC_TRIM_ROLL,           NONE,  -300, 300),
 };
 
 
@@ -356,6 +361,12 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_CROSS_COUPLING_CUTOFF:
             value = currentPidProfile->cyclic_cross_coupling_cutoff;
             break;
+        case ADJUSTMENT_ACC_TRIM_PITCH:
+            value = accelerometerConfig()->accelerometerTrims.values.pitch;
+            break;
+        case ADJUSTMENT_ACC_TRIM_ROLL:
+            value = accelerometerConfig()->accelerometerTrims.values.roll;
+            break;
     }
 
     return value;
@@ -556,6 +567,12 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
             break;
         case ADJUSTMENT_CROSS_COUPLING_CUTOFF:
             currentPidProfile->cyclic_cross_coupling_cutoff = value;
+            break;
+        case ADJUSTMENT_ACC_TRIM_PITCH:
+            accelerometerConfigMutable()->accelerometerTrims.values.pitch = value;
+            break;
+        case ADJUSTMENT_ACC_TRIM_ROLL:
+            accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
             break;
     }
 }

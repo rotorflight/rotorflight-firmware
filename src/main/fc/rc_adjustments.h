@@ -122,6 +122,10 @@ typedef enum {
     ADJUSTMENT_CROSS_COUPLING_RATIO     = 62,
     ADJUSTMENT_CROSS_COUPLING_CUTOFF    = 63,
 
+    // Accelerometer
+    ADJUSTMENT_ACC_TRIM_PITCH           = 64,
+    ADJUSTMENT_ACC_TRIM_ROLL            = 65,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunction_e;
 
