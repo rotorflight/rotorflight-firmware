@@ -135,7 +135,6 @@ typedef enum {
     ADJUSTMENT_TYPE_PROF  = BIT(1),
     ADJUSTMENT_TYPE_GOV   = BIT(2),
     ADJUSTMENT_TYPE_MIX   = BIT(3),
-    ADJUSTMENT_TYPE_ACC   = BIT(4),
 } adjustmentType_e;
 
 typedef struct {

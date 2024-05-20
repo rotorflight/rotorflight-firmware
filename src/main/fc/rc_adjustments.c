@@ -158,8 +158,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(CROSS_COUPLING_RATIO,    PROF,  0, 200),
     ADJ_CONFIG(CROSS_COUPLING_CUTOFF,   PROF,  1, 250),
 
-    ADJ_CONFIG(ACC_TRIM_PITCH,          ACC,   -300, 300),
-    ADJ_CONFIG(ACC_TRIM_ROLL,           ACC,   -300, 300),
+    ADJ_CONFIG(ACC_TRIM_PITCH,          NONE,  -300, 300),
+    ADJ_CONFIG(ACC_TRIM_ROLL,           NONE,  -300, 300),
 };
 
 
@@ -710,7 +710,6 @@ void processRcAdjustments(void)
         if (changed & ADJUSTMENT_TYPE_MIX) {
             mixerInitConfig();
         }
-        // ADJUSTMENT_TYPE_ACC doesn't need an initialization.
     }
 
     if (!changed) {
