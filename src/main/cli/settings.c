@@ -497,7 +497,7 @@ const char * const lookupTableCrsfGpsReuse[] = {
 };
 
 const char * const lookupTableCrsfGpsSatsReuse[] = {
-    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "LED_PROFILE",
+    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "LED_PROFILE", "MODEL_ID",
 };
 
 const char * const lookupTableDtermMode[] = {
@@ -968,7 +968,6 @@ const clivalue_t valueTable[] = {
 // PG_ARMING_CONFIG
     { "auto_disarm_delay",          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, auto_disarm_delay) },
     { PARAM_NAME_GYRO_CAL_ON_FIRST_ARM, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, gyro_cal_on_first_arm) },
-
 
 // PG_GPS_CONFIG
 #ifdef USE_GPS
@@ -1675,10 +1674,13 @@ const clivalue_t valueTable[] = {
     { "stats_total_time_s",     VAR_UINT32 | MASTER_VALUE, .config.u32Max = UINT32_MAX, PG_STATS_CONFIG, offsetof(statsConfig_t, stats_total_time_s) },
     { "stats_total_dist_m",     VAR_UINT32 | MASTER_VALUE, .config.u32Max = UINT32_MAX, PG_STATS_CONFIG, offsetof(statsConfig_t, stats_total_dist_m) },
 #endif
+
+// PG_PILOT_CONFIG
     { "name",             VAR_UINT8  | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_NAME_LENGTH, STRING_FLAGS_NONE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, name) },
 #ifdef USE_OSD
     { "display_name",     VAR_UINT8  | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_NAME_LENGTH, STRING_FLAGS_NONE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, displayName) },
 #endif
+    { "model_id",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 99 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelId) },
 
 // PG_POSITION
     { "position_alt_source",       VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_POSITION_ALT_SOURCE }, PG_POSITION, offsetof(positionConfig_t, alt_source) },
