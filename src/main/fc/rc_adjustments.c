@@ -687,7 +687,11 @@ void processRcAdjustments(void)
                     updateAdjustmentData(adjFunc, adjval);
                     blackboxAdjustmentEvent(adjFunc, adjval);
 
-                    beeperConfirmationBeeps(1);
+                    // PID profile change does it's own confirmation, no of beeps eq profile no,
+                    // a single beep here will kill that.
+                    if (adjFunc != ADJUSTMENT_PID_PROFILE) {
+                      beeperConfirmationBeeps(1);
+                    }
                     setConfigDirty();
 
                     adjState->deadTime = now + REPEAT_DELAY;
