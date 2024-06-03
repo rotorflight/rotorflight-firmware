@@ -67,9 +67,9 @@ PG_DECLARE(governorConfig_t, governorConfig);
 void governorInit(const pidProfile_t *pidProfile);
 void governorInitProfile(const pidProfile_t *pidProfile);
 
-void governorUpdate();
+void governorUpdate(void);
 
-uint8_t getGovernorState();
+int getGovernorState(void);
 
 float getGovernorOutput(void);
 

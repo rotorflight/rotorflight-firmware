@@ -95,10 +95,10 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
 typedef struct {
 
     // Governor mode (GM_ enum)
-    uint8_t         mode;
+    govMode_e       mode;
 
     // State machine
-    uint8_t         state;
+    govState_e      state;
     timeMs_t        stateEntryTime;
 
     // Output throttle
@@ -240,7 +240,7 @@ static void governorUpdatePassthrough(void);
 
 //// Access functions
 
-uint8_t getGovernorState(void)
+int getGovernorState(void)
 {
     return gov.state;
 }
@@ -268,6 +268,8 @@ float getFullHeadSpeedRatio(void)
             case GS_AUTOROTATION:
             case GS_AUTOROTATION_BAILOUT:
                 return gov.fullHeadSpeedRatio;
+            default:
+                return 1.0f;
         }
     }
 
@@ -358,7 +360,7 @@ static inline float angleDrag(float angle)
     return angle * sqrtf(angle); // angle ^ 1.5
 }
 
-static inline void govChangeState(uint8_t futureState)
+static inline void govChangeState(govState_e futureState)
 {
     gov.state = futureState;
     gov.stateEntryTime = millis();
@@ -634,13 +636,13 @@ static void governorUpdatePassthrough(void)
  * State machine for governed speed control
  */
 
-static inline void govEnterSpoolupState(uint8_t state)
+static inline void govEnterSpoolupState(govState_e state)
 {
     govChangeState(state);
     govSpoolupInit();
 }
 
-static inline void govEnterActiveState(uint8_t state)
+static inline void govEnterActiveState(govState_e state)
 {
     govChangeState(state);
     govActiveInit();
@@ -1091,6 +1093,8 @@ void governorInit(const pidProfile_t *pidProfile)
                 govSpoolupCalc = govPIDControl;
                 govActiveInit  = govMode2Init;
                 govActiveCalc  = govMode2Control;
+                break;
+            default:
                 break;
         }
 
