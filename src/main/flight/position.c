@@ -83,12 +83,12 @@ float getVario(void)
     return alt.variometer;
 }
 
-int32_t getEstimatedAltitudeCm(void)
+int getEstimatedAltitudeCm(void)
 {
     return lrintf(alt.altitude * 100);
 }
 
-int16_t getEstimatedVario(void)
+int getEstimatedVarioCms(void)
 {
     return lrintf(alt.variometer * 100);
 }

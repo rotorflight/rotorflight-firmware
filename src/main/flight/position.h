@@ -23,6 +23,5 @@ void positionUpdate(void);
 float getAltitude(void);
 float getVario(void);
 
-// compat: integer in cm
-int32_t getEstimatedAltitudeCm(void);
-int16_t getEstimatedVario(void);
+int getEstimatedAltitudeCm(void);
+int getEstimatedVarioCms(void);

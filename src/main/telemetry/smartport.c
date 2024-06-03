@@ -764,7 +764,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 break;
 #if defined(USE_VARIO)
             case FSSP_DATAID_VARIO      :
-                smartPortSendPackage(id, getEstimatedVario()); // in cm/s according to SmartPort spec
+                smartPortSendPackage(id, getEstimatedVarioCms()); // in cm/s according to SmartPort spec
                 *clearToSend = false;
                 break;
 #endif

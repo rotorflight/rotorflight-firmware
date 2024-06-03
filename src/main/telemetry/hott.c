@@ -307,7 +307,7 @@ static inline void hottEAMUpdateAltitude(HOTT_EAM_MSG_t *hottEAMMessage)
 #ifdef USE_VARIO
 static inline void hottEAMUpdateClimbrate(HOTT_EAM_MSG_t *hottEAMMessage)
 {
-    const int32_t vario = getEstimatedVario();
+    const int32_t vario = getEstimatedVarioCms();
     hottEAMMessage->climbrate_L = (30000 + vario) & 0x00FF;
     hottEAMMessage->climbrate_H = (30000 + vario) >> 8;
     hottEAMMessage->climbrate3s = 120 + (vario / 100);

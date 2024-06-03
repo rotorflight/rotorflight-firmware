@@ -516,7 +516,7 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
         // Unit is cm/s
 #ifdef USE_VARIO
         if (telemetryIsSensorEnabled(SENSOR_VARIO)) {
-            frSkyHubWriteFrame(ID_VERT_SPEED, getEstimatedVario());
+            frSkyHubWriteFrame(ID_VERT_SPEED, getEstimatedVarioCms());
         }
 #endif
 

@@ -1227,7 +1227,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 #ifdef USE_BARO
     blackboxCurrent->altitude = getEstimatedAltitudeCm();
 #ifdef USE_VARIO
-    blackboxCurrent->vario = getEstimatedVario();
+    blackboxCurrent->vario = getEstimatedVarioCms();
 #endif
 #endif
 

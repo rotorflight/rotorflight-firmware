@@ -166,7 +166,7 @@ void ghstFrameMagBaro(sbuf_t *dst)
 
 #ifdef USE_VARIO
     if (sensors(SENSOR_VARIO) && telemetryIsSensorEnabled(SENSOR_VARIO)) {
-        vario = getEstimatedVario();       // vario, cm/s
+        vario = getEstimatedVarioCms();       // vario, cm/s
         flags |= MISC_FLAGS_VARIO;
     }
 #endif

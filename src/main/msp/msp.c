@@ -1275,7 +1275,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_ALTITUDE:
         sbufWriteU32(dst, getEstimatedAltitudeCm());
 #ifdef USE_VARIO
-        sbufWriteU16(dst, getEstimatedVario());
+        sbufWriteU16(dst, getEstimatedVarioCms());
 #else
         sbufWriteU16(dst, 0);
 #endif

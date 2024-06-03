@@ -339,7 +339,7 @@ int32_t getSensorValue(uint8_t sensor)
 
 #ifdef USE_VARIO
     case EX_VARIO:
-        return getEstimatedVario();
+        return getEstimatedVarioCms();
         break;
 #endif
 
