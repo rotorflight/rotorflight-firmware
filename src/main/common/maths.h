@@ -21,8 +21,8 @@
 #pragma once
 
 #include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
+
+#include "types.h"
 
 /*
  * Floating point constants

@@ -20,8 +20,9 @@
 
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include "types.h"
+
+#define INIT_ZERO  { 0, }
 
 #define NOOP do {} while (0)
 
