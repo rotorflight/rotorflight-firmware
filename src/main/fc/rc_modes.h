@@ -25,7 +25,7 @@
 #include "common/maths.h"
 #include "fc/rc_controls.h"
 #include "rx/rx.h"
-#include "pg/pg.h"
+#include "pg/modes.h"
 
 #define BOXID_NONE 255
 
@@ -81,8 +81,6 @@ typedef enum {
 // type to hold enough bits for CHECKBOX_ITEM_COUNT. Struct used for value-like behavior
 typedef struct boxBitmask_s { uint32_t bits[(CHECKBOX_ITEM_COUNT + 31) / 32]; } boxBitmask_t;
 
-#define MAX_MODE_ACTIVATION_CONDITION_COUNT 20
-
 // steps are 5 apart
 // a value of 0 corresponds to a channel value of 1500
 // a value of 100 corresponds to a channel value of 2000
@@ -93,35 +91,6 @@ typedef struct boxBitmask_s { uint32_t bits[(CHECKBOX_ITEM_COUNT + 31) / 32]; } 
 
 #define STEP_TO_CHANNEL_VALUE(step)   (1500 + 5 * (step))
 #define CHANNEL_VALUE_TO_STEP(value)  (((value) - 1500) / 5)
-
-typedef struct channelRange_s {
-    int8_t startStep;
-    int8_t endStep;
-} channelRange_t;
-
-typedef struct modeActivationCondition_s {
-    boxId_e modeId;
-    uint8_t auxChannelIndex;
-    channelRange_t range;
-    modeLogic_e modeLogic;
-    boxId_e linkedTo;
-} modeActivationCondition_t;
-
-PG_DECLARE_ARRAY(modeActivationCondition_t, MAX_MODE_ACTIVATION_CONDITION_COUNT, modeActivationConditions);
-
-#if defined(USE_CUSTOM_BOX_NAMES)
-
-#define MAX_BOX_USER_NAME_LENGTH 16
-
-typedef struct modeActivationConfig_s {
-    char box_user_1_name[MAX_BOX_USER_NAME_LENGTH];
-    char box_user_2_name[MAX_BOX_USER_NAME_LENGTH];
-    char box_user_3_name[MAX_BOX_USER_NAME_LENGTH];
-    char box_user_4_name[MAX_BOX_USER_NAME_LENGTH];
-} modeActivationConfig_t;
-
-PG_DECLARE(modeActivationConfig_t, modeActivationConfig);
-#endif
 
 typedef struct modeActivationProfile_s {
     modeActivationCondition_t modeActivationConditions[MAX_MODE_ACTIVATION_CONDITION_COUNT];
