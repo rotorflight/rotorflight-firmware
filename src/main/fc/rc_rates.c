@@ -32,47 +32,10 @@
 #include "config/config.h"
 #include "config/config_reset.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/rates.h"
 
 #include "fc/rc.h"
 #include "fc/rc_rates.h"
-
-
-PG_REGISTER_ARRAY_WITH_RESET_FN(controlRateConfig_t, CONTROL_RATE_PROFILE_COUNT, controlRateProfiles, PG_CONTROL_RATE_PROFILES, 4);
-
-void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
-{
-    for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
-        RESET_CONFIG(controlRateConfig_t, &controlRateConfig[i],
-            .profileName = "",
-            .rates_type = RATES_TYPE_ACTUAL,
-            .rcRates[FD_ROLL] = 24,
-            .rcRates[FD_PITCH] = 24,
-            .rcRates[FD_YAW] = 36,
-            .rcRates[FD_COLL] = 50,
-            .rcExpo[FD_ROLL] = 0,
-            .rcExpo[FD_PITCH] = 0,
-            .rcExpo[FD_YAW] = 0,
-            .rcExpo[FD_COLL] = 0,
-            .rates[FD_ROLL] = 24,
-            .rates[FD_PITCH] = 24,
-            .rates[FD_YAW] = 48,
-            .rates[FD_COLL] = 50,
-            .levelExpo[FD_ROLL] = 0,
-            .levelExpo[FD_PITCH] = 0,
-            .quickRatesRcExpo = 0,
-            .response_time[FD_ROLL] = 0,
-            .response_time[FD_PITCH] = 0,
-            .response_time[FD_YAW] = 0,
-            .response_time[FD_COLL] = 0,
-            .accel_limit[FD_ROLL] = 0,
-            .accel_limit[FD_PITCH] = 0,
-            .accel_limit[FD_YAW] = 0,
-            .accel_limit[FD_COLL] = 0,
-        );
-    }
-}
 
 
 const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT] = {

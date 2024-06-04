@@ -22,13 +22,13 @@
 
 #include <stdint.h>
 
-#include "pg/pg.h"
+#include "pg/rates.h"
 
 #define CONTROL_RATE_CONFIG_RC_EXPO_MAX         100
 #define CONTROL_RATE_CONFIG_RC_RATES_MAX        255
 #define CONTROL_RATE_CONFIG_SUPER_RATE_MAX      255
 
-#define SETPOINT_RATE_LIMIT 2000
+#define SETPOINT_RATE_LIMIT                     2000
 
 typedef enum {
     RATES_TYPE_NONE = 0,
@@ -45,30 +45,6 @@ typedef struct ratesSettingsLimits_s {
     uint8_t srate_limit;
     uint8_t expo_limit;
 } ratesSettingsLimits_t;
-
-#define MAX_RATE_PROFILE_NAME_LENGTH 8
-
-typedef struct controlRateConfig_s {
-    char profileName[MAX_RATE_PROFILE_NAME_LENGTH + 1];
-
-    uint8_t rates_type;
-
-    uint8_t rcRates[4];
-    uint8_t rcExpo[4];
-    uint8_t rates[4];
-
-    uint8_t levelExpo[2];                   // roll/pitch level mode expo
-    uint8_t quickRatesRcExpo;               // Sets expo on rc command for quick rates
-
-    uint8_t response_time[4];
-    uint16_t accel_limit[4];
-
-    uint8_t cyclic_ring;
-
-} controlRateConfig_t;
-
-PG_DECLARE_ARRAY(controlRateConfig_t, CONTROL_RATE_PROFILE_COUNT, controlRateProfiles);
-
 
 extern controlRateConfig_t * currentControlRateProfile;
 extern const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT];
