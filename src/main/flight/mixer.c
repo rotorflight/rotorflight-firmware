@@ -94,7 +94,7 @@ typedef struct {
     float           input[MIXER_INPUT_COUNT];
     float           output[MIXER_OUTPUT_COUNT];
 
-    uint32_t        mapping[MIXER_OUTPUT_COUNT];
+    bitmap_t        mapping[MIXER_OUTPUT_COUNT];
     int16_t         override[MIXER_INPUT_COUNT];
     uint16_t        saturation[MIXER_INPUT_COUNT];
 
@@ -117,7 +117,7 @@ typedef struct {
     float           cyclicPhaseSin;
     float           cyclicPhaseCos;
 
-    uint32_t        cyclicMapping;
+    bitmap_t        cyclicMapping;
 
 } mixerData_t;
 
@@ -134,9 +134,9 @@ static float mixerInputHistory[4][MIXER_HISTORY_TIME];
 
 static FAST_DATA_ZERO_INIT uint16_t historyIndex;
 
-float mixerGetInputHistory(uint8_t i, uint16_t delay)
+float mixerGetInputHistory(uint8_t index, uint16_t delay)
 {
-    return mixerInputHistory[i][(historyIndex - delay) & MIXER_HISTORY_MASK];
+    return mixerInputHistory[index][(historyIndex - delay) & MIXER_HISTORY_MASK];
 }
 
 static inline void mixerUpdateHistory(void)
