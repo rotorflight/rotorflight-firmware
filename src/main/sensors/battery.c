@@ -139,6 +139,12 @@ uint8_t getBatteryCellCount(void)
     return batteryCellCount;
 }
 
+uint16_t getBatteryCellVoltage(uint8_t cell)
+{
+    UNUSED(cell);
+    return getBatteryAverageCellVoltage(); // Not implemented
+}
+
 uint16_t getBatteryAverageCellVoltage(void)
 {
     return (batteryCellCount > 0) ? getBatteryVoltage() / batteryCellCount : 0;

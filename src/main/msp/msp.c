@@ -1581,6 +1581,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, telemetryConfig()->halfDuplex);
         sbufWriteU32(dst, telemetryConfig()->enableSensors);
         sbufWriteU8(dst, telemetryConfig()->pinSwap);
+        sbufWriteU8(dst, telemetryConfig()->crsf_telemetry_mode);
+        sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_rate);
+        sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_ratio);
+        for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
+            sbufWriteU8(dst, telemetryConfig()->crsf_telemetry_sensors[i]);
+        }
         break;
 
     case MSP_SERIAL_CONFIG:
@@ -3088,6 +3094,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         telemetryConfigMutable()->enableSensors = sbufReadU32(src);
         if (sbufBytesRemaining(src) >= 1) {
             telemetryConfigMutable()->pinSwap = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 5 + TELEM_SENSOR_SLOT_COUNT) {
+            telemetryConfigMutable()->crsf_telemetry_mode = sbufReadU8(src);
+            telemetryConfigMutable()->crsf_telemetry_link_rate = sbufReadU16(src);
+            telemetryConfigMutable()->crsf_telemetry_link_ratio = sbufReadU16(src);
+            for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
+                telemetryConfigMutable()->crsf_telemetry_sensors[i] = sbufReadU8(src);
+            }
         }
         break;
 
