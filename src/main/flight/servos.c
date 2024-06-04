@@ -42,8 +42,7 @@
 #include "flight/servos.h"
 #include "flight/mixer.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/servos.h"
 
 
 static FAST_DATA_ZERO_INIT uint8_t      servoCount;
@@ -55,34 +54,6 @@ static FAST_DATA_ZERO_INIT float        servoResolution[MAX_SUPPORTED_SERVOS];
 static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
-
-
-PG_REGISTER_WITH_RESET_FN(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 0);
-
-void pgResetFn_servoConfig(servoConfig_t *servoConfig)
-{
-    for (unsigned i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        servoConfig->ioTags[i] = timerioTagGetByUsage(TIM_USE_SERVO, i);
-    }
-}
-
-PG_REGISTER_ARRAY_WITH_RESET_FN(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams, PG_SERVO_PARAMS, 0);
-
-void pgResetFn_servoParams(servoParam_t *instance)
-{
-    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        RESET_CONFIG(servoParam_t, &instance[i],
-                     .mid   = DEFAULT_SERVO_CENTER,
-                     .min   = DEFAULT_SERVO_MIN,
-                     .max   = DEFAULT_SERVO_MAX,
-                     .rneg  = DEFAULT_SERVO_SCALE,
-                     .rpos  = DEFAULT_SERVO_SCALE,
-                     .rate  = DEFAULT_SERVO_RATE,
-                     .speed = DEFAULT_SERVO_SPEED,
-                     .flags = DEFAULT_SERVO_FLAGS,
-        );
-    }
-}
 
 
 uint8_t getServoCount(void)

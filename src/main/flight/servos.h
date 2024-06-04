@@ -19,7 +19,7 @@
 
 #include "config/config.h"
 
-#include "pg/pg.h"
+#include "pg/servos.h"
 
 #define DEFAULT_SERVO_FLAGS      0
 #define DEFAULT_SERVO_CENTER  1500
@@ -46,25 +46,6 @@ enum {
     SERVO_FLAG_GEO_CORR     = BIT(1),
     SERVO_FLAGS_ALL         = BIT(2) - 1,
 };
-
-typedef struct servoParam_s {
-    uint16_t    mid;     // center (mid) point
-    int16_t     min;     // lower limit in us from the midpoint
-    int16_t     max;     // upper limit in us from the midpoint
-    uint16_t    rneg;    // negative scale (slope) in us
-    uint16_t    rpos;    // positive scale (slope) in us
-    uint16_t    rate;    // servo update rate Hz
-    uint16_t    speed;   // speed limit
-    uint16_t    flags;   // feature flags
-} servoParam_t;
-
-PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);
-
-typedef struct servoConfig_s {
-    ioTag_t  ioTags[MAX_SUPPORTED_SERVOS];
-} servoConfig_t;
-
-PG_DECLARE(servoConfig_t, servoConfig);
 
 void servoInit(void);
 void servoUpdate(void);
