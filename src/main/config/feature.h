@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "pg/pg.h"
+#include "pg/feature.h"
 
 #ifndef DEFAULT_FEATURES
 #define DEFAULT_FEATURES 0
@@ -77,12 +77,6 @@ typedef enum {
     FEATURE_UNUSED_23 | \
     FEATURE_UNUSED_24 | \
     0)
-
-typedef struct featureConfig_s {
-    uint32_t enabledFeatures;
-} featureConfig_t;
-
-PG_DECLARE(featureConfig_t, featureConfig);
 
 void featureInit(void);
 bool featureIsEnabled(const uint32_t mask);

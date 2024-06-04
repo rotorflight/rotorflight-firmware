@@ -24,16 +24,10 @@
 
 #include "platform.h"
 
-#include "config/feature.h"
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/feature.h"
 
+#include "feature.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 1);
-
-PG_RESET_TEMPLATE(featureConfig_t, featureConfig,
-    .enabledFeatures = DEFAULT_FEATURES | DEFAULT_RX_FEATURE,
-);
 
 static uint32_t runtimeFeatureMask;
 
