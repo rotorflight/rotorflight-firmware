@@ -78,9 +78,7 @@ typedef union crsfFrame_u {
     crsfFrameDef_t frame;
 } crsfFrame_t;
 
-void crsfRxWriteTelemetryData(const void *data, int len);
-void crsfRxSendTelemetryData(void);
-bool crsfRxIsTelemetryBufEmpty(void); // check this function before using crsfRxWriteTelemetryData()
+void crsfRxTransmitTelemetryData(const void *data, int len);
 
 struct rxConfig_s;
 struct rxRuntimeState_s;
