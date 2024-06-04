@@ -31,8 +31,7 @@
 
 #include "common/axis.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/imu.h"
 
 #include "drivers/time.h"
 
@@ -105,13 +104,6 @@ STATIC_UNIT_TESTED quaternionProducts qP = QUATERNION_PRODUCTS_INITIALIZE;
 
 // absolute angle inclination in multiple of 0.1 degree    180 deg = 1800
 attitudeEulerAngles_t attitude = EULER_INITIALIZE;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(imuConfig_t, imuConfig, PG_IMU_CONFIG, 1);
-
-PG_RESET_TEMPLATE(imuConfig_t, imuConfig,
-    .dcm_kp = 2500,                // 1.0 * 10000
-    .dcm_ki = 0,                   // 0.003 * 10000
-);
 
 static void imuQuaternionComputeProducts(quaternion *quat, quaternionProducts *quatProd)
 {

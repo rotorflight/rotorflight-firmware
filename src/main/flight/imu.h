@@ -23,7 +23,8 @@
 #include "common/axis.h"
 #include "common/time.h"
 #include "common/maths.h"
-#include "pg/pg.h"
+
+#include "pg/imu.h"
 
 // Exported symbols
 extern bool canUseGPSHeading;
@@ -52,13 +53,6 @@ typedef union {
 
 extern attitudeEulerAngles_t attitude;
 extern float rMat[3][3];
-
-typedef struct imuConfig_s {
-    uint16_t dcm_kp;                        // DCM filter proportional gain ( x 10000)
-    uint16_t dcm_ki;                        // DCM filter integral gain ( x 10000)
-} imuConfig_t;
-
-PG_DECLARE(imuConfig_t, imuConfig);
 
 typedef struct imuRuntimeConfig_s {
     float dcm_ki;
