@@ -23,13 +23,22 @@
 
 #include "flight/pid.h"
 
-enum {
+typedef enum {
     RESCUE_MODE_OFF = 0,
     RESCUE_MODE_CLIMB,
     RESCUE_MODE_ALT_HOLD,
-};
+} rescueMode_e;
 
-uint8_t getRescueState(void);
+typedef enum {
+    RESCUE_STATE_OFF = 0,
+    RESCUE_STATE_PULLUP,
+    RESCUE_STATE_FLIP,
+    RESCUE_STATE_CLIMB,
+    RESCUE_STATE_HOVER,
+    RESCUE_STATE_EXIT,
+} rescueState_e;
+
+int getRescueState(void);
 
 void rescueUpdate();
 float rescueApply(uint8_t axis, float setpoint);

@@ -47,23 +47,14 @@
 
 #define RESCUE_MAX_DECIANGLE  450
 
-enum {
-    RSTATE_OFF = 0,
-    RSTATE_PULLUP,
-    RSTATE_FLIP,
-    RSTATE_CLIMB,
-    RSTATE_HOVER,
-    RSTATE_EXIT,
-};
-
 typedef struct {
 
     /* Config parameters */
 
-    uint8_t         mode;
-    uint8_t         flip;
+    rescueMode_e    mode;
+    bool            flip;
 
-    uint8_t         state;
+    rescueState_e   state;
     timeMs_t        stateEntryTime;
 
     timeDelta_t     pullUpTime;
@@ -113,7 +104,7 @@ static inline void rescueChangeState(uint8_t newState)
     rescue.state = newState;
     rescue.stateEntryTime = millis();
 
-    if (newState == RSTATE_CLIMB)
+    if (newState == RESCUE_STATE_CLIMB)
         rescue.alt_Iterm = rescue.hoverCollective;
 }
 
@@ -129,10 +120,10 @@ static inline bool rescueActive(void)
 
 static inline float rescueSetpoint(uint8_t axis, float setpoint)
 {
-    if (rescue.state == RSTATE_OFF) {
+    if (rescue.state == RESCUE_STATE_OFF) {
         rescue.prevSetpoint[axis] = rescue.setpoint[axis] = setpoint;
     }
-    else if (rescue.state == RSTATE_EXIT) {
+    else if (rescue.state == RESCUE_STATE_EXIT) {
         float alpha = (float)rescueStateTime() / (float)(rescue.exitTime + 1);
         setpoint = alpha * setpoint + (1.0f - alpha) * rescue.setpoint[axis];
     }
@@ -354,70 +345,70 @@ static void rescueUpdateState(void)
 {
     // Handle DISARM separately
     if (!ARMING_FLAG(ARMED)) {
-        rescueChangeState(RSTATE_OFF);
+        rescueChangeState(RESCUE_STATE_OFF);
     }
     else {
         switch (rescue.state)
         {
-            case RSTATE_OFF:
+            case RESCUE_STATE_OFF:
                 if (rescueActive()) {
-                    rescueChangeState(RSTATE_PULLUP);
+                    rescueChangeState(RESCUE_STATE_PULLUP);
                     rescuePullUp();
                 }
                 break;
 
-            case RSTATE_PULLUP:
+            case RESCUE_STATE_PULLUP:
                 rescuePullUp();
                 if (!rescueActive())
-                    rescueChangeState(RSTATE_EXIT);
+                    rescueChangeState(RESCUE_STATE_EXIT);
                 else if (rescuePullUpDone()) {
                     if (rescueIsLeveled()) {
                         if (rescue.flip && rescueIsInverted())
-                            rescueChangeState(RSTATE_FLIP);
+                            rescueChangeState(RESCUE_STATE_FLIP);
                         else
-                            rescueChangeState(RSTATE_CLIMB);
+                            rescueChangeState(RESCUE_STATE_CLIMB);
                     }
                     else {
-                        rescueChangeState(RSTATE_EXIT);
+                        rescueChangeState(RESCUE_STATE_EXIT);
                     }
                 }
                 break;
 
-            case RSTATE_FLIP:
+            case RESCUE_STATE_FLIP:
                 rescueFlipOver();
                 if (rescueFlipDone()) {
                     if (!rescueActive())
-                        rescueChangeState(RSTATE_EXIT);
+                        rescueChangeState(RESCUE_STATE_EXIT);
                     else
-                        rescueChangeState(RSTATE_CLIMB);
+                        rescueChangeState(RESCUE_STATE_CLIMB);
                 }
                 else if (rescueFlipTimeout()) {
                     if (rescueIsLeveled())
-                        rescueChangeState(RSTATE_CLIMB);
+                        rescueChangeState(RESCUE_STATE_CLIMB);
                     else
-                        rescueChangeState(RSTATE_EXIT);
+                        rescueChangeState(RESCUE_STATE_EXIT);
                 }
                 break;
 
-            case RSTATE_CLIMB:
+            case RESCUE_STATE_CLIMB:
                 rescueClimb();
                 if (!rescueActive())
-                    rescueChangeState(RSTATE_EXIT);
+                    rescueChangeState(RESCUE_STATE_EXIT);
                 else if (rescueClimbDone())
-                    rescueChangeState(RSTATE_HOVER);
+                    rescueChangeState(RESCUE_STATE_HOVER);
                 break;
 
-            case RSTATE_HOVER:
+            case RESCUE_STATE_HOVER:
                 rescueHover();
                 if (!rescueActive())
-                    rescueChangeState(RSTATE_EXIT);
+                    rescueChangeState(RESCUE_STATE_EXIT);
                 break;
 
-            case RSTATE_EXIT:
+            case RESCUE_STATE_EXIT:
                 if (rescueActive())
-                    rescueChangeState(RSTATE_PULLUP);
+                    rescueChangeState(RESCUE_STATE_PULLUP);
                 else if (rescueSlowExitDone())
-                    rescueChangeState(RSTATE_OFF);
+                    rescueChangeState(RESCUE_STATE_OFF);
                 break;
         }
     }
@@ -426,7 +417,7 @@ static void rescueUpdateState(void)
 
 //// Interface functions
 
-uint8_t getRescueState(void)
+int getRescueState(void)
 {
     return rescue.state;
 }
