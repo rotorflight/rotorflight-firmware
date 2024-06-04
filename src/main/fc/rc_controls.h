@@ -20,6 +20,9 @@
 
 #pragma once
 
+#include "types.h"
+#include "platform.h"
+
 #include "common/filter.h"
 #include "common/axis.h"
 
@@ -27,14 +30,7 @@
 #include "fc/rc_rates.h"
 #include "fc/rc_modes.h"
 
-#include "pg/pg.h"
-
-typedef struct armingConfig_s {
-    uint8_t gyro_cal_on_first_arm;          // allow disarm/arm on throttle down + roll left/right
-    uint8_t auto_disarm_delay;              // allow automatically disarming multicopters after auto_disarm_delay seconds of zero throttle. Disabled when 0
-} armingConfig_t;
-
-PG_DECLARE(armingConfig_t, armingConfig);
+#include "pg/arming.h"
 
 bool areSticksInApModePosition(uint16_t ap_mode);
 void processRcStickPositions(void);

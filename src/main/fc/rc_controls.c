@@ -51,8 +51,7 @@
 #include "io/gps.h"
 #include "io/vtx_control.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/arming.h"
 #include "pg/rx.h"
 
 #include "rx/rx.h"
@@ -89,13 +88,6 @@
 // true if arming is done via the sticks (as opposed to a switch)
 static bool isUsingStickArming = false;
 static bool isUsingStickCommands = false;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(armingConfig_t, armingConfig, PG_ARMING_CONFIG, 1);
-
-PG_RESET_TEMPLATE(armingConfig_t, armingConfig,
-    .gyro_cal_on_first_arm = 0,  // TODO - Cleanup retarded arm support
-    .auto_disarm_delay = 5
-);
 
 bool isUsingSticksForArming(void)
 {
