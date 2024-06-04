@@ -94,6 +94,20 @@ typedef enum FlightLogFieldSelect_e {
     FLIGHT_LOG_FIELD_SELECT_COUNT
 } FlightLogFieldSelect_e;
 
+typedef enum {
+    FLIGHT_LOG_EVENT_SYNC_BEEP = 0,
+    FLIGHT_LOG_EVENT_INFLIGHT_ADJUSTMENT = 13,
+    FLIGHT_LOG_EVENT_LOGGING_RESUME = 14,
+    FLIGHT_LOG_EVENT_DISARM = 15,
+    FLIGHT_LOG_EVENT_FLIGHTMODE = 30, // Add new event type for flight mode status.
+    FLIGHT_LOG_EVENT_GOVSTATE = 50,   // Add new event type for main motor governor state.
+    FLIGHT_LOG_EVENT_RESCUE_STATE = 51,
+    FLIGHT_LOG_EVENT_AIRBORNE_STATE = 52,
+    FLIGHT_LOG_EVENT_CUSTOM_DATA = 100,
+    FLIGHT_LOG_EVENT_CUSTOM_STRING = 101,
+    FLIGHT_LOG_EVENT_LOG_END = 255
+} FlightLogEvent;
+
 typedef enum FlightLogFieldPredictor {
     //No prediction:
     FLIGHT_LOG_FIELD_PREDICTOR_0              = 0,

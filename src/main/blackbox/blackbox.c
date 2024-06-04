@@ -27,10 +27,10 @@
 
 #ifdef USE_BLACKBOX
 
-#include "blackbox.h"
 #include "blackbox_encoding.h"
 #include "blackbox_fielddefs.h"
 #include "blackbox_io.h"
+#include "blackbox.h"
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -73,8 +73,7 @@
 #include "io/gps.h"
 #include "io/serial.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/blackbox.h"
 #include "pg/motor.h"
 #include "pg/rx.h"
 
@@ -88,35 +87,6 @@
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
 #include "sensors/rangefinder.h"
-
-#if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
-#define DEFAULT_BLACKBOX_DEVICE     BLACKBOX_DEVICE_FLASH
-#elif defined(ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT)
-#define DEFAULT_BLACKBOX_DEVICE     BLACKBOX_DEVICE_SDCARD
-#else
-#define DEFAULT_BLACKBOX_DEVICE     BLACKBOX_DEVICE_SERIAL
-#endif
-
-PG_REGISTER_WITH_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 2);
-
-PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
-    .device = DEFAULT_BLACKBOX_DEVICE,
-    .mode = BLACKBOX_MODE_NORMAL,
-    .denom = 8,
-    .fields = BIT(FLIGHT_LOG_FIELD_SELECT_COMMAND) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_SETPOINT) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_MIXER) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_PID) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_GYRO) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_GYRAW) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_RSSI) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_BATTERY) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_RPM) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_MOTOR) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_SERVO),
-);
-
-STATIC_ASSERT((sizeof(blackboxConfig()->fields) * 8) >= FLIGHT_LOG_FIELD_SELECT_COUNT, too_many_flight_log_fields_selections);
 
 #define BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS 200
 
