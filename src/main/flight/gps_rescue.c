@@ -53,12 +53,6 @@
 #include "gps_rescue.h"
 
 typedef enum {
-    RESCUE_SANITY_OFF = 0,
-    RESCUE_SANITY_ON,
-    RESCUE_SANITY_FS_ONLY
-} gpsRescueSanity_e;
-
-typedef enum {
     RESCUE_IDLE,
     RESCUE_INITIALIZE,
     RESCUE_ATTAIN_ALT,
@@ -115,12 +109,6 @@ typedef struct {
     bool isAvailable;
 } rescueState_s;
 
-typedef enum {
-    MAX_ALT,
-    FIXED_ALT,
-    CURRENT_ALT
-} altitudeMode_e;
-
 typedef struct {
     float Kp;
     float Ki;
@@ -142,42 +130,6 @@ typedef struct {
 #define GPS_RESCUE_THROTTLE_P_SCALE 0.0003125f // pid scaler for P term
 #define GPS_RESCUE_THROTTLE_I_SCALE 0.1f       // pid scaler for I term
 #define GPS_RESCUE_THROTTLE_D_SCALE 0.0003125f // pid scaler for D term
-
-#ifdef USE_MAG
-#define GPS_RESCUE_USE_MAG              true
-#else
-#define GPS_RESCUE_USE_MAG              false
-#endif
-
-PG_REGISTER_WITH_RESET_TEMPLATE(gpsRescueConfig_t, gpsRescueConfig, PG_GPS_RESCUE, 1);
-
-PG_RESET_TEMPLATE(gpsRescueConfig_t, gpsRescueConfig,
-    .angle = 32,
-    .initialAltitudeM = 50,
-    .descentDistanceM = 200,
-    .rescueGroundspeed = 2000,
-    .throttleP = 150,
-    .throttleI = 20,
-    .throttleD = 50,
-    .velP = 80,
-    .velI = 20,
-    .velD = 15,
-    .yawP = 40,
-    .throttleMin = 1100,
-    .throttleMax = 1600,
-    .throttleHover = 1280,
-    .sanityChecks = RESCUE_SANITY_ON,
-    .minSats = 8,
-    .minRescueDth = 100,
-    .allowArmingWithoutFix = false,
-    .useMag = GPS_RESCUE_USE_MAG,
-    .targetLandingAltitudeM = 5,
-    .targetLandingDistanceM = 10,
-    .altitudeMode = MAX_ALT,
-    .ascendRate = 500,
-    .descendRate = 150,
-    .rescueAltitudeBufferM = 15,
-);
 
 static uint16_t rescueThrottle;
 static float    rescueYaw;
