@@ -81,6 +81,7 @@
 #include "pg/vtx_table.h"
 #include "pg/freq.h"
 #include "pg/system.h"
+#include "pg/pilot.h"
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -107,14 +108,6 @@ pidProfile_t *currentPidProfile;
 #ifndef RX_SPI_DEFAULT_PROTOCOL
 #define RX_SPI_DEFAULT_PROTOCOL 0
 #endif
-
-PG_REGISTER_WITH_RESET_TEMPLATE(pilotConfig_t, pilotConfig, PG_PILOT_CONFIG, 1);
-
-PG_RESET_TEMPLATE(pilotConfig_t, pilotConfig,
-    .name = { 0 },
-    .displayName = { 0 },
-    .modelId = 0,
-);
 
 bool isEepromWriteInProgress(void)
 {

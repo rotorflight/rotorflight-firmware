@@ -24,16 +24,7 @@
 #include <stdbool.h>
 
 #include "pg/system.h"
-
-#define MAX_NAME_LENGTH 16u
-
-typedef struct pilotConfig_s {
-    char name[MAX_NAME_LENGTH + 1];
-    char displayName[MAX_NAME_LENGTH + 1];
-    uint8_t modelId;
-} pilotConfig_t;
-
-PG_DECLARE(pilotConfig_t, pilotConfig);
+#include "pg/pilot.h"
 
 struct pidProfile_s;
 extern struct pidProfile_s *currentPidProfile;
