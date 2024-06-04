@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include <stdbool.h>
+#include "types.h"
 
 #include "fc/rc_modes.h"
 #include "flight/pid.h"
-#include "pg/pg.h"
+
+#include "pg/adjustments.h"
 
 
 /*
@@ -128,45 +129,6 @@ typedef enum {
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;
-
-typedef enum {
-    ADJUSTMENT_TYPE_NONE  = 0,
-    ADJUSTMENT_TYPE_RATE  = BIT(0),
-    ADJUSTMENT_TYPE_PROF  = BIT(1),
-    ADJUSTMENT_TYPE_GOV   = BIT(2),
-    ADJUSTMENT_TYPE_MIX   = BIT(3),
-} adjustmentType_e;
-
-typedef struct {
-    timeMs_t deadTime;
-    timeMs_t trigTime;
-    int32_t  adjValue;
-    int32_t  chValue;
-} adjustmentState_t;
-
-typedef struct {
-    char *  cfgName;
-    uint8_t cfgType;
-    int16_t cfgMin;
-    int16_t cfgMax;
-} adjustmentConfig_t;
-
-typedef struct {
-    uint8_t function;
-    uint8_t enaChannel;
-    channelRange_t enaRange;
-    uint8_t adjChannel;
-    channelRange_t adjRange1;
-    channelRange_t adjRange2;
-    int16_t adjMin;
-    int16_t adjMax;
-    uint8_t adjStep;
-} adjustmentRange_t;
-
-
-#define MAX_ADJUSTMENT_RANGE_COUNT 32
-
-PG_DECLARE_ARRAY(adjustmentRange_t, MAX_ADJUSTMENT_RANGE_COUNT, adjustmentRanges);
 
 
 void adjustmentRangeInit(void);

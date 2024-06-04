@@ -51,8 +51,7 @@
 #include "osd/osd.h"
 
 #include "pg/rx.h"
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/adjustments.h"
 
 #include "rx/rx.h"
 
@@ -60,7 +59,29 @@
 
 #include "rc_adjustments.h"
 
-PG_REGISTER_ARRAY(adjustmentRange_t, MAX_ADJUSTMENT_RANGE_COUNT, adjustmentRanges, PG_ADJUSTMENT_RANGE_CONFIG, 3);
+
+typedef enum {
+    ADJUSTMENT_TYPE_NONE  = 0,
+    ADJUSTMENT_TYPE_RATE  = BIT(0),
+    ADJUSTMENT_TYPE_PROF  = BIT(1),
+    ADJUSTMENT_TYPE_GOV   = BIT(2),
+    ADJUSTMENT_TYPE_MIX   = BIT(3),
+} adjustmentType_e;
+
+typedef struct {
+    char *  cfgName;
+    uint    cfgType;
+    int     cfgMin;
+    int     cfgMax;
+} adjustmentConfig_t;
+
+typedef struct {
+    timeMs_t deadTime;
+    timeMs_t trigTime;
+    int      adjValue;
+    int      chValue;
+} adjustmentState_t;
+
 
 static adjustmentState_t adjustmentState[MAX_ADJUSTMENT_RANGE_COUNT];
 
