@@ -25,12 +25,13 @@
 
 #include "platform.h"
 
-#include "pg/pg.h"
+#include "pg/time.h"
 
 // time difference, 32 bits always sufficient
 typedef int32_t timeDelta_t;
 // millisecond time
-typedef uint32_t timeMs_t ;
+typedef uint32_t timeMs_t;
+
 // microsecond time
 #ifdef USE_64BIT_TIME
 typedef uint64_t timeUs_t;
@@ -40,8 +41,8 @@ typedef uint32_t timeUs_t;
 #define TIMEUS_MAX UINT32_MAX
 #endif
 
-#define TIMEZONE_OFFSET_MINUTES_MIN -780  // -13 hours
-#define TIMEZONE_OFFSET_MINUTES_MAX 780   // +13 hours
+#define TIMEZONE_OFFSET_MINUTES_MIN     -780   // -13 hours
+#define TIMEZONE_OFFSET_MINUTES_MAX      780   // +13 hours
 
 static inline timeDelta_t cmpTimeUs(timeUs_t a, timeUs_t b) { return (timeDelta_t)(a - b); }
 static inline int32_t cmpTimeCycles(uint32_t a, uint32_t b) { return (int32_t)(a - b); }
@@ -49,12 +50,6 @@ static inline int32_t cmpTimeCycles(uint32_t a, uint32_t b) { return (int32_t)(a
 #define FORMATTED_DATE_TIME_BUFSIZE 30
 
 #ifdef USE_RTC_TIME
-
-typedef struct timeConfig_s {
-    int16_t tz_offsetMinutes; // Offset from UTC in minutes, might be positive or negative
-} timeConfig_t;
-
-PG_DECLARE(timeConfig_t, timeConfig);
 
 // Milliseconds since Jan 1 1970
 typedef int64_t rtcTime_t;
@@ -101,4 +96,5 @@ bool rtcSetDateTime(dateTime_t *dt);
 
 void rtcPersistWrite(int16_t offsetMinutes);
 bool rtcPersistRead(rtcTime_t *t);
-#endif
+
+#endif /* USE_RTC_TIME */

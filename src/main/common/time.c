@@ -59,12 +59,6 @@ static const uint16_t days[4][12] =
     {1096,  1127,   1155,   1186,   1216,   1247,   1277,   1308,   1339,   1369,   1400,   1430},
 };
 
-PG_REGISTER_WITH_RESET_TEMPLATE(timeConfig_t, timeConfig, PG_TIME_CONFIG, 0);
-
-PG_RESET_TEMPLATE(timeConfig_t, timeConfig,
-    .tz_offsetMinutes = 0,
-);
-
 static rtcTime_t dateTimeToRtcTime(dateTime_t *dt)
 {
     unsigned int second = dt->seconds;  // 0-59
@@ -294,5 +288,5 @@ bool rtcPersistRead(rtcTime_t *t)
         return false;
     }
 }
-#endif
-#endif // USE_RTC_TIME
+#endif /* USE_PERSISTENT_OBJECTS */
+#endif /* USE_RTC_TIME */
