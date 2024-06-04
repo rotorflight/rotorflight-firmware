@@ -163,11 +163,13 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 };
 
 
-static int getAdjustmentValue(uint8_t adjFunc)
+static int getAdjustmentValue(adjustmentFunc_e adjFunc)
 {
     int value = 0;
 
     switch (adjFunc) {
+        case ADJUSTMENT_NONE:
+            break;
         case ADJUSTMENT_RATE_PROFILE:
             value = getCurrentControlRateProfileIndex() + 1;
             break;
@@ -367,14 +369,18 @@ static int getAdjustmentValue(uint8_t adjFunc)
         case ADJUSTMENT_ACC_TRIM_ROLL:
             value = accelerometerConfig()->accelerometerTrims.values.roll;
             break;
+        case ADJUSTMENT_FUNCTION_COUNT:
+            break;
     }
 
     return value;
 }
 
-static void setAdjustmentValue(uint8_t adjFunc, int value)
+static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
 {
     switch (adjFunc) {
+        case ADJUSTMENT_NONE:
+            break;
         case ADJUSTMENT_RATE_PROFILE:
             changeControlRateProfile(value - 1);
             break;
@@ -574,10 +580,12 @@ static void setAdjustmentValue(uint8_t adjFunc, int value)
         case ADJUSTMENT_ACC_TRIM_ROLL:
             accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
             break;
+        case ADJUSTMENT_FUNCTION_COUNT:
+            break;
     }
 }
 
-static void blackboxAdjustmentEvent(uint8_t adjFunc, int value)
+static void blackboxAdjustmentEvent(adjustmentFunc_e adjFunc, int value)
 {
 #ifndef USE_BLACKBOX
     UNUSED(adjFunc);
@@ -595,7 +603,7 @@ static void blackboxAdjustmentEvent(uint8_t adjFunc, int value)
 
 #define ADJUSTMENT_LATENCY_MS 3000
 
-static void updateAdjustmentData(uint8_t adjFunc, int value)
+static void updateAdjustmentData(adjustmentFunc_e adjFunc, int value)
 {
     const timeMs_t now = millis();
 
@@ -622,7 +630,7 @@ static void updateAdjustmentData(uint8_t adjFunc, int value)
 
 void processRcAdjustments(void)
 {
-    uint8_t changed = 0;
+    bitmap_t changed = 0;
 
     if (rxIsReceivingSignal())
     {

@@ -127,7 +127,7 @@ typedef enum {
     ADJUSTMENT_ACC_TRIM_ROLL            = 65,
 
     ADJUSTMENT_FUNCTION_COUNT
-} adjustmentFunction_e;
+} adjustmentFunc_e;
 
 typedef enum {
     ADJUSTMENT_TYPE_NONE  = 0,
