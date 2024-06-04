@@ -80,6 +80,7 @@
 #include "pg/sdcard.h"
 #include "pg/vtx_table.h"
 #include "pg/freq.h"
+#include "pg/system.h"
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -113,23 +114,6 @@ PG_RESET_TEMPLATE(pilotConfig_t, pilotConfig,
     .name = { 0 },
     .displayName = { 0 },
     .modelId = 0,
-);
-
-PG_REGISTER_WITH_RESET_TEMPLATE(systemConfig_t, systemConfig, PG_SYSTEM_CONFIG, 3);
-
-PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
-    .pidProfileIndex = 0,
-    .activeRateProfile = 0,
-    .debug_mode = DEBUG_MODE,
-    .debug_axis = 0,
-    .task_statistics = true,
-    .cpu_overclock = DEFAULT_CPU_OVERCLOCK,
-    .powerOnArmingGraceTime = 5,
-    .boardIdentifier = TARGET_BOARD_IDENTIFIER,
-    .hseMhz = SYSTEM_HSE_VALUE,  // Only used for F4 and G4 targets
-    .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
-    .enableStickArming = false,
-    .enableStickCommands = false,
 );
 
 bool isEepromWriteInProgress(void)

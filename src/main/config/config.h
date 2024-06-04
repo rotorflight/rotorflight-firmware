@@ -23,15 +23,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "pg/pg.h"
+#include "pg/system.h"
 
 #define MAX_NAME_LENGTH 16u
-
-typedef enum {
-    CONFIGURATION_STATE_DEFAULTS_BARE = 0,
-    CONFIGURATION_STATE_DEFAULTS_CUSTOM,
-    CONFIGURATION_STATE_CONFIGURED,
-} configurationState_e;
 
 typedef struct pilotConfig_s {
     char name[MAX_NAME_LENGTH + 1];
@@ -40,23 +34,6 @@ typedef struct pilotConfig_s {
 } pilotConfig_t;
 
 PG_DECLARE(pilotConfig_t, pilotConfig);
-
-typedef struct systemConfig_s {
-    uint8_t pidProfileIndex;
-    uint8_t activeRateProfile;
-    uint8_t debug_mode;
-    uint8_t debug_axis;
-    uint8_t task_statistics;
-    uint8_t cpu_overclock;
-    uint8_t powerOnArmingGraceTime; // in seconds
-    char boardIdentifier[sizeof(TARGET_BOARD_IDENTIFIER) + 1];
-    uint8_t hseMhz;                 // Only used for F4 and G4 targets
-    uint8_t configurationState;     // The state of the configuration (defaults / configured)
-    uint8_t enableStickArming; // boolean that determines whether stick arming can be used
-    uint8_t enableStickCommands; // boolean that determines whether stick commands can be used
-} systemConfig_t;
-
-PG_DECLARE(systemConfig_t, systemConfig);
 
 struct pidProfile_s;
 extern struct pidProfile_s *currentPidProfile;
