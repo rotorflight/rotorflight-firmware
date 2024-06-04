@@ -31,6 +31,9 @@
 
 #define CONST_CAST(type, value) ((type)(value))
 
+#define REINTERPRET_CAST(value,type) \
+  __extension__ ({ union { __typeof__(value) a; __typeof__(type) b; } X = { .a = (value) }; (X.b); })
+
 #define CONCAT_HELPER(x,y) x ## y
 #define CONCAT(x,y) CONCAT_HELPER(x, y)
 #define CONCAT2(_1,_2) CONCAT(_1, _2)
