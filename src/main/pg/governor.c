@@ -15,48 +15,33 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
-
 #include "platform.h"
+
+#include "config/config_reset.h"
+
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
 #include "pg/governor.h"
 
-#include "flight/pid.h"
 
-typedef enum {
-    GM_OFF = 0,
-    GM_PASSTHROUGH,
-    GM_STANDARD,
-    GM_MODE1,
-    GM_MODE2,
-} govMode_e;
+PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 0);
 
-typedef enum {
-    GS_THROTTLE_OFF,
-    GS_THROTTLE_IDLE,
-    GS_SPOOLING_UP,
-    GS_RECOVERY,
-    GS_ACTIVE,
-    GS_ZERO_THROTTLE,
-    GS_LOST_HEADSPEED,
-    GS_AUTOROTATION,
-    GS_AUTOROTATION_BAILOUT,
-} govState_e;
-
-
-void governorInit(const pidProfile_t *pidProfile);
-void governorInitProfile(const pidProfile_t *pidProfile);
-
-void governorUpdate(void);
-
-int getGovernorState(void);
-
-float getGovernorOutput(void);
-
-float getFullHeadSpeedRatio(void);
-float getSpoolUpRatio(void);
-
-float getTTAIncrease(void);
-
-bool isSpooledUp(void);
+PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
+    .gov_mode = 0,
+    .gov_startup_time = 200,
+    .gov_spoolup_time = 100,
+    .gov_tracking_time = 20,
+    .gov_recovery_time = 20,
+    .gov_zero_throttle_timeout = 30,
+    .gov_lost_headspeed_timeout = 10,
+    .gov_autorotation_timeout = 0,
+    .gov_autorotation_bailout_time = 0,
+    .gov_autorotation_min_entry_time = 50,
+    .gov_handover_throttle = 20,
+    .gov_pwr_filter = 5,
+    .gov_rpm_filter = 10,
+    .gov_tta_filter = 0,
+    .gov_ff_filter = 10,
+);
 

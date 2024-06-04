@@ -69,27 +69,6 @@
 #define GOV_NOMINAL_CELL_VOLTAGE        3.70f
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 0);
-
-PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
-    .gov_mode = GM_PASSTHROUGH,
-    .gov_startup_time = 200,
-    .gov_spoolup_time = 100,
-    .gov_tracking_time = 20,
-    .gov_recovery_time = 20,
-    .gov_zero_throttle_timeout = 30,
-    .gov_lost_headspeed_timeout = 10,
-    .gov_autorotation_timeout = 0,
-    .gov_autorotation_bailout_time = 0,
-    .gov_autorotation_min_entry_time = 50,
-    .gov_handover_throttle = 20,
-    .gov_pwr_filter = 5,
-    .gov_rpm_filter = 10,
-    .gov_tta_filter = 0,
-    .gov_ff_filter = 10,
-);
-
-
 //// Internal Data
 
 typedef struct {
