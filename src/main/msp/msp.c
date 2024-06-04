@@ -1577,7 +1577,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_TELEMETRY_CONFIG:
         sbufWriteU8(dst, telemetryConfig()->telemetry_inverted);
         sbufWriteU8(dst, telemetryConfig()->halfDuplex);
-        sbufWriteU32(dst, telemetryConfig()->enableSensors);
+        sbufWriteU32(dst, 0);
         break;
 
     case MSP_SERIAL_CONFIG:
@@ -3071,7 +3071,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_TELEMETRY_CONFIG:
         telemetryConfigMutable()->telemetry_inverted = sbufReadU8(src);
         telemetryConfigMutable()->halfDuplex = sbufReadU8(src);
-        telemetryConfigMutable()->enableSensors = sbufReadU32(src);
+        sbufReadU32(src);
         break;
 
     case MSP_SET_SERIAL_CONFIG:

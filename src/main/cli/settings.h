@@ -132,6 +132,7 @@ typedef enum {
     TABLE_CRSF_GPS_REUSE,
     TABLE_CRSF_GPS_SATS_REUSE,
     TABLE_DTERM_MODE,
+    TABLE_TELEM_MODE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;
