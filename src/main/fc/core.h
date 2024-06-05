@@ -42,8 +42,6 @@ typedef enum {
 #endif
 } flightLogDisarmReason_e;
 
-union rollAndPitchTrims_u;
-
 void resetArmingDisabled(void);
 
 void disarm(flightLogDisarmReason_e reason);

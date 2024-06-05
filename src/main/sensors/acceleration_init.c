@@ -88,15 +88,9 @@
 
 #define CALIBRATING_ACC_CYCLES              400
 
+
 FAST_DATA_ZERO_INIT accelerationRuntime_t accelerationRuntime;
 
-void resetRollAndPitchTrims(rollAndPitchTrims_t *rollAndPitchTrims)
-{
-    RESET_CONFIG_2(rollAndPitchTrims_t, rollAndPitchTrims,
-        .values.roll = 0,
-        .values.pitch = 0,
-    );
-}
 
 static void setConfigCalibrationCompleted(void)
 {
@@ -112,27 +106,6 @@ void accResetRollAndPitchTrims(void)
 {
     resetRollAndPitchTrims(&accelerometerConfigMutable()->accelerometerTrims);
 }
-
-static void resetFlightDynamicsTrims(flightDynamicsTrims_t *accZero)
-{
-    accZero->values.roll = 0;
-    accZero->values.pitch = 0;
-    accZero->values.yaw = 0;
-    accZero->values.calibrationCompleted = 0;
-}
-
-void pgResetFn_accelerometerConfig(accelerometerConfig_t *instance)
-{
-    RESET_CONFIG_2(accelerometerConfig_t, instance,
-        .acc_lpf_hz = 10,
-        .acc_hardware = ACC_DEFAULT,
-        .acc_high_fsr = false,
-    );
-    resetRollAndPitchTrims(&instance->accelerometerTrims);
-    resetFlightDynamicsTrims(&instance->accZero);
-}
-
-PG_REGISTER_WITH_RESET_FN(accelerometerConfig_t, accelerometerConfig, PG_ACCELEROMETER_CONFIG, 2);
 
 
 bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
