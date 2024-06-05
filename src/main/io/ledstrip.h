@@ -28,15 +28,7 @@
 #include "drivers/io_types.h"
 #include "drivers/light_ws2811strip.h"
 
-#include "pg/pg.h"
-
-#define LED_MAX_STRIP_LENGTH           32
-#define LED_CONFIGURABLE_COLOR_COUNT   16
-#define LED_MODE_COUNT                  4
-#define LED_DIRECTION_COUNT             6
-#define LED_BASEFUNCTION_COUNT          7
-#define LED_OVERLAY_COUNT               8
-#define LED_SPECIAL_COLOR_COUNT        11
+#include "pg/ledstrip.h"
 
 #define LED_POS_OFFSET                  0
 #define LED_FUNCTION_OFFSET             8
@@ -169,16 +161,6 @@ typedef enum {
     LED_PROFILE_COUNT
 } ledProfile_e;
 
-typedef struct modeColorIndexes_s {
-    uint8_t color[LED_DIRECTION_COUNT];
-} modeColorIndexes_t;
-
-typedef struct specialColorIndexes_s {
-    uint8_t color[LED_SPECIAL_COLOR_COUNT];
-} specialColorIndexes_t;
-
-typedef uint64_t ledConfig_t;
-
 typedef struct ledCounts_s {
     uint8_t count;
     uint8_t ring;
@@ -187,37 +169,6 @@ typedef struct ledCounts_s {
     uint8_t blinkPauses[LED_MAX_STRIP_LENGTH];
 } ledCounts_t;
 
-typedef struct ledStripConfig_s {
-    uint8_t ledstrip_visual_beeper;
-    ioTag_t ioTag;
-    ledStripFormatRGB_e ledstrip_grb_rgb;
-    ledProfile_e ledstrip_profile;
-    colorId_e ledstrip_race_color;
-    colorId_e ledstrip_beacon_color;
-    uint16_t ledstrip_beacon_period_ms;
-    uint8_t ledstrip_beacon_percent;
-    uint8_t ledstrip_beacon_armed_only;
-    colorId_e ledstrip_visual_beeper_color;
-    uint8_t ledstrip_brightness;
-    uint16_t ledstrip_blink_period_ms;
-    uint8_t ledstrip_flicker_rate;
-    uint8_t ledstrip_fade_rate;
-    uint32_t ledstrip_inverted_format;
-} ledStripConfig_t;
-
-PG_DECLARE(ledStripConfig_t, ledStripConfig);
-
-#if defined(USE_LED_STRIP_STATUS_MODE)
-typedef struct ledStripStatusModeConfig_s {
-    ledConfig_t ledConfigs[LED_MAX_STRIP_LENGTH];
-    hsvColor_t colors[LED_CONFIGURABLE_COLOR_COUNT];
-    modeColorIndexes_t modeColors[LED_MODE_COUNT];
-    specialColorIndexes_t specialColors;
-    uint8_t ledstrip_aux_channel;
-} ledStripStatusModeConfig_t;
-
-PG_DECLARE(ledStripStatusModeConfig_t, ledStripStatusModeConfig);
-#endif
 
 #define LF(name) LED_FUNCTION_ ## name
 #define LO(name) LED_FLAG_OVERLAY(LED_OVERLAY_ ## name)

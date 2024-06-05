@@ -116,8 +116,6 @@ const hsvColor_t hsv[] = {
 // macro to save typing on default colors
 #define HSV(color) (hsv[COLOR_ ## color])
 
-PG_REGISTER_WITH_RESET_FN(ledStripConfig_t, ledStripConfig, PG_LED_STRIP_CONFIG, 2);
-
 void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
 {
     ledStripConfig->ledstrip_visual_beeper = 0;
@@ -180,8 +178,6 @@ static const specialColorIndexes_t defaultSpecialColors[] = {
        [LED_SCOLOR_GPSLOCKED]       = COLOR_GREEN,
     }}
 };
-
-PG_REGISTER_WITH_RESET_FN(ledStripStatusModeConfig_t, ledStripStatusModeConfig, PG_LED_STRIP_STATUS_MODE_CONFIG, 0);
 
 void pgResetFn_ledStripStatusModeConfig(ledStripStatusModeConfig_t *ledStripStatusModeConfig)
 {
