@@ -23,15 +23,7 @@
 #include "common/axis.h"
 #include "common/maths.h"
 
-#include "pg/pg.h"
-
-typedef struct boardAlignment_s {
-    int32_t rollDegrees;
-    int32_t pitchDegrees;
-    int32_t yawDegrees;
-} boardAlignment_t;
-
-PG_DECLARE(boardAlignment_t, boardAlignment);
+#include "pg/boardalignment.h"
 
 void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* rotationMatrix);
 void alignSensorViaRotation(float *dest, uint8_t rotation);
