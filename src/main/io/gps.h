@@ -23,80 +23,11 @@
 #include "common/axis.h"
 #include "common/time.h"
 
-#include "pg/pg.h"
+#include "pg/gps.h"
 
 #define GPS_DEGREES_DIVIDER 10000000L
 #define GPS_X 1
 #define GPS_Y 0
-
-typedef enum {
-    GPS_LATITUDE,
-    GPS_LONGITUDE
-} gpsCoordinateType_e;
-
-typedef enum {
-    GPS_NMEA = 0,
-    GPS_UBLOX,
-    GPS_MSP
-} gpsProvider_e;
-
-typedef enum {
-    SBAS_AUTO = 0,
-    SBAS_EGNOS,
-    SBAS_WAAS,
-    SBAS_MSAS,
-    SBAS_GAGAN,
-    SBAS_NONE
-} sbasMode_e;
-
-#define SBAS_MODE_MAX SBAS_GAGAN
-
-typedef enum {
-    UBLOX_AIRBORNE = 0,
-    UBLOX_PEDESTRIAN,
-    UBLOX_DYNAMIC
-} ubloxMode_e;
-
-typedef enum {
-    GPS_BAUDRATE_115200 = 0,
-    GPS_BAUDRATE_57600,
-    GPS_BAUDRATE_38400,
-    GPS_BAUDRATE_19200,
-    GPS_BAUDRATE_9600
-} gpsBaudRate_e;
-
-typedef enum {
-    GPS_AUTOCONFIG_OFF = 0,
-    GPS_AUTOCONFIG_ON
-} gpsAutoConfig_e;
-
-typedef enum {
-    GPS_AUTOBAUD_OFF = 0,
-    GPS_AUTOBAUD_ON
-} gpsAutoBaud_e;
-
-typedef enum {
-    UBLOX_ACK_IDLE = 0,
-    UBLOX_ACK_WAITING,
-    UBLOX_ACK_GOT_ACK,
-    UBLOX_ACK_GOT_NACK
-} ubloxAckState_e;
-
-#define GPS_BAUDRATE_MAX GPS_BAUDRATE_9600
-
-typedef struct gpsConfig_s {
-    gpsProvider_e provider;
-    sbasMode_e sbasMode;
-    gpsAutoConfig_e autoConfig;
-    gpsAutoBaud_e autoBaud;
-    uint8_t gps_ublox_use_galileo;
-    ubloxMode_e gps_ublox_mode;
-    uint8_t gps_set_home_point_once;
-    uint8_t gps_use_3d_speed;
-    uint8_t sbas_integrity;
-} gpsConfig_t;
-
-PG_DECLARE(gpsConfig_t, gpsConfig);
 
 typedef struct gpsCoordinateDDDMMmmmm_s {
     int16_t dddmm;

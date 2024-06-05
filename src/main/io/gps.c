@@ -37,8 +37,6 @@
 #include "common/utils.h"
 
 #include "config/feature.h"
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
 
 #include "drivers/light_led.h"
 #include "drivers/time.h"
@@ -272,20 +270,6 @@ typedef enum {
 #define GPS_MAX_WAIT_DATA_RX 30
 
 gpsData_t gpsData;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(gpsConfig_t, gpsConfig, PG_GPS_CONFIG, 0);
-
-PG_RESET_TEMPLATE(gpsConfig_t, gpsConfig,
-    .provider = GPS_NMEA,
-    .sbasMode = SBAS_NONE,
-    .autoConfig = GPS_AUTOCONFIG_ON,
-    .autoBaud = GPS_AUTOBAUD_OFF,
-    .gps_ublox_use_galileo = false,
-    .gps_ublox_mode = UBLOX_AIRBORNE,
-    .gps_set_home_point_once = false,
-    .gps_use_3d_speed = false,
-    .sbas_integrity = false
-);
 
 static void shiftPacketLog(void)
 {
