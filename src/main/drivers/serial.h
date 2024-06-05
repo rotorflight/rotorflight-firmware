@@ -24,7 +24,7 @@
 #include "drivers/io_types.h"
 #include "drivers/resource.h"
 
-#include "pg/pg.h"
+#include "pg/serial_pinconfig.h"
 
 typedef enum {
     MODE_RX = 1 << 0,
@@ -87,24 +87,6 @@ typedef struct serialPort_s {
 
     uint8_t identifier;
 } serialPort_t;
-
-#if defined(USE_SOFTSERIAL1) || defined(USE_SOFTSERIAL2)
-# ifdef USE_SOFTSERIAL2
-#  define SERIAL_PORT_MAX_INDEX (RESOURCE_SOFT_OFFSET + 2)
-# else
-#  define SERIAL_PORT_MAX_INDEX (RESOURCE_SOFT_OFFSET + 1)
-# endif
-#else
-# define SERIAL_PORT_MAX_INDEX RESOURCE_SOFT_OFFSET
-#endif
-
-typedef struct serialPinConfig_s {
-    ioTag_t ioTagTx[SERIAL_PORT_MAX_INDEX];
-    ioTag_t ioTagRx[SERIAL_PORT_MAX_INDEX];
-    ioTag_t ioTagInverter[SERIAL_PORT_MAX_INDEX];
-} serialPinConfig_t;
-
-PG_DECLARE(serialPinConfig_t, serialPinConfig);
 
 struct serialPortVTable {
     void (*serialWrite)(serialPort_t *instance, uint8_t ch);

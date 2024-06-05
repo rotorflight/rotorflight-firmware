@@ -32,8 +32,6 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 
-#include "pg/pg_ids.h"
-
 // Backward compatibility for existing targets
 
 // Default pin (NONE).
@@ -235,8 +233,6 @@ static const serialDefaultPin_t serialDefaultPin[] = {
     { SERIAL_PORT_SOFTSERIAL2, IO_TAG(SOFTSERIAL2_RX_PIN), IO_TAG(SOFTSERIAL2_TX_PIN), IO_TAG(NONE) },
 #endif
 };
-
-PG_REGISTER_WITH_RESET_FN(serialPinConfig_t, serialPinConfig, PG_SERIAL_PIN_CONFIG, 0);
 
 void pgResetFn_serialPinConfig(serialPinConfig_t *serialPinConfig)
 {
