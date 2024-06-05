@@ -22,10 +22,6 @@
 #include "common/time.h"
 #include "current_ids.h"
 
-#ifndef CURRENT_TASK_FREQ_HZ
-#define CURRENT_TASK_FREQ_HZ        50
-#endif
-
 typedef enum {
     CURRENT_SENSOR_ADC_BAT = 0,
     MAX_CURRENT_SENSOR_ADC

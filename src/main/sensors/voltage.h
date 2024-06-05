@@ -24,10 +24,6 @@
 
 #include "voltage_ids.h"
 
-#ifndef VOLTAGE_TASK_FREQ_HZ
-#define VOLTAGE_TASK_FREQ_HZ 50
-#endif
-
 #define VOLTAGE_SCALE_MIN 0
 #define VOLTAGE_SCALE_MAX 65535
 

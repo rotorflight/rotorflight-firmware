@@ -39,8 +39,7 @@
 
 #include "io/beeper.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/battery.h"
 
 #include "scheduler/scheduler.h"
 
@@ -61,42 +60,8 @@
  *
  */
 
-#ifndef DEFAULT_CURRENT_METER_SOURCE
-#define DEFAULT_CURRENT_METER_SOURCE    CURRENT_METER_NONE
-#endif
-
-#ifndef DEFAULT_VOLTAGE_METER_SOURCE
-#define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_NONE
-#endif
-
 #define VBAT_STABLE_MAX_DELTA           200         // mV
 #define LVC_AFFECT_TIME                 10000000    // 10 secs for the LVC to slowly kick in
-
-
-PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 3);
-
-PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
-    .batteryCellCount = 0,
-    .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
-    .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
-    .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
-    .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
-    .vbatfullcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_FULL,
-    .vbatwarningcellvoltage = 350,
-    .vbatnotpresentcellvoltage = 300,
-    .vbathysteresis = 1,
-    .lvcPercentage = 100, // Off by default at 100%
-    .batteryCapacity = 0,
-    .consumptionWarningPercentage = 10,
-    .useVoltageAlerts = true,
-    .useConsumptionAlerts = false,
-    .vbatDurationForWarning = 0,
-    .vbatDurationForCritical = 0,
-    .vbatLpfPeriod = 30,
-    .ibatLpfPeriod = 10,
-    .vbatUpdateHz = VOLTAGE_TASK_FREQ_HZ,
-    .ibatUpdateHz = CURRENT_TASK_FREQ_HZ,
-);
 
 
 const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
