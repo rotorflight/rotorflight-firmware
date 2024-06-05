@@ -28,7 +28,6 @@
 #include "nvic.h"
 #include "pwm_output.h"
 #include "time.h"
-#include "pg/pg_ids.h"
 
 #define CAMERA_CONTROL_PWM_RESOLUTION   128
 #define CAMERA_CONTROL_SOFT_PWM_RESOLUTION 448
@@ -50,23 +49,6 @@
 #ifdef USE_OSD
 #include "osd/osd.h"
 #endif
-
-PG_REGISTER_WITH_RESET_FN(cameraControlConfig_t, cameraControlConfig, PG_CAMERA_CONTROL_CONFIG, 0);
-
-void pgResetFn_cameraControlConfig(cameraControlConfig_t *cameraControlConfig)
-{
-    cameraControlConfig->mode = CAMERA_CONTROL_MODE_HARDWARE_PWM;
-    cameraControlConfig->refVoltage = 330;
-    cameraControlConfig->keyDelayMs = 180;
-    cameraControlConfig->internalResistance = 470;
-    cameraControlConfig->ioTag = timerioTagGetByUsage(TIM_USE_CAMERA_CONTROL, 0);
-    cameraControlConfig->inverted = 0;   // Output is inverted externally
-    cameraControlConfig->buttonResistanceValues[CAMERA_CONTROL_KEY_ENTER] = 450;
-    cameraControlConfig->buttonResistanceValues[CAMERA_CONTROL_KEY_LEFT]  = 270;
-    cameraControlConfig->buttonResistanceValues[CAMERA_CONTROL_KEY_UP]    = 150;
-    cameraControlConfig->buttonResistanceValues[CAMERA_CONTROL_KEY_RIGHT] = 68;
-    cameraControlConfig->buttonResistanceValues[CAMERA_CONTROL_KEY_DOWN]  = 0;
-}
 
 static struct {
     bool enabled;
