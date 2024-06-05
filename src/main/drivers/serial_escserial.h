@@ -22,6 +22,8 @@
 
 #include "drivers/pwm_output.h"
 
+#include "pg/esc_serial.h"
+
 #define ESCSERIAL_BUFFER_SIZE 1024
 
 typedef enum {
@@ -42,8 +44,3 @@ typedef enum {
 struct motorDevConfig_s;
 bool escEnablePassthrough(serialPort_t *escPassthroughPort, const struct motorDevConfig_s *motorConfig, uint16_t escIndex, uint8_t mode);
 
-typedef struct escSerialConfig_s {
-    ioTag_t ioTag;
-} escSerialConfig_t;
-
-PG_DECLARE(escSerialConfig_t, escSerialConfig);
