@@ -32,47 +32,16 @@
 
 #include "drivers/adc.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
-
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/adcinternal.h"
+
+#include "pg/voltage.h"
 
 #include "voltage.h"
 
 
 /** Voltage Sensors **/
-
-#ifndef VOLTAGE_SCALE_DEFAULT
-#define VOLTAGE_SCALE_DEFAULT 110
-#endif
-
-#ifndef VOLTAGE_DIVIDER_DEFAULT
-#define VOLTAGE_DIVIDER_DEFAULT 10
-#endif
-
-#ifndef VOLTAGE_MULTIPLIER_DEFAULT
-#define VOLTAGE_MULTIPLIER_DEFAULT 1
-#endif
-
-#ifndef VOLTAGE_CUTOFF_DEFAULT
-#define VOLTAGE_CUTOFF_DEFAULT 25
-#endif
-
-PG_REGISTER_ARRAY_WITH_RESET_FN(voltageSensorADCConfig_t, MAX_VOLTAGE_SENSOR_ADC, voltageSensorADCConfig, PG_VOLTAGE_SENSOR_ADC_CONFIG, 0);
-
-void pgResetFn_voltageSensorADCConfig(voltageSensorADCConfig_t *instance)
-{
-    for (int i = 0; i < MAX_VOLTAGE_SENSOR_ADC; i++) {
-        RESET_CONFIG(voltageSensorADCConfig_t, &instance[i],
-            .scale = VOLTAGE_SCALE_DEFAULT,
-            .divider = VOLTAGE_DIVIDER_DEFAULT,
-            .divmul = VOLTAGE_MULTIPLIER_DEFAULT,
-            .cutoff = VOLTAGE_CUTOFF_DEFAULT,
-        );
-    }
-}
 
 
 /** Internal state **/

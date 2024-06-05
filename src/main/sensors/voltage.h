@@ -22,40 +22,10 @@
 
 #include "platform.h"
 
+#include "pg/voltage.h"
+
 #include "voltage_ids.h"
 
-#define VOLTAGE_SCALE_MIN 0
-#define VOLTAGE_SCALE_MAX 65535
-
-#define VOLTAGE_DIVIDER_MIN 1
-#define VOLTAGE_DIVIDER_MAX 65535
-
-#define VOLTAGE_MULTIPLIER_MIN 1
-#define VOLTAGE_MULTIPLIER_MAX 255
-
-typedef enum {
-    VOLTAGE_SENSOR_ADC_BAT = 0,
-    VOLTAGE_SENSOR_ADC_BEC = 1,
-    VOLTAGE_SENSOR_ADC_BUS = 2,
-    VOLTAGE_SENSOR_ADC_EXT = 3,
-    MAX_VOLTAGE_SENSOR_ADC
-} voltageSensorADC_e;
-
-typedef struct {
-    uint16_t scale;                     // adjust scale and divider to match voltage to measured value
-    uint16_t divider;
-    uint8_t divmul;                     // extra multiplier for divider (backwards compatibility)
-    uint8_t cutoff;                     // filter cutoff in Hz
-} voltageSensorADCConfig_t;
-
-PG_DECLARE_ARRAY(voltageSensorADCConfig_t, MAX_VOLTAGE_SENSOR_ADC, voltageSensorADCConfig);
-
-
-typedef enum {
-    VOLTAGE_SENSOR_TYPE_NONE = 0,
-    VOLTAGE_SENSOR_TYPE_ADC,
-    VOLTAGE_SENSOR_TYPE_ESC,
-} voltageSensorType_e;
 
 typedef struct voltageMeter_s {
     uint32_t sample;
