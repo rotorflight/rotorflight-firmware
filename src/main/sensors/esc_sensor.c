@@ -54,19 +54,6 @@
 #include "esc_sensor.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig, PG_ESC_SENSOR_CONFIG, 0);
-
-PG_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig,
-        .protocol = ESC_SENSOR_PROTO_NONE,
-        .halfDuplex = 0,
-        .update_hz = ESC_SENSOR_TASK_FREQ_HZ,
-        .current_offset = 0,
-        .hw4_current_offset = 0,
-        .hw4_current_gain = 0,
-        .hw4_voltage_gain = 0,
-);
-
-
 enum {
     DEBUG_ESC_1_RPM = 0,
     DEBUG_ESC_1_TEMP,

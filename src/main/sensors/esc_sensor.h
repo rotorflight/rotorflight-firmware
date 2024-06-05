@@ -24,36 +24,7 @@
 
 #include "common/time.h"
 
-#ifndef ESC_SENSOR_TASK_FREQ_HZ
-#define ESC_SENSOR_TASK_FREQ_HZ 50
-#endif
-
-enum {
-    ESC_SENSOR_PROTO_NONE = 0,
-    ESC_SENSOR_PROTO_BLHELI32,
-    ESC_SENSOR_PROTO_HW4,
-    ESC_SENSOR_PROTO_HW5,
-    ESC_SENSOR_PROTO_SCORPION,
-    ESC_SENSOR_PROTO_KONTRONIK,
-    ESC_SENSOR_PROTO_OMPHOBBY,
-    ESC_SENSOR_PROTO_ZTW,
-    ESC_SENSOR_PROTO_APD,
-    ESC_SENSOR_PROTO_OPENYGE,
-    ESC_SENSOR_PROTO_RECORD,
-};
-
-typedef struct escSensorConfig_s {
-    uint8_t protocol;               // ESC telemetry protocol
-    uint8_t halfDuplex;             // Set to false to listen on the TX pin for telemetry data
-    uint16_t update_hz;             // Update frequency
-    uint16_t current_offset;        // Offset (extra current) consumed by the VTX / cam (mA)
-    uint16_t hw4_current_offset;    // HobbyWing V4 raw current offset
-    uint8_t hw4_current_gain;       // HobbyWing V4 current gain
-    uint8_t hw4_voltage_gain;       // HobbyWing V4 voltage gain
-    uint8_t filter_cutoff;          // Frequency cutoff in Hz
-} escSensorConfig_t;
-
-PG_DECLARE(escSensorConfig_t, escSensorConfig);
+#include "pg/esc_sensor.h"
 
 typedef struct {
     uint8_t   age;              // Data age
