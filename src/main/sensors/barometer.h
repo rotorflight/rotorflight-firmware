@@ -20,35 +20,9 @@
 
 #pragma once
 
-#include "pg/pg.h"
-#include "drivers/barometer/barometer.h"
-
-typedef enum {
-    BARO_DEFAULT = 0,
-    BARO_NONE = 1,
-    BARO_BMP085 = 2,
-    BARO_MS5611 = 3,
-    BARO_BMP280 = 4,
-    BARO_LPS = 5,
-    BARO_QMP6988 = 6,
-    BARO_BMP388 = 7,
-    BARO_DPS310 = 8,
-} baroSensor_e;
+#include "pg/barometer.h"
 
 #define BARO_SAMPLE_COUNT_MAX   48
-
-typedef struct barometerConfig_s {
-    uint8_t baro_busType;
-    uint8_t baro_spi_device;
-    ioTag_t baro_spi_csn;                   // Also used as XCLR (positive logic) for BMP085
-    uint8_t baro_i2c_device;
-    uint8_t baro_i2c_address;
-    uint8_t baro_hardware;                  // Barometer hardware to use
-    ioTag_t baro_eoc_tag;
-    ioTag_t baro_xclr_tag;
-} barometerConfig_t;
-
-PG_DECLARE(barometerConfig_t, barometerConfig);
 
 typedef struct baro_s {
     baroDev_t dev;
