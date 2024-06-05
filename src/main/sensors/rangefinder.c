@@ -45,9 +45,6 @@
 
 #include "fc/runtime_config.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
-
 #include "scheduler/scheduler.h"
 
 #include "sensors/sensors.h"
@@ -68,21 +65,6 @@ rangefinder_t rangefinder;
 
 #define RANGEFINDER_DYNAMIC_THRESHOLD           600     //Used to determine max. usable rangefinder disatance
 #define RANGEFINDER_DYNAMIC_FACTOR              75
-
-PG_REGISTER_WITH_RESET_TEMPLATE(rangefinderConfig_t, rangefinderConfig, PG_RANGEFINDER_CONFIG, 0);
-
-PG_RESET_TEMPLATE(rangefinderConfig_t, rangefinderConfig,
-    .rangefinder_hardware = RANGEFINDER_NONE,
-);
-
-#ifdef USE_RANGEFINDER_HCSR04
-PG_REGISTER_WITH_RESET_TEMPLATE(sonarConfig_t, sonarConfig, PG_SONAR_CONFIG, 1);
-
-PG_RESET_TEMPLATE(sonarConfig_t, sonarConfig,
-    .triggerTag = IO_TAG(RANGEFINDER_HCSR04_TRIGGER_PIN),
-    .echoTag = IO_TAG(RANGEFINDER_HCSR04_ECHO_PIN),
-);
-#endif
 
 /*
  * Detect which rangefinder is present
