@@ -20,18 +20,9 @@
 
 #pragma once
 
-#include "pg/pg.h"
 #include "drivers/io_types.h"
 #include "common/utils.h"
-
-#define STATUS_LED_NUMBER 3
-
-typedef struct statusLedConfig_s {
-    ioTag_t ioTags[STATUS_LED_NUMBER];
-    uint8_t inversion;
-} statusLedConfig_t;
-
-PG_DECLARE(statusLedConfig_t, statusLedConfig);
+#include "pg/led.h"
 
 // Helpful macros
 #if defined(UNIT_TEST) || defined(USE_FAKE_LED)
