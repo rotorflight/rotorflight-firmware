@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "pg/pg.h"
+#include "pg/serial.h"
 #include "drivers/serial.h"
 
 typedef enum {
@@ -115,26 +115,6 @@ typedef struct serialPortUsage_s {
 
 serialPort_t *findSharedSerialPort(uint16_t functionMask, serialPortFunction_e sharedWithFunction);
 
-//
-// configuration
-//
-typedef struct serialPortConfig_s {
-    uint32_t functionMask;
-    int8_t identifier;
-    uint8_t msp_baudrateIndex;
-    uint8_t gps_baudrateIndex;
-    uint8_t blackbox_baudrateIndex;
-    uint8_t telemetry_baudrateIndex; // not used for all telemetry systems, e.g. HoTT only works at 19200.
-} serialPortConfig_t;
-
-typedef struct serialConfig_s {
-    serialPortConfig_t portConfigs[SERIAL_PORT_COUNT];
-    uint16_t serial_update_rate_hz;
-    uint8_t reboot_character;               // which byte is used to reboot. Default 'R', could be changed carefully to something else.
-} serialConfig_t;
-
-PG_DECLARE(serialConfig_t, serialConfig);
-
 typedef void serialConsumer(uint8_t);
 
 //
@@ -157,6 +137,7 @@ bool isSerialPortShared(const serialPortConfig_t *portConfig, uint16_t functionM
 void pgResetFn_serialConfig(serialConfig_t *serialConfig); //!!TODO remove need for this
 serialPortUsage_t *findSerialPortUsageByIdentifier(serialPortIdentifier_e identifier);
 int findSerialPortIndexByIdentifier(serialPortIdentifier_e identifier);
+
 //
 // runtime
 //
