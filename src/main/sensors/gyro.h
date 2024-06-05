@@ -35,19 +35,11 @@
 
 #include "flight/pid.h"
 
-#include "pg/pg.h"
+#include "pg/gyro.h"
 
 #define LPF_MAX_HZ                      1000
 #define DYN_LPF_MAX_HZ                  1000
 #define DYN_LPF_UPDATE_DELAY_US         5000
-
-#define GYRO_LPF1_TYPE_DEFAULT          LPF_1ST_ORDER
-#define GYRO_LPF1_HZ_DEFAULT            100
-#define GYRO_LPF1_DYN_MIN_HZ_DEFAULT    0
-#define GYRO_LPF1_DYN_MAX_HZ_DEFAULT    0
-
-#define GYRO_LPF2_TYPE_DEFAULT          LPF_NONE
-#define GYRO_LPF2_HZ_DEFAULT            50
 
 
 typedef enum gyroDetectionFlags_e {
@@ -127,50 +119,6 @@ typedef struct gyro_s {
 extern gyro_t gyro;
 extern uint8_t activePidLoopDenom;
 extern uint8_t activeFilterLoopDenom;
-
-enum {
-    GYRO_OVERFLOW_CHECK_NONE = 0,
-    GYRO_OVERFLOW_CHECK_YAW,
-    GYRO_OVERFLOW_CHECK_ALL_AXES
-};
-
-#define GYRO_CONFIG_USE_GYRO_1      0
-#define GYRO_CONFIG_USE_GYRO_2      1
-#define GYRO_CONFIG_USE_GYRO_BOTH   2
-
-typedef struct gyroConfig_s {
-    uint8_t gyroMovementCalibrationThreshold; // people keep forgetting that moving model while init results in wrong gyro offsets. and then they never reset gyro. so this is now on by default.
-    uint8_t gyro_hardware_lpf;                // gyro DLPF setting
-    uint8_t gyro_high_fsr;
-    uint8_t gyro_rate_sync;
-    uint8_t gyro_to_use;
-
-    uint16_t gyro_decimation_hz;
-
-    uint16_t gyro_lpf1_static_hz;
-    uint16_t gyro_lpf2_static_hz;
-
-    uint16_t gyro_soft_notch_hz_1;
-    uint16_t gyro_soft_notch_cutoff_1;
-    uint16_t gyro_soft_notch_hz_2;
-    uint16_t gyro_soft_notch_cutoff_2;
-    int16_t gyro_offset_yaw;
-    uint8_t checkOverflow;
-
-    // Lowpass primary/secondary
-    uint8_t gyro_lpf1_type;
-    uint8_t gyro_lpf2_type;
-
-    uint16_t gyroCalibrationDuration;   // Gyro calibration duration in 1/100 second
-
-    uint16_t gyro_lpf1_dyn_min_hz;
-    uint16_t gyro_lpf1_dyn_max_hz;
-
-    uint8_t gyrosDetected; // What gyros should detection be attempted for on startup. Automatically set on first startup.
-
-} gyroConfig_t;
-
-PG_DECLARE(gyroConfig_t, gyroConfig);
 
 void gyroUpdate(void);
 void gyroFiltering(timeUs_t currentTimeUs);

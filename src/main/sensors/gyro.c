@@ -88,35 +88,6 @@ STATIC_UNIT_TESTED gyroDev_t * const gyroDevPtr = &gyro.gyroSensor1.gyroDev;
 #define GYRO_OVERFLOW_TRIGGER_THRESHOLD 31980  // 97.5% full scale (1950dps for 2000dps gyro)
 #define GYRO_OVERFLOW_RESET_THRESHOLD 30340    // 92.5% full scale (1850dps for 2000dps gyro)
 
-PG_REGISTER_WITH_RESET_FN(gyroConfig_t, gyroConfig, PG_GYRO_CONFIG, 9);
-
-#ifndef GYRO_CONFIG_USE_GYRO_DEFAULT
-#define GYRO_CONFIG_USE_GYRO_DEFAULT GYRO_CONFIG_USE_GYRO_1
-#endif
-
-void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
-{
-    gyroConfig->gyroCalibrationDuration = 125;        // 1.25 seconds
-    gyroConfig->gyroMovementCalibrationThreshold = 48;
-    gyroConfig->gyro_hardware_lpf = GYRO_HARDWARE_LPF_NORMAL;
-    gyroConfig->gyro_decimation_hz = 250;
-    gyroConfig->gyro_lpf1_type = GYRO_LPF1_TYPE_DEFAULT;
-    gyroConfig->gyro_lpf1_static_hz = GYRO_LPF1_HZ_DEFAULT;
-    gyroConfig->gyro_lpf2_type = GYRO_LPF2_TYPE_DEFAULT;
-    gyroConfig->gyro_lpf2_static_hz = GYRO_LPF2_HZ_DEFAULT;
-    gyroConfig->gyro_lpf1_dyn_min_hz = GYRO_LPF1_DYN_MIN_HZ_DEFAULT;
-    gyroConfig->gyro_lpf1_dyn_max_hz = GYRO_LPF1_DYN_MAX_HZ_DEFAULT;
-    gyroConfig->gyro_high_fsr = false;
-    gyroConfig->gyro_rate_sync = true;
-    gyroConfig->gyro_to_use = GYRO_CONFIG_USE_GYRO_DEFAULT;
-    gyroConfig->gyro_soft_notch_hz_1 = 0;
-    gyroConfig->gyro_soft_notch_cutoff_1 = 0;
-    gyroConfig->gyro_soft_notch_hz_2 = 0;
-    gyroConfig->gyro_soft_notch_cutoff_2 = 0;
-    gyroConfig->checkOverflow = GYRO_OVERFLOW_CHECK_ALL_AXES;
-    gyroConfig->gyro_offset_yaw = 0;
-}
-
 static inline bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
 {
     return gyroSensor->calibration.cyclesRemaining == 0;
