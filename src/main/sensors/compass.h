@@ -20,46 +20,17 @@
 
 #pragma once
 
-#include "common/time.h"
-#include "common/sensor_alignment.h"
-#include "drivers/io_types.h"
-#include "drivers/sensor.h"
-#include "pg/pg.h"
-#include "sensors/sensors.h"
+#include "pg/compass.h"
 
+#include "common/axis.h"
+#include "drivers/time.h"
 
-// Type of magnetometer used/detected
-typedef enum {
-    MAG_DEFAULT = 0,
-    MAG_NONE = 1,
-    MAG_HMC5883 = 2,
-    MAG_AK8975 = 3,
-    MAG_AK8963 = 4,
-    MAG_QMC5883 = 5,
-    MAG_LIS3MDL = 6,
-    MAG_MPU925X_AK8963 = 7
-} magSensor_e;
 
 typedef struct mag_s {
     float magADC[XYZ_AXIS_COUNT];
 } mag_t;
 
 extern mag_t mag;
-
-typedef struct compassConfig_s {
-    uint8_t mag_alignment;                  // mag alignment
-    uint8_t mag_hardware;                   // Which mag hardware to use on boards with more than one device
-    uint8_t mag_busType;
-    uint8_t mag_i2c_device;
-    uint8_t mag_i2c_address;
-    uint8_t mag_spi_device;
-    ioTag_t mag_spi_csn;
-    ioTag_t interruptTag;
-    flightDynamicsTrims_t magZero;
-    sensorAlignment_t mag_customAlignment;
-} compassConfig_t;
-
-PG_DECLARE(compassConfig_t, compassConfig);
 
 bool compassIsHealthy(void);
 uint32_t compassUpdate(timeUs_t currentTime);
