@@ -19,28 +19,11 @@
 
 #include "platform.h"
 
+#include "pg/current.h"
+
 #include "common/time.h"
 #include "current_ids.h"
 
-typedef enum {
-    CURRENT_SENSOR_ADC_BAT = 0,
-    MAX_CURRENT_SENSOR_ADC
-} currentSensorADC_e;
-
-typedef struct {
-    int16_t scale;               // scale the current sensor output voltage to milliamps. Value in mV/10A
-    int16_t offset;              // offset of the current sensor in mA
-    uint8_t cutoff;              // filter cutoff frequency in Hz
-} currentSensorADCConfig_t;
-
-PG_DECLARE_ARRAY(currentSensorADCConfig_t, MAX_CURRENT_SENSOR_ADC, currentSensorADCConfig);
-
-
-typedef enum {
-    CURRENT_SENSOR_TYPE_NONE = 0,
-    CURRENT_SENSOR_TYPE_ADC,
-    CURRENT_SENSOR_TYPE_ESC,
-} currentSensorType_e;
 
 typedef struct {
     uint32_t sample;

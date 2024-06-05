@@ -34,42 +34,13 @@
 
 #include "drivers/adc.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/current.h"
 
 #include "sensors/adcinternal.h"
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
 
 #include "current.h"
-
-
-/** Current Sensors **/
-
-#ifndef CURRENT_METER_SCALE_DEFAULT
-#define CURRENT_METER_SCALE_DEFAULT 400
-#endif
-
-#ifndef CURRENT_METER_OFFSET_DEFAULT
-#define CURRENT_METER_OFFSET_DEFAULT 0
-#endif
-
-#ifndef CURRENT_METER_CUTOFF_DEFAULT
-#define CURRENT_METER_CUTOFF_DEFAULT 25
-#endif
-
-PG_REGISTER_ARRAY_WITH_RESET_FN(currentSensorADCConfig_t, MAX_CURRENT_SENSOR_ADC, currentSensorADCConfig, PG_CURRENT_SENSOR_ADC_CONFIG, 0);
-
-void pgResetFn_currentSensorADCConfig(currentSensorADCConfig_t *instance)
-{
-    for (int i = 0; i < MAX_CURRENT_SENSOR_ADC; i++) {
-        RESET_CONFIG(currentSensorADCConfig_t, &instance[i],
-            .scale = CURRENT_METER_SCALE_DEFAULT,
-            .offset = CURRENT_METER_OFFSET_DEFAULT,
-            .cutoff = CURRENT_METER_CUTOFF_DEFAULT,
-        );
-    }
-}
 
 
 /** Internal state **/
