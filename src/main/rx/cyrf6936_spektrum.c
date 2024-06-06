@@ -36,10 +36,6 @@
 #include "config/config.h"
 #include "config/feature.h"
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
-#include "pg/rx_spi.h"
-
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
 #include "rx/rx_spi_common.h"
@@ -188,9 +184,6 @@ typedef struct dsmReceiver_s {
 } dsmReceiver_t;
 
 STATIC_UNIT_TESTED dsmReceiver_t dsmReceiver;
-
-PG_REGISTER_WITH_RESET_TEMPLATE(spektrumConfig_t, spektrumConfig, PG_RX_SPEKTRUM_SPI_CONFIG, 0);
-PG_RESET_TEMPLATE(spektrumConfig_t, spektrumConfig, .protocol = 0, .mfgId = {0, 0, 0, 0}, .numChannels = 0);
 
 static void dsmGenerateDsmxChannels(void)
 {

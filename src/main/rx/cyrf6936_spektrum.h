@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "pg/rx_spektrum.h"
+
 #define DSM_BIND_TIMEOUT_US 11000
 #define DSM_SYNC_TIMEOUT_US 20000
 #define DSM_RECV_LONG_TIMEOUT_US 18500
@@ -39,14 +41,6 @@
 #define DSM_TELEMETRY_FRAME_RPM 0x7E
 #define DSM_TELEMETRY_TIMEOUT_US 1500
 #define DSM_TELEMETRY_TIME_US 176000
-
-typedef struct spektrumConfig_s {
-    uint8_t protocol;
-    uint8_t mfgId[4];
-    uint8_t numChannels;
-} spektrumConfig_t;
-
-PG_DECLARE(spektrumConfig_t, spektrumConfig);
 
 bool spektrumSpiInit(const struct rxSpiConfig_s *rxConfig, struct rxRuntimeState_s *rxRuntimeState, rxSpiExtiConfig_t *extiConfig);
 void spektrumSpiSetRcDataFromPayload(uint16_t *rcData, const uint8_t *payload);
