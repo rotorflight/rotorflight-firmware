@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include "pg/pg.h"
-
 #include "rx/rx_spi.h"
 
 #define MAX_MISSING_PKT 100
@@ -40,13 +38,6 @@
 #define STATE_BIND_TUNING2  12
 #define STATE_BIND_TUNING3  13
 #define STATE_BIND_COMPLETE 14
-
-typedef struct rxSfhssSpiConfig_s {
-    uint8_t bindTxId[2];
-    int8_t  bindOffset;
-} rxSfhssSpiConfig_t;
-
-PG_DECLARE(rxSfhssSpiConfig_t, rxSfhssSpiConfig);
 
 bool sfhssSpiInit(const rxSpiConfig_t *rxSpiConfig, rxRuntimeState_t *rxRuntimeState, rxSpiExtiConfig_t *extiConfig);
 rx_spi_received_e sfhssSpiDataReceived(uint8_t *packet);
