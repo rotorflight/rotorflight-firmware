@@ -25,7 +25,7 @@
 
 #include "drivers/display.h"
 
-#include "pg/pg.h"
+#include "pg/osd.h"
 
 #include "sensors/esc_sensor.h"
 
@@ -33,8 +33,6 @@
 extern const char * const osdTimerSourceNames[OSD_NUM_TIMER_TYPES];
 
 #define OSD_ELEMENT_BUFFER_LENGTH 32
-
-#define OSD_PROFILE_NAME_LENGTH 16
 
 #ifdef USE_OSD_PROFILES
 #define OSD_PROFILE_COUNT 3
@@ -160,8 +158,10 @@ typedef enum {
     OSD_TOTAL_FLIGHTS,
     OSD_UP_DOWN_REFERENCE,
     OSD_TX_UPLINK_POWER,
-    OSD_ITEM_COUNT // MUST BE LAST
+    OSD_ITEM_ENUM_COUNT // MUST BE LAST
 } osd_items_e;
+
+STATIC_ASSERT(OSD_ITEM_ENUM_COUNT == OSD_ITEM_COUNT, osd_item_enum_error);
 
 // *** IMPORTANT ***
 // Whenever new elements are added to 'osd_items_e', make sure to increment
@@ -208,8 +208,10 @@ STATIC_ASSERT(OSD_STAT_COUNT <= 32, osdstats_overflow);
 typedef enum {
     OSD_TIMER_1,
     OSD_TIMER_2,
-    OSD_TIMER_COUNT
+    OSD_TIMER_ENUM_COUNT
 } osd_timer_e;
+
+STATIC_ASSERT(OSD_TIMER_ENUM_COUNT == OSD_TIMER_COUNT, osd_timer_enum_error);
 
 typedef enum {
     OSD_TIMER_SRC_ON,
@@ -263,51 +265,6 @@ STATIC_ASSERT(OSD_WARNING_COUNT <= 32, osdwarnings_overflow);
 
 extern const uint16_t osdTimerDefault[OSD_TIMER_COUNT];
 extern const osd_stats_e osdStatsDisplayOrder[OSD_STAT_COUNT];
-
-typedef struct osdConfig_s {
-    // Alarms
-    uint16_t cap_alarm;
-    uint16_t alt_alarm;
-    uint8_t rssi_alarm;
-
-    uint8_t units;
-
-    uint16_t timers[OSD_TIMER_COUNT];
-    uint32_t enabledWarnings;
-
-    uint8_t ahMaxPitch;
-    uint8_t ahMaxRoll;
-    uint32_t enabled_stats;
-    int8_t esc_temp_alarm;
-    int16_t esc_rpm_alarm;
-    int16_t esc_current_alarm;
-    uint8_t core_temp_alarm;
-    uint8_t ahInvert;                         // invert the artificial horizon
-    uint8_t osdProfileIndex;
-    uint8_t overlay_radio_mode;
-    char profile[OSD_PROFILE_COUNT][OSD_PROFILE_NAME_LENGTH + 1];
-    uint16_t link_quality_alarm;
-    int16_t rssi_dbm_alarm;
-    uint8_t gps_sats_show_hdop;
-    int8_t rcChannels[OSD_RCCHANNELS_COUNT];  // RC channel values to display, -1 if none
-    uint8_t displayPortDevice;                // osdDisplayPortDevice_e
-    uint16_t distance_alarm;
-    uint8_t logo_on_arming;                   // show the logo on arming
-    uint8_t logo_on_arming_duration;          // display duration in 0.1s units
-    uint8_t camera_frame_width;               // The width of the box for the camera frame element
-    uint8_t camera_frame_height;              // The height of the box for the camera frame element
-    uint16_t framerate_hz;
-    uint8_t cms_background_type;              // For supporting devices, determines whether the CMS background is transparent or opaque
-    uint8_t stat_show_cell_value;
-} osdConfig_t;
-
-PG_DECLARE(osdConfig_t, osdConfig);
-
-typedef struct osdElementConfig_s {
-    uint16_t item_pos[OSD_ITEM_COUNT];
-} osdElementConfig_t;
-
-PG_DECLARE(osdElementConfig_t, osdElementConfig);
 
 typedef struct statistic_s {
     timeUs_t armed_time;
