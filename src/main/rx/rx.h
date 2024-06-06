@@ -22,7 +22,6 @@
 
 #include "common/time.h"
 
-#include "pg/pg.h"
 #include "pg/rx.h"
 
 #include "drivers/io_types.h"
@@ -55,6 +54,8 @@
 #define RXFAIL_STEP_TO_CHANNEL_VALUE(step)          (RXFAIL_PULSE_MIN + 5 * (step))
 #define CHANNEL_VALUE_TO_RXFAIL_STEP(value)         (constrain(((value) - RXFAIL_PULSE_MIN) / 5, 0, RXFAIL_RANGE_MAX))
 
+#define GET_FRAME_ERR_LPF_FREQUENCY(period) (1 / (period / 10.0f))
+#define FRAME_ERR_RESAMPLE_US 100000
 
 typedef enum {
     RX_FRAME_PENDING = 0,
@@ -84,7 +85,6 @@ typedef enum {
 
 #define MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT          12
 #define MAX_SUPPORTED_RC_PARALLEL_PWM_CHANNEL_COUNT  8
-#define MAX_SUPPORTED_RC_CHANNEL_COUNT              18
 
 #define CONTROL_CHANNEL_COUNT 5
 #define MAX_AUX_CHANNEL_COUNT (MAX_SUPPORTED_RC_CHANNEL_COUNT - CONTROL_CHANNEL_COUNT)
@@ -123,13 +123,6 @@ typedef enum {
 } rxFailsafeChannelType_e;
 
 #define RX_FAILSAFE_TYPE_COUNT 2
-
-typedef struct rxFailsafeChannelConfig_s {
-    uint8_t mode; // See rxFailsafeChannelMode_e
-    uint8_t step;
-} rxFailsafeChannelConfig_t;
-
-PG_DECLARE_ARRAY(rxFailsafeChannelConfig_t, MAX_SUPPORTED_RC_CHANNEL_COUNT, rxFailsafeChannelConfigs);
 
 struct rxRuntimeState_s;
 typedef float (*rcReadRawDataFnPtr)(const struct rxRuntimeState_s *rxRuntimeState, uint8_t chan); // used by receiver driver to return channel data

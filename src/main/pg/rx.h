@@ -24,8 +24,7 @@
 
 #include "pg/pg.h"
 
-#define GET_FRAME_ERR_LPF_FREQUENCY(period) (1 / (period / 10.0f))
-#define FRAME_ERR_RESAMPLE_US 100000
+#define MAX_SUPPORTED_RC_CHANNEL_COUNT              18
 
 typedef struct rxConfig_s {
     uint8_t rcmap[RX_MAPPABLE_CHANNEL_COUNT];  // mapping of radio channels to internal RPYTA+ order
@@ -66,3 +65,10 @@ typedef struct rcControlsConfig_s {
 } rcControlsConfig_t;
 
 PG_DECLARE(rcControlsConfig_t, rcControlsConfig);
+
+typedef struct rxFailsafeChannelConfig_s {
+    uint8_t mode;           // See rxFailsafeChannelMode_e
+    uint8_t step;
+} rxFailsafeChannelConfig_t;
+
+PG_DECLARE_ARRAY(rxFailsafeChannelConfig_t, MAX_SUPPORTED_RC_CHANNEL_COUNT, rxFailsafeChannelConfigs);

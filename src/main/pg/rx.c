@@ -22,8 +22,7 @@
 
 #if defined(USE_PWM) || defined(USE_PPM) || defined(USE_SERIAL_RX) || defined(USE_RX_MSP) || defined(USE_RX_SPI)
 
-#include "pg/pg.h"
-#include "pg/pg_ids.h"
+#include "pg/rx.h"
 #include "rx.h"
 
 #include "config/config_reset.h"
@@ -80,5 +79,9 @@ PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .rc_smoothness = 50,
     .rc_threshold = { 25, 25, 25, 50 },
 );
+
+extern void pgResetFn_rxFailsafeChannelConfigs(rxFailsafeChannelConfig_t *rxFailsafeChannelConfigs);
+
+PG_REGISTER_ARRAY_WITH_RESET_FN(rxFailsafeChannelConfig_t, MAX_SUPPORTED_RC_CHANNEL_COUNT, rxFailsafeChannelConfigs, PG_RX_FAILSAFE_CHANNEL_CONFIG, 0);
 
 #endif
