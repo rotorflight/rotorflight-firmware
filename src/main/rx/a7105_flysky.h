@@ -25,12 +25,7 @@
 
 #include "rx/rx_spi.h"
 
-typedef struct flySkyConfig_s {
-    uint32_t txId;
-    uint8_t rfChannelMap[16];
-} flySkyConfig_t;
-
-PG_DECLARE(flySkyConfig_t, flySkyConfig);
+#include "pg/rx_flysky.h"
 
 struct rxSpiConfig_s;
 struct rxRuntimeState_s;

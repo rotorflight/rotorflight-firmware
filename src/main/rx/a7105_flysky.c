@@ -59,9 +59,6 @@
 #error "FlySky AFHDS 2A protocol support 14 channel max"
 #endif
 
-PG_REGISTER_WITH_RESET_TEMPLATE(flySkyConfig_t, flySkyConfig, PG_FLYSKY_CONFIG, 1);
-PG_RESET_TEMPLATE(flySkyConfig_t, flySkyConfig, .txId = 0, .rfChannelMap = {0});
-
 static const uint8_t flySkyRegs[] = {
     0xff, 0x42, 0x00, 0x14, 0x00, 0xff, 0xff, 0x00,
     0x00, 0x00, 0x00, 0x03, 0x19, 0x05, 0x00, 0x50,
