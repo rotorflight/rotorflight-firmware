@@ -1746,6 +1746,14 @@ static bool pl5Decode(timeUs_t currentTimeUs)
     }
 }
 
+static bool pl5Crank(timeUs_t currentTimeUs)
+{
+    // Update consumption on each cycle vs each frame in decode
+    updateConsumption(currentTimeUs);
+
+    return true;
+}
+
 static int8_t pl5Accept(uint16_t c)
 {
     if (readBytes == 1) {
@@ -1797,6 +1805,7 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
     rrfsmMinFrameLength = PL5_MIN_FRAME_LENGTH;
     rrfsmAccept = pl5Accept;
     rrfsmDecode = pl5Decode;
+    rrfsmCrank = pl5Crank;
 
     paramSig = PL5_PARAM_SIG;
 
