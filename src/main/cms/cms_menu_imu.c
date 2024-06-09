@@ -886,15 +886,31 @@ static CMS_Menu cmsx_menuFilterPerProfile = {
 static uint8_t cmsx_dstPidProfile;
 static uint8_t cmsx_dstControlRateProfile;
 
-static const char * const cmsx_ProfileNames[] = {
+#if PID_PROFILE_COUNT >= CONTROL_RATE_PROFILE_COUNT
+#define PROFILE_COUNT PID_PROFILE_COUNT
+#else
+#define PROFILE_COUNT CONTROL_RATE_PROFILE_COUNT
+#endif
+
+static const char * const cmsx_ProfileNames[PROFILE_COUNT+1] = {
     "-",
     "1",
     "2",
     "3"
+#if PROFILE_COUNT >= 4
+    ,"4"
+#endif
+#if PROFILE_COUNT >= 5
+    ,"5"
+#endif
+#if PROFILE_COUNT >= 6
+    ,"6"
+#endif
+
 };
 
-static OSD_TAB_t cmsx_PidProfileTable = { &cmsx_dstPidProfile, 3, cmsx_ProfileNames };
-static OSD_TAB_t cmsx_ControlRateProfileTable = { &cmsx_dstControlRateProfile, 3, cmsx_ProfileNames };
+static OSD_TAB_t cmsx_PidProfileTable = { &cmsx_dstPidProfile, PID_PROFILE_COUNT, cmsx_ProfileNames };
+static OSD_TAB_t cmsx_ControlRateProfileTable = { &cmsx_dstControlRateProfile, CONTROL_RATE_PROFILE_COUNT, cmsx_ProfileNames };
 
 static const void *cmsx_menuCopyProfile_onEnter(displayPort_t *pDisp)
 {
