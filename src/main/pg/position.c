@@ -29,10 +29,10 @@ PG_REGISTER_WITH_RESET_TEMPLATE(positionConfig_t, positionConfig, PG_POSITION, 0
 
 PG_RESET_TEMPLATE(positionConfig_t, positionConfig,
     .alt_source = ALT_SOURCE_DEFAULT,
-    .baro_alt_lpf = 25,
+    .baro_alt_lpf = 100,
     .baro_offset_lpf = 5,
     .gps_alt_lpf = 25,
     .gps_offset_lpf = 5,
     .gps_min_sats = 12,
-    .vario_lpf = 25,
+    .vario_lpf = 50,
 );

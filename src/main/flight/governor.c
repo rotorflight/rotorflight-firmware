@@ -465,7 +465,13 @@ static void govUpdateData(void)
     if (mixerMotorizedTail() && gov.TTAGain != 0) {
         float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
         float TTA = filterApply(&gov.TTAFilter, YAW) * getSpoolUpRatio() * gov.TTAGain;
-        float headroom = 2 * fmaxf(gov.TTALimit - gov.fullHeadSpeedRatio, 0);
+        float headroom = 0;
+
+        if (gov.mode > GM_PASSTHROUGH)
+            headroom = 2 * fmaxf(1.0f + gov.TTALimit - gov.fullHeadSpeedRatio, 0);
+        else
+            headroom = gov.TTALimit;
+
         gov.TTAAdd = constrainf(TTA, 0, headroom);
 
         DEBUG(TTA, 0, YAW * 1000);
@@ -521,7 +527,7 @@ static void governorUpdatePassthrough(void)
             //  -- If NO throttle, move to THROTTLE_OFF
             //  -- if throttle > 20%, move to SPOOLUP
             case GS_THROTTLE_IDLE:
-                govMain = govPrev = slewLimit(govPrev, throttleInput, gov.throttleStartupRate);
+                govMain = govPrev = slewUpLimit(govPrev, throttleInput, gov.throttleStartupRate);
                 if (gov.throttleInputLow)
                     govChangeState(GS_THROTTLE_OFF);
                 else if (throttleInput > gov.maxIdleThrottle)
@@ -550,7 +556,7 @@ static void governorUpdatePassthrough(void)
                 govMain = govPrev + govPrev * gov.TTAAdd;
                 if (gov.throttleInputLow)
                     govChangeState(GS_ZERO_THROTTLE);
-                else if (govMain < gov.maxIdleThrottle) {
+                else if (throttleInput < gov.maxIdleThrottle) {
                     if (gov.autoEnabled && govStateTime() > gov.autoMinEntry)
                         govChangeState(GS_AUTOROTATION);
                     else
@@ -1009,7 +1015,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
         gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
-        gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f + 1.0f;
+        gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
 
         if (gov.mode >= GM_STANDARD)
             gov.TTAGain /= gov.K * gov.Kp;

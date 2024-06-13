@@ -238,6 +238,17 @@ uint16      Altitude ( meter ­1000m offset )
 uint8_t     Satellites in use ( counter )
 */
 
+static int getVoltageMeter(voltageMeterId_e id)
+{
+    voltageMeter_t meter;
+
+    voltageMeterRead(id, &meter);
+
+    // Use ratio 200 in EdgeTx 2.9.3 and 20 in earlier versions
+    // Max voltage 25.5V
+    return meter.voltage * 255 / 200;
+}
+
 static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
 {
     escSensorData_t *escData;
@@ -252,6 +263,27 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
         case CRSF_GPS_REUSE_ESC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->temperature : 0;
+        case CRSF_GPS_REUSE_ESC_PWM:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->pwm : 0;
+        case CRSF_GPS_REUSE_ESC_THROTTLE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->throttle : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_VOLTAGE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_voltage : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_CURRENT:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_current : 0;
+        case CRSF_GPS_REUSE_ESC_BEC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature2 : 0;
+        case CRSF_GPS_REUSE_ESC_STATUS:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status & 0xFFFF) : 0;
+        case CRSF_GPS_REUSE_ESC_STATUS2:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status >> 16) : 0;
         case CRSF_GPS_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 10;
         case CRSF_GPS_REUSE_MCU_LOAD:
@@ -260,6 +292,12 @@ static int16_t crsfGpsReuse(uint8_t reuse, int16_t value)
             return getAverageSystemLoad();
         case CRSF_GPS_REUSE_RT_LOAD:
             return getMaxRealTimeLoad();
+        case CRSF_GPS_REUSE_BEC_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BEC);
+        case CRSF_GPS_REUSE_BUS_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_BUS);
+        case CRSF_GPS_REUSE_MCU_VOLTAGE:
+            return getVoltageMeter(VOLTAGE_METER_ID_MCU);
     }
 
     return 0;
@@ -308,6 +346,8 @@ static int8_t crsfGpsSatsReuse(uint8_t reuse, int8_t value)
             return getCurrentPidProfileIndex() + 1;
         case CRSF_GPS_SATS_REUSE_RATE_PROFILE:
             return getCurrentControlRateProfileIndex() + 1;
+        case CRSF_GPS_SATS_REUSE_MODEL_ID:
+            return pilotConfig()->modelId;
         case CRSF_GPS_SATS_REUSE_LED_PROFILE:
 #ifdef USE_LED_STRIP
             return getLedProfile() + 1;
@@ -417,17 +457,6 @@ static int16_t decidegrees2Radians10000(int16_t angle_decidegree)
     return (int16_t)(RAD * 1000.0f * angle_decidegree);
 }
 
-static int getVoltageMeter(voltageMeterId_e id)
-{
-    voltageMeter_t meter;
-
-    voltageMeterRead(id, &meter);
-
-    // Use ratio 200 in EdgeTx 2.9.3 and 20 in earlier versions
-    // Max voltage 25.5V
-    return meter.voltage * 255 / 200;
-}
-
 static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
 {
     escSensorData_t *escData;
@@ -440,6 +469,24 @@ static int16_t crsfAttitudeReuse(uint8_t reuse, int attitude)
         case CRSF_ATT_REUSE_ESC_TEMP:
             escData = getEscSensorData(ESC_SENSOR_COMBINED);
             return (escData) ? escData->temperature * 10 : 0;
+        case CRSF_ATT_REUSE_ESC_PWM:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->pwm : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_VOLTAGE:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_voltage : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_CURRENT:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->bec_current : 0;
+        case CRSF_ATT_REUSE_ESC_BEC_TEMP:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? escData->temperature2 * 10 : 0;
+        case CRSF_ATT_REUSE_ESC_STATUS:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status & 0xFFFF) : 0;
+        case CRSF_ATT_REUSE_ESC_STATUS2:
+            escData = getEscSensorData(ESC_SENSOR_COMBINED);
+            return (escData) ? (escData->status >> 16) : 0;
         case CRSF_ATT_REUSE_MCU_TEMP:
             return getCoreTemperatureCelsius() * 100;
         case CRSF_ATT_REUSE_MCU_LOAD:
