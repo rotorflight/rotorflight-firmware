@@ -1489,15 +1489,30 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentControlRateProfile->accel_limit[PITCH],
                                                                             currentControlRateProfile->accel_limit[YAW]);
 
-        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d",                   currentPidProfile->pid[PID_ROLL].P,
+        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d,%d,%d,%d",          currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
-                                                                            currentPidProfile->pid[PID_ROLL].D);
-        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d",                  currentPidProfile->pid[PID_PITCH].P,
+                                                                            currentPidProfile->pid[PID_ROLL].D,
+                                                                            currentPidProfile->pid[PID_ROLL].F,
+                                                                            currentPidProfile->pid[PID_ROLL].B,
+                                                                            currentPidProfile->pid[PID_ROLL].O);
+        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d,%d,%d,%d",         currentPidProfile->pid[PID_PITCH].P,
                                                                             currentPidProfile->pid[PID_PITCH].I,
-                                                                            currentPidProfile->pid[PID_PITCH].D);
-        BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d",                    currentPidProfile->pid[PID_YAW].P,
+                                                                            currentPidProfile->pid[PID_PITCH].D,
+                                                                            currentPidProfile->pid[PID_PITCH].F,
+                                                                            currentPidProfile->pid[PID_PITCH].B,
+                                                                            currentPidProfile->pid[PID_PITCH].O);
+        BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d,%d,%d",              currentPidProfile->pid[PID_YAW].P,
                                                                             currentPidProfile->pid[PID_YAW].I,
-                                                                            currentPidProfile->pid[PID_YAW].D);
+                                                                            currentPidProfile->pid[PID_YAW].D,
+                                                                            currentPidProfile->pid[PID_YAW].F,
+                                                                            currentPidProfile->pid[PID_YAW].B);
+        BLACKBOX_PRINT_HEADER_LINE("levelPID", "%d,%d,%d,%d",               currentPidProfile->angle.level_strength,
+                                                                            currentPidProfile->angle.level_limit,
+                                                                            currentPidProfile->horizon.level_strength,
+                                                                            currentPidProfile->horizon.transition);
+        BLACKBOX_PRINT_HEADER_LINE("govPID", "%d,%d,%d",                    currentPidProfile->governor.p_gain,
+                                                                            currentPidProfile->governor.i_gain,
+                                                                            currentPidProfile->governor.d_gain);
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);
@@ -1582,6 +1597,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_MOTOR_PWM_RATE, "%d",         motorConfig()->dev.motorPwmRate);
         BLACKBOX_PRINT_HEADER_LINE("minthrottle", "%d",                     motorConfig()->minthrottle);
         BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
+        BLACKBOX_PRINT_HEADER_LINE("collectiveRange", "%d,%d",              mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->min,
+                                                                            mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->max);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_MODE, "%d",             debugMode);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_AXIS, "%d",             debugAxis);
         BLACKBOX_PRINT_HEADER_LINE("fields_mask", "%d",                     blackboxConfig()->fields);
