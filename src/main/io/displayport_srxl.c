@@ -69,8 +69,8 @@ static int srxlWriteString(displayPort_t *displayPort, uint8_t col, uint8_t row,
 static int srxlClearScreen(displayPort_t *displayPort, displayClearOption_e options)
 {
     UNUSED(options);
-    for (int row = 0; row < SPEKTRUM_SRXL_TEXTGEN_BUFFER_ROWS; row++) {
-        for (int col= 0; col < SPEKTRUM_SRXL_TEXTGEN_BUFFER_COLS; col++) {
+    for (int row = 0; row < SPEKTRUM_SRXL_TEXTGEN_ROWS; row++) {
+        for (int col= 0; col < SPEKTRUM_SRXL_TEXTGEN_COLS; col++) {
             srxlWriteChar(displayPort, col, row, DISPLAYPORT_ATTR_NONE, ' ');
         }
     }
@@ -147,8 +147,8 @@ static displayPort_t *displayPortSrxlInit()
 {
     srxlDisplayPort.device = NULL;
     displayInit(&srxlDisplayPort, &srxlVTable, DISPLAYPORT_DEVICE_TYPE_SRXL);
-    srxlDisplayPort.rows = SPEKTRUM_SRXL_TEXTGEN_BUFFER_ROWS;
-    srxlDisplayPort.cols = SPEKTRUM_SRXL_TEXTGEN_BUFFER_COLS;
+    srxlDisplayPort.rows = SPEKTRUM_SRXL_TEXTGEN_ROWS;
+    srxlDisplayPort.cols = SPEKTRUM_SRXL_TEXTGEN_COLS;
 
     return &srxlDisplayPort;
 }

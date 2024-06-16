@@ -460,8 +460,6 @@ bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
 // Betaflight CMS using Spektrum Tx telemetry TEXT_GEN sensor as display.
 
 #define SPEKTRUM_SRXL_DEVICE_TEXTGEN (0x0C)     // Text Generator
-#define SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS (9)   // Text Generator ROWS
-#define SPEKTRUM_SRXL_DEVICE_TEXTGEN_COLS (13)  // Text Generator COLS
 
 /*
 typedef struct
@@ -473,19 +471,14 @@ typedef struct
 } STRU_SPEKTRUM_SRXL_TEXTGEN;
 */
 
-#if ( SPEKTRUM_SRXL_TEXTGEN_BUFFER_COLS > SPEKTRUM_SRXL_DEVICE_TEXTGEN_COLS )
-static char srxlTextBuff[SPEKTRUM_SRXL_TEXTGEN_BUFFER_ROWS][SPEKTRUM_SRXL_TEXTGEN_BUFFER_COLS];
-static bool lineSent[SPEKTRUM_SRXL_TEXTGEN_BUFFER_ROWS];
-#else
-static char srxlTextBuff[SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS][SPEKTRUM_SRXL_DEVICE_TEXTGEN_COLS];
-static bool lineSent[SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS];
-#endif
+static char srxlTextBuff[SPEKTRUM_SRXL_TEXTGEN_ROWS][SPEKTRUM_SRXL_TEXTGEN_COLS];
+static bool lineSent[SPEKTRUM_SRXL_TEXTGEN_ROWS];
 
 //**************************************************************************
 // API Running in external client task context. E.g. in the CMS task
 int spektrumTmTextGenPutChar(uint8_t col, uint8_t row, char c)
 {
-    if (row < SPEKTRUM_SRXL_TEXTGEN_BUFFER_ROWS && col < SPEKTRUM_SRXL_TEXTGEN_BUFFER_COLS) {
+    if (row < SPEKTRUM_SRXL_TEXTGEN_ROWS && col < SPEKTRUM_SRXL_TEXTGEN_COLS) {
       // Only update and force a tm transmision if something has actually changed.
         if (srxlTextBuff[row][col] != c) {
           srxlTextBuff[row][col] = c;
@@ -508,18 +501,18 @@ bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
 
     // Skip already sent lines...
     while (lineSent[lineNo] &&
-           lineCount < SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS) {
-        lineNo = (lineNo + 1) % SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS;
+           lineCount < SPEKTRUM_SRXL_TEXTGEN_ROWS) {
+        lineNo = (lineNo + 1) % SPEKTRUM_SRXL_TEXTGEN_ROWS;
         lineCount++;
     }
 
     sbufWriteU8(dst, SPEKTRUM_SRXL_DEVICE_TEXTGEN);
     sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
     sbufWriteU8(dst, lineNo);
-    sbufWriteData(dst, srxlTextBuff[lineNo], SPEKTRUM_SRXL_DEVICE_TEXTGEN_COLS);
+    sbufWriteData(dst, srxlTextBuff[lineNo], SPEKTRUM_SRXL_TEXTGEN_COLS);
 
     lineSent[lineNo] = true;
-    lineNo = (lineNo + 1) % SPEKTRUM_SRXL_DEVICE_TEXTGEN_ROWS;
+    lineNo = (lineNo + 1) % SPEKTRUM_SRXL_TEXTGEN_ROWS;
 
     return true;
 }
