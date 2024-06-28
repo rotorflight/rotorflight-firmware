@@ -886,27 +886,14 @@ static CMS_Menu cmsx_menuFilterPerProfile = {
 static uint8_t cmsx_dstPidProfile;
 static uint8_t cmsx_dstControlRateProfile;
 
-#if PID_PROFILE_COUNT >= CONTROL_RATE_PROFILE_COUNT
-#define PROFILE_COUNT PID_PROFILE_COUNT
-#else
-#define PROFILE_COUNT CONTROL_RATE_PROFILE_COUNT
-#endif
-
-static const char * const cmsx_ProfileNames[PROFILE_COUNT+1] = {
+static const char * const cmsx_ProfileNames[] = {
     "-",
     "1",
     "2",
-    "3"
-#if PROFILE_COUNT >= 4
-    ,"4"
-#endif
-#if PROFILE_COUNT >= 5
-    ,"5"
-#endif
-#if PROFILE_COUNT >= 6
-    ,"6"
-#endif
-
+    "3",
+    "4",
+    "5",
+    "6"
 };
 
 static OSD_TAB_t cmsx_PidProfileTable = { &cmsx_dstPidProfile, PID_PROFILE_COUNT, cmsx_ProfileNames };
