@@ -890,11 +890,14 @@ static const char * const cmsx_ProfileNames[] = {
     "-",
     "1",
     "2",
-    "3"
+    "3",
+    "4",
+    "5",
+    "6"
 };
 
-static OSD_TAB_t cmsx_PidProfileTable = { &cmsx_dstPidProfile, 3, cmsx_ProfileNames };
-static OSD_TAB_t cmsx_ControlRateProfileTable = { &cmsx_dstControlRateProfile, 3, cmsx_ProfileNames };
+static OSD_TAB_t cmsx_PidProfileTable = { &cmsx_dstPidProfile, PID_PROFILE_COUNT, cmsx_ProfileNames };
+static OSD_TAB_t cmsx_ControlRateProfileTable = { &cmsx_dstControlRateProfile, CONTROL_RATE_PROFILE_COUNT, cmsx_ProfileNames };
 
 static const void *cmsx_menuCopyProfile_onEnter(displayPort_t *pDisp)
 {
