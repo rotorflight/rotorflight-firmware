@@ -3,6 +3,7 @@ COMMON_SRC = \
             build/build_config.c \
             build/debug.c \
             build/debug_pin.c \
+            build/dprintf.c \
             build/version.c \
             $(TARGET_DIR_SRC) \
             $(addprefix pg/, $(notdir $(wildcard $(SRC_DIR)/pg/*.c))) \
