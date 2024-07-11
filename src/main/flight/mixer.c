@@ -42,6 +42,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/governor.h"
+#include "flight/wiggle.h"
 
 #include "rx/rx.h"
 
@@ -193,10 +194,15 @@ static inline void mixerApplyInputLimit(int index, float value)
 
 static void mixerSetInput(int index, float value)
 {
-    // Set override only if not armed
+    // Use override or wiggle only if not armed
     if (!ARMING_FLAG(ARMED)) {
-        if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX)
+        if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX) {
             value = mixer.override[index] / 1000.0f;
+        }
+        else if (wiggleActive()) {
+            if (index >= MIXER_IN_STABILIZED_ROLL && index <= MIXER_IN_STABILIZED_COLLECTIVE)
+                value = wiggleGetAxis(index - MIXER_IN_STABILIZED_ROLL);
+        }
     }
 
     mixerApplyInputLimit(index, value);
@@ -486,7 +492,7 @@ static void mixerUpdateInputs(void)
 #endif
 }
 
-void mixerUpdate(void)
+void mixerUpdate(timeUs_t currentTimeUs)
 {
     // Reset saturation
     for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
@@ -498,6 +504,9 @@ void mixerUpdate(void)
     for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
         mixer.output[i] = 0;
     }
+
+    // Update wiggles
+    wiggleUpdate(currentTimeUs);
 
     // Fetch input values
     mixerUpdateInputs();
@@ -666,4 +675,6 @@ void INIT_CODE mixerInit(void)
     }
 
     mixerInitConfig();
+
+    wiggleInit();
 }

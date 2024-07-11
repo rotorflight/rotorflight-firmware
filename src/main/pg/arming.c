@@ -26,6 +26,9 @@ PG_REGISTER_WITH_RESET_TEMPLATE(armingConfig_t, armingConfig, PG_ARMING_CONFIG, 
 
 PG_RESET_TEMPLATE(armingConfig_t, armingConfig,
     .gyro_cal_on_first_arm = 0,
-    .auto_disarm_delay = 5
+    .auto_disarm_delay = 5,
+    .wiggle_frequency = 10,
+    .wiggle_strength = 50,
+    .wiggle_flags = BIT(WIGGLE_READY) | BIT(WIGGLE_ERROR) | BIT(WIGGLE_FATAL),
 );
 

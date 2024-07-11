@@ -17,30 +17,14 @@
 
 #pragma once
 
-#include "types.h"
 #include "platform.h"
 
-#include "pg/pg.h"
 
+bool wiggleActive(void);
+bool wiggleEnabled(int wiggle);
 
-enum {
-    WIGGLE_OFF = 0,
-    WIGGLE_READY,
-    WIGGLE_ARMED,
-    WIGGLE_ERROR,
-    WIGGLE_FATAL,
-};
+float wiggleGetAxis(int axis);
+void wiggleTrigger(int wiggle, int parmam);
 
-typedef struct
-{
-    uint8_t   gyro_cal_on_first_arm;        // allow disarm/arm on throttle down + roll left/right
-    uint8_t   auto_disarm_delay;            // allow automatically disarming multicopters after auto_disarm_delay seconds of zero throttle. Disabled when 0
-
-    uint8_t   wiggle_frequency;             // Swashplate indication frequency
-    uint8_t   wiggle_strength;              // Swashplate indication amplitude
-    uint32_t  wiggle_flags;                 // Wiggle enable flags
-
-} armingConfig_t;
-
-PG_DECLARE(armingConfig_t, armingConfig);
-
+void wiggleUpdate(timeUs_t wiggleUpdate);
+void wiggleInit(void);

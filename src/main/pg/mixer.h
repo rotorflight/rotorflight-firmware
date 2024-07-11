@@ -84,7 +84,6 @@ enum {
     DIR_CCW,
 };
 
-
 #define MIXER_RULE_COUNT      32
 #define MIXER_INPUT_COUNT     MIXER_IN_COUNT
 

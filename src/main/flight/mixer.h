@@ -61,7 +61,7 @@ void mixerInitConfig(void);
 
 void validateAndFixMixerConfig(void);
 
-void mixerUpdate(void);
+void mixerUpdate(timeUs_t currentTimeUs);
 
 float mixerGetInput(uint8_t index);
 float mixerGetInputHistory(uint8_t index, uint16_t delay);

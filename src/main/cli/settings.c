@@ -968,6 +968,13 @@ const clivalue_t valueTable[] = {
 // PG_ARMING_CONFIG
     { "auto_disarm_delay",          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, auto_disarm_delay) },
     { PARAM_NAME_GYRO_CAL_ON_FIRST_ARM, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, gyro_cal_on_first_arm) },
+    { "wiggle_strength",            VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_strength) },
+    { "wiggle_frequency",           VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 2, 50 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_frequency) },
+    { "wiggle_enable_ready",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_READY, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
+    { "wiggle_enable_armed",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_ARMED, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
+    { "wiggle_enable_error",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_ERROR, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
+    { "wiggle_enable_fatal",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_FATAL, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
+
 
 // PG_GPS_CONFIG
 #ifdef USE_GPS
