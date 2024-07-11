@@ -34,9 +34,6 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .task_statistics = true,
     .cpu_overclock = DEFAULT_CPU_OVERCLOCK,
     .hseMhz = SYSTEM_HSE_VALUE,
-    .powerOnArmingGraceTime = 3,
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
-    .enableStickArming = false,
-    .enableStickCommands = false,
 );
 

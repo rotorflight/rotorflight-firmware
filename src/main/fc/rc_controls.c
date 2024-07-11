@@ -371,6 +371,6 @@ void processRcStickPositions()
 void rcControlsInit(void)
 {
     analyzeModeActivationConditions();
-    isUsingStickArming = !isModeActivationConditionPresent(BOXARM) && systemConfig()->enableStickArming;
-    isUsingStickCommands = systemConfig()->enableStickCommands;
+    isUsingStickArming = !isModeActivationConditionPresent(BOXARM) && armingConfig()->enable_stick_arming;
+    isUsingStickCommands = armingConfig()->enable_stick_commands;
 }

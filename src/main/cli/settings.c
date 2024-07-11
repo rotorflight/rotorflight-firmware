@@ -967,14 +967,16 @@ const clivalue_t valueTable[] = {
 
 // PG_ARMING_CONFIG
     { "auto_disarm_delay",          VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, auto_disarm_delay) },
-    { PARAM_NAME_GYRO_CAL_ON_FIRST_ARM, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, gyro_cal_on_first_arm) },
+    { "gyro_cal_on_first_arm",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, gyro_cal_on_first_arm) },
+    { "pwr_on_arm_grace",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, power_on_arming_grace_time) },
+    { "enable_stick_arming",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, enable_stick_arming) },
+    { "enable_stick_commands",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ARMING_CONFIG, offsetof(armingConfig_t, enable_stick_commands) },
     { "wiggle_strength",            VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_strength) },
     { "wiggle_frequency",           VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 2, 50 }, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_frequency) },
     { "wiggle_enable_ready",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_READY, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
     { "wiggle_enable_armed",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_ARMED, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
     { "wiggle_enable_error",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_ERROR, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
     { "wiggle_enable_fatal",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = WIGGLE_FATAL, PG_ARMING_CONFIG, offsetof(armingConfig_t, wiggle_flags) },
-
 
 // PG_GPS_CONFIG
 #ifdef USE_GPS
@@ -1466,9 +1468,6 @@ const clivalue_t valueTable[] = {
 #ifdef USE_OVERCLOCK
     { "cpu_overclock",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OVERCLOCK }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, cpu_overclock) },
 #endif
-    { "pwr_on_arm_grace",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30 }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, powerOnArmingGraceTime) },
-    { "enable_stick_arming",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, enableStickArming) },
-    { "enable_stick_commands",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, enableStickCommands) },
 
 // PG_VTX_CONFIG
 #ifdef USE_VTX_COMMON

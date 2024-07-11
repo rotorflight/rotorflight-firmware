@@ -42,7 +42,6 @@
 #define PARAM_NAME_MOTOR_PWM_RATE "motor_pwm_rate"
 #define PARAM_NAME_MOTOR_POLES "motor_poles"
 #define PARAM_NAME_RATES_TYPE "rates_type"
-#define PARAM_NAME_GYRO_CAL_ON_FIRST_ARM "gyro_cal_on_first_arm"
 #define PARAM_NAME_PID_PROCESS_DENOM "pid_process_denom"
 #define PARAM_NAME_FILTER_PROCESS_DENOM "filter_process_denom"
 #define PARAM_NAME_PID_AT_MIN_THROTTLE "pid_at_min_throttle"

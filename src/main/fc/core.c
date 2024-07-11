@@ -236,7 +236,7 @@ void updateArmingStatus(void)
     {
         // Check if the power on arming grace time has elapsed
         if ((getArmingDisableFlags() & ARMING_DISABLED_BOOT_GRACE_TIME)
-            && (millis() >= systemConfig()->powerOnArmingGraceTime * 1000)
+            && (millis() >= armingConfig()->power_on_arming_grace_time * 1000)
 #ifdef USE_DSHOT
             // We also need to prevent arming until it's possible to send DSHOT commands.
             && (!isMotorProtocolDshot() || dshotStreamingCommandsAreEnabled())
