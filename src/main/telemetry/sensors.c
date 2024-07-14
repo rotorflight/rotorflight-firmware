@@ -32,6 +32,8 @@
 
 #include "build/debug.h"
 
+#include "common/crc.h"
+
 #include "sensors/battery.h"
 #include "sensors/voltage.h"
 #include "sensors/current.h"
@@ -46,6 +48,7 @@
 #include "flight/imu.h"
 
 #include "io/gps.h"
+#include "io/ledstrip.h"
 
 #include "fc/rc_modes.h"
 #include "fc/rc_adjustments.h"
@@ -98,6 +101,8 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
                 return data->bec_current;
             case 11:
                 return data->status;
+            case 12:
+                return 0; // data->model_id
         }
     }
 
@@ -106,19 +111,8 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
 
 static uint32_t getTupleHash(uint32_t a, uint32_t b)
 {
-    union {
-        struct {
-            uint16_t L;
-            uint16_t H;
-        } LH;
-        uint32_t U;
-        int32_t S;
-    } x, y, z;
-    x.S = a;
-    y.S = b;
-    z.LH.L = x.LH.L ^ y.LH.H;
-    z.LH.H = x.LH.H ^ y.LH.L;
-    return z.U;
+    uint32_t data[2] = { a, b };
+    return fnv_update(0x42424242, data, sizeof(data));
 }
 
 
@@ -142,8 +136,6 @@ int telemetrySensorValue(sensor_id_e id)
 
         case TELEM_BATTERY:
             return 0;
-        case TELEM_BATTERY_CELL_COUNT:
-            return getBatteryCellCount();
         case TELEM_BATTERY_VOLTAGE:
             return getBatteryVoltage();
         case TELEM_BATTERY_CURRENT:
@@ -152,6 +144,10 @@ int telemetrySensorValue(sensor_id_e id)
             return getBatteryCapacityUsed();
         case TELEM_BATTERY_CHARGE_LEVEL:
             return calculateBatteryPercentageRemaining();
+        case TELEM_BATTERY_CELL_COUNT:
+            return getBatteryCellCount();
+        case TELEM_BATTERY_CELL_VOLTAGE:
+            return getBatteryAverageCellVoltage();
         case TELEM_BATTERY_CELL_VOLTAGES:
             return 0;
 
@@ -180,6 +176,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC1_BEC_VOLTAGE:
         case TELEM_ESC1_BEC_CURRENT:
         case TELEM_ESC1_STATUS:
+        case TELEM_ESC1_MODEL:
             return getEscSensorValue(0, id - TELEM_ESC1_DATA);
 
         case TELEM_ESC2_DATA:
@@ -194,6 +191,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC2_BEC_VOLTAGE:
         case TELEM_ESC2_BEC_CURRENT:
         case TELEM_ESC2_STATUS:
+        case TELEM_ESC2_MODEL:
             return getEscSensorValue(1, id - TELEM_ESC2_DATA);
 
         case TELEM_ESC_VOLTAGE:
@@ -298,21 +296,23 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_FLIGHT_MODE:
             return flightModeFlags;
         case TELEM_ARMING_FLAGS:
+            return armingFlags;
+        case TELEM_ARMING_DISABLE_FLAGS:
             return getArmingDisableFlags();
         case TELEM_RESCUE_STATE:
             return getRescueState();
         case TELEM_GOVERNOR_STATE:
             return getGovernorState();
-
-        case TELEM_PROFILES:
+        case TELEM_GOVERNOR_FLAGS:
             return 0;
+
         case TELEM_PID_PROFILE:
-            return getCurrentPidProfileIndex();
+            return getCurrentPidProfileIndex() + 1;
         case TELEM_RATES_PROFILE:
-            return getCurrentControlRateProfileIndex();
-        case TELEM_BATTERY_PROFILE:
+            return getCurrentControlRateProfileIndex() + 1;
         case TELEM_LED_PROFILE:
-        case TELEM_OSD_PROFILE:
+            return getLedProfile() + 1;
+        case TELEM_BATTERY_PROFILE:
             return 0;
 
         case TELEM_ADJFUNC:
@@ -359,8 +359,11 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_BATTERY_CONSUMPTION:
         case TELEM_BATTERY_CHARGE_LEVEL:
         case TELEM_BATTERY_CELL_COUNT:
-        case TELEM_BATTERY_CELL_VOLTAGES:
+        case TELEM_BATTERY_CELL_VOLTAGE:
             return true;
+
+        case TELEM_BATTERY_CELL_VOLTAGES:
+            return false;
 
         case TELEM_CONTROL:
         case TELEM_ROLL_CONTROL:
@@ -382,6 +385,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_ESC1_BEC_VOLTAGE:
         case TELEM_ESC1_BEC_CURRENT:
         case TELEM_ESC1_STATUS:
+        case TELEM_ESC1_MODEL:
             return true;
 
         case TELEM_ESC2_DATA:
@@ -396,6 +400,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_ESC2_BEC_VOLTAGE:
         case TELEM_ESC2_BEC_CURRENT:
         case TELEM_ESC2_STATUS:
+        case TELEM_ESC2_MODEL:
             return true;
 
         case TELEM_ESC_VOLTAGE:
@@ -470,18 +475,18 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_MODEL_ID:
         case TELEM_FLIGHT_MODE:
         case TELEM_ARMING_FLAGS:
+        case TELEM_ARMING_DISABLE_FLAGS:
         case TELEM_RESCUE_STATE:
         case TELEM_GOVERNOR_STATE:
+        case TELEM_GOVERNOR_FLAGS:
             return true;
 
-        case TELEM_PROFILES:
         case TELEM_PID_PROFILE:
         case TELEM_RATES_PROFILE:
             return true;
 
         case TELEM_BATTERY_PROFILE:
         case TELEM_LED_PROFILE:
-        case TELEM_OSD_PROFILE:
             return false;
 
         case TELEM_ADJFUNC:

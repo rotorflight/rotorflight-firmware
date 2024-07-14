@@ -548,13 +548,19 @@ void crsfSensorEncodeS32(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteS32BE(buf, sensor->value);
 }
 
+void crsfSensorEncodeCellVolt(sbuf_t *buf, telemetrySensor_t *sensor)
+{
+    const int volt = constrain(sensor->value, 200, 455) - 200;
+    sbufWriteU8(buf, volt);
+}
+
 void crsfSensorEncodeCells(sbuf_t *buf, telemetrySensor_t *sensor)
 {
     UNUSED(sensor);
     const int cells = MIN(getBatteryCellCount(), 16);
     sbufWriteU8(buf, cells);
     for (int i = 0; i < cells; i++) {
-        int volt = constrain(getBatteryCellVoltage(i) - 200, 0, 0xFF);
+        int volt = constrain(getBatteryCellVoltage(i), 200, 455) - 200;
         sbufWriteU8(buf, volt);
     }
 }
@@ -658,7 +664,8 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(BATTERY_CHARGE_LEVEL,    0x0014,   200,  3000,    U8),
 
     TLM_SENSOR(BATTERY_CELL_COUNT,      0x0020,   200,  3000,    U8),
-    TLM_SENSOR(BATTERY_CELL_VOLTAGES,   0x0021,   200,  3000,    Cells),
+    TLM_SENSOR(BATTERY_CELL_VOLTAGE,    0x0021,   200,  3000,    CellVolt),
+    TLM_SENSOR(BATTERY_CELL_VOLTAGES,   0x002F,   200,  3000,    Cells),
 
     TLM_SENSOR(CONTROL,                 0x0030,   100,  3000,    Control),
     TLM_SENSOR(PITCH_CONTROL,           0x0031,   200,  3000,    S16),
@@ -677,7 +684,8 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(ESC1_TEMP2,              0x0048,   200,  3000,    U8),
     TLM_SENSOR(ESC1_BEC_VOLTAGE,        0x0049,   200,  3000,    U16),
     TLM_SENSOR(ESC1_BEC_CURRENT,        0x004A,   200,  3000,    U16),
-    TLM_SENSOR(ESC1_STATUS,             0x004F,   200,  3000,    U32),
+    TLM_SENSOR(ESC1_STATUS,             0x004E,   200,  3000,    U32),
+    TLM_SENSOR(ESC1_MODEL,              0x004F,   200,  3000,    U8),
 
     TLM_SENSOR(ESC2_VOLTAGE,            0x0051,   200,  3000,    U16),
     TLM_SENSOR(ESC2_CURRENT,            0x0052,   200,  3000,    U16),
@@ -689,7 +697,8 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(ESC2_TEMP2,              0x0058,   200,  3000,    U8),
     TLM_SENSOR(ESC2_BEC_VOLTAGE,        0x0059,   200,  3000,    U16),
     TLM_SENSOR(ESC2_BEC_CURRENT,        0x005A,   200,  3000,    U16),
-    TLM_SENSOR(ESC2_STATUS,             0x005F,   200,  3000,    U32),
+    TLM_SENSOR(ESC2_STATUS,             0x005E,   200,  3000,    U32),
+    TLM_SENSOR(ESC2_MODEL,              0x005F,   200,  3000,    U8),
 
     TLM_SENSOR(ESC_VOLTAGE,             0x0080,   200,  3000,    U16),
     TLM_SENSOR(BEC_VOLTAGE,             0x0081,   200,  3000,    U16),
@@ -733,15 +742,16 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(GPS_HOME_DISTANCE,       0x0129,   200,  3000,    U16),
     TLM_SENSOR(GPS_HOME_DIRECTION,      0x012A,   200,  3000,    S16),
 
-    TLM_SENSOR(CPU_LOAD,                0x0141,   250,  3000,    U8),
-    TLM_SENSOR(SYS_LOAD,                0x0142,   250,  3000,    U8),
-    TLM_SENSOR(RT_LOAD,                 0x0143,   250,  3000,    U8),
+    TLM_SENSOR(CPU_LOAD,                0x0141,   500,  3000,    U8),
+    TLM_SENSOR(SYS_LOAD,                0x0142,   500,  3000,    U8),
+    TLM_SENSOR(RT_LOAD,                 0x0143,   500,  3000,    U8),
 
     TLM_SENSOR(MODEL_ID,                0x0200,   200,  3000,    U8),
-    TLM_SENSOR(FLIGHT_MODE,             0x0201,   200,  3000,    U32),
-    TLM_SENSOR(ARMING_FLAGS,            0x0202,   200,  3000,    U32),
-    TLM_SENSOR(RESCUE_STATE,            0x0203,   200,  3000,    U8),
-    TLM_SENSOR(GOVERNOR_STATE,          0x0204,   200,  3000,    U8),
+    TLM_SENSOR(FLIGHT_MODE,             0x0201,   200,  3000,    U16),
+    TLM_SENSOR(ARMING_FLAGS,            0x0202,   200,  3000,    U8),
+    TLM_SENSOR(ARMING_DISABLE_FLAGS,    0x0203,   200,  3000,    U32),
+    TLM_SENSOR(RESCUE_STATE,            0x0204,   200,  3000,    U8),
+    TLM_SENSOR(GOVERNOR_STATE,          0x0205,   200,  3000,    U8),
 
     TLM_SENSOR(PID_PROFILE,             0x0211,   200,  3000,    U8),
     TLM_SENSOR(RATES_PROFILE,           0x0212,   200,  3000,    U8),
@@ -1216,9 +1226,11 @@ static void INIT_CODE crsfInitNativeTelemetry(void)
         sensor_id_e id = telemetryConfig()->telemetry_sensors[i];
         if (telemetrySensorActive(id)) {
             telemetrySensor_t * sensor = crsfGetNativeSensor(id);
-            if (telemetryConfig()->telemetry_interval[i])
-                sensor->min_interval = telemetryConfig()->telemetry_interval[i];
-            telemetryScheduleAdd(sensor);
+            if (sensor) {
+                if (telemetryConfig()->telemetry_interval[i])
+                    sensor->min_interval = telemetryConfig()->telemetry_interval[i];
+                telemetryScheduleAdd(sensor);
+            }
         }
     }
 }
@@ -1231,11 +1243,13 @@ static void INIT_CODE crsfInitCustomTelemetry(void)
         sensor_id_e id = telemetryConfig()->telemetry_sensors[i];
         if (telemetrySensorActive(id)) {
             telemetrySensor_t * sensor = crsfGetCustomSensor(id);
-            if (telemetryConfig()->telemetry_interval[i])
-                sensor->min_interval = telemetryConfig()->telemetry_interval[i];
-            if (sensor->max_interval > 1000)
-                sensor->max_interval += rand() % 100;
-            telemetryScheduleAdd(sensor);
+            if (sensor) {
+                if (telemetryConfig()->telemetry_interval[i])
+                    sensor->min_interval = telemetryConfig()->telemetry_interval[i];
+                if (sensor->max_interval > 1000)
+                    sensor->max_interval += rand() % 100;
+                telemetryScheduleAdd(sensor);
+            }
         }
     }
 }
