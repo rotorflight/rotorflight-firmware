@@ -83,9 +83,14 @@
 #define CRSF_HEARTBEAT_RATE                 10
 #define CRSF_HEARTBEAT_PERIOD               (1000000 / CRSF_HEARTBEAT_RATE)
 
+enum {
+    CRSF_TELEM_OFF = 0,
+    CRSF_TELEM_NATIVE,
+    CRSF_TELEM_CUSTOM,
+    CRSF_TELEM_POPULATE,
+};
 
-static bool crsfTelemetryEnabled;
-static bool crsfCustomTelemetryEnabled;
+static uint8_t crsfTelemetryMode;
 
 #if defined(USE_CRSF_V3)
 static float crsfHeartBeatRateBucket;
@@ -105,7 +110,7 @@ static uint8_t crsfFrame[CRSF_FRAME_SIZE_MAX + 32];
 
 bool checkCrsfTelemetryState(void)
 {
-    return crsfTelemetryEnabled;
+    return (crsfTelemetryMode != CRSF_TELEM_OFF);
 }
 
 static inline size_t crsfLinkFrameSlots(size_t bytes)
@@ -140,7 +145,8 @@ static void crsfTelemetryRateUpdate(timeUs_t currentTimeUs)
 
 static bool crsfCanTransmitTelemetry(void)
 {
-    return crsfTelemetryRateBucket >= 0;
+    return (crsfTelemetryRateBucket >= 0) &&
+          !(getArmingDisableFlags() & ARMING_DISABLED_BOOT_GRACE_TIME);
 }
 
 static size_t crsfSbufLen(sbuf_t *buf)
@@ -656,6 +662,7 @@ static telemetrySensor_t crsfNativeTelemetrySensors[] =
 
 static telemetrySensor_t crsfCustomTelemetrySensors[] =
 {
+    TLM_SENSOR(NONE,                    0x0000,  1000,  1000,    Nil),
     TLM_SENSOR(HEARTBEAT,               0x0001,  1000,  1000,    U16),
 
     TLM_SENSOR(BATTERY_VOLTAGE,         0x0011,   200,  3000,    U16),
@@ -1114,7 +1121,7 @@ static bool crsfSendHeartBeat(void)
 
 static bool crsfSendTelemetry(void)
 {
-    if (!crsfCustomTelemetryEnabled)
+    if (crsfTelemetryMode == CRSF_TELEM_NATIVE)
     {
         telemetrySensor_t *sensor = telemetryScheduleNext();
 
@@ -1156,7 +1163,7 @@ static bool crsfSendTelemetry(void)
 
 static bool crsfSendCustomTelemetry(void)
 {
-    if (crsfCustomTelemetryEnabled)
+    if (crsfTelemetryMode == CRSF_TELEM_CUSTOM)
     {
         size_t sensor_count = 0;
         sbuf_t *dst = crsfInitializeSbuf();
@@ -1190,9 +1197,52 @@ static bool crsfSendCustomTelemetry(void)
     return false;
 }
 
+static bool crsfPopulateCustomTelemetry(void)
+{
+    if (crsfTelemetryMode == CRSF_TELEM_POPULATE)
+    {
+        static int slot = -10;
+
+        if (slot < 0) {
+            telemetrySensor_t * sensor = crsfGetCustomSensor(TELEM_NONE);
+            slot++;
+
+            if (sensor) {
+                sbuf_t *dst = crsfInitializeSbuf();
+                crsfFrameCustomTelemetryHeader(dst);
+                crsfFrameCustomTelemetrySensor(dst, sensor);
+                crsfTransmitSbuf(dst);
+                return true;
+            }
+            return false;
+        }
+
+        while (slot < TELEM_SENSOR_SLOT_COUNT) {
+            sensor_id_e id = telemetryConfig()->telemetry_sensors[slot];
+            slot++;
+
+            if (telemetrySensorActive(id)) {
+                telemetrySensor_t * sensor = crsfGetCustomSensor(id);
+                if (sensor) {
+                    sbuf_t *dst = crsfInitializeSbuf();
+                    crsfFrameCustomTelemetryHeader(dst);
+                    crsfFrameCustomTelemetrySensor(dst, sensor);
+                    crsfTransmitSbuf(dst);
+                    crsfTelemetryFrameId++;
+                    return true;
+                }
+            }
+        }
+
+        crsfTelemetryMode = CRSF_TELEM_CUSTOM;
+    }
+
+    return false;
+}
+
 void handleCrsfTelemetry(timeUs_t currentTimeUs)
 {
-    if (!crsfTelemetryEnabled)
+    if (crsfTelemetryMode == CRSF_TELEM_OFF)
         return;
 
 #if defined(USE_CRSF_V3)
@@ -1214,6 +1264,7 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
             crsfSendDeviceInfoData() ||
             crsfSendTelemetry() ||
             crsfSendCustomTelemetry() ||
+            crsfPopulateCustomTelemetry() ||
             crsfSendHeartBeat();
     }
 }
@@ -1256,12 +1307,10 @@ static void INIT_CODE crsfInitCustomTelemetry(void)
 
 void INIT_CODE initCrsfTelemetry(void)
 {
-    // check if there is a serial port open for CRSF telemetry (ie opened by the CRSF RX)
-    // and feature is enabled, if so, set CRSF telemetry enabled
-    crsfTelemetryEnabled = crsfRxIsActive();
-    crsfCustomTelemetryEnabled = telemetryConfig()->custom_telemetry;
+    crsfTelemetryMode = !crsfRxIsActive() ? CRSF_TELEM_OFF :
+        (telemetryConfig()->custom_telemetry ? CRSF_TELEM_POPULATE : CRSF_TELEM_NATIVE);
 
-    if (crsfTelemetryEnabled)
+    if (crsfTelemetryMode)
     {
         const float rate = telemetryConfig()->telemetry_link_rate;
         const float ratio = telemetryConfig()->telemetry_link_ratio;
@@ -1274,10 +1323,10 @@ void INIT_CODE initCrsfTelemetry(void)
 
         crsfTelemetryFrameId = 0;
 
-        if (crsfCustomTelemetryEnabled)
-            crsfInitCustomTelemetry();
-        else
+        if (crsfTelemetryMode == CRSF_TELEM_NATIVE)
             crsfInitNativeTelemetry();
+        else
+            crsfInitCustomTelemetry();
 
 #if defined(USE_CRSF_CMS_TELEMETRY)
         crsfDisplayportRegister();
