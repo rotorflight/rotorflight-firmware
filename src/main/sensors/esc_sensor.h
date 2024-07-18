@@ -39,6 +39,7 @@ typedef struct {
     uint32_t  bec_voltage;      // mV
     uint32_t  bec_current;      // mA
     uint32_t  status;           // status / fault codes
+    uint8_t   id;               // ESC id / flags
 } escSensorData_t;
 
 #define ESC_DATA_INVALID 255

@@ -102,7 +102,7 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
             case 11:
                 return data->status;
             case 12:
-                return 0; // data->model_id
+                return data->id;
         }
     }
 
