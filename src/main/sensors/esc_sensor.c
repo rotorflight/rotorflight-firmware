@@ -1648,8 +1648,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
 
     rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
 
-    // schedule next request
-    if (paramMspActive)
+    // schedule next request (only if halfduplex)
+    if (paramMspActive && paramCommit != NULL)
         pl5BuildNextReq();
 
     return true;
