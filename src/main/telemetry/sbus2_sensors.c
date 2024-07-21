@@ -23,7 +23,7 @@
 void send_RPM(uint8_t port, uint32_t RPM)
 {
    uint32_t value =  0;
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0, 0};
 
    value =  RPM / 6;
    if(value > 0xffff){
@@ -38,7 +38,7 @@ void send_RPM(uint8_t port, uint32_t RPM)
 void send_temp125(uint8_t port, int16_t temp)
 {
    int16_t value=  0;
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0,0};
 
    value = temp | 0x4000;
    bytes[0] = value >> 8;
@@ -47,7 +47,7 @@ void send_temp125(uint8_t port, int16_t temp)
 }
 void send_SBS01T(uint8_t port, int16_t temp){
   int16_t value=  0;
-  uint8_t bytes[2] = {};
+  uint8_t bytes[2] = {0,0};
 
   value = temp | 0x8000;
   value = value + 100;
@@ -59,8 +59,8 @@ void send_SBS01T(uint8_t port, int16_t temp){
 void send_voltage(uint8_t port,uint16_t voltage1, uint16_t voltage2)
 {
    uint16_t value = 0;
-   uint8_t bytes[2] = { };
-   
+   uint8_t bytes[2] = {0, 0};
+
    // VOLTAGE1
    value = voltage1 | 0x8000; 
    if ( value > 0x9FFF ){
@@ -87,9 +87,8 @@ void send_s1678_current(uint8_t port, uint16_t current, uint16_t capacity, uint1
 {
    uint16_t value = 0;
    uint32_t local = 0;
-   uint8_t bytes[2] = { };
- 
-   
+   uint8_t bytes[2] = {0, 0};
+
    // CURRENT
    local = ((uint32_t)current) * 1 ;
    value = (uint16_t)local;   
@@ -126,7 +125,7 @@ void send_f1675_gps(uint8_t port, uint16_t speed, int16_t altitude, int16_t vari
    uint32_t  value3 = 0;
    bool latitude_pos = false;
    bool longitude_pos = false;
-   uint8_t bytes[2] = {};
+   uint8_t bytes[2] = {0, 0};
  
    
    // SPEED -> Bit 14(bytes[1] bit7) -> GPS Valid or not
@@ -212,7 +211,7 @@ void send_f1675_gps(uint8_t port, uint16_t speed, int16_t altitude, int16_t vari
 void send_f1672_vario(uint8_t port, int16_t altitude, int16_t vario)
 {
    int16_t value = 0;
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0, 0};
 
    // VARIO
    value = vario;   
@@ -230,7 +229,7 @@ void send_f1672_vario(uint8_t port, int16_t altitude, int16_t vario)
 void send_f1712_vario(uint8_t port, int16_t altitude, int16_t vario)
 {
    int16_t  value = 0;
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0, 0};
 
    // VARIO
    value = vario;   
@@ -446,7 +445,7 @@ void send_SBS10G(
     speed = 0;
    }
    // initialize buffer
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0, 0};
    // slot 0 (utc)
    bytes[0] = (utc&0x00ff);
    bytes[1] = (utc&0xff00)>>8;
@@ -503,7 +502,7 @@ void send_scorpion_kontronik(
   uint16_t pwm) 
 {
    uint32_t value = 0;
-   uint8_t bytes[2] = { };
+   uint8_t bytes[2] = {0, 0};
 
    // voltage 41.1 = 4110
    value = voltage | 0x8000; 
@@ -618,7 +617,7 @@ void send_jetcat(
   uint32_t secondrpm) 
 {
    uint32_t value = 0;
-   uint8_t bytes[2] = {};
+   uint8_t bytes[2] = {0, 0};
 
    // Actual RPM with 0x4000 Offset -> why?
    value = rpm / 100; 

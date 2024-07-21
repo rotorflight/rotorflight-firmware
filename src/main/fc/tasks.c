@@ -94,6 +94,7 @@
 
 #include "telemetry/telemetry.h"
 #include "telemetry/crsf.h"
+#include "telemetry/sbus2.h"
 
 #ifdef USE_BST
 #include "i2c_bst.h"
@@ -408,6 +409,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 
 #ifdef USE_CRSF_V3
     [TASK_SPEED_NEGOTIATION] = DEFINE_TASK("SPEED_NEGOTIATION", NULL, NULL, speedNegotiationProcess, TASK_PERIOD_HZ(100), TASK_PRIORITY_LOW),
+#endif
+
+#ifdef USE_TELEMETRY_SBUS2
+    [TASK_TELEMETRY_SBUS2] = DEFINE_TASK("SBUS2_TELEMETRY", NULL, NULL, taskSendSbus2Telemetry, TASK_PERIOD_US(125), TASK_PRIORITY_LOW),
 #endif
 };
 

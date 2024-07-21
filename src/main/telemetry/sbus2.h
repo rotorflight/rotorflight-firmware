@@ -25,6 +25,10 @@
 #include "common/time.h"
 #include "common/utils.h"
 
+#ifndef MS2US
+#define MS2US(ms)   ((ms) * 1000)
+#endif
+
 #define SBUS2_TELEMETRY_PAYLOAD_SIZE 3
 
 #define SBUS2_TELEMETRY_ITEM_SIZE   3
@@ -57,6 +61,8 @@ STATIC_ASSERT(sizeof(sbus2_telemetry_frame_t) == 3, sbus2_telemetry_size);
 extern const uint8_t sbus2SlotIds[SBUS2_SLOT_COUNT];
 extern sbus2_telemetry_frame_t sbusTelemetryData[SBUS2_SLOT_COUNT];
 extern uint8_t sbusTelemetryDataUsed[SBUS2_SLOT_COUNT];
+
+bool checkSbus2TelemetryState(void);
 
 // refresh telemetry buffers 
 void handleSbus2Telemetry(timeUs_t currentTimeUs);

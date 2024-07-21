@@ -29,6 +29,7 @@
 #include "telemetry/sbus2.h"
 #include "telemetry/sbus2_sensors.h"
 
+#include "rx/rx.h"
 #include "rx/sbus.h"
 
 #include "sensors/battery.h"
@@ -50,10 +51,15 @@ const uint8_t sbus2SlotIds[SBUS2_SLOT_COUNT] = {
     0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB
 };
 
-sbus2_telemetry_frame_t sbusTelemetryData[SBUS2_SLOT_COUNT] = {};
-uint8_t sbusTelemetryDataUsed[SBUS2_SLOT_COUNT] = {};
+sbus2_telemetry_frame_t sbusTelemetryData[SBUS2_SLOT_COUNT] = {0};
+uint8_t sbusTelemetryDataUsed[SBUS2_SLOT_COUNT] = {0};
 static uint8_t currentSlot = 0;
 static timeUs_t nextSlotTime = 0;
+
+bool checkSbus2TelemetryState(void)
+{
+    return rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
+}
 
 void handleSbus2Telemetry(timeUs_t currentTimeUs) 
 {
@@ -61,34 +67,27 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
 
     float voltage = getBatteryVoltage() * 0.01f;
     float cellVoltage = getBatteryAverageCellVoltage() * 0.01f;
-    float current = getAmperage() * 0.01f;
-    float capacity = getMAhDrawn();
-    float altitude = getEstimatedActualPosition(Z) * 0.01f;
-    float vario = getEstimatedActualVelocity(Z);
+    float current =  0; //getAmperage() * 0.01f;
+    float capacity = 0; //getMAhDrawn();
+    float altitude = 0.0f; //getEstimatedActualPosition(Z) * 0.01f;
+    float vario = 0.0f; //getEstimatedActualVelocity(Z);
     float temperature = 0;
     uint32_t rpm = 0;
 
 #ifdef USE_ESC_SENSOR
+/*
     escSensorData_t * escSensor = escSensorGetData();
     if (escSensor && escSensor->dataAge <= ESC_DATA_MAX_AGE) {
-        rpm = escSensor->rpm;
+        rpm = escSensor->erpm;
         temperature = escSensor->temperature;
     } else {
         rpm = 0;
         temperature = 0;
     }
+    */
 #endif
 
     //temperature = 42.16f;
-
-    DEBUG_SET(DEBUG_SBUS2, 0, voltage);
-    DEBUG_SET(DEBUG_SBUS2, 1, cellVoltage);
-    DEBUG_SET(DEBUG_SBUS2, 2, current);
-    DEBUG_SET(DEBUG_SBUS2, 3, capacity);
-    DEBUG_SET(DEBUG_SBUS2, 4, altitude);
-    DEBUG_SET(DEBUG_SBUS2, 5, vario);
-    DEBUG_SET(DEBUG_SBUS2, 6, rpm);
-    DEBUG_SET(DEBUG_SBUS2, 7, temperature);
 
     // 2 slots
     send_voltagef(1, voltage, cellVoltage);
@@ -109,21 +108,26 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     float longitude = 0;
 
 #ifdef USE_GPS
+/*
     if (gpsSol.fixType >= GPS_FIX_2D) {
         speed = (CMSEC_TO_KPH(gpsSol.groundSpeed) + 0.5f);
         latitude = gpsSol.llh.lat * 1e-7;
         longitude = gpsSol.llh.lon * 1e-7;
     }
+    */
 #endif
 
     send_F1675f(8, speed, altitude, vario, latitude, longitude);
+
     // imu 1 slot
-    int16_t temp16;
-    bool valid = getIMUTemperature(&temp16);
+    int16_t temp16 = 0;
+    bool valid = false;
+    //valid = getIMUTemperature(&temp16);
     send_SBS01T(16, valid ? temp16 / 10 : 0);
     // baro
     valid = 0;
-    valid = getBaroTemperature(&temp16);
+    valid = false;
+    //valid = getBaroTemperature(&temp16);
     send_SBS01T(17, valid ? temp16 / 10 : 0);
 }
 
@@ -151,8 +155,7 @@ void sbus2IncrementTelemetrySlot(timeUs_t currentTimeUs)
 
 FAST_CODE void taskSendSbus2Telemetry(timeUs_t currentTimeUs)
 {
-    if (!telemetrySharedPort || rxConfig()->receiverType != RX_TYPE_SERIAL ||
-        rxConfig()->serialrx_provider != SERIALRX_SBUS2) {
+    if (!telemetrySharedPort || rxRuntimeState.serialrxProvider ==  SERIALRX_SBUS2) {
         return;
     }
 
