@@ -510,7 +510,11 @@ void tasksInit(void)
         } else if (rxRuntimeState.serialrxProvider == SERIALRX_CRSF) {
             // Reschedule telemetry to 500hz, 2ms for CRSF
             rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
+        } else if (rxRuntimeState.serialrxProvider == SERIALRX_SBUS2) {
+            // Reschedule telemetry to 500hz, 2ms for CRSF
+            rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
         }
+ 
     }
 #endif
 
@@ -562,5 +566,11 @@ void tasksInit(void)
     const bool useCRSF = rxRuntimeState.serialrxProvider == SERIALRX_CRSF;
     setTaskEnabled(TASK_SPEED_NEGOTIATION, useCRSF);
 #endif
+
+#ifdef USE_TELEMETRY_SBUS2
+    const bool useSBUS2 = rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
+    setTaskEnabled(TASK_TELEMETRY_SBUS2, useSBUS2);
+#endif
+
 }
 
