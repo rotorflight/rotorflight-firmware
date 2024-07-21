@@ -102,13 +102,14 @@ SECTIONS
     KEEP (*(SORT(.fini_array.*)))
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >MOVABLE_FLASH
+
   .pg_registry :
   {
     PROVIDE_HIDDEN (__pg_registry_start = .);
     KEEP (*(.pg_registry))
     KEEP (*(SORT(.pg_registry.*)))
     PROVIDE_HIDDEN (__pg_registry_end = .);
-  } >MOVABLE_FLASH
+  } >FLASH1
   .pg_resetdata :
   {
     PROVIDE_HIDDEN (__pg_resetdata_start = .);
