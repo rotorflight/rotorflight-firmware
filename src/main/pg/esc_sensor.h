@@ -42,7 +42,7 @@ enum {
 
 typedef struct {
     uint8_t     protocol;               // ESC telemetry protocol
-    uint8_t     halfDuplex;             // Set to false to listen on the TX pin for telemetry data
+    uint16_t    serial_options;         // Serial port options
     uint16_t    update_hz;              // Update frequency
     uint16_t    current_offset;         // Offset (extra current) consumed by the VTX / cam (mA)
     uint16_t    hw4_current_offset;     // HobbyWing V4 raw current offset

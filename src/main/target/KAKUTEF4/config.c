@@ -47,8 +47,7 @@ void targetConfiguration(void)
     pinioBoxConfigMutable()->permanentId[1] = 41;
 #endif
     targetSerialPortFunctionConfig(targetSerialPortFunction, ARRAYLEN(targetSerialPortFunction));
-    telemetryConfigMutable()->halfDuplex = 0;
-    telemetryConfigMutable()->telemetry_inverted = true;
+    telemetryConfigMutable()->serial_options = SERIAL_INVERTED;
 
     // Mark MAX7456 CS pin as OPU
     max7456ConfigMutable()->preInitOPU = true;

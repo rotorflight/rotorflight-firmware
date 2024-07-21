@@ -408,8 +408,9 @@ bool fportRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         FPORT_BAUDRATE,
         MODE_RXTX,
-        FPORT_PORT_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) | (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)
-    );
+        FPORT_PORT_OPTIONS |
+          (rxConfig->serial_options & (SERIAL_INVERTED | SERIAL_BIDIR | SERIAL_PINSWAP))
+        );
 
     if (fportPort) {
 #if defined(USE_TELEMETRY_SMARTPORT)

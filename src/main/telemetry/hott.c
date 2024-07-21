@@ -371,11 +371,8 @@ static void workAroundForHottTelemetryOnUsart(serialPort_t *instance, portMode_e
 {
     closeSerialPort(hottPort);
 
-    portOptions_e portOptions = telemetryConfig()->telemetry_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED;
-
-    if (telemetryConfig()->halfDuplex) {
-        portOptions |= SERIAL_BIDIR;
-    }
+    portOptions_e portOptions = telemetryConfig()->serial_options &
+        (SERIAL_INVERTED | SERIAL_BIDIR | SERIAL_PINSWAP);
 
     hottPort = openSerialPort(instance->identifier, FUNCTION_TELEMETRY_HOTT, NULL, NULL, HOTT_BAUDRATE, mode, portOptions);
 }
@@ -416,11 +413,8 @@ void configureHoTTTelemetryPort(void)
         return;
     }
 
-    portOptions_e portOptions = SERIAL_NOT_INVERTED;
-
-    if (telemetryConfig()->halfDuplex) {
-        portOptions |= SERIAL_BIDIR;
-    }
+    portOptions_e portOptions = telemetryConfig()->serial_options &
+        (SERIAL_INVERTED | SERIAL_BIDIR | SERIAL_PINSWAP);
 
     hottPort = openSerialPort(portConfig->identifier, FUNCTION_TELEMETRY_HOTT, NULL, NULL, HOTT_BAUDRATE, HOTT_PORT_MODE, portOptions);
 

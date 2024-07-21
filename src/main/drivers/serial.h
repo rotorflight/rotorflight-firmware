@@ -27,21 +27,33 @@
 #include "pg/serial_pinconfig.h"
 
 typedef enum {
-    MODE_RX = 1 << 0,
-    MODE_TX = 1 << 1,
-    MODE_RXTX = MODE_RX | MODE_TX
+    MODE_RX         = BIT(0),
+    MODE_TX         = BIT(1),
+    MODE_RXTX       = MODE_RX | MODE_TX
 } portMode_e;
 
 typedef enum {
-    SERIAL_NOT_INVERTED  = 0 << 0,
-    SERIAL_INVERTED      = 1 << 0,
-    SERIAL_STOPBITS_1    = 0 << 1,
-    SERIAL_STOPBITS_2    = 1 << 1,
-    SERIAL_PARITY_NO     = 0 << 2,
-    SERIAL_PARITY_EVEN   = 1 << 2,
-    SERIAL_UNIDIR        = 0 << 3,
-    SERIAL_BIDIR         = 1 << 3,
+    SERIAL_PINSWAP_BIT          = 0,
+    SERIAL_INVERTED_BIT         = 1,
+    SERIAL_STOPBITS_BIT         = 2,
+    SERIAL_PARITY_BIT           = 3,
+    SERIAL_BIDIR_BIT            = 4,
+    SERIAL_BIDIR_OD_BIT         = 5,
+    SERIAL_BIDIR_NOPULL_BIT     = 6,
+    SERIAL_BIDIR_PULLDOWN_BIT   = 7,
+} portOptionBits_e;
 
+typedef enum {
+    SERIAL_NOSWAP               = 0,
+    SERIAL_PINSWAP              = BIT(SERIAL_PINSWAP_BIT),
+    SERIAL_NOT_INVERTED         = 0,
+    SERIAL_INVERTED             = BIT(SERIAL_INVERTED_BIT),
+    SERIAL_STOPBITS_1           = 0,
+    SERIAL_STOPBITS_2           = BIT(SERIAL_STOPBITS_BIT),
+    SERIAL_PARITY_NO            = 0,
+    SERIAL_PARITY_EVEN          = BIT( SERIAL_PARITY_BIT),
+    SERIAL_UNIDIR               = 0,
+    SERIAL_BIDIR                = BIT(SERIAL_BIDIR_BIT),
     /*
      * Note on SERIAL_BIDIR_PP
      * With SERIAL_BIDIR_PP, the very first start bit of back-to-back bytes
@@ -49,15 +61,15 @@ typedef enum {
      * To ensure the first start bit to be sent, prepend a zero byte (0x00)
      * to actual data bytes.
      */
-    SERIAL_BIDIR_OD        = 0 << 4,
-    SERIAL_BIDIR_PP        = 1 << 4,
-    SERIAL_BIDIR_NOPULL    = 1 << 5, // disable pulls in BIDIR RX mode
-    SERIAL_BIDIR_PP_PD     = 1 << 6, // PP mode, normall inverted, but with PullDowns, to fix SA after bidir issue fixed (#10220)
+    SERIAL_BIDIR_OD             = 0,
+    SERIAL_BIDIR_PP             = BIT(SERIAL_BIDIR_OD_BIT),
+    SERIAL_BIDIR_NOPULL         = BIT(SERIAL_BIDIR_NOPULL_BIT),     // disable pulls in BIDIR RX mode
+    SERIAL_BIDIR_PP_PD          = BIT(SERIAL_BIDIR_PULLDOWN_BIT),   // PP mode, normall inverted, but with PullDowns, to fix SA after bidir issue fixed (#10220)
 } portOptions_e;
 
 // Define known line control states which may be passed up by underlying serial driver callback
-#define CTRL_LINE_STATE_DTR (1 << 0)
-#define CTRL_LINE_STATE_RTS (1 << 1)
+#define CTRL_LINE_STATE_DTR     BIT(0)
+#define CTRL_LINE_STATE_RTS     BIT(1)
 
 typedef void (*serialReceiveCallbackPtr)(uint16_t data, void *rxCallbackData);   // used by serial drivers to return frames to app
 typedef void (*serialIdleCallbackPtr)();

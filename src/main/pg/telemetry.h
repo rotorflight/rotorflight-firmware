@@ -33,10 +33,9 @@ typedef enum {
 #define TELEM_SENSOR_SLOT_COUNT 40
 
 typedef struct telemetryConfig_s {
+    uint16_t serial_options;
     int16_t gpsNoFixLatitude;
     int16_t gpsNoFixLongitude;
-    uint8_t telemetry_inverted;
-    uint8_t halfDuplex;
     uint8_t frsky_coordinate_format;
     uint8_t frsky_unit;
     uint8_t frsky_vfas_precision;

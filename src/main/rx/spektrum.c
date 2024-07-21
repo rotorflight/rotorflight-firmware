@@ -253,7 +253,7 @@ void spektrumBind(rxConfig_t *rxConfig)
 #endif // USE_TELEMETRY_SRXL
 
         default:
-            bindPin = rxConfig->halfDuplex ? txPin : rxPin;
+            bindPin = (rxConfig->serial_options & SERIAL_BIDIR) ? txPin : rxPin;
         }
 
         if (!bindPin) {
@@ -400,8 +400,8 @@ bool spektrumInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         rxRuntimeState,
         SPEKTRUM_BAUDRATE,
         portShared || srxlEnabled ? MODE_RXTX : MODE_RX,
-        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) |
-        ((srxlEnabled || rxConfig->halfDuplex) ? SERIAL_BIDIR : 0)
+        (rxConfig->serial_options & (SERIAL_INVERTED | SERIAL_BIDIR | SERIAL_PINSWAP)) |
+            (srxlEnabled ? SERIAL_BIDIR : 0)
         );
 
 #if defined(USE_TELEMETRY_SRXL)

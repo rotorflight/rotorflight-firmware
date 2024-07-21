@@ -719,7 +719,11 @@ const clivalue_t valueTable[] = {
 
 #ifdef USE_SERIAL_RX
     { PARAM_NAME_SERIAL_RX_PROVIDER, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SERIAL_RX }, PG_RX_CONFIG, offsetof(rxConfig_t, serialrx_provider) },
-    { "serialrx_inverted",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, serialrx_inverted) },
+    { "serialrx_halfduplex",        VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_BIDIR_BIT, PG_RX_CONFIG, offsetof(rxConfig_t, serial_options)},
+    { "serialrx_inverted",          VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_INVERTED_BIT, PG_RX_CONFIG, offsetof(rxConfig_t, serial_options)},
+#ifdef USE_SERIAL_PINSWAP
+    { "serialrx_pinswap",           VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_PINSWAP_BIT, PG_RX_CONFIG, offsetof(rxConfig_t, serial_options)},
+#endif
 #endif
 #ifdef USE_SPEKTRUM_BIND
     { "spektrum_sat_bind",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { SPEKTRUM_SAT_BIND_DISABLED, SPEKTRUM_SAT_BIND_MAX}, PG_RX_CONFIG, offsetof(rxConfig_t, spektrum_sat_bind) },
@@ -739,7 +743,6 @@ const clivalue_t valueTable[] = {
     { "crsf_use_negotiated_baud",    VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_negotiated_baud) },
 #endif
 #endif
-    { "serialrx_halfduplex",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, halfDuplex) },
 #ifdef USE_RX_SPI
     { "rx_spi_protocol",            VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_RX_SPI }, PG_RX_SPI_CONFIG, offsetof(rxSpiConfig_t, rx_spi_protocol) },
     { "rx_spi_bus",                 VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, SPIDEV_COUNT }, PG_RX_SPI_CONFIG, offsetof(rxSpiConfig_t, spibus) },
@@ -1176,8 +1179,11 @@ const clivalue_t valueTable[] = {
 
 // PG_TELEMETRY_CONFIG
 #ifdef USE_TELEMETRY
-    { "tlm_inverted",               VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, telemetry_inverted) },
-    { "tlm_halfduplex",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, halfDuplex) },
+    { "tlm_halfduplex",             VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_BIDIR_BIT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, serial_options)},
+    { "tlm_inverted",               VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_INVERTED_BIT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, serial_options)},
+#ifdef USE_SERIAL_PINSWAP
+    { "tlm_pinswap",                VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_PINSWAP_BIT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, serial_options)},
+#endif
 #if defined(USE_TELEMETRY_FRSKY_HUB)
 #if defined(USE_GPS)
     { "frsky_default_lat",          VAR_INT16  | MASTER_VALUE, .config.minmax = { -9000, 9000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, gpsNoFixLatitude) },
@@ -1457,7 +1463,10 @@ const clivalue_t valueTable[] = {
 
 // PG_VTX_CONFIG
 #if defined(USE_VTX_CONTROL) && defined(USE_VTX_COMMON)
-    { "vtx_halfduplex",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_VTX_CONFIG, offsetof(vtxConfig_t, halfDuplex) },
+    { "vtx_halfduplex",             VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_BIDIR_BIT, PG_VTX_CONFIG, offsetof(vtxConfig_t, serial_options)},
+#ifdef USE_SERIAL_PINSWAP
+    { "vtx_pinswap",                VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_PINSWAP_BIT, PG_VTX_CONFIG, offsetof(vtxConfig_t, serial_options)},
+#endif
 #endif
 
 // PG_VTX_IO
@@ -1501,7 +1510,10 @@ const clivalue_t valueTable[] = {
 
 #ifdef USE_ESC_SENSOR
     { "esc_sensor_protocol",            VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ESC_SENSOR_PROTO }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, protocol) },
-    { "esc_sensor_halfduplex",          VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, halfDuplex) },
+    { "esc_sensor_halfduplex",          VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_BIDIR_BIT, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, serial_options)},
+#ifdef USE_SERIAL_PINSWAP
+    { "esc_sensor_pinswap",             VAR_UINT16 | MASTER_VALUE | MODE_BITSET, .config.bitpos = SERIAL_PINSWAP_BIT, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, serial_options)},
+#endif
     { "esc_sensor_update_hz",           VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 500 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, update_hz) },
     { "esc_sensor_current_offset",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_offset) },
     { "esc_sensor_hw4_current_offset",  VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_offset) },
