@@ -97,8 +97,18 @@ enum {
 #define PARAM_HEADER_RDONLY      0x40
 #define PARAM_HEADER_USER        0x80
 
-#define PARAM_OOB_FLAG           0x0F00
-#define PARAM_OOB_NEED_RESTART   0xFF
+// ESC signatures
+#define ESC_SIG_NONE              0x00
+#define ESC_SIG_BLHELI32          0xC8
+#define ESC_SIG_HW4               0x9B
+#define ESC_SIG_KON               0x4B
+#define ESC_SIG_OMP               0xD0
+#define ESC_SIG_ZTW               0xDD
+#define ESC_SIG_APD               0xA0
+#define ESC_SIG_PL5               0xFD
+#define ESC_SIG_TRIB              0x53
+#define ESC_SIG_OPENYGE           0xA5
+#define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
 
@@ -130,12 +140,13 @@ static uint32_t syncCount = 0;
 static uint8_t reqLength = 0;
 static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
+static uint8_t escSig = 0;
+
 static uint8_t paramPayloadLength = 0;
 static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
 static uint8_t paramUpdBuffer[PARAM_BUFFER_SIZE] = { 0, };
 static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
 static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
-static uint8_t paramSig = 0;
 static uint8_t paramVer = 0;
 static bool paramMspActive = false;
 
@@ -144,20 +155,10 @@ typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
 
 
-static void paramOobEscNeedRestart(void)
+static void paramEscNeedRestart(void)
 {
     escSensorData[0].age = 0;
-    escSensorData[0].status = PARAM_OOB_FLAG | PARAM_OOB_NEED_RESTART;
-}
-
-static void paramOobEscSig(void)
-{
-    // every 128'th call
-    static uint8_t oobSigSpin = 0;
-    if (((oobSigSpin++) & 0x7F) != 0)
-        return;
-    escSensorData[0].age = 0;
-    escSensorData[0].status = PARAM_OOB_FLAG | paramSig;
+    escSensorData[0].id = ESC_SIG_RESTART;
 }
 
 
@@ -290,7 +291,6 @@ static void updateConsumption(timeUs_t currentTimeUs)
  *     9:       CRC8
  *
  */
-
 #define BLHELI32_BOOT_DELAY       5000            // 5 seconds
 #define BLHELI32_REQ_TIMEOUT      100             // 100 ms (data transfer takes only 900us)
 #define BLHELI32_FRAME_SIZE       10
@@ -355,6 +355,7 @@ static uint8_t blDecodeTelemetryFrame(void)
         uint16_t capa = buffer[5] << 8 | buffer[6];
         uint16_t erpm = buffer[7] << 8 | buffer[8];
 
+        escSensorData[currentEsc].id = ESC_SIG_BLHELI32;
         escSensorData[currentEsc].age = 0;
         escSensorData[currentEsc].erpm = erpm * 100;
         escSensorData[currentEsc].voltage = volt * 10;
@@ -634,6 +635,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 setConsumptionCurrent(current);
 
+                escSensorData[0].id = ESC_SIG_HW4;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = thr;
@@ -861,6 +863,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 uint16_t voltBEC = buffer[21] << 8 | buffer[20];
                 uint32_t status = buffer[31] << 24 | buffer[30] << 16 | buffer[29] << 8 | buffer[28];
 
+                escSensorData[0].id = ESC_SIG_KON;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = (throttle + 100) * 5;
@@ -976,6 +979,7 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
                 uint16_t capacity = buffer[15] << 8 | buffer[16];
                 uint16_t status = buffer[13] << 8 | buffer[14];
 
+                escSensorData[0].id = ESC_SIG_OMP;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
@@ -1097,6 +1101,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 uint16_t status = buffer[13] << 8 | buffer[14];
                 uint16_t voltBEC = buffer[19];
 
+                escSensorData[0].id = ESC_SIG_ZTW;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
@@ -1242,6 +1247,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
                 setConsumptionCurrent(current * 0.08f);
 
+                escSensorData[0].id = ESC_SIG_APD;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = throttle;
@@ -1473,8 +1479,6 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define PL5_PING_FRAME_PERIOD               480
 #define PL5_PING_TIMEOUT                    1600
 
-#define PL5_PARAM_SIG                       0xFD                // parameter payload signature for this ESC
-
 #define PL5_ERR                             0x80
 
 #define PL5_FRAME_TELE_TYPE                 0x5C30
@@ -1617,6 +1621,7 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
         current = 0;
     setConsumptionCurrent(current * 0.1f);
 
+    escSensorData[0].id = ESC_SIG_PL5;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
@@ -1628,8 +1633,6 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].bec_voltage = tele->bec_voltage * 100;
     escSensorData[0].bec_current = tele->bec_current * 100;
     escSensorData[0].status = tele->fault;
-
-    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10);
@@ -1648,8 +1651,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
 
     rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
 
-    // schedule next request
-    if (paramMspActive)
+    // schedule next request (only if halfduplex)
+    if (paramMspActive && paramCommit != NULL)
         pl5BuildNextReq();
 
     return true;
@@ -1659,7 +1662,7 @@ static bool pl5DecodePingResp(void)
 {
     pl5BuildNextReq();
 
-    paramOobEscNeedRestart();
+    paramEscNeedRestart();
 
     return true;
 }
@@ -1794,7 +1797,7 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
     rrfsmDecode = pl5Decode;
     rrfsmCrank = pl5Crank;
 
-    paramSig = PL5_PARAM_SIG;
+    escSig = ESC_SIG_PL5;
 
     // telemetry data only
     rrfsmFrameTimeout = PL5_TELE_FRAME_TIMEOUT;
@@ -1873,7 +1876,6 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
 #define TRIB_PARAM_FRAME_PERIOD         2                   // asap
 #define TRIB_PARAM_READ_TIMEOUT         200                 // usually less than 200Us
 #define TRIB_PARAM_WRITE_TIMEOUT        1200                // usually less than 1200Us
-#define TRIB_PARAM_SIG                  0x53                // parameter payload signature for this ESC
 #define TRIB_PARAM_IQ22_ADDR            0x18                // address of param range w/ IQ22 params
 #define TRIB_PARAM_CAP_RESET            PARAM_HEADER_USER   // reset ESC capable
 #define TRIB_PARAM_CMD_RESET            PARAM_HEADER_USER   // reset ESC command
@@ -2137,6 +2139,7 @@ static bool tribDecodeLogRecord(uint8_t hl)
     const uint16_t status = buffer[hl + 15];
     const uint16_t voltBEC = buffer[hl + 12];
 
+    escSensorData[0].id = ESC_SIG_TRIB;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
     escSensorData[0].pwm = power * 5;
@@ -2146,8 +2149,6 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
-
-    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 5);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -2233,7 +2234,7 @@ static bool tribCrankUncSetup(timeUs_t currentTimeUs)
             if (tribBuildNextParamReq()) {
                 tribUncSetup = TRIB_UNCSETUP_WAIT;
             }
-            paramOobEscNeedRestart();
+            paramEscNeedRestart();
             break;
         case TRIB_UNCSETUP_WAIT:
             if (tribInvalidParams == 0 && tribDirtyParams == 0) {
@@ -2303,7 +2304,7 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
         rrfsmStart = tribStart;
     
         // enable ESC parameter reads and writes, reset
-        paramSig = TRIB_PARAM_SIG;
+        escSig = ESC_SIG_TRIB;
         paramVer = 0 | TRIB_PARAM_CAP_RESET;
         paramCommit = tribParamCommit;
         tribInvalidateParams();
@@ -2360,7 +2361,6 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
  *      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
  *      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
  */
-
 #define OPENYGE_SYNC                        0xA5                // sync
 #define OPENYGE_VERSION                     3                   // protocol version
 #define OPENYGE_HEADER_LENGTH               6                   // header length
@@ -2376,8 +2376,6 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_PARAM_FRAME_PERIOD          4                   // TBD ASAP?
 #define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: confirm
 #define OPENYGE_REQ_WRITE_TIMEOUT           400                 // Response timeout for write requests  TBD: confirm
-
-#define OPENYGE_PARAM_SIG                   0xA5                // parameter payload signature for this ESC
 #define OPENYGE_PARAM_CACHE_SIZE_MAX        64                  // limited by use of uint64_t as bit array for oygeCachedParams
 
 #define OPENYGE_FTYPE_TELE_AUTO             0x00                // auto telemetry frame
@@ -2561,6 +2559,7 @@ static void oygeDecodeTelemetryFrame(void)
     int16_t temp = tele->temperature - OPENYGE_TEMP_OFFSET;
     int16_t tempBEC = tele->bec_temp - OPENYGE_TEMP_OFFSET;
 
+    escSensorData[0].id = ESC_SIG_OPENYGE;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].pwm = tele->pwm * 10;
@@ -2575,7 +2574,6 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].status = tele->status1;
 
     oygeCacheParam(tele->pidx, tele->pdata);
-    paramOobEscSig();
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
@@ -2709,7 +2707,7 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
     rrfsmMinFrameLength = OPENYGE_MIN_FRAME_LENGTH;
     rrfsmAccept = oygeAccept;
 
-    paramSig = OPENYGE_PARAM_SIG;
+    escSig = ESC_SIG_OPENYGE;
 
     if (bidirectional) {
         // use request/response telemetry mode, enable parameter writes to ESC
@@ -2863,7 +2861,7 @@ uint8_t escGetParamBufferLength(void)
 
 uint8_t *escGetParamBuffer(void)
 {
-    paramBuffer[PARAM_HEADER_SIG] = paramSig;
+    paramBuffer[PARAM_HEADER_SIG] = escSig;
     paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
     return paramBuffer;
 }

@@ -54,6 +54,8 @@
 #include "pg/pg_ids.h"
 #include "pg/rx.h"
 
+#include "telemetry/sensors.h"
+
 #include "rx/rx.h"
 #include "rx/pwm.h"
 #include "rx/fport.h"
@@ -287,6 +289,8 @@ void rxInit(void)
             rcInput[modeActivationCondition->auxChannelIndex + CONTROL_CHANNEL_COUNT] = value;
         }
     }
+
+    legacySensorInit();
 
     switch (rxRuntimeState.rxProvider) {
     default:
