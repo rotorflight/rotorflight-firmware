@@ -102,7 +102,7 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     send_SBS01T(7, temperature);
 
     // 8 slots, esc
-    send_kontronik(8,  escData->voltage * 0.001f, escData->consumption, escData->erpm, escData->current, escData->temperature, escData->temperature2, escData->bec_current, escData->pwm);
+    send_kontronik(8,  escData->voltage * 0.1f, escData->consumption * 100, escData->erpm, escData->current * 0.01f , escData->temperature, escData->temperature2, escData->bec_current * 10, escData->pwm);
 }
 
 uint8_t sbus2GetTelemetrySlot(timeUs_t elapsed)
