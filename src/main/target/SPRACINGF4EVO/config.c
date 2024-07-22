@@ -48,7 +48,6 @@ void targetConfiguration(void)
 {
     barometerConfigMutable()->baro_hardware = BARO_DEFAULT;
     targetSerialPortFunctionConfig(targetSerialPortFunction, ARRAYLEN(targetSerialPortFunction));
-    telemetryConfigMutable()->halfDuplex = 0;
-    telemetryConfigMutable()->telemetry_inverted = true;
+    telemetryConfigMutable()->serial~_options = SERIAL_INVERTED;
 }
 #endif

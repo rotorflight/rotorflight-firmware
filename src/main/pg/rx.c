@@ -38,8 +38,7 @@ void pgResetFn_rxConfig(rxConfig_t *rxConfig)
 {
     RESET_CONFIG_2(rxConfig_t, rxConfig,
         .serialrx_provider = SERIALRX_PROVIDER,
-        .serialrx_inverted = 0,
-        .halfDuplex = 0,
+        .serial_options = 0,
         .rx_pulse_min = RX_PWM_PULSE_MIN,
         .rx_pulse_max = RX_PWM_PULSE_MAX,
         .rssi_src_frame_errors = false,

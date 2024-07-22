@@ -1,52 +1,55 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
- */
-
-/*
- * telemetry.h
- *
- *  Created on: 6 Apr 2014
- *      Author: Hydra
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #pragma once
 
 #include "common/unit.h"
 
-#include "io/serial.h"
-
 #include "pg/pg.h"
 #include "pg/telemetry.h"
 
+#include "io/serial.h"
+
 #include "rx/rx.h"
 
-#include "telemetry/ibus_shared.h"
+#include "telemetry/sensors.h"
+
+
+typedef struct {
+    timeUs_t                    update_time;
+    uint16_t                    start_index;
+    uint16_t                    sensor_count;
+    telemetrySensor_t *         sensors;
+} telemetryScheduler_t;
 
 
 extern serialPort_t *telemetrySharedPort;
 
-void telemetryInit(void);
+bool telemetryDetermineEnabledState(portSharing_e portSharing);
 bool telemetryCheckRxPortShared(const serialPortConfig_t *portConfig, const SerialRXType serialrxProvider);
 
+void telemetryProcess(timeUs_t currentTime);
 void telemetryCheckState(void);
-void telemetryProcess(uint32_t currentTime);
+void telemetryInit(void);
 
-bool telemetryDetermineEnabledState(portSharing_e portSharing);
+telemetrySensor_t * telemetryScheduleNext(void);
 
-bool telemetryIsSensorEnabled(sensor_e sensor);
+void telemetryScheduleAdd(telemetrySensor_t * sensor);
+void telemetryScheduleUpdate(timeUs_t currentTime);
+void telemetryScheduleCommit(telemetrySensor_t * sensor);
+void telemetryScheduleInit(telemetrySensor_t * sensors, size_t count);
+

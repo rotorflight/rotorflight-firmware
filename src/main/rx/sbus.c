@@ -108,6 +108,12 @@ typedef struct sbusFrameData_s {
     bool done;
 } sbusFrameData_t;
 
+#if defined(USE_TELEMETRY) && defined(USE_TELEMETRY_SBUS2)
+static uint8_t sbus2ActiveTelemetryPage = 0;
+static uint8_t sbus2ActiveTelemetrySlot = 0;
+static timeUs_t frameTime = 0;
+#endif
+
 // Receive ISR callback
 static void sbusDataReceive(uint16_t c, void *data)
 {
@@ -134,6 +140,30 @@ static void sbusDataReceive(uint16_t c, void *data)
             sbusFrameData->done = false;
         } else {
             sbusFrameData->done = true;
+
+#if defined(USE_TELEMETRY) && defined(USE_TELEMETRY_SBUS2)
+            switch(c) {
+                case 0x04: // sbus2, first telemetry page
+                case 0x14: // sbus2, second telemetry page
+                case 0x24: // sbus2, second telemetry page
+                case 0x34: // sbus2, second telemetry page
+                    if (c & 0x4)
+                    {
+                        sbus2ActiveTelemetryPage = (c >> 4) & 0xF;
+                        frameTime = nowUs;
+                    }
+                    else
+                    {
+                        sbus2ActiveTelemetryPage = 0;
+                        sbus2ActiveTelemetrySlot = 0;
+                        frameTime = -1;
+                    }
+                    break;
+                default:
+                case 0x00: // sbus1
+                    break;
+            }
+#endif
             DEBUG_SET(DEBUG_SBUS, DEBUG_SBUS_FRAME_TIME, sbusFrameTime);
         }
     }
@@ -192,13 +222,18 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     bool portShared = false;
 #endif
 
+    portOptions_e portOptions = SBUS_PORT_OPTIONS |
+        (telemetryConfig()->serial_options & (SERIAL_BIDIR | SERIAL_INVERTED | SERIAL_PINSWAP));
+
+    portOptions ^= SERIAL_INVERTED; // Inverted means double-inverted
+
     serialPort_t *sBusPort = openSerialPort(portConfig->identifier,
         FUNCTION_RX_SERIAL,
         sbusDataReceive,
         &sbusFrameData,
         sbusBaudRate,
         portShared ? MODE_RXTX : MODE_RX,
-        SBUS_PORT_OPTIONS | (rxConfig->serialrx_inverted ? 0 : SERIAL_INVERTED) | (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)
+        portOptions
         );
 
     if (rxConfig->rssi_src_frame_errors) {
@@ -213,4 +248,21 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 
     return sBusPort != NULL;
 }
+
+#if defined(USE_TELEMETRY) && defined(USE_TELEMETRY_SBUS2)
+timeUs_t sbusGetLastFrameTime(void) {
+    return frameTime;
+}
+
+uint8_t sbusGetCurrentTelemetryNextSlot(void)
+{
+    uint8_t current = sbus2ActiveTelemetrySlot;
+    sbus2ActiveTelemetrySlot++;
+    return current;
+}
+
+uint8_t sbusGetCurrentTelemetryPage(void) {
+    return sbus2ActiveTelemetryPage;
+}
+#endif // USE_TELEMETRY && USE_SBUS2_TELEMETRY
 #endif

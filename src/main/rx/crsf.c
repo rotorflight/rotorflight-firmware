@@ -70,8 +70,6 @@ STATIC_UNIT_TESTED uint32_t crsfChannelData[CRSF_MAX_CHANNEL];
 
 static serialPort_t *serialPort;
 static timeUs_t crsfFrameStartAtUs = 0;
-static uint8_t telemetryBuf[CRSF_FRAME_SIZE_MAX];
-static uint8_t telemetryBufLen = 0;
 static float channelScale = CRSF_RC_CHANNEL_SCALE_LEGACY;
 
 #ifdef USE_RX_LINK_UPLINK_POWER
@@ -337,6 +335,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameCRC(void)
     return crc;
 }
 
+#if defined(USE_CRSF_V3)
 STATIC_UNIT_TESTED uint8_t crsfFrameCmdCRC(void)
 {
     // CRC includes type and payload
@@ -346,6 +345,7 @@ STATIC_UNIT_TESTED uint8_t crsfFrameCmdCRC(void)
     }
     return crc;
 }
+#endif
 
 // Receive ISR callback, called back from serial port
 STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
@@ -412,9 +412,6 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
                 }
 #endif
 #if defined(USE_CRSF_CMS_TELEMETRY)
-                case CRSF_FRAMETYPE_DEVICE_PING:
-                    crsfScheduleDeviceInfoResponse();
-                    break;
                 case CRSF_FRAMETYPE_DISPLAYPORT_CMD: {
                     uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_ORIGIN_DEST_SIZE;
                     crsfProcessDisplayPortCmd(frameStart);
@@ -422,7 +419,6 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
                 }
 #endif
 #if defined(USE_CRSF_LINK_STATISTICS)
-
                 case CRSF_FRAMETYPE_LINK_STATISTICS: {
                     // if to FC and 10 bytes + CRSF_FRAME_ORIGIN_DEST_SIZE
                     if ((rssiSource == RSSI_SOURCE_RX_PROTOCOL_CRSF) &&
@@ -456,6 +452,9 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
                     }
                     break;
 #endif
+                case CRSF_FRAMETYPE_DEVICE_PING:
+                    crsfScheduleDeviceInfoResponse();
+                    break;
                 default:
                     break;
                 }
@@ -598,25 +597,11 @@ STATIC_UNIT_TESTED float crsfReadRawRC(const rxRuntimeState_t *rxRuntimeState, u
     }
 }
 
-void crsfRxWriteTelemetryData(const void *data, int len)
+void crsfRxTransmitTelemetryData(const void *data, int len)
 {
-    len = MIN(len, (int)sizeof(telemetryBuf));
-    memcpy(telemetryBuf, data, len);
-    telemetryBufLen = len;
-}
-
-void crsfRxSendTelemetryData(void)
-{
-    // if there is telemetry data to write
-    if (telemetryBufLen > 0) {
-        serialWriteBuf(serialPort, telemetryBuf, telemetryBufLen);
-        telemetryBufLen = 0; // reset telemetry buffer
+    if (len > 0 && len <= CRSF_FRAME_SIZE_MAX) {
+        serialWriteBuf(serialPort, data, len);
     }
-}
-
-bool crsfRxIsTelemetryBufEmpty(void)
-{
-    return telemetryBufLen == 0;
 }
 
 bool crsfRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
@@ -649,7 +634,7 @@ bool crsfRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         rxRuntimeState,
         crsfBaudrate,
         CRSF_PORT_MODE,
-        CRSF_PORT_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0)
+        CRSF_PORT_OPTIONS | (rxConfig->serial_options & (SERIAL_INVERTED | SERIAL_PINSWAP))
         );
 
     if (rssiSource == RSSI_SOURCE_NONE) {

@@ -35,7 +35,7 @@
 #ifdef USE_TARGET_CONFIG
 void targetConfiguration(void)
 {
-    rxConfigMutable()->halfDuplex = true;
+    rxConfigMutable()->serial_options = SERIAL_BIDIR;
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_UART4)].functionMask = FUNCTION_MSP;
 }
 #endif

@@ -53,34 +53,33 @@ void uartPinConfigure(const serialPinConfig_t *pSerialPinConfig)
         const uartHardware_t *hardware = &uartHardware[hindex];
         const UARTDevice_e device = hardware->device;
 
-#if !defined(STM32F4) // Don't support pin swap.
+#ifdef USE_SERIAL_PINSWAP
         uartdev->pinSwap = false;
 #endif
         for (int pindex = 0 ; pindex < UARTHARDWARE_MAX_PINS ; pindex++) {
             if (pSerialPinConfig->ioTagRx[device] && (pSerialPinConfig->ioTagRx[device] == hardware->rxPins[pindex].pin)) {
-                uartdev->rx = hardware->rxPins[pindex];
+                uartdev->rxPin = hardware->rxPins[pindex];
             }
 
             if (pSerialPinConfig->ioTagTx[device] && (pSerialPinConfig->ioTagTx[device] == hardware->txPins[pindex].pin)) {
-                uartdev->tx = hardware->txPins[pindex];
+                uartdev->txPin = hardware->txPins[pindex];
             }
 
-
-#if !defined(STM32F4)
+#ifdef USE_SERIAL_PINSWAP
             // Check for swapped pins
             if (pSerialPinConfig->ioTagTx[device] && (pSerialPinConfig->ioTagTx[device] == hardware->rxPins[pindex].pin)) {
-                uartdev->tx = hardware->rxPins[pindex];
+                uartdev->rxPin = hardware->rxPins[pindex];
                 uartdev->pinSwap = true;
             }
 
             if (pSerialPinConfig->ioTagRx[device] && (pSerialPinConfig->ioTagRx[device] == hardware->txPins[pindex].pin)) {
-                uartdev->rx = hardware->txPins[pindex];
+                uartdev->txPin = hardware->txPins[pindex];
                 uartdev->pinSwap = true;
             }
 #endif
         }
 
-        if (uartdev->rx.pin || uartdev->tx.pin) {
+        if (uartdev->rxPin.pin || uartdev->txPin.pin) {
             uartdev->hardware = hardware;
             uartDevmap[device] = uartdev++;
         }

@@ -224,6 +224,10 @@ extern uint8_t _dmaram_end__;
 #define USE_DMA
 #define USE_TIMER
 
+#ifndef STM32F4
+#define USE_SERIAL_PINSWAP
+#endif
+
 #define USE_CLI
 #define USE_SERIAL_PASSTHROUGH
 #define USE_GYRO_REGISTER_DUMP  // Adds gyroregisters command to cli to dump configured register values
@@ -382,6 +386,7 @@ extern uint8_t _dmaram_end__;
 #define USE_CUSTOM_BOX_NAMES
 #define USE_RX_LINK_UPLINK_POWER
 #define USE_CRSF_V3
+#define USE_TELEMETRY_SBUS2
 #endif
 
 #if (TARGET_FLASH_SIZE > 512)

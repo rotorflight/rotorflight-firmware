@@ -502,7 +502,10 @@ static void freeSmartPortTelemetryPort(void)
 static void configureSmartPortTelemetryPort(void)
 {
     if (portConfig) {
-        portOptions_e portOptions = (telemetryConfig()->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) | (telemetryConfig()->telemetry_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED);
+        portOptions_e portOptions = telemetryConfig()->serial_options &
+            (SERIAL_BIDIR | SERIAL_INVERTED | SERIAL_PINSWAP);
+
+        portOptions ^= SERIAL_INVERTED; // Inverted means double-inverted
 
         smartPortSerialPort = openSerialPort(portConfig->identifier, FUNCTION_TELEMETRY_SMARTPORT, NULL, NULL, SMARTPORT_BAUD, SMARTPORT_UART_MODE, portOptions);
     }
