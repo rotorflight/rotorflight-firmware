@@ -87,20 +87,6 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     float temperature =  getCoreTemperatureCelsius() * 10;
     uint32_t rpm = getHeadSpeed();
 
-#ifdef USE_ESC_SENSOR
-/*
-    escSensorData_t * escSensor = escSensorGetData();
-    if (escSensor && escSensor->dataAge <= ESC_DATA_MAX_AGE) {
-        rpm = escSensor->erpm;
-        temperature = escSensor->temperature;
-    } else {
-        rpm = 0;
-        temperature = 0;
-    }
-    */
-#endif
-
-    //temperature = 42.16f;
 
     // 2 slots
     send_voltagef(1, voltage, cellVoltage);
@@ -115,35 +101,8 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     delta = delta % 20;
     send_SBS01T(7, temperature);
 
-    // 8 slots, gps
-    uint16_t speed = 0;
-    float latitude = 0;
-    float longitude = 0;
-
-
+    // 8 slots, esc
     send_kontronik(8,  escData->voltage * 0.001f, escData->consumption, escData->erpm, escData->current, escData->temperature, escData->temperature2, escData->bec_current, escData->pwm);
-#ifdef USE_GPS
-/*
-    if (gpsSol.fixType >= GPS_FIX_2D) {
-        speed = (CMSEC_TO_KPH(gpsSol.groundSpeed) + 0.5f);
-        latitude = gpsSol.llh.lat * 1e-7;
-        longitude = gpsSol.llh.lon * 1e-7;
-    }
-    */
-#endif
-
-    send_F1675f(8, speed, altitude, vario, latitude, longitude);
-
-    // imu 1 slot
-    int16_t temp16 = 0;
-    bool valid = false;
-    //valid = getIMUTemperature(&temp16);
-    send_SBS01T(16, valid ? temp16 / 10 : 0);
-    // baro
-    valid = 0;
-    valid = false;
-    //valid = getBaroTemperature(&temp16);
-    send_SBS01T(17, valid ? temp16 / 10 : 0);
 }
 
 uint8_t sbus2GetTelemetrySlot(timeUs_t elapsed)
