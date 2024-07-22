@@ -34,7 +34,7 @@
 
 void targetConfiguration(void)
 {
-    rxConfigMutable()->halfDuplex = true;
+    rxConfigMutable()->serial_options = SERIAL_BIDIR;
     pinioBoxConfigMutable()->permanentId[0] = 40;
     pinioBoxConfigMutable()->permanentId[1] = 41;
 }

@@ -30,7 +30,7 @@ PG_REGISTER_WITH_RESET_FN(vtxSettingsConfig_t, vtxSettingsConfig, PG_VTX_SETTING
 PG_REGISTER_WITH_RESET_TEMPLATE(vtxConfig_t, vtxConfig, PG_VTX_CONFIG, 1);
 
 PG_RESET_TEMPLATE(vtxConfig_t, vtxConfig,
-    .halfDuplex = true
+    .serial_options = 0
 );
 
 #endif

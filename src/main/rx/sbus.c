@@ -222,13 +222,18 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     bool portShared = false;
 #endif
 
+    portOptions_e portOptions = SBUS_PORT_OPTIONS |
+        (telemetryConfig()->serial_options & (SERIAL_BIDIR | SERIAL_INVERTED | SERIAL_PINSWAP));
+
+    portOptions ^= SERIAL_INVERTED; // Inverted means double-inverted
+
     serialPort_t *sBusPort = openSerialPort(portConfig->identifier,
         FUNCTION_RX_SERIAL,
         sbusDataReceive,
         &sbusFrameData,
         sbusBaudRate,
         portShared ? MODE_RXTX : MODE_RX,
-        SBUS_PORT_OPTIONS | (rxConfig->serialrx_inverted ? 0 : SERIAL_INVERTED) | (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)
+        portOptions
         );
 
     if (rxConfig->rssi_src_frame_errors) {

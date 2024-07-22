@@ -39,6 +39,6 @@
 
 void targetConfiguration(void)
 {
-    rxConfigMutable()->halfDuplex = true;
+    rxConfigMutable()->serial_options = SERIAL_BIDIR;
 }
 #endif

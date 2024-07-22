@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
     vtxChannelActivationCondition_t vtxChannelActivationConditions[MAX_CHANNEL_ACTIVATION_CONDITION_COUNT];
-    uint8_t halfDuplex;
+    uint16_t serial_options;
 } vtxConfig_t;
 
 PG_DECLARE(vtxConfig_t, vtxConfig);

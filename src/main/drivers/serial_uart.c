@@ -117,6 +117,8 @@ LPUART_BUFFERS(1);
 
 serialPort_t *uartOpen(UARTDevice_e device, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_e mode, portOptions_e options)
 {
+    uartSelectPins(device, options);
+
     uartPort_t *uartPort = serialUART(device, baudRate, mode, options);
 
     if (!uartPort)

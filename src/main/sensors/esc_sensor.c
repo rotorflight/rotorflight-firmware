@@ -2793,7 +2793,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
 
 bool INIT_CODE escSensorInit(void)
 {
-    const bool escHalfDuplex = escSensorConfig()->halfDuplex;
+    const bool escHalfDuplex = escSensorConfig()->serial_options & SERIAL_BIDIR;
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_ESC_SENSOR);
     serialReceiveCallbackPtr callback = NULL;
     portOptions_e options = 0;
@@ -2803,7 +2803,8 @@ bool INIT_CODE escSensorInit(void)
         return false;
     }
 
-    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | (escHalfDuplex ? SERIAL_BIDIR : 0);
+    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
+        (escSensorConfig()->serial_options & (SERIAL_BIDIR | SERIAL_INVERTED | SERIAL_PINSWAP));
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:

@@ -275,7 +275,14 @@ void configureLtmTelemetryPort(void)
     if (baudRateIndex == BAUD_AUTO) {
         baudRateIndex = BAUD_19200;
     }
-    ltmPort = openSerialPort(portConfig->identifier, FUNCTION_TELEMETRY_LTM, NULL, NULL, baudRates[baudRateIndex], TELEMETRY_LTM_INITIAL_PORT_MODE, telemetryConfig()->telemetry_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED);
+    ltmPort = openSerialPort(
+        portConfig->identifier,
+        FUNCTION_TELEMETRY_LTM,
+        NULL, NULL,
+        baudRates[baudRateIndex],
+        TELEMETRY_LTM_INITIAL_PORT_MODE,
+        rxConfig()->serial_options & (SERIAL_INVERTED | SERIAL_PINSWAP)
+        );
     if (!ltmPort)
         return;
     ltmEnabled = true;

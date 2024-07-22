@@ -61,6 +61,7 @@ jobs:
             testbuild STM32F411 ${RESULT} &
             testbuild STM32F405 ${RESULT} &
             testbuild STM32G47X ${RESULT} &
+            testbuild MATEKH743 ${RESULT} &
             testbuild MATEKF722 ${RESULT} &
             testbuild MATEKF411 ${RESULT} &
             testbuild MATEKF405 ${RESULT} &
