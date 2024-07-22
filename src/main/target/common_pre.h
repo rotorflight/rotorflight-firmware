@@ -382,6 +382,7 @@ extern uint8_t _dmaram_end__;
 #define USE_CUSTOM_BOX_NAMES
 #define USE_RX_LINK_UPLINK_POWER
 #define USE_CRSF_V3
+#define USE_TELEMETRY_SBUS2
 #endif
 
 #if (TARGET_FLASH_SIZE > 512)
