@@ -29,6 +29,10 @@
 #define MS2US(ms)   ((ms) * 1000)
 #endif
 
+#ifndef CMSEC_TO_MSEC
+#define CMSEC_TO_MSEC(cmsec) (cmsec * 0.01f);
+#endif
+
 #define SBUS2_TELEMETRY_PAYLOAD_SIZE 3
 
 #define SBUS2_TELEMETRY_ITEM_SIZE   3

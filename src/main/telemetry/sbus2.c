@@ -34,13 +34,17 @@
 
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
+#include "sensors/adcinternal.h"
 
 #include "io/gps.h"
+
 
 #ifdef USE_ESC_SENSOR
 #include "sensors/esc_sensor.h"
 #include "flight/mixer.h"
 #endif
+
+#include "flight/position.h"
 
 #ifdef USE_TELEMETRY_SBUS2
 
@@ -74,13 +78,14 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     UNUSED(currentTimeUs);
 
     float voltage = getBatteryVoltage() * 0.01f;
-    float cellVoltage = getBatteryAverageCellVoltage() * 0.01f;
-    float current =  0; //getAmperage() * 0.01f;
-    float capacity = 0; //getMAhDrawn();
-    float altitude = 0.0f; //getEstimatedActualPosition(Z) * 0.01f;
-    float vario = 0.0f; //getEstimatedActualVelocity(Z);
-    float temperature = 0;
-    uint32_t rpm = 0;
+    float cellVoltage =  getBatteryAverageCellVoltage() * 0.01f;
+    escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
+    float current =  getBatteryCurrent();
+    float capacity = getBatteryCapacityUsed();
+    float altitude = getEstimatedAltitudeCm() * 0.01f;
+    float vario = CMSEC_TO_MSEC(getEstimatedVarioCms());
+    float temperature =  getCoreTemperatureCelsius() * 10;
+    uint32_t rpm = getHeadSpeed();
 
 #ifdef USE_ESC_SENSOR
 /*
@@ -115,6 +120,8 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     float latitude = 0;
     float longitude = 0;
 
+
+    send_kontronik(8,  escData->voltage * 0.001f, escData->consumption, escData->erpm, escData->current, escData->temperature, escData->temperature2, escData->bec_current, escData->pwm);
 #ifdef USE_GPS
 /*
     if (gpsSol.fixType >= GPS_FIX_2D) {
