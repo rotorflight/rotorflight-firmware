@@ -338,9 +338,9 @@ It runs at a fixed baud rate of 100000 8e2.
 
 ```
      _______
-    /       \                                             /---------\
-    | STM32 |--UART TX-->[Bi-directional @ 115200 baud]<--| IBUS RX |
-    |  uC   |--UART RX--x[not connected]                  \---------/
+    /       \                                             /----------\
+    | STM32 |--UART TX-->[Bi-directional @ 100000 baud]<--| SBUS2 RX |
+    |  uC   |--UART RX--x[not connected]                  \----------/
     \_______/
 ```
 
