@@ -1,18 +1,18 @@
 /*
- * This file is part of INAV.
+ * This file is part of RotorFlight.
  *
- * INAV is free software: you can redistribute it and/or modify
+ * RotorFlight is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * INAV is distributed in the hope that it will be useful,
+ * RotorFlight is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with INAV.  If not, see <http://www.gnu.org/licenses/>.
+ * along with RotorFlight.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdint.h>
@@ -82,9 +82,9 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     float current =  getBatteryCurrent();
     float capacity = getBatteryCapacityUsed();
-    float altitude = getEstimatedAltitudeCm() * 0.01f;
-    float vario = CMSEC_TO_MSEC(getEstimatedVarioCms());
-    float temperature =  getCoreTemperatureCelsius() * 10;
+    //float altitude = getEstimatedAltitudeCm() * 0.01f;
+    //float vario = CMSEC_TO_MSEC(getEstimatedVarioCms());
+    float temperature =  getCoreTemperatureCelsius();
     uint32_t rpm = getHeadSpeed();
 
 
