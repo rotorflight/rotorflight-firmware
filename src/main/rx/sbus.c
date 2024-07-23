@@ -147,20 +147,14 @@ static void sbusDataReceive(uint16_t c, void *data)
                 case 0x14: // sbus2, second telemetry page
                 case 0x24: // sbus2, second telemetry page
                 case 0x34: // sbus2, second telemetry page
-                    if (c & 0x4)
-                    {
-                        sbus2ActiveTelemetryPage = (c >> 4) & 0xF;
-                        frameTime = nowUs;
-                    }
-                    else
-                    {
-                        sbus2ActiveTelemetryPage = 0;
-                        sbus2ActiveTelemetrySlot = 0;
-                        frameTime = -1;
-                    }
+                    sbus2ActiveTelemetryPage = (c >> 4) & 0xF;
+                    frameTime = nowUs;
                     break;
                 default:
                 case 0x00: // sbus1
+                    sbus2ActiveTelemetryPage = 0;
+                    sbus2ActiveTelemetrySlot = 0;
+                    frameTime = -1;
                     break;
             }
 #endif
