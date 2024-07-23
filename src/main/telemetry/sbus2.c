@@ -82,11 +82,8 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     float current =  getBatteryCurrent() * 0.01f;
     float capacity = getBatteryCapacityUsed();
-    //float altitude = getEstimatedAltitudeCm() * 0.01f;
-    //float vario = CMSEC_TO_MSEC(getEstimatedVarioCms());
     float temperature =  getCoreTemperatureCelsius();
     uint32_t rpm = getHeadSpeed();
-
 
     // 2 slots
     send_voltagef(1, voltage, cellVoltage);
@@ -95,13 +92,9 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     // 1 slot
     send_RPM(6, rpm);
     // 1 slot - esc temp
-    static int change = 0;
-    change++;
-    int delta = change / 10;
-    delta = delta % 20;
     send_SBS01T(7, temperature);
 
-    if(isEscSensorActive()) {
+    if(escData != NULL && isEscSensorActive()) {
         // 8 slots, esc
         send_kontronik(8,  escData->voltage * 0.1f, escData->consumption * 100, escData->erpm, escData->current * 0.01f , escData->temperature * 10, escData->temperature2 * 10, escData->bec_current * 10, escData->pwm);
     }
