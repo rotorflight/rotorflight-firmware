@@ -94,7 +94,7 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     // 1 slot - esc temp
     send_SBS01T(7, temperature);
 
-    if(escData != NULL && isEscSensorActive()) {
+    if (escData != NULL) {
         // 8 slots, esc
         send_kontronik(8,  escData->voltage * 0.1f, escData->consumption * 100, escData->erpm, escData->current * 0.01f , escData->temperature * 10, escData->temperature2 * 10, escData->bec_current * 10, escData->pwm);
     }
