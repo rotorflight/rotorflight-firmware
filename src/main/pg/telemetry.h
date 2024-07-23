@@ -64,6 +64,7 @@ typedef struct {
     int16_t gpsNoFixLongitude;
     uint8_t telemetry_inverted;
     uint8_t halfDuplex;
+    uint8_t pinSwap;
     uint8_t frsky_coordinate_format;
     uint8_t frsky_unit;
     uint8_t frsky_vfas_precision;

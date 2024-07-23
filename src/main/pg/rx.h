@@ -31,6 +31,7 @@ typedef struct rxConfig_s {
     uint8_t serialrx_provider;                 // type of UART-based receiver (0 = spek 10, 1 = spek 11, 2 = sbus). Must be enabled by FEATURE_RX_SERIAL first.
     uint8_t serialrx_inverted;                 // invert the serial RX protocol compared to it's default setting
     uint8_t halfDuplex;                        // allow rx to operate in half duplex mode on F4, ignored for F1 and F3.
+    uint8_t pinSwap;                           // swap rx and tx pins around compared to the resource settings
     uint16_t rx_pulse_min;                     // Absolute minimum pulse accepted
     uint16_t rx_pulse_max;                     // Absolute maximum pulse accepted
     uint8_t rssi_channel;

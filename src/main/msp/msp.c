@@ -803,6 +803,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, escSensorConfig()->hw4_current_offset);
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
+        sbufWriteU8(dst, escSensorConfig()->pinSwap);
         break;
 
     case MSP_ESC_PARAMETERS:
@@ -1535,6 +1536,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, 0);
         sbufWriteU8(dst, 0);
 #endif
+        sbufWriteU8(dst, rxConfig()->pinSwap);
         break;
 
     case MSP_FAILSAFE_CONFIG:
@@ -1578,6 +1580,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, telemetryConfig()->telemetry_inverted);
         sbufWriteU8(dst, telemetryConfig()->halfDuplex);
         sbufWriteU32(dst, telemetryConfig()->enableSensors);
+        sbufWriteU8(dst, telemetryConfig()->pinSwap);
         break;
 
     case MSP_SERIAL_CONFIG:
@@ -2650,6 +2653,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
         escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
         escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
+        if (sbufBytesRemaining(src) >= 1) {
+            escSensorConfigMutable()->pinSwap = sbufReadU8(src);
+        }
         break;
 
     case MSP_SET_ESC_PARAMETERS:
@@ -3016,6 +3022,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             rxConfigMutable()->halfDuplex = sbufReadU8(src);
             rxConfigMutable()->rx_pulse_min = sbufReadU16(src);
             rxConfigMutable()->rx_pulse_max = sbufReadU16(src);
+            if (sbufBytesRemaining(src) >= 6) {
+                sbufReadU8(src);
+                sbufReadU32(src);
+                sbufReadU8(src);
+            }
+            if (sbufBytesRemaining(src) >= 1) {
+                rxConfigMutable()->pinSwap = sbufReadU8(src);
+            }
         }
     #ifdef USE_RX_SPI
         if (sbufBytesRemaining(src) >= 6) {
@@ -3072,6 +3086,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         telemetryConfigMutable()->telemetry_inverted = sbufReadU8(src);
         telemetryConfigMutable()->halfDuplex = sbufReadU8(src);
         telemetryConfigMutable()->enableSensors = sbufReadU32(src);
+        if (sbufBytesRemaining(src) >= 1) {
+            telemetryConfigMutable()->pinSwap = sbufReadU8(src);
+        }
         break;
 
     case MSP_SET_SERIAL_CONFIG:

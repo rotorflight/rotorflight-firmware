@@ -700,15 +700,17 @@ bool vtxSmartAudioInit(void)
     dprintf(("smartAudioInit: OK\r\n"));
 #endif
 
-    // Note, for SA, which uses bidirectional mode, would normally require pullups. 
+    // Note, for SA, which uses bidirectional mode, would normally require pullups.
     // the SA protocol instead requires pulldowns, and therefore uses SERIAL_BIDIR_PP_PD instead of SERIAL_BIDIR_PP
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_VTX_SMARTAUDIO);
     if (portConfig) {
         portOptions_e portOptions = SERIAL_STOPBITS_2 | SERIAL_BIDIR_NOPULL;
 #if defined(USE_VTX_COMMON)
-        portOptions = portOptions | (vtxConfig()->halfDuplex ? SERIAL_BIDIR | SERIAL_BIDIR_PP_PD : SERIAL_UNIDIR);
+        portOptions |=
+            (vtxConfig()->halfDuplex ? SERIAL_BIDIR | SERIAL_BIDIR_PP_PD : SERIAL_UNIDIR) |
+            (vtxConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP);
 #else
-        portOptions = SERIAL_BIDIR;
+        portOptions |= SERIAL_BIDIR;
 #endif
 
         smartAudioSerialPort = openSerialPort(portConfig->identifier, FUNCTION_VTX_SMARTAUDIO, NULL, NULL, 4800, MODE_RXTX, portOptions);

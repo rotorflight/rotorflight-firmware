@@ -63,6 +63,18 @@ static void usartConfigurePinInversion(uartPort_t *uartPort) {
 #endif
 }
 
+void uartSelectPins(UARTDevice_e device, portOptions_e options)
+{
+    UNUSED(options);
+
+    uartDevice_t *uartDevice = uartDevmap[device];
+
+    if (uartDevice) {
+        uartDevice->rx = uartDevice->rxPin;
+        uartDevice->tx = uartDevice->txPin;
+    }
+}
+
 void uartReconfigure(uartPort_t *uartPort)
 {
     USART_InitTypeDef USART_InitStructure;

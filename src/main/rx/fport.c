@@ -408,7 +408,10 @@ bool fportRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         FPORT_BAUDRATE,
         MODE_RXTX,
-        FPORT_PORT_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) | (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)
+        FPORT_PORT_OPTIONS |
+        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+        (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
     );
 
     if (fportPort) {

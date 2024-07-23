@@ -27,6 +27,7 @@ PG_REGISTER_WITH_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig, PG_ESC_SENSO
 PG_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig,
         .protocol = ESC_SENSOR_PROTO_NONE,
         .halfDuplex = 0,
+        .pinSwap = 0,
         .update_hz = ESC_SENSOR_TASK_FREQ_HZ,
         .current_offset = 0,
         .hw4_current_offset = 0,

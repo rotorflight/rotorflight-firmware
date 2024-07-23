@@ -195,7 +195,9 @@ bool sumdInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         SUMD_BAUDRATE,
         portShared ? MODE_RXTX : MODE_RX,
-        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) | (rxConfig->halfDuplex ? SERIAL_BIDIR : 0)
+        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+        (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
 #ifdef USE_TELEMETRY

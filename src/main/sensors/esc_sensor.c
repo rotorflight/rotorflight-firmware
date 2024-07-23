@@ -1541,8 +1541,8 @@ static bool pl5ParamCommit(uint8_t cmd)
             return false;
 
         // params dirty?
-        if (memcmp(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
-            paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, 
+        if (memcmp(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH,
+            paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH,
             PL5_RESP_GETPARAMS_PAYLOAD_LENGTH) != 0) {
             // set dirty flag, will schedule read
             pl5DirtyParams = true;
@@ -2803,7 +2803,9 @@ bool INIT_CODE escSensorInit(void)
         return false;
     }
 
-    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | (escHalfDuplex ? SERIAL_BIDIR : 0);
+    options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED |
+        (escHalfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+        (escSensorConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP);
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:

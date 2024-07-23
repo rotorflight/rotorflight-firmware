@@ -34,6 +34,7 @@ PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
     .halfDuplex = 1,
+    .pinSwap = 0,
     .gpsNoFixLatitude = 0,
     .gpsNoFixLongitude = 0,
     .frsky_coordinate_format = FRSKY_FORMAT_DMS,
