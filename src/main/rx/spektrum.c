@@ -400,8 +400,9 @@ bool spektrumInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         rxRuntimeState,
         SPEKTRUM_BAUDRATE,
         portShared || srxlEnabled ? MODE_RXTX : MODE_RX,
-        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) |
-        ((srxlEnabled || rxConfig->halfDuplex) ? SERIAL_BIDIR : 0)
+        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+        ((rxConfig->halfDuplex || srxlEnabled) ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
 #if defined(USE_TELEMETRY_SRXL)

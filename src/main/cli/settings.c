@@ -485,24 +485,12 @@ const char * const lookupTableSwashType[] = {
     "NONE", "PASSTHROUGH", "CP120", "CP135", "CP140", "FP90L", "FP90V",
 };
 
-const char * const lookupTableCrsfFmReuse[] = {
-    "NONE", "GOVERNOR", "HEADSPEED", "THROTTLE", "ESC_TEMP", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE", "ADJFUNC", "GOV_ADJFUNC",
-};
-
-const char * const lookupTableCrsfAttReuse[] = {
-    "NONE", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_STATUS", "ESC_STATUS2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
-};
-
-const char * const lookupTableCrsfGpsReuse[] = {
-    "NONE", "HEADSPEED", "THROTTLE", "ESC_TEMP", "ESC_PWM", "ESC_THROTTLE", "ESC_BEC_VOLTAGE", "ESC_BEC_CURRENT", "ESC_BEC_TEMP", "ESC_STATUS", "ESC_STATUS2", "MCU_TEMP", "MCU_LOAD", "SYS_LOAD", "RT_LOAD", "BEC_VOLTAGE", "BUS_VOLTAGE", "MCU_VOLTAGE",
-};
-
-const char * const lookupTableCrsfGpsSatsReuse[] = {
-    "NONE", "ESC_TEMP", "MCU_TEMP", "PROFILE", "RATE_PROFILE", "LED_PROFILE", "MODEL_ID",
-};
-
 const char * const lookupTableDtermMode[] = {
     "GYRO", "ERROR",
+};
+
+const char * const lookupTableTelemMode[] = {
+    "NATIVE", "CUSTOM",
 };
 
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
@@ -614,11 +602,8 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
-    LOOKUP_TABLE_ENTRY(lookupTableCrsfFmReuse),
-    LOOKUP_TABLE_ENTRY(lookupTableCrsfAttReuse),
-    LOOKUP_TABLE_ENTRY(lookupTableCrsfGpsReuse),
-    LOOKUP_TABLE_ENTRY(lookupTableCrsfGpsSatsReuse),
     LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
+    LOOKUP_TABLE_ENTRY(lookupTableTelemMode),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -716,6 +701,10 @@ const clivalue_t valueTable[] = {
 #ifdef USE_SERIAL_RX
     { PARAM_NAME_SERIAL_RX_PROVIDER, VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SERIAL_RX }, PG_RX_CONFIG, offsetof(rxConfig_t, serialrx_provider) },
     { "serialrx_inverted",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, serialrx_inverted) },
+    { "serialrx_halfduplex",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, halfDuplex) },
+#ifdef USE_SERIAL_PINSWAP
+    { "serialrx_pinswap",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, pinSwap) },
+#endif
 #endif
 #ifdef USE_SPEKTRUM_BIND
     { "spektrum_sat_bind",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { SPEKTRUM_SAT_BIND_DISABLED, SPEKTRUM_SAT_BIND_MAX}, PG_RX_CONFIG, offsetof(rxConfig_t, spektrum_sat_bind) },
@@ -735,7 +724,6 @@ const clivalue_t valueTable[] = {
     { "crsf_use_negotiated_baud",    VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, crsf_use_negotiated_baud) },
 #endif
 #endif
-    { "serialrx_halfduplex",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CONFIG, offsetof(rxConfig_t, halfDuplex) },
 #ifdef USE_RX_SPI
     { "rx_spi_protocol",            VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_RX_SPI }, PG_RX_SPI_CONFIG, offsetof(rxSpiConfig_t, rx_spi_protocol) },
     { "rx_spi_bus",                 VAR_UINT8  | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, SPIDEV_COUNT }, PG_RX_SPI_CONFIG, offsetof(rxSpiConfig_t, spibus) },
@@ -1174,6 +1162,9 @@ const clivalue_t valueTable[] = {
 #ifdef USE_TELEMETRY
     { "tlm_inverted",               VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, telemetry_inverted) },
     { "tlm_halfduplex",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, halfDuplex) },
+#ifdef USE_SERIAL_PINSWAP
+    { "tlm_pinswap",                VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, pinSwap) },
+#endif
 #if defined(USE_TELEMETRY_FRSKY_HUB)
 #if defined(USE_GPS)
     { "frsky_default_lat",          VAR_INT16  | MASTER_VALUE, .config.minmax = { -9000, 9000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, gpsNoFixLatitude) },
@@ -1195,15 +1186,11 @@ const clivalue_t valueTable[] = {
     // Set to $size_of_battery to get a percentage of battery used.
     { "mavlink_mah_as_heading_divisor", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, mavlink_mah_as_heading_divisor) },
 #endif
-    { "crsf_flight_mode_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_FM_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_flight_mode_reuse) },
-    { "crsf_att_pitch_reuse",        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_pitch_reuse) },
-    { "crsf_att_roll_reuse",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_roll_reuse) },
-    { "crsf_att_yaw_reuse",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_ATT_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_att_yaw_reuse) },
-
-    { "crsf_gps_heading_reuse",      VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_heading_reuse) },
-    { "crsf_gps_ground_speed_reuse", VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_ground_speed_reuse) },
-    { "crsf_gps_altitude_reuse",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_altitude_reuse) },
-    { "crsf_gps_sats_reuse",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_CRSF_GPS_SATS_REUSE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_gps_sats_reuse) },
+    { "crsf_telemetry_mode",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TELEM_MODE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_mode) },
+    { "crsf_telemetry_link_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_rate) },
+    { "crsf_telemetry_link_ratio",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_ratio) },
+    { "crsf_telemetry_sensors",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_sensors)},
+    { "crsf_telemetry_interval",     VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_interval)},
 
 #ifdef USE_TELEMETRY_ENABLE_SENSORS
     { "telemetry_enable_voltage",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_VOLTAGE),         PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
@@ -1230,7 +1217,7 @@ const clivalue_t valueTable[] = {
     { "telemetry_enable_adjustment",      VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_ADJUSTMENT),      PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
     { "telemetry_enable_gov_mode",        VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_GOV_MODE),        PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #else
-    { "telemetry_enable_sensors", VAR_UINT32 | MASTER_VALUE, .config.u32Max = SENSOR_ALL, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
+    { "telemetry_enable_sensors",         VAR_UINT32 | MASTER_VALUE, .config.u32Max = SENSOR_ALL, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},
 #endif
 #endif // USE_TELEMETRY
 
@@ -1486,6 +1473,9 @@ const clivalue_t valueTable[] = {
 // PG_VTX_CONFIG
 #if defined(USE_VTX_CONTROL) && defined(USE_VTX_COMMON)
     { "vtx_halfduplex",             VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_VTX_CONFIG, offsetof(vtxConfig_t, halfDuplex) },
+#ifdef USE_SERIAL_PINSWAP
+    { "vtx_pinswap",                VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_VTX_CONFIG, offsetof(vtxConfig_t, pinSwap) },
+#endif
 #endif
 
 // PG_VTX_IO
@@ -1530,6 +1520,9 @@ const clivalue_t valueTable[] = {
 #ifdef USE_ESC_SENSOR
     { "esc_sensor_protocol",            VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ESC_SENSOR_PROTO }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, protocol) },
     { "esc_sensor_halfduplex",          VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, halfDuplex) },
+#ifdef USE_SERIAL_PINSWAP
+    { "esc_sensor_pinswap",             VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, pinSwap) },
+#endif
     { "esc_sensor_update_hz",           VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 500 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, update_hz) },
     { "esc_sensor_current_offset",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_offset) },
     { "esc_sensor_hw4_current_offset",  VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_offset) },

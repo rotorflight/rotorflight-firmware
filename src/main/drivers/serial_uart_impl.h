@@ -200,11 +200,13 @@ extern const uartHardware_t uartHardware[];
 typedef struct uartDevice_s {
     uartPort_t port;
     const uartHardware_t *hardware;
+    uartPinDef_t rxPin;
+    uartPinDef_t txPin;
     uartPinDef_t rx;
     uartPinDef_t tx;
     volatile uint8_t *rxBuffer;
     volatile uint8_t *txBuffer;
-#if !defined(STM32F4) // Don't support pin swap.
+#if defined(USE_SERIAL_PINSWAP)
     bool pinSwap;
 #endif
 } uartDevice_t;
@@ -218,6 +220,8 @@ void uartTryStartTxDMA(uartPort_t *s);
 uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_e mode, portOptions_e options);
 
 void uartIrqHandler(uartPort_t *s);
+
+void uartSelectPins(UARTDevice_e device, portOptions_e options);
 
 void uartReconfigure(uartPort_t *uartPort);
 

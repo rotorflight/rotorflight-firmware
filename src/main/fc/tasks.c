@@ -508,8 +508,8 @@ void tasksInit(void)
             // Reschedule telemetry to 500hz for Jeti Exbus
             rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
         } else if (rxRuntimeState.serialrxProvider == SERIALRX_CRSF) {
-            // Reschedule telemetry to 500hz, 2ms for CRSF
-            rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(500));
+            // Reschedule telemetry to 1000hz, 1ms for CRSF
+            rescheduleTask(TASK_TELEMETRY, TASK_PERIOD_HZ(1000));
         }
     }
 #endif

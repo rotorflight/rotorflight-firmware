@@ -22,18 +22,16 @@
 
 #include "common/unit.h"
 
-#include "config/config.h"
-
+#include "pg/pg_ids.h"
 #include "pg/telemetry.h"
 
-#include "telemetry/crsf.h"
 
-
-PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 5);
+PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 6);
 
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
     .halfDuplex = 1,
+    .pinSwap = 0,
     .gpsNoFixLatitude = 0,
     .gpsNoFixLongitude = 0,
     .frsky_coordinate_format = FRSKY_FORMAT_DMS,
@@ -43,9 +41,9 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .pidValuesAsTelemetry = 0,
     .report_cell_voltage = false,
     .flysky_sensors = {
-            IBUS_SENSOR_TYPE_TEMPERATURE,
-            IBUS_SENSOR_TYPE_RPM_FLYSKY,
-            IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
+        IBUS_SENSOR_TYPE_TEMPERATURE,
+        IBUS_SENSOR_TYPE_RPM_FLYSKY,
+        IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
     },
     .enableSensors =
         SENSOR_VOLTAGE |
@@ -56,10 +54,11 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
         ESC_SENSOR_RPM |
         ESC_SENSOR_TEMPERATURE,
     .mavlink_mah_as_heading_divisor = 0,
-    .crsf_flight_mode_reuse = CRSF_FM_REUSE_NONE,
-    .crsf_att_pitch_reuse = CRSF_ATT_REUSE_NONE,
-    .crsf_att_roll_reuse = CRSF_ATT_REUSE_NONE,
-    .crsf_att_yaw_reuse = CRSF_ATT_REUSE_NONE,
+    .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
+    .crsf_telemetry_sensors = INIT_ZERO,
+    .crsf_telemetry_interval = INIT_ZERO,
+    .crsf_telemetry_link_rate = 250,
+    .crsf_telemetry_link_ratio = 8,
 );
 
 #endif
