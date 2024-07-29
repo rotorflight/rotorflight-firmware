@@ -440,6 +440,10 @@ void disarm(flightLogDisarmReason_e reason)
         if (saveRequired) {
             writeEEPROMDelayed(500000);
         }
+
+        if (!getArmingDisableFlags()) {
+            beeper(BEEPER_DISARMING);      // emit disarm tone
+        }
     }
 }
 
