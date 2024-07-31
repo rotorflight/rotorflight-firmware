@@ -269,7 +269,9 @@ bool jetiExBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         JETIEXBUS_BAUDRATE,
         MODE_RXTX,
-        JETIEXBUS_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0) | SERIAL_BIDIR
+        JETIEXBUS_OPTIONS | SERIAL_BIDIR |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
     return jetiExBusPort != NULL;
 }

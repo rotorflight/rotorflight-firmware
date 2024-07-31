@@ -338,7 +338,9 @@ bool ghstRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         GHST_RX_BAUDRATE,
         GHST_PORT_MODE,
-        GHST_PORT_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0)
+        GHST_PORT_OPTIONS |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
     serialPort->idleCallback = ghstIdle;
 

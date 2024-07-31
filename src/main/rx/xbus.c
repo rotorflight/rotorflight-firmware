@@ -314,9 +314,10 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         NULL,
         baudRate,
         portShared ? MODE_RXTX : MODE_RX,
-        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
-        (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
-        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
+        SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
 #ifdef USE_TELEMETRY

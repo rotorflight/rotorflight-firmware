@@ -634,7 +634,9 @@ bool crsfRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         rxRuntimeState,
         crsfBaudrate,
         CRSF_PORT_MODE,
-        CRSF_PORT_OPTIONS | (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0)
+        CRSF_PORT_OPTIONS |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
     if (rssiSource == RSSI_SOURCE_NONE) {
