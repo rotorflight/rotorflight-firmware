@@ -225,9 +225,9 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         sbusBaudRate,
         portShared ? MODE_RXTX : MODE_RX,
         SBUS_PORT_OPTIONS |
-        (rxConfig->serialrx_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED) |
-        ((rxConfig->halfDuplex || sbus2)? SERIAL_BIDIR : SERIAL_UNIDIR) |
-        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
+            (rxConfig->serialrx_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED) |
+            ((rxConfig->halfDuplex || sbus2) ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
     if (rxConfig->rssi_src_frame_errors) {

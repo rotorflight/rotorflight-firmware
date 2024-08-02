@@ -1480,9 +1480,20 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->angle.level_limit,
                                                                             currentPidProfile->horizon.level_strength,
                                                                             currentPidProfile->horizon.transition);
-        BLACKBOX_PRINT_HEADER_LINE("govPID", "%d,%d,%d",                    currentPidProfile->governor.p_gain,
+        BLACKBOX_PRINT_HEADER_LINE("govPID", "%d,%d,%d,%d,%d",              currentPidProfile->governor.p_gain,
                                                                             currentPidProfile->governor.i_gain,
-                                                                            currentPidProfile->governor.d_gain);
+                                                                            currentPidProfile->governor.d_gain,
+                                                                            currentPidProfile->governor.f_gain,
+                                                                            currentPidProfile->governor.gain);
+        BLACKBOX_PRINT_HEADER_LINE("rollBW", "%d,%d,%d",                    currentPidProfile->gyro_cutoff[PID_ROLL],
+                                                                            currentPidProfile->dterm_cutoff[PID_ROLL],
+                                                                            currentPidProfile->bterm_cutoff[PID_ROLL]);
+        BLACKBOX_PRINT_HEADER_LINE("pitchBW", "%d,%d,%d",                   currentPidProfile->gyro_cutoff[PID_PITCH],
+                                                                            currentPidProfile->dterm_cutoff[PID_PITCH],
+                                                                            currentPidProfile->bterm_cutoff[PID_PITCH]);
+        BLACKBOX_PRINT_HEADER_LINE("yawBW", "%d,%d,%d",                     currentPidProfile->gyro_cutoff[PID_YAW],
+                                                                            currentPidProfile->dterm_cutoff[PID_YAW],
+                                                                            currentPidProfile->bterm_cutoff[PID_YAW]);
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);

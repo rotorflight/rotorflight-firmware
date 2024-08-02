@@ -157,7 +157,17 @@ void configureIbusTelemetryPort(void)
         return;
     }
 
-    ibusSerialPort = openSerialPort(ibusSerialPortConfig->identifier, FUNCTION_TELEMETRY_IBUS, NULL, NULL, IBUS_BAUDRATE, IBUS_UART_MODE, SERIAL_BIDIR | (telemetryConfig()->telemetry_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED));
+    ibusSerialPort = openSerialPort(
+        ibusSerialPortConfig->identifier,
+        FUNCTION_TELEMETRY_IBUS,
+        NULL,
+        NULL,
+        IBUS_BAUDRATE,
+        IBUS_UART_MODE,
+        SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_BIDIR |
+            (telemetryConfig()->telemetry_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (telemetryConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
+        );
 
     if (!ibusSerialPort) {
         return;

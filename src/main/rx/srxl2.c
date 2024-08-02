@@ -500,13 +500,18 @@ bool srxl2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         return false;
     }
 
-    portOptions_e options = SRXL2_PORT_OPTIONS |
-        (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
-        (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
-        (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP);
-
-    serialPort = openSerialPort(portConfig->identifier, FUNCTION_RX_SERIAL, srxl2DataReceive,
-        NULL, SRXL2_PORT_BAUDRATE_DEFAULT, SRXL2_PORT_MODE, options);
+    serialPort = openSerialPort(
+        portConfig->identifier,
+        FUNCTION_RX_SERIAL,
+        srxl2DataReceive,
+        NULL,
+        SRXL2_PORT_BAUDRATE_DEFAULT,
+        SRXL2_PORT_MODE,
+        SRXL2_PORT_OPTIONS |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
+        );
 
     if (!serialPort) {
         return false;

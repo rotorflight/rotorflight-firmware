@@ -140,7 +140,18 @@ bool sumhInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     bool portShared = false;
 #endif
 
-    sumhPort = openSerialPort(portConfig->identifier, FUNCTION_RX_SERIAL, sumhDataReceive, NULL, SUMH_BAUDRATE, portShared ? MODE_RXTX : MODE_RX, (rxConfig->serialrx_inverted ? SERIAL_INVERTED : 0));
+    sumhPort = openSerialPort(
+        portConfig->identifier,
+        FUNCTION_RX_SERIAL,
+        sumhDataReceive,
+        NULL,
+        SUMH_BAUDRATE,
+        portShared ? MODE_RXTX : MODE_RX,
+        SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
+            (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
+            (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
+        );
 
 #ifdef USE_TELEMETRY
     if (portShared) {
