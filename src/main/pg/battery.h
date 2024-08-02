@@ -79,8 +79,8 @@ typedef struct {
     uint8_t     vbatDurationForCritical;    // Period voltage has to sustain before the battery state is set to BATTERY_CRIT (in 0.1 s)
 
     // Filters
-    uint8_t     vbatLpfPeriod;              // Period of the cutoff frequency for the Vbat filter for display and startup (in 0.1 s)
-    uint8_t     ibatLpfPeriod;              // Period of the cutoff frequency for the Ibat filter (in 0.1 s)
+    uint8_t     vbatLpfHz;                  // The cutoff frequency for the Vbat filter
+    uint8_t     ibatLpfHz;                  // The cutoff frequency for the Ibat filter
 
     uint16_t    vbatUpdateHz;               // Update rate for voltage task
     uint16_t    ibatUpdateHz;               // Update rate for current task
