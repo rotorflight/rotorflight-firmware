@@ -153,6 +153,7 @@ typedef struct {
     float           yawWeight;
     float           cyclicWeight;
     float           collectiveWeight;
+    float           FFExponent;
     filter_t        FFFilter;
 
     // Tail Torque Assist
@@ -336,7 +337,7 @@ static inline float idleMap(float throttle)
 
 static inline float angleDrag(float angle)
 {
-    return angle * sqrtf(angle); // angle ^ 1.5
+    return pow_approx(angle, gov.FFExponent);
 }
 
 static inline void govChangeState(govState_e futureState)
@@ -1004,6 +1005,8 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.yawWeight = pidProfile->governor.yaw_ff_weight / 100.0f;
         gov.cyclicWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
         gov.collectiveWeight = pidProfile->governor.collective_ff_weight / 100.0f;
+
+        gov.FFExponent = pidProfile->governor.ff_exponent / 100.0f;
 
         gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
 
