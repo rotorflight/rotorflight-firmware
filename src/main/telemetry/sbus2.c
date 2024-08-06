@@ -21,6 +21,8 @@
 
 #include "build/debug.h"
 
+#include "config/feature.h"
+
 #include "common/utils.h"
 #include "common/time.h"
 #include "common/axis.h"
@@ -70,7 +72,7 @@ void INIT_CODE initSbus2Telemetry(void)
 
 bool checkSbus2TelemetryState(void)
 {
-    return rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
+    return featureIsEnabled(FEATURE_TELEMETRY) && rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
 }
 
 void handleSbus2Telemetry(timeUs_t currentTimeUs) 
@@ -124,7 +126,7 @@ void sbus2IncrementTelemetrySlot(timeUs_t currentTimeUs)
 
 FAST_CODE void taskSendSbus2Telemetry(timeUs_t currentTimeUs)
 {
-    if (!telemetrySharedPort || rxRuntimeState.serialrxProvider !=  SERIALRX_SBUS2) {
+    if (!telemetrySharedPort || !checkSbus2TelemetryState()) {
         return;
     }
 
