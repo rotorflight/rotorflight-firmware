@@ -1310,8 +1310,8 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     escSensorData_t *escData = getEscSensorData(0);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
-        blackboxCurrent->esc_voltage = escData->voltage;
-        blackboxCurrent->esc_current = escData->current;
+        blackboxCurrent->esc_voltage = escData->voltage / 10;
+        blackboxCurrent->esc_current = escData->current / 10;
         blackboxCurrent->esc_capa = escData->consumption;
         blackboxCurrent->esc_temp = escData->temperature / 10;
         blackboxCurrent->esc_thr = escData->throttle;
@@ -1336,8 +1336,8 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     escData = getEscSensorData(1);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
-        blackboxCurrent->esc2_voltage = escData->voltage;
-        blackboxCurrent->esc2_current = escData->current;
+        blackboxCurrent->esc2_voltage = escData->voltage / 10;
+        blackboxCurrent->esc2_current = escData->current / 10;
         blackboxCurrent->esc2_capa = escData->consumption;
         blackboxCurrent->esc2_temp = escData->temperature / 10;
     }
