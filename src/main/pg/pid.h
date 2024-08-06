@@ -91,6 +91,7 @@ typedef struct {
     uint8_t     ff_type;
     uint8_t     ff_exponent;
     uint8_t     max_throttle;
+    uint8_t     min_throttle;
 } governorProfile_t;
 
 typedef struct {
