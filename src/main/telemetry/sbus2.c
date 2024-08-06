@@ -60,7 +60,7 @@ uint8_t sbusTelemetryDataUsed[SBUS2_SLOT_COUNT] = {0};
 static uint8_t currentSlot = 0;
 static timeUs_t nextSlotTime = 0;
 
-void initSbus2Telemetry(void)
+void INIT_CODE initSbus2Telemetry(void)
 {
     for(int i = 0; i < SBUS2_SLOT_COUNT; ++i) {
         memset(&sbusTelemetryData[i], 0, sizeof(sbus2_telemetry_frame_t));
