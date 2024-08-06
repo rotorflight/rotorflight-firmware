@@ -158,7 +158,4 @@ FAST_CODE void taskSendSbus2Telemetry(timeUs_t currentTimeUs)
     }
 }
 
-
-
-
 #endif
