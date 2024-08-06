@@ -144,7 +144,7 @@ FAST_CODE void taskSendSbus2Telemetry(timeUs_t currentTimeUs)
 
     uint8_t slot = sbus2GetTelemetrySlot(elapsedTime);
 
-    if(slot < SBUS2_TELEMETRY_SLOTS) {
+    if (slot < SBUS2_TELEMETRY_SLOTS) {
         int slotIndex = (telemetryPage * SBUS2_TELEMETRY_SLOTS) + slot;
         if (slotIndex < SBUS2_SLOT_COUNT) {
             if (sbusTelemetryDataUsed[slotIndex] != 0) {
