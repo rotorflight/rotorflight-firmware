@@ -185,6 +185,8 @@ COMMON_SRC = \
             telemetry/frsky_hub.c \
             telemetry/hott.c \
             telemetry/jetiexbus.c \
+            telemetry/sbus2.c \
+            telemetry/sbus2_sensors.c \
             telemetry/smartport.c \
             telemetry/ltm.c \
             telemetry/mavlink.c \

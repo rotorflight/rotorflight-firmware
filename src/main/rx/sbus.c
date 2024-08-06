@@ -108,6 +108,12 @@ typedef struct sbusFrameData_s {
     bool done;
 } sbusFrameData_t;
 
+#ifdef USE_TELEMETRY_SBUS2
+static uint8_t sbus2ActiveTelemetryPage = 0;
+static uint8_t sbus2ActiveTelemetrySlot = 0;
+static timeUs_t frameTime = 0;
+#endif
+
 // Receive ISR callback
 static void sbusDataReceive(uint16_t c, void *data)
 {
@@ -134,6 +140,24 @@ static void sbusDataReceive(uint16_t c, void *data)
             sbusFrameData->done = false;
         } else {
             sbusFrameData->done = true;
+
+#ifdef USE_TELEMETRY_SBUS2
+            switch(c) {
+                case 0x04: // sbus2, first telemetry page
+                case 0x14: // sbus2, second telemetry page
+                case 0x24: // sbus2, second telemetry page
+                case 0x34: // sbus2, second telemetry page
+                    sbus2ActiveTelemetryPage = (c >> 4) & 0xF;
+                    frameTime = nowUs;
+                    break;
+                default:
+                case 0x00: // sbus1
+                    sbus2ActiveTelemetryPage = 0;
+                    sbus2ActiveTelemetrySlot = 0;
+                    frameTime = -1;
+                    break;
+            }
+#endif
             DEBUG_SET(DEBUG_SBUS, DEBUG_SBUS_FRAME_TIME, sbusFrameTime);
         }
     }
@@ -187,8 +211,10 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     }
 
 #ifdef USE_TELEMETRY
-    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeState->serialrxProvider);
+    bool sbus2 = rxRuntimeState->serialrxProvider == SERIALRX_SBUS2;
+    bool portShared = telemetryCheckRxPortShared(portConfig, rxRuntimeState->serialrxProvider) || sbus2;
 #else
+    bool sbus2 = false;
     bool portShared = false;
 #endif
 
@@ -200,7 +226,7 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         portShared ? MODE_RXTX : MODE_RX,
         SBUS_PORT_OPTIONS |
             (rxConfig->serialrx_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED) |
-            (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            ((rxConfig->halfDuplex || sbus2) ? SERIAL_BIDIR : SERIAL_UNIDIR) |
             (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
         );
 
@@ -216,4 +242,21 @@ bool sbusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 
     return sBusPort != NULL;
 }
+
+#ifdef USE_TELEMETRY_SBUS2
+timeUs_t sbusGetLastFrameTime(void) {
+    return frameTime;
+}
+
+uint8_t sbusGetCurrentTelemetryNextSlot(void)
+{
+    uint8_t current = sbus2ActiveTelemetrySlot;
+    sbus2ActiveTelemetrySlot++;
+    return current;
+}
+
+uint8_t sbusGetCurrentTelemetryPage(void) {
+    return sbus2ActiveTelemetryPage;
+}
+#endif // USE_TELEMETRY && USE_SBUS2_TELEMETRY
 #endif

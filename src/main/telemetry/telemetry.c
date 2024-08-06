@@ -57,6 +57,7 @@
 #include "telemetry/ghst.h"
 #include "telemetry/srxl.h"
 #include "telemetry/ibus.h"
+#include "telemetry/sbus2.h"
 #include "telemetry/msp_shared.h"
 
 
@@ -84,6 +85,7 @@ bool telemetryCheckRxPortShared(const serialPortConfig_t *portConfig, const Seri
         (serialrxProvider == SERIALRX_SPEKTRUM1024 ||
          serialrxProvider == SERIALRX_SPEKTRUM2048 ||
          serialrxProvider == SERIALRX_SBUS ||
+         serialrxProvider == SERIALRX_SBUS2 ||
          serialrxProvider == SERIALRX_SUMD ||
          serialrxProvider == SERIALRX_SUMH ||
          serialrxProvider == SERIALRX_XBUS_MODE_B ||
@@ -136,6 +138,9 @@ void telemetryProcess(timeUs_t currentTime)
 #ifdef USE_TELEMETRY_IBUS
     handleIbusTelemetry();
 #endif
+#ifdef USE_TELEMETRY_SBUS2
+    handleSbus2Telemetry(currentTime);
+#endif
 }
 
 void telemetryCheckState(void)
@@ -170,6 +175,9 @@ void telemetryCheckState(void)
 #ifdef USE_TELEMETRY_IBUS
     checkIbusTelemetryState();
 #endif
+#ifdef USE_TELEMETRY_SBUS2
+    checkSbus2TelemetryState();
+#endif
 }
 
 void INIT_CODE telemetryInit(void)
@@ -203,6 +211,9 @@ void INIT_CODE telemetryInit(void)
 #endif
 #ifdef USE_TELEMETRY_IBUS
     initIbusTelemetry();
+#endif
+#ifdef USE_TELEMETRY_SBUS2
+    initSbus2Telemetry();
 #endif
 #if defined(USE_MSP_OVER_TELEMETRY)
     initSharedMsp();

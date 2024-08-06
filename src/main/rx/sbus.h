@@ -21,3 +21,9 @@
 #pragma once
 
 bool sbusInit(const rxConfig_t *initialRxConfig, rxRuntimeState_t *rxRuntimeState);
+
+#ifdef USE_TELEMETRY_SBUS2
+uint8_t sbusGetCurrentTelemetryPage(void);
+uint8_t sbusGetCurrentTelemetryNextSlot(void);
+timeUs_t sbusGetLastFrameTime(void);
+#endif

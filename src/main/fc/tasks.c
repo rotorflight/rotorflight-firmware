@@ -94,6 +94,7 @@
 
 #include "telemetry/telemetry.h"
 #include "telemetry/crsf.h"
+#include "telemetry/sbus2.h"
 
 #ifdef USE_BST
 #include "i2c_bst.h"
@@ -409,6 +410,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #ifdef USE_CRSF_V3
     [TASK_SPEED_NEGOTIATION] = DEFINE_TASK("SPEED_NEGOTIATION", NULL, NULL, speedNegotiationProcess, TASK_PERIOD_HZ(100), TASK_PRIORITY_LOW),
 #endif
+
+#ifdef USE_TELEMETRY_SBUS2
+    [TASK_TELEMETRY_SBUS2] = DEFINE_TASK("SBUS2_TELEMETRY", NULL, NULL, taskSendSbus2Telemetry, TASK_PERIOD_HZ(8000), TASK_PRIORITY_LOWEST),
+#endif
 };
 
 task_t *getTask(unsigned taskId)
@@ -557,5 +562,11 @@ void tasksInit(void)
     const bool useCRSF = rxRuntimeState.serialrxProvider == SERIALRX_CRSF;
     setTaskEnabled(TASK_SPEED_NEGOTIATION, useCRSF);
 #endif
+
+#ifdef USE_TELEMETRY_SBUS2
+    const bool useSBUS2 = rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
+    setTaskEnabled(TASK_TELEMETRY_SBUS2, useSBUS2);
+#endif
+
 }
 

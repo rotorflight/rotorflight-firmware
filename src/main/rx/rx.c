@@ -184,6 +184,7 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 #endif
 #ifdef USE_SERIALRX_SBUS
     case SERIALRX_SBUS:
+    case SERIALRX_SBUS2:
         enabled = sbusInit(rxConfig, rxRuntimeState);
         break;
 #endif
