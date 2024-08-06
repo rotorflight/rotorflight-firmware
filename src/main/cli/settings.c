@@ -1192,6 +1192,7 @@ const clivalue_t valueTable[] = {
     { "gov_ff_type",                VAR_UINT8  |  PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PRECOMP_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.ff_type) },
     { "gov_ff_exponent",            VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.ff_exponent) },
     { "gov_max_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.max_throttle) },
+    { "gov_min_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.min_throttle) },
 
 // PG_TELEMETRY_CONFIG
 #ifdef USE_TELEMETRY
