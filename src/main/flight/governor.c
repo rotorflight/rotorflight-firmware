@@ -50,9 +50,6 @@
 // Throttle mapping in IDLE state
 #define GOV_THROTTLE_OFF_LIMIT          0.05f
 
-// Minimum throttle output from PI algorithms
-#define GOV_MIN_THROTTLE_OUTPUT         0.05f
-
 // Headspeed quality levels
 #define GOV_HS_DETECT_DELAY             200
 #define GOV_HS_DETECT_RATIO             0.05f
@@ -92,6 +89,9 @@ typedef struct {
 
     // Maximum allowed throttle
     float           maxThrottle;
+
+    // Minimum throttle when PID active
+    float           minPIDThrottle;
 
     // Throttle handover level
     float           maxIdleThrottle;
@@ -841,11 +841,11 @@ static float govPIDControl(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minPIDThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minPIDThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -886,11 +886,11 @@ static float govMode1Control(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minPIDThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minPIDThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -940,11 +940,11 @@ static float govMode2Control(void)
     output = gov.pidSum * pidGain;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minPIDThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minPIDThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -1006,6 +1006,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.collectiveWeight = pidProfile->governor.collective_ff_weight / 100.0f;
 
         gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
+        gov.minPIDThrottle = pidProfile->governor.min_pid_throttle / 100.0f;
 
         gov.fullHeadSpeed = constrainf(pidProfile->governor.headspeed, 100, 50000);
 
