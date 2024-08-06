@@ -386,7 +386,9 @@ extern uint8_t _dmaram_end__;
 #define USE_CUSTOM_BOX_NAMES
 #define USE_RX_LINK_UPLINK_POWER
 #define USE_CRSF_V3
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4) // F4 needs external bi-directional inverter
 #define USE_TELEMETRY_SBUS2
+#endif
 #endif
 
 #if (TARGET_FLASH_SIZE > 512)
