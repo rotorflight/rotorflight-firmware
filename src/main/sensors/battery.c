@@ -483,12 +483,12 @@ void batteryInit(void)
     currentSensorESCInit();
 #endif
 
-    lowpassFilterInit(&voltageFilter, LPF_BESSEL,
-        GET_BATTERY_LPF_FREQUENCY(batteryConfig()->vbatLpfPeriod),
+    lowpassFilterInit(&voltageFilter, LPF_DAMPED,
+        batteryConfig()->vbatLpfHz,
         batteryConfig()->vbatUpdateHz, 0);
 
-    lowpassFilterInit(&currentFilter, LPF_BESSEL,
-        GET_BATTERY_LPF_FREQUENCY(batteryConfig()->ibatLpfPeriod),
+    lowpassFilterInit(&currentFilter, LPF_DAMPED,
+        batteryConfig()->ibatLpfHz,
         batteryConfig()->ibatUpdateHz, 0);
 
     // presence
