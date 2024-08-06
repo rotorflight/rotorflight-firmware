@@ -128,7 +128,7 @@ FAST_CODE void taskSendSbus2Telemetry(timeUs_t currentTimeUs)
         return;
     }
 
-    timeUs_t elapsedTime = currentTimeUs - sbusGetLastFrameTime();
+    timeUs_t elapsedTime = cmp32(currentTimeUs, sbusGetLastFrameTime());
 
     if (elapsedTime > MS2US(8)) {
         currentSlot = 0;
