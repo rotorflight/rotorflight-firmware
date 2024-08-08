@@ -750,8 +750,8 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_command",       VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_COMMAND, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_setpoint",      VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_SETPOINT, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_mixer",         VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_MIXER, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-    { "blackbox_log_attitude",      VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ATTITUDE, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_pid",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_PID, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_attitude",      VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ATTITUDE, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_gyro_raw",      VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_GYRAW, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_gyro",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_GYRO, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #if defined(USE_ACC)
@@ -767,12 +767,16 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_gps",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_GPS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #endif
     { "blackbox_log_battery",       VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BATTERY, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-    { "blackbox_log_vbec",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-    { "blackbox_log_vbus",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBUS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-    { "blackbox_log_rssi",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RSSI, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-    { "blackbox_log_rpm",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RPM, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_motors",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_MOTOR, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_servos",        VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_SERVO, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_rpm",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RPM, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_rssi",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_RSSI, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_vbec",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_vbus",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_VBUS, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_temp",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_TEMP, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_esc",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_bec",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+    { "blackbox_log_esc2",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC2, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
 #endif
 
 // PG_MOTOR_CONFIG
