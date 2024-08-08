@@ -207,7 +207,9 @@ int telemetrySensorValue(sensor_id_e id)
             return getCoreTemperatureCelsius();
 
         case TELEM_ESC_TEMP:
+            return getEscSensorValue(ESC_SENSOR_COMBINED, 7);
         case TELEM_BEC_TEMP:
+            return getEscSensorValue(ESC_SENSOR_COMBINED, 8);
         case TELEM_AIR_TEMP:
         case TELEM_MOTOR_TEMP:
         case TELEM_BATTERY_TEMP:
@@ -407,9 +409,9 @@ bool telemetrySensorActive(sensor_id_e id)
             return true;
 
         case TELEM_MCU_TEMP:
-            return true;
         case TELEM_ESC_TEMP:
         case TELEM_BEC_TEMP:
+            return true;
         case TELEM_AIR_TEMP:
         case TELEM_MOTOR_TEMP:
         case TELEM_BATTERY_TEMP:
