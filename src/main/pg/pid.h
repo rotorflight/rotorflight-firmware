@@ -88,7 +88,9 @@ typedef struct {
     uint8_t     yaw_ff_weight;
     uint8_t     cyclic_ff_weight;
     uint8_t     collective_ff_weight;
+    uint8_t     ff_exponent;
     uint8_t     max_throttle;
+    uint8_t     min_pid_throttle;
 } governorProfile_t;
 
 typedef struct {
@@ -160,6 +162,7 @@ typedef struct pidProfile_s {
     uint8_t             yaw_cw_stop_gain;
     uint8_t             yaw_ccw_stop_gain;
 
+    uint8_t             yaw_precomp_exp;
     uint8_t             yaw_precomp_cutoff;
     uint8_t             yaw_precomp_filter_type;
 

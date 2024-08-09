@@ -77,6 +77,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .gyro_filter_type = LPF_1ST_ORDER,
         .yaw_cw_stop_gain = 100,
         .yaw_ccw_stop_gain = 100,
+        .yaw_precomp_exp = 150,
         .yaw_precomp_cutoff = 5,
         .yaw_precomp_filter_type = LPF_1ST_ORDER,
         .yaw_cyclic_ff_gain = 0,
@@ -124,7 +125,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.tta_limit = 20,
         .governor.cyclic_ff_weight = 40,
         .governor.collective_ff_weight = 100,
+        .governor.ff_exponent = 100,
         .governor.max_throttle = 100,
+        .governor.min_pid_throttle = 30,
     );
 }
 

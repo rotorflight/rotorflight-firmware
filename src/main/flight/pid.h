@@ -85,6 +85,8 @@ typedef struct {
 
     pt1Filter_t collDynamicFilter;
 
+    float exponent;
+
     float yawCyclicFFGain;
     float yawCollectiveFFGain;
     float yawCollectiveDynamicGain;
