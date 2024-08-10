@@ -345,7 +345,7 @@ It runs at a fixed baud rate of 100000 8e2.
 ```
 
 ### Radio Configuration
-The following sensors should setup on your radio
+The following sensors should setup on your radio and Gear ratio for RPM Sensor and Kontronik ESC to 1.00 in your radio.
 | Slot | Sensort Type | Notes |
 | --- | --- | --- |
 | 1 | Voltage | FC Voltage sensor. Pack and cell voltages |
