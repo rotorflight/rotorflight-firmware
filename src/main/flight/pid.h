@@ -51,7 +51,7 @@
 #define YAW_F_TERM_SCALE            0.000025f
 #define YAW_B_TERM_SCALE            1.0e-6f
 
-#define CROSS_COUPLING_SCALE        0.1e-6f
+#define CROSS_COUPLING_SCALE        1.0e-6f
 
 typedef struct {
     float P;
