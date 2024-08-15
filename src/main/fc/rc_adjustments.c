@@ -658,13 +658,14 @@ void processRcAdjustments(void)
         for (int index = 0; index < MAX_ADJUSTMENT_RANGE_COUNT; index++)
         {
             const adjustmentRange_t * adjRange = adjustmentRanges(index);
-            const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjRange->function];
+            const uint8_t adjFunc = adjRange->function;
 
             if (adjRange->enaChannel == 0xff || isRangeActive(adjRange->enaChannel, &adjRange->enaRange))
             {
+                const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
                 adjustmentState_t * adjState = &adjustmentState[index];
-                const uint8_t adjFunc = adjRange->function;
                 const timeMs_t now = millis();
+
                 int adjval = adjState->adjValue;
 
                 if (cmp32(now, adjState->deadTime) < 0)
@@ -700,11 +701,11 @@ void processRcAdjustments(void)
                     const int valueWidth = adjRange->adjMax - adjRange->adjMin;
 
                     if (rangeWidth > 0 && valueWidth > 0) {
-                        const int offset = rangeWidth / 2;
-                        adjval = adjRange->adjMin + ((chValue - rangeLower) * valueWidth + offset) / rangeWidth;
-                    }
-                    else {
-                        adjval = adjRange->adjMin;
+                        const int rangeMargin = MAX(5, rangeWidth / (valueWidth * 2));
+                        if (chValue > rangeLower - rangeMargin && chValue < rangeUpper + rangeMargin) {
+                            const int offset = rangeWidth / 2;
+                            adjval = adjRange->adjMin + ((chValue - rangeLower) * valueWidth + offset) / rangeWidth;
+                        }
                     }
                 }
 
@@ -776,6 +777,6 @@ void adjustmentRangeReset(int index)
 {
     adjustmentState[index].deadTime = 0;
     adjustmentState[index].trigTime = 0;
-    adjustmentState[index].adjValue = getAdjustmentValue(index);
+    adjustmentState[index].adjValue = getAdjustmentValue(adjustmentRanges(index)->function);
     adjustmentState[index].chValue  = 0;
 }
