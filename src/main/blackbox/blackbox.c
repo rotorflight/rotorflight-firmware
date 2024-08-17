@@ -1622,6 +1622,13 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yawBW", "%d,%d,%d",                     currentPidProfile->gyro_cutoff[PID_YAW],
                                                                             currentPidProfile->dterm_cutoff[PID_YAW],
                                                                             currentPidProfile->bterm_cutoff[PID_YAW]);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_type", "%d",                currentPidProfile->iterm_relax_type);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_cutoff", "%d,%d,%d",        currentPidProfile->iterm_relax_cutoff[0],
+                                                                            currentPidProfile->iterm_relax_cutoff[1],
+                                                                            currentPidProfile->iterm_relax_cutoff[2]);
+        BLACKBOX_PRINT_HEADER_LINE("error_limit", "%d,%d,%d",               currentPidProfile->error_limit[0],
+                                                                            currentPidProfile->error_limit[1],
+                                                                            currentPidProfile->error_limit[2]);
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);
