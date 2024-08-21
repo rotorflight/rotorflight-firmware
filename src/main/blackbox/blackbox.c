@@ -1587,18 +1587,16 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentControlRateProfile->accel_limit[PITCH],
                                                                             currentControlRateProfile->accel_limit[YAW]);
 
-        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d,%d,%d,%d",          currentPidProfile->pid[PID_ROLL].P,
+        BLACKBOX_PRINT_HEADER_LINE("rollPID", "%d,%d,%d,%d,%d",             currentPidProfile->pid[PID_ROLL].P,
                                                                             currentPidProfile->pid[PID_ROLL].I,
                                                                             currentPidProfile->pid[PID_ROLL].D,
                                                                             currentPidProfile->pid[PID_ROLL].F,
-                                                                            currentPidProfile->pid[PID_ROLL].B,
-                                                                            currentPidProfile->pid[PID_ROLL].O);
-        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d,%d,%d,%d",         currentPidProfile->pid[PID_PITCH].P,
+                                                                            currentPidProfile->pid[PID_ROLL].B);
+        BLACKBOX_PRINT_HEADER_LINE("pitchPID", "%d,%d,%d,%d,%d",            currentPidProfile->pid[PID_PITCH].P,
                                                                             currentPidProfile->pid[PID_PITCH].I,
                                                                             currentPidProfile->pid[PID_PITCH].D,
                                                                             currentPidProfile->pid[PID_PITCH].F,
-                                                                            currentPidProfile->pid[PID_PITCH].B,
-                                                                            currentPidProfile->pid[PID_PITCH].O);
+                                                                            currentPidProfile->pid[PID_PITCH].B);
         BLACKBOX_PRINT_HEADER_LINE("yawPID", "%d,%d,%d,%d,%d",              currentPidProfile->pid[PID_YAW].P,
                                                                             currentPidProfile->pid[PID_YAW].I,
                                                                             currentPidProfile->pid[PID_YAW].D,
@@ -1622,6 +1620,35 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yawBW", "%d,%d,%d",                     currentPidProfile->gyro_cutoff[PID_YAW],
                                                                             currentPidProfile->dterm_cutoff[PID_YAW],
                                                                             currentPidProfile->bterm_cutoff[PID_YAW]);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_type", "%d",                currentPidProfile->iterm_relax_type);
+        BLACKBOX_PRINT_HEADER_LINE("iterm_relax_cutoff", "%d,%d,%d",        currentPidProfile->iterm_relax_cutoff[0],
+                                                                            currentPidProfile->iterm_relax_cutoff[1],
+                                                                            currentPidProfile->iterm_relax_cutoff[2]);
+        BLACKBOX_PRINT_HEADER_LINE("error_limit", "%d,%d,%d",               currentPidProfile->error_limit[0],
+                                                                            currentPidProfile->error_limit[1],
+                                                                            currentPidProfile->error_limit[2]);
+        BLACKBOX_PRINT_HEADER_LINE("error_decay", "%d,%d",                  currentPidProfile->error_decay_time_cyclic,
+                                                                            currentPidProfile->error_decay_limit_cyclic);
+        BLACKBOX_PRINT_HEADER_LINE("error_decay_ground", "%d",              currentPidProfile->error_decay_time_ground);
+        BLACKBOX_PRINT_HEADER_LINE("cyclic_coupling", "%d,%d,%d",           currentPidProfile->cyclic_cross_coupling_gain,
+                                                                            currentPidProfile->cyclic_cross_coupling_ratio,
+                                                                            currentPidProfile->cyclic_cross_coupling_cutoff);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_stop_gain", "%d,%d",                currentPidProfile->yaw_cw_stop_gain,
+                                                                            currentPidProfile->yaw_ccw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_precomp", "%d,%d,%d",               currentPidProfile->yaw_precomp_cutoff,
+                                                                            currentPidProfile->yaw_cyclic_ff_gain,
+                                                                            currentPidProfile->yaw_collective_ff_gain);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_precomp_impulse", "%d,%d",          currentPidProfile->yaw_collective_dynamic_gain,
+                                                                            currentPidProfile->yaw_collective_dynamic_decay);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_tta", "%d,%d",                      currentPidProfile->governor.tta_gain,
+                                                                            currentPidProfile->governor.tta_limit);
+        BLACKBOX_PRINT_HEADER_LINE("hsi_gain", "%d,%d",                     currentPidProfile->pid[PID_ROLL].O,
+                                                                            currentPidProfile->pid[PID_PITCH].O);
+        BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
+                                                                            currentPidProfile->offset_limit[1]);
+        BLACKBOX_PRINT_HEADER_LINE("piro_compensation", "%d",               currentPidProfile->error_rotation);
+        BLACKBOX_PRINT_HEADER_LINE("pitch_compensation", "%d",              currentPidProfile->pitch_collective_ff_gain);
+
 
         BLACKBOX_PRINT_HEADER_LINE("deadband", "%d",                        rcControlsConfig()->rc_deadband);
         BLACKBOX_PRINT_HEADER_LINE("yaw_deadband", "%d",                    rcControlsConfig()->rc_yaw_deadband);
