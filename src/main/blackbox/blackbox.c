@@ -1340,12 +1340,14 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->esc2_current = escData->current / 10;
         blackboxCurrent->esc2_capa = escData->consumption;
         blackboxCurrent->esc2_temp = escData->temperature / 10;
+        blackboxCurrent->esc2_rpm = escData->erpm;
     }
     else {
         blackboxCurrent->esc2_voltage = 0;
         blackboxCurrent->esc2_current = 0;
         blackboxCurrent->esc2_capa = 0;
         blackboxCurrent->esc2_temp = 0;
+        blackboxCurrent->esc2_rpm = 0;
     }
 
     blackboxCurrent->headspeed = getHeadSpeed();
