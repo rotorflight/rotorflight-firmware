@@ -1103,6 +1103,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             for (int i = 0; i < nameLen; i++) {
                 sbufWriteU8(dst, pilotConfig()->name[i]);
             }
+            sbufWriteU8(dst, pilotConfig()->modelId);
         }
         break;
 
@@ -3211,6 +3212,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         memset(pilotConfigMutable()->name, 0, ARRAYLEN(pilotConfig()->name));
         for (unsigned int i = 0; i < MIN(MAX_NAME_LENGTH, dataSize); i++) {
             pilotConfigMutable()->name[i] = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 1) {
+            pilotConfigMutable()->modelId = sbufReadU8(src);
         }
 #ifdef USE_OSD
         osdAnalyzeActiveElements();

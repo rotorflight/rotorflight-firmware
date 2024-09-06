@@ -36,6 +36,9 @@ void pgResetFn_freqConfig(freqConfig_t *freqConfig)
     for (unsigned index = 0; index < FREQ_SENSOR_PORT_COUNT; index++) {
         freqConfig->ioTag[index] = timerioTagGetByUsage(TIM_USE_FREQ, index);
     }
+
+    freqConfig->pullupdn = FREQ_INPUT_PULLUP;
+    freqConfig->polarity = FREQ_INPUT_FALLING_EDGE;
 }
 
 #endif
