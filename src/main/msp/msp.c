@@ -1106,6 +1106,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_PILOT_CONFIG:
+        // Introduced in MSP API 12.7
+        sbufWriteU8(dst, pilotConfig()->modelId);
+        sbufWriteU8(dst, pilotConfig()->modelParam1Type);
+        sbufWriteU16(dst, pilotConfig()->modelParam1Value);
+        sbufWriteU8(dst, pilotConfig()->modelParam2Type);
+        sbufWriteU16(dst, pilotConfig()->modelParam2Value);
+        sbufWriteU8(dst, pilotConfig()->modelParam3Type);
+        sbufWriteU16(dst, pilotConfig()->modelParam3Value);
+        break;
+
 #ifdef USE_SERVOS
     case MSP_SERVO:
         for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
@@ -3204,6 +3215,17 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #ifdef USE_OSD
         osdAnalyzeActiveElements();
 #endif
+        break;
+
+    case MSP_SET_PILOT_CONFIG:
+        // Introduced in MSP API 12.7
+        pilotConfigMutable()->modelId = sbufReadU8(src);
+        pilotConfigMutable()->modelParam1Type = sbufReadU8(src);
+        pilotConfigMutable()->modelParam1Value = sbufReadU16(src);
+        pilotConfigMutable()->modelParam2Type = sbufReadU8(src);
+        pilotConfigMutable()->modelParam2Value = sbufReadU16(src);
+        pilotConfigMutable()->modelParam3Type = sbufReadU8(src);
+        pilotConfigMutable()->modelParam3Value = sbufReadU16(src);
         break;
 
 #ifdef USE_RTC_TIME
