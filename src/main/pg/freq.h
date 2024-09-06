@@ -22,8 +22,21 @@
 
 #include "pg/pg.h"
 
+enum {
+    FREQ_INPUT_NOPULL,
+    FREQ_INPUT_PULLUP,
+    FREQ_INPUT_PULLDOWN,
+};
+
+enum {
+    FREQ_INPUT_FALLING_EDGE,
+    FREQ_INPUT_RISING_EDGE,
+};
+
 typedef struct freqConfig_s {
     ioTag_t ioTag[FREQ_SENSOR_PORT_COUNT];
+    uint8_t pullupdn;
+    uint8_t polarity;
 } freqConfig_t;
 
 PG_DECLARE(freqConfig_t, freqConfig);
