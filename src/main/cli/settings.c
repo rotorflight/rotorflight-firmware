@@ -1707,11 +1707,11 @@ const clivalue_t valueTable[] = {
 #endif
     { "model_id",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 99 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelId) },
     { "model_param1_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam1Type) },
-    { "model_param1_value", VAR_INT16  | MASTER_VALUE, .config.minmaxUnsigned = { -32000, 32000 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam1Value) },
+    { "model_param1_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam1Value) },
     { "model_param2_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam2Type) },
-    { "model_param2_value", VAR_INT16  | MASTER_VALUE, .config.minmaxUnsigned = { -32000, 32000 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam2Value) },
+    { "model_param2_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam2Value) },
     { "model_param3_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam3Type) },
-    { "model_param3_value", VAR_INT16  | MASTER_VALUE, .config.minmaxUnsigned = { -32000, 32000 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam3Value) },
+    { "model_param3_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam3Value) },
 
 // PG_POSITION
     { "position_alt_source",       VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_POSITION_ALT_SOURCE }, PG_POSITION, offsetof(positionConfig_t, alt_source) },
