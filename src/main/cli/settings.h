@@ -129,6 +129,7 @@ typedef enum {
     TABLE_SWASH_TYPE,
     TABLE_DTERM_MODE,
     TABLE_TELEM_MODE,
+    TABLE_PARAM_TYPE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

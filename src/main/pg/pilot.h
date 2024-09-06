@@ -29,6 +29,12 @@ typedef struct {
     char    name[MAX_NAME_LENGTH + 1];
     char    displayName[MAX_NAME_LENGTH + 1];
     uint8_t modelId;
+    uint8_t modelParam1Type;
+    int16_t modelParam1Value;
+    uint8_t modelParam2Type;
+    int16_t modelParam2Value;
+    uint8_t modelParam3Type;
+    int16_t modelParam3Value;
 } pilotConfig_t;
 
 PG_DECLARE(pilotConfig_t, pilotConfig);
