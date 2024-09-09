@@ -502,7 +502,7 @@ const char * const lookupTableEdgeMode[] = {
 };
 
 const char * const lookupTableParamType[] = {
-    "NONE", "TIMER1", "TIMER2", "TIMER3", "GV1", "GV2", "GV3","GV4","GV5","GV6","GV7","GV8","GV9"
+    "NONE", "TIMER1", "TIMER2", "TIMER3", "GV1", "GV2", "GV3", "GV4", "GV5", "GV6", "GV7", "GV8", "GV9"
 };
 
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
