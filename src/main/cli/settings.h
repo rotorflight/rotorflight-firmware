@@ -130,6 +130,9 @@ typedef enum {
     TABLE_DTERM_MODE,
     TABLE_TELEM_MODE,
 
+    TABLE_INPUT_PULL_MODE,
+    TABLE_INPUT_EDGE_MODE,
+
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;
 

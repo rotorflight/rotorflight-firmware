@@ -48,25 +48,23 @@
 
 typedef struct
 {
-    float deflection[4];
     float setpoint[4];
-    float limited[4];
-    float maximum[4];
+    float deflection[4];
 
-    float accelLimit[4];
     float ringLimit;
 
-    float movementThreshold[4];
-
-    float maxGainUp;
-    float maxGainDown;
-
-    filter_t filter[4];
+    float limited[4];
+    float responseAccel[4];
+    float responseFactor[4];
 
     float smoothingFactor;
+    uint16_t smoothingCutoff;
+    filter_t smoothingFilter[4];
 
-    uint16_t responseCutoff[4];
-    uint16_t activeCutoff[4];
+    float maximum[4];
+    float maxGainUp;
+    float maxGainDown;
+    float movementThreshold[4];
 
 } setpointData_t;
 
@@ -83,6 +81,12 @@ float getDeflection(int axis)
     return sp.deflection[axis];
 }
 
+static float setpointResponseAccel(int axis, float value)
+{
+    sp.limited[axis] += limitf((value - sp.limited[axis]) * sp.responseFactor[axis], sp.responseAccel[axis]);
+
+    return sp.limited[axis];
+}
 
 static float setpointAutoSmoothingCutoff(float frameTimeUs)
 {
@@ -97,15 +101,14 @@ static float setpointAutoSmoothingCutoff(float frameTimeUs)
 
 void setpointUpdateTiming(float frameTimeUs)
 {
-    float maxCutoff = setpointAutoSmoothingCutoff(frameTimeUs);
+    const uint16_t cutoff = setpointAutoSmoothingCutoff(frameTimeUs);
 
-    for (int i = 0; i < 4; i++) {
-        float cutoff = MIN(sp.responseCutoff[i], maxCutoff);
-        if (sp.activeCutoff[i] != cutoff) {
-            filterUpdate(&sp.filter[i], cutoff, pidGetPidFrequency());
-            sp.activeCutoff[i] = cutoff;
+    if (sp.smoothingCutoff != cutoff) {
+        for (int i = 0; i < 4; i++) {
+            filterUpdate(&sp.smoothingFilter[i], cutoff, pidGetPidFrequency());
             DEBUG_AXIS(SETPOINT, i, 6, cutoff);
         }
+        sp.smoothingCutoff = cutoff;
     }
 
     DEBUG(SETPOINT, 7, frameTimeUs);
@@ -116,38 +119,49 @@ INIT_CODE void setpointInitProfile(void)
     sp.ringLimit = 1.0f / (1.4142135623f - currentControlRateProfile->cyclic_ring * 0.004142135623f);
 
     for (int i = 0; i < 4; i++) {
-        sp.accelLimit[i] = 10.0f * currentControlRateProfile->accel_limit[i] * pidGetDT();
-        sp.responseCutoff[i] = constrain(
-            2500 / constrain(10 * currentControlRateProfile->response_time[i], 1, 1000),
-            SP_SMOOTHING_FILTER_MIN_HZ, SP_SMOOTHING_FILTER_MAX_HZ);
+        if (currentControlRateProfile->response_time[i]) {
+            const float cutoff = 500.0f / currentControlRateProfile->response_time[i];
+            sp.responseFactor[i] = pt1FilterGain(cutoff, pidGetPidFrequency());
+        }
+        else {
+            sp.responseFactor[i] = 1;
+        }
+
+        if (currentControlRateProfile->accel_limit[i]) {
+            sp.responseAccel[i] = 1000.0f / currentControlRateProfile->accel_limit[i] * pidGetDT();
+        }
+        else {
+            sp.responseAccel[i] = 1;
+        }
+
+        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
     }
 }
 
 INIT_CODE void setpointInit(void)
 {
     sp.smoothingFactor = 25e6f / constrain(rcControlsConfig()->rc_smoothness, 1, 250);
+    sp.smoothingCutoff = SP_SMOOTHING_FILTER_MAX_HZ;
 
     sp.maxGainUp = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetPidFrequency());
     sp.maxGainDown = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetPidFrequency());
 
-    setpointInitProfile();
-
     for (int i = 0; i < 4; i++) {
-        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
-        sp.activeCutoff[i] = sp.responseCutoff[i];
-        lowpassFilterInit(&sp.filter[i], LPF_PT3, sp.activeCutoff[i], pidGetPidFrequency(), 0);
+        lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
     }
+
+    setpointInitProfile();
 }
 
 void setpointUpdate(void)
 {
+    float deflection[4];
+
     for (int axis = 0; axis < 4; axis++) {
-        float deflection, delta;
+        deflection[axis] = getRcDeflection(axis);
+        DEBUG_AXIS(SETPOINT, axis, 0, deflection[axis] * 1000);
 
-        deflection = sp.deflection[axis] = getRcDeflection(axis);
-        DEBUG_AXIS(SETPOINT, axis, 0, deflection * 1000);
-
-        delta = sq(deflection)- sp.maximum[axis];
+        float delta = sq(deflection[axis])- sp.maximum[axis];
         sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
 
         DEBUG_AXIS(SETPOINT, axis, 5, sp.maximum[axis]);
@@ -162,29 +176,26 @@ void setpointUpdate(void)
     DEBUG(AIRBORNE, 6, isHandsOn());
     DEBUG(AIRBORNE, 7, isAirborne());
 
-    const float R = sp.deflection[FD_ROLL]  * sp.ringLimit;
-    const float P = sp.deflection[FD_PITCH] * sp.ringLimit;
+    const float R = deflection[FD_ROLL]  * sp.ringLimit;
+    const float P = deflection[FD_PITCH] * sp.ringLimit;
     const float C = sqrtf(sq(R) + sq(P));
 
     if (C > 1.0f) {
-        sp.deflection[FD_ROLL]  /= C;
-        sp.deflection[FD_PITCH] /= C;
+        deflection[FD_ROLL]  /= C;
+        deflection[FD_PITCH] /= C;
     }
 
-    DEBUG_AXIS(SETPOINT, FD_ROLL, 1, sp.deflection[FD_ROLL] * 1000);
-    DEBUG_AXIS(SETPOINT, FD_PITCH, 1, sp.deflection[FD_PITCH] * 1000);
-
     for (int axis = 0; axis < 4; axis++) {
-        float SP = sp.deflection[axis];
+        float SP = deflection[axis];
 
         // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
         if (axis == FD_YAW)
             SP = -SP;
 
-        SP = sp.limited[axis] = slewLimit(sp.limited[axis], SP, sp.accelLimit[axis]);
+        SP = filterApply(&sp.smoothingFilter[axis], SP);
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
-        SP = sp.deflection[axis] = filterApply(&sp.filter[axis], SP);
+        SP = sp.deflection[axis] = setpointResponseAccel(axis, SP);
         DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
 
         SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);
