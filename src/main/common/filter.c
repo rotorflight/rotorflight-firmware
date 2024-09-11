@@ -405,6 +405,7 @@ FAST_CODE float ewma3FilterApply(ewma3Filter_t *filter, float input)
  *   Fc = Cutoff frequency
  *   Fs = Sampling frequency
  *
+ *   Wc = 2⋅π⋅Fc
  *
  *                Wc          Wc
  *  H(s) = s ⋅ ―――――――― = ――――――――――――
@@ -418,7 +419,7 @@ FAST_CODE float ewma3FilterApply(ewma3Filter_t *filter, float input)
  *          a₀ + a₁⋅z⁻¹
  *
  * Where
- *      b₀ = K / (1 + K)
+ *      b₀ = 2*Fs * K / (1 + K)
  *      b₁ = -b₀
  *      a₀ = 1
  *      a₁ = (1 - K) / (1 + K)
@@ -438,12 +439,12 @@ void difFilterInit(difFilter_t *filter, float cutoff, float sampleRate)
 
 void difFilterUpdate(difFilter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
     const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
     filter->a = (W - 1) / (W + 1);
-    filter->b = W / (W + 1);
+    filter->b = 2 * sampleRate * W / (W + 1);
 }
 
 FAST_CODE float difFilterApply(difFilter_t *filter, float input)
@@ -648,13 +649,13 @@ FAST_CODE void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float s
 
 FAST_CODE void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
     const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
     filter->a1 = (W - 1) / (W + 1);
     filter->b0 = 1 / (W + 1);
-    filter->b1 = -filter->b1;
+    filter->b1 = -filter->b0;
 }
 
 FAST_CODE float firstOrderFilterApply(order1Filter_t *filter, float input)
