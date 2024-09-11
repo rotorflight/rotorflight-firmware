@@ -74,6 +74,8 @@
 
 #define MSP_NAME                             10
 #define MSP_SET_NAME                         11
+#define MSP_PILOT_CONFIG                     12
+#define MSP_SET_PILOT_CONFIG                 13
 
 #define MSP_BATTERY_CONFIG                   32
 #define MSP_SET_BATTERY_CONFIG               33
