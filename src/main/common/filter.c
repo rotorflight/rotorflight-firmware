@@ -649,7 +649,7 @@ FAST_CODE void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float s
 
 FAST_CODE void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
     const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
