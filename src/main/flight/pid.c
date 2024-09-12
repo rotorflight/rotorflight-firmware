@@ -225,6 +225,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pt1FilterInit(&pid.precomp.collDynamicFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
 
     // Tail/yaw precomp
+    pid.precomp.yawPrecompType = pidProfile->yaw_precomp_type;
     pid.precomp.exponent = pidProfile->yaw_precomp_exp / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
@@ -388,13 +389,28 @@ static void pidApplyCollective(void)
 
 static void pidApplyPrecomp(void)
 {
+    float collectiveDeflection, pitchDeflection, rollDeflection;
+
     // Yaw precompensation direction and ratio
     const float masterGain = mixerRotationSign() * getSpoolUpRatio();
 
-    // Get actual control deflections (from previous cycle)
-    const float collectiveDeflection = filterApply(&pid.precomp.collDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE));
-    const float pitchDeflection = filterApply(&pid.precomp.pitchDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_PITCH));
-    const float rollDeflection = filterApply(&pid.precomp.rollDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_ROLL));
+    if (pid.precomp.yawPrecompType) {
+      // Get values from PID inputs
+      collectiveDeflection = pid.collective;
+      pitchDeflection = pid.data[PITCH].setPoint / 300.0f;
+      rollDeflection = pid.data[ROLL].setPoint / 300.0f;
+    }
+    else {
+      // Get actual control deflections (from previous cycle)
+      collectiveDeflection = mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE);
+      pitchDeflection = mixerGetInput(MIXER_IN_STABILIZED_PITCH);
+      rollDeflection = mixerGetInput(MIXER_IN_STABILIZED_ROLL);
+    }
+
+    // Apply filters
+    collectiveDeflection = filterApply(&pid.precomp.collDeflectionFilter, collectiveDeflection);
+    pitchDeflection = filterApply(&pid.precomp.pitchDeflectionFilter, pitchDeflection);
+    rollDeflection = filterApply(&pid.precomp.rollDeflectionFilter, rollDeflection);
 
     // Calculate cyclic deflection from the filtered controls
     const float cyclicDeflection = sqrtf(sq(pitchDeflection) + sq(rollDeflection));

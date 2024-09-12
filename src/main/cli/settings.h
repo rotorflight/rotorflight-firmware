@@ -132,6 +132,7 @@ typedef enum {
     TABLE_INPUT_PULL_MODE,
     TABLE_INPUT_EDGE_MODE,
     TABLE_PARAM_TYPE,
+    TABLE_PRECOMP_TYPE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

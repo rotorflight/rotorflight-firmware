@@ -505,6 +505,10 @@ const char * const lookupTableParamType[] = {
     "NONE", "TIMER1", "TIMER2", "TIMER3", "GV1", "GV2", "GV3", "GV4", "GV5", "GV6", "GV7", "GV8", "GV9"
 };
 
+const char * const lookupTablePrecompType[] = {
+    "DEFLECTION", "SETPOINT",
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -619,6 +623,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
     LOOKUP_TABLE_ENTRY(lookupTableParamType),
+    LOOKUP_TABLE_ENTRY(lookupTablePrecompType),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -1100,6 +1105,7 @@ const clivalue_t valueTable[] = {
     { "yaw_cw_stop_gain",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cw_stop_gain) },
     { "yaw_ccw_stop_gain",          VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_ccw_stop_gain) },
 
+    { "yaw_precomp_type",           VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PRECOMP_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_type) },
     { "yaw_precomp_exp",            VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_exp) },
     { "yaw_precomp_cutoff",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_cutoff) },
     { "yaw_precomp_filter_type",    VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_filter_type) },
