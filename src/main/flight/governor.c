@@ -155,6 +155,7 @@ typedef struct {
     float           collectiveWeight;
     float           FFExponent;
     filter_t        FFFilter;
+    uint8_t         FFType;
 
     // Tail Torque Assist
     float           TTAAdd;
@@ -428,14 +429,23 @@ static void govUpdateData(void)
         gov.requestRatio = 0;
     }
 
-    // Calculate feedforward from collective deflection
-    float collectiveFF = gov.collectiveWeight * getCollectiveDeflectionAbs();
+    float collectiveFF, cyclicFF, yawFF;
 
-    // Calculate feedforward from cyclic deflection
-    float cyclicFF = gov.cyclicWeight * getCyclicDeflection();
+    if (gov.FFType) {
+        const pidAxisData_t * data = pidGetAxisData();
+        const float roll = data[ROLL].setPoint / 300.0;
+        const float pitch = data[PITCH].setPoint / 300.0;
+        const float cyclic = sqrtf(sq(roll) + sq(pitch));
+        cyclicFF = gov.cyclicWeight * cyclic;
+        collectiveFF = gov.collectiveWeight * pidGetCollective();
+    }
+    else {
+        cyclicFF = gov.cyclicWeight * getCyclicDeflection();
+        collectiveFF = gov.collectiveWeight * getCollectiveDeflectionAbs();
+    }
 
     // Calculate feedforward from yaw deflection
-    float yawFF = gov.yawWeight * getYawDeflectionAbs();
+    yawFF = gov.yawWeight * getYawDeflectionAbs();
 
     // Angle-of-attack vs. FeedForward curve
     float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
@@ -1006,6 +1016,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.cyclicWeight = pidProfile->governor.cyclic_ff_weight / 100.0f;
         gov.collectiveWeight = pidProfile->governor.collective_ff_weight / 100.0f;
 
+        gov.FFType = pidProfile->governor.ff_type;
         gov.FFExponent = pidProfile->governor.ff_exponent / 100.0f;
 
         gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
