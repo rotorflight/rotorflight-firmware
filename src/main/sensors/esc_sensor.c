@@ -1433,6 +1433,203 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
+ * FlyRotor Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Telemetry Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0x73)
+ *      1:      0 <- command (0 == data, 0x60 == read esc info etc)
+ *    2-3:      data length
+ * 
+ * Telemetry Data
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    4-5:      Battery voltage x10mV [0-65535] 
+ *    6-7:      Current x10mA [0-65535]
+ *    8-9:      Capacity 1mAh [0-65535]
+ *  10-11:      ERPM 10rpm [0-65535]
+ *     12:      Throttle [0-100]
+ *     13:      ESC Temperature 1°C [-30-225]
+ *     14:      MCU Temperature 1°C [-30-225]
+ *     15:      Motor Temperature 1°C [-30-225]
+ *     16:      BEC Voltage x10mV [0-255]
+ *     17:      Status flag
+ *     18:      Mode [0-255]
+ * 
+ *     19:      CRC8
+ *     20:      end byte (0x65)
+ */
+#define FLY_SYNC                            0x73                // start byte
+#define FLY_END                             0x65                // end byte
+#define FLY_HEADER_LENGTH                   4                   // header length
+#define FLY_FOOTER_LENGTH                   2                   // CRC + end byte
+#define FLY_MIN_FRAME_LENGTH                (FLY_HEADER_LENGTH + FLY_FOOTER_LENGTH)
+#define FLY_BOOT_DELAY                      5000
+#define FLY_TELE_FRAME_TIMEOUT              40
+
+#define FLY_TEMP_OFFSET                     30
+
+#define FLY_CMD_TELEMETRY_DATA              0xFF                // telemetry data (slave response only)
+#define FLY_CMD_CONNECT_ESC                 0x50                // Connect ESC
+#define FLY_CMD_DISCONNECT_ESC              0x5F                // Disconnect ESC
+#define FLY_CMD_READ_INFO                   0x60                // Read ESC information
+#define FLY_CMD_READ_BASIC                  0x61                // Read ESC basic parameters
+#define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
+#define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
+#define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
+#define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
+
+uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
+{
+    uint16_t usCnt;
+    uint8_t ucBit, ucResult = 0;
+
+    for (usCnt = 0; usCnt < usLength; usCnt++)
+    {
+        ucResult ^= pData[usCnt];
+
+        for (ucBit = 0; ucBit < 8; ucBit++)
+        {
+            if (ucResult & 0x80)
+            {
+                ucResult = (ucResult << 1) ^ 0x07;
+            }
+            else
+            {
+                ucResult <<= 1;
+            }
+        }
+    }
+    return ucResult;
+}
+
+static void flyDecodeTelemetryFrame(void)
+{
+    const uint8_t hl = FLY_HEADER_LENGTH;
+
+    const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
+    const int8_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
+    const uint8_t power = buffer[hl + 8];
+    const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
+    const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
+    const uint16_t consumption = buffer[hl + 4] << 8 | buffer[hl + 5];
+    const uint16_t status = buffer[hl + 13];
+    const uint16_t voltBEC = buffer[hl + 12];
+
+    escSensorData[0].id = ESC_SIG_FLY;
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = rpm * 10;
+    escSensorData[0].pwm = power * 10;
+    escSensorData[0].voltage = voltage * 10;
+    escSensorData[0].current = current * 10;
+    escSensorData[0].consumption = consumption;
+    escSensorData[0].temperature = temp * 10;
+    escSensorData[0].bec_voltage = voltBEC * 10;
+    escSensorData[0].status = status;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+}
+
+static bool flyDecodeTelemetry(void)
+{
+    // decode payload
+    flyDecodeTelemetryFrame();
+
+    rrfsmFrameTimeout = FLY_TELE_FRAME_TIMEOUT;
+
+    // schedule next request
+    // TODO
+
+    return true;
+}
+
+static bool flyDecode(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    // paranoid buffer access
+    const uint8_t len = FLY_MIN_FRAME_LENGTH + buffer[3];
+    if (len > TELEMETRY_BUFFER_SIZE)
+        return false;
+
+    // check CRC
+    const uint8_t crc = buffer[len - FLY_FOOTER_LENGTH];
+    if (flyCalculateCRC8(buffer, len - FLY_FOOTER_LENGTH) != crc)
+        return false;
+
+    // decode
+    switch (buffer[1]) {
+        case FLY_CMD_TELEMETRY_DATA:
+            return flyDecodeTelemetry();
+        default:
+            return false;
+    }
+}
+
+static int8_t flyAccept(uint16_t c)
+{
+    if (readBytes == 1) {
+        // [0] start byte
+        if (c != 0x73)
+            return -1;
+    }
+    else if (readBytes == 2) {
+        switch (c) {
+            case FLY_CMD_TELEMETRY_DATA:
+                break;
+            default:
+                // unsupported frame type
+                return -1;
+        }
+    }
+    else if (readBytes == 4) {
+        // [2-3] data length - hi bit always zero here, can be ignored
+        if (FLY_MIN_FRAME_LENGTH + c > TELEMETRY_BUFFER_SIZE) {
+            // protect against buffer underflow/overflow
+            return -1;
+        }
+        else {
+            // new frame length for this frame
+            rrfsmFrameLength = FLY_MIN_FRAME_LENGTH + c;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
+{
+    rrfsmBootDelayMs = FLY_BOOT_DELAY;
+    rrfsmMinFrameLength = FLY_HEADER_LENGTH;
+    rrfsmAccept = flyAccept;
+    rrfsmDecode = flyDecode;
+
+    escSig = ESC_SIG_FLY;
+
+    if (bidirectional) {
+        // enable parameter writes to ESC
+        // paramCommit = flyParamCommit;
+    }
+
+    return rrfsmDataReceive;
+}
+
+
+/*
  * Hobbywing V5 Telemetry
  *
  *    - Serial protocol 115200,8N1
@@ -2718,213 +2915,6 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
     else {
         // use auto telemetry mode
         rrfsmDecode = oygeDecodeAuto;
-    }
-
-    return rrfsmDataReceive;
-}
-
-
-/*
- * FlyRotor Telemetry
- *
- *     - Serial protocol is 115200,8N1
- *     - Big-Endian byte order
- * 
- * Telemetry Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      start byte (0x73)
- *      1:      0 <- command (0 == data, 0x60 == read esc info etc)
- *    2-3:      data length
- * 
- * Telemetry Data
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *    4-5:      Battery voltage x10mV [0-65535] 
- *    6-7:      Current x10mA [0-65535]
- *    8-9:      Capacity 1mAh [0-65535]
- *  10-11:      ERPM 10rpm [0-65535]
- *     12:      Throttle [0-100]
- *     13:      ESC Temperature 1°C [-30-225]
- *     14:      MCU Temperature 1°C [-30-225]
- *     15:      Motor Temperature 1°C [-30-225]
- *     16:      BEC Voltage x10mV [0-255]
- *     17:      Status flag
- *     18:      Mode [0-255]
- * 
- *     19:      CRC8
- *     20:      end byte (0x65)
- */
-#define FLY_SYNC                            0x73                // start byte
-#define FLY_END                             0x65                // end byte
-#define FLY_HEADER_LENGTH                   4                   // header length
-#define FLY_FOOTER_LENGTH                   2                   // CRC + end byte
-#define FLY_MIN_FRAME_LENGTH                (FLY_HEADER_LENGTH + FLY_FOOTER_LENGTH)
-#define FLY_BOOT_DELAY                      5000
-#define FLY_TELE_FRAME_TIMEOUT              500
-
-#define FLY_TEMP_OFFSET                     30
-
-#define FLY_CMD_TELEMETRY_DATA              0x00                // telemetry data
-#define FLY_CMD_CONNECT_ESC                 0x50                // Connect ESC
-#define FLY_CMD_DISCONNECT_ESC              0x5F                // Disconnect ESC
-#define FLY_CMD_READ_INFO                   0x60                // Read ESC information
-#define FLY_CMD_READ_BASIC                  0x61                // Read ESC basic parameters
-#define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
-#define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
-#define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
-#define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
-
-uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
-{
-    uint16_t usCnt;
-    uint8_t ucBit, ucResult = 0;
-
-    for (usCnt = 0; usCnt < usLength; usCnt++)
-    {
-        ucResult ^= pData[usCnt];
-
-        for (ucBit = 0; ucBit < 8; ucBit++)
-        {
-            if (ucResult & 0x80)
-            {
-                ucResult = (ucResult << 1) ^ 0x07;
-            }
-            else
-            {
-                ucResult <<= 1;
-            }
-        }
-    }
-    return ucResult;
-}
-
-static void flyDecodeTelemetryFrame(void)
-{
-    const uint8_t hl = FLY_HEADER_LENGTH;
-
-    const uint16_t rpm = buffer[hl + 10] << 8 | buffer[hl + 11];
-    const int8_t temp = buffer[hl + 13] - FLY_TEMP_OFFSET;
-    const uint8_t power = buffer[hl + 12];
-    const uint16_t voltage = buffer[hl + 4] << 8 | buffer[hl + 5];
-    const uint16_t current = buffer[hl + 6] << 8 | buffer[hl + 7];
-    const uint16_t consumption = buffer[hl + 8] << 8 | buffer[hl + 9];
-    const uint16_t status = buffer[hl + 17];
-    const uint16_t voltBEC = buffer[hl + 16];
-
-    escSensorData[0].id = ESC_SIG_FLY;
-    escSensorData[0].age = 0;
-    escSensorData[0].erpm = rpm * 10;
-    escSensorData[0].pwm = power * 10;
-    escSensorData[0].voltage = voltage * 10;
-    escSensorData[0].current = current * 10;
-    escSensorData[0].consumption = consumption;
-    escSensorData[0].temperature = temp * 10;
-    escSensorData[0].bec_voltage = voltBEC * 10;
-    escSensorData[0].status = status;
-
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-}
-
-static bool flyDecodeTelemetry(void)
-{
-    // decode payload
-    flyDecodeTelemetryFrame();
-
-    rrfsmFrameTimeout = FLY_TELE_FRAME_TIMEOUT;
-
-    // schedule next request
-    // TODO
-
-    return true;
-}
-
-static bool flyDecode(timeUs_t currentTimeUs)
-{
-    UNUSED(currentTimeUs);
-
-    // paranoid buffer access
-    const uint8_t len = buffer[3];
-    if (len < FLY_MIN_FRAME_LENGTH || len > TELEMETRY_BUFFER_SIZE)
-        return false;
-
-    // check CRC
-    const uint8_t crc = buffer[len - FLY_FOOTER_LENGTH];
-    if (flyCalculateCRC8(buffer, len - FLY_FOOTER_LENGTH) != crc)
-        return false;
-
-    // decode
-    switch (buffer[1]) {
-        case FLY_CMD_TELEMETRY_DATA:
-            return flyDecodeTelemetry();
-        default:
-            return false;
-    }
-}
-
-static int8_t flyAccept(uint16_t c)
-{
-    UNUSED(flyCalculateCRC8);
-
-    if (readBytes == 1) {
-        // [0] start byte
-        if (c != 0x73)
-            return -1;
-    }
-    else if (readBytes == 2) {
-        switch (c) {
-            case FLY_CMD_TELEMETRY_DATA:
-            // case ~FLY_CMD_CONNECT_ESC:
-            // case ~FLY_CMD_DISCONNECT_ESC:
-            // case ~FLY_CMD_READ_INFO:
-            // case ~FLY_CMD_READ_BASIC:
-            // case ~FLY_CMD_READ_ADV:
-            // case ~FLY_CMD_READ_REALTIME:
-            // case ~FLY_CMD_WRITE_BASIC:
-            // case ~FLY_CMD_WRITE_ADV:
-                break;
-            default:
-                // unsupported frame type
-                return -1;
-        }
-    }
-    else if (readBytes == 4) {
-        // [2-3] data length - hi bit always zero here, can be ignored
-        if (c < FLY_MIN_FRAME_LENGTH || c > TELEMETRY_BUFFER_SIZE) {
-            // protect against buffer underflow/overflow
-            return -1;
-        }
-        else {
-            // new frame length for this frame
-            rrfsmFrameLength = c;
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
-{
-    rrfsmBootDelayMs = FLY_BOOT_DELAY;
-    rrfsmMinFrameLength = FLY_HEADER_LENGTH;
-    rrfsmAccept = flyAccept;
-    rrfsmDecode = flyDecode;
-
-    escSig = ESC_SIG_FLY;
-
-    if (bidirectional) {
-        // enable parameter writes to ESC
-        // paramCommit = flyParamCommit;
     }
 
     return rrfsmDataReceive;
