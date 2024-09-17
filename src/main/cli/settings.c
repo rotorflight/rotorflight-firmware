@@ -501,6 +501,10 @@ const char * const lookupTableEdgeMode[] = {
     "FALLING", "RISING"
 };
 
+const char * const lookupTableParamType[] = {
+    "NONE", "TIMER1", "TIMER2", "TIMER3", "GV1", "GV2", "GV3", "GV4", "GV5", "GV6", "GV7", "GV8", "GV9"
+};
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -614,6 +618,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableTelemMode),
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
+    LOOKUP_TABLE_ENTRY(lookupTableParamType),
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -1701,6 +1706,12 @@ const clivalue_t valueTable[] = {
     { "display_name",     VAR_UINT8  | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_NAME_LENGTH, STRING_FLAGS_NONE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, displayName) },
 #endif
     { "model_id",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 99 }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelId) },
+    { "model_param1_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam1Type) },
+    { "model_param1_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam1Value) },
+    { "model_param2_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam2Type) },
+    { "model_param2_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam2Value) },
+    { "model_param3_type",  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_PARAM_TYPE }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam3Type) },
+    { "model_param3_value", VAR_INT16  | MASTER_VALUE, .config.minmax = { INT16_MIN, INT16_MAX }, PG_PILOT_CONFIG, offsetof(pilotConfig_t, modelParam3Value) },
 
 // PG_POSITION
     { "position_alt_source",       VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_POSITION_ALT_SOURCE }, PG_POSITION, offsetof(positionConfig_t, alt_source) },

@@ -46,15 +46,20 @@ PG_REGISTER_ARRAY_WITH_RESET_FN(mixerInput_t, MIXER_INPUT_COUNT, mixerInputs, PG
 
 void pgResetFn_mixerInputs(mixerInput_t *input)
 {
-    for (int i = MIXER_IN_STABILIZED_ROLL; i < MIXER_IN_COUNT; i++) {
-        input[i].rate =  1000;
-        input[i].min  = -1000;
-        input[i].max  =  1000;
+    for (int i = MIXER_IN_STABILIZED_ROLL; i <= MIXER_IN_STABILIZED_COLLECTIVE; i++) {
+        input[i].rate =  250;
+        input[i].min  = -1250;
+        input[i].max  =  1250;
     }
 
     input[MIXER_IN_STABILIZED_THROTTLE].rate =  1000;
     input[MIXER_IN_STABILIZED_THROTTLE].min  =  0;
     input[MIXER_IN_STABILIZED_THROTTLE].max  =  1000;
-}
 
+    for (int i = MIXER_IN_RC_COMMAND_ROLL; i <= MIXER_IN_RC_CHANNEL_18; i++) {
+        input[i].rate =  1000;
+        input[i].min  = -1000;
+        input[i].max  =  1000;
+    }
+}
 

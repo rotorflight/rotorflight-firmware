@@ -267,10 +267,11 @@ float biquadFilterApply(biquadFilter_t *filter, float input);
 float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
 float biquadFilterApplyDF2(biquadFilter_t *filter, float input);
 
-void firstOrderFilterInit(order1Filter_t *filter, float cutoff, float sampleRate);
-void firstOrderFilterUpdate(order1Filter_t *filter, float cutoff, float sampleRate);
-float firstOrderFilterApplyDF1(order1Filter_t *filter, float input);
-float firstOrderFilterApplyTF2(order1Filter_t *filter, float input);
+void firstOrderLPFInit(order1Filter_t *filter, float cutoff, float sampleRate);
+void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate);
+void firstOrderHPFInit(order1Filter_t *filter, float cutoff, float sampleRate);
+void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate);
+float firstOrderFilterApply(order1Filter_t *filter, float input);
 
 float filterStackApply(biquadFilter_t *filter, float input, int count);
 

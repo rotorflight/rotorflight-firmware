@@ -419,7 +419,7 @@ FAST_CODE float ewma3FilterApply(ewma3Filter_t *filter, float input)
  *          a₀ + a₁⋅z⁻¹
  *
  * Where
- *      b₀ = Wc / (1 + K)
+ *      b₀ = 2*Fs * K / (1 + K)
  *      b₁ = -b₀
  *      a₀ = 1
  *      a₁ = (1 - K) / (1 + K)
@@ -439,24 +439,20 @@ void difFilterInit(difFilter_t *filter, float cutoff, float sampleRate)
 
 void difFilterUpdate(difFilter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
 
-    const float K = tan_approx(M_PIf * cutoff / sampleRate);
-    const float Wc = M_2PIf * cutoff;
+    const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
-    filter->a = (K - 1) / (K + 1);
-    filter->b = Wc / (K + 1);
+    filter->a = (W - 1) / (W + 1);
+    filter->b = 2 * sampleRate * W / (W + 1);
 }
 
 FAST_CODE float difFilterApply(difFilter_t *filter, float input)
 {
-    const float output =
-        filter->b * input -
-        filter->b * filter->x1 -
-        filter->a * filter->y1;
+    const float output = filter->b * (input - filter->x1) - filter->a * filter->y1;
 
-    filter->y1 = output;
     filter->x1 = input;
+    filter->y1 = output;
 
     return output;
 }
@@ -622,27 +618,47 @@ FAST_CODE float filterStackApply(biquadFilter_t *filter, float input, int count)
 }
 
 
-// First order filter
+// First order filters
 
-void firstOrderFilterInit(order1Filter_t *filter, float cutoff, float sampleRate)
+void firstOrderLPFInit(order1Filter_t *filter, float cutoff, float sampleRate)
 {
     filter->x1 = 0;
     filter->y1 = 0;
 
-    firstOrderFilterUpdate(filter, cutoff, sampleRate);
+    firstOrderLPFUpdate(filter, cutoff, sampleRate);
 }
 
-FAST_CODE void firstOrderFilterUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
+void firstOrderHPFInit(order1Filter_t *filter, float cutoff, float sampleRate)
+{
+    filter->x1 = 0;
+    filter->y1 = 0;
+
+    firstOrderHPFUpdate(filter, cutoff, sampleRate);
+}
+
+FAST_CODE void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
     cutoff = limitCutoff(cutoff, sampleRate);
 
     const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
     filter->a1 = (W - 1) / (W + 1);
-    filter->b1 = filter->b0 = W / (W + 1);
+    filter->b0 = W / (W + 1);
+    filter->b1 = filter->b0;
 }
 
-FAST_CODE float firstOrderFilterApplyDF1(order1Filter_t *filter, float input)
+FAST_CODE void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
+{
+    cutoff = limitCutoff(cutoff, sampleRate / 2);
+
+    const float W = tan_approx(M_PIf * cutoff / sampleRate);
+
+    filter->a1 = (W - 1) / (W + 1);
+    filter->b0 = 1 / (W + 1);
+    filter->b1 = -filter->b0;
+}
+
+FAST_CODE float firstOrderFilterApply(order1Filter_t *filter, float input)
 {
     const float output =
         filter->b0 * input +
@@ -650,16 +666,6 @@ FAST_CODE float firstOrderFilterApplyDF1(order1Filter_t *filter, float input)
         filter->a1 * filter->y1;
 
     filter->x1 = input;
-    filter->y1 = output;
-
-    return output;
-}
-
-FAST_CODE float firstOrderFilterApplyTF2(order1Filter_t *filter, float input)
-{
-    const float output = filter->b0 * input + filter->x1;
-
-    filter->x1 = filter->b1 * input - filter->a1 * output;
     filter->y1 = output;
 
     return output;
@@ -742,13 +748,13 @@ void lowpassFilterInit(filter_t *filter, uint8_t type, float cutoff, float sampl
 
         case LPF_1ST_ORDER:
         case LPF_ORDER1:
-            filter->init   = (filterInitFn)firstOrderFilterInit;
+            filter->init   = (filterInitFn)firstOrderLPFInit;
             if (flags & LPF_UPDATE) {
-                filter->apply = (filterApplyFn)firstOrderFilterApplyDF1;
-                filter->update = (filterUpdateFn)firstOrderFilterUpdate;
+                filter->apply = (filterApplyFn)firstOrderFilterApply;
+                filter->update = (filterUpdateFn)firstOrderLPFUpdate;
             }
             else {
-                filter->apply = (filterApplyFn)firstOrderFilterApplyTF2;
+                filter->apply = (filterApplyFn)firstOrderFilterApply;
                 filter->update = (filterUpdateFn)nilFilterUpdate;
             }
             break;

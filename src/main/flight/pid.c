@@ -236,9 +236,9 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.cyclicCrossCouplingGain[FD_PITCH] = pidProfile->cyclic_cross_coupling_gain * mixerRotationSign() * -CROSS_COUPLING_SCALE;
     pid.cyclicCrossCouplingGain[FD_ROLL]  = pid.cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
 
-    // Cross-coupling derivative filters
-    difFilterInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
-    difFilterInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    // Cross-coupling filters
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
@@ -444,9 +444,9 @@ static void pidApplyPrecomp(void)
 
 static void pidApplyCyclicCrossCoupling(void)
 {
-    // Setpoint derivative filter
-    const float pitchDeriv = difFilterApply(&pid.crossCouplingFilter[FD_PITCH], pid.data[FD_PITCH].setPoint);
-    const float rollDeriv  = difFilterApply(&pid.crossCouplingFilter[FD_ROLL], pid.data[FD_ROLL].setPoint);
+    // Cross-coupling filters
+    const float pitchDeriv = firstOrderFilterApply(&pid.crossCouplingFilter[FD_PITCH], pid.data[FD_PITCH].setPoint);
+    const float rollDeriv  = firstOrderFilterApply(&pid.crossCouplingFilter[FD_ROLL], pid.data[FD_ROLL].setPoint);
     const float pitchComp  = rollDeriv * pid.cyclicCrossCouplingGain[FD_ROLL];
     const float rollComp   = pitchDeriv * pid.cyclicCrossCouplingGain[FD_PITCH];
 
