@@ -1454,7 +1454,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
  *     13:      ESC Temperature 1°C [-30-225]
  *     14:      MCU Temperature 1°C [-30-225]
  *     15:      Motor Temperature 1°C [-30-225]
- *     16:      BEC Voltage x10mV [0-255]
+ *     16:      BEC Voltage x100mV [0-255]
  *     17:      Status flag
  *     18:      Mode [0-255]
  * 
@@ -1511,6 +1511,7 @@ static void flyDecodeTelemetryFrame(void)
 
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int8_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
+    const int8_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
     const uint8_t power = buffer[hl + 8];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
@@ -1526,7 +1527,8 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].current = current * 10;
     escSensorData[0].consumption = consumption;
     escSensorData[0].temperature = temp * 10;
-    escSensorData[0].bec_voltage = voltBEC * 10;
+    escSensorData[0].temperature2 = mcuTemp * 10;
+    escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
@@ -1540,7 +1542,7 @@ static void flyDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
@@ -1842,7 +1844,7 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->temperature);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->bec_temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->bec_voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
     dataUpdateUs = currentTimeUs;
