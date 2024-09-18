@@ -1484,12 +1484,15 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_CMD_READ_ADV_RESP               0x9D                // Read ESC advanced parameters resp
 #define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
 #define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
+#define FLY_CMD_WRITE_BASIC_RESP            0x6F                // Write ESC basic parameters resp
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
+#define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
 
 #define FLY_PARAM_FRAME_PERIOD              2                   // asap
 #define FLY_PARAM_CONNECT_TIMEOUT           10
 #define FLY_PARAM_DISCONNECT_TIMEOUT        100
-#define FLY_PARAM_READ_TIMEOUT              200
+#define FLY_PARAM_READ_TIMEOUT              100
+#define FLY_PARAM_WRITE_TIMEOUT             100
 
 #define FLY_PARAM_PAGE_INFO                 0
 #define FLY_PARAM_PAGE_BASIC                1
@@ -1499,9 +1502,11 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
 // param pages - hi-byte=offset, low-byte=length
 static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A };
+static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV };
+static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV };
 
 static uint8_t flyInvalidParamPages = 0;
-// static uint8_t flyDirtyParamPages = 0;
+static uint8_t flyDirtyParamPages = 0;
 static bool flyConnected = false;
 
 uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
@@ -1530,8 +1535,27 @@ uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
 
 static bool flyParamCommit(uint8_t cmd)
 {
-    UNUSED(cmd);
-    return false;
+    // bail if invalid command
+    if (cmd != 0)
+        return false;
+
+    // find dirty pages (ignore INFO page)
+    for (uint8_t i = FLY_PARAM_PAGE_BASIC; i < ARRAYLEN(flyParamPages); i++) {
+        // check page
+        const uint8_t pageBit = (1 << i);
+        const uint16_t page = flyParamPages[i];
+        const uint8_t offset = page >> 8;
+        const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+        if (memcmp(paramPayload + offset, paramUpdPayload + offset, len) != 0) {
+            // set dirty bit
+            flyDirtyParamPages |= pageBit;
+            // invalidate page
+            flyInvalidParamPages |= pageBit;
+            // invalidate param payload - will be available again when all params again cached
+            paramPayloadLength = 0;
+        }
+    }
+    return true;
 }
 
 static void flyBuildReq(uint8_t cmd, void *data, uint8_t datalen, uint16_t framePeriod, uint16_t frameTimeout)
@@ -1558,31 +1582,39 @@ static void flyBuildNextReq(void)
 {
     // if not connected...
     if (!flyConnected) {
-        // ...connect if something to do
-        if (flyInvalidParamPages != 0) {
+        // ...connect if writes or reads pending
+        if (flyDirtyParamPages != 0 || flyInvalidParamPages != 0) {
             // connect
             uint8_t data = 0xA0;
             flyBuildReq(FLY_CMD_CONNECT_ESC, &data, 1, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
         }
     }
     else {
-        // info page
-        if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_INFO)) != 0) {
-            // req info
-            flyBuildReq(FLY_CMD_READ_INFO, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+        // pending write request...
+        for (uint8_t i = FLY_PARAM_PAGE_BASIC; i < ARRAYLEN(flyParamPages); i++) {
+            const uint8_t pageBit = (1 << i);
+            if ((flyDirtyParamPages & pageBit) != 0) {
+                const uint16_t page = flyParamPages[i];
+                const uint8_t offset = page >> 8;
+                const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+                const uint8_t cmd = flyParamWriteCmds[i];
+                flyBuildReq(cmd, paramUpdPayload + offset, len, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_WRITE_TIMEOUT);
+                return;
+            }
         }
-        else if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_BASIC)) != 0) {
-            // req basic
-            flyBuildReq(FLY_CMD_READ_BASIC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+
+        // ...or schedule pending read request if no pending writes...
+        for (uint8_t i = 0; i < ARRAYLEN(flyParamPages); i++) {
+            const uint8_t pageBit = (1 << i);
+            if ((flyInvalidParamPages & pageBit) != 0) {
+                const uint8_t cmd = flyParamReadCmds[i];
+                flyBuildReq(cmd, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+                return;
+            }
         }
-        else if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_ADV)) != 0) {
-            // req adv
-            flyBuildReq(FLY_CMD_READ_ADV, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
-        }
-        else {
-            // ...nothing more, disconnect
-            flyBuildReq(FLY_CMD_DISCONNECT_ESC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_DISCONNECT_TIMEOUT);
-        }
+        
+        // ...nothing pending, disconnect
+        flyBuildReq(FLY_CMD_DISCONNECT_ESC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_DISCONNECT_TIMEOUT);
     }
 }
 
@@ -1665,11 +1697,11 @@ static bool flyDecodeDisconnectResp(void)
     return true;
 }
 
-static uint8_t flyCalcParamBufferLength()
+static uint8_t flyCalcParamBufferLength(void)
 {
     uint8_t len = 0;
-    for (uint8_t j = 0; j < ARRAYLEN(flyParamPages); j++)
-        len += (flyParamPages[j] & FLY_PARAM_PAGE_LEN_MASK);
+    for (uint8_t i = 0; i < ARRAYLEN(flyParamPages); i++)
+        len += (flyParamPages[i] & FLY_PARAM_PAGE_LEN_MASK);
     return len;
 }
 
@@ -1687,6 +1719,17 @@ static bool flyDecodeReadResp(uint8_t paramPage)
     // make param payload available if all params cached
     if (flyInvalidParamPages == 0)
         paramPayloadLength = flyCalcParamBufferLength();
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeWriteResp(uint8_t paramPage)
+{
+    // clear dirty bit
+    flyDirtyParamPages &= ~(1 << paramPage);
 
     // schedule next request
     flyBuildNextReq();
@@ -1722,6 +1765,10 @@ static bool flyDecode(timeUs_t currentTimeUs)
             return flyDecodeReadResp(FLY_PARAM_PAGE_BASIC);
         case FLY_CMD_READ_ADV_RESP:
             return flyDecodeReadResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_WRITE_BASIC_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_BASIC);
+        case FLY_CMD_WRITE_ADV_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_ADV);
         default:
             return false;
     }
@@ -1742,6 +1789,8 @@ static int8_t flyAccept(uint16_t c)
             case FLY_CMD_READ_INFO_RESP:
             case FLY_CMD_READ_BASIC_RESP:
             case FLY_CMD_READ_ADV_RESP:
+            case FLY_CMD_WRITE_BASIC_RESP:
+            case FLY_CMD_WRITE_ADV_RESP:
                 break;
             default:
                 // unsupported frame type
