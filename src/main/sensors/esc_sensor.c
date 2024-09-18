@@ -1466,20 +1466,43 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_HEADER_LENGTH                   4                   // header length
 #define FLY_FOOTER_LENGTH                   2                   // CRC + end byte
 #define FLY_MIN_FRAME_LENGTH                (FLY_HEADER_LENGTH + FLY_FOOTER_LENGTH)
-#define FLY_BOOT_DELAY                      5000
+#define FLY_BOOT_DELAY                      1000
 #define FLY_TELE_FRAME_TIMEOUT              40
 
 #define FLY_TEMP_OFFSET                     30
 
 #define FLY_CMD_TELEMETRY_DATA              0xFF                // telemetry data (slave response only)
 #define FLY_CMD_CONNECT_ESC                 0x50                // Connect ESC
+#define FLY_CMD_CONNECT_ESC_RESP            0xAF                // Connect ESC resp
 #define FLY_CMD_DISCONNECT_ESC              0x5F                // Disconnect ESC
+#define FLY_CMD_DISCONNECT_ESC_RESP         0xA0                // Disconnect ESC resp
 #define FLY_CMD_READ_INFO                   0x60                // Read ESC information
+#define FLY_CMD_READ_INFO_RESP              0x9F                // Read ESC information resp
 #define FLY_CMD_READ_BASIC                  0x61                // Read ESC basic parameters
+#define FLY_CMD_READ_BASIC_RESP             0x9E                // Read ESC basic parameters resp
 #define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
+#define FLY_CMD_READ_ADV_RESP               0x9D                // Read ESC advanced parameters resp
 #define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
 #define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
+
+#define FLY_PARAM_FRAME_PERIOD              2                   // asap
+#define FLY_PARAM_CONNECT_TIMEOUT           10
+#define FLY_PARAM_DISCONNECT_TIMEOUT        100
+#define FLY_PARAM_READ_TIMEOUT              200
+
+#define FLY_PARAM_PAGE_INFO                 0
+#define FLY_PARAM_PAGE_BASIC                1
+#define FLY_PARAM_PAGE_ADV                  2
+#define FLY_PARAM_PAGE_ALL                  7
+#define FLY_PARAM_PAGE_LEN_MASK             0xFF
+
+// param pages - hi-byte=offset, low-byte=length
+static uint16_t flyParamPages[] = { 0x0022, 0x220C, 0x2E0A };
+
+static uint8_t flyInvalidParamPages = 0;
+// static uint8_t flyDirtyParamPages = 0;
+static bool flyConnected = false;
 
 uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
 {
@@ -1503,6 +1526,64 @@ uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
         }
     }
     return ucResult;
+}
+
+static bool flyParamCommit(uint8_t cmd)
+{
+    UNUSED(cmd);
+    return false;
+}
+
+static void flyBuildReq(uint8_t cmd, void *data, uint8_t datalen, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    uint8_t idx = 0;
+    reqbuffer[idx++] = FLY_SYNC;
+    reqbuffer[idx++] = cmd;
+    reqbuffer[idx++] = 0;
+    reqbuffer[idx++] = datalen;
+    if(data != NULL) {
+        memcpy(reqbuffer + idx, data, datalen);
+        idx += datalen;
+    }
+    uint8_t crclen = idx;
+    reqbuffer[idx++] = flyCalculateCRC8(reqbuffer, crclen);
+    reqbuffer[idx++] = FLY_END;
+
+    reqLength = idx;
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+}
+
+static void flyBuildNextReq(void)
+{
+    // if not connected...
+    if (!flyConnected) {
+        // ...connect if something to do
+        if (flyInvalidParamPages != 0) {
+            // connect
+            uint8_t data = 0xA0;
+            flyBuildReq(FLY_CMD_CONNECT_ESC, &data, 1, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
+        }
+    }
+    else {
+        // info page
+        if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_INFO)) != 0) {
+            // req info
+            flyBuildReq(FLY_CMD_READ_INFO, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+        }
+        else if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_BASIC)) != 0) {
+            // req basic
+            flyBuildReq(FLY_CMD_READ_BASIC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+        }
+        else if ((flyInvalidParamPages & (1 << FLY_PARAM_PAGE_ADV)) != 0) {
+            // req adv
+            flyBuildReq(FLY_CMD_READ_ADV, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+        }
+        else {
+            // ...nothing more, disconnect
+            flyBuildReq(FLY_CMD_DISCONNECT_ESC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_DISCONNECT_TIMEOUT);
+        }
+    }
 }
 
 static void flyDecodeTelemetryFrame(void)
@@ -1542,7 +1623,7 @@ static void flyDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, voltBEC);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, flyInvalidParamPages);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
@@ -1553,8 +1634,62 @@ static bool flyDecodeTelemetry(void)
 
     rrfsmFrameTimeout = FLY_TELE_FRAME_TIMEOUT;
 
+    // tele frame means that ESC has exited setup mode
+    flyConnected = false;
+
     // schedule next request
-    // TODO
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeConnectResp(void)
+{
+    // connected
+    flyConnected = true;
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeDisconnectResp(void)
+{
+    // disconnected
+    flyConnected = false;
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static uint8_t flyCalcParamBufferLength()
+{
+    uint8_t len = 0;
+    for (uint8_t j = 0; j < ARRAYLEN(flyParamPages); j++)
+        len += (flyParamPages[j] & FLY_PARAM_PAGE_LEN_MASK);
+    return len;
+}
+
+static bool flyDecodeReadResp(uint8_t paramPage)
+{
+    // cache
+    const uint16_t page = flyParamPages[paramPage];
+    const uint8_t offset = page >> 8;
+    const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+    memcpy(paramPayload + offset, buffer + FLY_HEADER_LENGTH, len);
+
+    // clear invalid bit
+    flyInvalidParamPages &= ~(1 << paramPage);
+    
+    // make param payload available if all params cached
+    if (flyInvalidParamPages == 0)
+        paramPayloadLength = flyCalcParamBufferLength();
+
+    // schedule next request
+    flyBuildNextReq();
 
     return true;
 }
@@ -1577,6 +1712,16 @@ static bool flyDecode(timeUs_t currentTimeUs)
     switch (buffer[1]) {
         case FLY_CMD_TELEMETRY_DATA:
             return flyDecodeTelemetry();
+        case FLY_CMD_CONNECT_ESC_RESP:
+            return flyDecodeConnectResp();
+        case FLY_CMD_DISCONNECT_ESC_RESP:
+            return flyDecodeDisconnectResp();
+        case FLY_CMD_READ_INFO_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_INFO);
+        case FLY_CMD_READ_BASIC_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_BASIC);
+        case FLY_CMD_READ_ADV_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_ADV);
         default:
             return false;
     }
@@ -1592,6 +1737,11 @@ static int8_t flyAccept(uint16_t c)
     else if (readBytes == 2) {
         switch (c) {
             case FLY_CMD_TELEMETRY_DATA:
+            case FLY_CMD_CONNECT_ESC_RESP:
+            case FLY_CMD_DISCONNECT_ESC_RESP:
+            case FLY_CMD_READ_INFO_RESP:
+            case FLY_CMD_READ_BASIC_RESP:
+            case FLY_CMD_READ_ADV_RESP:
                 break;
             default:
                 // unsupported frame type
@@ -1623,8 +1773,11 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
     escSig = ESC_SIG_FLY;
 
     if (bidirectional) {
+        // invalidate all param pages
+        flyInvalidParamPages = FLY_PARAM_PAGE_ALL;
+
         // enable parameter writes to ESC
-        // paramCommit = flyParamCommit;
+        paramCommit = flyParamCommit;
     }
 
     return rrfsmDataReceive;
