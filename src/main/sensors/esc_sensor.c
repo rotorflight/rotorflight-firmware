@@ -1498,7 +1498,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_PARAM_PAGE_LEN_MASK             0xFF
 
 // param pages - hi-byte=offset, low-byte=length
-static uint16_t flyParamPages[] = { 0x0022, 0x220C, 0x2E0A };
+static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A };
 
 static uint8_t flyInvalidParamPages = 0;
 // static uint8_t flyDirtyParamPages = 0;
@@ -1623,7 +1623,7 @@ static void flyDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, flyInvalidParamPages);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, paramPayloadLength);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
