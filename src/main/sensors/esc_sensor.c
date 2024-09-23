@@ -108,6 +108,7 @@ enum {
 #define ESC_SIG_PL5               0xFD
 #define ESC_SIG_TRIB              0x53
 #define ESC_SIG_OPENYGE           0xA5
+#define ESC_SIG_FLY               0x73
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -1384,7 +1385,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
     if (currentTimeMs < rrfsmBootDelayMs)
         return;
 
-    // request first log record or just listen if in e.g. UNC mode
+    // start
     if (rrfsmFrameTimestamp == 0) {
         if (rrfsmStart == NULL || rrfsmStart(currentTimeUs))
             rrfsmStartFrame(currentTimeMs);
@@ -1428,6 +1429,407 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
         totalCrcErrorCount++;
     }
     rrfsmStartFrame(currentTimeMs);
+}
+
+
+/*
+ * FlyRotor Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Telemetry Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0x73)
+ *      1:      0 <- command (0 == data, 0x60 == read esc info etc)
+ *    2-3:      data length
+ * 
+ * Telemetry Data
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    4-5:      Battery voltage x10mV [0-65535] 
+ *    6-7:      Current x10mA [0-65535]
+ *    8-9:      Capacity 1mAh [0-65535]
+ *  10-11:      ERPM 10rpm [0-65535]
+ *     12:      Throttle [0-100]
+ *     13:      ESC Temperature 1°C [-30-225]
+ *     14:      MCU Temperature 1°C [-30-225]
+ *     15:      Motor Temperature 1°C [-30-225]
+ *     16:      BEC Voltage x100mV [0-255]
+ *     17:      Status flag
+ *     18:      Mode [0-255]
+ * 
+ *     19:      CRC8
+ *     20:      end byte (0x65)
+ */
+#define FLY_SYNC                            0x73                // start byte
+#define FLY_END                             0x65                // end byte
+#define FLY_HEADER_LENGTH                   4                   // header length
+#define FLY_FOOTER_LENGTH                   2                   // CRC + end byte
+#define FLY_MIN_FRAME_LENGTH                (FLY_HEADER_LENGTH + FLY_FOOTER_LENGTH)
+#define FLY_BOOT_DELAY                      1000
+#define FLY_TELE_FRAME_TIMEOUT              40
+
+#define FLY_TEMP_OFFSET                     30
+
+#define FLY_CMD_TELEMETRY_DATA              0xFF                // telemetry data (slave response only)
+#define FLY_CMD_CONNECT_ESC                 0x50                // Connect ESC
+#define FLY_CMD_CONNECT_ESC_RESP            0xAF                // Connect ESC resp
+#define FLY_CMD_DISCONNECT_ESC              0x5F                // Disconnect ESC
+#define FLY_CMD_DISCONNECT_ESC_RESP         0xA0                // Disconnect ESC resp
+#define FLY_CMD_READ_INFO                   0x60                // Read ESC information
+#define FLY_CMD_READ_INFO_RESP              0x9F                // Read ESC information resp
+#define FLY_CMD_READ_BASIC                  0x61                // Read ESC basic parameters
+#define FLY_CMD_READ_BASIC_RESP             0x9E                // Read ESC basic parameters resp
+#define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
+#define FLY_CMD_READ_ADV_RESP               0x9D                // Read ESC advanced parameters resp
+#define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
+#define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
+#define FLY_CMD_WRITE_BASIC_RESP            0x6F                // Write ESC basic parameters resp
+#define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
+#define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
+
+#define FLY_PARAM_FRAME_PERIOD              2                   // asap
+#define FLY_PARAM_CONNECT_TIMEOUT           10
+#define FLY_PARAM_DISCONNECT_TIMEOUT        100
+#define FLY_PARAM_READ_TIMEOUT              100
+#define FLY_PARAM_WRITE_TIMEOUT             100
+
+#define FLY_PARAM_PAGE_INFO                 0
+#define FLY_PARAM_PAGE_BASIC                1
+#define FLY_PARAM_PAGE_ADV                  2
+#define FLY_PARAM_PAGE_ALL                  7
+#define FLY_PARAM_PAGE_LEN_MASK             0xFF
+
+// param pages - hi-byte=offset, low-byte=length
+static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A };
+static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV };
+static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV };
+
+static uint8_t flyInvalidParamPages = 0;
+static uint8_t flyDirtyParamPages = 0;
+static bool flyConnected = false;
+
+uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
+{
+    uint16_t usCnt;
+    uint8_t ucBit, ucResult = 0;
+
+    for (usCnt = 0; usCnt < usLength; usCnt++)
+    {
+        ucResult ^= pData[usCnt];
+
+        for (ucBit = 0; ucBit < 8; ucBit++)
+        {
+            if (ucResult & 0x80)
+            {
+                ucResult = (ucResult << 1) ^ 0x07;
+            }
+            else
+            {
+                ucResult <<= 1;
+            }
+        }
+    }
+    return ucResult;
+}
+
+static bool flyParamCommit(uint8_t cmd)
+{
+    // bail if invalid command
+    if (cmd != 0)
+        return false;
+
+    // find dirty pages (ignore INFO page)
+    for (uint8_t i = FLY_PARAM_PAGE_BASIC; i < ARRAYLEN(flyParamPages); i++) {
+        // check page
+        const uint8_t pageBit = (1 << i);
+        const uint16_t page = flyParamPages[i];
+        const uint8_t offset = page >> 8;
+        const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+        if (memcmp(paramPayload + offset, paramUpdPayload + offset, len) != 0) {
+            // set dirty bit
+            flyDirtyParamPages |= pageBit;
+            // invalidate page
+            flyInvalidParamPages |= pageBit;
+            // invalidate param payload - will be available again when all params again cached
+            paramPayloadLength = 0;
+        }
+    }
+    return true;
+}
+
+static void flyBuildReq(uint8_t cmd, void *data, uint8_t datalen, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    uint8_t idx = 0;
+    reqbuffer[idx++] = FLY_SYNC;
+    reqbuffer[idx++] = cmd;
+    reqbuffer[idx++] = 0;
+    reqbuffer[idx++] = datalen;
+    if(data != NULL) {
+        memcpy(reqbuffer + idx, data, datalen);
+        idx += datalen;
+    }
+    uint8_t crclen = idx;
+    reqbuffer[idx++] = flyCalculateCRC8(reqbuffer, crclen);
+    reqbuffer[idx++] = FLY_END;
+
+    reqLength = idx;
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+}
+
+static void flyBuildNextReq(void)
+{
+    // if not connected...
+    if (!flyConnected) {
+        // ...connect if writes or reads pending
+        if (flyDirtyParamPages != 0 || flyInvalidParamPages != 0) {
+            // connect
+            uint8_t data = 0xA0;
+            flyBuildReq(FLY_CMD_CONNECT_ESC, &data, 1, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
+        }
+    }
+    else {
+        // pending write request...
+        for (uint8_t i = FLY_PARAM_PAGE_BASIC; i < ARRAYLEN(flyParamPages); i++) {
+            const uint8_t pageBit = (1 << i);
+            if ((flyDirtyParamPages & pageBit) != 0) {
+                const uint16_t page = flyParamPages[i];
+                const uint8_t offset = page >> 8;
+                const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+                const uint8_t cmd = flyParamWriteCmds[i];
+                flyBuildReq(cmd, paramUpdPayload + offset, len, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_WRITE_TIMEOUT);
+                return;
+            }
+        }
+
+        // ...or schedule pending read request if no pending writes...
+        for (uint8_t i = 0; i < ARRAYLEN(flyParamPages); i++) {
+            const uint8_t pageBit = (1 << i);
+            if ((flyInvalidParamPages & pageBit) != 0) {
+                const uint8_t cmd = flyParamReadCmds[i];
+                flyBuildReq(cmd, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_READ_TIMEOUT);
+                return;
+            }
+        }
+        
+        // ...nothing pending, disconnect
+        flyBuildReq(FLY_CMD_DISCONNECT_ESC, NULL, 0, FLY_PARAM_FRAME_PERIOD, FLY_PARAM_DISCONNECT_TIMEOUT);
+    }
+}
+
+static void flyDecodeTelemetryFrame(void)
+{
+    const uint8_t hl = FLY_HEADER_LENGTH;
+
+    const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
+    const int8_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
+    const int8_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
+    const uint8_t power = buffer[hl + 8];
+    const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
+    const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
+    const uint16_t consumption = buffer[hl + 4] << 8 | buffer[hl + 5];
+    const uint16_t status = buffer[hl + 13];
+    const uint16_t voltBEC = buffer[hl + 12];
+
+    escSensorData[0].id = ESC_SIG_FLY;
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = rpm * 10;
+    escSensorData[0].pwm = power * 10;
+    escSensorData[0].voltage = voltage * 10;
+    escSensorData[0].current = current * 10;
+    escSensorData[0].consumption = consumption;
+    escSensorData[0].temperature = temp * 10;
+    escSensorData[0].temperature2 = mcuTemp * 10;
+    escSensorData[0].bec_voltage = voltBEC * 100;
+    escSensorData[0].status = status;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, consumption);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, paramPayloadLength);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+}
+
+static bool flyDecodeTelemetry(void)
+{
+    // decode payload
+    flyDecodeTelemetryFrame();
+
+    rrfsmFrameTimeout = FLY_TELE_FRAME_TIMEOUT;
+
+    // tele frame means that ESC has exited setup mode
+    flyConnected = false;
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeConnectResp(void)
+{
+    // connected
+    flyConnected = true;
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeDisconnectResp(void)
+{
+    // disconnected
+    flyConnected = false;
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static uint8_t flyCalcParamBufferLength(void)
+{
+    uint8_t len = 0;
+    for (uint8_t i = 0; i < ARRAYLEN(flyParamPages); i++)
+        len += (flyParamPages[i] & FLY_PARAM_PAGE_LEN_MASK);
+    return len;
+}
+
+static bool flyDecodeReadResp(uint8_t paramPage)
+{
+    // cache
+    const uint16_t page = flyParamPages[paramPage];
+    const uint8_t offset = page >> 8;
+    const uint8_t len = page & FLY_PARAM_PAGE_LEN_MASK;
+    memcpy(paramPayload + offset, buffer + FLY_HEADER_LENGTH, len);
+
+    // clear invalid bit
+    flyInvalidParamPages &= ~(1 << paramPage);
+    
+    // make param payload available if all params cached
+    if (flyInvalidParamPages == 0)
+        paramPayloadLength = flyCalcParamBufferLength();
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecodeWriteResp(uint8_t paramPage)
+{
+    // clear dirty bit
+    flyDirtyParamPages &= ~(1 << paramPage);
+
+    // schedule next request
+    flyBuildNextReq();
+
+    return true;
+}
+
+static bool flyDecode(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    // paranoid buffer access
+    const uint8_t len = FLY_MIN_FRAME_LENGTH + buffer[3];
+    if (len > TELEMETRY_BUFFER_SIZE)
+        return false;
+
+    // check CRC
+    const uint8_t crc = buffer[len - FLY_FOOTER_LENGTH];
+    if (flyCalculateCRC8(buffer, len - FLY_FOOTER_LENGTH) != crc)
+        return false;
+
+    // decode
+    switch (buffer[1]) {
+        case FLY_CMD_TELEMETRY_DATA:
+            return flyDecodeTelemetry();
+        case FLY_CMD_CONNECT_ESC_RESP:
+            return flyDecodeConnectResp();
+        case FLY_CMD_DISCONNECT_ESC_RESP:
+            return flyDecodeDisconnectResp();
+        case FLY_CMD_READ_INFO_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_INFO);
+        case FLY_CMD_READ_BASIC_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_BASIC);
+        case FLY_CMD_READ_ADV_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_WRITE_BASIC_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_BASIC);
+        case FLY_CMD_WRITE_ADV_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_ADV);
+        default:
+            return false;
+    }
+}
+
+static int8_t flyAccept(uint16_t c)
+{
+    if (readBytes == 1) {
+        // [0] start byte
+        if (c != 0x73)
+            return -1;
+    }
+    else if (readBytes == 2) {
+        switch (c) {
+            case FLY_CMD_TELEMETRY_DATA:
+            case FLY_CMD_CONNECT_ESC_RESP:
+            case FLY_CMD_DISCONNECT_ESC_RESP:
+            case FLY_CMD_READ_INFO_RESP:
+            case FLY_CMD_READ_BASIC_RESP:
+            case FLY_CMD_READ_ADV_RESP:
+            case FLY_CMD_WRITE_BASIC_RESP:
+            case FLY_CMD_WRITE_ADV_RESP:
+                break;
+            default:
+                // unsupported frame type
+                return -1;
+        }
+    }
+    else if (readBytes == 4) {
+        // [2-3] data length - hi bit always zero here, can be ignored
+        if (FLY_MIN_FRAME_LENGTH + c > TELEMETRY_BUFFER_SIZE) {
+            // protect against buffer underflow/overflow
+            return -1;
+        }
+        else {
+            // new frame length for this frame
+            rrfsmFrameLength = FLY_MIN_FRAME_LENGTH + c;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
+{
+    rrfsmBootDelayMs = FLY_BOOT_DELAY;
+    rrfsmMinFrameLength = FLY_HEADER_LENGTH;
+    rrfsmAccept = flyAccept;
+    rrfsmDecode = flyDecode;
+
+    escSig = ESC_SIG_FLY;
+
+    if (bidirectional) {
+        // invalidate all param pages
+        flyInvalidParamPages = FLY_PARAM_PAGE_ALL;
+
+        // enable parameter writes to ESC
+        paramCommit = flyParamCommit;
+    }
+
+    return rrfsmDataReceive;
 }
 
 
@@ -1644,7 +2046,7 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->temperature);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
-    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->bec_temp);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->bec_voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
     dataUpdateUs = currentTimeUs;
@@ -1834,6 +2236,7 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
  *      4:      Length: Data length to read/write, does not include Data crc
  *              Requested data length in bytes should not be more than 32 bytes and should  be a multiple of 2 bytes
  *      5:      CRC: Header CRC. 0 value means that crc is not used. And no additional bytes for data crc
+ * 
  * Regions
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
  * 0 – System region, read only
@@ -1843,7 +2246,6 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
  * 4 – FW region, write only, encrypted. Stay away
  * 5 - Log region, read only
  * 6 – User data
-
  *
  * Telemetry Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
@@ -2776,6 +3178,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_OPENYGE:
                 rrfsmSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_FLY:
+                rrfsmSensorProcess(currentTimeUs);
+                break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
@@ -2834,6 +3239,10 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_OPENYGE:
             callback = oygeSensorInit(escHalfDuplex);
+            baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_FLY:
+            callback = flySensorInit(escHalfDuplex);
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:
