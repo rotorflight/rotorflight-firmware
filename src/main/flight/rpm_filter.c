@@ -201,8 +201,8 @@ void rpmFilterUpdate()
 {
     if (activeBankCount > 0) {
 
-        // Actual update rate
-        const float updateRate = gyro.filterRateHz * schedulerGetCycleTimeMultiplier();
+        // Actual update rate - allow ±25% variation
+        const float updateRate = gyro.filterRateHz * constrainf(schedulerGetCycleTimeMultiplier(), 0.75f, 1.25f);
 
         // Number of banks to update in one update cycle
         for (int i = 0; i < RPM_UPDATE_BANK_COUNT; i++) {
