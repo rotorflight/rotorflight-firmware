@@ -433,7 +433,7 @@ static void osdCompleteInitialization(void)
 
     osdDrawLogo(3, 1);
 
-    char string_buffer[30];
+    char string_buffer[sizeof FC_VERSION_STRING + 2];
     tfp_sprintf(string_buffer, "V%s", FC_VERSION_STRING);
     displayWrite(osdDisplayPort, 20, 6, DISPLAYPORT_ATTR_NONE, string_buffer);
 #ifdef USE_CMS

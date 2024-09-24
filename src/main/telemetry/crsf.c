@@ -517,9 +517,14 @@ void crsfFrameFlightMode(sbuf_t *dst)
  */
 static void crsfFrameDeviceInfo(sbuf_t *dst)
 {
-    char buff[30];
+    char buff[
+        sizeof FC_FIRMWARE_IDENTIFIER +
+        sizeof FC_VERSION_STRING +
+        sizeof systemConfig()->boardIdentifier +
+        4 // allow for separators and NULL
+    ];
 
-    tfp_sprintf(buff, "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
+    tfp_sprintf(buff, "%s %s: %s", FC_FIRMWARE_IDENTIFIER, FC_VERSION_STRING, systemConfig()->boardIdentifier);
 
     sbufWriteU8(dst, CRSF_FRAMETYPE_DEVICE_INFO);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
