@@ -517,14 +517,10 @@ void crsfFrameFlightMode(sbuf_t *dst)
  */
 static void crsfFrameDeviceInfo(sbuf_t *dst)
 {
-    char buff[30];
-
-    tfp_sprintf(buff, "%s %s: %s", FC_FIRMWARE_NAME, FC_VERSION_STRING, systemConfig()->boardIdentifier);
-
     sbufWriteU8(dst, CRSF_FRAMETYPE_DEVICE_INFO);
     sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
     sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
-    sbufWriteStringWithZeroTerminator(dst, buff);
+    sbufWriteStringWithZeroTerminator(dst, FC_FIRMWARE_NAME " " FC_VERSION_STRING);
     sbufWriteU32(dst, 0);
     sbufWriteU32(dst, 0);
     sbufWriteU32(dst, 0);
