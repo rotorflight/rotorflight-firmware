@@ -63,7 +63,6 @@
 #include "io/beeper.h"
 #include "io/gps.h"
 #include "io/serial.h"
-#include "io/ledstrip.h"
 
 #include "msp/msp.h"
 
