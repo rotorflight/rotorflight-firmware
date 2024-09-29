@@ -689,19 +689,19 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_MODEL_ID   :
-                smartPortSendPackage(id, pilotConfig()->modelId);
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_MODEL_ID));
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_PID_PROFILE :
-                smartPortSendPackage(id, getCurrentPidProfileIndex() + 1);
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_PID_PROFILE));
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_RATES_PROFILE :
-                smartPortSendPackage(id, getCurrentControlRateProfileIndex() + 1);
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_RATES_PROFILE));
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_LED_PROFILE :
-                smartPortSendPackage(id, getLedProfile() + 1);
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_LED_PROFILE));
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_VFAS       :
