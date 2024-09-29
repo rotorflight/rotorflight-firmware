@@ -52,6 +52,7 @@ typedef enum {
     SENSOR_PID_PROFILE     = BIT(24),
     SENSOR_RATES_PROFILE   = BIT(25),
     SENSOR_LED_PROFILE     = BIT(26),
+    SENSOR_BEC_VOLTAGE     = BIT(27),
 } sensor_e;
 
 typedef enum {
