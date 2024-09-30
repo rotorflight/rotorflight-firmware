@@ -136,7 +136,6 @@ enum
     FSSP_DATAID_MODEL_ID   = 0x5460 , // custom
     FSSP_DATAID_PID_PROFILE   = 0x5471 , // custom
     FSSP_DATAID_RATES_PROFILE = 0x5472 , // custom
-    FSSP_DATAID_LED_PROFILE   = 0x5473 , // custom
 #if defined(USE_ACC)
     FSSP_DATAID_PITCH      = 0x5230 , // custom
     FSSP_DATAID_ROLL       = 0x5240 , // custom
@@ -164,7 +163,7 @@ enum
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
-#define MAX_DATAIDS 30
+#define MAX_DATAIDS 29
 
 static uint16_t frSkyDataIdTable[MAX_DATAIDS];
 
@@ -353,10 +352,6 @@ static void initSmartPortSensors(void)
 
     if (telemetryIsSensorEnabled(SENSOR_RATES_PROFILE)) {
         ADD_SENSOR(FSSP_DATAID_RATES_PROFILE);
-    }
-
-    if (telemetryIsSensorEnabled(SENSOR_LED_PROFILE)) {
-        ADD_SENSOR(FSSP_DATAID_LED_PROFILE);
     }
 
     if (telemetryIsSensorEnabled(SENSOR_BEC_VOLTAGE)) {
@@ -697,10 +692,6 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 break;
             case FSSP_DATAID_RATES_PROFILE :
                 smartPortSendPackage(id, telemetrySensorValue(TELEM_RATES_PROFILE));
-                *clearToSend = false;
-                break;
-            case FSSP_DATAID_LED_PROFILE :
-                smartPortSendPackage(id, telemetrySensorValue(TELEM_LED_PROFILE));
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_VFAS       :
