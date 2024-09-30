@@ -109,6 +109,7 @@ enum {
 #define ESC_SIG_TRIB              0x53
 #define ESC_SIG_OPENYGE           0xA5
 #define ESC_SIG_FLY               0x73
+#define ESC_SIG_GRAUPNER          0xC0
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -3126,6 +3127,191 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
 
 
 /*
+ * Graupner Telemetry
+ *
+ *    - Serial protocol 19200,8N1
+ *    - Little-Endian fields
+ *    - Frame length 45 bytes
+ *    - Warning flags:
+ *          0:  Low voltage
+ *          1:  Temp limit exceeded
+ *          2:  Motor temp exceeded
+ *          3:  Max current exceeded
+ *          4:  RPM less than limit
+ *          5:  Capacity exceeded
+ *          6:  Current limit exceeded
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-1:      Sync header (0x7C 0x8C)
+ *      2:      Warning tone
+ *      3:      Sensor ID (0xC0)
+ *    4-5:      Warning flags
+ *    6-7:      Voltage
+ *    8-9:      Min Voltage
+ *  10-11:      Capacity
+ *     12:      Temperature
+ *     13:      Max temp
+ *  14-15:      Current
+ *  15-16:      Max Current
+ *  17-18:      RPM
+ *  19-20:      Max RPM
+ *  21-42:      Reserved
+ *     43:      End byte (0x7D)
+ *     44:      Checksum
+ *
+ */
+
+#define GRAUPNER_MIN_FRAME_LENGTH                45
+#define GRAUPNER_BOOT_DELAY                      5000
+#define GRAUPNER_TELE_FRAME_PERIOD               100
+#define GRAUPNER_TELE_FRAME_TIMEOUT              200
+
+static uint8_t graupnerTeleReq[] = { 0x80, 0x8C };
+
+typedef struct {
+    uint8_t     tone;
+    uint8_t     sensor;
+    uint16_t    flags;
+    uint16_t    voltage;
+    uint16_t    voltage_min;
+    uint16_t    capacity;
+    int8_t      temperature;
+    int8_t      temperature_max;
+    uint16_t    current;
+    uint16_t    current_max;
+    uint16_t    rpm;
+    uint16_t    rpm_max;
+} __packed GraupnerTelemetryFrame_t;
+
+
+static uint8_t graupnerCalculateChecksum(uint8_t *ptr, size_t length)
+{
+    uint8_t sum = 0;
+
+    while (length-- > 0)
+        sum += *ptr++;
+
+    return sum;
+}
+
+static bool graupnerCopySendFrame(void *req, size_t len, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    if (len > REQUEST_BUFFER_SIZE)
+        return false;
+
+    memcpy(reqbuffer, req, len);
+    reqLength = len;
+
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+
+    return true;
+}
+
+static void graupnerBuildNextReq(void)
+{
+    graupnerCopySendFrame(graupnerTeleReq, sizeof(graupnerTeleReq), GRAUPNER_TELE_FRAME_PERIOD, GRAUPNER_TELE_FRAME_TIMEOUT);
+}
+
+static bool graupnerDecodeTeleFrame(timeUs_t currentTimeUs)
+{
+    const GraupnerTelemetryFrame_t *tele = (GraupnerTelemetryFrame_t*)(buffer + 2);
+
+    escSensorData[0].id = ESC_SIG_GRAUPNER;
+    escSensorData[0].age = 0;
+    escSensorData[0].erpm = tele->rpm * 10;
+    escSensorData[0].voltage = tele->voltage * 100;
+    escSensorData[0].current = tele->current * 100;
+    escSensorData[0].consumption = tele->capacity * 10;
+    escSensorData[0].temperature = tele->temperature * 10;
+    escSensorData[0].status = tele->flags;
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, tele->voltage * 100);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, tele->current * 100);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->temperature);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    dataUpdateUs = currentTimeUs;
+
+    return true;
+}
+
+static bool graupnerDecode(timeUs_t currentTimeUs)
+{
+    const uint8_t framesum = graupnerCalculateChecksum(buffer, 44);
+    const uint8_t checksum = buffer[44];
+    bool ret = false;
+
+    if (checksum == framesum) {
+        ret = graupnerDecodeTeleFrame(currentTimeUs);
+    }
+
+    graupnerBuildNextReq();
+
+    return ret;
+}
+
+static int8_t graupnerAccept(uint16_t c)
+{
+    if (readBytes == 1) {
+        // frame signature
+        if (c != 0x7C)
+            return -1;
+    }
+    else if (readBytes == 2) {
+        // frame signature
+        if (c != 0x8C)
+            return -1;
+    }
+    else if (readBytes == 4) {
+        // sensor id
+        if (c != 0xC0)
+            return -1;
+    }
+    else if (readBytes > 24 && readBytes < 44) {
+        // null bytes
+        if (c != 0)
+            return -1;
+    }
+    else if (readBytes == 44) {
+        // end byte
+        if (c != 0x7D)
+            return -1;
+    }
+
+    return 0;
+}
+
+static bool graupnerStart(timeUs_t currentTimeUs)
+{
+    UNUSED(currentTimeUs);
+
+    graupnerBuildNextReq();
+    return true;
+}
+
+static serialReceiveCallbackPtr graupnerSensorInit(void)
+{
+    rrfsmBootDelayMs = GRAUPNER_BOOT_DELAY;
+    rrfsmMinFrameLength = GRAUPNER_MIN_FRAME_LENGTH;
+    rrfsmAccept = graupnerAccept;
+    rrfsmDecode = graupnerDecode;
+    rrfsmCrank = NULL;
+    rrfsmStart = graupnerStart;
+
+    escSig = ESC_SIG_GRAUPNER;
+
+    return rrfsmDataReceive;
+}
+
+
+/*
  * Raw Telemetry Data Recorder
  */
 
@@ -3179,6 +3365,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_FLY:
+                rrfsmSensorProcess(currentTimeUs);
+                break;
+            case ESC_SENSOR_PROTO_GRAUPNER:
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
@@ -3244,6 +3433,11 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_FLY:
             callback = flySensorInit(escHalfDuplex);
             baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_GRAUPNER:
+            callback = graupnerSensorInit();
+            baudrate = 19200;
+            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
