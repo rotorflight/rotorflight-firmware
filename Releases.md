@@ -1,3 +1,40 @@
+# 4.4.0-20240929
+
+This is a _development snapshot_ of the Rotorflight 2.1 firmware.
+
+## Notes
+
+This version is intended to be used for beta-testing only.
+It is not fully working nor stable, and should not be used by end-users.
+
+For more information, please join the Rotorflight Discord chat.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/snapshot/2.1.0-20240929)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/snapshot/2.1.0-20240929)
+- [LUA Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/snapshot/2.1.0-20240929)
+- [LUA Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/snapshot/2.1.0-20240929)
+
+## Changes from 4.4.0-20240828
+
+- Add ESC telemetry and programming for FLYROTOR
+- Add missing ESC fields in BB
+- Add missing ESC id in ELRS Custom telemetry
+- Add RPM (freq) input edge and pull parameters
+- Add MSP_PILOT_CONFIG for Lua integration
+- Fix RPM filter update rate calculation
+- Fix a buffer overflow in CRSF Device Info
+- Improved PID defaults
+- Improved Rates defaults
+- Improved Cyclic Cross-Coupling
+- Improved Rates acceleration and response filter
+
+
+***
+
 # 4.4.0-20240828
 
 This is a _development snapshot_ of the Rotorflight 2.1 firmware.
