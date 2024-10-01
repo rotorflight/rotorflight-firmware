@@ -334,11 +334,6 @@ static inline float idleMap(float throttle)
     return constrainf(throttle, 0, gov.maxIdleThrottle);
 }
 
-static inline float angleDrag(float angle)
-{
-    return angle * sqrtf(angle); // angle ^ 1.5
-}
-
 static inline void govChangeState(govState_e futureState)
 {
     gov.state = futureState;
@@ -437,7 +432,7 @@ static void govUpdateData(void)
     float yawFF = gov.yawWeight * getYawDeflectionAbs();
 
     // Angle-of-attack vs. FeedForward curve
-    float totalFF = angleDrag(collectiveFF + cyclicFF) + angleDrag(yawFF);
+    float totalFF = collectiveFF + cyclicFF + yawFF;
 
     // Filtered FeedForward
     totalFF = filterApply(&gov.FFFilter, totalFF);
