@@ -781,16 +781,8 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_FUEL       :
-                {
-                    uint32_t data;
-                    if (batteryConfig()->batteryCapacity > 0) {
-                        data = calculateBatteryPercentageRemaining();
-                    } else {
-                        data = getBatteryCapacityUsed();
-                    }
-                    smartPortSendPackage(id, data);
-                    *clearToSend = false;
-                }
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_BATTERY_CHARGE_LEVEL));
+                *clearToSend = false;
                 break;
             case FSSP_DATAID_CAP_USED   :
                 smartPortSendPackage(id, getBatteryCapacityUsed()); // given in mAh, should be in percent according to SmartPort spec
