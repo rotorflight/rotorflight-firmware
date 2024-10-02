@@ -137,8 +137,7 @@ enum
     FSSP_DATAID_PID_PROFILE   = 0x5471 , // custom
     FSSP_DATAID_RATES_PROFILE = 0x5472 , // custom
 #if defined(USE_ACC)
-    FSSP_DATAID_PITCH      = 0x5230 , // custom
-    FSSP_DATAID_ROLL       = 0x5240 , // custom
+    FSSP_DATAID_ATTITUDE   = 0x0730 ,
     FSSP_DATAID_ACCX       = 0x0700 ,
     FSSP_DATAID_ACCY       = 0x0710 ,
     FSSP_DATAID_ACCZ       = 0x0720 ,
@@ -403,11 +402,8 @@ static void initSmartPortSensors(void)
 
 #if defined(USE_ACC)
     if (sensors(SENSOR_ACC)) {
-        if (telemetryIsSensorEnabled(SENSOR_PITCH)) {
-            ADD_SENSOR(FSSP_DATAID_PITCH);
-        }
-        if (telemetryIsSensorEnabled(SENSOR_ROLL)) {
-            ADD_SENSOR(FSSP_DATAID_ROLL);
+        if (telemetryIsSensorEnabled(SENSOR_PITCH) || telemetryIsSensorEnabled(SENSOR_ROLL)) {
+            ADD_SENSOR(FSSP_DATAID_ATTITUDE);
         }
         if (telemetryIsSensorEnabled(SENSOR_ACC_X)) {
             ADD_SENSOR(FSSP_DATAID_ACCX);
@@ -799,12 +795,10 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 *clearToSend = false;
                 break;
 #if defined(USE_ACC)
-            case FSSP_DATAID_PITCH      :
-                smartPortSendPackage(id, attitude.values.pitch); // given in 10*deg
-                *clearToSend = false;
-                break;
-            case FSSP_DATAID_ROLL       :
-                smartPortSendPackage(id, attitude.values.roll); // given in 10*deg
+            case FSSP_DATAID_ATTITUDE   :
+                tmp2 = attitude.values.roll * 10;
+                tmp2 += (attitude.values.pitch * 10)<<16;
+                smartPortSendPackage(id, tmp2);
                 *clearToSend = false;
                 break;
             case FSSP_DATAID_ACCX       :
