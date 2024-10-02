@@ -110,15 +110,8 @@ enum
     FSSP_DATAID_CURRENT6   = 0x0206 ,
     FSSP_DATAID_CURRENT7   = 0x0207 ,
     FSSP_DATAID_CURRENT8   = 0x0208 ,
-    FSSP_DATAID_RPM        = 0x0500 ,
-    FSSP_DATAID_RPM1       = 0x0501 ,
-    FSSP_DATAID_RPM2       = 0x0502 ,
-    FSSP_DATAID_RPM3       = 0x0503 ,
-    FSSP_DATAID_RPM4       = 0x0504 ,
-    FSSP_DATAID_RPM5       = 0x0505 ,
-    FSSP_DATAID_RPM6       = 0x0506 ,
-    FSSP_DATAID_RPM7       = 0x0507 ,
-    FSSP_DATAID_RPM8       = 0x0508 ,
+    FSSP_DATAID_HEADSPEED  = 0x0500 , // 0x0500-0x050F for RPM
+    FSSP_DATAID_TAILSPEED  = 0x0501 ,
     FSSP_DATAID_ALTITUDE   = 0x0100 ,
     FSSP_DATAID_FUEL       = 0x0600 ,
     FSSP_DATAID_ADC1       = 0xF102 ,
@@ -462,7 +455,8 @@ static void initSmartPortSensors(void)
         ADD_ESC_SENSOR(FSSP_DATAID_CURRENT);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_RPM)) {
-        ADD_ESC_SENSOR(FSSP_DATAID_RPM);
+        ADD_ESC_SENSOR(FSSP_DATAID_HEADSPEED);
+        ADD_ESC_SENSOR(FSSP_DATAID_TAILSPEED);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_TEMPERATURE)) {
         ADD_ESC_SENSOR(FSSP_DATAID_TEMP);
@@ -730,23 +724,15 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     *clearToSend = false;
                 }
                 break;
-            case FSSP_DATAID_RPM        :
+            case FSSP_DATAID_HEADSPEED  :
                 if (isRpmSourceActive()) {
-                    smartPortSendPackage(id, getHeadSpeed());
+                    smartPortSendPackage(id, telemetrySensorValue(TELEM_HEADSPEED));
                     *clearToSend = false;
                 }
                 break;
-            case FSSP_DATAID_RPM1       :
-            case FSSP_DATAID_RPM2       :
-            case FSSP_DATAID_RPM3       :
-            case FSSP_DATAID_RPM4       :
-            case FSSP_DATAID_RPM5       :
-            case FSSP_DATAID_RPM6       :
-            case FSSP_DATAID_RPM7       :
-            case FSSP_DATAID_RPM8       :
-                tmp2 = id - FSSP_DATAID_RPM1;
-                if (isMotorRpmSourceActive(tmp2)) {
-                    smartPortSendPackage(id, getMotorRPM(tmp2));
+            case FSSP_DATAID_TAILSPEED  :
+                if (isRpmSourceActive()) {
+                    smartPortSendPackage(id, telemetrySensorValue(TELEM_TAILSPEED));
                     *clearToSend = false;
                 }
                 break;
