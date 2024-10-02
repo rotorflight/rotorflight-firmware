@@ -91,67 +91,48 @@
 // these data identifiers are obtained from https://github.com/opentx/opentx/blob/master/radio/src/telemetry/frsky_hub.h
 enum
 {
-    FSSP_DATAID_SPEED      = 0x0830 ,
-    FSSP_DATAID_VFAS       = 0x0210 ,
-    FSSP_DATAID_VFAS1      = 0x0211 ,
-    FSSP_DATAID_VFAS2      = 0x0212 ,
-    FSSP_DATAID_VFAS3      = 0x0213 ,
-    FSSP_DATAID_VFAS4      = 0x0214 ,
-    FSSP_DATAID_VFAS5      = 0x0215 ,
-    FSSP_DATAID_VFAS6      = 0x0216 ,
-    FSSP_DATAID_VFAS7      = 0x0217 ,
-    FSSP_DATAID_VFAS8      = 0x0218 ,
-    FSSP_DATAID_CURRENT    = 0x0200 ,
-    FSSP_DATAID_CURRENT1   = 0x0201 ,
-    FSSP_DATAID_CURRENT2   = 0x0202 ,
-    FSSP_DATAID_CURRENT3   = 0x0203 ,
-    FSSP_DATAID_CURRENT4   = 0x0204 ,
-    FSSP_DATAID_CURRENT5   = 0x0205 ,
-    FSSP_DATAID_CURRENT6   = 0x0206 ,
-    FSSP_DATAID_CURRENT7   = 0x0207 ,
-    FSSP_DATAID_CURRENT8   = 0x0208 ,
-    FSSP_DATAID_HEADSPEED  = 0x0500 , // 0x0500-0x050F for RPM
-    FSSP_DATAID_TAILSPEED  = 0x0501 ,
-    FSSP_DATAID_ALTITUDE   = 0x0100 ,
-    FSSP_DATAID_FUEL       = 0x0600 ,
-    FSSP_DATAID_ADC1       = 0xF102 ,
-    FSSP_DATAID_ADC2       = 0xF103 ,
-    FSSP_DATAID_LATLONG    = 0x0800 ,
-    FSSP_DATAID_VARIO      = 0x0110 ,
-    FSSP_DATAID_CELLS      = 0x0300 ,
-    FSSP_DATAID_CELLS_LAST = 0x030F ,
-    FSSP_DATAID_HEADING    = 0x0840 ,
+    FSSP_DATAID_SPEED                = 0x0830 ,
+    FSSP_DATAID_BATTERY_VOLTAGE      = 0x0210 , // 0x0210-0x021F for VFAS
+    FSSP_DATAID_ESC1_VOLTAGE         = 0x0211 ,
+    FSSP_DATAID_ESC2_VOLTAGE         = 0x0212 ,
+    FSSP_DATAID_BATTERY_CURRENT      = 0x0200 , // 0x0200-0x020F for current
+    FSSP_DATAID_ESC1_CURRENT         = 0x0201 ,
+    FSSP_DATAID_ESC2_CURRENT         = 0x0202 ,
+    FSSP_DATAID_HEADSPEED            = 0x0500 , // 0x0500-0x050F for RPM
+    FSSP_DATAID_TAILSPEED            = 0x0501 ,
+    FSSP_DATAID_ALTITUDE             = 0x0100 ,
+    FSSP_DATAID_FUEL                 = 0x0600 ,
+    FSSP_DATAID_ADC1                 = 0xF102 ,
+    FSSP_DATAID_ADC2                 = 0xF103 ,
+    FSSP_DATAID_LATLONG              = 0x0800 ,
+    FSSP_DATAID_VARIO                = 0x0110 ,
+    FSSP_DATAID_CELLS                = 0x0300 ,
+    FSSP_DATAID_CELLS_LAST           = 0x030F ,
+    FSSP_DATAID_HEADING              = 0x0840 ,
 // DIY range 0x5100 to 0x52FF
-    FSSP_DATAID_ADJFUNC    = 0x5110 , // custom
-    FSSP_DATAID_ADJVALUE   = 0x5111 , // custom
-    FSSP_DATAID_CAP_USED   = 0x5250 ,
-    FSSP_DATAID_GOV_MODE   = 0x5450 , // custom
-    FSSP_DATAID_MODEL_ID   = 0x5460 , // custom
-    FSSP_DATAID_PID_PROFILE   = 0x5471 , // custom
-    FSSP_DATAID_RATES_PROFILE = 0x5472 , // custom
+    FSSP_DATAID_ADJFUNC              = 0x5110 , // custom
+    FSSP_DATAID_ADJVALUE             = 0x5111 , // custom
+    FSSP_DATAID_CAP_USED             = 0x5250 , // no appropriate sensor, will stay custom
+    FSSP_DATAID_GOV_MODE             = 0x5450 , // custom
+    FSSP_DATAID_MODEL_ID             = 0x5460 , // custom
+    FSSP_DATAID_PID_PROFILE          = 0x5471 , // custom
+    FSSP_DATAID_RATES_PROFILE        = 0x5472 , // custom
 #if defined(USE_ACC)
-    FSSP_DATAID_ATTITUDE   = 0x0730 ,
-    FSSP_DATAID_ACCX       = 0x0700 ,
-    FSSP_DATAID_ACCY       = 0x0710 ,
-    FSSP_DATAID_ACCZ       = 0x0720 ,
+    FSSP_DATAID_ATTITUDE             = 0x0730 ,
+    FSSP_DATAID_ACCX                 = 0x0700 ,
+    FSSP_DATAID_ACCY                 = 0x0710 ,
+    FSSP_DATAID_ACCZ                 = 0x0720 ,
 #endif
-    FSSP_DATAID_T1         = 0x0400 ,
-    FSSP_DATAID_T11        = 0x0401 ,
-    FSSP_DATAID_T2         = 0x0410 ,
-    FSSP_DATAID_HOME_DIST  = 0x0420 ,
-    FSSP_DATAID_GPS_ALT    = 0x0820 ,
-    FSSP_DATAID_ASPD       = 0x0A00 ,
-    FSSP_DATAID_TEMP       = 0x0B70 ,
-    FSSP_DATAID_TEMP1      = 0x0B71 ,
-    FSSP_DATAID_TEMP2      = 0x0B72 ,
-    FSSP_DATAID_TEMP3      = 0x0B73 ,
-    FSSP_DATAID_TEMP4      = 0x0B74 ,
-    FSSP_DATAID_TEMP5      = 0x0B75 ,
-    FSSP_DATAID_TEMP6      = 0x0B76 ,
-    FSSP_DATAID_TEMP7      = 0x0B77 ,
-    FSSP_DATAID_TEMP8      = 0x0B78 ,
-    FSSP_DATAID_A3         = 0x0900 ,
-    FSSP_DATAID_A4         = 0x0910
+    FSSP_DATAID_T1                   = 0x0400 , // 0x0400-0x040F for temperature
+    FSSP_DATAID_MCU_TEMP             = 0x0401 ,
+    FSSP_DATAID_T2                   = 0x0410 ,
+    FSSP_DATAID_HOME_DIST            = 0x0420 ,
+    FSSP_DATAID_GPS_ALT              = 0x0820 ,
+    FSSP_DATAID_ASPD                 = 0x0A00 ,
+    FSSP_DATAID_ESC1_TEMP            = 0x0B70 , // 0x0B70-0x0B7F for ESC temperature
+    FSSP_DATAID_ESC2_TEMP            = 0x0B71 ,
+    FSSP_DATAID_BEC_VOLTAGE          = 0x0900 ,
+    FSSP_DATAID_BATTERY_CELL_VOLTAGE = 0x0910
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
@@ -347,7 +328,7 @@ static void initSmartPortSensors(void)
     }
 
     if (telemetryIsSensorEnabled(SENSOR_BEC_VOLTAGE)) {
-        ADD_SENSOR(FSSP_DATAID_A3);
+        ADD_SENSOR(FSSP_DATAID_BEC_VOLTAGE);
     }
 
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {
@@ -357,27 +338,18 @@ static void initSmartPortSensors(void)
 
 #if defined(USE_ADC_INTERNAL)
     if (telemetryIsSensorEnabled(SENSOR_TEMPERATURE)) {
-        ADD_SENSOR(FSSP_DATAID_T11);
+        ADD_SENSOR(FSSP_DATAID_MCU_TEMP);
     }
 #endif
 
     if (isBatteryVoltageConfigured() && telemetryIsSensorEnabled(SENSOR_VOLTAGE)) {
-#ifdef USE_ESC_SENSOR_TELEMETRY
-        if (!telemetryIsSensorEnabled(ESC_SENSOR_VOLTAGE))
-#endif
-        {
-            ADD_SENSOR(FSSP_DATAID_VFAS);
-        }
-
-        ADD_SENSOR(FSSP_DATAID_A4);
+        ADD_SENSOR(FSSP_DATAID_BATTERY_VOLTAGE);
+        ADD_SENSOR(FSSP_DATAID_BATTERY_CELL_VOLTAGE);
     }
 
-    if (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT)) {
-#ifdef USE_ESC_SENSOR_TELEMETRY
-        if (!telemetryIsSensorEnabled(ESC_SENSOR_CURRENT))
-#endif
-        {
-            ADD_SENSOR(FSSP_DATAID_CURRENT);
+    if (isBatteryCurrentConfigured()) {
+        if (telemetryIsSensorEnabled(SENSOR_CURRENT)) {
+            ADD_SENSOR(FSSP_DATAID_BATTERY_CURRENT);
         }
 
         if (telemetryIsSensorEnabled(SENSOR_FUEL)) {
@@ -449,17 +421,16 @@ static void initSmartPortSensors(void)
     frSkyEscDataIdTableInfo.index = 0;
 
     if (telemetryIsSensorEnabled(ESC_SENSOR_VOLTAGE)) {
-        ADD_ESC_SENSOR(FSSP_DATAID_VFAS);
+        ADD_ESC_SENSOR(FSSP_DATAID_ESC1_VOLTAGE);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_CURRENT)) {
-        ADD_ESC_SENSOR(FSSP_DATAID_CURRENT);
+        ADD_ESC_SENSOR(FSSP_DATAID_ESC1_CURRENT);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_RPM)) {
         ADD_ESC_SENSOR(FSSP_DATAID_HEADSPEED);
-        ADD_ESC_SENSOR(FSSP_DATAID_TAILSPEED);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_TEMPERATURE)) {
-        ADD_ESC_SENSOR(FSSP_DATAID_TEMP);
+        ADD_ESC_SENSOR(FSSP_DATAID_ESC1_TEMP);
     }
 
     frSkyEscDataIdTableInfo.size = frSkyEscDataIdTableInfo.index;
@@ -656,8 +627,8 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                         smartPortSendPackage(id, 100);  //DISABLED
                     else
                        smartPortSendPackage(id, 101); //DISAMED
-                } else {     
-                    /* 
+                } else {
+                    /*
                         0, //"OFF",
                         1, //"IDLE",
                         2, // "SPOOLUP",
@@ -666,61 +637,49 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                         5, //"THR-OFF",
                         6, //"LOST-HS",
                         7, //"AUTOROT",
-                        8, //"BAILOUT",     
-                    */                    
+                        8, //"BAILOUT",
+                    */
                     smartPortSendPackage(id, getGovernorState());
                 }
                 *clearToSend = false;
                 break;
-            case FSSP_DATAID_MODEL_ID   :
+            case FSSP_DATAID_MODEL_ID        :
                 smartPortSendPackage(id, telemetrySensorValue(TELEM_MODEL_ID));
                 *clearToSend = false;
                 break;
-            case FSSP_DATAID_PID_PROFILE :
+            case FSSP_DATAID_PID_PROFILE     :
                 smartPortSendPackage(id, telemetrySensorValue(TELEM_PID_PROFILE));
                 *clearToSend = false;
                 break;
-            case FSSP_DATAID_RATES_PROFILE :
+            case FSSP_DATAID_RATES_PROFILE   :
                 smartPortSendPackage(id, telemetrySensorValue(TELEM_RATES_PROFILE));
                 *clearToSend = false;
                 break;
-            case FSSP_DATAID_VFAS       :
+            case FSSP_DATAID_BATTERY_VOLTAGE :
                 vfasVoltage = telemetryConfig()->report_cell_voltage ? getBatteryAverageCellVoltage() : getBatteryVoltage();
                 smartPortSendPackage(id, vfasVoltage); // in 0.01V according to SmartPort spec
                 *clearToSend = false;
                 break;
 #ifdef USE_ESC_SENSOR_TELEMETRY
-            case FSSP_DATAID_VFAS1      :
-            case FSSP_DATAID_VFAS2      :
-            case FSSP_DATAID_VFAS3      :
-            case FSSP_DATAID_VFAS4      :
-            case FSSP_DATAID_VFAS5      :
-            case FSSP_DATAID_VFAS6      :
-            case FSSP_DATAID_VFAS7      :
-            case FSSP_DATAID_VFAS8      :
-                escData = getEscSensorData(id - FSSP_DATAID_VFAS1);
+            case FSSP_DATAID_ESC1_VOLTAGE    :
+            case FSSP_DATAID_ESC2_VOLTAGE    :
+                escData = getEscSensorData(id - FSSP_DATAID_ESC1_VOLTAGE);
                 if (escData != NULL) {
                     smartPortSendPackage(id, escData->voltage / 10);  // in 10mV steps
                     *clearToSend = false;
                 }
                 break;
 #endif
-            case FSSP_DATAID_CURRENT    :
+            case FSSP_DATAID_BATTERY_CURRENT :
                 smartPortSendPackage(id, getLegacyBatteryCurrent()); // in 0.1A according to SmartPort spec
                 *clearToSend = false;
                 break;
 #ifdef USE_ESC_SENSOR_TELEMETRY
-            case FSSP_DATAID_CURRENT1   :
-            case FSSP_DATAID_CURRENT2   :
-            case FSSP_DATAID_CURRENT3   :
-            case FSSP_DATAID_CURRENT4   :
-            case FSSP_DATAID_CURRENT5   :
-            case FSSP_DATAID_CURRENT6   :
-            case FSSP_DATAID_CURRENT7   :
-            case FSSP_DATAID_CURRENT8   :
-                escData = getEscSensorData(id - FSSP_DATAID_CURRENT1);
+            case FSSP_DATAID_ESC1_CURRENT    :
+            case FSSP_DATAID_ESC2_CURRENT    :
+                escData = getEscSensorData(id - FSSP_DATAID_ESC1_CURRENT);
                 if (escData != NULL) {
-                    smartPortSendPackage(id, escData->current / 10); // in 10mA steps
+                    smartPortSendPackage(id, escData->current / 100); // in 10mA steps
                     *clearToSend = false;
                 }
                 break;
@@ -736,22 +695,9 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     *clearToSend = false;
                 }
                 break;
-            case FSSP_DATAID_TEMP        :
-                escData = getEscSensorData(ESC_SENSOR_COMBINED);
-                if (escData != NULL) {
-                    smartPortSendPackage(id, escData->temperature / 10);
-                    *clearToSend = false;
-                }
-                break;
-            case FSSP_DATAID_TEMP1      :
-            case FSSP_DATAID_TEMP2      :
-            case FSSP_DATAID_TEMP3      :
-            case FSSP_DATAID_TEMP4      :
-            case FSSP_DATAID_TEMP5      :
-            case FSSP_DATAID_TEMP6      :
-            case FSSP_DATAID_TEMP7      :
-            case FSSP_DATAID_TEMP8      :
-                escData = getEscSensorData(id - FSSP_DATAID_TEMP1);
+            case FSSP_DATAID_ESC1_TEMP  :
+            case FSSP_DATAID_ESC2_TEMP  :
+                escData = getEscSensorData(id - FSSP_DATAID_ESC1_TEMP);
                 if (escData != NULL) {
                     smartPortSendPackage(id, escData->temperature / 10);
                     *clearToSend = false;
@@ -880,7 +826,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
 
                 break;
 #if defined(USE_ADC_INTERNAL)
-            case FSSP_DATAID_T11        :
+            case FSSP_DATAID_MCU_TEMP   :
                 smartPortSendPackage(id, getCoreTemperatureCelsius());
                 *clearToSend = false;
                 break;
@@ -928,13 +874,13 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 }
                 break;
 #endif
-            case FSSP_DATAID_A3         :
+            case FSSP_DATAID_BEC_VOLTAGE          :
                 vfasVoltage = telemetrySensorValue(TELEM_BEC_VOLTAGE); // in 0.01V according to SmartPort spec
                 smartPortSendPackage(id, vfasVoltage);
                 *clearToSend = false;
                 break;
 
-            case FSSP_DATAID_A4         :
+            case FSSP_DATAID_BATTERY_CELL_VOLTAGE :
                 vfasVoltage = getBatteryAverageCellVoltage(); // in 0.01V according to SmartPort spec
                 smartPortSendPackage(id, vfasVoltage);
                 *clearToSend = false;
