@@ -3164,7 +3164,7 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
 
 #define GRAUPNER_MIN_FRAME_LENGTH                45
 #define GRAUPNER_BOOT_DELAY                      5000
-#define GRAUPNER_TELE_FRAME_PERIOD               50
+#define GRAUPNER_TELE_FRAME_PERIOD               10
 #define GRAUPNER_TELE_FRAME_TIMEOUT              200
 
 static uint8_t graupnerTeleReq[] = { 0x80, 0x8C };
