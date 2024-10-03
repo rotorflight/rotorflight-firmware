@@ -3277,11 +3277,6 @@ static int8_t graupnerAccept(uint16_t c)
         if (c != 0xC0)
             return -1;
     }
-    else if (readBytes > 24 && readBytes < 44) {
-        // null bytes
-        if (c != 0)
-            return -1;
-    }
     else if (readBytes == 44) {
         // end byte
         if (c != 0x7D)
