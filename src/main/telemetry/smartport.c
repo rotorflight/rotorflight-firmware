@@ -100,6 +100,8 @@ enum
     FSSP_DATAID_ESC2_CURRENT         = 0x0202 ,
     FSSP_DATAID_HEADSPEED            = 0x0500 , // 0x0500-0x050F for RPM
     FSSP_DATAID_TAILSPEED            = 0x0501 ,
+    FSSP_DATAID_ESC1_RPM             = 0x0502 ,
+    FSSP_DATAID_ESC2_RPM             = 0x0503 ,
     FSSP_DATAID_ALTITUDE             = 0x0100 ,
     FSSP_DATAID_FUEL                 = 0x0600 ,
     FSSP_DATAID_ADC1                 = 0xF102 ,
@@ -113,6 +115,7 @@ enum
     FSSP_DATAID_ADJFUNC              = 0x5110 , // custom
     FSSP_DATAID_ADJVALUE             = 0x5111 , // custom
     FSSP_DATAID_CAP_USED             = 0x5250 , // no appropriate sensor, will stay custom
+    FSSP_DATAID_THROTTLE_CONTROL     = 0x5440 , // custom
     FSSP_DATAID_GOV_MODE             = 0x5450 , // custom
     FSSP_DATAID_MODEL_ID             = 0x5460 , // custom
     FSSP_DATAID_PID_PROFILE          = 0x5471 , // custom
@@ -136,7 +139,7 @@ enum
 };
 
 // if adding more sensors then increase this value (should be equal to the maximum number of ADD_SENSOR calls)
-#define MAX_DATAIDS 29
+#define MAX_DATAIDS 30
 
 static uint16_t frSkyDataIdTable[MAX_DATAIDS];
 
@@ -331,6 +334,10 @@ static void initSmartPortSensors(void)
         ADD_SENSOR(FSSP_DATAID_BEC_VOLTAGE);
     }
 
+    if (telemetryIsSensorEnabled(SENSOR_THROTTLE_CONTROL)) {
+        ADD_SENSOR(FSSP_DATAID_THROTTLE_CONTROL);
+    }
+
     if (telemetryIsSensorEnabled(SENSOR_MODE)) {
         ADD_SENSOR(FSSP_DATAID_T1);
         ADD_SENSOR(FSSP_DATAID_T2);
@@ -363,6 +370,14 @@ static void initSmartPortSensors(void)
 
     if (telemetryIsSensorEnabled(SENSOR_HEADING)) {
         ADD_SENSOR(FSSP_DATAID_HEADING);
+    }
+
+    if (telemetryIsSensorEnabled(SENSOR_HEADSPEED)) {
+        ADD_SENSOR(FSSP_DATAID_HEADSPEED);
+    }
+
+    if (telemetryIsSensorEnabled(SENSOR_TAILSPEED)) {
+        ADD_SENSOR(FSSP_DATAID_TAILSPEED);
     }
 
 #if defined(USE_ACC)
@@ -427,7 +442,7 @@ static void initSmartPortSensors(void)
         ADD_ESC_SENSOR(FSSP_DATAID_ESC1_CURRENT);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_RPM)) {
-        ADD_ESC_SENSOR(FSSP_DATAID_HEADSPEED);
+        ADD_ESC_SENSOR(FSSP_DATAID_ESC1_RPM);
     }
     if (telemetryIsSensorEnabled(ESC_SENSOR_TEMPERATURE)) {
         ADD_ESC_SENSOR(FSSP_DATAID_ESC1_TEMP);
@@ -655,6 +670,10 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                 smartPortSendPackage(id, telemetrySensorValue(TELEM_RATES_PROFILE));
                 *clearToSend = false;
                 break;
+            case FSSP_DATAID_THROTTLE_CONTROL:
+                smartPortSendPackage(id, telemetrySensorValue(TELEM_THROTTLE_CONTROL));
+                *clearToSend = false;
+                break;
             case FSSP_DATAID_BATTERY_VOLTAGE :
                 vfasVoltage = telemetryConfig()->report_cell_voltage ? getBatteryAverageCellVoltage() : getBatteryVoltage();
                 smartPortSendPackage(id, vfasVoltage); // in 0.01V according to SmartPort spec
@@ -683,6 +702,23 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     *clearToSend = false;
                 }
                 break;
+            case FSSP_DATAID_ESC1_TEMP  :
+            case FSSP_DATAID_ESC2_TEMP  :
+                escData = getEscSensorData(id - FSSP_DATAID_ESC1_TEMP);
+                if (escData != NULL) {
+                    smartPortSendPackage(id, escData->temperature / 10);
+                    *clearToSend = false;
+                }
+                break;
+            case FSSP_DATAID_ESC1_RPM   :
+            case FSSP_DATAID_ESC2_RPM   :
+                escData = getEscSensorData(id - FSSP_DATAID_ESC1_RPM);
+                if (escData != NULL) {
+                    smartPortSendPackage(id, getMotorRPM(id - FSSP_DATAID_ESC1_RPM));
+                    *clearToSend = false;
+                }
+                break;
+#endif
             case FSSP_DATAID_HEADSPEED  :
                 if (isRpmSourceActive()) {
                     smartPortSendPackage(id, telemetrySensorValue(TELEM_HEADSPEED));
@@ -695,15 +731,6 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
                     *clearToSend = false;
                 }
                 break;
-            case FSSP_DATAID_ESC1_TEMP  :
-            case FSSP_DATAID_ESC2_TEMP  :
-                escData = getEscSensorData(id - FSSP_DATAID_ESC1_TEMP);
-                if (escData != NULL) {
-                    smartPortSendPackage(id, escData->temperature / 10);
-                    *clearToSend = false;
-                }
-                break;
-#endif
             case FSSP_DATAID_ALTITUDE   :
                 smartPortSendPackage(id, getEstimatedAltitudeCm()); // in cm according to SmartPort spec
                 *clearToSend = false;
