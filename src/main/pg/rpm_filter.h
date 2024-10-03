@@ -19,14 +19,15 @@
 
 #include "pg/pg.h"
 
-#define RPM_FILTER_BANK_COUNT 16
+#define RPM_FILTER_BANK_COUNT   16
+#define RPM_FILTER_PARAM_COUNT  (3 * RPM_FILTER_BANK_COUNT)
 
 typedef struct rpmFilteConfig_s
 {
-    uint8_t  filter_bank_rpm_source[RPM_FILTER_BANK_COUNT];     // RPM source
-    uint16_t filter_bank_rpm_ratio[RPM_FILTER_BANK_COUNT];      // RPM ratio *1000
-    uint16_t filter_bank_rpm_limit[RPM_FILTER_BANK_COUNT];      // RPM minimum limit
-    uint8_t  filter_bank_notch_q[RPM_FILTER_BANK_COUNT];        // Notch Q *10
+    uint8_t  filter_bank_rpm_source[RPM_FILTER_PARAM_COUNT];     // RPM source index
+    uint16_t filter_bank_rpm_ratio[RPM_FILTER_PARAM_COUNT];      // RPM ratio *1000
+    uint16_t filter_bank_rpm_limit[RPM_FILTER_PARAM_COUNT];      // RPM low limit
+    uint8_t  filter_bank_notch_q[RPM_FILTER_PARAM_COUNT];        // Notch Q *10
 
 } rpmFilterConfig_t;
 
