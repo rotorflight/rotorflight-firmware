@@ -3164,7 +3164,7 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
 
 #define GRAUPNER_MIN_FRAME_LENGTH                45
 #define GRAUPNER_BOOT_DELAY                      5000
-#define GRAUPNER_TELE_FRAME_PERIOD               100
+#define GRAUPNER_TELE_FRAME_PERIOD               50
 #define GRAUPNER_TELE_FRAME_TIMEOUT              200
 
 static uint8_t graupnerTeleReq[] = { 0x80, 0x8C };
@@ -3224,17 +3224,20 @@ static bool graupnerDecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].voltage = tele->voltage * 100;
     escSensorData[0].current = tele->current * 100;
     escSensorData[0].consumption = tele->capacity * 10;
-    escSensorData[0].temperature = tele->temperature * 10;
+    escSensorData[0].temperature = tele->temperature * 10 - 200;
     escSensorData[0].status = tele->flags;
 
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, tele->rpm * 10);
-    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, tele->temperature * 10 - 200);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, tele->voltage * 100);
     DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, tele->current * 100);
 
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, tele->rpm);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->temperature);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->voltage);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->current);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, tele->capacity);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->flags);
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 
     dataUpdateUs = currentTimeUs;
