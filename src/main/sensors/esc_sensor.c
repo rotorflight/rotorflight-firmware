@@ -1623,8 +1623,8 @@ static void flyDecodeTelemetryFrame(void)
     const uint8_t hl = FLY_HEADER_LENGTH;
 
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
-    const int8_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
-    const int8_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
+    const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
+    const int16_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
     const uint8_t power = buffer[hl + 8];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
