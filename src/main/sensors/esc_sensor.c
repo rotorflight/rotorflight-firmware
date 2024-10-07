@@ -3300,7 +3300,6 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
     rrfsmMinFrameLength = GRAUPNER_MIN_FRAME_LENGTH;
     rrfsmAccept = graupnerAccept;
     rrfsmDecode = graupnerDecode;
-    rrfsmCrank = NULL;
     rrfsmStart = graupnerStart;
 
     escSig = ESC_SIG_GRAUPNER;
