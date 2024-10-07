@@ -3383,6 +3383,17 @@ void escSensorProcess(timeUs_t currentTimeUs)
     }
 }
 
+void INIT_CODE validateAndFixEscSensorConfig(void)
+{
+    switch (escSensorConfig()->protocol) {
+        case ESC_SENSOR_PROTO_GRAUPNER:
+            escSensorConfigMutable()->halfDuplex = true;
+            break;
+        default:
+            break;
+    }
+}
+
 bool INIT_CODE escSensorInit(void)
 {
     const bool escHalfDuplex = escSensorConfig()->halfDuplex;
@@ -3435,7 +3446,6 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_GRAUPNER:
             callback = graupnerSensorInit();
             baudrate = 19200;
-            options |= SERIAL_BIDIR;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
