@@ -46,10 +46,12 @@ typedef struct {
 
 #define ESC_BATTERY_AGE_MAX 10
 
+#define ESC_SENSOR_COMBINED 255
+
 bool escSensorInit(void);
 void escSensorProcess(timeUs_t currentTime);
 
-#define ESC_SENSOR_COMBINED 255
+void validateAndFixEscSensorConfig(void);
 
 bool isEscSensorActive(void);
 

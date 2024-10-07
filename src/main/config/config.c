@@ -309,6 +309,10 @@ static void validateAndFixConfig(void)
     if (!findSerialPortConfig(FUNCTION_ESC_SENSOR)) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
+
+    if (featureIsConfigured(FEATURE_ESC_SENSOR)) {
+        validateAndFixEscSensorConfig();
+    }
 #endif
 
     for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {
