@@ -96,9 +96,9 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
             case 8:
                 return data->temperature2 / 10;
             case 9:
-                return data->bec_voltage;
+                return data->bec_voltage / 10;
             case 10:
-                return data->bec_current;
+                return data->bec_current / 10;
             case 11:
                 return data->status;
             case 12:
