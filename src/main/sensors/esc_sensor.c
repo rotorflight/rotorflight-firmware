@@ -1466,7 +1466,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_HEADER_LENGTH                   4                   // header length
 #define FLY_FOOTER_LENGTH                   2                   // CRC + end byte
 #define FLY_MIN_FRAME_LENGTH                (FLY_HEADER_LENGTH + FLY_FOOTER_LENGTH)
-#define FLY_BOOT_DELAY                      1000
+#define FLY_BOOT_DELAY                      5000
 #define FLY_TELE_FRAME_TIMEOUT              40
 
 #define FLY_TEMP_OFFSET                     30
