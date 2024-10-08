@@ -605,7 +605,7 @@ void crsfSensorEncodeControl(sbuf_t *buf, telemetrySensor_t *sensor)
     UNUSED(sensor);
     const int p = lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 1200);
     const int r = lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 1200);
-    const int y = lrintf(mixerGetInput(MIXER_IN_STABILIZED_YAW) * 2400);
+    const int y = lrintf(mixerGetInput(MIXER_IN_STABILIZED_YAW) * 800);
     const int c = lrintf(mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE) * 1200);
     sbufWriteU8(buf, ((p >> 8) & 0x0F) | ((r >> 4) & 0xF0));
     sbufWriteU8(buf, (p & 0xFF));
