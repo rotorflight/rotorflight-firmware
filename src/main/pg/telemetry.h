@@ -54,7 +54,8 @@ typedef enum {
     SENSOR_BEC_VOLTAGE     = BIT(26),
     SENSOR_HEADSPEED       = BIT(27),
     SENSOR_TAILSPEED       = BIT(28),
-    SENSOR_THROTTLE_CONTROL = BIT(29),
+    SENSOR_THROTTLE_CONTROL= BIT(29),
+    SENSOR_ARMING_FLAGS    = BIT(30),
 } sensor_e;
 
 typedef enum {
