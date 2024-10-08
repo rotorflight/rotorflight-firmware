@@ -718,7 +718,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(ESC1_VOLTAGE,            0x1041,   200,  3000,    U16),
     TLM_SENSOR(ESC1_CURRENT,            0x1042,   200,  3000,    U16),
     TLM_SENSOR(ESC1_CAPACITY,           0x1043,   200,  3000,    U16),
-    TLM_SENSOR(ESC1_ERPM,               0x1044,   200,  3000,    U16),
+    TLM_SENSOR(ESC1_ERPM,               0x1044,   200,  3000,    U24),
     TLM_SENSOR(ESC1_POWER,              0x1045,   200,  3000,    U16),
     TLM_SENSOR(ESC1_THROTTLE,           0x1046,   200,  3000,    U16),
     TLM_SENSOR(ESC1_TEMP1,              0x1047,   200,  3000,    U8),
@@ -731,7 +731,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(ESC2_VOLTAGE,            0x1051,   200,  3000,    U16),
     TLM_SENSOR(ESC2_CURRENT,            0x1052,   200,  3000,    U16),
     TLM_SENSOR(ESC2_CAPACITY,           0x1053,   200,  3000,    U16),
-    TLM_SENSOR(ESC2_ERPM,               0x1054,   200,  3000,    U16),
+    TLM_SENSOR(ESC2_ERPM,               0x1054,   200,  3000,    U24),
     TLM_SENSOR(ESC2_TEMP1,              0x1057,   200,  3000,    U8),
     TLM_SENSOR(ESC2_MODEL,              0x105F,   200,  3000,    U8),
 
