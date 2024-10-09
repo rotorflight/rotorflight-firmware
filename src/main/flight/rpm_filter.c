@@ -107,7 +107,7 @@ INIT_CODE void rpmFilterInit(void)
         const float maxHzLimit = 0.45f * gyro.filterRateHz;
 
         // Q value
-        const float notchQ = constrainf(config->filter_bank_notch_q[index], 5, 100) / 10;
+        const float notchQ = constrainf(config->filter_bank_notch_q[index], 5, 250) / 10;
 
         // Motor RPM based notches
         if (source >= 1 && source <= getMotorCount()) {
