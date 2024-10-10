@@ -194,6 +194,9 @@
 #define MSP_LED_STRIP_SETTINGS               150
 #define MSP_SET_LED_STRIP_SETTINGS           151
 
+#define MSP_EXPERIMENTAL                     158
+#define MSP_SET_EXPERIMENTAL                 159
+
 #define MSP_UID                              160
 
 #define MSP_GPSSVINFO                        164
