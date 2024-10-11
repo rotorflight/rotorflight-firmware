@@ -668,9 +668,10 @@ void validateAndFixGyroConfig(void)
 #ifdef USE_RPM_FILTER
         if (featureIsConfigured(FEATURE_RPM_FILTER)) {
             rpmFilterConfig_t *config = rpmFilterConfigMutable();
-            for (int index = 0; index < RPM_FILTER_BANK_COUNT; index++) {
+            for (int index = 0; index < RPM_FILTER_PARAM_COUNT; index++) {
                 if (config->filter_bank_rpm_source[index] == 0 ||
                     config->filter_bank_rpm_ratio[index] == 0 ||
+                    config->filter_bank_rpm_limit[index] == 0 ||
                     config->filter_bank_notch_q[index] == 0)
                 {
                     config->filter_bank_rpm_source[index] = 0;
