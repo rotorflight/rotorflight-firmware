@@ -27,3 +27,9 @@ typedef unsigned char uchar;
 
 typedef uint32_t bitmap_t;
 typedef uint64_t bitmap64_t;
+
+typedef struct {
+    int min;
+    int max;
+} range_t;
+

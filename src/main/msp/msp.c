@@ -1773,17 +1773,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
         break;
 
-#ifdef USE_RPM_FILTER
-    case MSP_RPM_FILTER:
-        for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
-            sbufWriteU8(dst, rpmFilterConfig()->filter_bank_rpm_source[i]);
-            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_ratio[i]);
-            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_limit[i]);
-            sbufWriteU8(dst, rpmFilterConfig()->filter_bank_notch_q[i]);
-        }
-        break;
-#endif
-
     case MSP_PID_PROFILE:
         sbufWriteU8(dst, currentPidProfile->pid_mode);
         sbufWriteU8(dst, currentPidProfile->error_decay_time_ground);
@@ -1990,10 +1979,43 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     return !unsupportedCommand;
 }
 
+void mspGetOptionalIndex(sbuf_t *src, const range_t *range, int *value)
+{
+    if (sbufBytesRemaining(src) > 0) {
+        *value = constrain(sbufReadU8(src), range->min, range->max);
+    }
+}
+
+void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
+{
+    if (sbufBytesRemaining(src) > 0) {
+        value->min = value->max = constrain(sbufReadU8(src), range->min, range->max);
+        if (sbufBytesRemaining(src) > 0) {
+            value->max = constrain(sbufReadU8(src), value->min, range->max);
+        }
+    }
+}
+
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
-
     switch (cmdMSP) {
+#ifdef USE_RPM_FILTER
+    case MSP_RPM_FILTER:
+        {
+            const range_t range = { 0, 2 };
+            int axis = 0;
+            mspGetOptionalIndex(src, &range, &axis);
+            for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
+                const int index = axis * RPM_FILTER_BANK_COUNT + i;
+                sbufWriteU8(dst, rpmFilterConfig()->filter_bank_rpm_source[index]);
+                sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_ratio[index]);
+                sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_limit[index]);
+                sbufWriteU8(dst, rpmFilterConfig()->filter_bank_notch_q[index]);
+            }
+        }
+        break;
+#endif
+
     case MSP_BOXNAMES:
         {
             const int page = sbufBytesRemaining(src) ? sbufReadU8(src) : 0;
@@ -2523,7 +2545,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #ifdef USE_RPM_FILTER
     case MSP_SET_RPM_FILTER:
         i = sbufReadU8(src);
-        if (i >= RPM_FILTER_BANK_COUNT) {
+        if (i >= RPM_FILTER_PARAM_COUNT) {
             return MSP_RESULT_ERROR;
         }
         rpmFilterConfigMutable()->filter_bank_rpm_source[i] = sbufReadU8(src);
