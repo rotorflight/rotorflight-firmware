@@ -50,8 +50,9 @@
 // Throttle mapping in IDLE state
 #define GOV_THROTTLE_OFF_LIMIT          0.05f
 
-// Minimum throttle output from PI algorithms
-#define GOV_MIN_THROTTLE_OUTPUT         0.05f
+// Throttle limits for spoolup
+#define GOV_MIN_SPOOLUP_THROTTLE        0.05f
+#define GOV_MAX_SPOOLUP_THROTTLE        0.95f
 
 // Headspeed quality levels
 #define GOV_HS_DETECT_DELAY             200
@@ -67,6 +68,15 @@
 
 // Nominal battery cell voltage
 #define GOV_NOMINAL_CELL_VOLTAGE        3.70f
+
+// PID term limits
+#define GOV_P_TERM_LIMIT                0.20f
+#define GOV_I_TERM_LIMIT                0.95f
+#define GOV_D_TERM_LIMIT                0.20f
+#define GOV_F_TERM_LIMIT                0.50f
+
+#define SPOOLUP_P_TERM_LIMIT            0.10f
+#define SPOOLUP_I_TERM_LIMIT            0.95f
 
 
 //// Internal Data
@@ -92,6 +102,9 @@ typedef struct {
 
     // Maximum allowed throttle
     float           maxThrottle;
+
+    // Minimum throttle when PID active
+    float           minThrottle;
 
     // Throttle handover level
     float           maxIdleThrottle;
@@ -805,19 +818,61 @@ static void governorUpdateState(void)
 
 
 /*
+ * Spoolup PID controller
+ */
+
+static void govSpoolUpInit(void)
+{
+    // PID limits
+    gov.P = constrainf(gov.P, -SPOOLUP_P_TERM_LIMIT, SPOOLUP_P_TERM_LIMIT);
+
+    // Use gov.I to reach the target
+    gov.I = gov.throttle - gov.P;
+
+    // Limited range
+    gov.I = constrainf(gov.I, 0, SPOOLUP_I_TERM_LIMIT);
+}
+
+static float govSpoolUpControl(void)
+{
+    float output;
+
+    // PID limits
+    gov.P = constrainf(gov.P, -SPOOLUP_P_TERM_LIMIT, SPOOLUP_P_TERM_LIMIT);
+    gov.I = constrainf(gov.I,                     0, SPOOLUP_I_TERM_LIMIT);
+    gov.D = 0;
+
+    // Governor PI sum
+    gov.pidSum = gov.P + gov.I + gov.C;
+
+    // Generate throttle signal
+    output = gov.pidSum;
+
+    // Apply gov.C if output not saturated
+    if (!((output > GOV_MAX_SPOOLUP_THROTTLE && gov.C > 0) || (output < GOV_MIN_SPOOLUP_THROTTLE && gov.C < 0)))
+        gov.I += gov.C;
+
+    // Limit output
+    output = constrainf(output, GOV_MIN_SPOOLUP_THROTTLE, GOV_MAX_SPOOLUP_THROTTLE);
+
+    return output;
+}
+
+
+/*
  * Standard PID controller
  */
 
 static void govPIDInit(void)
 {
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
 
     // Use gov.I to reach the target
     gov.I = gov.throttle - gov.P;
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
 }
 
 static float govPIDControl(void)
@@ -825,9 +880,9 @@ static float govPIDControl(void)
     float output;
 
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
-    gov.I = constrainf(gov.I,      0, 0.95f);
-    gov.D = constrainf(gov.D, -0.25f, 0.25f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
+    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
 
     // Governor PID sum
     gov.pidSum = gov.P + gov.I + gov.D + gov.C;
@@ -836,11 +891,11 @@ static float govPIDControl(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -853,15 +908,15 @@ static float govPIDControl(void)
 static void govMode1Init(void)
 {
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
-    gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.50f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
+    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
 
     // Use gov.I to reach the target
     gov.I = gov.throttle - (gov.P + gov.D + gov.F);
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
 }
 
 static float govMode1Control(void)
@@ -869,10 +924,10 @@ static float govMode1Control(void)
     float output;
 
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
-    gov.I = constrainf(gov.I,      0, 0.95f);
-    gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.50f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
+    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
+    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
@@ -881,11 +936,11 @@ static float govMode1Control(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -904,15 +959,15 @@ static void govMode2Init(void)
     float pidTarget = gov.throttle / pidGain;
 
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
-    gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.50f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
+    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
 
     // Use gov.I to reach the target
     gov.I = pidTarget - (gov.P + gov.D + gov.F);
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, 0.95f);
+    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
 }
 
 static float govMode2Control(void)
@@ -923,10 +978,10 @@ static float govMode2Control(void)
     float pidGain = gov.nominalVoltage / gov.motorVoltage;
 
     // PID limits
-    gov.P = constrainf(gov.P, -0.25f, 0.25f);
-    gov.I = constrainf(gov.I,      0, 0.95f);
-    gov.D = constrainf(gov.D, -0.25f, 0.25f);
-    gov.F = constrainf(gov.F,      0, 0.50f);
+    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
+    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
+    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
@@ -935,11 +990,11 @@ static float govMode2Control(void)
     output = gov.pidSum * pidGain;
 
     // Apply gov.C if output not saturated
-    if (!((output > gov.maxThrottle && gov.C > 0) || (output < GOV_MIN_THROTTLE_OUTPUT && gov.C < 0)))
+    if (!((output > gov.maxThrottle && gov.C > 0) || (output < gov.minThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_THROTTLE_OUTPUT, gov.maxThrottle);
+    output = constrainf(output, gov.minThrottle, gov.maxThrottle);
 
     return output;
 }
@@ -1001,6 +1056,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.collectiveWeight = pidProfile->governor.collective_ff_weight / 100.0f;
 
         gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
+        gov.minThrottle = pidProfile->governor.min_throttle / 100.0f;
 
         gov.fullHeadSpeed = constrainf(pidProfile->governor.headspeed, 100, 50000);
 
@@ -1049,22 +1105,22 @@ void governorInit(const pidProfile_t *pidProfile)
                 break;
             case GM_STANDARD:
                 govStateUpdate = governorUpdateState;
-                govSpoolupInit = govPIDInit;
-                govSpoolupCalc = govPIDControl;
+                govSpoolupInit = govSpoolUpInit;
+                govSpoolupCalc = govSpoolUpControl;
                 govActiveInit  = govPIDInit;
                 govActiveCalc  = govPIDControl;
                 break;
             case GM_MODE1:
                 govStateUpdate = governorUpdateState;
-                govSpoolupInit = govPIDInit;
-                govSpoolupCalc = govPIDControl;
+                govSpoolupInit = govSpoolUpInit;
+                govSpoolupCalc = govSpoolUpControl;
                 govActiveInit  = govMode1Init;
                 govActiveCalc  = govMode1Control;
                 break;
             case GM_MODE2:
                 govStateUpdate = governorUpdateState;
-                govSpoolupInit = govPIDInit;
-                govSpoolupCalc = govPIDControl;
+                govSpoolupInit = govSpoolUpInit;
+                govSpoolupCalc = govSpoolUpControl;
                 govActiveInit  = govMode2Init;
                 govActiveCalc  = govMode2Control;
                 break;
