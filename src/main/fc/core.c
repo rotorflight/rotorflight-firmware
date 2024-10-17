@@ -50,6 +50,7 @@
 #include "drivers/system.h"
 #include "drivers/time.h"
 #include "drivers/freq.h"
+#include "drivers/sbus_output.h"
 
 #include "fc/rc_rates.h"
 #include "fc/rc.h"
@@ -782,6 +783,7 @@ static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 #ifdef USE_MOTOR
         motorUpdate();
 #endif
+        sbusOutUpdate();
     }
 }
 

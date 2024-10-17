@@ -33,6 +33,7 @@ typedef struct {
     uint16_t    rate;    // servo update rate Hz
     uint16_t    speed;   // speed limit
     uint16_t    flags;   // feature flags
+    uint8_t     sbus;    // sbus output channel
 } servoParam_t;
 
 PG_DECLARE_ARRAY(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams);

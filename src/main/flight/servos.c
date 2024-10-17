@@ -34,6 +34,7 @@
 
 #include "drivers/time.h"
 #include "drivers/pwm_output.h"
+#include "drivers/sbus_output.h"
 
 #include "sensors/gyro.h"
 
@@ -53,7 +54,8 @@ static FAST_DATA_ZERO_INIT float        servoResolution[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
-static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT timerChannel_t   servoPwmChannel[MAX_SUPPORTED_SERVOS];
+static FAST_DATA_ZERO_INIT sbusOutChannel_t servoSbusChannel[MAX_SUPPORTED_SERVOS];
 
 
 uint8_t getServoCount(void)
@@ -169,7 +171,13 @@ void servoInit(void)
 
         servoResolution[index] = timebase * 1e-6f;
 
-        pwmOutConfig(&servoChannel[index], timer[index], timebase, timebase / update_rate, 0, 0);
+        pwmOutConfig(&servoPwmChannel[index], timer[index], timebase, timebase / update_rate, 0, 0);
+    }
+
+    // Initialize S.Bus servo output
+    for (index = 0; index < servoCount; index++) {
+        // A simple mapping. Can be change to allow customed mapping
+        sbusOutConfig(&servoSbusChannel[index], index + 1);
     }
 }
 
@@ -177,9 +185,9 @@ void servoShutdown(void)
 {
     for (int index = 0; index < MAX_SUPPORTED_SERVOS; index++)
     {
-        if (servoChannel[index].ccr) {
-            *servoChannel[index].ccr = 0;
-            servoChannel[index].ccr = NULL;
+        if (servoPwmChannel[index].ccr) {
+            *servoPwmChannel[index].ccr = 0;
+            servoPwmChannel[index].ccr = NULL;
         }
     }
 
@@ -190,8 +198,12 @@ static inline void servoSetOutput(uint8_t index, float pos)
 {
     servoOutput[index] = pos;
 
-    if (servoChannel[index].ccr)
-        *servoChannel[index].ccr = lrintf(pos * servoResolution[index]);
+    // Set PWM output
+    if (servoPwmChannel[index].ccr)
+        *servoPwmChannel[index].ccr = lrintf(pos * servoResolution[index]);
+    
+    // Set S.Bus output
+    sbusOutSetOutput(&servoSbusChannel[index], pos);
 }
 
 static inline float limitTravel(uint8_t servo, float pos, float min, float max)

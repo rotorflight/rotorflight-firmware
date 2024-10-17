@@ -53,6 +53,7 @@ void pgResetFn_servoParams(servoParam_t *instance)
                      .rate  = DEFAULT_SERVO_RATE,
                      .speed = DEFAULT_SERVO_SPEED,
                      .flags = DEFAULT_SERVO_FLAGS,
+                     .sbus  = DEFAULT_SERVO_SBUS,
         );
     }
 }
