@@ -481,6 +481,9 @@ rx_spi_spektrum_unittest_DEFINES := \
 #		USE_MSP_OVER_TELEMETRY=
 #		USE_RX_EXPRESSLRS= \
 
+sbus_output_unittest_SRC := \
+		$(USER_DIR)/drivers/sbus_output.c
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
