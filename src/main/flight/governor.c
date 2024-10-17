@@ -1156,11 +1156,11 @@ void governorInit(const pidProfile_t *pidProfile)
 
         difFilterInit(&gov.differentiator, diff_cutoff, gyro.targetRateHz);
 
-        lowpassFilterInit(&gov.motorVoltageFilter, LPF_DAMPED, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.motorCurrentFilter, LPF_DAMPED, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.motorRPMFilter, LPF_DAMPED, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.TTAFilter, LPF_DAMPED, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
-        lowpassFilterInit(&gov.FFFilter, LPF_DAMPED, governorConfig()->gov_ff_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorVoltageFilter, LPF_PT2, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorCurrentFilter, LPF_PT2, governorConfig()->gov_pwr_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.motorRPMFilter, LPF_PT2, governorConfig()->gov_rpm_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.TTAFilter, LPF_PT2, governorConfig()->gov_tta_filter, gyro.targetRateHz, 0);
+        lowpassFilterInit(&gov.FFFilter, LPF_PT2, governorConfig()->gov_ff_filter, gyro.targetRateHz, 0);
 
         governorInitProfile(pidProfile);
     }
