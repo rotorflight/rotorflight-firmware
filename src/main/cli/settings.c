@@ -1690,10 +1690,10 @@ const clivalue_t valueTable[] = {
 #endif
 
 #ifdef USE_RPM_FILTER
-    { "gyro_rpm_filter_bank_rpm_source", VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_source) },
-    { "gyro_rpm_filter_bank_rpm_ratio",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_ratio) },
-    { "gyro_rpm_filter_bank_rpm_limit",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_limit) },
-    { "gyro_rpm_filter_bank_notch_q",    VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_notch_q) },
+    { "gyro_rpm_filter_bank_rpm_source", VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_PARAM_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_source) },
+    { "gyro_rpm_filter_bank_rpm_ratio",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_PARAM_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_ratio) },
+    { "gyro_rpm_filter_bank_rpm_limit",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_PARAM_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_limit) },
+    { "gyro_rpm_filter_bank_notch_q",    VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_PARAM_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_notch_q) },
 #endif
 
 #ifdef USE_RX_FLYSKY
