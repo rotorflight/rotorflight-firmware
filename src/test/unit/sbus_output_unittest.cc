@@ -19,6 +19,7 @@
 
 extern "C" {
 #include "drivers/sbus_output.h"
+#include "io/serial.h"
 
 extern uint16_t sbusOutChannel[SBUS_OUT_CHANNELS];
 void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame);
@@ -182,4 +183,32 @@ INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
 
 // STUBS
 
-extern "C" {}
+extern "C" {
+const serialPortConfig_t *findSerialPortConfig(serialPortFunction_e function) {
+    UNUSED(function);
+    return NULL;
+}
+serialPort_t *openSerialPort(serialPortIdentifier_e identifier,
+                             serialPortFunction_e function,
+                             serialReceiveCallbackPtr rxCallback,
+                             void *rxCallbackData, uint32_t baudRate,
+                             portMode_e mode, portOptions_e options) {
+    UNUSED(identifier);
+    UNUSED(function);
+    UNUSED(rxCallback);
+    UNUSED(rxCallbackData);
+    UNUSED(baudRate);
+    UNUSED(mode);
+    UNUSED(options);
+    return NULL;
+}
+uint32_t serialTxBytesFree(const serialPort_t *instance) {
+    UNUSED(instance);
+    return (uint32_t)-1;
+}
+void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
+    UNUSED(instance);
+    UNUSED(data);
+    UNUSED(count);
+}
+}

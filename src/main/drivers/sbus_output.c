@@ -21,10 +21,16 @@
 #include <string.h>
 
 #include "build/build_config.h"
-#include "common/maths.h"
 #include "platform.h"
 
+#include "common/maths.h"
+#include "common/time.h"
+
+#include "io/serial.h"
+
 STATIC_UNIT_TESTED uint16_t sbusOutChannel[SBUS_OUT_CHANNELS];
+STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
+STATIC_UNIT_TESTED timeUs_t sbusOutLastTxTimeUs = 0;
 
 void sbusOutConfig(sbusOutChannel_t *channel, uint8_t index) {
     if (index >= 1 && index <= SBUS_OUT_CHANNELS) {
@@ -68,15 +74,35 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame) {
     frame->endByte = 0;
 }
 
-void sbusOutUpdate() {
-    sbusOutFrame_t frame;
-    sbusOutPrepareSbusFrame(&frame);
-    (void)frame;
-    // serial output
+void sbusOutUpdate(timeUs_t currentTimeUs) {
+    static const timeUs_t sbusOutTxIntervalUs = 6000;
+    if (sbusOutPort && 
+        /*Tx Buff is free*/ serialTxBytesFree(sbusOutPort) >
+                           sizeof(sbusOutFrame_t) &&
+        /* Tx interval check */ currentTimeUs >
+            sbusOutLastTxTimeUs + sbusOutTxIntervalUs) {
+        sbusOutFrame_t frame;
+        sbusOutPrepareSbusFrame(&frame);
+        // serial output
+        serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
+        sbusOutLastTxTimeUs = currentTimeUs;
+    }
 }
 
 void sbusOutInit() {
-    memset(sbusOutChannel, 0, sizeof(sbusOutChannel)); 
+    memset(sbusOutChannel, 0, sizeof(sbusOutChannel));
+
+    const serialPortConfig_t *portConfig =
+        findSerialPortConfig(FUNCTION_SBUS_OUT);
+
+    if (!portConfig) {
+        return;
+    }
+
+    sbusOutPort = openSerialPort(
+        portConfig->identifier, FUNCTION_SBUS_OUT, NULL, NULL, 100000, MODE_TX,
+        SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN | SERIAL_INVERTED |
+            SERIAL_BIDIR | SERIAL_NOSWAP);
 }
 
 uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, uint16_t pwm) {

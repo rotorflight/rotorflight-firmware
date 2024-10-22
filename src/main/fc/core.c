@@ -783,8 +783,8 @@ static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 #ifdef USE_MOTOR
         motorUpdate();
 #endif
-        sbusOutUpdate();
     }
+    sbusOutUpdate(currentTimeUs);
 }
 
 static void subTaskFilterUpdate(timeUs_t currentTimeUs)
