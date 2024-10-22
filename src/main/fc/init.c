@@ -66,6 +66,7 @@
 #include "drivers/pin_pull_up_down.h"
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
+#include "drivers/sbus_output.h"
 #include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
@@ -686,6 +687,7 @@ void init(void)
 #ifdef USE_SERVOS
     servoInit();
 #endif
+    sbusOutInit();
 
 #ifdef USE_PINIO
     pinioInit(pinioConfig());

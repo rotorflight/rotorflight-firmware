@@ -203,7 +203,8 @@ static inline void servoSetOutput(uint8_t index, float pos)
         *servoPwmChannel[index].ccr = lrintf(pos * servoResolution[index]);
     
     // Set S.Bus output
-    sbusOutSetOutput(&servoSbusChannel[index], pos);
+    uint16_t sbus = sbusOutPwmToSbus(&servoSbusChannel[index], pos);
+    sbusOutSetOutput(&servoSbusChannel[index], sbus);
 }
 
 static inline float limitTravel(uint8_t servo, float pos, float min, float max)

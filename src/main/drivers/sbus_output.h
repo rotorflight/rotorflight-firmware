@@ -17,8 +17,10 @@
 
 #pragma once
 
-#include "common/utils.h"
 #include "platform.h"
+
+#include "common/utils.h"
+#include "common/time.h"
 
 #define SBUS_OUT_CHANNELS   18
 
@@ -63,7 +65,7 @@ void sbusOutConfig(sbusOutChannel_t *channel, uint8_t index);
 void sbusOutSetOutput(sbusOutChannel_t *channel, uint16_t value);
 
 // Routine function called by the scheduler or timer
-void sbusOutUpdate(void);
+void sbusOutUpdate(timeUs_t currentTimeUs);
 
 // Init function
 void sbusOutInit(void);
