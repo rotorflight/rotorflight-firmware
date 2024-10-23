@@ -464,14 +464,8 @@ rx_spi_expresslrs_telemetry_unittest_DEFINES := \
 GTEST_DIR = ../../lib/test/gtest
 
 # Use clang/clang++ by default
-
-CC  := clang-10
-CXX := clang++-10
-ifeq ($(shell which $(CC) 2>/dev/null),)
-$(info Falling back to 'clang'.)
 CC  := clang
 CXX := clang++
-endif
 
 #CC  := gcc
 #CXX := g++
@@ -489,7 +483,7 @@ COMMON_FLAGS = \
 	-ggdb3 \
 	-O0 \
 	-DUNIT_TEST \
-	-isystem $(GTEST_DIR)/inc \
+	-isystem $(GTEST_DIR)/include \
 	-MMD -MP \
 	-Wno-c99-extensions \
 	-Wno-reorder \
@@ -548,7 +542,7 @@ C_FLAGS = $(COMMON_FLAGS) \
 
 # Flags passed to the C++ compiler.
 CXX_FLAGS = $(COMMON_FLAGS) \
-	-std=gnu++11
+	-std=c++14
 
 # Compiler flags for coverage instrumentation
 ifdef USE_COVERAGE
@@ -581,7 +575,7 @@ TESTS_REPRESENTATIVE = $(TESTS) $(foreach test,$(TESTS_TARGET_SPECIFIC), \
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
-GTEST_HEADERS = $(GTEST_DIR)/inc/gtest/*.h
+GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h
 
 ## V                 : Set verbosity level based on the V= parameter
 ##                     V=0 Low
@@ -638,7 +632,7 @@ clean :
 
 # Usually you shouldn't tweak such internal variables, indicated by a
 # trailing _.
-GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/inc/gtest/*.h $(GTEST_HEADERS)
+GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/include/gtest/*.h $(GTEST_HEADERS)
 
 # For simplicity and to avoid depending on Google Test's
 # implementation details, the dependencies specified below are
