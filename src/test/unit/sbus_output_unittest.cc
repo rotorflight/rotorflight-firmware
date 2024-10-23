@@ -22,13 +22,69 @@ extern "C" {
 #include "io/serial.h"
 
 extern uint16_t sbusOutChannel[SBUS_OUT_CHANNELS];
+extern serialPort_t *sbusOutPort;
+extern timeUs_t sbusOutLastTxTimeUs;
 void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame);
 }
 
-#include "unittest_macros.h"
-#include "gtest/gtest.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
-TEST(SBusOutInit, SanityCheck) {
+#include "unittest_macros.h"
+
+// In order to mock free functions, we have to replace them in linking stage
+// (rather than normal polymorphism).
+// Approach: 
+//   1. We create a mock interface class for all need-to-mock free functions.
+//   2. We create stub free functions to call the virtual functions in the mock object. 
+// Because we create and desctruct mock object in each test:
+//   3. we save it (globally) for those free functions to use.
+class MockInterface {
+   public:
+    MOCK_METHOD(const serialPortConfig_t *, findSerialPortConfig,
+                (serialPortFunction_e function), ());
+    MOCK_METHOD(serialPort_t *, openSerialPort,
+                (serialPortIdentifier_e identifier,
+                 serialPortFunction_e function,
+                 serialReceiveCallbackPtr rxCallback, void *rxCallbackData,
+                 uint32_t baudRate, portMode_e mode, portOptions_e options),
+                ());
+    MOCK_METHOD(uint32_t, serialTxBytesFree, (const serialPort_t *instance),
+                ());
+    MOCK_METHOD(void, serialWriteBuf,
+                (serialPort_t * instance, const uint8_t *data, int count), ());
+} *g_mock = nullptr;
+
+const serialPortConfig_t *findSerialPortConfig(serialPortFunction_e function) {
+    return g_mock->findSerialPortConfig(function);
+}
+
+serialPort_t *openSerialPort(serialPortIdentifier_e identifier,
+                             serialPortFunction_e function,
+                             serialReceiveCallbackPtr rxCallback,
+                             void *rxCallbackData, uint32_t baudRate,
+                             portMode_e mode, portOptions_e options) {
+    return g_mock->openSerialPort(identifier, function, rxCallback,
+                                  rxCallbackData, baudRate, mode, options);
+}
+
+uint32_t serialTxBytesFree(const serialPort_t *instance) {
+    return g_mock->serialTxBytesFree(instance);
+}
+
+void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
+    g_mock->serialWriteBuf(instance, data, count);
+}
+
+using ::testing::_;
+using ::testing::Return;
+using ::testing::StrictMock;
+
+// Start testing
+TEST(SBusOutInit, Memset) {
+    MockInterface mock;
+    g_mock = &mock;
+
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
         sbusOutChannel[i] = 0xff;
     }
@@ -40,23 +96,59 @@ TEST(SBusOutInit, SanityCheck) {
         EXPECT_EQ(sbusOutChannel[i], 0);
     }
 }
+TEST(SBusOutInit, GoodPath) {
+    StrictMock<MockInterface> mock;
+    g_mock = &mock;
+    constexpr serialPortIdentifier_e fake_identifier =
+        (serialPortIdentifier_e)0x15;
+    serialPortConfig_t fake_port_config = {};
+    fake_port_config.identifier = fake_identifier;
+    serialPort_t fake_port = {};
+    EXPECT_CALL(mock, findSerialPortConfig(_))
+        .WillOnce(Return(&fake_port_config));
+    EXPECT_CALL(mock, openSerialPort(fake_identifier, _, _, _, _, _, _))
+        .WillOnce(Return(&fake_port));
+
+    sbusOutInit();
+
+    EXPECT_EQ(sbusOutPort, &fake_port);
+}
+
+TEST(SBusOutInit, NoPortConfig) {
+    StrictMock<MockInterface> mock;
+    g_mock = &mock;
+
+    EXPECT_CALL(mock, findSerialPortConfig(_)).WillOnce(Return(nullptr));
+
+    sbusOutInit();
+
+    // Expect not to call openSerialPort
+}
 
 TEST(SBusOutConfig, OutOfBound) {
+    MockInterface mock;
+    g_mock = &mock;
+
     sbusOutInit();
     sbusOutChannel_t channel;
     sbusOutConfig(&channel, 66);
     // Invalid channels are all reset to internal value 0.
     EXPECT_EQ(channel, 0);
-    // This should not crash by AddressSanitizer. 
+    // This should not crash by AddressSanitizer.
     // However, AddressSanitizer isn't configured. This technically is not
     // testing anything.
     sbusOutSetOutput(&channel, 22);
 }
 
 class SBusOutTestBase : public ::testing::Test {
-  public:
+   public:
     void SetUp() {
+        g_mock = &mock_;
+        EXPECT_CALL(mock_, findSerialPortConfig(testing::_))
+            .WillOnce(Return(nullptr));
+
         sbusOutInit();
+
         for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
             // sbusOutConfig uses 1-based channel number.
             sbusOutConfig(&channels_[i], i + 1);
@@ -87,6 +179,7 @@ class SBusOutTestBase : public ::testing::Test {
 
         return (uint16_t)value;
     }
+    MockInterface mock_;
 };
 
 // Test param is: <channel, value>
@@ -133,13 +226,20 @@ TEST_P(SBusOutChannelSweep, FrameConstruct) {
     EXPECT_EQ(value, value_in_frame);
 }
 
-INSTANTIATE_TEST_SUITE_P(FullScaleChannelSweep, SBusOutChannelSweep,
-                        testing::Combine(testing::Range(0, 16),
-                                         testing::Range(0, (1 << 11) - 1)));
+// Test channel 1 with all possible values.
+INSTANTIATE_TEST_SUITE_P(ChannelOneValueSweep, SBusOutChannelSweep,
+                         testing::Combine(testing::Values(0),
+                                          testing::Range(0, (1 << 11) - 1)));
 
+// Test all channels with a few extreme values (to save time).
+INSTANTIATE_TEST_SUITE_P(FullScaleChannelSweep, SBusOutChannelSweep,
+                         testing::Combine(testing::Range(0, 16),
+                                          testing::Values(0, 4, (1 << 11) - 1)));
+
+// Test all on-off channels.
 INSTANTIATE_TEST_SUITE_P(OnOffChannelSweep, SBusOutChannelSweep,
-                        testing::Combine(testing::Values(16, 17),
-                                         testing::Values(0, 1)));
+                         testing::Combine(testing::Values(16, 17),
+                                          testing::Values(0, 1)));
 
 class SBusOutPWMToSBusTest : public SBusOutTestBase {};
 
@@ -178,37 +278,4 @@ TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
 }
 
 INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
-                        testing::Range(1000, 2000));
-
-
-// STUBS
-
-extern "C" {
-const serialPortConfig_t *findSerialPortConfig(serialPortFunction_e function) {
-    UNUSED(function);
-    return NULL;
-}
-serialPort_t *openSerialPort(serialPortIdentifier_e identifier,
-                             serialPortFunction_e function,
-                             serialReceiveCallbackPtr rxCallback,
-                             void *rxCallbackData, uint32_t baudRate,
-                             portMode_e mode, portOptions_e options) {
-    UNUSED(identifier);
-    UNUSED(function);
-    UNUSED(rxCallback);
-    UNUSED(rxCallbackData);
-    UNUSED(baudRate);
-    UNUSED(mode);
-    UNUSED(options);
-    return NULL;
-}
-uint32_t serialTxBytesFree(const serialPort_t *instance) {
-    UNUSED(instance);
-    return (uint32_t)-1;
-}
-void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
-    UNUSED(instance);
-    UNUSED(data);
-    UNUSED(count);
-}
-}
+                         testing::Range(1000, 2000));
