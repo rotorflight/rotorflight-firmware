@@ -469,6 +469,7 @@ sbus_output_unittest_DEFINES := \
 # Points to the root of Google Test, relative to where this file is.
 # Remember to tweak this if you move this file.
 GTEST_DIR = ../../lib/test/gtest
+GMOCK_DIR = ../../lib/test/gmock
 
 # Use clang/clang++ by default
 CC  := clang
@@ -491,6 +492,7 @@ COMMON_FLAGS = \
 	-O0 \
 	-DUNIT_TEST \
 	-isystem $(GTEST_DIR)/include \
+	-isystem $(GMOCK_DIR)/include \
 	-MMD -MP \
 	-Wno-c99-extensions \
 	-Wno-reorder \
@@ -582,7 +584,15 @@ TESTS_REPRESENTATIVE = $(TESTS) $(foreach test,$(TESTS_TARGET_SPECIFIC), \
 
 # All Google Test headers.  Usually you shouldn't change this
 # definition.
-GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h
+GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
+                $(GTEST_DIR)/include/gtest/internal/*.h
+
+# All Google Mock headers. Note that all Google Test headers are
+# included here too, as they are #included by Google Mock headers.
+# Usually you shouldn't change this definition.	
+GMOCK_HEADERS = $(GMOCK_DIR)/include/gmock/*.h \
+                $(GMOCK_DIR)/include/gmock/internal/*.h \
+                $(GTEST_HEADERS)
 
 ## V                 : Set verbosity level based on the V= parameter
 ##                     V=0 Low
@@ -639,7 +649,8 @@ clean :
 
 # Usually you shouldn't tweak such internal variables, indicated by a
 # trailing _.
-GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/include/gtest/*.h $(GTEST_HEADERS)
+GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
+GMOCK_SRCS_ = $(GMOCK_DIR)/src/*.cc $(GMOCK_HEADERS)
 
 # For simplicity and to avoid depending on Google Test's
 # implementation details, the dependencies specified below are
@@ -648,25 +659,32 @@ GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/include/gtest/*.h $(GTEST_HEADE
 $(OBJECT_DIR)/gtest-all.o : $(GTEST_SRCS_)
 	@echo "compiling $@" "$(STDOUT)"
 	@mkdir -p $(dir $@)
-	$(V1) $(CXX) $(CXX_FLAGS) -I$(GTEST_DIR) -Wno-missing-field-initializers -Wno-unused-const-variable -c \
+	$(V1) $(CXX) $(CXX_FLAGS) -I$(GTEST_DIR) -c \
             $(GTEST_DIR)/src/gtest-all.cc -o $@
 
-$(OBJECT_DIR)/gtest_main.o : $(GTEST_SRCS_)
+$(OBJECT_DIR)/gmock-all.o : $(GMOCK_SRCS_)
 	@echo "compiling $@" "$(STDOUT)"
 	@mkdir -p $(dir $@)
-	$(V1) $(CXX) $(CXX_FLAGS) -I$(GTEST_DIR) -c \
-            $(GTEST_DIR)/src/gtest_main.cc -o $@
+	$(V1) $(CXX) $(CXX_FLAGS) -I$(GTEST_DIR) -I$(GMOCK_DIR) -c \
+            $(GMOCK_DIR)/src/gmock-all.cc -o $@
 
-$(OBJECT_DIR)/gtest.a : $(OBJECT_DIR)/gtest-all.o
+$(OBJECT_DIR)/gmock_main.o : $(GMOCK_SRCS_)
+	@echo "compiling $@" "$(STDOUT)"
+	@mkdir -p $(dir $@)
+	$(V1) $(CXX) $(CXX_FLAGS) -I$(GTEST_DIR) -I$(GMOCK_DIR) -c \
+            $(GMOCK_DIR)/src/gmock_main.cc -o $@
+
+$(OBJECT_DIR)/gmock.a : $(OBJECT_DIR)/gmock-all.o $(OBJECT_DIR)/gtest-all.o
 	@echo "linking $@" "$(STDOUT)"
 	$(V1) $(AR) $(ARFLAGS) $@ $^
 
-$(OBJECT_DIR)/gtest_main.a : $(OBJECT_DIR)/gtest-all.o $(OBJECT_DIR)/gtest_main.o
+$(OBJECT_DIR)/gmock_main.a : $(OBJECT_DIR)/gmock-all.o $(OBJECT_DIR)/gtest-all.o $(OBJECT_DIR)/gmock_main.o
 	@echo "linking $@" "$(STDOUT)"
 	$(V1) $(AR) $(ARFLAGS) $@ $^
 
--include $(OBJECT_DIR)/gtest-all.d \
-         $(OBJECT_DIR)/gtest_main.d
+-include $(OBJECT_DIR)/gmock-all.d \
+         $(OBJECT_DIR)/gtest-all.d \
+         $(OBJECT_DIR)/gmock_main.d
 
 
 # includes in test dir must override includes in user dir, unless the user
@@ -751,7 +769,7 @@ $(OBJECT_DIR)/$1/$(basename $1).o: $(TEST_DIR)/$(basename $1).cc
 
 $(OBJECT_DIR)/$1/$(basename $1): $$($1_OBJS) \
 	$(OBJECT_DIR)/$1/$(basename $1).o \
-	$(OBJECT_DIR)/gtest_main.a
+	$(OBJECT_DIR)/gmock_main.a
 
 	@echo "linking $$@" "$(STDOUT)"
 	$(V1) mkdir -p $(dir $$@)
