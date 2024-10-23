@@ -34,13 +34,14 @@ void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame);
 
 // In order to mock free functions, we have to replace them in linking stage
 // (rather than normal polymorphism).
-// Approach: 
+// Approach:
 //   1. We create a mock interface class for all need-to-mock free functions.
-//   2. We create stub free functions to call the virtual functions in the mock object. 
+//   2. We create stub free functions to call the virtual functions in the mock
+//   object.
 // Because we create and desctruct mock object in each test:
 //   3. we save it (globally) for those free functions to use.
 class MockInterface {
-   public:
+  public:
     MOCK_METHOD(const serialPortConfig_t *, findSerialPortConfig,
                 (serialPortFunction_e function), ());
     MOCK_METHOD(serialPort_t *, openSerialPort,
@@ -77,13 +78,15 @@ void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
 }
 
 using ::testing::_;
+using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 
 // Start testing
 TEST(SBusOutInit, Memset) {
-    MockInterface mock;
+    StrictMock<MockInterface> mock;
     g_mock = &mock;
+    EXPECT_CALL(mock, findSerialPortConfig);
 
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
         sbusOutChannel[i] = 0xff;
@@ -104,8 +107,7 @@ TEST(SBusOutInit, GoodPath) {
     serialPortConfig_t fake_port_config = {};
     fake_port_config.identifier = fake_identifier;
     serialPort_t fake_port = {};
-    EXPECT_CALL(mock, findSerialPortConfig(_))
-        .WillOnce(Return(&fake_port_config));
+    EXPECT_CALL(mock, findSerialPortConfig).WillOnce(Return(&fake_port_config));
     EXPECT_CALL(mock, openSerialPort(fake_identifier, _, _, _, _, _, _))
         .WillOnce(Return(&fake_port));
 
@@ -118,16 +120,20 @@ TEST(SBusOutInit, NoPortConfig) {
     StrictMock<MockInterface> mock;
     g_mock = &mock;
 
-    EXPECT_CALL(mock, findSerialPortConfig(_)).WillOnce(Return(nullptr));
+    EXPECT_CALL(mock, findSerialPortConfig).WillOnce(Return(nullptr));
+    // Expect not to call openSerialPort
+    EXPECT_CALL(mock, openSerialPort).Times(0);
 
     sbusOutInit();
 
-    // Expect not to call openSerialPort
+    // Update should be a no-op
+    sbusOutUpdate(0);
 }
 
 TEST(SBusOutConfig, OutOfBound) {
-    MockInterface mock;
+    StrictMock<MockInterface> mock;
     g_mock = &mock;
+    EXPECT_CALL(mock, findSerialPortConfig);
 
     sbusOutInit();
     sbusOutChannel_t channel;
@@ -141,11 +147,12 @@ TEST(SBusOutConfig, OutOfBound) {
 }
 
 class SBusOutTestBase : public ::testing::Test {
-   public:
-    void SetUp() {
+  public:
+    void SetUp() override {
         g_mock = &mock_;
-        EXPECT_CALL(mock_, findSerialPortConfig(testing::_))
-            .WillOnce(Return(nullptr));
+        EXPECT_CALL(mock_, findSerialPortConfig)
+            .WillOnce(Return(&fake_port_config_));
+        EXPECT_CALL(mock_, openSerialPort).WillOnce(Return(&fake_port_));
 
         sbusOutInit();
 
@@ -153,6 +160,9 @@ class SBusOutTestBase : public ::testing::Test {
             // sbusOutConfig uses 1-based channel number.
             sbusOutConfig(&channels_[i], i + 1);
         }
+
+        // Reset timer for testing
+        sbusOutLastTxTimeUs = 0;
     }
 
     sbusOutChannel_t channels_[SBUS_OUT_CHANNELS];
@@ -179,7 +189,9 @@ class SBusOutTestBase : public ::testing::Test {
 
         return (uint16_t)value;
     }
-    MockInterface mock_;
+    serialPortConfig_t fake_port_config_ = {};
+    serialPort_t fake_port_ = {};
+    StrictMock<MockInterface> mock_;
 };
 
 // Test param is: <channel, value>
@@ -197,7 +209,7 @@ TEST_P(SBusOutChannelSweep, FrameConstruct) {
     // Generate frame
     union {
         sbusOutFrame_t frame;
-        uint8_t bytes[26];
+        uint8_t bytes[25];
     } buffer;
     sbusOutPrepareSbusFrame(&buffer.frame);
 
@@ -234,7 +246,8 @@ INSTANTIATE_TEST_SUITE_P(ChannelOneValueSweep, SBusOutChannelSweep,
 // Test all channels with a few extreme values (to save time).
 INSTANTIATE_TEST_SUITE_P(FullScaleChannelSweep, SBusOutChannelSweep,
                          testing::Combine(testing::Range(0, 16),
-                                          testing::Values(0, 4, (1 << 11) - 1)));
+                                          testing::Values(0, 4,
+                                                          (1 << 11) - 1)));
 
 // Test all on-off channels.
 INSTANTIATE_TEST_SUITE_P(OnOffChannelSweep, SBusOutChannelSweep,
@@ -279,3 +292,70 @@ TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
 
 INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
                          testing::Range(1000, 2000));
+
+class SBusOutSerialTest : public SBusOutTestBase {};
+
+TEST_F(SBusOutSerialTest, NoFreeBuffer) {
+    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_)).WillOnce(Return(25));
+    // Expect no-op
+    EXPECT_CALL(mock_, serialWriteBuf).Times(0);
+
+    sbusOutUpdate(1000000);
+}
+
+TEST_F(SBusOutSerialTest, TooSoon) {
+    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_)).WillOnce(Return(50));
+    // Expect no-op
+    EXPECT_CALL(mock_, serialWriteBuf).Times(0);
+
+    sbusOutUpdate(1000);
+}
+
+TEST_F(SBusOutSerialTest, GoodUpdate) {
+    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_))
+        .Times(2)
+        .WillRepeatedly(Return(50));
+    EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _)).Times(2);
+
+    sbusOutUpdate(1000000);
+
+    sbusOutUpdate(2000000);
+}
+
+// Maybe someday our battery will last of 70min. Who knows.
+TEST_F(SBusOutSerialTest, TimeWrap) {
+    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_))
+        .Times(2)
+        .WillRepeatedly(Return(50));
+    EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _)).Times(2);
+
+    sbusOutUpdate(-1);
+
+    sbusOutUpdate(1000000);
+}
+
+TEST_F(SBusOutSerialTest, SerialFormat) {
+    static const uint8_t expected_data[25] = {
+        0x0f, 0x00, 0x08, 0x80, 0x00, 0x06, 0x40, 0x80, 0x02,
+        0x18, 0xe0, 0x00, 0x08, 0x48, 0x80, 0x02, 0x16, 0xc0,
+        0x80, 0x06, 0x38, 0xe0, 0x01, 0x01, 0x00};
+    for (int i = 0; i < 16; ++i) {
+        sbusOutSetOutput(&channels_[i], i);
+    }
+    sbusOutSetOutput(&channels_[16], 1);
+    sbusOutSetOutput(&channels_[17], 0);
+
+    sbusOutFrame_t frame;
+    sbusOutPrepareSbusFrame(&frame);
+
+    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_)).WillOnce(Return(50));
+    EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _))
+        .WillOnce(Invoke([&](serialPort_t *, const uint8_t *data, int count) {
+            EXPECT_EQ(count, 25);
+            EXPECT_EQ(memcmp((const void *)data, (const void *)expected_data,
+                             (size_t)count),
+                      0);
+        }));
+
+    sbusOutUpdate(-1);
+}

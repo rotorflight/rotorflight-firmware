@@ -72,4 +72,4 @@ void sbusOutInit(void);
 
 // Convert a PWM us value [1000, 2000] to SBus value [192, 1792] (or [0, 1] for
 // digital channels).
-uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, uint16_t pwm);
+uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, float pwm);

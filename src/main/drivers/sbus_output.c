@@ -77,10 +77,10 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame) {
 void sbusOutUpdate(timeUs_t currentTimeUs) {
     static const timeUs_t sbusOutTxIntervalUs = 6000;
     if (sbusOutPort && 
-        /*Tx Buff is free*/ serialTxBytesFree(sbusOutPort) >
-                           sizeof(sbusOutFrame_t) &&
-        /* Tx interval check */ currentTimeUs >
-            sbusOutLastTxTimeUs + sbusOutTxIntervalUs) {
+        /* Tx Buff is free */ serialTxBytesFree(sbusOutPort) >
+                              sizeof(sbusOutFrame_t) &&
+        /* Tx interval check */ currentTimeUs - sbusOutLastTxTimeUs >
+                                sbusOutTxIntervalUs) {
         sbusOutFrame_t frame;
         sbusOutPrepareSbusFrame(&frame);
         // serial output
@@ -96,6 +96,7 @@ void sbusOutInit() {
         findSerialPortConfig(FUNCTION_SBUS_OUT);
 
     if (!portConfig) {
+        sbusOutPort = NULL;
         return;
     }
 
@@ -105,12 +106,12 @@ void sbusOutInit() {
             SERIAL_BIDIR | SERIAL_NOSWAP);
 }
 
-uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, uint16_t pwm) {
+uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, float pwm) {
     // This conversion doesn't work for narrow band servo channels.
     // Need user feedback on how this should be used.
     if (*channel >= 1 && *channel <= 16) {
         //  For full-scale channels, [192 - 1792] maps to [1000 - 2000]
-        return constrain(scaleRange(pwm, 1000, 2000, 192, 1792), 0, 2047);
+        return constrainf(scaleRangef(pwm, 1000, 2000, 192, 1792), 0, 2047);
     }
     if (*channel >= 17 && *channel <= 18) {
         return (pwm > 1500);
