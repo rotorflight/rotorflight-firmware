@@ -112,6 +112,10 @@
 
 // Nop
 
+#elif defined(UNIT_TEST)
+
+#include "unittest_platform.h"
+
 #else
 #error "Invalid chipset specified. Update platform.h"
 #endif
