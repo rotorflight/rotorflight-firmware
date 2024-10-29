@@ -1982,6 +1982,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, governorConfig()->gov_rpm_filter);
         sbufWriteU8(dst, governorConfig()->gov_tta_filter);
         sbufWriteU8(dst, governorConfig()->gov_ff_filter);
+        sbufWriteU8(dst, governorConfig()->gov_spoolup_min_throttle);
         break;
 
     default:
@@ -3354,6 +3355,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_rpm_filter = sbufReadU8(src);
         governorConfigMutable()->gov_tta_filter = sbufReadU8(src);
         governorConfigMutable()->gov_ff_filter = sbufReadU8(src);
+        if (sbufBytesRemaining(src) >= 1) {
+            governorConfigMutable()->gov_spoolup_min_throttle = sbufReadU8(src);
+        }
         break;
 
     default:
