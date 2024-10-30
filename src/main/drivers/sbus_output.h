@@ -24,6 +24,19 @@
 
 #define SBUS_OUT_CHANNELS   18
 
+typedef enum {
+    SBUS_OUT_SOURCE_RX = 0,
+    SBUS_OUT_SOURCE_MIXER = 1,
+    SBUS_OUT_SOURCE_SERVO = 2
+} sbusOutSourceType_e;
+
+typedef struct sbusOutConfigChannel_s{
+    sbusOutSourceType_e sourceType:4;
+    uint8_t sourceChannel:6;
+    uint16_t min:11;  // 1000us maps to value x
+    uint16_t max:11;  // 2000us maps to value y
+} sbusOutConfigChannel_t;
+
 // Define the sbus frame struct. Let's not reuse the one in the rx/ so we
 // don't have to link them together in the unit test.
 typedef struct {
@@ -52,24 +65,8 @@ typedef struct {
 STATIC_ASSERT(sizeof(sbusOutFrame_t) == 25,
               sbus_output_sbus_frame_size_mismatch);
 
-// sbusOutChannel_t is the handle hold by the callers (e.g., servo, mixer, rx).
-// It is now only a uint8_t (1-based sbus channel index) but can be extended in
-// the future.
-typedef uint8_t sbusOutChannel_t;
-
-// Register a sbusOutChannel_t with a channel index (1-based).
-void sbusOutConfig(sbusOutChannel_t *channel, uint8_t index);
-
-// Set output of a sbusOutChannel_t.
-// This should be a 11bit value (or 1bit for digital channels).
-void sbusOutSetOutput(sbusOutChannel_t *channel, uint16_t value);
-
 // Routine function called by the scheduler or timer
 void sbusOutUpdate(timeUs_t currentTimeUs);
 
 // Init function
 void sbusOutInit(void);
-
-// Convert a PWM us value [1000, 2000] to SBus value [192, 1792] (or [0, 1] for
-// digital channels).
-uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, float pwm);

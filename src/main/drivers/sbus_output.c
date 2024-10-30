@@ -27,51 +27,80 @@
 #include "common/time.h"
 
 #include "io/serial.h"
+#include "pg/sbus_output.h"
+#include "rx/rx.h"
 
-STATIC_UNIT_TESTED uint16_t sbusOutChannel[SBUS_OUT_CHANNELS];
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
 STATIC_UNIT_TESTED timeUs_t sbusOutLastTxTimeUs = 0;
 
-void sbusOutConfig(sbusOutChannel_t *channel, uint8_t index) {
-    if (index >= 1 && index <= SBUS_OUT_CHANNELS) {
-        *channel = index;
-    } else {
-        *channel = 0;
-    }
-}
-
-void sbusOutSetOutput(sbusOutChannel_t *channel, uint16_t value) {
-    if (*channel >= 1 && *channel <= SBUS_OUT_CHANNELS) {
-        sbusOutChannel[*channel - 1] = value;
-    }
-}
-
-STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame) {
+STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels) {
     frame->syncByte = 0x0F;
 
     // There's no way to make a bit field array, so we have to go tedious.
-    frame->chan0 = sbusOutChannel[0];
-    frame->chan1 = sbusOutChannel[1];
-    frame->chan2 = sbusOutChannel[2];
-    frame->chan3 = sbusOutChannel[3];
-    frame->chan4 = sbusOutChannel[4];
-    frame->chan5 = sbusOutChannel[5];
-    frame->chan6 = sbusOutChannel[6];
-    frame->chan7 = sbusOutChannel[7];
-    frame->chan8 = sbusOutChannel[8];
-    frame->chan9 = sbusOutChannel[9];
-    frame->chan10 = sbusOutChannel[10];
-    frame->chan11 = sbusOutChannel[11];
-    frame->chan12 = sbusOutChannel[12];
-    frame->chan13 = sbusOutChannel[13];
-    frame->chan14 = sbusOutChannel[14];
-    frame->chan15 = sbusOutChannel[15];
+    frame->chan0 = channels[0];
+    frame->chan1 = channels[1];
+    frame->chan2 = channels[2];
+    frame->chan3 = channels[3];
+    frame->chan4 = channels[4];
+    frame->chan5 = channels[5];
+    frame->chan6 = channels[6];
+    frame->chan7 = channels[7];
+    frame->chan8 = channels[8];
+    frame->chan9 = channels[9];
+    frame->chan10 = channels[10];
+    frame->chan11 = channels[11];
+    frame->chan12 = channels[12];
+    frame->chan13 = channels[13];
+    frame->chan14 = channels[14];
+    frame->chan15 = channels[15];
 
-    frame->flags = sbusOutChannel[16] ? 0x01 : 0x00;
-    frame->flags += sbusOutChannel[17] ? 0x02 : 0x00;
+    frame->flags = channels[16] ? 0x01 : 0x00;
+    frame->flags += channels[17] ? 0x02 : 0x00;
     // Other flags?
 
     frame->endByte = 0;
+}
+
+float sbusOutGetPwmRX(uint8_t channel) {
+    if (channel <= MAX_SUPPORTED_RC_CHANNEL_COUNT)
+        return rcChannel[channel];
+    return 0;
+}
+
+float sbusOutGetPwmMixer(uint8_t channel) {
+    UNUSED(channel);
+    return 0;
+}
+
+float sbusOutGetPwmServo(uint8_t channel) {
+    UNUSED(channel);
+    return 0;
+}
+
+STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
+    const uint8_t source_type = sbusOutConfig(channel)->sourceType;
+    const uint8_t source_channel = sbusOutConfig(channel)->sourceChannel;
+    switch (source_type) {
+        case SBUS_OUT_SOURCE_RX: 
+            return sbusOutGetPwmRX(source_channel);
+        case SBUS_OUT_SOURCE_MIXER: 
+            return sbusOutGetPwmMixer(source_channel);
+        case SBUS_OUT_SOURCE_SERVO: 
+            return sbusOutGetPwmServo(source_channel);
+    }
+    return 0;
+}
+
+STATIC_UNIT_TESTED uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm) {
+    const uint16_t min = sbusOutConfig(channel)->min;
+    const uint16_t max = sbusOutConfig(channel)->max;
+    const float value = scaleRangef(pwm, 1000, 2000, min, max);
+    // round and bound values
+    if (channel >= 16) {
+        return constrain(value + 0.5, 0, 1);
+    }
+    return constrain(value + 0.5, 0, (1 << 11) -1);
+
 }
 
 void sbusOutUpdate(timeUs_t currentTimeUs) {
@@ -82,7 +111,13 @@ void sbusOutUpdate(timeUs_t currentTimeUs) {
         /* Tx interval check */ currentTimeUs - sbusOutLastTxTimeUs >
                                 sbusOutTxIntervalUs) {
         sbusOutFrame_t frame;
-        sbusOutPrepareSbusFrame(&frame);
+        uint16_t channels[SBUS_OUT_CHANNELS];
+        for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++) {
+            float value = sbusOutGetPwm(ch);
+            channels[ch] = sbusOutPwmToSbus(ch, value);
+        }
+        sbusOutPrepareSbusFrame(&frame, channels);
+
         // serial output
         serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
         sbusOutLastTxTimeUs = currentTimeUs;
@@ -90,8 +125,6 @@ void sbusOutUpdate(timeUs_t currentTimeUs) {
 }
 
 void sbusOutInit() {
-    memset(sbusOutChannel, 0, sizeof(sbusOutChannel));
-
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_SBUS_OUT);
 
@@ -104,17 +137,4 @@ void sbusOutInit() {
         portConfig->identifier, FUNCTION_SBUS_OUT, NULL, NULL, 100000, MODE_TX,
         SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN | SERIAL_INVERTED |
             SERIAL_BIDIR | SERIAL_NOSWAP);
-}
-
-uint16_t sbusOutPwmToSbus(sbusOutChannel_t *channel, float pwm) {
-    // This conversion doesn't work for narrow band servo channels.
-    // Need user feedback on how this should be used.
-    if (*channel >= 1 && *channel <= 16) {
-        //  For full-scale channels, [192 - 1792] maps to [1000 - 2000]
-        return constrainf(scaleRangef(pwm, 1000, 2000, 192, 1792), 0, 2047);
-    }
-    if (*channel >= 17 && *channel <= 18) {
-        return (pwm > 1500);
-    }
-    return 0;
 }

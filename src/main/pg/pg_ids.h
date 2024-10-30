@@ -85,6 +85,7 @@
 // Driver configuration
 #define PG_DRIVER_PWM_RX_CONFIG 100 // does not exist in betaflight
 #define PG_DRIVER_FLASHCHIP_CONFIG 101 // does not exist in betaflight
+#define PG_DRIVER_SBUS_OUT_CONFIG 102 // does not exist in betaflight
 
 
 // cleanflight v2 specific parameter group ids start at 256

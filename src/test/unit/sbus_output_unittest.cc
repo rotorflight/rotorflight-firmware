@@ -16,15 +16,21 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 extern "C" {
 #include "drivers/sbus_output.h"
 #include "io/serial.h"
+#include "pg/sbus_output.h"
 
-extern uint16_t sbusOutChannel[SBUS_OUT_CHANNELS];
 extern serialPort_t *sbusOutPort;
 extern timeUs_t sbusOutLastTxTimeUs;
-void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame);
+extern void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels);
+extern void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config);
+
+float rcChannel[18];
+extern float sbusOutGetPwm(uint8_t channel);
+extern uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm);
 }
 
 #include <gmock/gmock.h>
@@ -83,22 +89,31 @@ using ::testing::Return;
 using ::testing::StrictMock;
 
 // Start testing
-TEST(SBusOutInit, Memset) {
-    StrictMock<MockInterface> mock;
-    g_mock = &mock;
-    EXPECT_CALL(mock, findSerialPortConfig);
+TEST(SBusOutInit, ConfigReset) {
+    // We will use the real config variable
+    sbusOutConfigChannel_t *channel_config = sbusOutConfigMutable(0);
 
-    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-        sbusOutChannel[i] = 0xff;
+    pgResetFn_sbusOutConfig(channel_config);
+
+    // Source Type (All SBUS_OUT_SOURCE_RX)
+    for (int i = 0; i < 18; i++) {
+        EXPECT_EQ(channel_config[i].sourceType, SBUS_OUT_SOURCE_RX);
     }
-
-    sbusOutInit();
-
-    // Expectations:
-    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-        EXPECT_EQ(sbusOutChannel[i], 0);
+    // Source Channel
+    for (int i = 0; i < 18; i++) {
+        EXPECT_EQ(channel_config[i].sourceChannel, i);
+    }
+    // Min max
+    for (int i = 0; i < 16; i++) {
+        EXPECT_EQ(channel_config[i].min, 192);
+        EXPECT_EQ(channel_config[i].max, 1792);
+    }
+    for (int i = 16; i < 18; i++) {
+        EXPECT_EQ(channel_config[i].min, 0);
+        EXPECT_EQ(channel_config[i].max, 1);
     }
 }
+
 TEST(SBusOutInit, GoodPath) {
     StrictMock<MockInterface> mock;
     g_mock = &mock;
@@ -130,42 +145,27 @@ TEST(SBusOutInit, NoPortConfig) {
     sbusOutUpdate(0);
 }
 
-TEST(SBusOutConfig, OutOfBound) {
-    StrictMock<MockInterface> mock;
-    g_mock = &mock;
-    EXPECT_CALL(mock, findSerialPortConfig);
-
-    sbusOutInit();
-    sbusOutChannel_t channel;
-    sbusOutConfig(&channel, 66);
-    // Invalid channels are all reset to internal value 0.
-    EXPECT_EQ(channel, 0);
-    // This should not crash by AddressSanitizer.
-    // However, AddressSanitizer isn't configured. This technically is not
-    // testing anything.
-    sbusOutSetOutput(&channel, 22);
-}
-
 class SBusOutTestBase : public ::testing::Test {
   public:
     void SetUp() override {
+        // Reset config for testing
+        sbusOutConfigChannel_t *channel_config = sbusOutConfigMutable(0);
+        pgResetFn_sbusOutConfig(channel_config);
+
+        // Reset timer for testing
+        sbusOutLastTxTimeUs = 0;
+
+        // Call Init()
         g_mock = &mock_;
         EXPECT_CALL(mock_, findSerialPortConfig)
             .WillOnce(Return(&fake_port_config_));
         EXPECT_CALL(mock_, openSerialPort).WillOnce(Return(&fake_port_));
 
         sbusOutInit();
-
-        for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-            // sbusOutConfig uses 1-based channel number.
-            sbusOutConfig(&channels_[i], i + 1);
-        }
-
-        // Reset timer for testing
-        sbusOutLastTxTimeUs = 0;
     }
 
-    sbusOutChannel_t channels_[SBUS_OUT_CHANNELS];
+    // Internal storage to help testing
+    uint16_t channels_[SBUS_OUT_CHANNELS];
 
     // Helper function to extract bits.
     uint16_t GetBits(uint8_t *buffer, size_t begin_bit, size_t length) {
@@ -194,29 +194,51 @@ class SBusOutTestBase : public ::testing::Test {
     StrictMock<MockInterface> mock_;
 };
 
+class SBusOutSourceMapping : public SBusOutTestBase {};
+
+TEST_F(SBusOutSourceMapping, SourceRX) {
+
+    // Prepare rcChannel i value = 2i
+    for (int i = 0; i < 18; i++) {
+        rcChannel[i] = i * 2;
+    }
+
+    // By default input channel x is mapped to output channel x
+    for (int i = 0; i < 18; i++) {
+        EXPECT_EQ(sbusOutGetPwm(i), i * 2);
+    }
+
+    // Change channel mapping to reversed:
+    for (int i = 0; i < 18; i++) {
+        sbusOutConfigMutable(i)->sourceChannel = 18 - i - 1;
+    }
+
+    for (int i = 0; i < 18; i++) {
+        EXPECT_EQ(sbusOutGetPwm(i), (18 - i - 1) * 2);
+    }
+}
+
+// Test all channels in the frame construct
 // Test param is: <channel, value>
-class SBusOutChannelSweep
+class SBusOutFrameSweep
     : public SBusOutTestBase,
       public testing::WithParamInterface<std::tuple<int, int>> {};
 
-TEST_P(SBusOutChannelSweep, FrameConstruct) {
+TEST_P(SBusOutFrameSweep, FrameConstruct) {
     const uint8_t channel = std::get<0>(GetParam());
     const uint16_t value = std::get<1>(GetParam());
 
     // Set value through API.
-    sbusOutSetOutput(&channels_[channel], value);
+    channels_[channel] = value;
 
     // Generate frame
     union {
         sbusOutFrame_t frame;
         uint8_t bytes[25];
     } buffer;
-    sbusOutPrepareSbusFrame(&buffer.frame);
+    sbusOutPrepareSbusFrame(&buffer.frame, channels_);
 
     // Expectations:
-    // Check the internal storage.
-    EXPECT_EQ(sbusOutChannel[channel], value);
-
     // Check the value in the frame
     size_t offset;
     size_t length;
@@ -238,19 +260,19 @@ TEST_P(SBusOutChannelSweep, FrameConstruct) {
     EXPECT_EQ(value, value_in_frame);
 }
 
-// Test channel 1 with all possible values.
-INSTANTIATE_TEST_SUITE_P(ChannelOneValueSweep, SBusOutChannelSweep,
+// Test channel 0 with all possible values.
+INSTANTIATE_TEST_SUITE_P(ChannelOneValueSweep, SBusOutFrameSweep,
                          testing::Combine(testing::Values(0),
                                           testing::Range(0, (1 << 11) - 1)));
 
 // Test all channels with a few extreme values (to save time).
-INSTANTIATE_TEST_SUITE_P(FullScaleChannelSweep, SBusOutChannelSweep,
+INSTANTIATE_TEST_SUITE_P(FullScale, SBusOutFrameSweep,
                          testing::Combine(testing::Range(0, 16),
                                           testing::Values(0, 4,
                                                           (1 << 11) - 1)));
 
 // Test all on-off channels.
-INSTANTIATE_TEST_SUITE_P(OnOffChannelSweep, SBusOutChannelSweep,
+INSTANTIATE_TEST_SUITE_P(OnOff, SBusOutFrameSweep,
                          testing::Combine(testing::Values(16, 17),
                                           testing::Values(0, 1)));
 
@@ -258,13 +280,13 @@ class SBusOutPWMToSBusTest : public SBusOutTestBase {};
 
 TEST_F(SBusOutPWMToSBusTest, OutOfBoundValues) {
     uint16_t sbus;
-    sbus = sbusOutPwmToSbus(&channels_[0], 0);
+    sbus = sbusOutPwmToSbus(0, -1);
     EXPECT_EQ(sbus, 0);
-    sbus = sbusOutPwmToSbus(&channels_[0], UINT16_MAX);
+    sbus = sbusOutPwmToSbus(0, 4000);
     EXPECT_EQ(sbus, (1 << 11) - 1);
-    sbus = sbusOutPwmToSbus(&channels_[16], 0);
+    sbus = sbusOutPwmToSbus(16, -1);
     EXPECT_EQ(sbus, 0);
-    sbus = sbusOutPwmToSbus(&channels_[16], UINT16_MAX);
+    sbus = sbusOutPwmToSbus(16, 4000);
     EXPECT_EQ(sbus, 1);
 }
 
@@ -274,7 +296,7 @@ class SBusOutPWMToSBusSweep : public SBusOutPWMToSBusTest,
 
 TEST_P(SBusOutPWMToSBusSweep, FullScaleChannel) {
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(&channels_[0], pwm);
+    uint16_t sbus = sbusOutPwmToSbus(3, pwm);
     // sbus: [192, 1792]
     // pwm: [1000, 2000]
     float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
@@ -285,13 +307,16 @@ TEST_P(SBusOutPWMToSBusSweep, FullScaleChannel) {
 
 TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(&channels_[16], pwm);
-    // This is a DRY test but I don't have a better way.
+    uint16_t sbus = sbusOutPwmToSbus(17, pwm);
+    // Skip 1500 (mid point)
+    if (pwm == 1500)
+        GTEST_SKIP();
+
     EXPECT_EQ(sbus, pwm > 1500 ? 1 : 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
-                         testing::Range(1000, 2000));
+                         testing::Range(1000, 2001));
 
 class SBusOutSerialTest : public SBusOutTestBase {};
 
@@ -335,18 +360,17 @@ TEST_F(SBusOutSerialTest, TimeWrap) {
 }
 
 TEST_F(SBusOutSerialTest, SerialFormat) {
-    static const uint8_t expected_data[25] = {
-        0x0f, 0x00, 0x08, 0x80, 0x00, 0x06, 0x40, 0x80, 0x02,
-        0x18, 0xe0, 0x00, 0x08, 0x48, 0x80, 0x02, 0x16, 0xc0,
-        0x80, 0x06, 0x38, 0xe0, 0x01, 0x01, 0x00};
     for (int i = 0; i < 16; ++i) {
-        sbusOutSetOutput(&channels_[i], i);
+        rcChannel[i] = 1000 + i * 2;
     }
-    sbusOutSetOutput(&channels_[16], 1);
-    sbusOutSetOutput(&channels_[17], 0);
-
-    sbusOutFrame_t frame;
-    sbusOutPrepareSbusFrame(&frame);
+    rcChannel[16] = 1000;
+    rcChannel[17] = 2000;
+    // This is a matching buffer verified externally
+    static const uint8_t expected_data[25] = {
+        0x0f, 0xc0, 0x18, 0x86, 0x31, 0x94, 0xd1, 0x0c, 0x68,
+        0x4c, 0xc3, 0x1a, 0xda, 0xe8, 0x06, 0x38, 0xc6, 0x61,
+        0x0e, 0x75, 0xb4, 0x03, 0x1e, 0x02, 0x00,
+    };
 
     EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_)).WillOnce(Return(50));
     EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _))
