@@ -19,6 +19,7 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include "build/build_config.h"
 #include "platform.h"
@@ -29,6 +30,7 @@
 #include "io/serial.h"
 #include "pg/sbus_output.h"
 #include "rx/rx.h"
+#include "flight/mixer.h"
 
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
 STATIC_UNIT_TESTED timeUs_t sbusOutLastTxTimeUs = 0;
@@ -62,31 +64,33 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t 
 }
 
 float sbusOutGetPwmRX(uint8_t channel) {
-    if (channel <= MAX_SUPPORTED_RC_CHANNEL_COUNT)
+    if (channel < MAX_SUPPORTED_RC_CHANNEL_COUNT)
         return rcChannel[channel];
     return 0;
 }
 
 float sbusOutGetPwmMixer(uint8_t channel) {
-    UNUSED(channel);
+    if (channel < MIXER_OUTPUT_COUNT)
+        return mixerGetOutput(channel);
     return 0;
 }
 
 float sbusOutGetPwmServo(uint8_t channel) {
-    UNUSED(channel);
+    if (channel < MAX_SUPPORTED_SERVOS)
+        return getServoOutput(channel);
     return 0;
 }
 
 STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
     const uint8_t source_type = sbusOutConfig(channel)->sourceType;
-    const uint8_t source_channel = sbusOutConfig(channel)->sourceChannel;
+    const uint8_t source_index = sbusOutConfig(channel)->sourceIndex;
     switch (source_type) {
         case SBUS_OUT_SOURCE_RX: 
-            return sbusOutGetPwmRX(source_channel);
+            return sbusOutGetPwmRX(source_index);
         case SBUS_OUT_SOURCE_MIXER: 
-            return sbusOutGetPwmMixer(source_channel);
+            return sbusOutGetPwmMixer(source_index);
         case SBUS_OUT_SOURCE_SERVO: 
-            return sbusOutGetPwmServo(source_channel);
+            return sbusOutGetPwmServo(source_index);
     }
     return 0;
 }
@@ -97,9 +101,9 @@ STATIC_UNIT_TESTED uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm) {
     const float value = scaleRangef(pwm, 1000, 2000, min, max);
     // round and bound values
     if (channel >= 16) {
-        return constrain(value + 0.5, 0, 1);
+        return constrain(nearbyintf(value), 0, 1);
     }
-    return constrain(value + 0.5, 0, (1 << 11) -1);
+    return constrain(nearbyintf(value), 0, (1 << 11) -1);
 
 }
 
