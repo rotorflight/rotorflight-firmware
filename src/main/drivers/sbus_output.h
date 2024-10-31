@@ -32,7 +32,7 @@ typedef enum {
 
 typedef struct sbusOutConfigChannel_s{
     sbusOutSourceType_e sourceType:4;
-    uint8_t sourceChannel:6;
+    uint8_t sourceIndex:6;  // channel index, rule index or servo index.
     uint16_t min:11;  // 1000us maps to value x
     uint16_t max:11;  // 2000us maps to value y
 } sbusOutConfigChannel_t;

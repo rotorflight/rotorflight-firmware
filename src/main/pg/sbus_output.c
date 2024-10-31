@@ -32,9 +32,9 @@ void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config) {
         config[i].max = 1;
     }
 
-    // Set default source
+    // Set default source (passthrough)
     for (int i = 0; i < SBUS_OUT_CHANNELS; ++i) {
         config[i].sourceType = SBUS_OUT_SOURCE_RX; 
-        config[i].sourceChannel = i;
+        config[i].sourceIndex = i;
     }
 }

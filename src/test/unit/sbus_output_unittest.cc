@@ -22,13 +22,13 @@ extern "C" {
 #include "drivers/sbus_output.h"
 #include "io/serial.h"
 #include "pg/sbus_output.h"
+#include "flight/mixer.h"
 
 extern serialPort_t *sbusOutPort;
 extern timeUs_t sbusOutLastTxTimeUs;
 extern void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels);
 extern void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config);
 
-float rcChannel[18];
 extern float sbusOutGetPwm(uint8_t channel);
 extern uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm);
 }
@@ -60,8 +60,11 @@ class MockInterface {
                 ());
     MOCK_METHOD(void, serialWriteBuf,
                 (serialPort_t * instance, const uint8_t *data, int count), ());
+    MOCK_METHOD(float, mixerGetOutput, (uint8_t index), ());
+    MOCK_METHOD(uint16_t, getServoOutput, (uint8_t index), ());
 } *g_mock = nullptr;
 
+extern "C" {
 const serialPortConfig_t *findSerialPortConfig(serialPortFunction_e function) {
     return g_mock->findSerialPortConfig(function);
 }
@@ -83,6 +86,15 @@ void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
     g_mock->serialWriteBuf(instance, data, count);
 }
 
+float rcChannel[18];
+float mixerGetOutput(uint8_t index) {
+    return g_mock->mixerGetOutput(index);
+}
+uint16_t getServoOutput(uint8_t index) {
+    return g_mock->getServoOutput(index);
+}
+}
+
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
@@ -101,7 +113,7 @@ TEST(SBusOutInit, ConfigReset) {
     }
     // Source Channel
     for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(channel_config[i].sourceChannel, i);
+        EXPECT_EQ(channel_config[i].sourceIndex, i);
     }
     // Min max
     for (int i = 0; i < 16; i++) {
@@ -155,6 +167,9 @@ class SBusOutTestBase : public ::testing::Test {
         // Reset timer for testing
         sbusOutLastTxTimeUs = 0;
 
+        // Reset rcChannel
+        memset(rcChannel, 0, sizeof(rcChannel));
+
         // Call Init()
         g_mock = &mock_;
         EXPECT_CALL(mock_, findSerialPortConfig)
@@ -194,29 +209,63 @@ class SBusOutTestBase : public ::testing::Test {
     StrictMock<MockInterface> mock_;
 };
 
-class SBusOutSourceMapping : public SBusOutTestBase {};
+// Test param: 
+// <int, int> -> sbus_channel, source_index
+// Different source_type is expanded in different TEST_P
+class SBusOutSourceMapping : public SBusOutTestBase,
+                             public testing::WithParamInterface<
+                                 std::tuple<int, int>> {};
 
-TEST_F(SBusOutSourceMapping, SourceRX) {
+TEST_P(SBusOutSourceMapping, SourceRX) {
+    uint8_t sbus_channel = std::get<0>(GetParam());
+    uint8_t source_index = std::get<1>(GetParam());
+    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_RX;
+    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
+    
+    constexpr float kFakeValue = 1234.56f;
+    rcChannel[source_index] = kFakeValue;
+    
+    EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+}
 
-    // Prepare rcChannel i value = 2i
-    for (int i = 0; i < 18; i++) {
-        rcChannel[i] = i * 2;
-    }
+TEST_P(SBusOutSourceMapping, SourceMixer) {
+    uint8_t sbus_channel = std::get<0>(GetParam());
+    uint8_t source_index = std::get<1>(GetParam());
+    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_MIXER;
+    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
 
-    // By default input channel x is mapped to output channel x
-    for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(sbusOutGetPwm(i), i * 2);
-    }
+    constexpr float kFakeValue = 1234.56f;
 
-    // Change channel mapping to reversed:
-    for (int i = 0; i < 18; i++) {
-        sbusOutConfigMutable(i)->sourceChannel = 18 - i - 1;
-    }
-
-    for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(sbusOutGetPwm(i), (18 - i - 1) * 2);
+    if (source_index < MIXER_OUTPUT_COUNT) {
+        EXPECT_CALL(mock_, mixerGetOutput(source_index))
+            .WillOnce(Return(kFakeValue));
+        EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+    } else {
+        EXPECT_EQ(sbusOutGetPwm(sbus_channel), 0);
     }
 }
+
+TEST_P(SBusOutSourceMapping, SourceServo) {
+    uint8_t sbus_channel = std::get<0>(GetParam());
+    uint8_t source_index = std::get<1>(GetParam());
+    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_SERVO;
+    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
+
+    constexpr uint16_t kFakeValue = 14285;
+
+    if (source_index < MAX_SUPPORTED_SERVOS) {
+        EXPECT_CALL(mock_, getServoOutput(source_index))
+            .WillOnce(Return(kFakeValue));
+        EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+    } else {
+        EXPECT_EQ(sbusOutGetPwm(sbus_channel), 0);
+    }
+}
+
+// Test 18x18 combinations. This will also include out of bound indexes.
+INSTANTIATE_TEST_SUITE_P(SourceMappingSweep, SBusOutSourceMapping,
+                         testing::Combine(testing::Range(0, 18),
+                                          testing::Range(0, 18)));
 
 // Test all channels in the frame construct
 // Test param is: <channel, value>
