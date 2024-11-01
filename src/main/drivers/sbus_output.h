@@ -19,23 +19,8 @@
 
 #include "platform.h"
 
-#include "common/utils.h"
 #include "common/time.h"
-
-#define SBUS_OUT_CHANNELS   18
-
-typedef enum {
-    SBUS_OUT_SOURCE_RX = 0,
-    SBUS_OUT_SOURCE_MIXER = 1,
-    SBUS_OUT_SOURCE_SERVO = 2
-} sbusOutSourceType_e;
-
-typedef struct sbusOutConfigChannel_s{
-    sbusOutSourceType_e sourceType:4;
-    uint8_t sourceIndex:6;  // channel index, rule index or servo index.
-    uint16_t min:11;  // 1000us maps to value x
-    uint16_t max:11;  // 2000us maps to value y
-} sbusOutConfigChannel_t;
+#include "common/utils.h"
 
 // Define the sbus frame struct. Let's not reuse the one in the rx/ so we
 // don't have to link them together in the unit test.

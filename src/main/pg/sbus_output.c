@@ -15,26 +15,23 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "pg/pg_ids.h"
 #include "pg/sbus_output.h"
+#include "pg/pg_ids.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(sbusOutConfigChannel_t, SBUS_OUT_CHANNELS, sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
+PG_REGISTER_ARRAY_WITH_RESET_FN(sbusOutConfigChannel_t, SBUS_OUT_CHANNELS,
+                                sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
 
 void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config) {
     // Set default min max
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < SBUS_OUT_CHANNELS; ++i) {
         // full range channels
-        config[i].min = 192;
-        config[i].max = 1792;
-    }
-    for (int i = 16; i < SBUS_OUT_CHANNELS; ++i) {
-        config[i].min = 0;
-        config[i].max = 1;
+        config[i].min = 1000;
+        config[i].max = 2000;
     }
 
     // Set default source (passthrough)
     for (int i = 0; i < SBUS_OUT_CHANNELS; ++i) {
-        config[i].sourceType = SBUS_OUT_SOURCE_RX; 
+        config[i].sourceType = SBUS_OUT_SOURCE_RX;
         config[i].sourceIndex = i;
     }
 }
