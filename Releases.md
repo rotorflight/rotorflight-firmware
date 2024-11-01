@@ -1,3 +1,68 @@
+# 4.4.0-RC1
+
+This is the _first Release Candidate_ of the Rotorflight 2.1 firmware.
+
+**NOTE** The final 4.4.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0-RC1)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0-RC1)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0-RC1)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0-RC1)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0-RC1)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration dump from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.3.0
+
+- Add Custom ELRS telemetry
+- Add Swashplate indications
+- Add SBUS2 support
+- Add Graupner ESC telemetry
+- Add ESC telemetry and programming for FlyRotor ESC
+- Add ESC telemetry to Blackbox
+- Add Tx/Rx pinswap options for serial ports
+- Add RPM (freq) input edge and pull parameters
+- Add model_id and MSP_PILOT_CONFIG for Lua integration
+- Add more SmartPort sensors
+- Add gov_min_throttle for nitro
+- Improved PID defaults
+- Improved Rates defaults
+- Improved Cyclic Cross-Coupling
+- Improved Rates acceleration and response filter
+- Improvements in BB headers
+- Fix adjfunction initilisation bug
+- Fix RPM filter update rate calculation
+- Better battery voltage filtering
+- Add Adjustments for ACC trims
+- Various CMS fixes
+
+## Changes from 4.4.0-20240929
+
+- Enable Dyn.Notch filters by default
+- More SmartPort sensors
+- Add Graupner ESC telemetry
+- Fix a few bugs in ELRS custom telemetry
+- Remove exponent from gov precomps
+- Allow RPM filter Q up to 25.0
+- Better Cyclic Cross-Coupling defaults
+- Add gov_min_throttle for nitro
+- Use PT2 filter in governor
+
+
+***
+
 # 4.4.0-20240929
 
 This is a _development snapshot_ of the Rotorflight 2.1 firmware.
