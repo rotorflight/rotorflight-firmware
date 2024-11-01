@@ -17,9 +17,9 @@
 
 #include "sbus_output.h"
 
+#include <math.h>
 #include <stdbool.h>
 #include <string.h>
-#include <math.h>
 
 #include "build/build_config.h"
 #include "platform.h"
@@ -27,15 +27,16 @@
 #include "common/maths.h"
 #include "common/time.h"
 
+#include "flight/mixer.h"
 #include "io/serial.h"
 #include "pg/sbus_output.h"
 #include "rx/rx.h"
-#include "flight/mixer.h"
 
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
 STATIC_UNIT_TESTED timeUs_t sbusOutLastTxTimeUs = 0;
 
-STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels) {
+STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
+                                                uint16_t *channels) {
     frame->syncByte = 0x0F;
 
     // There's no way to make a bit field array, so we have to go tedious.
@@ -85,12 +86,12 @@ STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
     const uint8_t source_type = sbusOutConfig(channel)->sourceType;
     const uint8_t source_index = sbusOutConfig(channel)->sourceIndex;
     switch (source_type) {
-        case SBUS_OUT_SOURCE_RX: 
-            return sbusOutGetPwmRX(source_index);
-        case SBUS_OUT_SOURCE_MIXER: 
-            return sbusOutGetPwmMixer(source_index);
-        case SBUS_OUT_SOURCE_SERVO: 
-            return sbusOutGetPwmServo(source_index);
+    case SBUS_OUT_SOURCE_RX:
+        return sbusOutGetPwmRX(source_index);
+    case SBUS_OUT_SOURCE_MIXER:
+        return sbusOutGetPwmMixer(source_index);
+    case SBUS_OUT_SOURCE_SERVO:
+        return sbusOutGetPwmServo(source_index);
     }
     return 0;
 }
@@ -98,22 +99,22 @@ STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
 STATIC_UNIT_TESTED uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm) {
     const uint16_t min = sbusOutConfig(channel)->min;
     const uint16_t max = sbusOutConfig(channel)->max;
-    const float value = scaleRangef(pwm, 1000, 2000, min, max);
     // round and bound values
     if (channel >= 16) {
+        const float value = scaleRangef(pwm, min, max, 0, 1);
         return constrain(nearbyintf(value), 0, 1);
     }
-    return constrain(nearbyintf(value), 0, (1 << 11) -1);
-
+    const float value = scaleRangef(pwm, min, max, 192, 1792);
+    return constrain(nearbyintf(value), 0, (1 << 11) - 1);
 }
 
 void sbusOutUpdate(timeUs_t currentTimeUs) {
     static const timeUs_t sbusOutTxIntervalUs = 6000;
-    if (sbusOutPort && 
+    if (sbusOutPort &&
         /* Tx Buff is free */ serialTxBytesFree(sbusOutPort) >
-                              sizeof(sbusOutFrame_t) &&
+            sizeof(sbusOutFrame_t) &&
         /* Tx interval check */ currentTimeUs - sbusOutLastTxTimeUs >
-                                sbusOutTxIntervalUs) {
+            sbusOutTxIntervalUs) {
         sbusOutFrame_t frame;
         uint16_t channels[SBUS_OUT_CHANNELS];
         for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++) {

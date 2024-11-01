@@ -20,9 +20,9 @@
 
 extern "C" {
 #include "drivers/sbus_output.h"
+#include "flight/mixer.h"
 #include "io/serial.h"
 #include "pg/sbus_output.h"
-#include "flight/mixer.h"
 
 extern serialPort_t *sbusOutPort;
 extern timeUs_t sbusOutLastTxTimeUs;
@@ -87,12 +87,8 @@ void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
 }
 
 float rcChannel[18];
-float mixerGetOutput(uint8_t index) {
-    return g_mock->mixerGetOutput(index);
-}
-uint16_t getServoOutput(uint8_t index) {
-    return g_mock->getServoOutput(index);
-}
+float mixerGetOutput(uint8_t index) { return g_mock->mixerGetOutput(index); }
+uint16_t getServoOutput(uint8_t index) { return g_mock->getServoOutput(index); }
 }
 
 using ::testing::_;
@@ -116,13 +112,9 @@ TEST(SBusOutInit, ConfigReset) {
         EXPECT_EQ(channel_config[i].sourceIndex, i);
     }
     // Min max
-    for (int i = 0; i < 16; i++) {
-        EXPECT_EQ(channel_config[i].min, 192);
-        EXPECT_EQ(channel_config[i].max, 1792);
-    }
-    for (int i = 16; i < 18; i++) {
-        EXPECT_EQ(channel_config[i].min, 0);
-        EXPECT_EQ(channel_config[i].max, 1);
+    for (int i = 0; i < 18; i++) {
+        EXPECT_EQ(channel_config[i].min, 1000);
+        EXPECT_EQ(channel_config[i].max, 2000);
     }
 }
 
@@ -209,22 +201,22 @@ class SBusOutTestBase : public ::testing::Test {
     StrictMock<MockInterface> mock_;
 };
 
-// Test param: 
+// Test param:
 // <int, int> -> sbus_channel, source_index
 // Different source_type is expanded in different TEST_P
-class SBusOutSourceMapping : public SBusOutTestBase,
-                             public testing::WithParamInterface<
-                                 std::tuple<int, int>> {};
+class SBusOutSourceMapping
+    : public SBusOutTestBase,
+      public testing::WithParamInterface<std::tuple<int, int>> {};
 
 TEST_P(SBusOutSourceMapping, SourceRX) {
     uint8_t sbus_channel = std::get<0>(GetParam());
     uint8_t source_index = std::get<1>(GetParam());
     sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_RX;
     sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
-    
+
     constexpr float kFakeValue = 1234.56f;
     rcChannel[source_index] = kFakeValue;
-    
+
     EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
 }
 
@@ -366,6 +358,40 @@ TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
 
 INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
                          testing::Range(1000, 2001));
+
+// Test param = PWM value
+class SBusOutNarrowbandPWMToSBusSweep : public SBusOutPWMToSBusSweep {};
+
+TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
+    sbusOutConfigMutable(4)->min = 500;
+    sbusOutConfigMutable(4)->max = 1000;
+    // sbus: [192, 1792]
+    // pwm: [500, 1000]
+
+    const uint16_t pwm = GetParam();
+    uint16_t sbus = sbusOutPwmToSbus(4, pwm);
+    float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
+    float pwmf = (pwm - 500.0f) / (1000 - 500 + 1);
+    const float resolution = 1.0f / (1000 - 500 + 1);
+    EXPECT_NEAR(sbusf, pwmf, resolution);
+}
+
+TEST_P(SBusOutNarrowbandPWMToSBusSweep, OnOffConversion) {
+    sbusOutConfigMutable(16)->min = 500;
+    sbusOutConfigMutable(16)->max = 1000;
+
+    const uint16_t pwm = GetParam();
+    uint16_t sbus = sbusOutPwmToSbus(16, pwm);
+    // Skip 750 (mid point)
+    if (pwm == 750)
+        GTEST_SKIP();
+
+    EXPECT_EQ(sbus, pwm > 750 ? 1 : 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(NarrowbandPWMConversionSweep,
+                         SBusOutNarrowbandPWMToSBusSweep,
+                         testing::Range(500, 1001));
 
 class SBusOutSerialTest : public SBusOutTestBase {};
 

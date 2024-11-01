@@ -18,8 +18,24 @@
 #pragma once
 
 #include "pg/pg.h"
-#include "drivers/sbus_output.h"
 
 #define SBUS_OUT_CHANNELS 18
+
+typedef enum {
+    SBUS_OUT_SOURCE_RX = 0,
+    SBUS_OUT_SOURCE_MIXER = 1,
+    SBUS_OUT_SOURCE_SERVO = 2
+} sbusOutSourceType_e;
+
+typedef struct sbusOutConfigChannel_s {
+    sbusOutSourceType_e sourceType;
+    uint8_t sourceIndex; // channel index, rule index or servo index.
+    // source value maps to the min sbus value (192 for full-scale channels or 0
+    // for digital channels). Typically 1000 (us) for wideband servo
+    uint16_t min;
+    // source value maps to the max sbus value (1792 for full-scale channels or
+    // 1 for digital channels). Typically 2000 (us) for wideband servo
+    uint16_t max;
+} sbusOutConfigChannel_t;
 
 PG_DECLARE_ARRAY(sbusOutConfigChannel_t, SBUS_OUT_CHANNELS, sbusOutConfig);
