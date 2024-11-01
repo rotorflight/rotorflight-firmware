@@ -127,6 +127,10 @@ typedef enum {
     ADJUSTMENT_ACC_TRIM_PITCH           = 64,
     ADJUSTMENT_ACC_TRIM_ROLL            = 65,
 
+    // Yaw Inertia precomp
+    ADJUSTMENT_INERTIA_PRECOMP_GAIN     = 66,
+    ADJUSTMENT_INERTIA_PRECOMP_CUTOFF   = 67,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;
 

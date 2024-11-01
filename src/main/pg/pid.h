@@ -166,8 +166,8 @@ typedef struct pidProfile_s {
 
     uint8_t             yaw_cyclic_ff_gain;
     uint8_t             yaw_collective_ff_gain;
-    uint8_t             yaw_collective_dynamic_gain;
-    uint8_t             yaw_collective_dynamic_decay;
+    uint8_t             yaw_inertia_precomp_gain;
+    uint8_t             yaw_inertia_precomp_cutoff;
 
     uint8_t             pitch_collective_ff_gain;
 
