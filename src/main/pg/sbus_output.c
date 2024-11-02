@@ -18,20 +18,13 @@
 #include "pg/sbus_output.h"
 #include "pg/pg_ids.h"
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(sbusOutConfigChannel_t, SBUS_OUT_CHANNELS,
-                                sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
+PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
 
-void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config) {
-    // Set default min max
-    for (int i = 0; i < SBUS_OUT_CHANNELS; ++i) {
-        // full range channels
-        config[i].min = 1000;
-        config[i].max = 2000;
-    }
-
-    // Set default source (passthrough)
-    for (int i = 0; i < SBUS_OUT_CHANNELS; ++i) {
-        config[i].sourceType = SBUS_OUT_SOURCE_RX;
-        config[i].sourceIndex = i;
+void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
+    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
+        config->sourceType[i] = SBUS_OUT_SOURCE_RX;
+        config->sourceIndex[i] = i;
+        config->min[i] = 1000;
+        config->max[i] = 2000;
     }
 }

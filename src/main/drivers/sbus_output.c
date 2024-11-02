@@ -83,8 +83,8 @@ float sbusOutGetPwmServo(uint8_t channel) {
 }
 
 STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
-    const uint8_t source_type = sbusOutConfig(channel)->sourceType;
-    const uint8_t source_index = sbusOutConfig(channel)->sourceIndex;
+    const sbusOutSourceType_e source_type = sbusOutConfig()->sourceType[channel];
+    const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
     switch (source_type) {
     case SBUS_OUT_SOURCE_RX:
         return sbusOutGetPwmRX(source_index);
@@ -97,8 +97,8 @@ STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
 }
 
 STATIC_UNIT_TESTED uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm) {
-    const uint16_t min = sbusOutConfig(channel)->min;
-    const uint16_t max = sbusOutConfig(channel)->max;
+    const uint16_t min = sbusOutConfig()->min[channel];
+    const uint16_t max = sbusOutConfig()->max[channel];
     // round and bound values
     if (channel >= 16) {
         const float value = scaleRangef(pwm, min, max, 0, 1);

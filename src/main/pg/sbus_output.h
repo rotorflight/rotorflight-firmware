@@ -18,6 +18,7 @@
 #pragma once
 
 #include "pg/pg.h"
+#include "common/utils.h"
 
 #define SBUS_OUT_CHANNELS 18
 
@@ -27,15 +28,20 @@ typedef enum {
     SBUS_OUT_SOURCE_SERVO = 2
 } sbusOutSourceType_e;
 
-typedef struct sbusOutConfigChannel_s {
-    sbusOutSourceType_e sourceType;
-    uint8_t sourceIndex; // channel index, rule index or servo index.
+typedef struct sbusOutConfig_s {
+    uint8_t sourceType[SBUS_OUT_CHANNELS];
+
+    // channel index, rule index or servo index.
+    uint8_t sourceIndex[SBUS_OUT_CHANNELS]; 
+
     // source value maps to the min sbus value (192 for full-scale channels or 0
     // for digital channels). Typically 1000 (us) for wideband servo
-    uint16_t min;
+    uint16_t min[SBUS_OUT_CHANNELS];
+
     // source value maps to the max sbus value (1792 for full-scale channels or
     // 1 for digital channels). Typically 2000 (us) for wideband servo
-    uint16_t max;
-} sbusOutConfigChannel_t;
+    uint16_t max[SBUS_OUT_CHANNELS];
 
-PG_DECLARE_ARRAY(sbusOutConfigChannel_t, SBUS_OUT_CHANNELS, sbusOutConfig);
+} sbusOutConfig_t;
+
+PG_DECLARE(sbusOutConfig_t, sbusOutConfig);
