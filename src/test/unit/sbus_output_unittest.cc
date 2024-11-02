@@ -27,7 +27,7 @@ extern "C" {
 extern serialPort_t *sbusOutPort;
 extern timeUs_t sbusOutLastTxTimeUs;
 extern void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels);
-extern void pgResetFn_sbusOutConfig(sbusOutConfigChannel_t *config);
+extern void pgResetFn_sbusOutConfig(sbusOutConfig_t *config);
 
 extern float sbusOutGetPwm(uint8_t channel);
 extern uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm);
@@ -99,22 +99,20 @@ using ::testing::StrictMock;
 // Start testing
 TEST(SBusOutInit, ConfigReset) {
     // We will use the real config variable
-    sbusOutConfigChannel_t *channel_config = sbusOutConfigMutable(0);
-
-    pgResetFn_sbusOutConfig(channel_config);
+    pgResetFn_sbusOutConfig(sbusOutConfigMutable());
 
     // Source Type (All SBUS_OUT_SOURCE_RX)
     for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(channel_config[i].sourceType, SBUS_OUT_SOURCE_RX);
+        EXPECT_EQ(sbusOutConfig()->sourceType[i], SBUS_OUT_SOURCE_RX);
     }
     // Source Channel
     for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(channel_config[i].sourceIndex, i);
+        EXPECT_EQ(sbusOutConfig()->sourceIndex[i], i);
     }
     // Min max
     for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(channel_config[i].min, 1000);
-        EXPECT_EQ(channel_config[i].max, 2000);
+        EXPECT_EQ(sbusOutConfig()->min[i], 1000);
+        EXPECT_EQ(sbusOutConfig()->max[i], 2000);
     }
 }
 
@@ -153,8 +151,7 @@ class SBusOutTestBase : public ::testing::Test {
   public:
     void SetUp() override {
         // Reset config for testing
-        sbusOutConfigChannel_t *channel_config = sbusOutConfigMutable(0);
-        pgResetFn_sbusOutConfig(channel_config);
+        pgResetFn_sbusOutConfig(sbusOutConfigMutable());
 
         // Reset timer for testing
         sbusOutLastTxTimeUs = 0;
@@ -211,8 +208,8 @@ class SBusOutSourceMapping
 TEST_P(SBusOutSourceMapping, SourceRX) {
     uint8_t sbus_channel = std::get<0>(GetParam());
     uint8_t source_index = std::get<1>(GetParam());
-    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_RX;
-    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
+    sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_RX;
+    sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
 
     constexpr float kFakeValue = 1234.56f;
     rcChannel[source_index] = kFakeValue;
@@ -223,8 +220,8 @@ TEST_P(SBusOutSourceMapping, SourceRX) {
 TEST_P(SBusOutSourceMapping, SourceMixer) {
     uint8_t sbus_channel = std::get<0>(GetParam());
     uint8_t source_index = std::get<1>(GetParam());
-    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_MIXER;
-    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
+    sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_MIXER;
+    sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
 
     constexpr float kFakeValue = 1234.56f;
 
@@ -240,8 +237,8 @@ TEST_P(SBusOutSourceMapping, SourceMixer) {
 TEST_P(SBusOutSourceMapping, SourceServo) {
     uint8_t sbus_channel = std::get<0>(GetParam());
     uint8_t source_index = std::get<1>(GetParam());
-    sbusOutConfigMutable(sbus_channel)->sourceType = SBUS_OUT_SOURCE_SERVO;
-    sbusOutConfigMutable(sbus_channel)->sourceIndex = source_index;
+    sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_SERVO;
+    sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
 
     constexpr uint16_t kFakeValue = 14285;
 
@@ -363,8 +360,8 @@ INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
 class SBusOutNarrowbandPWMToSBusSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
-    sbusOutConfigMutable(4)->min = 500;
-    sbusOutConfigMutable(4)->max = 1000;
+    sbusOutConfigMutable()->min[4] = 500;
+    sbusOutConfigMutable()->max[4] = 1000;
     // sbus: [192, 1792]
     // pwm: [500, 1000]
 
@@ -377,8 +374,8 @@ TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
 }
 
 TEST_P(SBusOutNarrowbandPWMToSBusSweep, OnOffConversion) {
-    sbusOutConfigMutable(16)->min = 500;
-    sbusOutConfigMutable(16)->max = 1000;
+    sbusOutConfigMutable()->min[16] = 500;
+    sbusOutConfigMutable()->max[16] = 1000;
 
     const uint16_t pwm = GetParam();
     uint16_t sbus = sbusOutPwmToSbus(16, pwm);
