@@ -29,8 +29,8 @@ extern timeUs_t sbusOutLastTxTimeUs;
 extern void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels);
 extern void pgResetFn_sbusOutConfig(sbusOutConfig_t *config);
 
-extern float sbusOutGetPwm(uint8_t channel);
-extern uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm);
+extern float sbusOutGetChannelValue(uint8_t channel);
+extern uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm);
 }
 
 #include <gmock/gmock.h>
@@ -214,7 +214,7 @@ TEST_P(SBusOutSourceMapping, SourceRX) {
     constexpr float kFakeValue = 1234.56f;
     rcChannel[source_index] = kFakeValue;
 
-    EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+    EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), kFakeValue);
 }
 
 TEST_P(SBusOutSourceMapping, SourceMixer) {
@@ -222,15 +222,17 @@ TEST_P(SBusOutSourceMapping, SourceMixer) {
     uint8_t source_index = std::get<1>(GetParam());
     sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_MIXER;
     sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
+    sbusOutConfigMutable()->min[sbus_channel] = -1000;
+    sbusOutConfigMutable()->max[sbus_channel] = 1000;
 
-    constexpr float kFakeValue = 1234.56f;
+    constexpr float kFakeValue = -0.1234f;
 
     if (source_index < MIXER_OUTPUT_COUNT) {
         EXPECT_CALL(mock_, mixerGetOutput(source_index))
             .WillOnce(Return(kFakeValue));
-        EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), 1000 * kFakeValue);
     } else {
-        EXPECT_EQ(sbusOutGetPwm(sbus_channel), 0);
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), 0);
     }
 }
 
@@ -245,9 +247,9 @@ TEST_P(SBusOutSourceMapping, SourceServo) {
     if (source_index < MAX_SUPPORTED_SERVOS) {
         EXPECT_CALL(mock_, getServoOutput(source_index))
             .WillOnce(Return(kFakeValue));
-        EXPECT_EQ(sbusOutGetPwm(sbus_channel), kFakeValue);
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), kFakeValue);
     } else {
-        EXPECT_EQ(sbusOutGetPwm(sbus_channel), 0);
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), 0);
     }
 }
 
@@ -318,13 +320,13 @@ class SBusOutPWMToSBusTest : public SBusOutTestBase {};
 
 TEST_F(SBusOutPWMToSBusTest, OutOfBoundValues) {
     uint16_t sbus;
-    sbus = sbusOutPwmToSbus(0, -1);
+    sbus = sbusOutConvertToSbus(0, -1);
     EXPECT_EQ(sbus, 0);
-    sbus = sbusOutPwmToSbus(0, 4000);
+    sbus = sbusOutConvertToSbus(0, 4000);
     EXPECT_EQ(sbus, (1 << 11) - 1);
-    sbus = sbusOutPwmToSbus(16, -1);
+    sbus = sbusOutConvertToSbus(16, -1);
     EXPECT_EQ(sbus, 0);
-    sbus = sbusOutPwmToSbus(16, 4000);
+    sbus = sbusOutConvertToSbus(16, 4000);
     EXPECT_EQ(sbus, 1);
 }
 
@@ -334,7 +336,7 @@ class SBusOutPWMToSBusSweep : public SBusOutPWMToSBusTest,
 
 TEST_P(SBusOutPWMToSBusSweep, FullScaleChannel) {
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(3, pwm);
+    uint16_t sbus = sbusOutConvertToSbus(3, pwm);
     // sbus: [192, 1792]
     // pwm: [1000, 2000]
     float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
@@ -345,7 +347,7 @@ TEST_P(SBusOutPWMToSBusSweep, FullScaleChannel) {
 
 TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(17, pwm);
+    uint16_t sbus = sbusOutConvertToSbus(17, pwm);
     // Skip 1500 (mid point)
     if (pwm == 1500)
         GTEST_SKIP();
@@ -366,7 +368,7 @@ TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
     // pwm: [500, 1000]
 
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(4, pwm);
+    uint16_t sbus = sbusOutConvertToSbus(4, pwm);
     float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
     float pwmf = (pwm - 500.0f) / (1000 - 500 + 1);
     const float resolution = 1.0f / (1000 - 500 + 1);
@@ -378,7 +380,7 @@ TEST_P(SBusOutNarrowbandPWMToSBusSweep, OnOffConversion) {
     sbusOutConfigMutable()->max[16] = 1000;
 
     const uint16_t pwm = GetParam();
-    uint16_t sbus = sbusOutPwmToSbus(16, pwm);
+    uint16_t sbus = sbusOutConvertToSbus(16, pwm);
     // Skip 750 (mid point)
     if (pwm == 750)
         GTEST_SKIP();
@@ -389,6 +391,37 @@ TEST_P(SBusOutNarrowbandPWMToSBusSweep, OnOffConversion) {
 INSTANTIATE_TEST_SUITE_P(NarrowbandPWMConversionSweep,
                          SBusOutNarrowbandPWMToSBusSweep,
                          testing::Range(500, 1001));
+
+// Test param = Mixer rule value
+class SBusOutMixerValueToSBusSweep : public SBusOutPWMToSBusSweep {};
+
+TEST_P(SBusOutMixerValueToSBusSweep, FullScaleChannel) {
+    sbusOutConfigMutable()->min[4] = -1000;
+    sbusOutConfigMutable()->max[4] = 1000;
+    // sbus: [192, 1792]
+    // value: [-1000, 1000]
+
+    const int16_t value = GetParam();
+    uint16_t sbus = sbusOutConvertToSbus(4, value);
+    float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
+    float valuef = (value - -1000.0f) / (1000 - -1000 + 1);
+    const float resolution = 1.0f / (1000 - -1000 + 1);
+    EXPECT_NEAR(sbusf, valuef, resolution);
+}
+
+TEST_P(SBusOutMixerValueToSBusSweep, OnOffConversion) {
+    sbusOutConfigMutable()->min[16] = -1000;
+    sbusOutConfigMutable()->max[16] = 1000;
+
+    const int16_t value = GetParam();
+    uint16_t sbus = sbusOutConvertToSbus(16, value);
+
+    EXPECT_EQ(sbus, value > 0 ? 1 : 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(MixerValueConversionSweep,
+                         SBusOutMixerValueToSBusSweep,
+                         testing::Range(-1000, 1001));
 
 class SBusOutSerialTest : public SBusOutTestBase {};
 
