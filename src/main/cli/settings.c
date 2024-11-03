@@ -106,6 +106,7 @@
 #include "pg/stats.h"
 #include "pg/board.h"
 #include "pg/freq.h"
+#include "pg/sbus_output.h"
 
 #include "rx/a7105_flysky.h"
 #include "rx/cc2500_frsky_common.h"
@@ -1738,6 +1739,12 @@ const clivalue_t valueTable[] = {
     { "box_user_3_name", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_BOX_USER_NAME_LENGTH, STRING_FLAGS_NONE }, PG_MODE_ACTIVATION_CONFIG, offsetof(modeActivationConfig_t, box_user_3_name) },
     { "box_user_4_name", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_BOX_USER_NAME_LENGTH, STRING_FLAGS_NONE }, PG_MODE_ACTIVATION_CONFIG, offsetof(modeActivationConfig_t, box_user_4_name) },
 #endif
+
+    { "sbus_out_source_type",  VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceType) },
+    { "sbus_out_source_index", VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceIndex) },
+    { "sbus_out_min",          VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, min) },
+    { "sbus_out_max",          VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, max) },
+
 };
 
 const uint16_t valueTableEntryCount = ARRAYLEN(valueTable);
