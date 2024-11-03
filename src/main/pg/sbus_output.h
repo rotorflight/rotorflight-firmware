@@ -35,12 +35,18 @@ typedef struct sbusOutConfig_s {
     uint8_t sourceIndex[SBUS_OUT_CHANNELS]; 
 
     // source value maps to the min sbus value (192 for full-scale channels or 0
-    // for digital channels). Typically 1000 (us) for wideband servo
-    uint16_t min[SBUS_OUT_CHANNELS];
+    // for digital channels). Typically:
+    //   * 1000 or 988 for receiver channels
+    //   * (need verify) -1000 for mixer rule (treat as -1.0f)
+    //   * 1000 (us) for wideband servo, 500 (us) for narrowband servo
+    int16_t min[SBUS_OUT_CHANNELS];
 
     // source value maps to the max sbus value (1792 for full-scale channels or
-    // 1 for digital channels). Typically 2000 (us) for wideband servo
-    uint16_t max[SBUS_OUT_CHANNELS];
+    // 1 for digital channels). Typically:
+    //   * 2000 or 2012 for receiver channels
+    //   * (need verify) +1000 for mixer rule (treat as +1.0f)
+    //   * 2000 (us) for wideband servo, 1000 (us) for narrowband servo
+    int16_t max[SBUS_OUT_CHANNELS];
 
 } sbusOutConfig_t;
 

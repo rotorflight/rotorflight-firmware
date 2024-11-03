@@ -22,14 +22,12 @@
 #include <string.h>
 
 #include "build/build_config.h"
-#include "platform.h"
-
 #include "common/maths.h"
 #include "common/time.h"
-
 #include "flight/mixer.h"
 #include "io/serial.h"
 #include "pg/sbus_output.h"
+#include "platform.h"
 #include "rx/rx.h"
 
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
@@ -70,9 +68,10 @@ float sbusOutGetPwmRX(uint8_t channel) {
     return 0;
 }
 
-float sbusOutGetPwmMixer(uint8_t channel) {
+// Note: this returns -1000 - 1000 range
+float sbusOutGetValueMixer(uint8_t channel) {
     if (channel < MIXER_OUTPUT_COUNT)
-        return mixerGetOutput(channel);
+        return 1000.0f * mixerGetOutput(channel);
     return 0;
 }
 
@@ -82,23 +81,25 @@ float sbusOutGetPwmServo(uint8_t channel) {
     return 0;
 }
 
-STATIC_UNIT_TESTED float sbusOutGetPwm(uint8_t channel) {
-    const sbusOutSourceType_e source_type = sbusOutConfig()->sourceType[channel];
+STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel) {
+    const sbusOutSourceType_e source_type =
+        sbusOutConfig()->sourceType[channel];
     const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
     switch (source_type) {
-    case SBUS_OUT_SOURCE_RX:
-        return sbusOutGetPwmRX(source_index);
-    case SBUS_OUT_SOURCE_MIXER:
-        return sbusOutGetPwmMixer(source_index);
-    case SBUS_OUT_SOURCE_SERVO:
-        return sbusOutGetPwmServo(source_index);
+        case SBUS_OUT_SOURCE_RX:
+            return sbusOutGetPwmRX(source_index);
+        case SBUS_OUT_SOURCE_MIXER:
+            return sbusOutGetValueMixer(source_index);
+        case SBUS_OUT_SOURCE_SERVO:
+            return sbusOutGetPwmServo(source_index);
     }
     return 0;
 }
 
-STATIC_UNIT_TESTED uint16_t sbusOutPwmToSbus(uint8_t channel, float pwm) {
-    const uint16_t min = sbusOutConfig()->min[channel];
-    const uint16_t max = sbusOutConfig()->max[channel];
+STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm) {
+    const int16_t min = sbusOutConfig()->min[channel];
+    const int16_t max = sbusOutConfig()->max[channel];
+
     // round and bound values
     if (channel >= 16) {
         const float value = scaleRangef(pwm, min, max, 0, 1);
@@ -118,8 +119,8 @@ void sbusOutUpdate(timeUs_t currentTimeUs) {
         sbusOutFrame_t frame;
         uint16_t channels[SBUS_OUT_CHANNELS];
         for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++) {
-            float value = sbusOutGetPwm(ch);
-            channels[ch] = sbusOutPwmToSbus(ch, value);
+            float value = sbusOutGetChannelValue(ch);
+            channels[ch] = sbusOutConvertToSbus(ch, value);
         }
         sbusOutPrepareSbusFrame(&frame, channels);
 
