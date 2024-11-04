@@ -48,6 +48,9 @@ typedef struct sbusOutConfig_s {
     //   * 2000 (us) for wideband servo, 1000 (us) for narrowband servo
     int16_t max[SBUS_OUT_CHANNELS];
 
+    // SBus output frame interval in ms.
+    uint8_t interval;
+
 } sbusOutConfig_t;
 
 PG_DECLARE(sbusOutConfig_t, sbusOutConfig);

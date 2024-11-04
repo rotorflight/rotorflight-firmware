@@ -447,9 +447,10 @@ TEST_F(SBusOutSerialTest, GoodUpdate) {
         .WillRepeatedly(Return(50));
     EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _)).Times(2);
 
-    sbusOutUpdate(1000000);
+    // We should at least update every 50ms. (The default value is 10ms)
+    sbusOutUpdate(50 * 1000);
 
-    sbusOutUpdate(2000000);
+    sbusOutUpdate(100 * 1000);
 }
 
 // Maybe someday our battery will last of 70min. Who knows.

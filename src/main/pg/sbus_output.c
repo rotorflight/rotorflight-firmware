@@ -21,6 +21,7 @@
 PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
 
 void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
+    config->interval = 10;
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
         config->sourceType[i] = SBUS_OUT_SOURCE_RX;
         config->sourceIndex[i] = i;
