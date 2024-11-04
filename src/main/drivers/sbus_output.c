@@ -110,7 +110,7 @@ STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm) {
 }
 
 void sbusOutUpdate(timeUs_t currentTimeUs) {
-    static const timeUs_t sbusOutTxIntervalUs = 6000;
+    const timeUs_t sbusOutTxIntervalUs = 1000 * sbusOutConfig()->interval;
     if (sbusOutPort &&
         /* Tx Buff is free */ serialTxBytesFree(sbusOutPort) >
             sizeof(sbusOutFrame_t) &&

@@ -1744,6 +1744,7 @@ const clivalue_t valueTable[] = {
     { "sbus_out_source_index", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceIndex) },
     { "sbus_out_min",          VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, min) },
     { "sbus_out_max",          VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, max) },
+    { "sbus_out_interval",     VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {4, 40}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, interval) },
 
 };
 
