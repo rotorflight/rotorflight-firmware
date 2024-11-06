@@ -687,7 +687,10 @@ void init(void)
 #ifdef USE_SERVOS
     servoInit();
 #endif
+
+#ifdef USE_SBUS_OUTPUT
     sbusOutInit();
+#endif
 
 #ifdef USE_PINIO
     pinioInit(pinioConfig());
