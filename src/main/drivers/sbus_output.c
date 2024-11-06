@@ -31,7 +31,6 @@
 #include "rx/rx.h"
 
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
-STATIC_UNIT_TESTED timeUs_t sbusOutLastTxTimeUs = 0;
 
 STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
                                                 uint16_t *channels) {
@@ -86,12 +85,12 @@ STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel) {
         sbusOutConfig()->sourceType[channel];
     const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
     switch (source_type) {
-        case SBUS_OUT_SOURCE_RX:
-            return sbusOutGetPwmRX(source_index);
-        case SBUS_OUT_SOURCE_MIXER:
-            return sbusOutGetValueMixer(source_index);
-        case SBUS_OUT_SOURCE_SERVO:
-            return sbusOutGetPwmServo(source_index);
+    case SBUS_OUT_SOURCE_RX:
+        return sbusOutGetPwmRX(source_index);
+    case SBUS_OUT_SOURCE_MIXER:
+        return sbusOutGetValueMixer(source_index);
+    case SBUS_OUT_SOURCE_SERVO:
+        return sbusOutGetPwmServo(source_index);
     }
     return 0;
 }
@@ -110,24 +109,25 @@ STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm) {
 }
 
 void sbusOutUpdate(timeUs_t currentTimeUs) {
-    const timeUs_t sbusOutTxIntervalUs = 1000 * sbusOutConfig()->interval;
-    if (sbusOutPort &&
-        /* Tx Buff is free */ serialTxBytesFree(sbusOutPort) >
-            sizeof(sbusOutFrame_t) &&
-        /* Tx interval check */ currentTimeUs - sbusOutLastTxTimeUs >
-            sbusOutTxIntervalUs) {
-        sbusOutFrame_t frame;
-        uint16_t channels[SBUS_OUT_CHANNELS];
-        for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++) {
-            float value = sbusOutGetChannelValue(ch);
-            channels[ch] = sbusOutConvertToSbus(ch, value);
-        }
-        sbusOutPrepareSbusFrame(&frame, channels);
+    UNUSED(currentTimeUs);
+    if (!sbusOutPort)
+        return;
 
-        // serial output
-        serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
-        sbusOutLastTxTimeUs = currentTimeUs;
+    // Check TX Buff is free
+    if (serialTxBytesFree(sbusOutPort) <= sizeof(sbusOutFrame_t))
+        return;
+
+    // Start sending.
+    sbusOutFrame_t frame;
+    uint16_t channels[SBUS_OUT_CHANNELS];
+    for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++) {
+        float value = sbusOutGetChannelValue(ch);
+        channels[ch] = sbusOutConvertToSbus(ch, value);
     }
+    sbusOutPrepareSbusFrame(&frame, channels);
+
+    // serial output
+    serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
 }
 
 void sbusOutInit() {

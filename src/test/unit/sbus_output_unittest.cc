@@ -25,7 +25,6 @@ extern "C" {
 #include "pg/sbus_output.h"
 
 extern serialPort_t *sbusOutPort;
-extern timeUs_t sbusOutLastTxTimeUs;
 extern void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame, uint16_t *channels);
 extern void pgResetFn_sbusOutConfig(sbusOutConfig_t *config);
 
@@ -96,10 +95,16 @@ using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 
+void pgReset(void) {
+    // We will use the real config variable
+    extern const pgRegistry_t _sbusOutConfigRegistry;
+    pgResetFn_sbusOutConfig(sbusOutConfigMutable());
+}
+
 // Start testing
 TEST(SBusOutInit, ConfigReset) {
-    // We will use the real config variable
-    pgResetFn_sbusOutConfig(sbusOutConfigMutable());
+    // Reset config for testing
+    pgReset();
 
     // Source Type (All SBUS_OUT_SOURCE_RX)
     for (int i = 0; i < 18; i++) {
@@ -114,6 +119,8 @@ TEST(SBusOutInit, ConfigReset) {
         EXPECT_EQ(sbusOutConfig()->min[i], 1000);
         EXPECT_EQ(sbusOutConfig()->max[i], 2000);
     }
+
+    EXPECT_EQ(sbusOutConfig()->sbusRate, 50);
 }
 
 TEST(SBusOutInit, GoodPath) {
@@ -151,10 +158,7 @@ class SBusOutTestBase : public ::testing::Test {
   public:
     void SetUp() override {
         // Reset config for testing
-        pgResetFn_sbusOutConfig(sbusOutConfigMutable());
-
-        // Reset timer for testing
-        sbusOutLastTxTimeUs = 0;
+        pgReset();
 
         // Reset rcChannel
         memset(rcChannel, 0, sizeof(rcChannel));
@@ -433,36 +437,15 @@ TEST_F(SBusOutSerialTest, NoFreeBuffer) {
     sbusOutUpdate(1000000);
 }
 
-TEST_F(SBusOutSerialTest, TooSoon) {
-    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_)).WillOnce(Return(50));
-    // Expect no-op
-    EXPECT_CALL(mock_, serialWriteBuf).Times(0);
-
-    sbusOutUpdate(1000);
-}
-
 TEST_F(SBusOutSerialTest, GoodUpdate) {
     EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_))
         .Times(2)
         .WillRepeatedly(Return(50));
     EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _)).Times(2);
 
-    // We should at least update every 50ms. (The default value is 10ms)
-    sbusOutUpdate(50 * 1000);
-
-    sbusOutUpdate(100 * 1000);
-}
-
-// Maybe someday our battery will last of 70min. Who knows.
-TEST_F(SBusOutSerialTest, TimeWrap) {
-    EXPECT_CALL(mock_, serialTxBytesFree(&fake_port_))
-        .Times(2)
-        .WillRepeatedly(Return(50));
-    EXPECT_CALL(mock_, serialWriteBuf(&fake_port_, _, _)).Times(2);
-
-    sbusOutUpdate(-1);
-
     sbusOutUpdate(1000000);
+
+    sbusOutUpdate(2000000);
 }
 
 TEST_F(SBusOutSerialTest, SerialFormat) {
@@ -487,5 +470,5 @@ TEST_F(SBusOutSerialTest, SerialFormat) {
                       0);
         }));
 
-    sbusOutUpdate(-1);
+    sbusOutUpdate(0);
 }

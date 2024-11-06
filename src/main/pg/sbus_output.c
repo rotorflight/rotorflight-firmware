@@ -15,17 +15,25 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "pg/sbus_output.h"
 #include "pg/pg_ids.h"
+#include "platform.h"
 
-PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig, PG_DRIVER_SBUS_OUT_CONFIG, 0);
+#include "pg/sbus_output.h"
+
+#ifdef USE_SBUS_OUTPUT
+
+// The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
+PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
+                          PG_DRIVER_SBUS_OUT_CONFIG, 0);
 
 void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
-    config->interval = 10;
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
         config->sourceType[i] = SBUS_OUT_SOURCE_RX;
         config->sourceIndex[i] = i;
         config->min[i] = 1000;
         config->max[i] = 2000;
     }
+    config->sbusRate = 50;
 }
+
+#endif

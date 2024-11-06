@@ -485,6 +485,9 @@ sbus_output_unittest_SRC := \
 		$(USER_DIR)/drivers/sbus_output.c \
 		$(USER_DIR)/pg/sbus_output.c
 
+sbus_output_unittest_DEFINES := \
+        USE_SBUS_OUTPUT=
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
