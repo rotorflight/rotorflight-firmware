@@ -358,7 +358,7 @@ void updateArmingStatus(void)
 
         if (!isArmingDisabled()) {
             warningLedDisable();
-            if (wiggleEnabled(WIGGLE_READY)) {
+            if (!ARMING_FLAG(WAS_EVER_ARMED) && wiggleEnabled(WIGGLE_READY)) {
                 if (armingEnabledWiggle == WIGGLE_NOT_DONE) {
                     armingEnabledWiggle = WIGGLE_DONE;
                     wiggleTrigger(WIGGLE_READY, 0);
@@ -367,7 +367,8 @@ void updateArmingStatus(void)
         }
         else {
             warningLedFlash();
-            if (wiggleEnabled(WIGGLE_ERROR) || wiggleEnabled(WIGGLE_FATAL))
+            if (!ARMING_FLAG(WAS_EVER_ARMED) &&
+                (wiggleEnabled(WIGGLE_ERROR) || wiggleEnabled(WIGGLE_FATAL)))
             {
                 const bitmap_t flags = getArmingDisableFlags();
                 if ((flags & ARMING_DISABLED_ARM_SWITCH) &&
@@ -460,7 +461,7 @@ void tryArm(void)
             return;
         }
 
-        if (wiggleEnabled(WIGGLE_ARMED)) {
+        if (!ARMING_FLAG(WAS_EVER_ARMED) && wiggleEnabled(WIGGLE_ARMED)) {
             if (armingWiggle == WIGGLE_NOT_DONE) {
                 armingDelayed = ARMING_DELAYED;
                 armingWiggle = WIGGLE_TRIGGERED;
