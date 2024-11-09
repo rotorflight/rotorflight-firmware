@@ -61,6 +61,7 @@ class MockInterface {
                 (serialPort_t * instance, const uint8_t *data, int count), ());
     MOCK_METHOD(float, mixerGetOutput, (uint8_t index), ());
     MOCK_METHOD(uint16_t, getServoOutput, (uint8_t index), ());
+    MOCK_METHOD(int16_t, getMotorOutput, (uint8_t index), ());
 } *g_mock = nullptr;
 
 extern "C" {
@@ -88,6 +89,7 @@ void serialWriteBuf(serialPort_t *instance, const uint8_t *data, int count) {
 float rcChannel[18];
 float mixerGetOutput(uint8_t index) { return g_mock->mixerGetOutput(index); }
 uint16_t getServoOutput(uint8_t index) { return g_mock->getServoOutput(index); }
+int16_t getMotorOutput(uint8_t motor) { return g_mock->getMotorOutput(motor); }
 }
 
 using ::testing::_;
@@ -250,6 +252,23 @@ TEST_P(SBusOutSourceMapping, SourceServo) {
 
     if (source_index < MAX_SUPPORTED_SERVOS) {
         EXPECT_CALL(mock_, getServoOutput(source_index))
+            .WillOnce(Return(kFakeValue));
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), kFakeValue);
+    } else {
+        EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), 0);
+    }
+}
+
+TEST_P(SBusOutSourceMapping, SourceMotor) {
+    uint8_t sbus_channel = std::get<0>(GetParam());
+    uint8_t source_index = std::get<1>(GetParam());
+    sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_MOTOR;
+    sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
+
+    constexpr uint16_t kFakeValue = 14285;
+
+    if (source_index < MAX_SUPPORTED_MOTORS) {
+        EXPECT_CALL(mock_, getMotorOutput(source_index))
             .WillOnce(Return(kFakeValue));
         EXPECT_EQ(sbusOutGetChannelValue(sbus_channel), kFakeValue);
     } else {

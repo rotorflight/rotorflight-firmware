@@ -61,22 +61,30 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
     frame->endByte = 0;
 }
 
-float sbusOutGetPwmRX(uint8_t channel) {
+static float sbusOutGetRX(uint8_t channel) {
     if (channel < MAX_SUPPORTED_RC_CHANNEL_COUNT)
         return rcChannel[channel];
     return 0;
 }
 
 // Note: this returns -1000 - 1000 range
-float sbusOutGetValueMixer(uint8_t channel) {
+static float sbusOutGetValueMixer(uint8_t channel) {
     if (channel < MIXER_OUTPUT_COUNT)
         return 1000.0f * mixerGetOutput(channel);
     return 0;
 }
 
-float sbusOutGetPwmServo(uint8_t channel) {
+static float sbusOutGetServo(uint8_t channel) {
     if (channel < MAX_SUPPORTED_SERVOS)
         return getServoOutput(channel);
+    return 0;
+}
+
+// Note: this returns 0 - 1000 range (or -1000 - 1000 for bidirectional
+// motor)
+static float sbusOutGetMotor(uint8_t channel) {
+    if (channel < MAX_SUPPORTED_MOTORS)
+        return getMotorOutput(channel);
     return 0;
 }
 
@@ -86,11 +94,13 @@ STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel) {
     const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
     switch (source_type) {
     case SBUS_OUT_SOURCE_RX:
-        return sbusOutGetPwmRX(source_index);
+        return sbusOutGetRX(source_index);
     case SBUS_OUT_SOURCE_MIXER:
         return sbusOutGetValueMixer(source_index);
     case SBUS_OUT_SOURCE_SERVO:
-        return sbusOutGetPwmServo(source_index);
+        return sbusOutGetServo(source_index);
+    case SBUS_OUT_SOURCE_MOTOR:
+        return sbusOutGetMotor(source_index);
     }
     return 0;
 }

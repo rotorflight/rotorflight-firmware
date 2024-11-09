@@ -25,7 +25,8 @@
 typedef enum {
     SBUS_OUT_SOURCE_RX = 0,
     SBUS_OUT_SOURCE_MIXER = 1,
-    SBUS_OUT_SOURCE_SERVO = 2
+    SBUS_OUT_SOURCE_SERVO = 2,
+    SBUS_OUT_SOURCE_MOTOR = 3
 } sbusOutSourceType_e;
 
 typedef struct sbusOutConfig_s {
@@ -40,6 +41,7 @@ typedef struct sbusOutConfig_s {
     //   * min = 1000, max = 2000 or min = 988, max = 2012 for receiver channels.
     //   * min = -1000, max = +1000 for mixer rule (treat as -1.0f and +1.0f).
     //   * min = 1000, max = 2000 for wideband servo, or min = 500, max = 1000
+    //   * min = 0, max = 1000 for motor (treat as 0 and +1.0f)
     //   for narrowband servo.
     int16_t min[SBUS_OUT_CHANNELS];
     int16_t max[SBUS_OUT_CHANNELS];
