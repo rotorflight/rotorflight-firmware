@@ -921,6 +921,8 @@ const clivalue_t valueTable[] = {
     { "swash_pitch_limit",          VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 3000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_pitch_limit) },
     { "swash_tta_precomp",          VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_tta_precomp) },
     { "swash_geo_correction",       VAR_INT8   | MASTER_VALUE,  .config.minmax = { -125, 125 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_geo_correction) },
+    { "collective_scale_beta_pos",  VAR_UINT8  | MASTER_VALUE,  .config.minmax = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, collective_scale_beta_pos) },
+    { "collective_scale_beta_neg",  VAR_UINT8  | MASTER_VALUE,  .config.minmax = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, collective_scale_beta_neg) },
 
 // PG_GOVERNOR_CONFIG
     { "gov_mode",                   VAR_UINT8  |  MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },

@@ -306,6 +306,19 @@ static float mixerCollectiveCorrection(float SC)
     return SC;
 }
 
+static float mixerCollectiveScale(float SC, float SR, float SP)
+{
+    float beta;
+    if (SC > 0) {
+        beta = mixerConfig()->collective_scale_beta_pos/100.0f;
+    } else {
+        beta = mixerConfig()->collective_scale_beta_neg/100.0f;
+    }
+    float scale = 1 - beta* (SR*SR + SP*SP);
+    scale = constrainf(scale, 0, 1.0f);
+    return SC * scale;
+}
+
 static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
@@ -375,6 +388,7 @@ static void mixerUpdateSwash(void)
         float TC = mixer.tailCenterTrim;
 
         SC = mixerCollectiveCorrection(SC);
+        SC = mixerCollectiveScale(SC, SR, SP);
 
         SR += mixer.swashTrim[0];
         SP += mixer.swashTrim[1];
