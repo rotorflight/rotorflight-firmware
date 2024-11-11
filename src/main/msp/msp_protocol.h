@@ -193,6 +193,8 @@
 #define MSP_SET_GOVERNOR_PROFILE             149
 #define MSP_LED_STRIP_SETTINGS               150
 #define MSP_SET_LED_STRIP_SETTINGS           151
+#define MSP_SBUS_OUTPUT_CONFIG               152
+#define MSP_SET_SBUS_OUTPUT_CONFIG           153
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159

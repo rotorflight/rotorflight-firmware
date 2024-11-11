@@ -124,6 +124,7 @@
 #include "pg/usb.h"
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
+#include "pg/sbus_output.h"
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1011,7 +1012,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
          *
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterB);
-        */
+         */
         break;
 
     default:
@@ -1693,6 +1694,18 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_race_color);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_visual_beeper);
         sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_visual_beeper_color);
+        break;
+#endif
+
+#ifdef USE_SBUS_OUTPUT
+    case MSP_SBUS_OUTPUT_CONFIG:
+        for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[i]);
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
+        }
+        sbufWriteU8(dst, sbusOutConfigMutable()->frameRate);
         break;
 #endif
 
@@ -3238,6 +3251,21 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
+#ifdef USE_SBUS_OUTPUT
+    case MSP_SET_SBUS_OUTPUT_CONFIG:
+        if (sbufBytesRemaining(src) >= 6 * SBUS_OUT_CHANNELS + 1) {
+            for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
+                sbusOutConfigMutable()->sourceType[i] = sbufReadU8(src);
+                sbusOutConfigMutable()->sourceIndex[i] = sbufReadU8(src);
+                sbusOutConfigMutable()->sourceRangeLow[i] = sbufReadS16(src);
+                sbusOutConfigMutable()->sourceRangeHigh[i] = sbufReadS16(src);
+            }
+            // You need to reset FC after updating ->sbusRate.
+            sbusOutConfigMutable()->frameRate = sbufReadU8(src);
+        }
+        break;
+#endif
+
     case MSP_SET_NAME:
         memset(pilotConfigMutable()->name, 0, ARRAYLEN(pilotConfig()->name));
         for (unsigned int i = 0; i < MIN(MAX_NAME_LENGTH, dataSize); i++) {
@@ -3565,7 +3593,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
          *     currentPidProfile->yourFancyParameterA = sbufReadU8(src);
          *     currentPidProfile->yourFancyParameterB = sbufReadU8(src);
          * }
-        */
+         */
         break;
 
     default:
