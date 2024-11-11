@@ -353,18 +353,52 @@ TEST_F(SBusOutPWMToSBusTest, OutOfBoundValues) {
     EXPECT_EQ(sbus, 1);
 }
 
+// When config min/max is reversed (min>max)
+TEST_F(SBusOutPWMToSBusTest, ReversedOutOfBoundValues) {
+    // Reversed min/max
+    sbusOutConfigMutable()->min[4] = 500;
+    sbusOutConfigMutable()->max[4] = -500;
+    sbusOutConfigMutable()->min[16] = 500;
+    sbusOutConfigMutable()->max[16] = -500;
+
+    uint16_t sbus;
+    sbus = sbusOutConvertToSbus(4, 4000);
+    EXPECT_EQ(sbus, 0);
+    sbus = sbusOutConvertToSbus(4, -4000);
+    EXPECT_EQ(sbus, (1 << 11) - 1);
+    sbus = sbusOutConvertToSbus(16, 4000);
+    EXPECT_EQ(sbus, 0);
+    sbus = sbusOutConvertToSbus(16, -4000);
+    EXPECT_EQ(sbus, 1);
+}
+
+// Test PWM [1000, 2000] convert to SBus value
 // Test param = PWM value
 class SBusOutPWMToSBusSweep : public SBusOutPWMToSBusTest,
-                              public testing::WithParamInterface<int> {};
+                              public testing::WithParamInterface<int> {
+  public:
+    // Second source of values
+    // Convert value to a float between [0, 1]
+    static float ValueMinMaxToFloat(int value, int min, int max) {
+        return static_cast<float>(value - min) / (max - min);
+    }
+    static float SBusToFloat(int sbus) {
+        return ValueMinMaxToFloat(sbus, 192, 1792);
+    }
+    static float Resolution(int min, int max) {
+        return 1.0f / (max - min);
+    }
+};
 
 TEST_P(SBusOutPWMToSBusSweep, FullScaleChannel) {
     const uint16_t pwm = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(3, pwm);
-    // sbus: [192, 1792]
+
+    // Validate:
+    float sbusf = SBusToFloat(sbus);
     // pwm: [1000, 2000]
-    float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
-    float pwmf = (pwm - 1000.0f) / (2000 - 1000 + 1);
-    const float resolution = 1.0f / (2000 - 1000 + 1);
+    float pwmf = ValueMinMaxToFloat(pwm, 1000, 2000);
+    const float resolution = Resolution(1000, 2000);
     EXPECT_NEAR(sbusf, pwmf, resolution);
 }
 
@@ -381,20 +415,22 @@ TEST_P(SBusOutPWMToSBusSweep, OnOffConversion) {
 INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
                          testing::Range(1000, 2001));
 
+// Test Narrow PWM [500, 1000] convert to SBus value
 // Test param = PWM value
 class SBusOutNarrowbandPWMToSBusSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
     sbusOutConfigMutable()->min[4] = 500;
     sbusOutConfigMutable()->max[4] = 1000;
-    // sbus: [192, 1792]
-    // pwm: [500, 1000]
 
     const uint16_t pwm = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(4, pwm);
-    float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
-    float pwmf = (pwm - 500.0f) / (1000 - 500 + 1);
-    const float resolution = 1.0f / (1000 - 500 + 1);
+
+    // Validate:
+    float sbusf = SBusToFloat(sbus);
+    // pwm: [500, 1000]
+    float pwmf = ValueMinMaxToFloat(pwm, 500, 1000);
+    const float resolution = Resolution(500, 1000);
     EXPECT_NEAR(sbusf, pwmf, resolution);
 }
 
@@ -415,20 +451,22 @@ INSTANTIATE_TEST_SUITE_P(NarrowbandPWMConversionSweep,
                          SBusOutNarrowbandPWMToSBusSweep,
                          testing::Range(500, 1001));
 
+// Test Mixer value [-1000, 1000] convert to SBus value
 // Test param = Mixer rule value
 class SBusOutMixerValueToSBusSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutMixerValueToSBusSweep, FullScaleChannel) {
     sbusOutConfigMutable()->min[4] = -1000;
     sbusOutConfigMutable()->max[4] = 1000;
-    // sbus: [192, 1792]
-    // value: [-1000, 1000]
 
     const int16_t value = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(4, value);
-    float sbusf = (sbus - 192.0f) / (1792 - 192 + 1);
-    float valuef = (value - -1000.0f) / (1000 - -1000 + 1);
-    const float resolution = 1.0f / (1000 - -1000 + 1);
+
+    // Validate:
+    float sbusf = SBusToFloat(sbus);
+    // value: [-1000, 1000]
+    float valuef = ValueMinMaxToFloat(value, -1000, 1000);
+    const float resolution = Resolution(-1000, 1000);
     EXPECT_NEAR(sbusf, valuef, resolution);
 }
 
@@ -445,6 +483,44 @@ TEST_P(SBusOutMixerValueToSBusSweep, OnOffConversion) {
 INSTANTIATE_TEST_SUITE_P(MixerValueConversionSweep,
                          SBusOutMixerValueToSBusSweep,
                          testing::Range(-1000, 1001));
+
+// Test SBus conversion when min/max is reversed in the config
+// Test param = value between [-500, 1000] (more generic)
+class SBusOutToSBusReversedSweep : public SBusOutPWMToSBusSweep {};
+
+TEST_P(SBusOutToSBusReversedSweep, FullScaleChannel) {
+    // Reversed min/max
+    sbusOutConfigMutable()->min[4] = 1000;
+    sbusOutConfigMutable()->max[4] = -500;
+
+    const int16_t value = GetParam();
+    uint16_t sbus = sbusOutConvertToSbus(4, value);
+
+    float sbusf = SBusToFloat(sbus);
+    // value: [1000, -500]
+    float valuef = ValueMinMaxToFloat(value, 1000, -500);
+    const float resolution = Resolution(-500, 1000);
+    EXPECT_NEAR(sbusf, valuef, resolution);
+}
+
+TEST_P(SBusOutToSBusReversedSweep, OnOffConversion) {
+    sbusOutConfigMutable()->min[16] = 1000;
+    sbusOutConfigMutable()->max[16] = -500;
+
+    const int16_t value = GetParam();
+    uint16_t sbus = sbusOutConvertToSbus(16, value);
+
+    const int16_t midpoint = (1000 + -500)/2;
+    if ((1000 + -500)%2 == 0 && value == midpoint)
+        GTEST_SKIP();
+
+    float valuef = ValueMinMaxToFloat(value, 1000, -500);
+    EXPECT_EQ(sbus, valuef > 0.5 ? 1 : 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(ReversedMinMaxConversionSweep,
+                         SBusOutToSBusReversedSweep,
+                         testing::Range(-500, 1001));
 
 class SBusOutSerialTest : public SBusOutTestBase {};
 
