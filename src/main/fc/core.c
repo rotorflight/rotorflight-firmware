@@ -110,6 +110,7 @@
 
 #include "core.h"
 
+#include "io/flashfs.h"
 
 enum {
     ALIGN_GYRO = 0,
@@ -461,6 +462,16 @@ void tryArm(void)
         if (ARMING_FLAG(ARMED)) {
             return;
         }
+
+#ifdef USE_FLASHFS_LOOP
+        if (flashfsIsSupported()) {
+            flashfsLoopArmingErase();
+            if (!flashfsIsReady()) {
+                armingDelayed = ARMING_DELAYED;
+                return;
+            }
+        }
+#endif
 
         if (!ARMING_FLAG(WAS_EVER_ARMED) && wiggleEnabled(WIGGLE_ARMED)) {
             if (armingWiggle == WIGGLE_NOT_DONE) {
