@@ -802,6 +802,10 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_esc",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_bec",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_esc2",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC2, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+
+#ifdef USE_FLASHFS_LOOP
+    { "blackbox_initial_erase",     VAR_UINT32 | MASTER_VALUE, .config.u32Max = UINT32_MAX, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, initialEraseFreeSpace) },
+#endif
 #endif
 
 // PG_MOTOR_CONFIG

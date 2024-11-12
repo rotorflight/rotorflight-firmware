@@ -1007,7 +1007,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     }
 
     case MSP_EXPERIMENTAL:
-        /* 
+        /*
          * Send your experimental parameters to LUA. Like:
          *
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
@@ -1721,11 +1721,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, blackboxConfig()->mode);
         sbufWriteU16(dst, blackboxConfig()->denom);
         sbufWriteU32(dst, blackboxConfig()->fields);
+        sbufWriteU32(dst, blackboxConfig()->initialEraseFreeSpace);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
+        sbufWriteU32(dst, 0);
         sbufWriteU32(dst, 0);
 #endif
         break;
@@ -2762,6 +2764,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             blackboxConfigMutable()->mode = sbufReadU8(src);
             blackboxConfigMutable()->denom = sbufReadU16(src);
             blackboxConfigMutable()->fields = sbufReadU32(src);
+            if (sbufBytesRemaining(src) >= 4) {
+                blackboxConfigMutable()->initialEraseFreeSpace =
+                    sbufReadU32(src);
+            }
         }
         break;
 #endif

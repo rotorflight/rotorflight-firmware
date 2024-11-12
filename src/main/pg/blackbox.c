@@ -52,6 +52,7 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_RPM) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MOTOR) |
               BIT(FLIGHT_LOG_FIELD_SELECT_SERVO),
+    .initialEraseFreeSpace = 0,
 );
 
 #endif

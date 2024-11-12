@@ -110,7 +110,6 @@
 
 #include "core.h"
 
-
 enum {
     ALIGN_GYRO = 0,
     ALIGN_ACCEL = 1,
