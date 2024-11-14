@@ -132,9 +132,19 @@ int getHeadSpeed(void)
     return lrintf(headSpeed);
 }
 
+float getHeadSpeedf(void)
+{
+    return headSpeed;
+}
+
 int getTailSpeed(void)
 {
     return lrintf(tailSpeed);
+}
+
+float getTailSpeedf(void)
+{
+    return tailSpeed;
 }
 
 int getMotorRPM(uint8_t motor)

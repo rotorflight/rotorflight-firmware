@@ -43,6 +43,9 @@ bool isMotorFastRpmSourceActive(uint8_t motor);
 int getHeadSpeed(void);
 int getTailSpeed(void);
 
+float getHeadSpeedf(void);
+float getTailSpeedf(void);
+
 float getMainGearRatio(void);
 float getTailGearRatio(void);
 
