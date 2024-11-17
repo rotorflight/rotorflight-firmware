@@ -126,6 +126,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_ff_weight = 100,
         .governor.max_throttle = 100,
         .governor.min_throttle = 10,
+        .hsflood_curve = { 0,0,100,150,220,220,220,220,220,220,220,220,220,220,220,220 },
+        .hsflood_relax_level = 40,
+        .hsflood_relax_cutoff = 10,
     );
 }
 
