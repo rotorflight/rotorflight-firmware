@@ -1990,6 +1990,23 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     return !unsupportedCommand;
 }
 
+void mspGetOptionalIndex(sbuf_t *src, const range_t *range, int *value)
+{
+    if (sbufBytesRemaining(src) > 0) {
+        *value = constrain(sbufReadU8(src), range->min, range->max);
+    }
+}
+
+void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
+{
+    if (sbufBytesRemaining(src) > 0) {
+        value->min = value->max = constrain(sbufReadU8(src), range->min, range->max);
+        if (sbufBytesRemaining(src) > 0) {
+            value->max = constrain(sbufReadU8(src), value->min, range->max);
+        }
+    }
+}
+
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
 
