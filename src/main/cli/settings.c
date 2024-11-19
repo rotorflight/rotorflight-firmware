@@ -1694,10 +1694,17 @@ const clivalue_t valueTable[] = {
 #endif
 
 #ifdef USE_RPM_FILTER
-    { "gyro_rpm_filter_bank_rpm_source", VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_source) },
-    { "gyro_rpm_filter_bank_rpm_ratio",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_ratio) },
-    { "gyro_rpm_filter_bank_rpm_limit",  VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_rpm_limit) },
-    { "gyro_rpm_filter_bank_notch_q",    VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_BANK_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, filter_bank_notch_q) },
+    { "gyro_rpm_notch_preset",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 3 }, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, preset) },
+    { "gyro_rpm_notch_min_hz",       VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, min_hz) },
+    { "gyro_rpm_notch_source_pitch", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_source[PITCH]) },
+    { "gyro_rpm_notch_center_pitch", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_center[PITCH]) },
+    { "gyro_rpm_notch_q_pitch",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_q[PITCH]) },
+    { "gyro_rpm_notch_source_roll",  VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_source[ROLL]) },
+    { "gyro_rpm_notch_center_roll",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_center[ROLL]) },
+    { "gyro_rpm_notch_q_roll",       VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_q[ROLL]) },
+    { "gyro_rpm_notch_source_yaw",   VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_source[YAW]) },
+    { "gyro_rpm_notch_center_yaw",   VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_center[YAW]) },
+    { "gyro_rpm_notch_q_yaw",        VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = RPM_FILTER_NOTCH_COUNT, PG_RPM_FILTER_CONFIG, offsetof(rpmFilterConfig_t, custom.notch_q[YAW]) },
 #endif
 
 #ifdef USE_RX_FLYSKY

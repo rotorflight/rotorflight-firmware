@@ -428,6 +428,10 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_RSSI_ADC);
 #endif
 
+#ifdef USE_RPM_FILTER
+    validateAndFixRPMFilterConfig();
+#endif
+
 #if defined(USE_BEEPER)
 #ifdef USE_TIMER
     if (beeperDevConfig()->frequency && !timerGetConfiguredByTag(beeperDevConfig()->ioTag)) {
@@ -664,23 +668,6 @@ void validateAndFixGyroConfig(void)
         if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2) {
             gyroConfigMutable()->gyro_soft_notch_hz_2 = 0;
         }
-
-#ifdef USE_RPM_FILTER
-        if (featureIsConfigured(FEATURE_RPM_FILTER)) {
-            rpmFilterConfig_t *config = rpmFilterConfigMutable();
-            for (int index = 0; index < RPM_FILTER_BANK_COUNT; index++) {
-                if (config->filter_bank_rpm_source[index] == 0 ||
-                    config->filter_bank_rpm_ratio[index] == 0 ||
-                    config->filter_bank_notch_q[index] == 0)
-                {
-                    config->filter_bank_rpm_source[index] = 0;
-                    config->filter_bank_rpm_ratio[index] = 0;
-                    config->filter_bank_rpm_limit[index] = 0;
-                    config->filter_bank_notch_q[index] = 0;
-                }
-            }
-        }
-#endif
     }
 
 #ifdef USE_BLACKBOX
