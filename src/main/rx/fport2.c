@@ -123,19 +123,19 @@ enum {
     FPORT2_FRAME_ID_OTA_STOP = 0xF2
 };
 
-typedef struct {
+typedef struct rcData_s{
     sbusChannels_t channels;
     uint8_t rssi;
 } rcData_t;
 
-typedef struct {
+typedef struct fportDownlinkData_s{
     uint8_t phyID;
     /*uint8_t phyID : 5;*/
     /*uint8_t phyXOR : 3;*/
     smartPortPayload_t telemetryData;
 } fportDownlinkData_t;
 
-typedef struct {
+typedef struct fportControlFrame_s{
     uint8_t type;
     union {
         rcData_t rc;
@@ -143,13 +143,14 @@ typedef struct {
     };
 } fportControlFrame_t;
 
-typedef struct {
+typedef struct fportFrame_s {
     uint8_t type;
     union {
         fportControlFrame_t control;
         fportDownlinkData_t downlink;
     };
 } fportFrame_t;
+
 
 // RX frames ring buffer
 #define NUM_RX_BUFFERS 15
