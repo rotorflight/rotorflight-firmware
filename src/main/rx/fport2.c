@@ -631,15 +631,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
 bool fport2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bool isFBUS)
 {
-    /*
-    static uint16_t sbusChannelData[SBUS_MAX_CHANNEL];
-    rxRuntimeState->channelData = sbusChannelData;
-    sbusChannelsInit(rxRuntimeState);
 
-    rxRuntimeState->channelCount = SBUS_MAX_CHANNEL;
-    rxRuntimeState->rcFrameStatusFn = frameStatus;
-    rxRuntimeState->rcProcessFrameFn = processFrame;
-    */
     static uint16_t sbusChannelData[SBUS_MAX_CHANNEL];
     rxRuntimeState->channelData = sbusChannelData;
     sbusChannelsInit(rxConfig, rxRuntimeState);
