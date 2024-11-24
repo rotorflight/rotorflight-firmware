@@ -1699,6 +1699,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
 #ifdef USE_SBUS_OUTPUT
     case MSP_SBUS_OUTPUT_SETTINGS:
+        // 1 = enabled; 0 = disabled
+        sbufWriteU8(dst, findSerialPortConfig(FUNCTION_SBUS_OUT) == NULL ? 0 : 1);
         for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
             sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[i]);
             sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
@@ -3252,7 +3254,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #ifdef USE_SBUS_OUTPUT
     case MSP_SET_SBUS_OUTPUT_SETTINGS:
-        if (sbufBytesRemaining(src) >= 6 * SBUS_OUT_CHANNELS + 1) {
+        if (sbufBytesRemaining(src) >= 6 * SBUS_OUT_CHANNELS + 2) {
+            UNUSED(sbufReadU8(src));  // Ignore the "enabled" byte.
             for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
                 sbusOutConfigMutable()->sourceType[i] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceIndex[i] = sbufReadU8(src);
