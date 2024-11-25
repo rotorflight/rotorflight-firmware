@@ -20,10 +20,10 @@
 
 #pragma once
 
-#ifdef USE_SERIALRX_FBUS
+#ifdef USE_SERIALRX_FPORT2
 
 #define MS2US(ms)   ((ms) * 1000)
 
-bool fbusRxInit(const rxConfig_t *initialRxConfig, rxRuntimeState_t *rxRuntimeState);
+bool fport2RxInit(const rxConfig_t *initialRxConfig, rxRuntimeState_t *rxRuntimeState, bool isFBUS);
 
 #endif

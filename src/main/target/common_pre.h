@@ -269,7 +269,7 @@ extern uint8_t _dmaram_end__;
 #define USE_GYRO_OVERFLOW_CHECK
 #define USE_DSHOT_DMAR
 #define USE_SERIALRX_FPORT      // FrSky FPort
-#define USE_SERIALRX_FBUS      // FrSky FBUS
+#define USE_SERIALRX_FPORT2      // FrSky FBUS/FPORT2
 #define USE_TELEMETRY_CRSF
 #define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL
