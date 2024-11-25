@@ -50,7 +50,7 @@ typedef struct {
     int16_t oversampling_setting;
 } bmp085_t;
 
-extern bmp085_t bmp085;
+bmp085_t bmp085;
 
 }
 
