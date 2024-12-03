@@ -1748,7 +1748,6 @@ const clivalue_t valueTable[] = {
     { "sbus_out_max",          VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, max) },
     { "sbus_out_sbus_rate",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {25, 250}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sbusRate) },
 #endif
-
 };
 
 const uint16_t valueTableEntryCount = ARRAYLEN(valueTable);

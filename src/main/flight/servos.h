@@ -28,7 +28,6 @@
 #define DEFAULT_SERVO_SCALE    500
 #define DEFAULT_SERVO_RATE     333
 #define DEFAULT_SERVO_SPEED      0
-#define DEFAULT_SERVO_SBUS       0
 
 #define SERVO_LIMIT_MIN      -1000
 #define SERVO_LIMIT_MAX       1000

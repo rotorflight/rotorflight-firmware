@@ -418,7 +418,7 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #endif
 
 #ifdef USE_SBUS_OUTPUT
-    // 250Hz is the initial period. The actual period will be loaded from config.
+    // 25Hz is the initial period. The actual period will be loaded from config.
     [TASK_SBUS_OUTPUT] = DEFINE_TASK("SBUS_OUTPUT", NULL, NULL, sbusOutUpdate, TASK_PERIOD_HZ(25), TASK_PRIORITY_MEDIUM),
 #endif
 };
