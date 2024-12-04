@@ -217,16 +217,14 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
 
     // Collective/cyclic deflection lowpass filters
-    lowpassFilterInit(&pid.precomp.collDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
-    lowpassFilterInit(&pid.precomp.pitchDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
-    lowpassFilterInit(&pid.precomp.rollDeflectionFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+    lowpassFilterInit(&pid.precomp.yawPrecompFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
 
     // Collective dynamic filter
-    pt1FilterInit(&pid.precomp.collDynamicFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
+    firstOrderHPFInit(&pid.precomp.collDynamicFilter, 100.0f / constrainf(pidProfile->yaw_collective_dynamic_decay, 1, 250), pid.freq);
 
     // Tail/yaw precomp
+    pid.precomp.yawFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
-    pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCollectiveDynamicGain = pidProfile->yaw_collective_dynamic_gain / 100.0f;
 
     // Pitch precomp
@@ -385,60 +383,60 @@ static void pidApplyCollective(void)
     pid.collective = collective / 1000;
 }
 
+static inline float angleDrag(float a)
+{
+  // Keep it simple
+  return a * a;
+}
+
 static void pidApplyPrecomp(void)
 {
     // Yaw precompensation direction and ratio
     const float masterGain = mixerRotationSign() * getSpoolUpRatio();
 
     // Get actual control deflections (from previous cycle)
-    const float collectiveDeflection = filterApply(&pid.precomp.collDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE));
-    const float pitchDeflection = filterApply(&pid.precomp.pitchDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_PITCH));
-    const float rollDeflection = filterApply(&pid.precomp.rollDeflectionFilter, mixerGetInput(MIXER_IN_STABILIZED_ROLL));
+    const float collectiveDeflection = getCollectiveDeflection();
+    const float cyclicDeflection = getCyclicDeflection();
 
-    // Calculate cyclic deflection from the filtered controls
-    const float cyclicDeflection = sqrtf(sq(pitchDeflection) + sq(rollDeflection));
-
-    // Collective High Pass Filter (this is possible with PT1)
-    const float collectiveLF = pt1FilterApply(&pid.precomp.collDynamicFilter, collectiveDeflection);
-    const float collectiveHF = collectiveDeflection - collectiveLF;
+    // Collective impulse
+    const float collectiveImpulse = firstOrderFilterApply(&pid.precomp.collDynamicFilter, collectiveDeflection);
 
 
   //// Collective-to-Yaw Precomp
 
-    // Collective components
-    const float yawCollectiveFF = fabsf(collectiveDeflection) * pid.precomp.yawCollectiveFFGain;
-    const float yawCollectiveHF = fabsf(collectiveHF) * pid.precomp.yawCollectiveDynamicGain;
+    // Equivalent Average main rotor deflection
+    const float totalPrecomp = fabsf(collectiveDeflection) +
+      pid.precomp.yawCollectiveDynamicGain * fabsf(collectiveImpulse) +
+      pid.precomp.yawCyclicFFGain * cyclicDeflection;
 
-    // Cyclic component
-    float yawCyclicFF = fabsf(cyclicDeflection) * pid.precomp.yawCyclicFFGain;
+    // Drag estimate
+    const float totalDrag = angleDrag(totalPrecomp) * pid.precomp.yawFFGain;
 
-    // Calculate total precompensation
-    float yawPrecomp = (yawCollectiveFF + yawCollectiveHF + yawCyclicFF) * masterGain;
+    // Apply filter
+    const float yawPrecomp = filterApply(&pid.precomp.yawPrecompFilter, totalDrag) * masterGain;
 
     // Add to YAW feedforward
     pid.data[FD_YAW].F += yawPrecomp;
     pid.data[FD_YAW].pidSum += yawPrecomp;
 
-    DEBUG(YAW_PRECOMP, 0, collectiveDeflection * 1000);
-    DEBUG(YAW_PRECOMP, 1, collectiveLF * 1000);
-    DEBUG(YAW_PRECOMP, 2, collectiveHF * 1000);
-    DEBUG(YAW_PRECOMP, 3, cyclicDeflection * 1000);
-    DEBUG(YAW_PRECOMP, 4, yawCollectiveFF * 1000);
-    DEBUG(YAW_PRECOMP, 5, yawCollectiveHF * 1000);
-    DEBUG(YAW_PRECOMP, 6, yawCyclicFF * 1000);
-    DEBUG(YAW_PRECOMP, 7, yawPrecomp * 1000);
+    DEBUG(YAW_PRECOMP, 0, yawPrecomp * 1000);
+    DEBUG(YAW_PRECOMP, 1, totalDrag * 1000);
+    DEBUG(YAW_PRECOMP, 2, totalPrecomp * 1000);
+    DEBUG(YAW_PRECOMP, 4, collectiveDeflection * 1000);
+    DEBUG(YAW_PRECOMP, 5, cyclicDeflection * 1000);
+    DEBUG(YAW_PRECOMP, 6, collectiveImpulse * 1000);
 
 
   //// Collective-to-Pitch precomp
 
     // Collective component
-    const float pitchPrecomp = collectiveDeflection * pid.precomp.pitchCollectiveFFGain;
+    const float pitchPrecomp = pid.collective * pid.precomp.pitchCollectiveFFGain;
 
     // Add to PITCH feedforward
     pid.data[FD_PITCH].F += pitchPrecomp;
     pid.data[FD_PITCH].pidSum += pitchPrecomp;
 
-    DEBUG(PITCH_PRECOMP, 0, collectiveDeflection * 1000);
+    DEBUG(PITCH_PRECOMP, 0, pid.collective * 1000);
     DEBUG(PITCH_PRECOMP, 1, pitchPrecomp * 1000);
 }
 

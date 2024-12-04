@@ -78,7 +78,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_cw_stop_gain = 120,
         .yaw_ccw_stop_gain = 80,
         .yaw_precomp_cutoff = 5,
-        .yaw_precomp_filter_type = LPF_1ST_ORDER,
+        .yaw_precomp_filter_type = LPF_PT2,
         .yaw_cyclic_ff_gain = 0,
         .yaw_collective_ff_gain = 30,
         .yaw_collective_dynamic_gain = 0,
