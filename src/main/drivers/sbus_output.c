@@ -55,8 +55,8 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
     frame->chan14 = channels[14];
     frame->chan15 = channels[15];
 
-    frame->flags = channels[16] ? 0x01 : 0x00;
-    frame->flags += channels[17] ? 0x02 : 0x00;
+    frame->flags = channels[16] ? BIT(0) : 0;
+    frame->flags |= channels[17] ? BIT(1) : 0;
     // Other flags?
 
     frame->endByte = 0;

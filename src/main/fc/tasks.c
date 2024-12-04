@@ -577,9 +577,7 @@ void tasksInit(void)
 
 #ifdef USE_SBUS_OUTPUT
     rescheduleTask(TASK_SBUS_OUTPUT, TASK_PERIOD_HZ(sbusOutConfig()->frameRate));
-    if (sbusOutIsEnabled()) {
-        setTaskEnabled(TASK_SBUS_OUTPUT, true);
-    }
+    setTaskEnabled(TASK_SBUS_OUTPUT, sbusOutIsEnabled());
 #endif
 
 }
