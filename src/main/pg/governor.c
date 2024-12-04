@@ -43,5 +43,6 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_rpm_filter = 10,
     .gov_tta_filter = 0,
     .gov_ff_filter = 10,
+    .gov_spoolup_min_throttle = 5,
 );
 

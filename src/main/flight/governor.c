@@ -51,7 +51,6 @@
 #define GOV_THROTTLE_OFF_LIMIT          0.05f
 
 // Throttle limits for spoolup
-#define GOV_MIN_SPOOLUP_THROTTLE        0.05f
 #define GOV_MAX_SPOOLUP_THROTTLE        0.95f
 
 // Headspeed quality levels
@@ -108,6 +107,7 @@ typedef struct {
 
     // Throttle handover level
     float           maxIdleThrottle;
+    float           minSpoolupThrottle;
 
     // Current headspeed
     float           actualHeadSpeed;
@@ -849,11 +849,11 @@ static float govSpoolUpControl(void)
     output = gov.pidSum;
 
     // Apply gov.C if output not saturated
-    if (!((output > GOV_MAX_SPOOLUP_THROTTLE && gov.C > 0) || (output < GOV_MIN_SPOOLUP_THROTTLE && gov.C < 0)))
+    if (!((output > GOV_MAX_SPOOLUP_THROTTLE && gov.C > 0) || (output < gov.minSpoolupThrottle && gov.C < 0)))
         gov.I += gov.C;
 
     // Limit output
-    output = constrainf(output, GOV_MIN_SPOOLUP_THROTTLE, GOV_MAX_SPOOLUP_THROTTLE);
+    output = constrainf(output, gov.minSpoolupThrottle, GOV_MAX_SPOOLUP_THROTTLE);
 
     return output;
 }
@@ -1042,7 +1042,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.K  = pidProfile->governor.gain / 100.0f;
         gov.Kp = pidProfile->governor.p_gain / 10.0f;
         gov.Ki = pidProfile->governor.i_gain / 10.0f;
-        gov.Kd = pidProfile->governor.d_gain / 1000.0f;
+        gov.Kd = pidProfile->governor.d_gain / 100.0f;
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
         gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
@@ -1150,6 +1150,7 @@ void governorInit(const pidProfile_t *pidProfile)
         gov.lostHeadspeedTimeout = governorConfig()->gov_lost_headspeed_timeout * 100;
 
         gov.maxIdleThrottle = constrain(governorConfig()->gov_handover_throttle, 10, 50) / 100.0f;
+        gov.minSpoolupThrottle = constrain(governorConfig()->gov_spoolup_min_throttle, 0, 50) / 100.0f;
 
         const float diff_cutoff = governorConfig()->gov_rpm_filter ?
             constrainf(governorConfig()->gov_rpm_filter, 1, 50) : 20;
