@@ -59,7 +59,7 @@
 #include "rx/rx.h"
 #include "rx/pwm.h"
 #include "rx/fport.h"
-#include "rx/fport2.h"
+#include "rx/fbus.h"
 #include "rx/sbus.h"
 #include "rx/spektrum.h"
 #include "rx/srxl2.h"
@@ -235,12 +235,12 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
         enabled = fportRxInit(rxConfig, rxRuntimeState);
         break;
 #endif
-#ifdef USE_SERIALRX_FPORT2
+#ifdef USE_SERIALRX_FBUS
     case SERIALRX_FPORT2:
-        enabled = fport2RxInit(rxConfig, rxRuntimeState, false);
+        enabled = fbusRxInit(rxConfig, rxRuntimeState, false);
         break;
     case SERIALRX_FBUS:
-        enabled = fport2RxInit(rxConfig, rxRuntimeState, true);
+        enabled = fbusRxInit(rxConfig, rxRuntimeState, true);
         break;
 #endif
     default:

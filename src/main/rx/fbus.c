@@ -25,7 +25,7 @@
 
 #include "platform.h"
 
-#ifdef USE_SERIALRX_FPORT2
+#ifdef USE_SERIALRX_FBUS
 
 #include "build/debug.h"
 
@@ -48,50 +48,50 @@
 #include "rx/frsky_crc.h"
 #include "rx/rx.h"
 #include "rx/sbus_channels.h"
-#include "rx/fport2.h"
+#include "rx/fbus.h"
 
 
-#define FPORT2_MIN_TELEMETRY_RESPONSE_DELAY_US 500
-#define FPORT2_MAX_TELEMETRY_RESPONSE_DELAY_US 3000
-#define FPORT2_OTA_MAX_RESPONSE_TIME_US_DEFAULT 200
-#define FPORT2_OTA_MIN_RESPONSE_DELAY_US_DEFAULT 50
-#define FPORT2_MAX_TELEMETRY_AGE_MS 500
-#define FPORT2_FC_COMMON_ID 0x1B
-#define FPORT2_FC_MSP_ID 0x0D
+#define FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US 500
+#define FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US 3000
+#define FBUS_OTA_MAX_RESPONSE_TIME_US_DEFAULT 200
+#define FBUS_OTA_MIN_RESPONSE_DELAY_US_DEFAULT 50
+#define FBUS_MAX_TELEMETRY_AGE_MS 500
+#define FBUS_FC_COMMON_ID 0x1B
+#define FBUS_FC_MSP_ID 0x0D
 #define FPORT2_BAUDRATE 115200
 #define FBUS_BAUDRATE 460800
-#define FPORT2_PORT_OPTIONS (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
-#define FPORT2_RX_TIMEOUT 120 // µs
-#define FPORT2_CONTROL_FRAME_LENGTH_8CH 13
-#define FPORT2_CONTROL_FRAME_LENGTH_16CH 24
-#define FPORT2_CONTROL_FRAME_LENGTH_24CH 35
-#define FPORT2_OTA_DATA_FRAME_LENGTH 32
-#define FPORT2_DOWNLINK_FRAME_LENGTH 8
-#define FPORT2_UPLINK_FRAME_LENGTH 8
-#define FPORT2_TELEMETRY_MAX_CONSECUTIVE_TELEMETRY_FRAMES 2
-#define FPORT2_OTA_DATA_FRAME_BYTES 32
+#define FBUS_PORT_OPTIONS (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
+#define FBUS_RX_TIMEOUT 120 // µs
+#define FBUS_CONTROL_FRAME_LENGTH_8CH 13
+#define FBUS_CONTROL_FRAME_LENGTH_16CH 24
+#define FBUS_CONTROL_FRAME_LENGTH_24CH 35
+#define FBUS_OTA_DATA_FRAME_LENGTH 32
+#define FBUS_DOWNLINK_FRAME_LENGTH 8
+#define FBUS_UPLINK_FRAME_LENGTH 8
+#define FBUS_TELEMETRY_MAX_CONSECUTIVE_TELEMETRY_FRAMES 2
+#define FBUS_OTA_DATA_FRAME_BYTES 32
 #define MS2US(ms)   ((ms) * 1000)
 
 enum {
-    DEBUG_FPORT2_FRAME_INTERVAL = 0,
-    DEBUG_FPORT2_FRAME_ERRORS,
-    DEBUG_FPORT2_FRAME_LAST_ERROR,
-    DEBUG_FPORT2_TELEMETRY_INTERVAL,
-    DEBUG_FPORT2_MAX_BUFFER_USAGE,
-    DEBUG_FPORT2_OTA_FRAME_RESPONSE_TIME,
-    DEBUG_FPORT2_OTA_RECEIVED_BYTES,
+    DEBUG_FBUS_FRAME_INTERVAL = 0,
+    DEBUG_FBUS_FRAME_ERRORS,
+    DEBUG_FBUS_FRAME_LAST_ERROR,
+    DEBUG_FBUS_TELEMETRY_INTERVAL,
+    DEBUG_FBUS_MAX_BUFFER_USAGE,
+    DEBUG_FBUS_OTA_FRAME_RESPONSE_TIME,
+    DEBUG_FBUS_OTA_RECEIVED_BYTES,
 };
 
 enum {
-    DEBUG_FPORT2_NO_ERROR = 0,
-    DEBUG_FPORT2_ERROR_TIMEOUT,
-    DEBUG_FPORT2_ERROR_OVERSIZE,
-    DEBUG_FPORT2_ERROR_SIZE,
-    DEBUG_FPORT2_ERROR_CHECKSUM,
-    DEBUG_FPORT2_ERROR_PHYID_CRC,
-    DEBUG_FPORT2_ERROR_TYPE,
-    DEBUG_FPORT2_ERROR_TYPE_SIZE,
-    DEBUG_FPORT2_ERROR_OTA_BAD_ADDRESS,
+    DEBUG_FBUS_NO_ERROR = 0,
+    DEBUG_FBUS_ERROR_TIMEOUT,
+    DEBUG_FBUS_ERROR_OVERSIZE,
+    DEBUG_FBUS_ERROR_SIZE,
+    DEBUG_FBUS_ERROR_CHECKSUM,
+    DEBUG_FBUS_ERROR_PHYID_CRC,
+    DEBUG_FBUS_ERROR_TYPE,
+    DEBUG_FBUS_ERROR_TYPE_SIZE,
+    DEBUG_FBUS_ERROR_OTA_BAD_ADDRESS,
 };
 
 typedef enum {
@@ -99,7 +99,7 @@ typedef enum {
     CFT_OTA_START = 0xF0,
     CFT_OTA_DATA = 0xF1,
     CFT_OTA_STOP = 0xF2
-} fport2_control_frame_type_e;
+} fbus_control_frame_type_e;
 
 typedef enum {
     FT_CONTROL,
@@ -115,14 +115,14 @@ typedef enum {
 } frame_state_e;
 
 enum {
-    FPORT2_FRAME_ID_NULL = 0x00,
-    FPORT2_FRAME_ID_DATA = 0x10,
-    FPORT2_FRAME_ID_READ = 0x30,
-    FPORT2_FRAME_ID_WRITE = 0x31,
-    FPORT2_FRAME_ID_RESPONSE = 0x32,
-    FPORT2_FRAME_ID_OTA_START = 0xF0,
-    FPORT2_FRAME_ID_OTA_DATA = 0xF1,
-    FPORT2_FRAME_ID_OTA_STOP = 0xF2
+    FBUS_FRAME_ID_NULL = 0x00,
+    FBUS_FRAME_ID_DATA = 0x10,
+    FBUS_FRAME_ID_READ = 0x30,
+    FBUS_FRAME_ID_WRITE = 0x31,
+    FBUS_FRAME_ID_RESPONSE = 0x32,
+    FBUS_FRAME_ID_OTA_START = 0xF0,
+    FBUS_FRAME_ID_OTA_DATA = 0xF1,
+    FBUS_FRAME_ID_OTA_STOP = 0xF2
 };
 
 typedef struct {
@@ -139,43 +139,43 @@ typedef struct {
     /*uint8_t phyID : 5;*/
     /*uint8_t phyXOR : 3;*/
     smartPortPayload_t telemetryData;
-} fportDownlinkData_t;
+} fbusDownlinkData_t;
 
 typedef struct {
     uint8_t type;
     union {
         rcData_t rc;
-        uint8_t ota[FPORT2_OTA_DATA_FRAME_BYTES];
+        uint8_t ota[FBUS_OTA_DATA_FRAME_BYTES];
     };
-} fportControlFrame_t;
+} fbusControlFrame_t;
 
 typedef struct {
     uint8_t type;
     uint8_t length;
     union {
-        fportControlFrame_t control;
-        fportDownlinkData_t downlink;
+        fbusControlFrame_t control;
+        fbusDownlinkData_t downlink;
     };
-} fportFrame_t;
+} fbusFrame_t;
 
 // RX frames ring buffer
 #define NUM_RX_BUFFERS 15
 
-typedef struct fportBuffer_s {
-    uint8_t data[sizeof(fportFrame_t)+1]; // +1 for CRC
+typedef struct fbusBuffer_s {
+    uint8_t data[sizeof(fbusFrame_t)+1]; // +1 for CRC
     uint8_t length;
-} fportBuffer_t;
+} fbusBuffer_t;
 
 typedef struct {
     uint32_t size;
     uint8_t  crc;
 } firmwareUpdateHeader_t;
 
-static volatile fportBuffer_t rxBuffer[NUM_RX_BUFFERS];
+static volatile fbusBuffer_t rxBuffer[NUM_RX_BUFFERS];
 static volatile uint8_t rxBufferWriteIndex = 0;
 static volatile uint8_t rxBufferReadIndex = 0;
 
-static serialPort_t *fportPort;
+static serialPort_t *fbusPort;
 
 #ifdef USE_TELEMETRY_SMARTPORT
 static smartPortPayload_t *mspPayload = NULL;
@@ -188,10 +188,10 @@ static const smartPortPayload_t emptySmartPortFrame = { .frameId = 0, .valueId =
 static smartPortPayload_t *otaResponsePayload = NULL;
 static bool otaMode = false;
 static bool otaDataNeedsProcessing = false;
-static uint16_t otaMinResponseDelay = FPORT2_OTA_MIN_RESPONSE_DELAY_US_DEFAULT;
-static uint16_t otaMaxResponseTime = FPORT2_OTA_MAX_RESPONSE_TIME_US_DEFAULT;
+static uint16_t otaMinResponseDelay = FBUS_OTA_MIN_RESPONSE_DELAY_US_DEFAULT;
+static uint16_t otaMaxResponseTime = FBUS_OTA_MAX_RESPONSE_TIME_US_DEFAULT;
 static uint32_t otaDataAddress;
-static uint8_t otaDataBuffer[FPORT2_OTA_DATA_FRAME_BYTES];
+static uint8_t otaDataBuffer[FBUS_OTA_DATA_FRAME_BYTES];
 static timeUs_t otaFrameEndTimestamp = 0;
 static bool firmwareUpdateError = false;
 #ifdef MSP_FIRMWARE_UPDATE
@@ -235,7 +235,7 @@ static uint8_t writeBuffer(uint8_t byte)
 }
 
 // UART RX ISR
-static void fportDataReceive(uint16_t byte, void *callback_data)
+static void fbusDataReceive(uint16_t byte, void *callback_data)
 {
     UNUSED(callback_data);
 
@@ -250,17 +250,17 @@ static void fportDataReceive(uint16_t byte, void *callback_data)
     clearToSend = false;
 #endif
 
-    if ((state != FS_CONTROL_FRAME_START) && (timeSincePreviousRxByte > FPORT2_RX_TIMEOUT)) {
+    if ((state != FS_CONTROL_FRAME_START) && (timeSincePreviousRxByte > FBUS_RX_TIMEOUT)) {
         state = FS_CONTROL_FRAME_START;
     }
 
     switch (state) {
 
         case FS_CONTROL_FRAME_START:
-            if ((byte == FPORT2_CONTROL_FRAME_LENGTH_8CH) ||
-                (byte == FPORT2_CONTROL_FRAME_LENGTH_16CH) ||
-                (byte == FPORT2_CONTROL_FRAME_LENGTH_24CH) ||
-                (byte == FPORT2_OTA_DATA_FRAME_LENGTH)) {
+            if ((byte == FBUS_CONTROL_FRAME_LENGTH_8CH) ||
+                (byte == FBUS_CONTROL_FRAME_LENGTH_16CH) ||
+                (byte == FBUS_CONTROL_FRAME_LENGTH_24CH) ||
+                (byte == FBUS_OTA_DATA_FRAME_LENGTH)) {
                 clearWriteBuffer();
                 writeBuffer(FT_CONTROL);
                 writeBuffer(byte);
@@ -294,7 +294,7 @@ static void fportDataReceive(uint16_t byte, void *callback_data)
         }
 
         case FS_DOWNLINK_FRAME_START:
-            if (byte == FPORT2_DOWNLINK_FRAME_LENGTH) {
+            if (byte == FBUS_DOWNLINK_FRAME_LENGTH) {
                 writeBuffer(FT_DOWNLINK);
                 writeBuffer(byte);
                 state = FS_DOWNLINK_FRAME_DATA;
@@ -304,10 +304,10 @@ static void fportDataReceive(uint16_t byte, void *callback_data)
             break;
 
         case FS_DOWNLINK_FRAME_DATA:
-            if (writeBuffer(byte) >= (FPORT2_DOWNLINK_FRAME_LENGTH + 3)) {
+            if (writeBuffer(byte) >= (FBUS_DOWNLINK_FRAME_LENGTH + 3)) {
 #if defined(USE_TELEMETRY_SMARTPORT)
-                fportFrame_t *frame = (fportFrame_t *)rxBuffer[rxBufferWriteIndex].data;
-                if ((frame->control.type >= FPORT2_FRAME_ID_OTA_START) && (frame->control.type <= FPORT2_FRAME_ID_OTA_STOP)) {
+                fbusFrame_t *frame = (fbusFrame_t *)rxBuffer[rxBufferWriteIndex].data;
+                if ((frame->control.type >= FBUS_FRAME_ID_OTA_START) && (frame->control.type <= FBUS_FRAME_ID_OTA_STOP)) {
                     otaFrameEndTimestamp = currentTimeUs;
                 }
                 lastTelemetryFrameReceivedUs = currentTimeUs;
@@ -327,23 +327,23 @@ static void fportDataReceive(uint16_t byte, void *callback_data)
 #if defined(USE_TELEMETRY_SMARTPORT)
 static void writeUplinkFramePhyID(uint8_t phyID, const smartPortPayload_t *payload)
 {
-    serialWrite(fportPort, FPORT2_UPLINK_FRAME_LENGTH);
-    serialWrite(fportPort, phyID);
+    serialWrite(fbusPort, FBUS_UPLINK_FRAME_LENGTH);
+    serialWrite(fbusPort, phyID);
 
     uint16_t checksum = 0;
     frskyCheckSumStep(&checksum, phyID);
     uint8_t *data = (uint8_t *)payload;
     for (unsigned i = 0; i < sizeof(smartPortPayload_t); ++i, ++data) {
-        serialWrite(fportPort, *data);
+        serialWrite(fbusPort, *data);
         frskyCheckSumStep(&checksum, *data);
     }
     frskyCheckSumFini(&checksum);
-    serialWrite(fportPort, checksum);
+    serialWrite(fbusPort, checksum);
 }
 
 static void writeUplinkFrame(const smartPortPayload_t *payload)
 {
-    writeUplinkFramePhyID(FPORT2_FC_COMMON_ID, payload);
+    writeUplinkFramePhyID(FBUS_FC_COMMON_ID, payload);
 }
 #endif
 
@@ -366,10 +366,10 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
         volatile uint8_t *buffer = rxBuffer[rxBufferReadIndex].data;
         uint8_t buflen = rxBuffer[rxBufferReadIndex].length;
 
-        fportFrame_t *frame = (fportFrame_t *)buffer;
+        fbusFrame_t *frame = (fbusFrame_t *)buffer;
 
         if (!frskyCheckSumIsGood((uint8_t *)buffer + 2, buflen - 2)) {  // Skip buffer type and len.
-            reportFrameError(DEBUG_FPORT2_ERROR_CHECKSUM);
+            reportFrameError(DEBUG_FBUS_ERROR_CHECKSUM);
         } else {
 
             switch (frame->type) {
@@ -379,13 +379,13 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 
                         case CFT_RC:
                             switch (frame->length) {
-                                case FPORT2_CONTROL_FRAME_LENGTH_8CH:
+                                case FBUS_CONTROL_FRAME_LENGTH_8CH:
                                     result = sbusChannelsDecode8ch(rxRuntimeConfig, &frame->control.rc.channels_8ch);
                                     break;
-                                case FPORT2_CONTROL_FRAME_LENGTH_16CH:
+                                case FBUS_CONTROL_FRAME_LENGTH_16CH:
                                     result = sbusChannelsDecode(rxRuntimeConfig, &frame->control.rc.channels_16ch);
                                     break;
-                                case FPORT2_CONTROL_FRAME_LENGTH_24CH:
+                                case FBUS_CONTROL_FRAME_LENGTH_24CH:
                                     result = sbusChannelsDecode24ch(rxRuntimeConfig, &frame->control.rc.channels_24ch);
                                     break;
                                 default:
@@ -404,14 +404,14 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                             if ((otaMinResponseDelayByte > 0) && (otaMinResponseDelayByte <= 4)) {
                                 otaMinResponseDelay = otaMinResponseDelayByte * 100;
                             } else {
-                                otaMinResponseDelay = FPORT2_OTA_MIN_RESPONSE_DELAY_US_DEFAULT;
+                                otaMinResponseDelay = FBUS_OTA_MIN_RESPONSE_DELAY_US_DEFAULT;
                             }
 
                             uint8_t otaMaxResponseTimeByte = frame->control.ota[1];
                             if (otaMaxResponseTimeByte > 0) {
                                 otaMaxResponseTime = otaMaxResponseTimeByte * 100;
                             } else {
-                                otaMaxResponseTime = FPORT2_OTA_MAX_RESPONSE_TIME_US_DEFAULT;
+                                otaMaxResponseTime = FBUS_OTA_MAX_RESPONSE_TIME_US_DEFAULT;
                             }
 
                             otaMode = true;
@@ -423,19 +423,19 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                                 memcpy(otaDataBuffer, frame->control.ota, sizeof(otaDataBuffer));
                                 otaGotData = true;
                             } else {
-                                reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                                reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                             }
                             break;
 
                         case CFT_OTA_STOP:
                             if (!otaMode) {
-                                reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                                reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                             }
                             break;
 #endif
 
                         default:
-                            reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                            reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                             break;
 
                     }
@@ -452,20 +452,20 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 
                     switch (frameId) {
 
-                        case FPORT2_FRAME_ID_NULL:
+                        case FBUS_FRAME_ID_NULL:
                             hasTelemetryRequest = true;
                             sendNullFrame = true;
                             break;
 
-                        case FPORT2_FRAME_ID_DATA:
+                        case FBUS_FRAME_ID_DATA:
                             hasTelemetryRequest = true;
                             break;
 
-                        case FPORT2_FRAME_ID_OTA_START:
-                        case FPORT2_FRAME_ID_OTA_DATA:
-                        case FPORT2_FRAME_ID_OTA_STOP:
+                        case FBUS_FRAME_ID_OTA_START:
+                        case FBUS_FRAME_ID_OTA_DATA:
+                        case FBUS_FRAME_ID_OTA_STOP:
                             switch (frameId) {
-                                case FPORT2_FRAME_ID_OTA_START:
+                                case FBUS_FRAME_ID_OTA_START:
                                     if (otaMode) {
                                         otaJustStarted = true;
                                         otaPrevDataAddress = 0;
@@ -473,14 +473,14 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                                         otaDataNeedsProcessing = false;
                                         firmwareUpdateError = false;
                                     } else {
-                                        reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                                        reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                                     }
                                     break;
 
-                                case FPORT2_FRAME_ID_OTA_DATA:
+                                case FBUS_FRAME_ID_OTA_DATA:
                                     if (otaMode) {
                                         otaDataAddress = frame->downlink.telemetryData.data;
-                                        if (otaGotData && (otaDataAddress == (otaJustStarted ? 0 : otaPrevDataAddress + FPORT2_OTA_DATA_FRAME_BYTES))) { // check that we got a control frame with data and check address
+                                        if (otaGotData && (otaDataAddress == (otaJustStarted ? 0 : otaPrevDataAddress + FBUS_OTA_DATA_FRAME_BYTES))) { // check that we got a control frame with data and check address
                                             otaPrevDataAddress = otaDataAddress;
                                             otaGotData = false;
                                             otaDataNeedsProcessing = true;
@@ -488,15 +488,15 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                                         hasTelemetryRequest = true;
                                         otaJustStarted = false;
                                     } else {
-                                        reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                                        reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                                     }
                                     break;
 
-                                case FPORT2_FRAME_ID_OTA_STOP:
+                                case FBUS_FRAME_ID_OTA_STOP:
                                     if (otaMode) {
                                         hasTelemetryRequest = true;
                                     } else {
-                                        reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                                        reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                                     }
                                     break;
                             }
@@ -507,11 +507,11 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                             break;
 
                         default:
-                            if ((frameId == FPORT2_FRAME_ID_READ) && (downlinkPhyID == FPORT2_FC_MSP_ID)) {
+                            if ((frameId == FBUS_FRAME_ID_READ) && (downlinkPhyID == FBUS_FC_MSP_ID)) {
                                 memcpy(&payloadBuffer, &frame->downlink.telemetryData, sizeof(payloadBuffer));
                                 mspPayload = &payloadBuffer;
                                 hasTelemetryRequest = true;
-                            } else if (downlinkPhyID != FPORT2_FC_COMMON_ID) {
+                            } else if (downlinkPhyID != FBUS_FC_COMMON_ID) {
 #if defined(USE_SMARTPORT_MASTER)
                                 int8_t smartportPhyID = smartportMasterStripPhyIDCheckBits(downlinkPhyID);
                                 if (smartportPhyID != -1) {
@@ -527,7 +527,7 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                     break;
 
                 default:
-                    reportFrameError(DEBUG_FPORT2_ERROR_TYPE);
+                    reportFrameError(DEBUG_FBUS_ERROR_TYPE);
                     break;
 
             }
@@ -538,7 +538,7 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
     }
 
 #if defined(USE_TELEMETRY_SMARTPORT)
-    if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FPORT2_MIN_TELEMETRY_RESPONSE_DELAY_US)
+    if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US)
            || (otaResponsePayload && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= otaMinResponseDelay)) {
         hasTelemetryRequest = false;
         clearToSend = true;
@@ -546,7 +546,7 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
     }
 #endif
 
-    if (frameReceivedTimestamp && (cmpTimeUs(currentTimeUs, frameReceivedTimestamp) > MS2US(FPORT2_MAX_TELEMETRY_AGE_MS))) {
+    if (frameReceivedTimestamp && (cmpTimeUs(currentTimeUs, frameReceivedTimestamp) > MS2US(FBUS_MAX_TELEMETRY_AGE_MS))) {
         setRssiDirect(0, RSSI_SOURCE_RX_PROTOCOL);
         frameReceivedTimestamp = 0;
     }
@@ -568,7 +568,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 #if defined(USE_TELEMETRY_SMARTPORT)
 
     timeUs_t currentTimeUs = micros();
-    if (cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) > FPORT2_MAX_TELEMETRY_RESPONSE_DELAY_US) {
+    if (cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) > FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US) {
        clearToSend = false;
     }
 
@@ -576,18 +576,18 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
         if (otaResponsePayload) {
             switch (otaResponsePayload->frameId) {
 
-                case FPORT2_FRAME_ID_OTA_DATA: {
+                case FBUS_FRAME_ID_OTA_DATA: {
                     if (otaDataNeedsProcessing && !firmwareUpdateError) { // We have got fresh data
 #ifdef MSP_FIRMWARE_UPDATE
                         static uint32_t firmwareUpdateSize;
-                        uint32_t receivedSize = otaDataAddress - FPORT2_OTA_DATA_FRAME_BYTES;
+                        uint32_t receivedSize = otaDataAddress - FBUS_OTA_DATA_FRAME_BYTES;
                         if (otaDataAddress == 0) {
                             static firmwareUpdateHeader_t *header = (firmwareUpdateHeader_t *)otaDataBuffer;
                             firmwareUpdateSize = header->size;
                             firmwareUpdateCRC = header->crc;
                             firmwareUpdateError = !firmwareUpdatePrepare(firmwareUpdateSize);
                         } else if (receivedSize < firmwareUpdateSize) {
-                            uint8_t firmwareDataSize = MIN((uint8_t)FPORT2_OTA_DATA_FRAME_BYTES, firmwareUpdateSize - receivedSize);
+                            uint8_t firmwareDataSize = MIN((uint8_t)FBUS_OTA_DATA_FRAME_BYTES, firmwareUpdateSize - receivedSize);
                             firmwareUpdateError = !firmwareUpdateStore(otaDataBuffer, firmwareDataSize);
                         }
 #else
@@ -598,7 +598,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     break;
                 }
 
-                case FPORT2_FRAME_ID_OTA_STOP:
+                case FBUS_FRAME_ID_OTA_STOP:
                     otaMode = false;
 #ifdef MSP_FIRMWARE_UPDATE
                     readyToUpdateFirmwareTimestamp = currentTimeUs;
@@ -615,8 +615,8 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             otaResponsePayload = NULL;
             clearToSend = false;
 
-        } else if ((downlinkPhyID == FPORT2_FC_COMMON_ID) || (downlinkPhyID == FPORT2_FC_MSP_ID)) {
-            if ((downlinkPhyID == FPORT2_FC_MSP_ID) && !mspPayload) {
+        } else if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
+            if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
                 clearToSend = false;
             } else if (!sendNullFrame) {
                 processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
@@ -659,7 +659,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
     return true;
 }
 
-bool fport2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bool isFBUS)
+bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bool isFBUS)
 {
     static uint16_t sbusChannelData[26];
     rxRuntimeState->channelData = sbusChannelData;
@@ -676,19 +676,19 @@ bool fport2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, 
 
     uint32_t baudRate = (isFBUS) ? FBUS_BAUDRATE : FPORT2_BAUDRATE;
 
-    fportPort = openSerialPort(portConfig->identifier,
+    fbusPort = openSerialPort(portConfig->identifier,
         FUNCTION_RX_SERIAL,
-        fportDataReceive,
+        fbusDataReceive,
         NULL,
         baudRate,
         MODE_RXTX,
-        FPORT2_PORT_OPTIONS |
+        FBUS_PORT_OPTIONS |
             (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
             (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
     );
 
-    if (fportPort) {
+    if (fbusPort) {
 #if defined(USE_TELEMETRY_SMARTPORT)
         telemetryEnabled = initSmartPortTelemetryExternal(writeUplinkFrame);
 #endif
@@ -698,7 +698,7 @@ bool fport2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, 
         }
     }
 
-    return fportPort != NULL;
+    return fbusPort != NULL;
 }
 
 #endif
