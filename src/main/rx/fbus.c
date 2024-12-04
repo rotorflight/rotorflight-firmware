@@ -264,12 +264,6 @@ static void fbusDataReceive(uint16_t byte, void *callback_data)
                 clearWriteBuffer();
                 writeBuffer(FT_CONTROL);
                 writeBuffer(byte);
-                // +4 comes from = 
-                //    buffer type (FT_CONTROL) + 
-                //    length + 
-                //    frame type (Control frame or OTA frame) +
-                //    [`byte` channel frame] +
-                //    CRC
                 controlFrameSize = byte + 4;  
                 state = FS_CONTROL_FRAME_TYPE;
             }
