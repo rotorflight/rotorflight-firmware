@@ -116,13 +116,13 @@ TEST(SBusOutInit, ConfigReset) {
     for (int i = 0; i < 18; i++) {
         EXPECT_EQ(sbusOutConfig()->sourceIndex[i], i);
     }
-    // Min max
+    // Low High
     for (int i = 0; i < 18; i++) {
-        EXPECT_EQ(sbusOutConfig()->min[i], 1000);
-        EXPECT_EQ(sbusOutConfig()->max[i], 2000);
+        EXPECT_EQ(sbusOutConfig()->sourceRangeLow[i], 1000);
+        EXPECT_EQ(sbusOutConfig()->sourceRangeHigh[i], 2000);
     }
 
-    EXPECT_EQ(sbusOutConfig()->sbusRate, 50);
+    EXPECT_EQ(sbusOutConfig()->frameRate, 50);
 }
 
 TEST(SBusOutInit, GoodPath) {
@@ -140,6 +140,8 @@ TEST(SBusOutInit, GoodPath) {
     sbusOutInit();
 
     EXPECT_EQ(sbusOutPort, &fake_port);
+
+    EXPECT_TRUE(sbusOutIsEnabled());
 }
 
 TEST(SBusOutInit, NoPortConfig) {
@@ -154,6 +156,8 @@ TEST(SBusOutInit, NoPortConfig) {
 
     // Update should be a no-op
     sbusOutUpdate(0);
+
+    EXPECT_FALSE(sbusOutIsEnabled());
 }
 
 class SBusOutTestBase : public ::testing::Test {
@@ -228,8 +232,8 @@ TEST_P(SBusOutSourceMapping, SourceMixer) {
     uint8_t source_index = std::get<1>(GetParam());
     sbusOutConfigMutable()->sourceType[sbus_channel] = SBUS_OUT_SOURCE_MIXER;
     sbusOutConfigMutable()->sourceIndex[sbus_channel] = source_index;
-    sbusOutConfigMutable()->min[sbus_channel] = -1000;
-    sbusOutConfigMutable()->max[sbus_channel] = 1000;
+    sbusOutConfigMutable()->sourceRangeLow[sbus_channel] = -1000;
+    sbusOutConfigMutable()->sourceRangeHigh[sbus_channel] = 1000;
 
     constexpr float kFakeValue = -0.1234f;
 
@@ -353,13 +357,13 @@ TEST_F(SBusOutPWMToSBusTest, OutOfBoundValues) {
     EXPECT_EQ(sbus, 1);
 }
 
-// When config min/max is reversed (min>max)
+// When config low/high is reversed (low>high)
 TEST_F(SBusOutPWMToSBusTest, ReversedOutOfBoundValues) {
-    // Reversed min/max
-    sbusOutConfigMutable()->min[4] = 500;
-    sbusOutConfigMutable()->max[4] = -500;
-    sbusOutConfigMutable()->min[16] = 500;
-    sbusOutConfigMutable()->max[16] = -500;
+    // Reversed low/high
+    sbusOutConfigMutable()->sourceRangeLow[4] = 500;
+    sbusOutConfigMutable()->sourceRangeHigh[4] = -500;
+    sbusOutConfigMutable()->sourceRangeLow[16] = 500;
+    sbusOutConfigMutable()->sourceRangeHigh[16] = -500;
 
     uint16_t sbus;
     sbus = sbusOutConvertToSbus(4, 4000);
@@ -420,8 +424,8 @@ INSTANTIATE_TEST_SUITE_P(PWMConversionSweep, SBusOutPWMToSBusSweep,
 class SBusOutNarrowbandPWMToSBusSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
-    sbusOutConfigMutable()->min[4] = 500;
-    sbusOutConfigMutable()->max[4] = 1000;
+    sbusOutConfigMutable()->sourceRangeLow[4] = 500;
+    sbusOutConfigMutable()->sourceRangeHigh[4] = 1000;
 
     const uint16_t pwm = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(4, pwm);
@@ -435,8 +439,8 @@ TEST_P(SBusOutNarrowbandPWMToSBusSweep, FullScaleChannel) {
 }
 
 TEST_P(SBusOutNarrowbandPWMToSBusSweep, OnOffConversion) {
-    sbusOutConfigMutable()->min[16] = 500;
-    sbusOutConfigMutable()->max[16] = 1000;
+    sbusOutConfigMutable()->sourceRangeLow[16] = 500;
+    sbusOutConfigMutable()->sourceRangeHigh[16] = 1000;
 
     const uint16_t pwm = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(16, pwm);
@@ -456,8 +460,8 @@ INSTANTIATE_TEST_SUITE_P(NarrowbandPWMConversionSweep,
 class SBusOutMixerValueToSBusSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutMixerValueToSBusSweep, FullScaleChannel) {
-    sbusOutConfigMutable()->min[4] = -1000;
-    sbusOutConfigMutable()->max[4] = 1000;
+    sbusOutConfigMutable()->sourceRangeLow[4] = -1000;
+    sbusOutConfigMutable()->sourceRangeHigh[4] = 1000;
 
     const int16_t value = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(4, value);
@@ -471,8 +475,8 @@ TEST_P(SBusOutMixerValueToSBusSweep, FullScaleChannel) {
 }
 
 TEST_P(SBusOutMixerValueToSBusSweep, OnOffConversion) {
-    sbusOutConfigMutable()->min[16] = -1000;
-    sbusOutConfigMutable()->max[16] = 1000;
+    sbusOutConfigMutable()->sourceRangeLow[16] = -1000;
+    sbusOutConfigMutable()->sourceRangeHigh[16] = 1000;
 
     const int16_t value = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(16, value);
@@ -484,14 +488,14 @@ INSTANTIATE_TEST_SUITE_P(MixerValueConversionSweep,
                          SBusOutMixerValueToSBusSweep,
                          testing::Range(-1000, 1001));
 
-// Test SBus conversion when min/max is reversed in the config
+// Test SBus conversion when low/high is reversed in the config
 // Test param = value between [-500, 1000] (more generic)
 class SBusOutToSBusReversedSweep : public SBusOutPWMToSBusSweep {};
 
 TEST_P(SBusOutToSBusReversedSweep, FullScaleChannel) {
-    // Reversed min/max
-    sbusOutConfigMutable()->min[4] = 1000;
-    sbusOutConfigMutable()->max[4] = -500;
+    // Reversed low/high
+    sbusOutConfigMutable()->sourceRangeLow[4] = 1000;
+    sbusOutConfigMutable()->sourceRangeHigh[4] = -500;
 
     const int16_t value = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(4, value);
@@ -504,8 +508,8 @@ TEST_P(SBusOutToSBusReversedSweep, FullScaleChannel) {
 }
 
 TEST_P(SBusOutToSBusReversedSweep, OnOffConversion) {
-    sbusOutConfigMutable()->min[16] = 1000;
-    sbusOutConfigMutable()->max[16] = -500;
+    sbusOutConfigMutable()->sourceRangeLow[16] = 1000;
+    sbusOutConfigMutable()->sourceRangeHigh[16] = -500;
 
     const int16_t value = GetParam();
     uint16_t sbus = sbusOutConvertToSbus(16, value);

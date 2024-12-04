@@ -33,7 +33,8 @@
 STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
 
 STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
-                                                uint16_t *channels) {
+                                                uint16_t *channels)
+{
     frame->syncByte = 0x0F;
 
     // There's no way to make a bit field array, so we have to go tedious.
@@ -61,20 +62,23 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
     frame->endByte = 0;
 }
 
-static float sbusOutGetRX(uint8_t channel) {
+static float sbusOutGetRX(uint8_t channel)
+{
     if (channel < MAX_SUPPORTED_RC_CHANNEL_COUNT)
         return rcChannel[channel];
     return 0;
 }
 
-// Note: this returns -1000 - 1000 range
-static float sbusOutGetValueMixer(uint8_t channel) {
+// Note: this returns 1000x normalized value (-1000 - 1000).
+static float sbusOutGetValueMixer(uint8_t channel)
+{
     if (channel < MIXER_OUTPUT_COUNT)
         return 1000.0f * mixerGetOutput(channel);
     return 0;
 }
 
-static float sbusOutGetServo(uint8_t channel) {
+static float sbusOutGetServo(uint8_t channel)
+{
     if (channel < MAX_SUPPORTED_SERVOS)
         return getServoOutput(channel);
     return 0;
@@ -82,17 +86,21 @@ static float sbusOutGetServo(uint8_t channel) {
 
 // Note: this returns 0 - 1000 range (or -1000 - 1000 for bidirectional
 // motor)
-static float sbusOutGetMotor(uint8_t channel) {
+static float sbusOutGetMotor(uint8_t channel)
+{
     if (channel < MAX_SUPPORTED_MOTORS)
         return getMotorOutput(channel);
     return 0;
 }
 
-STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel) {
+STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel)
+{
     const sbusOutSourceType_e source_type =
         sbusOutConfig()->sourceType[channel];
     const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
     switch (source_type) {
+    case SBUS_OUT_SOURCE_NONE:
+        return 0;
     case SBUS_OUT_SOURCE_RX:
         return sbusOutGetRX(source_index);
     case SBUS_OUT_SOURCE_MIXER:
@@ -105,20 +113,22 @@ STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel) {
     return 0;
 }
 
-STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm) {
-    const int16_t min = sbusOutConfig()->min[channel];
-    const int16_t max = sbusOutConfig()->max[channel];
+STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm)
+{
+    const int16_t low  = sbusOutConfig()->sourceRangeLow[channel];
+    const int16_t high = sbusOutConfig()->sourceRangeHigh[channel];
 
     // round and bound values
     if (channel >= 16) {
-        const float value = scaleRangef(pwm, min, max, 0, 1);
+        const float value = scaleRangef(pwm, low, high, 0, 1);
         return constrain(nearbyintf(value), 0, 1);
     }
-    const float value = scaleRangef(pwm, min, max, 192, 1792);
+    const float value = scaleRangef(pwm, low, high, 192, 1792);
     return constrain(nearbyintf(value), 0, (1 << 11) - 1);
 }
 
-void sbusOutUpdate(timeUs_t currentTimeUs) {
+void sbusOutUpdate(timeUs_t currentTimeUs)
+{
     UNUSED(currentTimeUs);
     if (!sbusOutPort)
         return;
@@ -140,7 +150,13 @@ void sbusOutUpdate(timeUs_t currentTimeUs) {
     serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
 }
 
-void sbusOutInit() {
+bool sbusOutIsEnabled() 
+{ 
+    return sbusOutPort != NULL;
+}
+
+void sbusOutInit()
+{
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_SBUS_OUT);
 
@@ -152,5 +168,7 @@ void sbusOutInit() {
     sbusOutPort = openSerialPort(
         portConfig->identifier, FUNCTION_SBUS_OUT, NULL, NULL, 100000, MODE_TX,
         SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN | SERIAL_INVERTED |
-            SERIAL_BIDIR | SERIAL_NOSWAP);
+                SERIAL_BIDIR | sbusOutConfig()->pinSwap
+            ? SERIAL_PINSWAP
+            : SERIAL_NOSWAP);
 }

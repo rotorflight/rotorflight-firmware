@@ -23,10 +23,11 @@
 #define SBUS_OUT_CHANNELS 18
 
 typedef enum {
-    SBUS_OUT_SOURCE_RX = 0,
-    SBUS_OUT_SOURCE_MIXER = 1,
-    SBUS_OUT_SOURCE_SERVO = 2,
-    SBUS_OUT_SOURCE_MOTOR = 3
+    SBUS_OUT_SOURCE_NONE = 0,
+    SBUS_OUT_SOURCE_RX = 1,
+    SBUS_OUT_SOURCE_MIXER = 2,
+    SBUS_OUT_SOURCE_SERVO = 3,
+    SBUS_OUT_SOURCE_MOTOR = 4
 } sbusOutSourceType_e;
 
 typedef struct sbusOutConfig_s {
@@ -43,12 +44,14 @@ typedef struct sbusOutConfig_s {
     //   * min = 1000, max = 2000 for wideband servo, or min = 500, max = 1000
     //   * min = 0, max = 1000 for motor (treat as 0 and +1.0f)
     //   for narrowband servo.
-    int16_t min[SBUS_OUT_CHANNELS];
-    int16_t max[SBUS_OUT_CHANNELS];
+    int16_t sourceRangeLow[SBUS_OUT_CHANNELS];
+    int16_t sourceRangeHigh[SBUS_OUT_CHANNELS];
 
     // SBus output frame rate in Hz, typically 50Hz. Your receiver may support
     // faster updates.
-    uint8_t sbusRate;
+    uint8_t frameRate;
+
+    uint8_t pinSwap;
 
 } sbusOutConfig_t;
 

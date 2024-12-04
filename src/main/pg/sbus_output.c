@@ -30,10 +30,12 @@ void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
         config->sourceType[i] = SBUS_OUT_SOURCE_RX;
         config->sourceIndex[i] = i;
-        config->min[i] = 1000;
-        config->max[i] = 2000;
+        config->sourceRangeLow[i] = 1000;
+        config->sourceRangeHigh[i] = 2000;
     }
-    config->sbusRate = 50;
+    config->frameRate = 50;
+
+    config->pinSwap = 0;
 }
 
 #endif

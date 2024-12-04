@@ -1742,11 +1742,12 @@ const clivalue_t valueTable[] = {
 #endif
 
 #ifdef USE_SBUS_OUTPUT
-    { "sbus_out_source_type",  VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceType) },
-    { "sbus_out_source_index", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceIndex) },
-    { "sbus_out_min",          VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, min) },
-    { "sbus_out_max",          VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, max) },
-    { "sbus_out_sbus_rate",    VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {25, 250}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sbusRate) },
+    { "sbus_out_source_type",       VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceType) },
+    { "sbus_out_source_index",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceIndex) },
+    { "sbus_out_source_range_low",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeLow) },
+    { "sbus_out_source_range_high", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeHigh) },
+    { "sbus_out_frame_rate",        VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {25, 250}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, frameRate) },
+    { "sbus_out_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, pinSwap) },
 #endif
 };
 
