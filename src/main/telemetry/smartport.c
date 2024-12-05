@@ -591,10 +591,15 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
             return;
         }
 
+        // We have a small chance that `nextSendTime` is indeed 0.
+        // This is a benign defect and just slows down MSP reply.
         if (nextSendTime != 0 && (cmpTimeUs(micros(), nextSendTime) <= 0)) {
             // Don't send sensor data now. This will improve the reception of the MSP message.
             return;
         }
+
+        // Blackout window passed. Reset `nextSendTime`.
+        nextSendTime = 0;
 #endif
 
         // we can send back any data we want, our tables keep track of the order and frequency of each data type we send
