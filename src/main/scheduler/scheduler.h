@@ -174,6 +174,9 @@ typedef enum {
     TASK_TELEMETRY_SBUS2,
 #endif
 
+#ifdef USE_SBUS_OUTPUT
+    TASK_SBUS_OUTPUT,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 

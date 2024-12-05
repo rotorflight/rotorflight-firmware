@@ -44,6 +44,7 @@
 #include "drivers/stack_check.h"
 #include "drivers/usb_io.h"
 #include "drivers/vtx_common.h"
+#include "drivers/sbus_output.h"
 
 #include "config/config.h"
 #include "fc/core.h"
@@ -77,6 +78,7 @@
 
 #include "pg/rx.h"
 #include "pg/motor.h"
+#include "pg/sbus_output.h"
 
 #include "rx/rx.h"
 
@@ -414,6 +416,11 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #ifdef USE_TELEMETRY_SBUS2
     [TASK_TELEMETRY_SBUS2] = DEFINE_TASK("SBUS2_TELEMETRY", NULL, NULL, taskSendSbus2Telemetry, TASK_PERIOD_HZ(8000), TASK_PRIORITY_LOWEST),
 #endif
+
+#ifdef USE_SBUS_OUTPUT
+    // 25Hz is the initial period. The actual period will be loaded from config.
+    [TASK_SBUS_OUTPUT] = DEFINE_TASK("SBUS_OUTPUT", NULL, NULL, sbusOutUpdate, TASK_PERIOD_HZ(25), TASK_PRIORITY_MEDIUM),
+#endif
 };
 
 task_t *getTask(unsigned taskId)
@@ -566,6 +573,11 @@ void tasksInit(void)
 #ifdef USE_TELEMETRY_SBUS2
     const bool useSBUS2 = rxRuntimeState.serialrxProvider == SERIALRX_SBUS2;
     setTaskEnabled(TASK_TELEMETRY_SBUS2, useSBUS2);
+#endif
+
+#ifdef USE_SBUS_OUTPUT
+    rescheduleTask(TASK_SBUS_OUTPUT, TASK_PERIOD_HZ(sbusOutConfig()->frameRate));
+    setTaskEnabled(TASK_SBUS_OUTPUT, sbusOutIsEnabled());
 #endif
 
 }
