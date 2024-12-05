@@ -102,4 +102,96 @@ void sbusChannelsInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeSta
         rxRuntimeState->channelData[b] = (16 * rcControlsConfig()->rc_center) / 10 - 1408;
     }
 }
+
+uint8_t sbusChannelsDecode8ch(rxRuntimeState_t *rxRuntimeState, const sbusChannels8ch_t *channels)
+{
+    uint16_t *sbusChannelData = rxRuntimeState->channelData;
+    sbusChannelData[0] = channels->chan0;
+    sbusChannelData[1] = channels->chan1;
+    sbusChannelData[2] = channels->chan2;
+    sbusChannelData[3] = channels->chan3;
+    sbusChannelData[4] = channels->chan4;
+    sbusChannelData[5] = channels->chan5;
+    sbusChannelData[6] = channels->chan6;
+    sbusChannelData[7] = channels->chan7;
+
+    if (channels->flags & SBUS_FLAG_CHANNEL_17) {
+        sbusChannelData[8] = SBUS_DIGITAL_CHANNEL_MAX;
+    } else {
+        sbusChannelData[8] = SBUS_DIGITAL_CHANNEL_MIN;
+    }
+
+    if (channels->flags & SBUS_FLAG_CHANNEL_18) {
+        sbusChannelData[9] = SBUS_DIGITAL_CHANNEL_MAX;
+    } else {
+        sbusChannelData[9] = SBUS_DIGITAL_CHANNEL_MIN;
+    }
+
+    if (channels->flags & SBUS_FLAG_FAILSAFE_ACTIVE) {
+        // internal failsafe enabled and rx failsafe flag set
+        // RX *should* still be sending valid channel data (repeated), so use it.
+        return RX_FRAME_COMPLETE | RX_FRAME_FAILSAFE;
+    }
+
+    if (channels->flags & SBUS_FLAG_SIGNAL_LOSS) {
+        // The received data is a repeat of the last valid data so can be considered complete.
+        return RX_FRAME_COMPLETE | RX_FRAME_DROPPED;
+    }
+
+    return RX_FRAME_COMPLETE;
+}
+
+uint8_t sbusChannelsDecode24ch(rxRuntimeState_t *rxRuntimeState, const sbusChannels24ch_t *channels)
+{
+    uint16_t *sbusChannelData = rxRuntimeState->channelData;
+    sbusChannelData[0] = channels->chan0;
+    sbusChannelData[1] = channels->chan1;
+    sbusChannelData[2] = channels->chan2;
+    sbusChannelData[3] = channels->chan3;
+    sbusChannelData[4] = channels->chan4;
+    sbusChannelData[5] = channels->chan5;
+    sbusChannelData[6] = channels->chan6;
+    sbusChannelData[7] = channels->chan7;
+    sbusChannelData[8] = channels->chan8;
+    sbusChannelData[9] = channels->chan9;
+    sbusChannelData[10] = channels->chan10;
+    sbusChannelData[11] = channels->chan11;
+    sbusChannelData[12] = channels->chan12;
+    sbusChannelData[13] = channels->chan13;
+    sbusChannelData[14] = channels->chan14;
+    sbusChannelData[15] = channels->chan15;
+    sbusChannelData[16] = channels->chan16;
+    sbusChannelData[17] = channels->chan17;
+    sbusChannelData[18] = channels->chan18;
+    sbusChannelData[19] = channels->chan19;
+    sbusChannelData[20] = channels->chan20;
+    sbusChannelData[21] = channels->chan21;
+    sbusChannelData[22] = channels->chan22;
+    sbusChannelData[23] = channels->chan23;
+
+    if (channels->flags & SBUS_FLAG_CHANNEL_17) {
+        sbusChannelData[24] = SBUS_DIGITAL_CHANNEL_MAX;
+    } else {
+        sbusChannelData[24] = SBUS_DIGITAL_CHANNEL_MIN;
+    }
+
+    if (channels->flags & SBUS_FLAG_CHANNEL_18) {
+        sbusChannelData[25] = SBUS_DIGITAL_CHANNEL_MAX;
+    } else {
+        sbusChannelData[25] = SBUS_DIGITAL_CHANNEL_MIN;
+    }
+
+    if (channels->flags & SBUS_FLAG_FAILSAFE_ACTIVE) {
+        // internal failsafe enabled and rx failsafe flag set
+        // RX *should* still be sending valid channel data (repeated), so use it.
+        return RX_FRAME_COMPLETE | RX_FRAME_FAILSAFE;
+    }
+
+    if (channels->flags & SBUS_FLAG_SIGNAL_LOSS) {
+        // The received data is a repeat of the last valid data so can be considered complete.
+        return RX_FRAME_COMPLETE | RX_FRAME_DROPPED;
+    }
+
+    return RX_FRAME_COMPLETE;
+}
 #endif
