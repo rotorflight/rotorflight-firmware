@@ -150,8 +150,8 @@ void sbusOutUpdate(timeUs_t currentTimeUs)
     serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
 }
 
-bool sbusOutIsEnabled() 
-{ 
+bool sbusOutIsEnabled()
+{
     return sbusOutPort != NULL;
 }
 
@@ -167,7 +167,6 @@ void sbusOutInit()
 
     sbusOutPort = openSerialPort(
         portConfig->identifier, FUNCTION_SBUS_OUT, NULL, NULL, 100000, MODE_TX,
-        SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN | SERIAL_INVERTED |
-            SERIAL_UNIDIR |
+        SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN | SERIAL_INVERTED | SERIAL_UNIDIR |
             (sbusOutConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
