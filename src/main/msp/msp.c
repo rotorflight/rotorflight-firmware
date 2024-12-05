@@ -3252,18 +3252,25 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
 #ifdef USE_SBUS_OUTPUT
-    case MSP_SET_SBUS_OUTPUT_CONFIG:
-        if (sbufBytesRemaining(src) >= 6 * SBUS_OUT_CHANNELS + 1) {
-            for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-                sbusOutConfigMutable()->sourceType[i] = sbufReadU8(src);
-                sbusOutConfigMutable()->sourceIndex[i] = sbufReadU8(src);
-                sbusOutConfigMutable()->sourceRangeLow[i] = sbufReadS16(src);
-                sbusOutConfigMutable()->sourceRangeHigh[i] = sbufReadS16(src);
+    case MSP_SET_SBUS_OUTPUT_CONFIG: {
+        // Write format is customized for the size and responsiveness.
+        // The first byte will be the target output channel index (0-based).
+        // The following bytes will be the type/index/low/high for that channel.
+        // `frameRate` is piggyback to any (all) indices for simplicity.
+        if (sbufBytesRemaining(src) >= 1) {
+            uint8_t index = sbufReadU8(src);
+            if (index < SBUS_OUT_CHANNELS && sbufBytesRemaining(src) >= 7) {
+                sbusOutConfigMutable()->sourceType[index] = sbufReadU8(src);
+                sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
+                sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
+                sbusOutConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
+
+                // You need to reset FC after updating ->frameRate.
+                sbusOutConfigMutable()->frameRate = sbufReadU8(src);
             }
-            // You need to reset FC after updating ->sbusRate.
-            sbusOutConfigMutable()->frameRate = sbufReadU8(src);
         }
         break;
+    }
 #endif
 
     case MSP_SET_NAME:
