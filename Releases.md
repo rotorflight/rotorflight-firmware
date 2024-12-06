@@ -1,3 +1,42 @@
+# 4.4.0-RC2
+
+This is the _second Release Candidate_ of the Rotorflight 2.1 firmware.
+
+**NOTE** The firmware for RF 2.1 uses version number 4.4.x.
+
+**NOTE** The final 4.4.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0-RC2)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0-RC2)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0-RC2)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration dump from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.0-RC1
+
+- Add support for FrSky FBUS
+- Add support for SBUS output
+- Wiggle only before first arming
+- Increase governor D-gain by 10x
+- Fix SPort telemetry lost after 35mins issue
+
+
+***
+
 # 4.4.0-RC1
 
 This is the _first Release Candidate_ of the Rotorflight 2.1 firmware.
