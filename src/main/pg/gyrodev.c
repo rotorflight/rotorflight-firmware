@@ -47,11 +47,12 @@ static void gyroResetCommonDeviceConfig(gyroDeviceConfig_t *devconf, ioTag_t ext
 #endif
 
 #ifdef USE_SPI_GYRO
-static void gyroResetSpiDeviceConfig(gyroDeviceConfig_t *devconf, SPI_TypeDef *instance, ioTag_t csnTag, ioTag_t extiTag, uint8_t alignment, sensorAlignment_t customAlignment)
+static void gyroResetSpiDeviceConfig(gyroDeviceConfig_t *devconf, SPI_TypeDef *instance, ioTag_t csnTag, ioTag_t csnAccTag, ioTag_t extiTag, uint8_t alignment, sensorAlignment_t customAlignment)
 {
     devconf->busType = BUS_TYPE_SPI;
     devconf->spiBus = SPI_DEV_TO_CFG(spiDeviceByInstance(instance));
     devconf->csnTag = csnTag;
+    devconf->csnAccTag = csnAccTag;
     gyroResetCommonDeviceConfig(devconf, extiTag, alignment, customAlignment);
 }
 #endif
@@ -80,7 +81,7 @@ void pgResetFn_gyroDeviceConfig(gyroDeviceConfig_t *devconf)
 
     // All multi-gyro boards use SPI based gyros.
 #ifdef USE_SPI_GYRO
-    gyroResetSpiDeviceConfig(&devconf[0], GYRO_1_SPI_INSTANCE, IO_TAG(GYRO_1_CS_PIN), IO_TAG(GYRO_1_EXTI_PIN), GYRO_1_ALIGN, customAlignment1);
+    gyroResetSpiDeviceConfig(&devconf[0], GYRO_1_SPI_INSTANCE, IO_TAG(GYRO_1_CS_PIN), IO_TAG(GYRO_1_ACC_CS_PIN), IO_TAG(GYRO_1_EXTI_PIN), GYRO_1_ALIGN, customAlignment1);
 #ifdef USE_MULTI_GYRO
     devconf[1].index = 1;
     sensorAlignment_t customAlignment2 = CUSTOM_ALIGN_CW0_DEG;
@@ -89,7 +90,7 @@ void pgResetFn_gyroDeviceConfig(gyroDeviceConfig_t *devconf)
 #else
     buildAlignmentFromStandardAlignment(&customAlignment2, GYRO_2_ALIGN);
 #endif // GYRO_2_CUSTOM_ALIGN
-    gyroResetSpiDeviceConfig(&devconf[1], GYRO_2_SPI_INSTANCE, IO_TAG(GYRO_2_CS_PIN), IO_TAG(GYRO_2_EXTI_PIN), GYRO_2_ALIGN, customAlignment2);
+    gyroResetSpiDeviceConfig(&devconf[1], GYRO_2_SPI_INSTANCE, IO_TAG(GYRO_2_CS_PIN), IO_TAG(GYRO_2_ACC_CS_PIN), IO_TAG(GYRO_2_EXTI_PIN), GYRO_2_ALIGN, customAlignment2);
 #endif // USE_MULTI_GYRO
 #endif // USE_SPI_GYRO
 

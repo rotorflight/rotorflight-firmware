@@ -113,4 +113,5 @@ const char * const ownerNames[OWNER_TOTAL_COUNT] = {
     "RX_SPI_EXPRESSLRS_RESET",
     "RX_SPI_EXPRESSLRS_BUSY",
     "FREQ",
+    "ACC_CS",
 };
