@@ -1681,42 +1681,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DSHOT_BIDIR, "%d",            motorConfig()->dev.useDshotTelemetry);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_source[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_source", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_ratio[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_ratio", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_limit[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_limit", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_notch_q[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_notch_q", buf);
-        );
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_preset", "%d",           rpmFilterConfig()->preset);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_min_hz", "%d",           rpmFilterConfig()->min_hz);
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LPF_HZ, "%d",             accelerometerConfig()->acc_lpf_hz * 100);

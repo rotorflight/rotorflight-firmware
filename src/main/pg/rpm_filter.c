@@ -23,7 +23,12 @@
 #include "pg/pg_ids.h"
 #include "pg/rpm_filter.h"
 
-PG_REGISTER(rpmFilterConfig_t, rpmFilterConfig, PG_RPM_FILTER_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(rpmFilterConfig_t, rpmFilterConfig, PG_RPM_FILTER_CONFIG, 0);
+
+PG_RESET_TEMPLATE(rpmFilterConfig_t, rpmFilterConfig,
+    .preset = 2,
+    .min_hz = 20,
+);
 
 #endif
 
