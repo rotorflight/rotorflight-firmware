@@ -125,6 +125,11 @@ TEST(SBusOutInit, ConfigReset) {
     EXPECT_EQ(sbusOutConfig()->frameRate, 50);
 }
 
+MATCHER(IsValidSbusPortOption, "") {
+    return (arg & SERIAL_STOPBITS_2) && (arg & SERIAL_PARITY_EVEN) &&
+           (arg & SERIAL_INVERTED);
+}
+
 TEST(SBusOutInit, GoodPath) {
     StrictMock<MockInterface> mock;
     g_mock = &mock;
@@ -134,7 +139,8 @@ TEST(SBusOutInit, GoodPath) {
     fake_port_config.identifier = fake_identifier;
     serialPort_t fake_port = {};
     EXPECT_CALL(mock, findSerialPortConfig).WillOnce(Return(&fake_port_config));
-    EXPECT_CALL(mock, openSerialPort(fake_identifier, _, _, _, _, _, _))
+    EXPECT_CALL(mock, openSerialPort(fake_identifier, FUNCTION_SBUS_OUT, _, _,
+                                     100000, _, IsValidSbusPortOption()))
         .WillOnce(Return(&fake_port));
 
     sbusOutInit();
