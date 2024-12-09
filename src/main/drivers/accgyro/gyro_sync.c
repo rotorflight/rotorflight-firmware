@@ -69,6 +69,12 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             accSampleRateHz = 800;
             break;
 
+        case BMI_088_SPI:
+            gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
+            gyroSampleRateHz = 2000;
+            accSampleRateHz = 800;
+            break;
+
         case BMI_270_SPI:
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
             if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL) {
