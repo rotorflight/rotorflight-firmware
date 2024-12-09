@@ -40,213 +40,295 @@
 #include "rpm_filter.h"
 
 // Number of banks to update in one cycle
-#define RPM_UPDATE_BANK_COUNT 1
+#define RPM_UPDATE_BANK_COUNT       5
 
-typedef struct rpmFilterBank_s
+// Number of predefined presets
+#define RPM_FILTER_PRESET_COUNT     3
+
+// RPM Filter Presets
+static const rpmNotchConfig_t rpmFilterPreset[RPM_FILTER_PRESET_COUNT] =
+{
+    // Low vibration preset
+    {
+        .notch_source = {
+            { 11, 12, 21, },
+            { 11, 12, 21, },
+            { 11, 12, 21, },
+        },
+        .notch_center = {
+            { 0, 0, 0, },
+            { 0, 0, 0, },
+            { 0, 0, 0, },
+        },
+        .notch_q = {
+            { 100,  50, 50, },
+            { 100,  50, 50, },
+            { 100,  50, 50, },
+        },
+    },
+    // Typical vibration preset
+    {
+        .notch_source = {
+            { 11, 12, 13, 14, 21, },
+            { 11, 12, 13, 14, 21, },
+            { 11, 12, 13, 14, 21, },
+        },
+        .notch_center = {
+            { 0, 0, 0, 0, 0, },
+            { 0, 0, 0, 0, 0, },
+            { 0, 0, 0, 0, 0, },
+        },
+        .notch_q = {
+            { 80, 50, 80, 80, 50, },
+            { 80, 50, 80, 80, 50, },
+            { 80, 50, 80, 80, 50, },
+        },
+    },
+    // High vibration preset
+    {
+        .notch_source = {
+            { 11, 12, 13, 14, 15, 21, 22, 10 },
+            { 11, 12, 13, 14, 15, 21, 22, 10 },
+            { 11, 12, 13, 14, 15, 21, 22, 10 },
+        },
+        .notch_center = {
+            { 0, 0, 0, 0, 0, 0, 0, 0, },
+            { 0, 0, 0, 0, 0, 0, 0, 0, },
+            { 0, 0, 0, 0, 0, 0, 0, 0, },
+        },
+        .notch_q = {
+            { 50, 30, 80, 80, 80, 50, 80, 80 },
+            { 50, 30, 80, 80, 80, 50, 80, 80 },
+            { 80, 50, 80, 80, 80, 50, 80, 80 },
+        },
+    },
+};
+
+// Internal data
+typedef struct
 {
     uint8_t  motor;
 
+    float    fader;
     float    ratio;
-    float    minHz;
-    float    maxHz;
     float    notchQ;
 
-    biquadFilter_t notch[XYZ_AXIS_COUNT];
+    biquadFilter_t notch;
 
 } rpmFilterBank_t;
 
+FAST_DATA_ZERO_INIT static rpmFilterBank_t filterBank[XYZ_AXIS_COUNT][RPM_FILTER_NOTCH_COUNT];
 
-FAST_DATA_ZERO_INIT static rpmFilterBank_t filterBank[RPM_FILTER_BANK_COUNT];
-
-FAST_DATA_ZERO_INIT static uint8_t activeBankCount;
+FAST_DATA_ZERO_INIT static uint8_t updateAxisNumber;
 FAST_DATA_ZERO_INIT static uint8_t updateBankNumber;
+FAST_DATA_ZERO_INIT static uint8_t updateBankCount;
+FAST_DATA_ZERO_INIT static uint8_t totalBankCount;
 
+FAST_DATA_ZERO_INIT static float notchMaxHz;
+FAST_DATA_ZERO_INIT static float notchMinHz;
+FAST_DATA_ZERO_INIT static float notchFadeHz;
+
+
+INIT_CODE void validateAndFixRPMFilterConfig(void)
+{
+    rpmFilterConfig_t *config = rpmFilterConfigMutable();
+    rpmNotchConfig_t *custom = &config->custom;
+
+    if (config->preset == 0) {
+        for (int axis = 0; axis < RPM_FILTER_AXIS_COUNT; axis++) {
+            for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                if (custom->notch_source[axis][bank] == 0 ||
+                    custom->notch_q[axis][bank] == 0)
+                {
+                    custom->notch_source[axis][bank] = 0;
+                    custom->notch_center[axis][bank] = 0;
+                    custom->notch_q[axis][bank] = 0;
+                }
+            }
+        }
+    }
+    else if (config->preset <= RPM_FILTER_PRESET_COUNT) {
+        const rpmNotchConfig_t *preset = &rpmFilterPreset[config->preset - 1];
+        for (int axis = 0; axis < RPM_FILTER_AXIS_COUNT; axis++) {
+            for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                custom->notch_source[axis][bank] = preset->notch_source[axis][bank];
+                custom->notch_center[axis][bank] = preset->notch_center[axis][bank];
+                custom->notch_q[axis][bank] = preset->notch_q[axis][bank];
+            }
+        }
+    }
+    else {
+        PG_RESET(rpmFilterConfig);
+    }
+}
 
 INIT_CODE void rpmFilterInit(void)
 {
-    const rpmFilterConfig_t *config = rpmFilterConfig();
-
-    const int mainMotorIndex = 0;
-    const int tailMotorIndex = mixerMotorizedTail() ? 1 : 0;
-
-    const float mainGearRatio = getMainGearRatio();
-    const float tailGearRatio = getTailGearRatio();
-
-    const bool enable10 = mainGearRatio != 1.0f;
-    const bool enable20 = tailGearRatio != 1.0f && mixerMotorizedTail();
-
-    int bankNumber = 0;
-
-    #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto error
-
-    for (int index = 0; index < RPM_FILTER_BANK_COUNT; index++)
+    if (featureIsEnabled(FEATURE_RPM_FILTER))
     {
-        if (config->filter_bank_rpm_source[index] == 0 ||
-            config->filter_bank_rpm_ratio[index] == 0 ||
-            config->filter_bank_notch_q[index] == 0)
-            continue;
+        const rpmFilterConfig_t *config = rpmFilterConfig();
+        const rpmNotchConfig_t *notch = &config->custom;
 
-        /*
-         * NOTE!  rpm_limit has different meaning depending on rpm_source
-         *
-         *    1-4     Minimum RPM of the MOTOR
-         *   10-18    Minimum RPM of the Main ROTOR
-         *   20-28    Minimum RPM of the Tail ROTOR
-         */
+        const int mainMotorIndex = 0;
+        const int tailMotorIndex = mixerMotorizedTail() ? 1 : 0;
 
-        rpmFilterBank_t *bank = &filterBank[bankNumber];
+        const float mainGearRatio = getMainGearRatio();
+        const float tailGearRatio = getTailGearRatio();
 
-        // RPM source for this bank
-        const unsigned source = config->filter_bank_rpm_source[index];
+        // Main motor fundamental used if not direct-drive
+        const bool enable10 = mainGearRatio != 1.0f;
 
-        // Ratio converts RPM to Hz
-        const float ratio = 10000.0f / (constrain(config->filter_bank_rpm_ratio[index], 1, 50000) * 60.0f);
+        // Tail motor fundamental used if geared motorised tail and RPM available
+        const bool enable20 = tailGearRatio != 1.0f && mixerMotorizedTail() && isMotorFastRpmSourceActive(tailMotorIndex);
 
-        // Absolute limits
-        const float minHzLimit = 0.40f * gyro.filterRateHz;
-        const float maxHzLimit = 0.45f * gyro.filterRateHz;
+        // Tail harmonics are not used if tail motor RPM unavailable
+        const bool enable2x = !mixerMotorizedTail() || isMotorFastRpmSourceActive(tailMotorIndex);
 
-        // Q value
-        const float notchQ = constrainf(config->filter_bank_notch_q[index], 5, 250) / 10;
+        notchMaxHz = 0.45f * gyro.filterRateHz;
+        notchMinHz = constrain(config->min_hz, 5, 0.5f * notchMaxHz);
+        notchFadeHz = 1.2f * notchMinHz;
 
-        // Motor RPM based notches
-        if (source >= 1 && source <= getMotorCount()) {
-            CHECK_SOURCE(source - 1);
-            bank->motor  = source - 1;
-            bank->ratio  = ratio;
-            bank->minHz  = constrainf(config->filter_bank_rpm_limit[index] * ratio, 10, minHzLimit);
-            bank->maxHz  = maxHzLimit;
-            bank->notchQ = notchQ;
-            bankNumber++;
-        }
-        // Main Motor (M1)
-        else if (source == 10) {
-            if (enable10) {
-                CHECK_SOURCE(mainMotorIndex);
-                bank->motor  = mainMotorIndex;
-                bank->ratio  = ratio;
-                bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / mainGearRatio) * ratio, 10, minHzLimit);
-                bank->maxHz  = maxHzLimit;
-                bank->notchQ = notchQ;
-                bankNumber++;
+        #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto error
+
+        for (int axis = 0; axis < RPM_FILTER_AXIS_COUNT; axis++) {
+            for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                if (notch->notch_source[axis][bank] && notch->notch_q[axis][bank])
+                {
+                    rpmFilterBank_t *filter = &filterBank[axis][bank];
+
+                    // RPM source for this bank
+                    const unsigned source = notch->notch_source[axis][bank];
+
+                    // Convert RPM to Hz plus center adjustment
+                    const float ratio = (1.0f + notch->notch_center[axis][bank] / 10000.0f) / 60.0f;
+
+                    // Q value
+                    const float notchQ = constrainf(notch->notch_q[axis][bank], 10, 250) / 10;
+
+                    // Main Motor (M1)
+                    if (source == 10) {
+                        if (enable10) {
+                            CHECK_SOURCE(mainMotorIndex);
+                            filter->motor  = mainMotorIndex;
+                            filter->ratio  = ratio;
+                            filter->notchQ = notchQ;
+                        }
+                    }
+                    // Main Rotor harmonics
+                    else if (source >= 11 && source <= 18) {
+                        CHECK_SOURCE(mainMotorIndex);
+                        const int harmonic = source - 10;
+                        filter->motor  = mainMotorIndex;
+                        filter->ratio  = mainGearRatio * harmonic * ratio;
+                        filter->notchQ = notchQ;
+                    }
+                    // Tail Motor (M2)
+                    else if (source == 20) {
+                        if (enable20) {
+                            CHECK_SOURCE(tailMotorIndex);
+                            filter->motor  = tailMotorIndex;
+                            filter->ratio  = ratio;
+                            filter->notchQ = notchQ;
+                        }
+                    }
+                    // Tail Rotor harmonics
+                    else if (source >= 21 && source <= 28) {
+                        if (enable2x) {
+                            CHECK_SOURCE(tailMotorIndex);
+                            const int harmonic = source - 20;
+                            filter->motor  = tailMotorIndex;
+                            filter->ratio  = tailGearRatio * harmonic * ratio;
+                            filter->notchQ = notchQ;
+                        }
+                    }
+                    else {
+                        goto error;
+                    }
+                }
             }
         }
-        // Main Rotor harmonics
-        else if (source >= 11 && source <= 18) {
-            CHECK_SOURCE(mainMotorIndex);
-            const int harmonic = source - 10;
-            bank->motor  = mainMotorIndex;
-            bank->ratio  = mainGearRatio * harmonic * ratio;
-            bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] * harmonic) * ratio, 10, minHzLimit);
-            bank->maxHz  = maxHzLimit;
-            bank->notchQ = notchQ;
-            bankNumber++;
-        }
-        // Tail Motor (M2)
-        else if (source == 20) {
-            if (enable20) {
-                CHECK_SOURCE(tailMotorIndex);
-                bank->motor  = tailMotorIndex;
-                bank->ratio  = ratio;
-                bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] / tailGearRatio) * ratio, 10, minHzLimit);
-                bank->maxHz  = maxHzLimit;
-                bank->notchQ = notchQ;
-                bankNumber++;
-            }
-        }
-        // Tail Rotor harmonics
-        else if (source >= 21 && source <= 28) {
-            CHECK_SOURCE(tailMotorIndex);
-            const int harmonic = source - 20;
-            bank->motor  = tailMotorIndex;
-            bank->ratio  = tailGearRatio * harmonic * ratio;
-            bank->minHz  = constrainf((config->filter_bank_rpm_limit[index] * harmonic) * ratio, 10, minHzLimit);
-            bank->maxHz  = maxHzLimit;
-            bank->notchQ = notchQ;
-            bankNumber++;
-        }
-        else {
-            goto error;
-        }
-    }
 
-    // Set activeBankCount to the number of configured notches
-    activeBankCount = bankNumber;
-
-    // Init all filters @minHz. As soon as the motor is running, the filters are updated to the real RPM.
-    for (int index = 0; index < activeBankCount; index++) {
-        rpmFilterBank_t *bank = &filterBank[index];
+        // Init all filters @minHz. As soon as the motor is running, the filters are updated to the real RPM.
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            biquadFilterInit(&bank->notch[axis], bank->minHz, gyro.filterRateHz, bank->notchQ, BIQUAD_NOTCH);
+            for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                rpmFilterBank_t *filter = &filterBank[axis][bank];
+                if (filter->notchQ) {
+                    biquadFilterInit(&filter->notch, notchMinHz, gyro.filterRateHz, filter->notchQ, BIQUAD_NOTCH);
+                    totalBankCount++;
+                }
+            }
         }
+
+        // Number of banks to update in one update cycle
+        updateBankCount = MIN(totalBankCount, RPM_UPDATE_BANK_COUNT);
     }
 
     return;
 
 error:
-    activeBankCount = 0;
-
     setArmingDisabled(ARMING_DISABLED_RPMFILTER);
 }
 
 FAST_CODE float rpmFilterGyro(int axis, float value)
 {
-    for (int index = 0; index < activeBankCount; index++) {
-        value = biquadFilterApplyDF1(&filterBank[index].notch[axis], value);
+    if (totalBankCount) {
+        for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+            rpmFilterBank_t *filter = &filterBank[axis][bank];
+            if (filter->notchQ) {
+                value += (biquadFilterApplyDF1(&filter->notch, value) - value) * filter->fader;
+            }
+        }
     }
     return value;
 }
 
 void rpmFilterUpdate()
 {
-    if (activeBankCount > 0) {
-
+    if (totalBankCount)
+    {
         // Actual update rate - allow ±25% variation
         const float updateRate = gyro.filterRateHz * constrainf(schedulerGetCycleTimeMultiplier(), 0.75f, 1.25f);
 
         // Number of banks to update in one update cycle
-        for (int i = 0; i < RPM_UPDATE_BANK_COUNT; i++) {
+        for (int count = 0; count < updateBankCount;) {
 
-            // Current filter bank
-            rpmFilterBank_t *bank = &filterBank[updateBankNumber];
+            // Current filter
+            rpmFilterBank_t *filter = &filterBank[updateAxisNumber][updateBankNumber];
 
-            // Calculate notch filter center frequency
-            const float rpm = getMotorRPMf(bank->motor);
-            const float freq = rpm * bank->ratio;
-            const float notch = constrainf(freq, bank->minHz, bank->maxHz);
+            if (filter->notchQ) {
 
-            // Notch filters for Roll,Pitch,Yaw
-            biquadFilter_t *R = &bank->notch[0];
-            biquadFilter_t *P = &bank->notch[1];
-            biquadFilter_t *Y = &bank->notch[2];
+                // Calculate notch filter center frequency
+                const float rpm = getMotorRPMf(filter->motor);
+                const float freq = rpm * filter->ratio;
+                const float center = constrainf(freq, 1, notchMaxHz);
 
-            // Update the filter coefficients
-            biquadFilterUpdate(R, notch, updateRate, bank->notchQ, BIQUAD_NOTCH);
+                // Calculate fading
+                filter->fader = transition(freq, notchMinHz, notchFadeHz, 0, 1);
 
-            // Transfer the filter coefficients from Roll axis filter into Pitch and Yaw
-            P->b0 = Y->b0 = R->b0;
-            P->b1 = Y->b1 = R->b1;
-            P->b2 = Y->b2 = R->b2;
-            P->a1 = Y->a1 = R->a1;
-            P->a2 = Y->a2 = R->a2;
+                // Update the filter coefficients
+                biquadFilterUpdate(&filter->notch, center, updateRate, filter->notchQ, BIQUAD_NOTCH);
 
-            // Set debug if bank number matches
-            if (updateBankNumber == debugAxis) {
-                DEBUG(RPM_FILTER, 0, rpm);
-                DEBUG(RPM_FILTER, 1, freq * 10);
-                DEBUG(RPM_FILTER, 2, notch * 10);
-                DEBUG(RPM_FILTER, 3, updateRate * 10);
-                DEBUG(RPM_FILTER, 4, bank->motor);
-                DEBUG(RPM_FILTER, 5, bank->minHz * 10);
-                DEBUG(RPM_FILTER, 6, bank->maxHz * 10);
-                DEBUG(RPM_FILTER, 7, bank->notchQ * 10);
+                // Set debug if bank number matches
+                if (debugAxis == updateAxisNumber * RPM_FILTER_NOTCH_COUNT + updateBankNumber) {
+                    DEBUG(RPM_FILTER, 0, rpm);
+                    DEBUG(RPM_FILTER, 1, freq * 10);
+                    DEBUG(RPM_FILTER, 2, center * 10);
+                    DEBUG(RPM_FILTER, 3, updateRate * 10);
+                    DEBUG(RPM_FILTER, 4, filter->motor);
+                    DEBUG(RPM_FILTER, 6, filter->fader * 1000);
+                    DEBUG(RPM_FILTER, 7, filter->notchQ * 10);
+                }
+
+                // Bank updated
+                count++;
             }
 
             // Next bank
-            updateBankNumber = (updateBankNumber + 1) % activeBankCount;
+            updateBankNumber = (updateBankNumber + 1) % RPM_FILTER_NOTCH_COUNT;
+            if (updateBankNumber == 0)
+                updateAxisNumber = (updateAxisNumber + 1) % RPM_FILTER_AXIS_COUNT;
         }
     }
 }
 
 #endif
-
