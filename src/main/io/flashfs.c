@@ -51,10 +51,21 @@
 
 #include "pg/blackbox.h"
 
+/*
+ * How rolling erase works:
+ *   1. When start programming (flush) a page, if erase is needed and can be
+ *      started, set FLASHFS_ROLLING_ERASE_PENDING.
+ *   2. No more flush can be done when FLASHFS_ROLLING_ERASE_PENDING.
+ *   3. When page program finishes, EraseAsync task picks up the erase task and
+ *      sets FLASHFS_ROLLING_ERASING.
+ *   4. When erase finishes, EraseAsync task resets state to FLASHFS_IDLE.
+ */
 typedef enum {
     FLASHFS_IDLE,
     FLASHFS_ALL_ERASING,
     FLASHFS_INITIAL_ERASING,
+    FLASHFS_ROLLING_ERASE_PENDING,
+    FLASHFS_ROLLING_ERASING,
 } flashfsState_e;
 
 static const flashPartition_t *flashPartition = NULL;
@@ -268,22 +279,76 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
 
     // It's OK to overwrite the buffer addresses/lengths being passed in
 
-    // If sync is true, block until the FLASH device is ready, otherwise return 0 if the device isn't ready
+    // If sync is true, block until the FLASH device is ready, otherwise return
+    // 0 if the device isn't ready
     if (sync) {
         while (!flashIsReady());
+        /*
+         * Wait for any flashfs erase to complete.
+         * Note: we shouldn't reach inside since there's no such real world
+         * scenario (sync = 1 and flashfsState != FLASHFS_IDLE).
+         */
+        while (flashfsState != FLASHFS_IDLE) {
+            flashfsEraseAsync();
+        }
     } else {
         if (!flashIsReady()) {
+            return 0;
+        }
+        /*
+         * Also bail out if we are running any of the erases.
+         * There are a few cases:
+         *   * FLASHFS_INITIAL_ERASING: logging is running ("switch" mode) and
+         *     initial erase has triggered or running. We can't write.
+         *   * FLASHFS_ROLLING_ERASE_PENDING: rolling erase is pending. We
+         *     can't write. (If we write, those bytes will be discarded on
+         *     erase).
+         *   * FLASHFS_ROLLING_ERASING: technically we can write (under this
+         *     state and flashIsReady()), because rolling erase erases only 1
+         *     sector. For simplicity, we wait for the task to update the state.
+         *   * FLASHFS_ALL_ERASING: we can't write. We may land between erase
+         *     sectors.
+         */
+        if (flashfsState != FLASHFS_IDLE) {
             return 0;
         }
     }
 
     // Are we at EOF already? Abort.
     if (flashfsIsEOF()) {
+#ifdef USE_FLASHFS_LOOP
+        // If EOF, request an rolling erase unconditionally
+        if (blackboxConfig()->rollingErase) {
+            flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
+        }
+#endif
         return 0;
     }
 
 #ifdef CHECK_FLASH
     checkFlashPtr = tailAddress;
+#endif
+
+#ifdef USE_FLASHFS_LOOP
+    // Check if rolling erase is needed. Why here? Because we can only
+    // erase when a page (aligned) program is completed.
+    const uint32_t freeSpace = flashfsSize - flashfsGetOffset();
+    if (blackboxConfig()->rollingErase &&
+        freeSpace < flashGeometry->sectorSize) {
+        // See if we are finishing a page.
+        uint32_t bytes_to_write = 0;
+        if (bufferCount > 0)
+            bytes_to_write += bufferSizes[0];
+        if (bufferCount > 1)
+            bytes_to_write += bufferSizes[1];
+        if (tailAddress / flashGeometry->pageSize !=
+            (tailAddress + bytes_to_write) / flashGeometry->pageSize) {
+            // We will write to or write over a page boundary. We can erase when
+            // this write is done.
+            flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
+        }
+    }
+
 #endif
 
     flashPageProgramBegin(tailAddress, flashfsWriteCallback);
@@ -448,6 +513,9 @@ void flashfsEraseAsync(void)
             if (initialEraseSectors > 0) {
                 flashEraseSector(headAddress);
                 initialEraseSectors--;
+                // We immediately set the head before erase is completed.
+                // This should be fine since write will be blocked until this
+                // state is cleared.
                 headAddress =
                     flashfsAddressShift(headAddress, flashGeometry->sectorSize);
                 LED1_TOGGLE;
@@ -455,8 +523,24 @@ void flashfsEraseAsync(void)
                 flashfsState = FLASHFS_IDLE;
                 LED1_OFF;
             }
+        } else if (flashfsState == FLASHFS_ROLLING_ERASE_PENDING) {
+            flashEraseSector(headAddress);
+            headAddress =
+                flashfsAddressShift(headAddress, flashGeometry->sectorSize);
+            flashfsState = FLASHFS_ROLLING_ERASING;
+            LED1_TOGGLE;
+        } else if (flashfsState == FLASHFS_ROLLING_ERASING) {
+            flashfsState = FLASHFS_IDLE;
+            LED1_OFF;
         }
     }
+}
+
+void flashfsSeekAbs(uint32_t offset)
+{
+    flashfsFlushSync();
+
+    flashfsSetTailAddress(flashfsAddressShift(headAddress, offset));
 }
 
 void flashfsSeekPhysical(uint32_t offset)
@@ -706,6 +790,8 @@ void flashfsInit(void)
 
     // Start the file pointer off at the beginning of free space so caller can start writing immediately
     flashfsSeekPhysical(flashfsIdentifyStartOfFreeSpace());
+
+    flashfsState = FLASHFS_IDLE;
 }
 
 #ifdef USE_FLASH_TOOLS
