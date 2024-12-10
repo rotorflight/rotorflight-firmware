@@ -143,11 +143,56 @@ static void emfat_set_entry_cma(emfat_entry_t *entry)
 }
 
 #ifdef USE_FLASHFS
+static inline int emfat_decode_bits(uint32_t v, uint8_t starting_bit, uint8_t length)
+{
+    return (v >> starting_bit) & ((1 << length) - 1);
+}
+static inline int emfat_decode_year(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 9 + 16, 7) + 1980;
+}
+static inline int emfat_decode_month(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 5 + 16, 4);
+}
+static inline int emfat_decode_day(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 0 + 16, 5);
+}
+static inline int emfat_decode_hour(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 11, 5);
+}
+static inline int emfat_decode_minute(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 5, 6);
+}
+static inline int emfat_decode_second(uint32_t cma)
+{
+    return emfat_decode_bits(cma, 0, 5) << 1;
+}
+
 static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset, uint32_t size)
 {
-    static char logNames[1 + EMFAT_MAX_LOG_ENTRY][8+1+3];
+    static char logNames[1 + EMFAT_MAX_LOG_ENTRY][4 + 1 + 8 + 1 + 6 + 4 + 1];
 
-    tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%03d.BBL", number + 1);
+    if (entry->cma_time[0] == cmaTime) {
+        // Unrecognized timestamp
+        // Note: this will be an 8+3 short file name. The displaying upper/lower
+        // case may be up to the host.
+        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%03d.bbl",
+                    number + 1);
+    } else {
+        // Recognized timestamp, create a meaningful filename.
+        tfp_sprintf(logNames[number],
+                    FC_FIRMWARE_IDENTIFIER "_%04d%02d%02d_%02d%02d%02d.bbl",
+                    emfat_decode_year(entry->cma_time[0]),
+                    emfat_decode_month(entry->cma_time[0]),
+                    emfat_decode_day(entry->cma_time[0]),
+                    emfat_decode_hour(entry->cma_time[0]),
+                    emfat_decode_minute(entry->cma_time[0]),
+                    emfat_decode_second(entry->cma_time[0]));
+    }
     entry->name = logNames[number];
     entry->level = 1;
     entry->offset = offset;
