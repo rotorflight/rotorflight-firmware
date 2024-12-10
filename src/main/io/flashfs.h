@@ -57,7 +57,8 @@ bool flashfsVerifyEntireFlash(void);
 
 #ifdef USE_FLASHFS_LOOP
 void flashfsLoopArmingErase();
-#endif
 
 uint32_t flashfsGetHeadAddress();
 uint32_t flashfsGetTailAddress();
+#endif
+

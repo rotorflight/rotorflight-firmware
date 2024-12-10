@@ -115,9 +115,7 @@ uint32_t FlashEmulator::flashPageProgramContinue(const uint8_t **buffers,
             written++;
         }
     }
-    if (write_buffer_tail_ == kPageSize) {
-        Program();
-    }
+
     //    printf("ProgramContinue: written[0x%x]", written);
     return written;
 }

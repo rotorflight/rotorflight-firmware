@@ -1722,6 +1722,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, blackboxConfig()->denom);
         sbufWriteU32(dst, blackboxConfig()->fields);
         sbufWriteU32(dst, blackboxConfig()->armingEraseFreeSpace);
+        sbufWriteU8(dst, blackboxConfig()->backgroundErase);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
@@ -1729,6 +1730,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0);
         sbufWriteU32(dst, 0);
         sbufWriteU32(dst, 0);
+        sbufWriteU8(dst, 0);
 #endif
         break;
 
@@ -2767,6 +2769,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             if (sbufBytesRemaining(src) >= 4) {
                 blackboxConfigMutable()->armingEraseFreeSpace =
                     sbufReadU32(src);
+            }
+            if (sbufBytesRemaining(src) >= 1) {
+                blackboxConfigMutable()->backgroundErase = sbufReadU8(src);
             }
         }
         break;

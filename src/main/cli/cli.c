@@ -2682,9 +2682,11 @@ static void cliFlashInfo(const char *cmdName, char *cmdline)
             FLASH_PARTITION_SECTOR_COUNT(flashPartition) * layout->sectorSize,
             flashfsGetOffset()
     );
+#ifdef USE_FLASHFS_LOOP
     cliPrintLinef("FlashFSLoop Head = 0x%08x, Tail = 0x%08x",
             flashfsGetHeadAddress(),
             flashfsGetTailAddress());
+#endif
 #endif
 }
 

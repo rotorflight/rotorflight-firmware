@@ -115,6 +115,8 @@ TEST_F(FlashFSTestBase, flashfsWrite)
 TEST_F(FlashFSTestBase, flashfsWriteOverFlashSize)
 {
     flashfsInit();
+    blackboxConfigMutable()->backgroundErase = false;
+
     // Unexpectedly, the flashfs can't handle EOF if writes are not aligned to
     // BLOCK_SIZE (2048) Let's just ignore this bug.
     // constexpr uint32_t kBufferSize = FLASHFS_WRITE_BUFFER_USABLE - 10;
@@ -209,6 +211,9 @@ TEST_F(FlashFSLoopTest, StartFromZero)
     flashfsInit();
     EXPECT_EQ(headAddress, 0);
     EXPECT_EQ(tailAddress, sector_size_ + page_size_);
+    EXPECT_TRUE(flash_emulator_->IsErased(tailAddress, sector_size_));
+
+    EXPECT_FALSE(flashfsIsEOF());
 }
 
 TEST_F(FlashFSLoopTest, Flat)
@@ -222,6 +227,9 @@ TEST_F(FlashFSLoopTest, Flat)
     flashfsInit();
     EXPECT_EQ(headAddress, sector_size_);
     EXPECT_EQ(tailAddress, 2 * sector_size_ + page_size_);
+    EXPECT_TRUE(flash_emulator_->IsErased(tailAddress, sector_size_));
+
+    EXPECT_FALSE(flashfsIsEOF());
 }
 
 TEST_F(FlashFSLoopTest, Wrapped1)
@@ -240,6 +248,7 @@ TEST_F(FlashFSLoopTest, Wrapped1)
     flashfsInit();
     EXPECT_EQ(headAddress, kStartOfLastSector);
     EXPECT_EQ(tailAddress, page_size_);
+    EXPECT_TRUE(flash_emulator_->IsErased(tailAddress, sector_size_));
 }
 
 TEST_F(FlashFSLoopTest, Wrapped2)
@@ -253,6 +262,7 @@ TEST_F(FlashFSLoopTest, Wrapped2)
     flashfsInit();
     EXPECT_EQ(headAddress, sector_size_);
     EXPECT_EQ(tailAddress, 0);
+    EXPECT_TRUE(flash_emulator_->IsErased(tailAddress, sector_size_));
 }
 
 TEST_F(FlashFSLoopTest, Wrapped3)
@@ -264,7 +274,7 @@ TEST_F(FlashFSLoopTest, Wrapped3)
         kBoundarySector * sector_size_ - page_size_;
     const uint32_t kEmptyStop = kBoundarySector * sector_size_;
 
-    // Fill all sectors except [kEmptyStart, kEmptyStop). The size = 1 page.
+    // Fill all sectors except [kEmptyStart, kEmptyStop). The unfilled size = 1 page.
     flash_emulator_->Fill(flash_emulator_->kFlashFSStart, 0x55,
                           kEmptyStart - flash_emulator_->kFlashFSStart);
     flash_emulator_->Fill(kEmptyStop, 0x55,
@@ -273,6 +283,7 @@ TEST_F(FlashFSLoopTest, Wrapped3)
     flashfsInit();
     EXPECT_EQ(headAddress, kEmptyStop);
     EXPECT_EQ(tailAddress, kEmptyStart);
+    EXPECT_TRUE(flash_emulator_->IsErased(tailAddress, page_size_));
 }
 
 TEST_F(FlashFSLoopTest, Full)
@@ -371,7 +382,18 @@ TEST_F(FlashFSLoopTest, WrappedRead)
     }
 }
 
-class FlashFSLoopArmingEraseTest : public FlashFSTestBase {};
+class FlashFSLoopArmingEraseTest : public FlashFSTestBase {
+    // In this test, flashfsEraseAsync() has to run in the background.
+    void SetUp() override {
+        FlashFSTestBase::SetUp();
+    }
+    void TearDown() override {
+        while(!flashfsIsReady()) {
+            flashfsEraseAsync();
+}
+        FlashFSTestBase::TearDown();
+    }
+};
 
 TEST_F(FlashFSLoopArmingEraseTest, Normal)
 {
@@ -394,9 +416,9 @@ TEST_F(FlashFSLoopArmingEraseTest, Normal)
     // Now let's try to auto erase
     blackboxConfigMutable()->armingEraseFreeSpace = sector_size_ * 2;
     flashfsLoopArmingErase();
-    while(!flashfsIsReady()) {
+
+    while(!flashfsIsReady())
         flashfsEraseAsync();
-    }
 
     EXPECT_EQ(headAddress, kEmptyStop + sector_size_ * 2);
     EXPECT_TRUE(flash_emulator_->IsErased(kEmptyStop, sector_size_ * 2));
@@ -417,15 +439,15 @@ TEST_F(FlashFSLoopArmingEraseTest, Wrapped)
                           flash_emulator_->kFlashFSEnd - kEmptyStop);
 
     flashfsInit();
+    EXPECT_TRUE(flashfsIsReady());
     EXPECT_EQ(headAddress, kEmptyStop);
     EXPECT_EQ(tailAddress, kEmptyStart);
 
     // Now let's try to auto erase
     blackboxConfigMutable()->armingEraseFreeSpace = sector_size_ * 2;
     flashfsLoopArmingErase();
-    while(!flashfsIsReady()) {
+    while(!flashfsIsReady())
         flashfsEraseAsync();
-    }
 
     // wrapped kEmptyStop + sector_size_ * 2
     EXPECT_EQ(headAddress, sector_size_);
@@ -459,4 +481,50 @@ TEST_F(FlashFSLoopArmingEraseTest, UnalignedSize)
 
     EXPECT_EQ(headAddress, kEmptyStop + sector_size_);
     EXPECT_TRUE(flash_emulator_->IsErased(kEmptyStop, sector_size_));
+}
+
+class FlashFSLoopBackgroundEraseTest : public FlashFSLoopArmingEraseTest { };
+
+TEST_F(FlashFSLoopBackgroundEraseTest, flashfsWriteOverFlashSize)
+{
+    flashfsInit();
+    EXPECT_TRUE(flashfsIsReady());
+    blackboxConfigMutable()->backgroundErase = true;
+
+    constexpr uint32_t kBufferSize = 128;
+    constexpr uint8_t kByte = 0x44;
+    auto buffer = std::make_unique<uint8_t[]>(kBufferSize);
+    memset(buffer.get(), kByte, kBufferSize);
+
+    EXPECT_EQ(headAddress, 0);
+    EXPECT_EQ(tailAddress, 0);
+
+    uint32_t written = 0;
+    do {
+        flashfsWrite(buffer.get(), kBufferSize);
+        flashfsFlushSync();
+        written += kBufferSize;
+        flashfsEraseAsync();
+    } while (written <= flash_emulator_->kFlashFSSize * 2);
+
+    // This test is non-deterministic.
+    // After writing the full flashfs space once, it will start background erasing,
+    // where a lot of writes can be silently dropped (we are writing way faster
+    // than the actual BBlog). In the end, we check if there's less than 2
+    // erased sector and call it success.
+    uint32_t erased = 0;
+    uint32_t current = -1;
+    for (uint32_t i = 0; i < flash_emulator_->kFlashFSSize; i++) {
+        ASSERT_TRUE(flash_emulator_->memory_[i] == kByte ||
+                    flash_emulator_->memory_[i] == 0xff)
+            << "Mismatch address " << std::hex << i;
+        if (current!=flash_emulator_->memory_[i]) {
+            current = flash_emulator_->memory_[i];
+            std::cout << "offset " << std::hex << i << " = " << current << std::endl;
+        }
+        if (flash_emulator_->memory_[i] == 0xff) {
+            erased++;
+        }
+    }
+    EXPECT_LE(erased, sector_size_ * 2);
 }
