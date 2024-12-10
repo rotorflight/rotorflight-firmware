@@ -805,6 +805,7 @@ const clivalue_t valueTable[] = {
 
 #ifdef USE_FLASHFS_LOOP
     { "blackbox_initial_erase_kb",  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT16_MAX }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, initialEraseFreeSpaceKiB) },
+    { "blackbox_rolling_erase",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, rollingErase) },
 #endif
 #endif
 
@@ -1753,7 +1754,7 @@ const clivalue_t valueTable[] = {
     { "sbus_out_source_range_low",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeLow) },
     { "sbus_out_source_range_high", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeHigh) },
     { "sbus_out_frame_rate",        VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {25, 250}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, frameRate) },
-    { "sbus_out_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, pinSwap) },
+    { "sbus_out_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, pinSwap) },
 #endif
 };
 
