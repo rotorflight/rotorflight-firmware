@@ -1705,7 +1705,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
         }
-        sbufWriteU8(dst, sbusOutConfigMutable()->frameRate);
         break;
 #endif
 
@@ -3256,7 +3255,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         // Write format is customized for the size and responsiveness.
         // The first byte will be the target output channel index (0-based).
         // The following bytes will be the type/index/low/high for that channel.
-        // `frameRate` is piggyback to any (all) indices for simplicity.
         if (sbufBytesRemaining(src) >= 1) {
             uint8_t index = sbufReadU8(src);
             if (index < SBUS_OUT_CHANNELS && sbufBytesRemaining(src) >= 7) {
@@ -3264,9 +3262,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
                 sbusOutConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
-
-                // You need to reset FC after updating ->frameRate.
-                sbusOutConfigMutable()->frameRate = sbufReadU8(src);
             }
         }
         break;
