@@ -61,6 +61,14 @@
 
 static FAST_DATA_ZERO_INIT pid_t pid;
 
+#ifdef USE_ABSOLUTE_CONTROL
+static FAST_DATA_ZERO_INIT bool  absoluteControl;
+static FAST_DATA_ZERO_INIT pt1Filter_t acFilter[XYZ_AXIS_COUNT];
+static FAST_DATA_ZERO_INIT float acError[XYZ_AXIS_COUNT];
+static FAST_DATA_ZERO_INIT float acErrorLimit;
+static FAST_DATA_ZERO_INIT float acLimit;
+static FAST_DATA_ZERO_INIT float acGain;
+#endif
 
 float pidGetDT()
 {
@@ -103,6 +111,9 @@ void INIT_CODE pidResetAxisError(int axis)
     pid.data[axis].axisError = 0;
     pid.data[axis].O = 0;
     pid.data[axis].axisOffset = 0;
+#ifdef USE_ABSOLUTE_CONTROL
+    acError[axis] = 0;
+#endif
 }
 
 void INIT_CODE pidResetAxisErrors(void)
@@ -112,6 +123,9 @@ void INIT_CODE pidResetAxisErrors(void)
         pid.data[axis].axisError = 0;
         pid.data[axis].O = 0;
         pid.data[axis].axisOffset = 0;
+#ifdef USE_ABSOLUTE_CONTROL
+        acError[axis] = 0;
+#endif
     }
 }
 
@@ -249,6 +263,27 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+
+#ifdef USE_ABSOLUTE_CONTROL
+    absoluteControl = pidProfile->abs_control && pidProfile->abs_control_gain > 0;
+    acGain = pidProfile->abs_control_gain / 10.0f;
+    acLimit = pidProfile->abs_control_limit;
+    acErrorLimit = pidProfile->abs_control_error_limit;
+
+    float RC = acGain * pid.coef[FD_ROLL].Kp * ROLL_P_TERM_SCALE / ROLL_I_TERM_SCALE;
+    float PC = acGain * pid.coef[FD_PITCH].Kp * PITCH_P_TERM_SCALE / PITCH_I_TERM_SCALE;
+    float YC = acGain * pid.coef[FD_YAW].Kp * YAW_P_TERM_SCALE / YAW_I_TERM_SCALE;
+
+    pid.coef[FD_ROLL].Ki  = MAX(0, pid.coef[FD_ROLL].Ki  - RC);
+    pid.coef[FD_PITCH].Ki = MAX(0, pid.coef[FD_PITCH].Ki - PC);
+    pid.coef[FD_YAW].Ki   = MAX(0, pid.coef[FD_YAW].Ki   - YC);
+
+    if (absoluteControl) {
+        for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+            pt1FilterInit(&acFilter[i], pidProfile->abs_control_cutoff, pid.freq);
+        }
+    }
+#endif
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
@@ -286,13 +321,13 @@ void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileI
 
 static inline void rotateAxisError(void)
 {
+    const float r = gyro.gyroADCf[Z] * RAD * pid.dT;
+
+    const float t = r * r / 2;
+    const float C = t * (1 - t / 6);
+    const float S = r * (1 - t / 3);
+
     if (pid.errorRotation) {
-        const float r = gyro.gyroADCf[Z] * RAD * pid.dT;
-
-        const float t = r * r / 2;
-        const float C = t * (1 - t / 6);
-        const float S = r * (1 - t / 3);
-
         const float x = pid.data[PID_ROLL].axisError;
         const float y = pid.data[PID_PITCH].axisError;
 
@@ -305,8 +340,80 @@ static inline void rotateAxisError(void)
         pid.data[PID_ROLL].axisOffset  -= fx * C - fy * S;
         pid.data[PID_PITCH].axisOffset -= fy * C + fx * S;
     }
+#ifdef USE_ABSOLUTE_CONTROL
+    if (absoluteControl) {
+        const float x = acError[PID_ROLL];
+        const float y = acError[PID_PITCH];
+
+        acError[PID_ROLL]  -= x * C - y * S;
+        acError[PID_PITCH] -= y * C + x * S;
+
+        const float fx = acError[PID_ROLL];
+        const float fy = acError[PID_PITCH];
+
+        acError[PID_ROLL]  -= fx * C - fy * S;
+        acError[PID_PITCH] -= fy * C + fx * S;
+    }
+#endif
 }
 
+#ifdef USE_ABSOLUTE_CONTROL
+static FAST_CODE float applyAbsoluteControl(const int axis,
+	const float gyroRate, const float currentPidSetpoint)
+{
+    const float acLpf = pt1FilterApply(&acFilter[axis], currentPidSetpoint);
+    const float acHpf = fabsf(currentPidSetpoint - acLpf);
+    const float acGmax = acLpf + 2 * acHpf;
+    const float acGmin = acLpf - 2 * acHpf;
+    const float acError1 = acGmax - gyroRate;
+    const float acError2 = acGmin - gyroRate;
+
+    float acErrorRate = 0, acCorrection = 0;
+
+    if (gyroRate > acGmax) {
+        acErrorRate = acError1; // < 0
+    }
+    else if (gyroRate < acGmin) {
+        acErrorRate = acError2; // > 0
+    }
+    else {
+        if (acError[axis] < 0)
+            acErrorRate = acError1; // > 0
+        else
+            acErrorRate = acError2; // < 0
+    }
+
+    if (fabsf(acErrorRate * pid.dT) > fabsf(acError[axis]))
+        acErrorRate = -acError[axis] * pid.freq;
+
+    if (pidAxisSaturated(axis) || !isSpooledUp())
+        acErrorRate = 0;
+
+    acError[axis] = constrainf(acError[axis] + acErrorRate * pid.dT, -acErrorLimit, acErrorLimit);
+
+    acCorrection = constrainf(acError[axis] * acGain, -acLimit, acLimit);
+
+#if 0
+    DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(acError[axis] * 10));
+    DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
+
+    if (pidAxisDebug(axis)) {
+        DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
+        DEBUG32_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 1, currentPidSetpoint * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 2, acLpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 3, acHpf * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 4, acError1 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 5, acError2 * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 6, acErrorRate * 1000);
+        DEBUG32_SET(DEBUG_AC_ERROR, 7, acCorrection * 1000);
+    }
+#endif
+
+    return acCorrection;
+}
+#endif
 
 static float applyItermRelax(int axis, float itermError, float gyroRate, float setpoint)
 {
@@ -897,7 +1004,7 @@ static void pidApplyYawMode2(void)
 static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
 {
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(axis);
+    float setpoint = pidApplySetpoint(axis);
 
     // Get gyro rate
     const float gyroRate = pidApplyGyroRate(axis);
@@ -927,7 +1034,15 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
   //// I-term
 
     // Apply error relax
-    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+    float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+#ifdef USE_ABSOLUTE_CONTROL
+    if (absoluteControl) {
+        float delta = applyAbsoluteControl(axis, gyroRate, setpoint);
+        itermErrorRate += delta;
+        setpoint += delta;
+    }
+#endif
 
     // Saturation
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
@@ -960,6 +1075,11 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
     const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
+
+#ifdef USE_ABSOLUTE_CONTROL
+    const float acErrorDecay = limitf(acError[axis] * errorDecayRate, errorDecayLimit);
+    acError[axis] -= acErrorDecay * pid.dT;
+#endif
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, errorDecayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, errorDecayLimit);
@@ -1039,7 +1159,7 @@ static void pidApplyYawMode3(void)
     const uint8_t axis = FD_YAW;
 
     // Rate setpoint
-    const float setpoint = pidApplySetpoint(axis);
+    float setpoint = pidApplySetpoint(axis);
 
     // Get gyro rate
     const float gyroRate = pidApplyGyroRate(axis);
@@ -1072,7 +1192,15 @@ static void pidApplyYawMode3(void)
   //// I-term
 
     // Apply error relax
-    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+    float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+#ifdef USE_ABSOLUTE_CONTROL
+    if (absoluteControl) {
+        float delta = applyAbsoluteControl(axis, gyroRate, setpoint);
+        itermErrorRate += delta;
+        setpoint += delta;
+    }
+#endif
 
     // Saturation
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
