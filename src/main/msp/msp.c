@@ -3257,7 +3257,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         // The following bytes will be the type/index/low/high for that channel.
         if (sbufBytesRemaining(src) >= 1) {
             uint8_t index = sbufReadU8(src);
-            if (index < SBUS_OUT_CHANNELS && sbufBytesRemaining(src) >= 7) {
+            if (index < SBUS_OUT_CHANNELS && sbufBytesRemaining(src) >= 6) {
                 sbusOutConfigMutable()->sourceType[index] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
