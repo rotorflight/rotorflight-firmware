@@ -140,10 +140,11 @@ const exBusSensor_t jetiExSensors[] = {
     {"G-Force Z",       "",         EX_TYPE_22b,   DECIMAL_MASK(3)},
     {"Headspeed",       "rpm",         EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"Tailspeed",       "rpm",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"Arming Flags",       "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"PID Profile",       "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"RATES Profile",       "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"Governor Mode",       "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Arming Flags",    "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"PID Profile",     "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"RATES Profile",   "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Governor",        "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Thr. Control",    "",         EX_TYPE_22b,   DECIMAL_MASK(0)},    
 };
 
 // after every 15 sensors increment the step by 2 (e.g. ...EX_VAL15, EX_VAL16 = 17) to skip the device description
@@ -174,6 +175,7 @@ enum exSensors_e {
     EX_PID_PROFILE,
     EX_RATES_PROFILE,
     EX_GOVERNOR_MODE,
+    EX_THROTTLE_CONTROL
 };
 
 union{
@@ -286,7 +288,7 @@ void initJetiExBusTelemetry(void)
     bitArraySet(&exSensorEnabled, EX_PID_PROFILE);
     bitArraySet(&exSensorEnabled, EX_RATES_PROFILE);
     bitArraySet(&exSensorEnabled, EX_GOVERNOR_MODE);
-   
+    bitArraySet(&exSensorEnabled, EX_THROTTLE_CONTROL);   
 
     firstActiveSensor = getNextActiveSensor(0);     // find the first active sensor
 }
@@ -452,6 +454,11 @@ int32_t getSensorValue(uint8_t sensor)
                     */
                     return getGovernorState();
                 }    
+
+    case EX_THROTTLE_CONTROL:
+        return telemetrySensorValue(TELEM_THROTTLE_CONTROL);
+    break;
+
 
     break;
 
