@@ -393,23 +393,21 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
 
     acCorrection = constrainf(acError[axis] * acGain, -acLimit, acLimit);
 
-#if 0
     DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(acError[axis] * 10));
     DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
 
-    if (pidAxisDebug(axis)) {
+    if (axis == debugAxis) {
         DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
-        DEBUG32_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 1, currentPidSetpoint * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 2, acLpf * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 3, acHpf * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 4, acError1 * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 5, acError2 * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 6, acErrorRate * 1000);
-        DEBUG32_SET(DEBUG_AC_ERROR, 7, acCorrection * 1000);
+        DEBUG_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 0, gyroRate * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 1, currentPidSetpoint * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 2, acLpf * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 3, acHpf * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 4, acError1 * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 5, acError2 * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 6, acErrorRate * 1000);
+        DEBUG_SET(DEBUG_AC_ERROR, 7, acCorrection * 1000);
     }
-#endif
 
     return acCorrection;
 }
