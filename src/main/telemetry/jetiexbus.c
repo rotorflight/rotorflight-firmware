@@ -155,8 +155,6 @@ const exBusSensor_t jetiExSensors[] = {
     {"Adj. Function",    "",        EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"Adj. Value",       "",        EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"ESC. Temp.",       "\xB0",    EX_TYPE_22b,   DECIMAL_MASK(1)},
-    {"Rotorflight D3",           "",         EX_TYPE_DES,   0              },     // device descripton    
-    {"MCU. Temp.",       "\xB0",    EX_TYPE_22b,   DECIMAL_MASK(1)},    
 };
 
 // after every 15 sensors increment the step by 2 (e.g. ...EX_VAL15, EX_VAL16 = 17) to skip the device description
@@ -192,8 +190,6 @@ enum exSensors_e {
     EX_ADJFUNC,
     EX_ADJVALUE,
     EX_ESCTEMP,
-    //D3
-    EX_MCUTEMP = 33,
 };
 
 union{
@@ -309,14 +305,11 @@ void initJetiExBusTelemetry(void)
     bitArraySet(&exSensorEnabled, EX_THROTTLE_CONTROL);
     bitArraySet(&exSensorEnabled, EX_ADJFUNC);
     bitArraySet(&exSensorEnabled, EX_ADJVALUE);
+
     
 #ifdef USE_ESC_SENSOR_TELEMETRY    
     bitArraySet(&exSensorEnabled, EX_ESCTEMP);
 #endif
-
-#if defined(USE_ADC_INTERNAL)
-    bitArraySet(&exSensorEnabled, EX_MCUTEMP);
-#endif    
 
     firstActiveSensor = getNextActiveSensor(0);     // find the first active sensor
 }
@@ -507,11 +500,6 @@ int32_t getSensorValue(uint8_t sensor)
     break;
 #endif
 
-#if defined(USE_ADC_INTERNAL)
-    case EX_MCUTEMP:
-            return getCoreTemperatureCelsius();
-    break;
-#endif
 
     default:
         return -1;
