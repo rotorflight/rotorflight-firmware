@@ -30,6 +30,7 @@
 #include "build/debug.h"
 #include "fc/runtime_config.h"
 #include "config/feature.h"
+#include "fc/rc_adjustments.h"
 
 #include "common/utils.h"
 #include "common/bitarray.h"
@@ -51,6 +52,8 @@
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 #include "sensors/acceleration.h"
+#include "sensors/esc_sensor.h"
+#include "sensors/adcinternal.h"
 
 #include "telemetry/jetiexbus.h"
 #include "telemetry/telemetry.h"
@@ -64,6 +67,10 @@
 #define EXTEL_OVERHEAD      (EXTEL_SYNC_LEN + EXTEL_HEADER_LEN + EXTEL_CRC_LEN)
 #define EXTEL_MAX_PAYLOAD   (EXTEL_MAX_LEN - EXTEL_OVERHEAD)
 #define EXBUS_MAX_REQUEST_BUFFER_SIZE   (EXBUS_OVERHEAD + EXTEL_MAX_LEN)
+
+#ifdef USE_ESC_SENSOR_TELEMETRY
+        escSensorData_t *escData;
+#endif
 
 enum exTelHeader_e {
     EXTEL_HEADER_SYNC = 0,
@@ -138,13 +145,18 @@ const exBusSensor_t jetiExSensors[] = {
     {"G-Force X",       "",         EX_TYPE_22b,   DECIMAL_MASK(3)},
     {"G-Force Y",       "",         EX_TYPE_22b,   DECIMAL_MASK(3)},
     {"G-Force Z",       "",         EX_TYPE_22b,   DECIMAL_MASK(3)},
-    {"Headspeed",       "rpm",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"Tailspeed",       "rpm",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Headspeed",       "rpm",      EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Tailspeed",       "rpm",      EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"Arming Flags",    "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"PID Profile",     "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"RATES Profile",   "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"Governor",        "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
-    {"Thr. Control",    "",         EX_TYPE_22b,   DECIMAL_MASK(0)},    
+    {"Thr. Control",    "",         EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Adj. Function",    "",        EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"Adj. Value",       "",        EX_TYPE_22b,   DECIMAL_MASK(0)},
+    {"ESC. Temp.",       "\xB0",    EX_TYPE_22b,   DECIMAL_MASK(1)},
+    {"Rotorflight D3",           "",         EX_TYPE_DES,   0              },     // device descripton    
+    {"MCU. Temp.",       "\xB0",    EX_TYPE_22b,   DECIMAL_MASK(1)},    
 };
 
 // after every 15 sensors increment the step by 2 (e.g. ...EX_VAL15, EX_VAL16 = 17) to skip the device description
@@ -164,6 +176,7 @@ enum exSensors_e {
     EX_GPS_SPEED,
     EX_GPS_DISTANCE_TO_HOME,
     EX_GPS_DIRECTION_TO_HOME,
+    //D2
     EX_GPS_HEADING = 17,
     EX_GPS_ALTITUDE,
     EX_GFORCE_X,
@@ -175,7 +188,12 @@ enum exSensors_e {
     EX_PID_PROFILE,
     EX_RATES_PROFILE,
     EX_GOVERNOR_MODE,
-    EX_THROTTLE_CONTROL
+    EX_THROTTLE_CONTROL,
+    EX_ADJFUNC,
+    EX_ADJVALUE,
+    EX_ESCTEMP,
+    //D3
+    EX_MCUTEMP = 33,
 };
 
 union{
@@ -288,7 +306,17 @@ void initJetiExBusTelemetry(void)
     bitArraySet(&exSensorEnabled, EX_PID_PROFILE);
     bitArraySet(&exSensorEnabled, EX_RATES_PROFILE);
     bitArraySet(&exSensorEnabled, EX_GOVERNOR_MODE);
-    bitArraySet(&exSensorEnabled, EX_THROTTLE_CONTROL);   
+    bitArraySet(&exSensorEnabled, EX_THROTTLE_CONTROL);
+    bitArraySet(&exSensorEnabled, EX_ADJFUNC);
+    bitArraySet(&exSensorEnabled, EX_ADJVALUE);
+    
+#ifdef USE_ESC_SENSOR_TELEMETRY    
+    bitArraySet(&exSensorEnabled, EX_ESCTEMP);
+#endif
+
+#if defined(USE_ADC_INTERNAL)
+    bitArraySet(&exSensorEnabled, EX_MCUTEMP);
+#endif    
 
     firstActiveSensor = getNextActiveSensor(0);     // find the first active sensor
 }
@@ -453,20 +481,43 @@ int32_t getSensorValue(uint8_t sensor)
                         8, //"BAILOUT",
                     */
                     return getGovernorState();
-                }    
+                }   
+    break;                
 
     case EX_THROTTLE_CONTROL:
         return telemetrySensorValue(TELEM_THROTTLE_CONTROL);
     break;
 
-
+    case EX_ADJFUNC:
+        return getAdjustmentsRangeFunc();
     break;
 
+    case EX_ADJVALUE:
+        return getAdjustmentsRangeValue();
+    break;
+
+
+#ifdef USE_ESC_SENSOR_TELEMETRY
+    case EX_ESCTEMP:
+            escData = getEscSensorData(0);
+            if (escData != NULL) {
+                return (escData->temperature / 10);
+            }
+            return 0;
+    break;
+#endif
+
+#if defined(USE_ADC_INTERNAL)
+    case EX_MCUTEMP:
+            return getCoreTemperatureCelsius();
+    break;
+#endif
 
     default:
         return -1;
     }
 }
+
 
 uint8_t getNextActiveSensor(uint8_t currentSensor)
 {
