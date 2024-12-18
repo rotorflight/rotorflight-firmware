@@ -1090,7 +1090,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
             for (int i = 0; i < 3; i++) {
 #if defined(USE_ACC)
-                sbufWriteU16(dst, lrintf((int16_t)acc.accADC[i] / scale));
+                sbufWriteU16(dst, lrintf(acc.accADC[i] / scale));
 #else
                 sbufWriteU16(dst, 0);
 #endif
