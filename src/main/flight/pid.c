@@ -132,7 +132,7 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
         difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
-        difFilterInit(&pid.boostFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+        difFilterInit(&pid.boostFilter[i], pidProfile->setpoint_boost_cutoff[i], pid.freq);
     }
 
     // RPM change filter
@@ -216,7 +216,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
         lowpassFilterInit(&pid.errorFilter[i], LPF_ORDER1, pidProfile->error_cutoff[i], pid.freq, 0);
         difFilterUpdate(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
         difFilterUpdate(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
-        difFilterUpdate(&pid.boostFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+        difFilterUpdate(&pid.boostFilter[i], pidProfile->setpoint_boost_cutoff[i], pid.freq);
     }
 
     // Error relax

@@ -179,6 +179,7 @@ typedef struct pidProfile_s {
     uint8_t             cyclic_cross_coupling_cutoff;
 
     uint16_t            setpoint_boost[3];
+    uint8_t             setpoint_boost_cutoff[3];
 
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;
