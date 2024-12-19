@@ -494,7 +494,7 @@ int32_t getSensorValue(uint8_t sensor)
     case EX_ESCTEMP:
             escData = getEscSensorData(0);
             if (escData != NULL) {
-                return (escData->temperature / 10);
+                return (escData->temperature);
             }
             return 0;
     break;
