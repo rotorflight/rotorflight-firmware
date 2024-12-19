@@ -19,14 +19,27 @@
 
 #include "pg/pg.h"
 
-#define RPM_FILTER_BANK_COUNT 16
+#define RPM_FILTER_AXIS_COUNT    3
+#define RPM_FILTER_NOTCH_COUNT   16
 
-typedef struct rpmFilteConfig_s
+typedef struct
 {
-    uint8_t  filter_bank_rpm_source[RPM_FILTER_BANK_COUNT];     // RPM source
-    uint16_t filter_bank_rpm_ratio[RPM_FILTER_BANK_COUNT];      // RPM ratio *1000
-    uint16_t filter_bank_rpm_limit[RPM_FILTER_BANK_COUNT];      // RPM minimum limit
-    uint8_t  filter_bank_notch_q[RPM_FILTER_BANK_COUNT];        // Notch Q *10
+    uint8_t notch_source[RPM_FILTER_AXIS_COUNT][RPM_FILTER_NOTCH_COUNT];     // RPM source index
+    int16_t notch_center[RPM_FILTER_AXIS_COUNT][RPM_FILTER_NOTCH_COUNT];     // Center correction *10000
+    uint8_t notch_q[RPM_FILTER_AXIS_COUNT][RPM_FILTER_NOTCH_COUNT];          // Notch Q *10
+
+} rpmNotchConfig_t;
+
+typedef struct
+{
+    // Filter preset: 0 = custom, 1 = low, 2 = normal, 3 = high
+    uint8_t preset;
+
+    // Hz limit
+    uint8_t min_hz;
+
+    // Custom preset
+    rpmNotchConfig_t custom;
 
 } rpmFilterConfig_t;
 
