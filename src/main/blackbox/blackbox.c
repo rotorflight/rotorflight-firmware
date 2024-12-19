@@ -1506,9 +1506,17 @@ static char *blackboxGetStartDateTime(char *buf)
 #define BLACKBOX_PRINT_HEADER_LINE(name, format, ...) case __COUNTER__: \
                                                 blackboxPrintfHeaderLine(name, format, __VA_ARGS__); \
                                                 break;
+#define BLACKBOX_PRINT_HEADER_LINE_ARRAY(name, count, array) case __COUNTER__: { \
+                                                char *ptr = buf; \
+                                                for (int i=0; i<(count); i++) { \
+                                                    if (i > 0) *ptr++ = ','; \
+                                                    ptr += tfp_sprintf(ptr, "%d", array[i]); \
+                                                } \
+                                                blackboxPrintfHeaderLine(name, buf); \
+                                                break; }
 #define BLACKBOX_PRINT_HEADER_LINE_CUSTOM(...) case __COUNTER__: \
-                                                    {__VA_ARGS__}; \
-                                               break;
+                                                {__VA_ARGS__}; \
+                                                break;
 #endif
 
 /**
@@ -1681,42 +1689,26 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DSHOT_BIDIR, "%d",            motorConfig()->dev.useDshotTelemetry);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_source[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_source", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_ratio[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_ratio", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_rpm_limit[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_rpm_limit", buf);
-        );
-        BLACKBOX_PRINT_HEADER_LINE_CUSTOM(
-            char *ptr = buf;
-            for (int i=0; i<RPM_FILTER_BANK_COUNT; i++) {
-                if (i > 0)
-                    *ptr++ = ',';
-                ptr += tfp_sprintf(ptr, "%d", rpmFilterConfig()->filter_bank_notch_q[i]);
-            }
-            blackboxPrintfHeaderLine("gyro_rpm_filter_bank_notch_q", buf);
-        );
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_preset", "%d",           rpmFilterConfig()->preset);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_min_hz", "%d",           rpmFilterConfig()->min_hz);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_source_pitch",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_center_pitch",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_q_pitch",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_source_roll",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_center_roll",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_q_roll",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_source_yaw",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_center_yaw",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_LINE_ARRAY("gyro_rpm_notch_q_yaw",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_YAW]);
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LPF_HZ, "%d",             accelerometerConfig()->acc_lpf_hz * 100);
