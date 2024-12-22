@@ -310,11 +310,11 @@ static float mixerCollectiveScale(float SC, float SR, float SP)
 {
     float beta;
     if (SC > 0) {
-        beta = mixerConfig()->collective_scale_beta_pos/100.0f;
+        beta = mixerConfig()->collective_scale_pos / 100.0f;
     } else {
-        beta = mixerConfig()->collective_scale_beta_neg/100.0f;
+        beta = mixerConfig()->collective_scale_neg / 100.0f;
     }
-    float scale = 1 - beta* (SR*SR + SP*SP);
+    float scale = 1 - beta * (SR * SR + SP * SP);
     scale = constrainf(scale, 0, 1.0f);
     return SC * scale;
 }
