@@ -1608,7 +1608,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_rate);
         sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_ratio);
         for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-            sbufWriteU8(dst, telemetryConfig()->crsf_telemetry_sensors[i]);
+            sbufWriteU8(dst, telemetryConfig()->telemetry_sensors[i]);
         }
         break;
 
@@ -3186,7 +3186,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             telemetryConfigMutable()->crsf_telemetry_link_rate = sbufReadU16(src);
             telemetryConfigMutable()->crsf_telemetry_link_ratio = sbufReadU16(src);
             for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-                telemetryConfigMutable()->crsf_telemetry_sensors[i] = sbufReadU8(src);
+                telemetryConfigMutable()->telemetry_sensors[i] = sbufReadU8(src);
             }
         }
         break;

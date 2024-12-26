@@ -86,10 +86,10 @@ typedef struct telemetryConfig_s {
     uint16_t mavlink_mah_as_heading_divisor;
     uint32_t enableSensors;
     uint8_t crsf_telemetry_mode;
-    uint16_t crsf_telemetry_sensors[TELEM_SENSOR_SLOT_COUNT];
-    uint16_t crsf_telemetry_interval[TELEM_SENSOR_SLOT_COUNT];
     uint16_t crsf_telemetry_link_rate;
     uint16_t crsf_telemetry_link_ratio;
+    uint16_t telemetry_sensors[TELEM_SENSOR_SLOT_COUNT];
+    uint16_t telemetry_interval[TELEM_SENSOR_SLOT_COUNT];
 } telemetryConfig_t;
 
 PG_DECLARE(telemetryConfig_t, telemetryConfig);

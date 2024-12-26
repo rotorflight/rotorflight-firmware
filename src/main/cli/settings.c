@@ -1219,8 +1219,9 @@ const clivalue_t valueTable[] = {
     { "crsf_telemetry_mode",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TELEM_MODE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_mode) },
     { "crsf_telemetry_link_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_rate) },
     { "crsf_telemetry_link_ratio",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_ratio) },
-    { "crsf_telemetry_sensors",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_sensors)},
-    { "crsf_telemetry_interval",     VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_interval)},
+
+    { "telemetry_sensors",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, telemetry_sensors)},
+    { "telemetry_interval",     VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = TELEM_SENSOR_SLOT_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, telemetry_interval)},
 
 #ifdef USE_TELEMETRY_ENABLE_SENSORS
     { "telemetry_enable_voltage",         VAR_UINT32  | MASTER_VALUE | MODE_BITSET, .config.bitpos = LOG2(SENSOR_VOLTAGE),         PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, enableSensors)},

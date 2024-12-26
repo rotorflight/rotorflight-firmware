@@ -55,10 +55,10 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
         ESC_SENSOR_TEMPERATURE,
     .mavlink_mah_as_heading_divisor = 0,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
-    .crsf_telemetry_sensors = INIT_ZERO,
-    .crsf_telemetry_interval = INIT_ZERO,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
+    .telemetry_sensors = INIT_ZERO,
+    .telemetry_interval = INIT_ZERO,
 );
 
 #endif

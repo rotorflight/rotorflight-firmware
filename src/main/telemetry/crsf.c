@@ -1250,7 +1250,7 @@ static bool crsfPopulateCustomTelemetry(void)
         }
 
         while (slot < TELEM_SENSOR_SLOT_COUNT) {
-            sensor_id_e id = telemetryConfig()->crsf_telemetry_sensors[slot];
+            sensor_id_e id = telemetryConfig()->telemetry_sensors[slot];
             slot++;
 
             if (telemetrySensorActive(id)) {
@@ -1318,12 +1318,12 @@ static void INIT_CODE crsfInitCustomTelemetry(void)
     telemetryScheduleInit(crsfCustomTelemetrySensors, ARRAYLEN(crsfCustomTelemetrySensors), false);
 
     for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-        sensor_id_e id = telemetryConfig()->crsf_telemetry_sensors[i];
+        sensor_id_e id = telemetryConfig()->telemetry_sensors[i];
         if (telemetrySensorActive(id)) {
             telemetrySensor_t * sensor = crsfGetCustomSensor(id);
             if (sensor) {
-                if (telemetryConfig()->crsf_telemetry_interval[i])
-                    sensor->fast_interval = telemetryConfig()->crsf_telemetry_interval[i];
+                if (telemetryConfig()->telemetry_interval[i])
+                    sensor->fast_interval = telemetryConfig()->telemetry_interval[i];
                 if (sensor->slow_interval > 1000)
                     sensor->slow_interval += rand() % 100;
                 telemetryScheduleAdd(sensor);
