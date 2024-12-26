@@ -488,6 +488,9 @@ sbus_output_unittest_SRC := \
 sbus_output_unittest_DEFINES := \
         USE_SBUS_OUTPUT=
 
+emfat_unittest_SRC := \
+		$(USER_DIR)/msc/emfat.c
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
