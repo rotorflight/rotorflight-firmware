@@ -537,59 +537,59 @@ static void crsfFrameDeviceInfo(sbuf_t *dst)
  * ...
  */
 
-void crsfSensorEncodeNil(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeNil(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(buf);
     UNUSED(sensor);
 }
 
-void crsfSensorEncodeU8(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU8(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU8(buf, constrain(sensor->value, 0, 0xFF));
 }
 
-void crsfSensorEncodeS8(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS8(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS8(buf, constrain(sensor->value, -0x80, 0x7F));
 }
 
-void crsfSensorEncodeU16(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU16(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU16BE(buf, constrain(sensor->value, 0, 0xFFFF));
 }
 
-void crsfSensorEncodeS16(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS16(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS16BE(buf, constrain(sensor->value, -0x8000, 0x7FFF));
 }
 
-void crsfSensorEncodeU24(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU24(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU24BE(buf, constrain(sensor->value, 0, 0xFFFFFF));
 }
 
-void crsfSensorEncodeS24(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS24(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS24BE(buf, constrain(sensor->value, -0x800000, 0x7FFFFF));
 }
 
-void crsfSensorEncodeU32(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU32(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU32BE(buf, sensor->value);
 }
 
-void crsfSensorEncodeS32(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS32(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS32BE(buf, sensor->value);
 }
 
-void crsfSensorEncodeCellVolt(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeCellVolt(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     const int volt = constrain(sensor->value, 200, 455) - 200;
     sbufWriteU8(buf, volt);
 }
 
-void crsfSensorEncodeCells(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeCells(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     const int cells = MIN(getBatteryCellCount(), 16);
@@ -600,7 +600,7 @@ void crsfSensorEncodeCells(sbuf_t *buf, telemetrySensor_t *sensor)
     }
 }
 
-void crsfSensorEncodeControl(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeControl(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     const int p = lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 1200);
@@ -615,7 +615,7 @@ void crsfSensorEncodeControl(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteU8(buf, (c & 0xFF));
 }
 
-void crsfSensorEncodeAttitude(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAttitude(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS16BE(buf, attitude.values.pitch);
@@ -623,7 +623,7 @@ void crsfSensorEncodeAttitude(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteS16BE(buf, attitude.values.yaw);
 }
 
-void crsfSensorEncodeAccel(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAccel(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS16BE(buf, acc.accADC[0] * acc.dev.acc_1G_rec * 100);
@@ -631,14 +631,14 @@ void crsfSensorEncodeAccel(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteS16BE(buf, acc.accADC[2] * acc.dev.acc_1G_rec * 100);
 }
 
-void crsfSensorEncodeLatLong(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeLatLong(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS32BE(buf, gpsSol.llh.lat);
     sbufWriteS32BE(buf, gpsSol.llh.lon);
 }
 
-void crsfSensorEncodeAdjFunc(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAdjFunc(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     if (getAdjustmentsRangeName()) {
@@ -662,7 +662,7 @@ static void crsfFrameCustomTelemetryHeader(sbuf_t *dst)
 static void crsfFrameCustomTelemetrySensor(sbuf_t *dst, telemetrySensor_t * sensor)
 {
     sbufWriteU16BE(dst, sensor->tcode);
-    sensor->encode(dst, sensor);
+    sensor->encode(sensor, dst);
 }
 
 
@@ -676,7 +676,7 @@ static void crsfFrameCustomTelemetrySensor(sbuf_t *dst, telemetrySensor_t * sens
         .value = 0, \
         .update = 0, \
         .active = false, \
-        .encode = crsfSensorEncode##ENCODER, \
+        .encode = (telemetryEncode_f)crsfSensorEncode##ENCODER, \
     }
 
 #define LEGACY_FLIGHT_MODE      (SENSOR_MODE)
