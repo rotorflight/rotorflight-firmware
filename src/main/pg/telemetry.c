@@ -38,7 +38,6 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .frsky_unit = UNIT_METRIC,
     .frsky_vfas_precision = 0,
     .hottAlarmSoundInterval = 5,
-    .pidValuesAsTelemetry = 0,
     .report_cell_voltage = false,
     .flysky_sensors = {
         IBUS_SENSOR_TYPE_TEMPERATURE,

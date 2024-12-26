@@ -116,7 +116,7 @@ void telemetryProcess(timeUs_t currentTime)
     handleHoTTTelemetry(currentTime);
 #endif
 #ifdef USE_TELEMETRY_SMARTPORT
-    handleSmartPortTelemetry();
+    handleSmartPortTelemetry(currentTime);
 #endif
 #ifdef USE_TELEMETRY_LTM
     handleLtmTelemetry();
