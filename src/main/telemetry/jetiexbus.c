@@ -123,7 +123,7 @@ typedef struct exBusSensor_s {
 // list of telemetry messages
 // after every 15 sensors a new header has to be inserted (e.g. "BF D2")
 const exBusSensor_t jetiExSensors[] = {
-    {"Rotorflight D1",           "",         EX_TYPE_DES,   0              },     // device descripton
+    {"Rotorflight D1",  "",         EX_TYPE_DES,   0              },     // device descripton
     {"Voltage",         "V",        EX_TYPE_22b,   DECIMAL_MASK(1)},
     {"Current",         "A",        EX_TYPE_22b,   DECIMAL_MASK(2)},
     {"Altitude",        "m",        EX_TYPE_22b,   DECIMAL_MASK(2)},
@@ -139,7 +139,7 @@ const exBusSensor_t jetiExSensors[] = {
     {"GPS Speed",       "m/s",      EX_TYPE_22b,   DECIMAL_MASK(2)},
     {"GPS H-Distance",  "m",        EX_TYPE_22b,   DECIMAL_MASK(0)},
     {"GPS H-Direction", "\xB0",     EX_TYPE_22b,   DECIMAL_MASK(1)},
-    {"Rotorflight D2",           "",         EX_TYPE_DES,   0              },     // device descripton
+    {"Rotorflight D2",  "",         EX_TYPE_DES,   0              },     // device descripton
     {"GPS Heading",     "\xB0",     EX_TYPE_22b,   DECIMAL_MASK(1)},
     {"GPS Altitude",    "m",        EX_TYPE_22b,   DECIMAL_MASK(2)},
     {"G-Force X",       "",         EX_TYPE_22b,   DECIMAL_MASK(3)},
