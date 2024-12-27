@@ -55,7 +55,7 @@
 #define MSP_PROTOCOL_VERSION                 0
 
 #define API_VERSION_MAJOR                    12
-#define API_VERSION_MINOR                    7
+#define API_VERSION_MINOR                    8
 #define API_VERSION_LENGTH                   2
 
 #define FLIGHT_CONTROLLER_IDENTIFIER_LENGTH  4
@@ -193,6 +193,8 @@
 #define MSP_SET_GOVERNOR_PROFILE             149
 #define MSP_LED_STRIP_SETTINGS               150
 #define MSP_SET_LED_STRIP_SETTINGS           151
+#define MSP_SBUS_OUTPUT_CONFIG               152
+#define MSP_SET_SBUS_OUTPUT_CONFIG           153
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159

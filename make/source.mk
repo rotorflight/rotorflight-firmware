@@ -76,6 +76,7 @@ COMMON_SRC = \
             drivers/camera_control.c \
             drivers/accgyro/gyro_sync.c \
             drivers/pwm_output.c \
+            drivers/sbus_output.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -126,6 +127,7 @@ COMMON_SRC = \
             rx/sumh.c \
             rx/xbus.c \
             rx/fport.c \
+            rx/fbus.c \
             sensors/acceleration.c \
             sensors/acceleration_init.c \
             sensors/boardalignment.c \

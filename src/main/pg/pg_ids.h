@@ -161,6 +161,7 @@
 #define PG_GENERIC_MIXER_CONFIG    1002
 #define PG_GENERIC_MIXER_RULES     1003
 #define PG_GENERIC_MIXER_INPUTS    1004
+#define PG_DRIVER_SBUS_OUT_CONFIG  1005
 
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047

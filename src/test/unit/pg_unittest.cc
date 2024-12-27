@@ -22,7 +22,7 @@
 #include <limits.h>
 
 extern "C" {
-    #include <platform.h>
+    #include "platform.h"
     #include "build/debug.h"
     #include "pg/pg.h"
     #include "pg/pg_ids.h"
