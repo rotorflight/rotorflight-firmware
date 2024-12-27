@@ -32,6 +32,7 @@ typedef struct gyroDeviceConfig_s {
     uint8_t busType;
     uint8_t spiBus;
     ioTag_t csnTag;
+    ioTag_t csnAccTag;
     uint8_t i2cBus;
     uint8_t i2cAddress;
     ioTag_t extiTag;
