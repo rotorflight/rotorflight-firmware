@@ -192,7 +192,13 @@ static inline void mixerApplyInputLimit(int index, float value)
     }
 }
 
-static float mixerGetPassthroughInput(int index, float value)
+/*
+ * Check if the mixer index is one of the stabilized axes. If so,
+ * return the overriden value (directly from RC). Otherwise, return original
+ * value.
+ */
+static float mixerGetPassthroughInput(const int index,
+                                      const float original_value)
 {
     float rc = 0;
     switch (index) {
@@ -211,19 +217,16 @@ static float mixerGetPassthroughInput(int index, float value)
         rc = getRcDeflection(COLLECTIVE);
         break;
     default:
-        return value;
+        return original_value;
     }
 
     // Scale rc by 120% for easier observing endpoints.
     rc *= 1.2f;
 
     if (rc > 0) {
-        value = scaleRangef(rc, 0, 1.0f, 0, mixerInputs(index)->max / 1000.0f);
-    } else {
-        value = scaleRangef(rc, 0, -1.0f, 0, mixerInputs(index)->min / 1000.0f);
+        return scaleRangef(rc, 0, 1.0f, 0, mixerInputs(index)->max / 1000.0f);
     }
-
-    return value;
+    return scaleRangef(rc, 0, -1.0f, 0, mixerInputs(index)->min / 1000.0f);
 }
 
 static void mixerSetInput(int index, float value)
