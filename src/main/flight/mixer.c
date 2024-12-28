@@ -192,12 +192,52 @@ static inline void mixerApplyInputLimit(int index, float value)
     }
 }
 
+/*
+ * Check if the mixer index is one of the stabilized axes. If so,
+ * return the overriden value (directly from RC). Otherwise, return original
+ * value.
+ */
+static float mixerGetPassthroughInput(const int index,
+                                      const float original_value)
+{
+    float rc = 0;
+    switch (index) {
+    case MIXER_IN_STABILIZED_ROLL:
+        rc = getRcDeflection(ROLL);
+        break;
+    case MIXER_IN_STABILIZED_PITCH:
+        rc = getRcDeflection(PITCH);
+        break;
+    case MIXER_IN_STABILIZED_YAW:
+        // Normally, yaw command is reversed in setpoint.c (unlike other axes).
+        // As we passthrough RC commands we want to keep the same reversal.
+        rc = -getRcDeflection(YAW);
+        break;
+    case MIXER_IN_STABILIZED_COLLECTIVE:
+        rc = getRcDeflection(COLLECTIVE);
+        break;
+    default:
+        return original_value;
+    }
+
+    // Scale rc by 120% for easier observing endpoints.
+    rc *= 1.2f;
+
+    if (rc > 0) {
+        return scaleRangef(rc, 0, 1.0f, 0, mixerInputs(index)->max / 1000.0f);
+    }
+    return scaleRangef(rc, 0, -1.0f, 0, mixerInputs(index)->min / 1000.0f);
+}
+
 static void mixerSetInput(int index, float value)
 {
     // Use override or wiggle only if not armed
     if (!ARMING_FLAG(ARMED)) {
         if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX) {
             value = mixer.override[index] / 1000.0f;
+        }
+        else if (mixer.override[index] == MIXER_OVERRIDE_PASSTHROUGH) {
+            value = mixerGetPassthroughInput(index, value);
         }
         else if (wiggleActive()) {
             if (index >= MIXER_IN_STABILIZED_ROLL && index <= MIXER_IN_STABILIZED_COLLECTIVE)
