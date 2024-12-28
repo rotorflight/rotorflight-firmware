@@ -456,25 +456,25 @@ int32_t getSensorValue(uint8_t sensor)
     break;
 
     case EX_GOVERNOR_MODE:
-                if (!ARMING_FLAG(ARMED)) {
-                    if (isArmingDisabled())
-                        return 100;  //DISABLED
-                    else
-                       return 101; //DISAMED
-                } else {
-                    /*
-                        0, //"OFF",
-                        1, //"IDLE",
-                        2, // "SPOOLUP",
-                        3, //"RECOVERY",
-                        4, //"ACTIVE",
-                        5, //"THR-OFF",
-                        6, //"LOST-HS",
-                        7, //"AUTOROT",
-                        8, //"BAILOUT",
-                    */
-                    return getGovernorState();
-                }   
+        if (!ARMING_FLAG(ARMED)) {
+            if (isArmingDisabled())
+                return 100;  //DISABLED
+            else
+               return 101; //DISAMED
+        } else {
+            /*
+                0, //"OFF",
+                1, //"IDLE",
+                2, // "SPOOLUP",
+                3, //"RECOVERY",
+                4, //"ACTIVE",
+                5, //"THR-OFF",
+                6, //"LOST-HS",
+                7, //"AUTOROT",
+                8, //"BAILOUT",
+            */
+            return getGovernorState();
+        }   
     break;                
 
     case EX_THROTTLE_CONTROL:
@@ -492,11 +492,11 @@ int32_t getSensorValue(uint8_t sensor)
 
 #ifdef USE_ESC_SENSOR_TELEMETRY
     case EX_ESCTEMP:
-            escData = getEscSensorData(0);
-            if (escData != NULL) {
-                return (escData->temperature);
-            }
-            return 0;
+        escData = getEscSensorData(0);
+        if (escData != NULL) {
+            return (escData->temperature);
+        }
+        return 0;
     break;
 #endif
 
