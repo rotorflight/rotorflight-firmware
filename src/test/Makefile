@@ -526,7 +526,7 @@ COMMON_FLAGS = \
 	-Wno-c99-extensions \
 	-Wno-reorder \
 	-pipe \
-	-Wno-missing-field-initializers 
+	-Wno-missing-field-initializers
 
 CC_VERSION = $(shell $(CC) -dumpversion)
 CXX_VERSION = $(shell $(CXX) -dumpversion)

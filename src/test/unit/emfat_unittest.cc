@@ -196,16 +196,16 @@ TEST_F(EmfatTestBase, DirEntries)
     EXPECT_EQ(de[6].name[1], 'L');
     EXPECT_EQ(de[6].name[3], 'o');  // (unicode)
     EXPECT_EQ(de[7].name[0], 'L');  // SFN entry of LongFileName1
-    EXPECT_EQ(de[7].name[1], 'O'); 
+    EXPECT_EQ(de[7].name[1], 'O');
     EXPECT_EQ(de[8].name[0], 0x41); // LFN entry of LongDirectory
-    EXPECT_EQ(de[8].name[1], 'L'); 
+    EXPECT_EQ(de[8].name[1], 'L');
     EXPECT_EQ(de[8].name[3], 'o');  // (unicode)
     EXPECT_EQ(de[9].name[0], 'L');  // SFN entry of LongDirectory
-    EXPECT_EQ(de[9].name[1], 'O'); 
+    EXPECT_EQ(de[9].name[1], 'O');
 
     fill_dir_sector(&emfat_, data, &entries_[0], 1);
-    EXPECT_EQ(de[0].name[0], 0); 
-    EXPECT_EQ(de[1].name[0], 0); 
+    EXPECT_EQ(de[0].name[0], 0);
+    EXPECT_EQ(de[1].name[0], 0);
 
     fill_dir_sector(&emfat_, data, &entries_[7], 0);
     EXPECT_EQ(de[0].name[0], '.');  // .

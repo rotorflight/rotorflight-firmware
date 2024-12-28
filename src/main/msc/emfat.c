@@ -586,13 +586,14 @@ void read_fat_sector(emfat_t *emfat, uint8_t *sect, uint32_t index)
     emfat->priv.last_entry = le;
 }
 
-static void fill_lfn(lfn_entry *entry, uint8_t order, const char *name, uint8_t checksum)
+static void fill_lfn_entry(lfn_entry *entry, uint8_t order, const char *name,
+                           uint8_t checksum)
 {
-    char name_segment[26] = {0,}; 
+    char name_segment[26] = { 0, };
 
     for (int i = 0; i < 13; i++) {
-        name_segment[i * 2] = name[i];  // Simple ASCII to Unicode conversion
-        
+        name_segment[i * 2] = name[i]; // Simple ASCII to Unicode conversion
+
         // According to MS, name ends with 0x0000 and then pads with 0xFFFF.
         // If the name is exact 13 chars, none is needed.
         if (name[i] == 0) {
@@ -624,9 +625,9 @@ static void fill_lfn(lfn_entry *entry, uint8_t order, const char *name, uint8_t 
  * not read them as string and does not care NULL termination. Caller needs to
  * pad with SPACE according to the FAT spec.
  */
-void fill_entry(dir_entry *entry, const char *short_name, const char *extension,
-                uint8_t attr, uint32_t clust, const uint32_t cma[3],
-                uint32_t size)
+void fill_dir_entry(dir_entry *entry, const char *short_name,
+                    const char *extension, uint8_t attr, uint32_t clust,
+                    const uint32_t cma[3], uint32_t size)
 {
     memset(entry, 0, sizeof(dir_entry));
 
@@ -666,14 +667,19 @@ void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32
 
     if (rel_sect == 0) { // 1. first sector of directory
         if (entry->priv.top == NULL) {
-            fill_entry(de++, emfat->vol_label, emfat->vol_label + FILE_NAME_SHRT_LEN, ATTR_VOL_LABEL, 0, 0, 0);
+            fill_dir_entry(de++, emfat->vol_label,
+                           emfat->vol_label + FILE_NAME_SHRT_LEN,
+                           ATTR_VOL_LABEL, 0, 0, 0);
             avail -= sizeof(dir_entry);
         } else {
-            fill_entry(de++, ".       ", "   ", ATTR_DIR | ATTR_READ, entry->priv.first_clust, 0, 0);
+            fill_dir_entry(de++, ".       ", "   ", ATTR_DIR | ATTR_READ,
+                           entry->priv.first_clust, 0, 0);
             if (entry->priv.top->priv.top == NULL) {
-                fill_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ, 0, 0, 0);
+                fill_dir_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ, 0,
+                               0, 0);
             } else {
-                fill_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ, entry->priv.top->priv.first_clust, 0, 0);
+                fill_dir_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ,
+                               entry->priv.top->priv.first_clust, 0, 0);
             }
             avail -= sizeof(dir_entry) * 2;
         }
@@ -711,22 +717,22 @@ void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32
                 order |= LAST_ORD_FIELD_SEQ;
             }
 
-            fill_lfn((lfn_entry *)de++, order,
-                     entry->name + (entry_idx - 2) * LFN_LEN_PER_ENTRY,
-                     checksum);
+            fill_lfn_entry((lfn_entry *)de++, order,
+                           entry->name + (entry_idx - 2) * LFN_LEN_PER_ENTRY,
+                           checksum);
 
             entry_idx--;
         } else {
             // 8+3 entry
             if (entry->dir) {
-                fill_entry(de++, entry->priv.short_name, entry->priv.extension,
-                           ATTR_DIR | ATTR_READ, entry->priv.first_clust,
-                           entry->cma_time, 0);
+                fill_dir_entry(de++, entry->priv.short_name,
+                               entry->priv.extension, ATTR_DIR | ATTR_READ,
+                               entry->priv.first_clust, entry->cma_time, 0);
             } else {
-                fill_entry(de++, entry->priv.short_name, entry->priv.extension,
-                           ATTR_ARCHIVE | ATTR_READ | entry->attr,
-                           entry->priv.first_clust, entry->cma_time,
-                           entry->curr_size);
+                fill_dir_entry(
+                    de++, entry->priv.short_name, entry->priv.extension,
+                    ATTR_ARCHIVE | ATTR_READ | entry->attr,
+                    entry->priv.first_clust, entry->cma_time, entry->curr_size);
             }
 
             entry = entry->priv.next;
