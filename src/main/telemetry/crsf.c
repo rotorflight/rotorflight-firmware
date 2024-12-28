@@ -1053,7 +1053,7 @@ void crsfProcessDisplayPortCmd(uint8_t *frameStart)
 static int crsfTransmitSbufBuf(sbuf_t *dst, uint8_t *frame)
 {
     // frame size including CRC
-    const size_t frameLength = crsfSbufLen(dst) + 2;
+    const size_t frameSize = crsfSbufLen(dst) + 2;
 
     // Set frame length into the placeholder
     crsfFrame[1] = frameSize - 3;
