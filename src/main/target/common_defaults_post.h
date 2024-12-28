@@ -329,20 +329,29 @@
 #endif
 
 #if !defined(GYRO_1_ACC_CS_PIN)
-#define GYRO_1_ACC_CS_PIN           NONE
+#define GYRO_1_ACC_CS_PIN       NONE
 #endif
 
 #if !defined(GYRO_1_EXTI_PIN)
 #define GYRO_1_EXTI_PIN         NONE
 #endif
 
-// F4 and F7 single gyro boards
-#if defined(USE_MULTI_GYRO) && !defined(GYRO_2_SPI_INSTANCE)
+#if !defined(GYRO_2_SPI_INSTANCE)
 #define GYRO_2_SPI_INSTANCE     NULL
+#endif
+
+#if !defined(GYRO_2_CS_PIN)
 #define GYRO_2_CS_PIN           NONE
+#endif
+
+#if !defined(GYRO_2_ACC_CS_PIN)
 #define GYRO_2_ACC_CS_PIN       NONE
+#endif
+
+#if !defined(GYRO_2_EXTI_PIN)
 #define GYRO_2_EXTI_PIN         NONE
 #endif
+
 
 #if defined(MPU_ADDRESS)
 #define GYRO_I2C_ADDRESS MPU_ADDRESS
