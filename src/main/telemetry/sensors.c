@@ -126,7 +126,7 @@ int telemetrySensorValue(sensor_id_e id)
             return millis() % 60000;
 
         case TELEM_BATTERY:
-            return 0;
+            return millis();
         case TELEM_BATTERY_VOLTAGE:
             return getBatteryVoltage();
         case TELEM_BATTERY_CURRENT:
@@ -251,7 +251,7 @@ int telemetrySensorValue(sensor_id_e id)
             return lrintf(acc.accADC[2] * acc.dev.acc_1G_rec * 10);
 
         case TELEM_GPS:
-            return 0;
+            return millis();
         case TELEM_GPS_SATS:
             return gpsSol.numSat;
         case TELEM_GPS_PDOP:
@@ -261,7 +261,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_GPS_VDOP:
             return 0;
         case TELEM_GPS_COORD:
-            return getTupleHash(gpsSol.llh.lat, gpsSol.llh.lat);
+            return getTupleHash(gpsSol.llh.lat, gpsSol.llh.lon);
         case TELEM_GPS_ALTITUDE:
             return gpsSol.llh.altCm;
         case TELEM_GPS_HEADING:
@@ -276,7 +276,7 @@ int telemetrySensorValue(sensor_id_e id)
             return 0;
 
         case TELEM_LOAD:
-            return 0;
+            return millis();
         case TELEM_CPU_LOAD:
             return getAverageCPULoadPercent();
         case TELEM_SYS_LOAD:
