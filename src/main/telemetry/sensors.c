@@ -261,7 +261,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_GPS_VDOP:
             return 0;
         case TELEM_GPS_COORD:
-            return getTupleHash(gpsSol.llh.lat, gpsSol.llh.lat);
+            return getTupleHash(gpsSol.llh.lat, gpsSol.llh.lon);
         case TELEM_GPS_ALTITUDE:
             return gpsSol.llh.altCm;
         case TELEM_GPS_HEADING:
