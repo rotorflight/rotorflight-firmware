@@ -304,7 +304,6 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_RATES_PROFILE:
             return getCurrentControlRateProfileIndex() + 1;
         case TELEM_LED_PROFILE:
-            return getLedProfile() + 1;
         case TELEM_BATTERY_PROFILE:
             return 0;
 
