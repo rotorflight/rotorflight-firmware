@@ -21,6 +21,7 @@
 /*
  * Author: jflyper@github.com
  */
+#include <ctype.h>
 
 #include "platform.h"
 #include "emfat.h"
@@ -39,6 +40,7 @@
 #include "io/flashfs.h"
 
 #include "pg/flash.h"
+#include "pg/pilot.h"
 
 #include "msc/usbd_storage.h"
 
@@ -172,20 +174,61 @@ static inline int emfat_decode_second(uint32_t cma)
     return emfat_decode_bits(cma, 0, 5) << 1;
 }
 
-static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset, uint32_t size)
+/*
+ * Change illegal filename charactors to '_'.
+ */
+void legalize_filename(char *name)
 {
-    static char logNames[1 + EMFAT_MAX_LOG_ENTRY][4 + 1 + 8 + 1 + 6 + 4 + 1];
+    for (int i = 0; name[i] != '\0'; i++) {
+        if (isalpha(name[i])) {
+            continue;
+        }
+        if (isdigit(name[i])) {
+            continue;
+        }
+        switch (name[i]) {
+        case ' ':
+        case '$':
+        case '%':
+        case '-':
+        case '_':
+        case '@':
+        case '~':
+        case '`':
+        case '!':
+        case '(':
+        case ')':
+        case '{':
+        case '}':
+        case '^':
+        case '#':
+        case '&':
+        case '.': // Spec says only 1 dot is allowed. We don't care this rule.
+            continue;
+        }
+
+        name[i] = '_';
+    }
+}
+
+static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
+                          uint32_t size)
+{
+    static char logNames[1 + EMFAT_MAX_LOG_ENTRY]
+                        [5 + MAX_NAME_LENGTH + 1 + 9 + 6 + 4 + 1];
 
     if (entry->cma_time[0] == cmaTime) {
         // Unrecognized timestamp
         // Note: this will be an 8+3 short file name. The displaying upper/lower
         // case may be up to the host.
-        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%03d.bbl",
+        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%s_%03d.bbl",
+                    pilotConfig()->name,
                     number + 1);
     } else {
         // Recognized timestamp, create a meaningful filename.
         tfp_sprintf(logNames[number],
-                    FC_FIRMWARE_IDENTIFIER "_%04d%02d%02d_%02d%02d%02d.bbl",
+                    FC_FIRMWARE_IDENTIFIER "_%s_%04d%02d%02d_%02d%02d%02d.bbl",
+                    pilotConfig()->name,
                     emfat_decode_year(entry->cma_time[0]),
                     emfat_decode_month(entry->cma_time[0]),
                     emfat_decode_day(entry->cma_time[0]),
@@ -193,6 +236,7 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset, uin
                     emfat_decode_minute(entry->cma_time[0]),
                     emfat_decode_second(entry->cma_time[0]));
     }
+    legalize_filename(logNames[number]);
     entry->name = logNames[number];
     entry->level = 1;
     entry->offset = offset;

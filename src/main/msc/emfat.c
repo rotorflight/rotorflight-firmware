@@ -302,6 +302,12 @@ STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry)
 
     entry->priv.checksum = sfn_checksum(entry->priv.short_name, entry->priv.extension);
 
+    // There are actually other cases may need LFN entries:
+    //   1. Need preserve filename cases.
+    //   2. Multiple dots in filename.
+    //   3. > 3 extension chars.
+    //   ...
+    // But let's ignore them for now.
     entry->priv.num_entry = 1;
     if (need_lfn) {
         entry->priv.num_entry += (l + LFN_LEN_PER_ENTRY - 1) / LFN_LEN_PER_ENTRY;
