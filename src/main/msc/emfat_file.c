@@ -219,8 +219,6 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
 
     if (entry->cma_time[0] == cmaTime) {
         // Unrecognized timestamp
-        // Note: this will be an 8+3 short file name. The displaying upper/lower
-        // case may be up to the host.
         tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%s_%03d.bbl",
                     pilotConfig()->name,
                     number + 1);
