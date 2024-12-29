@@ -135,6 +135,9 @@ static emfat_entry_t entries[1 + EMFAT_MAX_ENTRY];
 emfat_t emfat;
 static uint32_t cmaTime = CMA_TIME;
 
+// The craft name to compose log filenames. It includes a separator "_".
+static char craft_name[MAX_NAME_LENGTH + 2];
+
 static void emfat_set_entry_cma(emfat_entry_t *entry)
 {
     // Set file creation/modification/access times to be the same, either the default date or that from the RTC
@@ -215,18 +218,18 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
                           uint32_t size)
 {
     static char logNames[1 + EMFAT_MAX_LOG_ENTRY]
-                        [5 + MAX_NAME_LENGTH + 1 + 9 + 6 + 4 + 1];
+                        [4 + MAX_NAME_LENGTH + 1 + 1 + 9 + 6 + 4 + 1];
 
     if (entry->cma_time[0] == cmaTime) {
         // Unrecognized timestamp
-        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "_%s_%03d.bbl",
-                    pilotConfig()->name,
+        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "%s_%03d.bbl",
+                    craft_name,
                     number + 1);
     } else {
         // Recognized timestamp, create a meaningful filename.
         tfp_sprintf(logNames[number],
-                    FC_FIRMWARE_IDENTIFIER "_%s_%04d%02d%02d_%02d%02d%02d.bbl",
-                    pilotConfig()->name,
+                    FC_FIRMWARE_IDENTIFIER "%s_%04d%02d%02d_%02d%02d%02d.bbl",
+                    craft_name,
                     emfat_decode_year(entry->cma_time[0]),
                     emfat_decode_month(entry->cma_time[0]),
                     emfat_decode_day(entry->cma_time[0]),
@@ -234,7 +237,6 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
                     emfat_decode_minute(entry->cma_time[0]),
                     emfat_decode_second(entry->cma_time[0]));
     }
-    legalize_filename(logNames[number]);
     entry->name = logNames[number];
     entry->level = 1;
     entry->offset = offset;
@@ -370,6 +372,13 @@ void emfat_init_files(void)
     }
 
 #ifdef USE_FLASHFS
+    if (pilotConfig()->name[0]) {
+        tfp_sprintf(craft_name, "_%s", pilotConfig()->name);
+        legalize_filename(craft_name);
+    } else {
+        craft_name[0] = 0;
+    }
+
     flashInit(flashConfig());
     flashfsInit();
     LED0_OFF;
