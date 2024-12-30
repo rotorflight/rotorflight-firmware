@@ -2023,14 +2023,15 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
     switch (cmdMSP) {
 #ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER:
-        if (sbufBytesRemaining(src) >= 2) {
-            const int axis = sbufReadU8(src);
-            const int bank = sbufReadU8(src);
-            if (axis >= RPM_FILTER_AXIS_COUNT || bank >= RPM_FILTER_NOTCH_COUNT)
+        if (sbufBytesRemaining(src) == 1) {
+            const uint axis = sbufReadU8(src);
+            if (axis >= RPM_FILTER_AXIS_COUNT)
                 return MSP_RESULT_ERROR;
-            sbufWriteU8(dst, rpmFilterConfig()->custom.notch_source[axis][bank]);
-            sbufWriteU16(dst, rpmFilterConfig()->custom.notch_center[axis][bank]);
-            sbufWriteU8(dst, rpmFilterConfig()->custom.notch_q[axis][bank]);
+            for (uint bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                sbufWriteU8(dst, rpmFilterConfig()->custom.notch_source[axis][bank]);
+                sbufWriteU16(dst, rpmFilterConfig()->custom.notch_center[axis][bank]);
+                sbufWriteU8(dst, rpmFilterConfig()->custom.notch_q[axis][bank]);
+            }
         }
         else {
             return MSP_RESULT_ERROR;
@@ -2576,17 +2577,21 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #ifdef USE_RPM_FILTER
     case MSP_SET_RPM_FILTER:
-        {
-            const int axis = sbufReadU8(src);
-            const int bank = sbufReadU8(src);
-            if (axis >= RPM_FILTER_AXIS_COUNT || bank >= RPM_FILTER_NOTCH_COUNT)
+        if (sbufBytesRemaining(src) == 1 + 4 * RPM_FILTER_NOTCH_COUNT) {
+            const uint axis = sbufReadU8(src);
+            if (axis >= RPM_FILTER_AXIS_COUNT)
                 return MSP_RESULT_ERROR;
-            rpmFilterConfigMutable()->custom.notch_source[axis][bank] = sbufReadU8(src);
-            rpmFilterConfigMutable()->custom.notch_center[axis][bank] = sbufReadU16(src);
-            rpmFilterConfigMutable()->custom.notch_q[axis][bank] = sbufReadU8(src);
+            for (uint bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                rpmFilterConfigMutable()->custom.notch_source[axis][bank] = sbufReadU8(src);
+                rpmFilterConfigMutable()->custom.notch_center[axis][bank] = sbufReadU16(src);
+                rpmFilterConfigMutable()->custom.notch_q[axis][bank] = sbufReadU8(src);
+            }
+            validateAndFixRPMFilterConfig();
+            rpmFilterInit();
         }
-        validateAndFixRPMFilterConfig();
-        rpmFilterInit();
+        else {
+            return MSP_RESULT_ERROR;
+        }
         break;
 #endif
 
