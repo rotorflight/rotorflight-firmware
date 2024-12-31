@@ -70,6 +70,12 @@ typedef struct
 
 static FAST_DATA_ZERO_INIT setpointData_t sp;
 
+typedef enum {
+    GROUND,
+    SPOOLUP,
+    AIRBORNE,
+} airborneState_e;
+airborneState_e airborneState = GROUND;
 
 float getSetpoint(int axis)
 {
@@ -151,6 +157,30 @@ INIT_CODE void setpointInit(void)
     }
 
     setpointInitProfile();
+
+    airborneState = GROUND;
+}
+
+float angleOfVectors(float a[3], float b[3])
+{
+    float dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    float lenA = sqrtf(sq(a[0]) + sq(a[1]) + sq(a[2]));
+    float lenB = sqrtf(sq(b[0]) + sq(b[1]) + sq(b[2]));
+
+    return acosf(dot / (lenA * lenB));
+}
+
+void getYawVector(float v[3], quaternion *q)
+{
+    /*
+     * (0, 0, 1) rotated by the quaternion:
+     * x = 2 * (x*z + w*y)
+     * y = 2 * (y*z - w*x)
+     * z = 1 - 2 * (x*x + y*y)
+     */
+    v[0] = 2 * (q->x * q->z + q->w * q->y);
+    v[1] = 2 * (q->y * q->z - q->w * q->x);
+    v[2] = 1 - 2 * (sq(q->x) + sq(q->y));
 }
 
 void setpointUpdate(void)
@@ -171,10 +201,6 @@ void setpointUpdate(void)
     DEBUG(AIRBORNE, 1, sqrtf(sp.maximum[FD_PITCH]) * 1000);
     DEBUG(AIRBORNE, 2, sqrtf(sp.maximum[FD_YAW]) * 1000);
     DEBUG(AIRBORNE, 3, sqrtf(sp.maximum[FD_COLL]) * 1000);
-    DEBUG(AIRBORNE, 4, getCosTiltAngle() * 1000);
-    DEBUG(AIRBORNE, 5, isSpooledUp());
-    DEBUG(AIRBORNE, 6, isHandsOn());
-    DEBUG(AIRBORNE, 7, isAirborne());
 
     const float R = deflection[FD_ROLL]  * sp.ringLimit;
     const float P = deflection[FD_PITCH] * sp.ringLimit;
@@ -201,6 +227,56 @@ void setpointUpdate(void)
         SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);
         DEBUG_AXIS(SETPOINT, axis, 4, SP);
     }
+
+    static float groundYawVector[3] = {0, 0, 1};
+    switch (airborneState) {
+    case GROUND:
+        if (ARMING_FLAG(ARMED) && getGovernorOutput() > 0.1f) {
+            // Transit to SPOOLUP and record ground yaw vector.
+            airborneState = SPOOLUP;
+            quaternion q;
+            getQuaternion(&q);
+            getYawVector(groundYawVector, &q);
+        }
+        break;
+    case SPOOLUP: {
+        // Compute tilt angle from the ground yaw vector.
+        // We effectively ignore the yaw component, since the heli may rotate in
+        // yaw when spooling up.
+        float yawVector[3];
+        quaternion q;
+        getQuaternion(&q);
+        getYawVector(yawVector, &q);
+
+        float tiltAngle =
+            angleOfVectors(groundYawVector, yawVector) / M_RADf; // in degree
+
+        if (!isnormal(tiltAngle)) {
+            // If something is broken (how?), we assume it's airborne.
+            tiltAngle = 10;
+        }
+
+        DEBUG(AIRBORNE, 4, tiltAngle * 1000);
+
+        if (ARMING_FLAG(ARMED) && isSpooledUp() && fabsf(tiltAngle) > 5) {
+            airborneState = AIRBORNE;
+        }
+
+        if (!ARMING_FLAG(ARMED) || getGovernorOutput() < 0.1f) {
+            airborneState = GROUND;
+        }
+        break;
+    }
+    case AIRBORNE:
+        if (!ARMING_FLAG(ARMED) || (!isSpooledUp() && !isHandsOn())) {
+            airborneState = GROUND;
+        }
+        break;
+    }
+
+    DEBUG(AIRBORNE, 5, airborneState);
+    DEBUG(AIRBORNE, 6, isHandsOn());
+    DEBUG(AIRBORNE, 7, isAirborne());
 }
 
 bool isHandsOn(void)
@@ -208,21 +284,12 @@ bool isHandsOn(void)
     return (
         sp.maximum[FD_ROLL] > sp.movementThreshold[FD_ROLL] ||
         sp.maximum[FD_PITCH] > sp.movementThreshold[FD_PITCH] ||
-        sp.maximum[FD_YAW] > sp.movementThreshold[FD_YAW] ||
-        sp.maximum[FD_COLL] > sp.movementThreshold[FD_COLL]
+        sp.maximum[FD_YAW] > sp.movementThreshold[FD_YAW]
+        // FD_COLL is not considered since the axis can stop at any position.
     );
 }
 
 bool isAirborne(void)
 {
-    return (
-        ARMING_FLAG(ARMED) &&
-        isSpooledUp() &&
-        (
-            isHandsOn() ||
-            //getAltitude() > 2.0f ||
-            getCosTiltAngle() < 0.9f ||
-            FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
-        )
-    );
+    return airborneState == AIRBORNE;
 }
