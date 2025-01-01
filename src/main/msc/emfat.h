@@ -60,10 +60,15 @@ typedef struct emfat_entry_s {
         uint32_t      first_clust;
         uint32_t      last_clust;
         uint32_t      last_reserved;
-        uint32_t      num_subentry;
+        uint32_t      num_entry;  // number of entries (counting LFN)
+        uint32_t      num_subentry;  // total number of sub entries of a directory.
         struct emfat_entry_s *top;
         struct emfat_entry_s *sub;
         struct emfat_entry_s *next;
+
+        char          short_name[8];
+        char          extension[3];
+        uint8_t       checksum;
     } priv;
 } emfat_entry_t;
 

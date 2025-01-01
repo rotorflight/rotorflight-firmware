@@ -488,6 +488,9 @@ sbus_output_unittest_SRC := \
 sbus_output_unittest_DEFINES := \
         USE_SBUS_OUTPUT=
 
+emfat_unittest_SRC := \
+		$(USER_DIR)/msc/emfat.c
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
@@ -523,7 +526,7 @@ COMMON_FLAGS = \
 	-Wno-c99-extensions \
 	-Wno-reorder \
 	-pipe \
-	-Wno-missing-field-initializers 
+	-Wno-missing-field-initializers
 
 CC_VERSION = $(shell $(CC) -dumpversion)
 CXX_VERSION = $(shell $(CXX) -dumpversion)

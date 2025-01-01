@@ -30,6 +30,8 @@
 
 #include "platform.h"
 
+#include "build/build_config.h"
+
 #include "common/utils.h"
 
 #include "emfat.h"
@@ -210,12 +212,107 @@ typedef struct
     uint8_t flag;
     uint8_t reserved;
     uint8_t chksum;
-    uint8_t fname6_11[LFN_SEC_SET_LEN];
+    uint8_t fname5_10[LFN_SEC_SET_LEN];
     uint8_t empty[LFN_EMPTY_LEN];
-    uint8_t fname12_13[LFN_THIRD_SET_LEN];
+    uint8_t fname11_12[LFN_THIRD_SET_LEN];
 } lfn_entry;
 
+STATIC_ASSERT(sizeof(lfn_entry) == 32, lfn_entry_size);
+
 #pragma pack(pop)
+
+/*
+ * Calculate the checksum of the short file name.
+ * `short_name` and `extension` should be exact 8 and 3 characters long
+ * respectively.
+ */
+STATIC_UNIT_TESTED uint8_t sfn_checksum(const char* short_name, const char* extension)
+{
+    uint8_t sum = 0;
+
+    for (uint8_t i = 0; i < FILE_NAME_SHRT_LEN; i++) {
+        sum = (((sum & 1) << 7) | ((sum & 0xfe) >> 1)) + short_name[i];
+    }
+
+    for (uint8_t i = 0; i < FILE_NAME_EXTN_LEN; i++) {
+        sum = (((sum & 1) << 7) | ((sum & 0xfe) >> 1)) + extension[i];
+    }
+
+    return sum;
+}
+
+/*
+ * Subroutine to populate 8+3 filename, checksum and the number of entries for an
+ * `emfat_entry_t`.
+ */
+STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry)
+{
+    int i, l, l1, l2;
+    int dot_pos;
+    bool need_lfn = false;
+
+    l = strlen(entry->name);
+    dot_pos = -1;
+
+    if ((entry->attr & ATTR_DIR) == 0) {
+        for (i = l - 1; i >= 0; i--) {
+            if (entry->name[i] == '.')
+            {
+                dot_pos = i;
+                break;
+            }
+        }
+    }
+
+    if (dot_pos == -1) {
+        if (l > FILE_NAME_SHRT_LEN) {
+            l1 = FILE_NAME_SHRT_LEN;
+            need_lfn = true;
+        } else {
+            l1 = l;
+        }
+        l1 = l > FILE_NAME_SHRT_LEN ? FILE_NAME_SHRT_LEN : l;
+        l2 = 0;
+    } else {
+        l1 = dot_pos;
+        if (l1 > FILE_NAME_SHRT_LEN) {
+            l1 = FILE_NAME_SHRT_LEN;
+            need_lfn = true;
+        }
+        l2 = l - dot_pos - 1;
+        l2 = l2 > FILE_NAME_EXTN_LEN ? FILE_NAME_EXTN_LEN : l2;
+    }
+
+    memset(entry->priv.short_name, ' ', FILE_NAME_SHRT_LEN);
+    memcpy(entry->priv.short_name, entry->name, l1);
+    memset(entry->priv.extension, ' ', FILE_NAME_EXTN_LEN);
+    memcpy(entry->priv.extension, entry->name + dot_pos + 1, l2);
+
+    for (i = 0; i < FILE_NAME_SHRT_LEN; i++) {
+        if (entry->priv.short_name[i] >= 'a' && entry->priv.short_name[i] <= 'z') {
+            entry->priv.short_name[i] -= 0x20;
+        }
+    }
+
+    for (i = 0; i < FILE_NAME_EXTN_LEN; i++) {
+        if (entry->priv.extension[i] >= 'a' && entry->priv.extension[i] <= 'z') {
+            entry->priv.extension[i] -= 0x20;
+        }
+    }
+
+    entry->priv.checksum = sfn_checksum(entry->priv.short_name, entry->priv.extension);
+
+    // There are actually other cases may need LFN entries:
+    //   1. Need preserve filename cases.
+    //   2. Multiple dots in filename.
+    //   3. > 3 extension chars.
+    //   ...
+    // But let's ignore them for now.
+    entry->priv.num_entry = 1;
+    if (need_lfn) {
+        entry->priv.num_entry += (l + LFN_LEN_PER_ENTRY - 1) / LFN_LEN_PER_ENTRY;
+    }
+}
 
 bool emfat_init_entries(emfat_entry_t *entries)
 {
@@ -229,6 +326,7 @@ bool emfat_init_entries(emfat_entry_t *entries)
     e->priv.next = NULL;
     e->priv.sub = NULL;
     e->priv.num_subentry = 0;
+    e->priv.num_entry = 1;
 
     n = 0;
     for (i = 1; entries[i].name != NULL; i++) {
@@ -236,6 +334,7 @@ bool emfat_init_entries(emfat_entry_t *entries)
         entries[i].priv.next = NULL;
         entries[i].priv.sub = NULL;
         entries[i].priv.num_subentry = 0;
+        emfat_init_sfn(&entries[i]);
         if (entries[i].level == n - 1) {
             if (n == 0) return false;
             e = e->priv.top;
@@ -253,7 +352,7 @@ bool emfat_init_entries(emfat_entry_t *entries)
 
         if (entries[i].level == n) {
             if (n == 0) return false;
-            e->priv.top->priv.num_subentry++;
+            e->priv.top->priv.num_subentry += entries[i].priv.num_entry;
             entries[i].priv.top = e->priv.top;
             e->priv.next = &entries[i];
             e = &entries[i];
@@ -297,6 +396,10 @@ bool emfat_init(emfat_t *emfat, const char *label, emfat_entry_t *entries)
     }
 
     if (!emfat_init_entries(entries)) {
+        return false;
+    }
+
+    if (strlen(label) != VOL_LABEL_LEN) {
         return false;
     }
 
@@ -489,11 +592,49 @@ void read_fat_sector(emfat_t *emfat, uint8_t *sect, uint32_t index)
     emfat->priv.last_entry = le;
 }
 
-void fill_entry(dir_entry *entry, const char *name, uint8_t attr, uint32_t clust, const uint32_t cma[3], uint32_t size)
+static void fill_lfn_entry(lfn_entry *entry, uint8_t order, const char *name,
+                           uint8_t checksum)
 {
-    int i, l, l1, l2;
-    int dot_pos;
+    char name_segment[26] = { 0, };
 
+    for (int i = 0; i < 13; i++) {
+        name_segment[i * 2] = name[i]; // Simple ASCII to Unicode conversion
+
+        // According to MS, name ends with 0x0000 and then pads with 0xFFFF.
+        // If the name is exact 13 chars, none is needed.
+        if (name[i] == 0) {
+            for (int j = (i + 1) * 2; j < 26; j++) {
+                name_segment[j] = 0xFF;
+            }
+            break;
+        }
+    }
+
+    memset(entry, 0x00, sizeof(lfn_entry));
+
+    entry->ord_field = order;
+
+    entry->flag = ATTR_LONG_FNAME;
+    entry->reserved = 0;
+    entry->chksum = checksum;
+
+    entry->empty[0] = 0;
+    entry->empty[1] = 0;
+
+    memcpy(entry->fname0_4, name_segment, 10);
+    memcpy(entry->fname5_10, name_segment + 10, 12);
+    memcpy(entry->fname11_12, name_segment + 22, 4);
+}
+
+/*
+ * This function expects exact 8 byte short name and 3 byte extension. It does
+ * not read them as string and does not care NULL termination. Caller needs to
+ * pad with SPACE according to the FAT spec.
+ */
+void fill_dir_entry(dir_entry *entry, const char *short_name,
+                    const char *extension, uint8_t attr, uint32_t clust,
+                    const uint32_t cma[3], uint32_t size)
+{
     memset(entry, 0, sizeof(dir_entry));
 
     if (cma) {
@@ -504,45 +645,8 @@ void fill_entry(dir_entry *entry, const char *name, uint8_t attr, uint32_t clust
         entry->lst_access_date = cma[2] >> 16;
     }
 
-    l = strlen(name);
-    dot_pos = -1;
-
-    if ((attr & ATTR_DIR) == 0) {
-        for (i = l - 1; i >= 0; i--) {
-            if (name[i] == '.')
-            {
-                dot_pos = i;
-                break;
-            }
-        }
-    }
-
-    if (dot_pos == -1) {
-        l1 = l > FILE_NAME_SHRT_LEN ? FILE_NAME_SHRT_LEN : l;
-        l2 = 0;
-    } else {
-        l1 = dot_pos;
-        l1 = l1 > FILE_NAME_SHRT_LEN ? FILE_NAME_SHRT_LEN : l1;
-        l2 = l - dot_pos - 1;
-        l2 = l2 > FILE_NAME_EXTN_LEN ? FILE_NAME_EXTN_LEN : l2;
-    }
-
-    memset(entry->name, ' ', FILE_NAME_SHRT_LEN);
-    memcpy(entry->name, name, l1);
-    memset(entry->extn, ' ', FILE_NAME_EXTN_LEN);
-    memcpy(entry->extn, name + dot_pos + 1, l2);
-
-    for (i = 0; i < FILE_NAME_SHRT_LEN; i++) {
-        if (entry->name[i] >= 'a' && entry->name[i] <= 'z') {
-            entry->name[i] -= 0x20;
-        }
-    }
-
-    for (i = 0; i < FILE_NAME_EXTN_LEN; i++) {
-        if (entry->extn[i] >= 'a' && entry->extn[i] <= 'z') {
-            entry->extn[i] -= 0x20;
-        }
-    }
+    memcpy(entry->name, short_name, FILE_NAME_SHRT_LEN);
+    memcpy(entry->extn, extension, FILE_NAME_EXTN_LEN);
 
     entry->attr = attr;
     entry->reserved = 24;
@@ -555,6 +659,11 @@ void fill_entry(dir_entry *entry, const char *name, uint8_t attr, uint32_t clust
 
 void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32_t rel_sect)
 {
+    // When LFN is enabled, this holds the dir_entry index of the current "file
+    // entry". The value is 1-based, meaning that it starts from priv.num_entry
+    // and decrements to 1.
+    uint8_t entry_idx;
+
     dir_entry *de;
     uint32_t avail;
 
@@ -564,38 +673,79 @@ void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32
 
     if (rel_sect == 0) { // 1. first sector of directory
         if (entry->priv.top == NULL) {
-            fill_entry(de++, emfat->vol_label, ATTR_VOL_LABEL, 0, 0, 0);
+            fill_dir_entry(de++, emfat->vol_label,
+                           emfat->vol_label + FILE_NAME_SHRT_LEN,
+                           ATTR_VOL_LABEL, 0, 0, 0);
             avail -= sizeof(dir_entry);
         } else {
-            fill_entry(de++, ".", ATTR_DIR | ATTR_READ, entry->priv.first_clust, 0, 0);
+            fill_dir_entry(de++, ".       ", "   ", ATTR_DIR | ATTR_READ,
+                           entry->priv.first_clust, 0, 0);
             if (entry->priv.top->priv.top == NULL) {
-                fill_entry(de++, "..", ATTR_DIR | ATTR_READ, 0, 0, 0);
+                fill_dir_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ, 0,
+                               0, 0);
             } else {
-                fill_entry(de++, "..", ATTR_DIR | ATTR_READ, entry->priv.top->priv.first_clust, 0, 0);
+                fill_dir_entry(de++, "..      ", "   ", ATTR_DIR | ATTR_READ,
+                               entry->priv.top->priv.first_clust, 0, 0);
             }
             avail -= sizeof(dir_entry) * 2;
         }
         entry = entry->priv.sub;
+        if (entry != NULL)
+            entry_idx = entry->priv.num_entry;
     } else { // 2. not a first sector
+        // Imaginarily skip entries in previous sectors and make `entry` and
+        // `entry_idx` point to the record to be filled in the requested sector.
         int n;
         n = rel_sect * (SECT / sizeof(dir_entry));
         n -= entry->priv.top == NULL ? 1 : 2;
+
         entry = entry->priv.sub;
+        if (entry != NULL)
+            entry_idx = entry->priv.num_entry;
 
         while (n > 0 && entry != NULL) {
-            entry = entry->priv.next;
+            if (--entry_idx == 0) {
+                entry = entry->priv.next;
+                if (entry != NULL)
+                    entry_idx = entry->priv.num_entry;
+            }
             n--;
         }
     }
 
     while (entry != NULL && avail >= sizeof(dir_entry)) {
-        if (entry->dir) {
-            fill_entry(de++, entry->name, ATTR_DIR | ATTR_READ, entry->priv.first_clust, entry->cma_time, 0);
+        if (entry_idx != 1) {
+            // lfn entry
+            uint8_t checksum = entry->priv.checksum;
+
+            uint8_t order = entry_idx - 1;
+            if (entry_idx == entry->priv.num_entry) {
+                order |= LAST_ORD_FIELD_SEQ;
+            }
+
+            fill_lfn_entry((lfn_entry *)de++, order,
+                           entry->name + (entry_idx - 2) * LFN_LEN_PER_ENTRY,
+                           checksum);
+
+            entry_idx--;
         } else {
-            //fill_entry(de++, entry->name, ATTR_ARCHIVE | ATTR_READ, entry->priv.first_clust, entry->cma_time, entry->curr_size);
-            fill_entry(de++, entry->name, ATTR_ARCHIVE | ATTR_READ | entry->attr, entry->priv.first_clust, entry->cma_time, entry->curr_size);
+            // 8+3 entry
+            if (entry->dir) {
+                fill_dir_entry(de++, entry->priv.short_name,
+                               entry->priv.extension, ATTR_DIR | ATTR_READ,
+                               entry->priv.first_clust, entry->cma_time, 0);
+            } else {
+                fill_dir_entry(
+                    de++, entry->priv.short_name, entry->priv.extension,
+                    ATTR_ARCHIVE | ATTR_READ | entry->attr,
+                    entry->priv.first_clust, entry->cma_time, entry->curr_size);
+            }
+
+            entry = entry->priv.next;
+            if (entry != NULL) {
+                entry_idx = entry->priv.num_entry;
+            }
         }
-        entry = entry->priv.next;
         avail -= sizeof(dir_entry);
     }
 }
