@@ -1007,7 +1007,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     }
 
     case MSP_EXPERIMENTAL:
-        /* 
+        /*
          * Send your experimental parameters to LUA. Like:
          *
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
@@ -1602,13 +1602,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_TELEMETRY_CONFIG:
         sbufWriteU8(dst, telemetryConfig()->telemetry_inverted);
         sbufWriteU8(dst, telemetryConfig()->halfDuplex);
-        sbufWriteU32(dst, telemetryConfig()->enableSensors);
+        sbufWriteU32(dst, 0); // was telemetryConfig()->enableSensors
         sbufWriteU8(dst, telemetryConfig()->pinSwap);
         sbufWriteU8(dst, telemetryConfig()->crsf_telemetry_mode);
         sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_rate);
         sbufWriteU16(dst, telemetryConfig()->crsf_telemetry_link_ratio);
         for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-            sbufWriteU8(dst, telemetryConfig()->crsf_telemetry_sensors[i]);
+            sbufWriteU8(dst, telemetryConfig()->telemetry_sensors[i]);
         }
         break;
 
@@ -3147,7 +3147,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_TELEMETRY_CONFIG:
         telemetryConfigMutable()->telemetry_inverted = sbufReadU8(src);
         telemetryConfigMutable()->halfDuplex = sbufReadU8(src);
-        telemetryConfigMutable()->enableSensors = sbufReadU32(src);
+        sbufReadU32(src); // was telemetryConfigMutable()->enableSensors
         if (sbufBytesRemaining(src) >= 1) {
             telemetryConfigMutable()->pinSwap = sbufReadU8(src);
         }
@@ -3156,7 +3156,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             telemetryConfigMutable()->crsf_telemetry_link_rate = sbufReadU16(src);
             telemetryConfigMutable()->crsf_telemetry_link_ratio = sbufReadU16(src);
             for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-                telemetryConfigMutable()->crsf_telemetry_sensors[i] = sbufReadU8(src);
+                telemetryConfigMutable()->telemetry_sensors[i] = sbufReadU8(src);
             }
         }
         break;

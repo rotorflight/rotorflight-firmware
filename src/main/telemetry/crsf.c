@@ -537,59 +537,59 @@ static void crsfFrameDeviceInfo(sbuf_t *dst)
  * ...
  */
 
-void crsfSensorEncodeNil(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeNil(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(buf);
     UNUSED(sensor);
 }
 
-void crsfSensorEncodeU8(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU8(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU8(buf, constrain(sensor->value, 0, 0xFF));
 }
 
-void crsfSensorEncodeS8(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS8(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS8(buf, constrain(sensor->value, -0x80, 0x7F));
 }
 
-void crsfSensorEncodeU16(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU16(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU16BE(buf, constrain(sensor->value, 0, 0xFFFF));
 }
 
-void crsfSensorEncodeS16(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS16(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS16BE(buf, constrain(sensor->value, -0x8000, 0x7FFF));
 }
 
-void crsfSensorEncodeU24(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU24(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU24BE(buf, constrain(sensor->value, 0, 0xFFFFFF));
 }
 
-void crsfSensorEncodeS24(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS24(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS24BE(buf, constrain(sensor->value, -0x800000, 0x7FFFFF));
 }
 
-void crsfSensorEncodeU32(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeU32(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteU32BE(buf, sensor->value);
 }
 
-void crsfSensorEncodeS32(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeS32(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     sbufWriteS32BE(buf, sensor->value);
 }
 
-void crsfSensorEncodeCellVolt(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeCellVolt(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     const int volt = constrain(sensor->value, 200, 455) - 200;
     sbufWriteU8(buf, volt);
 }
 
-void crsfSensorEncodeCells(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeCells(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     const int cells = MIN(getBatteryCellCount(), 16);
@@ -600,7 +600,7 @@ void crsfSensorEncodeCells(sbuf_t *buf, telemetrySensor_t *sensor)
     }
 }
 
-void crsfSensorEncodeControl(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeControl(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     const int p = lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 1200);
@@ -615,7 +615,7 @@ void crsfSensorEncodeControl(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteU8(buf, (c & 0xFF));
 }
 
-void crsfSensorEncodeAttitude(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAttitude(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS16BE(buf, attitude.values.pitch);
@@ -623,7 +623,7 @@ void crsfSensorEncodeAttitude(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteS16BE(buf, attitude.values.yaw);
 }
 
-void crsfSensorEncodeAccel(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAccel(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS16BE(buf, acc.accADC[0] * acc.dev.acc_1G_rec * 100);
@@ -631,14 +631,14 @@ void crsfSensorEncodeAccel(sbuf_t *buf, telemetrySensor_t *sensor)
     sbufWriteS16BE(buf, acc.accADC[2] * acc.dev.acc_1G_rec * 100);
 }
 
-void crsfSensorEncodeLatLong(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeLatLong(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS32BE(buf, gpsSol.llh.lat);
     sbufWriteS32BE(buf, gpsSol.llh.lon);
 }
 
-void crsfSensorEncodeAdjFunc(sbuf_t *buf, telemetrySensor_t *sensor)
+void crsfSensorEncodeAdjFunc(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     if (getAdjustmentsRangeName()) {
@@ -661,37 +661,33 @@ static void crsfFrameCustomTelemetryHeader(sbuf_t *dst)
 
 static void crsfFrameCustomTelemetrySensor(sbuf_t *dst, telemetrySensor_t * sensor)
 {
-    sbufWriteU16BE(dst, sensor->tcode);
-    sensor->encode(dst, sensor);
+    sbufWriteU16BE(dst, sensor->appid);
+    sensor->encode(sensor, dst);
 }
 
 
-#define TLM_SENSOR(NAME, CODE, MINI, MAXI, ENCODER) \
+#define TLM_SENSOR(NAME, APPID, FAST, SLOW, ENCODER) \
     { \
-        .telid = TELEM_##NAME, \
-        .tcode = (CODE), \
-        .min_interval = (MINI), \
-        .max_interval = (MAXI), \
+        .senid = TELEM_##NAME, \
+        .appid = (APPID), \
+        .fast_interval = (FAST), \
+        .slow_interval = (SLOW), \
+        .fast_weight = 0, \
+        .slow_weight = 0, \
         .bucket = 0, \
         .value = 0, \
         .update = 0, \
         .active = false, \
-        .encode = crsfSensorEncode##ENCODER, \
+        .encode = (telemetryEncode_f)crsfSensorEncode##ENCODER, \
     }
-
-#define LEGACY_FLIGHT_MODE      (SENSOR_MODE)
-#define LEGACY_BATTERY          (SENSOR_VOLTAGE | SENSOR_CURRENT | SENSOR_FUEL | SENSOR_CAP_USED)
-#define LEGACY_ATTITUDE         (SENSOR_PITCH | SENSOR_ROLL | SENSOR_HEADING)
-#define LEGACY_ALTITUDE         (SENSOR_ALTITUDE | SENSOR_VARIO)
-#define LEGACY_GPS              (SENSOR_LAT_LONG | SENSOR_GROUND_SPEED)
 
 static telemetrySensor_t crsfNativeTelemetrySensors[] =
 {
-    TLM_SENSOR(FLIGHT_MODE,     LEGACY_FLIGHT_MODE,   100,  100,  Nil),
-    TLM_SENSOR(BATTERY,         LEGACY_BATTERY,       100,  100,  Nil),
-    TLM_SENSOR(ATTITUDE,        LEGACY_ATTITUDE,      100,  100,  Nil),
-    TLM_SENSOR(ALTITUDE,        LEGACY_ALTITUDE,      100,  100,  Nil),
-    TLM_SENSOR(GPS,             LEGACY_GPS,           100,  100,  Nil),
+    TLM_SENSOR(FLIGHT_MODE,         0,  100,  100,  Nil),
+    TLM_SENSOR(BATTERY,             0,  100,  100,  Nil),
+    TLM_SENSOR(ATTITUDE,            0,  100,  100,  Nil),
+    TLM_SENSOR(ALTITUDE,            0,  100,  100,  Nil),
+    TLM_SENSOR(GPS,                 0,  100,  100,  Nil),
 };
 
 static telemetrySensor_t crsfCustomTelemetrySensors[] =
@@ -808,7 +804,7 @@ telemetrySensor_t * crsfGetNativeSensor(sensor_id_e id)
 {
     for (size_t i = 0; i < ARRAYLEN(crsfNativeTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfNativeTelemetrySensors[i];
-        if (sensor->telid == id)
+        if (sensor->senid == id)
             return sensor;
     }
 
@@ -819,7 +815,7 @@ telemetrySensor_t * crsfGetCustomSensor(sensor_id_e id)
 {
     for (size_t i = 0; i < ARRAYLEN(crsfCustomTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfCustomTelemetrySensors[i];
-        if (sensor->telid == id)
+        if (sensor->senid == id)
             return sensor;
     }
 
@@ -1155,7 +1151,7 @@ static bool crsfSendTelemetry(void)
 
         if (sensor) {
             sbuf_t *dst = crsfInitializeSbuf();
-            switch (sensor->telid) {
+            switch (sensor->senid) {
                 case TELEM_ATTITUDE:
                     crsfFrameAttitude(dst);
                     break;
@@ -1246,7 +1242,7 @@ static bool crsfPopulateCustomTelemetry(void)
         }
 
         while (slot < TELEM_SENSOR_SLOT_COUNT) {
-            sensor_id_e id = telemetryConfig()->crsf_telemetry_sensors[slot];
+            sensor_id_e id = telemetryConfig()->telemetry_sensors[slot];
             slot++;
 
             if (telemetrySensorActive(id)) {
@@ -1299,30 +1295,38 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
 
 static void INIT_CODE crsfInitNativeTelemetry(void)
 {
-    telemetryScheduleInit(crsfNativeTelemetrySensors, ARRAYLEN(crsfNativeTelemetrySensors));
+    telemetryScheduleInit(crsfNativeTelemetrySensors, ARRAYLEN(crsfNativeTelemetrySensors), false);
 
     for (size_t i = 0; i < ARRAYLEN(crsfNativeTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfNativeTelemetrySensors[i];
-        if (telemetryIsSensorEnabled(sensor->tcode)) {
-            telemetryScheduleAdd(sensor);
+        if (telemetrySensorActive(sensor->senid)) {
+            for (size_t j = 0; j < TELEM_SENSOR_SLOT_COUNT; j++) {
+                if (telemetryConfig()->telemetry_sensors[j] == sensor->senid) {
+                    if (telemetryConfig()->telemetry_interval[j]) {
+                        sensor->fast_interval = sensor->slow_interval = telemetryConfig()->telemetry_interval[j];
+                    }
+                    telemetryScheduleAdd(sensor);
+                }
+            }
         }
     }
 }
 
 static void INIT_CODE crsfInitCustomTelemetry(void)
 {
-    telemetryScheduleInit(crsfCustomTelemetrySensors, ARRAYLEN(crsfCustomTelemetrySensors));
+    telemetryScheduleInit(crsfCustomTelemetrySensors, ARRAYLEN(crsfCustomTelemetrySensors), false);
 
-    for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
-        sensor_id_e id = telemetryConfig()->crsf_telemetry_sensors[i];
-        if (telemetrySensorActive(id)) {
-            telemetrySensor_t * sensor = crsfGetCustomSensor(id);
-            if (sensor) {
-                if (telemetryConfig()->crsf_telemetry_interval[i])
-                    sensor->min_interval = telemetryConfig()->crsf_telemetry_interval[i];
-                if (sensor->max_interval > 1000)
-                    sensor->max_interval += rand() % 100;
-                telemetryScheduleAdd(sensor);
+    for (size_t i = 0; i < ARRAYLEN(crsfCustomTelemetrySensors); i++) {
+        telemetrySensor_t * sensor = &crsfCustomTelemetrySensors[i];
+        if (telemetrySensorActive(sensor->senid)) {
+            for (size_t j = 0; j < TELEM_SENSOR_SLOT_COUNT; j++) {
+                if (telemetryConfig()->telemetry_sensors[j] == sensor->senid) {
+                    if (telemetryConfig()->telemetry_interval[j])
+                        sensor->fast_interval = telemetryConfig()->telemetry_interval[j];
+                    if (sensor->slow_interval > 1000)
+                        sensor->slow_interval += rand() % 100;
+                    telemetryScheduleAdd(sensor);
+                }
             }
         }
     }
