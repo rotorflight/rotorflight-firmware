@@ -251,7 +251,7 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
 static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpace)
 {
     static uint8_t buffer[HDR_BUF_SIZE];
-    int lastOffset = 0;
+    int lastOffset = -1;
     int currOffset = 0;
     int buffOffset;
     int hdrOffset;
@@ -263,7 +263,7 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
     int lenTimeHeader = strlen(timeHeader);
     int timeHeaderMatched = 0;
 
-    for ( ; currOffset < flashfsUsedSpace ; currOffset += 2048) { // XXX 2048 = FREE_BLOCK_SIZE in io/flashfs.c
+    for ( ; currOffset < flashfsUsedSpace ; currOffset += flashGetGeometry()->pageSize) {
 
         mscSetActive();
         mscActivityLed();
@@ -275,7 +275,7 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
         }
 
         // The length of the previous record is now known
-        if (lastOffset != currOffset) {
+        if (lastOffset != -1) {
             // Record the previous entry
             emfat_add_log(entry++, fileNumber++, lastOffset, currOffset - lastOffset);
 
@@ -383,7 +383,7 @@ void emfat_init_files(void)
     flashfsInit();
     LED0_OFF;
 
-    flashfsUsedSpace = flashfsIdentifyStartOfFreeSpace();
+    flashfsUsedSpace = flashfsGetOffset();
 
     // Detect and create entries for each individual log
     const int logCount = emfat_find_log(&entries[PREDEFINED_ENTRY_COUNT], EMFAT_MAX_LOG_ENTRY, flashfsUsedSpace);

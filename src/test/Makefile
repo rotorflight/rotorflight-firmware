@@ -491,6 +491,15 @@ sbus_output_unittest_DEFINES := \
 emfat_unittest_SRC := \
 		$(USER_DIR)/msc/emfat.c
 
+flashfs_unittest_SRC := \
+		$(USER_DIR)/io/flashfs.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(TEST_DIR)/flashfs_unittest.include/flash_emulator.cc \
+		$(TEST_DIR)/flashfs_unittest.include/flash_c_stub.cc
+
+flashfs_unittest_DEFINES := \
+		USE_FLASHFS_LOOP
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
@@ -562,7 +571,7 @@ $(info CC version: $(shell $(CC) --version))
 $(info CXX version: $(shell $(CXX) --version))
 
 USE_PTHREAD = YES
-USE_COVERAGE = YES
+USE_COVERAGE =
 ifeq ($(OSFAMILY), macosx)
 	USE_PTHREAD =
 endif
@@ -619,7 +628,7 @@ GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
 
 # All Google Mock headers. Note that all Google Test headers are
 # included here too, as they are #included by Google Mock headers.
-# Usually you shouldn't change this definition.	
+# Usually you shouldn't change this definition.
 GMOCK_HEADERS = $(GMOCK_DIR)/include/gmock/*.h \
                 $(GMOCK_DIR)/include/gmock/internal/*.h \
                 $(GTEST_HEADERS)
@@ -787,6 +796,14 @@ $(OBJECT_DIR)/$1/%.c.o: $(TEST_DIR)/%.c
 	$(V1) $(CC) $(C_FLAGS) $$(call test_cflags,$$($1_INCLUDE_DIRS)) \
                 $$(foreach def,$$($1_DEFINES),-D $$(def)) \
                 -c $$< -o $$@
+
+$(OBJECT_DIR)/$1/%.cc.o: $(TEST_DIR)/%.cc
+	@echo "compiling test c file: $$<" "$(STDOUT)"
+	$(V1) mkdir -p $$(dir $$@)
+	$(V1) $(CXX) $(CXX_FLAGS) $$(call test_cflags,$$($1_INCLUDE_DIRS)) \
+                $$(foreach def,$$($1_DEFINES),-D $$(def)) \
+                -c $$< -o $$@
+
 
 ifneq ($1,$(basename $1))
 # per-target tests may compile files from the target directory
