@@ -90,6 +90,8 @@
 
 #define BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS 200
 
+#define BLACKBOX_GRACEFUL_PERIOD_US (5 * 1000000)
+
 // Some macros to make writing FLIGHT_LOG_FIELD_* constants shorter:
 #define PREDICT(x) CONCAT(FLIGHT_LOG_FIELD_PREDICTOR_, x)
 #define ENCODING(x) CONCAT(FLIGHT_LOG_FIELD_ENCODING_, x)
@@ -348,6 +350,7 @@ typedef enum BlackboxState {
     BLACKBOX_STATE_PAUSED,
     BLACKBOX_STATE_RUNNING,
     BLACKBOX_STATE_FULL,
+    BLACKBOX_STATE_GRACEFUL_PERIOD,
     BLACKBOX_STATE_SHUTTING_DOWN,
     BLACKBOX_STATE_START_ERASE,
     BLACKBOX_STATE_ERASING,
@@ -1181,8 +1184,9 @@ static void blackboxStart(void)
     blackboxSetState(BLACKBOX_STATE_WAIT_FOR_READY);
 }
 
-void blackboxCheckEnabler(void)
+void blackboxCheckEnabler(timeUs_t currentTimeUs)
 {
+    static timeUs_t gracefulPeriodEnd = 0;
     if (!blackboxIsLoggingEnabled()) {
         switch (blackboxState) {
         case BLACKBOX_STATE_DISABLED:
@@ -1195,6 +1199,15 @@ void blackboxCheckEnabler(void)
             // Busy erasing
             break;
         case BLACKBOX_STATE_RUNNING:
+            gracefulPeriodEnd = currentTimeUs + BLACKBOX_GRACEFUL_PERIOD_US;
+            blackboxSetState(BLACKBOX_STATE_GRACEFUL_PERIOD);
+            break;
+        case BLACKBOX_STATE_GRACEFUL_PERIOD:
+            if (cmpTimeUs(currentTimeUs, gracefulPeriodEnd) < 0) {
+                break;
+            }
+            // if graceful period passed:
+            FALLTHROUGH;
         case BLACKBOX_STATE_PAUSED:
             blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
             FALLTHROUGH;
@@ -1746,7 +1759,9 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     uint8_t length;
 
     // Only allow events to be logged after headers have been written
-    if (!(blackboxState == BLACKBOX_STATE_RUNNING || blackboxState == BLACKBOX_STATE_PAUSED)) {
+    if (!(blackboxState == BLACKBOX_STATE_RUNNING ||
+          blackboxState == BLACKBOX_STATE_PAUSED ||
+          blackboxState == BLACKBOX_STATE_GRACEFUL_PERIOD)) {
         return;
     }
 
@@ -1991,7 +2006,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static BlackboxState cacheFlushNextState;
 
-    blackboxCheckEnabler();
+    blackboxCheckEnabler(currentTimeUs);
 
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE) &&
         blackboxState > BLACKBOX_STATE_DISABLED && blackboxState < BLACKBOX_STATE_START_ERASE) {
@@ -2119,6 +2134,11 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // Keep the logging timers ticking so our log iteration continues to advance
         blackboxAdvanceIterationTimers();
         break;
+    case BLACKBOX_STATE_GRACEFUL_PERIOD:
+        if (blackboxIsLoggingEnabled()) {
+            blackboxSetState(BLACKBOX_STATE_RUNNING);
+        }
+        FALLTHROUGH;  // Keep logging during the graceful period.
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration reset to 0
         if (blackboxIsLoggingPaused()) {
