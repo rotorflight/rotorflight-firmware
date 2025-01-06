@@ -50,15 +50,19 @@
  * FrSky X8R
  * time between frames: 6ms.
  * time to send frame: 3ms.
-*
+ *
  * Futaba R6208SB/R6303SB
  * time between frames: 11ms.
  * time to send frame: 3ms.
+ * 
+ * Mikado VBasic RX
+ * time between frames: dependent on "Updaterate"
+ * time to send frame: 4ms.
  */
 
 #define SBUS_BAUDRATE                 100000
 #define SBUS_RX_REFRESH_RATE          11000
-#define SBUS_TIME_NEEDED_PER_FRAME    3000
+#define SBUS_TIME_NEEDED_PER_FRAME    4000
 
 #define SBUS_FAST_BAUDRATE              200000
 #define SBUS_FAST_RX_REFRESH_RATE       6000
