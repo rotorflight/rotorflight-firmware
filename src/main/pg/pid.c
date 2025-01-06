@@ -58,9 +58,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .error_decay_limit_cyclic = 12,
         .error_decay_limit_yaw = 0,
         .error_decay_rate_curve = { 12,13,14,15,17,20,23,28,36,49,78,187,250,250,250,250 },
-        .error_decay_limit_curve = { 12,12,12,12,12,12,12,12,12,12,12,12,13,14,15,16 },
-        .offset_decay_rate_curve = { 250,250,250,250,25,3,1,0,0,0,0,0,0,0,0,0 },
-        .offset_decay_limit_curve = { 5,5,4,3,2,2,2,2,2,2,2,2,2,2,2,2 },
+        .error_decay_limit_curve = { 12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12 },
+        .offset_decay_rate_curve = { 250,250,250,250,250,30,5,0,0,0,0,0,0,0,0,0 },
+        .offset_decay_limit_curve = { 12,12,10,8,6,4,2,2,2,2,2,2,2,2,2,2 },
         .offset_bleed_rate_curve = { 0,0,0,0,0,0,2,4,30,250,250,250,250,250,250,250 },
         .offset_bleed_limit_curve = { 0,0,0,0,0,0,15,40,100,150,200,250,250,250,250,250 },
         .offset_charge_curve = { 0,100,100,100,100,100,95,90,82,76,72,68,65,62,60,58 },
@@ -126,9 +126,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_ff_weight = 100,
         .governor.max_throttle = 100,
         .governor.min_throttle = 10,
-        .hsflood_curve = { 0,0,100,150,220,220,220,220,220,220,220,220,220,220,220,220 },
+        .hsflood_curve = { 0,0,0,20,50,100,180,220,220,220,220,220,220,220,220,220 },
         .hsflood_relax_level = 40,
-        .hsflood_relax_cutoff = 10,
+        .hsflood_relax_cutoff = 3,
     );
 }
 
