@@ -90,8 +90,6 @@
 
 #define BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS 200
 
-#define BLACKBOX_GRACEFUL_PERIOD_US (5 * 1000000)
-
 // Some macros to make writing FLIGHT_LOG_FIELD_* constants shorter:
 #define PREDICT(x) CONCAT(FLIGHT_LOG_FIELD_PREDICTOR_, x)
 #define ENCODING(x) CONCAT(FLIGHT_LOG_FIELD_ENCODING_, x)
@@ -1199,9 +1197,10 @@ void blackboxCheckEnabler(timeUs_t currentTimeUs)
             // Busy erasing
             break;
         case BLACKBOX_STATE_RUNNING:
-            gracefulPeriodEnd = currentTimeUs + BLACKBOX_GRACEFUL_PERIOD_US;
+            gracefulPeriodEnd =
+                currentTimeUs + blackboxConfig()->gracefulPeriod * 1000000;
             blackboxSetState(BLACKBOX_STATE_GRACEFUL_PERIOD);
-            break;
+            FALLTHROUGH;
         case BLACKBOX_STATE_GRACEFUL_PERIOD:
             if (cmpTimeUs(currentTimeUs, gracefulPeriodEnd) < 0) {
                 break;
