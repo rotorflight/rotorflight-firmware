@@ -1197,6 +1197,12 @@ void blackboxCheckEnabler(timeUs_t currentTimeUs)
             // Busy erasing
             break;
         case BLACKBOX_STATE_RUNNING:
+            if (blackboxConfig()->mode == BLACKBOX_MODE_SWITCH) {
+                // `BLACKBOX_STATE_PAUSED` with logging disabled is equivalent
+                // to stopping without graceful period.
+                blackboxSetState(BLACKBOX_STATE_PAUSED);
+                break;
+            }
             gracefulPeriodEnd =
                 currentTimeUs + blackboxConfig()->gracefulPeriod * 1000000;
             blackboxSetState(BLACKBOX_STATE_GRACEFUL_PERIOD);
@@ -2158,6 +2164,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         if (blackboxDeviceEndLog(blackboxLoggedAnyFrames) && (millis() > xmitState.u.startTime + BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS || blackboxDeviceFlushForce())) {
             blackboxDeviceClose();
             blackboxSetState(BLACKBOX_STATE_STOPPED);
+
+            blackboxStarted = false;
         }
         break;
 #ifdef USE_FLASHFS
