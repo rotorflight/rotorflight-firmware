@@ -381,10 +381,10 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
             acErrorRate = acError1; // > 0
         else
             acErrorRate = acError2; // < 0
-    }
 
-    if (fabsf(acErrorRate * pid.dT) > fabsf(acError[axis]))
-        acErrorRate = -acError[axis] * pid.freq;
+        if (fabsf(acErrorRate * pid.dT) > fabsf(acError[axis]))
+            acErrorRate = -acError[axis] * pid.freq;
+    }
 
     if (pidAxisSaturated(axis) || !isSpooledUp())
         acErrorRate = 0;
