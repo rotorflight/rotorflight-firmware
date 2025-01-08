@@ -393,9 +393,6 @@ static FAST_CODE float applyAbsoluteControl(const int axis,
 
     acCorrection = constrainf(acError[axis] * acGain, -acLimit, acLimit);
 
-    DEBUG_SET(DEBUG_AC_ERROR, axis, lrintf(acError[axis] * 10));
-    DEBUG_SET(DEBUG_AC_CORRECTION, axis, lrintf(acCorrection * 10));
-
     if (axis == debugAxis) {
         DEBUG_SET(DEBUG_ITERM_RELAX, 3, lrintf(acCorrection * 10));
         DEBUG_SET(DEBUG_ITERM_RELAX, 7, acCorrection * 1000);
