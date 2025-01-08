@@ -1820,8 +1820,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_precomp_cutoff);
         sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
-        sbufWriteU8(dst, 0); // was currentPidProfile->yaw_collective_dynamic_gain
-        sbufWriteU8(dst, 0); // was currentPidProfile->yaw_collective_dynamic_decay
+        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         sbufWriteU8(dst, currentPidProfile->pitch_collective_ff_gain);
         /* Angle mode */
         sbufWriteU8(dst, currentPidProfile->angle.level_strength);
@@ -1842,9 +1842,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[0]);
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[1]);
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[2]);
-        /* Inertia precomps */
-        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2624,8 +2621,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->yaw_precomp_cutoff = sbufReadU8(src);
         currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
-        sbufReadU8(src); // was currentPidProfile->yaw_collective_dynamic_gain
-        sbufReadU8(src); // was currentPidProfile->yaw_collective_dynamic_decay
+        currentPidProfile->yaw_inertia_precomp_gain = sbufReadU8(src);
+        currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
         currentPidProfile->pitch_collective_ff_gain = sbufReadU8(src);
         /* Angle mode */
         currentPidProfile->angle.level_strength = sbufReadU8(src);
@@ -2651,11 +2648,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->bterm_cutoff[0] = sbufReadU8(src);
             currentPidProfile->bterm_cutoff[1] = sbufReadU8(src);
             currentPidProfile->bterm_cutoff[2] = sbufReadU8(src);
-        }
-        /* Inertia precomps */
-        if (sbufBytesRemaining(src) >= 2) {
-            currentPidProfile->yaw_inertia_precomp_gain = sbufReadU8(src);
-            currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
         }
         /* Load new values */
         pidInitProfile(currentPidProfile);

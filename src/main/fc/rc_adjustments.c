@@ -283,10 +283,10 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             value = currentPidProfile->yaw_collective_ff_gain;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DYN:
-            value = 0;
+            value = currentPidProfile->yaw_inertia_precomp_gain;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
-            value = 0;
+            value = currentPidProfile->yaw_inertia_precomp_cutoff;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             value = currentPidProfile->pitch_collective_ff_gain;
@@ -500,8 +500,10 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             currentPidProfile->yaw_collective_ff_gain = value;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DYN:
+            currentPidProfile->yaw_inertia_precomp_gain = value;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
+            currentPidProfile->yaw_inertia_precomp_cutoff = value;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             currentPidProfile->pitch_collective_ff_gain = value;
