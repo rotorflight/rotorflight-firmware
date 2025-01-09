@@ -236,6 +236,7 @@ static const char * const lookupTableSerialRX[] = {
     "SBUS2",
     "FPORT2",
     "FBUS",
+    "XB-A",
 };
 #endif
 

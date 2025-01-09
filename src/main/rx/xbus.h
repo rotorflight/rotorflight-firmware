@@ -20,4 +20,5 @@
 
 #pragma once
 
+uint8_t crc8(uint8_t* buffer, uint8_t length);
 bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState);
