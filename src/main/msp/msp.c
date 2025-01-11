@@ -2022,7 +2022,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 {
     switch (cmdMSP) {
 #ifdef USE_RPM_FILTER
-    case MSP_RPM_FILTER:
+    case MSP_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1) {
             const uint axis = sbufReadU8(src);
             if (axis >= RPM_FILTER_AXIS_COUNT)
@@ -2576,7 +2576,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
 #ifdef USE_RPM_FILTER
-    case MSP_SET_RPM_FILTER:
+    case MSP_SET_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1 + 4 * RPM_FILTER_NOTCH_COUNT) {
             const uint axis = sbufReadU8(src);
             if (axis >= RPM_FILTER_AXIS_COUNT)
