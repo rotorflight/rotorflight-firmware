@@ -64,6 +64,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .offset_bleed_rate_curve = { 0,0,0,0,0,0,2,4,30,250,250,250,250,250,250,250 },
         .offset_bleed_limit_curve = { 0,0,0,0,0,0,15,40,100,150,200,250,250,250,250,250 },
         .offset_charge_curve = { 0,100,100,100,100,100,95,90,82,76,72,68,65,62,60,58 },
+        .offset_flood_curve = { 0,0,0,20,50,100,180,220,220,220,220,220,220,220,220,220 },
+        .offset_flood_relax_level = 40,
+        .offset_flood_relax_cutoff = 3,
         .error_rotation = true,
         .iterm_relax_type = ITERM_RELAX_RPY,
         .iterm_relax_level = { 40, 40, 40 },
@@ -126,9 +129,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_ff_weight = 100,
         .governor.max_throttle = 100,
         .governor.min_throttle = 10,
-        .hsflood_curve = { 0,0,0,20,50,100,180,220,220,220,220,220,220,220,220,220 },
-        .hsflood_relax_level = 40,
-        .hsflood_relax_cutoff = 3,
     );
 }
 

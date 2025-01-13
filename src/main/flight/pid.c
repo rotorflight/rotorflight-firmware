@@ -250,10 +250,10 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 #endif
     rescueInitProfile(pidProfile);
 
-    // HSFlood
-    const uint8_t hsflood_relax_freq =
-        constrain(pidProfile->hsflood_relax_cutoff, 1, 100);
-    pt1FilterInit(&pid.hsfloodRelaxFilter, hsflood_relax_freq, pid.freq);
+    // Offset flood
+    const uint8_t offset_flood_relax_freq =
+        constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
+    pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
@@ -984,7 +984,7 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
     // Calculate Offset component
     pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis]);
 
-    // HSFlood: convert axisError to axisOffset
+    // Offset flood: convert axisError to axisOffset
     // The algorithm only makes sense if both Ki and Ko !=0;
     if (pid.coef[axis].Ki != 0 && pid.coef[axis].Ko != 0) {
         const float axisError = pid.data[axis].axisError;
@@ -993,11 +993,11 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
         const float Ko = pid.coef[axis].Ko;
 
         // 0. calculate bleed rate
-        float bleedRate = pidTableLookup(curve, pidProfile->hsflood_curve,
+        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve,
                                          LOOKUP_CURVE_POINTS) *
                           0.08f;
         bleedRate = copysignf(bleedRate, axisError);
-        bleedRate *= pid.hsfloodRelaxFactor;
+        bleedRate *= pid.offsetFloodRelaxFactor;
 
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
@@ -1186,14 +1186,14 @@ static void pidApplyYawMode3(void)
                             pid.data[axis].F + pid.data[axis].B;
 }
 
-void pidCalcHsfloodRelaxFactor(const pidProfile_t *profile)
+void pidCalcOffsetFloodRelaxFactor(const pidProfile_t *profile)
 {
     const float collective = getCollectiveDeflection();
     const float collectiveLpf =
-        pt1FilterApply(&pid.hsfloodRelaxFilter, collective);
+        pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
     const float collectiveHpf = collective - collectiveLpf;
-    pid.hsfloodRelaxFactor =
-        MAX(0, 1.0f - fabsf(collectiveHpf) / profile->hsflood_relax_level);
+    pid.offsetFloodRelaxFactor =
+        MAX(0, 1.0f - fabsf(collectiveHpf) / profile->offset_flood_relax_level);
 }
 
 /** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
@@ -1210,7 +1210,7 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
     // Apply PID for each axis
     switch (pid.pidMode) {
         case 3:
-            pidCalcHsfloodRelaxFactor(pidProfile);
+            pidCalcOffsetFloodRelaxFactor(pidProfile);
             pidApplyCyclicMode3(PID_ROLL, pidProfile);
             pidApplyCyclicMode3(PID_PITCH, pidProfile);
             pidApplyOffsetBleed(pidProfile);

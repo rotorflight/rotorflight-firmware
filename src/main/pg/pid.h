@@ -141,6 +141,9 @@ typedef struct pidProfile_s {
     uint8_t             offset_bleed_rate_curve[LOOKUP_CURVE_POINTS];
     uint8_t             offset_bleed_limit_curve[LOOKUP_CURVE_POINTS];
     uint8_t             offset_charge_curve[LOOKUP_CURVE_POINTS];
+    uint8_t             offset_flood_curve[LOOKUP_CURVE_POINTS];
+    uint8_t             offset_flood_relax_level;
+    uint8_t             offset_flood_relax_cutoff;
 
     uint8_t             error_rotation;
 
@@ -181,9 +184,6 @@ typedef struct pidProfile_s {
     pidRescueConfig_t   rescue;
     governorProfile_t   governor;
 
-    uint8_t             hsflood_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             hsflood_relax_level;
-    uint8_t             hsflood_relax_cutoff;
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
