@@ -1681,14 +1681,27 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DSHOT_BIDIR, "%d",            motorConfig()->dev.useDshotTelemetry);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_source", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_source);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_ratio", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_ratio);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_limit", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_limit);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_notch_q", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_notch_q);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_preset", "%d",           rpmFilterConfig()->preset);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_min_hz", "%d",           rpmFilterConfig()->min_hz);
+
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_YAW]);
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LPF_HZ, "%d",             accelerometerConfig()->acc_lpf_hz * 100);
