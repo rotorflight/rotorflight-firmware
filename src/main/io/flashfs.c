@@ -52,7 +52,7 @@
 #include "pg/blackbox.h"
 
 /*
- * How background erase works:
+ * How rolling erase works:
  *   1. When start programming (flush) a page, if erase is needed and can be
  *      started, set FLASHFS_ROLLING_ERASE_PENDING.
  *   2. No more flush can be done when FLASHFS_ROLLING_ERASE_PENDING.
@@ -298,13 +298,13 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
         /*
          * Also bail out if we are running any of the erases.
          * There are a few cases:
-         *   * FLASHFS_ARMING_ERASING: logging is running ("switch" mode) and
-         *     arming erase has triggered or running. We can't write.
-         *   * FLASHFS_ROLLING_ERASE_PENDING: background erase is pending. We
+         *   * FLASHFS_INITIAL_ERASING: logging is running ("switch" mode) and
+         *     initial erase has triggered or running. We can't write.
+         *   * FLASHFS_ROLLING_ERASE_PENDING: rolling erase is pending. We
          *     can't write. (If we write, those bytes will be discarded on
          *     erase).
          *   * FLASHFS_ROLLING_ERASING: technically we can write (under this
-         *     state and flashIsReady()), because background erase erases only 1
+         *     state and flashIsReady()), because rolling erase erases only 1
          *     sector. For simplicity, we wait for the task to update the state.
          *   * FLASHFS_ALL_ERASING: we can't write. We may land between erase
          *     sectors.
@@ -317,7 +317,7 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
     // Are we at EOF already? Abort.
     if (flashfsIsEOF()) {
 #ifdef USE_FLASHFS_LOOP
-        // If EOF, request an background erase unconditionally
+        // If EOF, request an rolling erase unconditionally
         if (blackboxConfig()->rollingErase) {
             flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
         }
@@ -330,7 +330,7 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
 #endif
 
 #ifdef USE_FLASHFS_LOOP
-    // Check if background erase is needed. Why here? Because we can only
+    // Check if rolling erase is needed. Why here? Because we can only
     // erase when a page (aligned) program is completed.
     const uint32_t freeSpace = flashfsSize - flashfsGetOffset();
     if (blackboxConfig()->rollingErase &&

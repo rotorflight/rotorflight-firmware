@@ -397,7 +397,7 @@ class FlashFSLoopInitialEraseTest : public FlashFSTestBase {
 
 TEST_F(FlashFSLoopInitialEraseTest, Normal)
 {
-    // Arming erase happens in the contiguous area.
+    // Initial erase happens in the contiguous area.
     const uint16_t kBoundarySector = 4;
     const uint32_t kEmptyStart =
         kBoundarySector * sector_size_ - page_size_;
@@ -428,7 +428,7 @@ TEST_F(FlashFSLoopInitialEraseTest, Normal)
 
 TEST_F(FlashFSLoopInitialEraseTest, Wrapped)
 {
-    // Arming erase happens in the wrap boundary -- the last sector and the
+    // Initial erase happens in the wrap boundary -- the last sector and the
     // first sector.
     const uint16_t kBoundarySector = flash_emulator_->kFlashFSSizeInSectors - 1;
     const uint32_t kEmptyStart = kBoundarySector * sector_size_ - page_size_;
@@ -549,7 +549,7 @@ TEST_F(FlashFSLoopRollingEraseTest, flashfsWriteOverFlashSize)
     } while (written <= flash_emulator_->kFlashFSSize * 2);
 
     // This test is non-deterministic.
-    // After writing the full flashfs space once, it will start background erasing,
+    // After writing the full flashfs space once, it will start rolling erasing,
     // where a lot of writes can be silently dropped (we are writing way faster
     // than the actual BBlog). In the end, we check if there's less than 2
     // erased sector and call it success.
