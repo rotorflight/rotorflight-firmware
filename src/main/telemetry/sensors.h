@@ -179,10 +179,14 @@ struct telemetrySensor_s {
     uint16_t                min_interval;
     uint16_t                max_interval;
 
+    int                     ratio_num;
+    int                     ratio_den;
+
+    int                     value;
+
     bool                    active;
     bool                    update;
     int                     bucket;
-    int                     value;
 
     telemetryEncode_f       encode;
 };

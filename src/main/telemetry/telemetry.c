@@ -245,7 +245,9 @@ void telemetryScheduleUpdate(timeUs_t currentTime)
     for (int i = 0; i < sch.sensor_count; i++) {
         telemetrySensor_t * sensor = &sch.sensors[i];
         if (sensor->active) {
-            const int value = telemetrySensorValue(sensor->telid);
+            int value = telemetrySensorValue(sensor->telid);
+            if (sensor->ratio_den)
+                value = value * sensor->ratio_num / sensor->ratio_den;
             sensor->update |= (value != sensor->value);
             sensor->value = value;
 
