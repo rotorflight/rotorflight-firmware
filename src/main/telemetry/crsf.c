@@ -661,17 +661,19 @@ static void crsfFrameCustomTelemetryHeader(sbuf_t *dst)
 
 static void crsfFrameCustomTelemetrySensor(sbuf_t *dst, telemetrySensor_t * sensor)
 {
-    sbufWriteU16BE(dst, sensor->tcode);
+    sbufWriteU16BE(dst, sensor->app_id);
     sensor->encode(sensor, dst);
 }
 
 
-#define TLM_SENSOR(NAME, CODE, MINI, MAXI, DENOM, ENCODER) \
+#define TLM_SENSOR(NAME, APPID, FAST, SLOW, DENOM, ENCODER) \
     { \
-        .telid = TELEM_##NAME, \
-        .tcode = (CODE), \
-        .min_interval = (MINI), \
-        .max_interval = (MAXI), \
+        .sensor_id = TELEM_##NAME, \
+        .app_id = (APPID), \
+        .fast_interval = (FAST), \
+        .slow_interval = (SLOW), \
+        .fast_weight = 0, \
+        .slow_weight = 0, \
         .ratio_num = 1, \
         .ratio_den = (DENOM), \
         .value = 0, \
@@ -810,7 +812,7 @@ telemetrySensor_t * crsfGetNativeSensor(sensor_id_e id)
 {
     for (size_t i = 0; i < ARRAYLEN(crsfNativeTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfNativeTelemetrySensors[i];
-        if (sensor->telid == id)
+        if (sensor->sensor_id == id)
             return sensor;
     }
 
@@ -821,7 +823,7 @@ telemetrySensor_t * crsfGetCustomSensor(sensor_id_e id)
 {
     for (size_t i = 0; i < ARRAYLEN(crsfCustomTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfCustomTelemetrySensors[i];
-        if (sensor->telid == id)
+        if (sensor->sensor_id == id)
             return sensor;
     }
 
@@ -1157,7 +1159,7 @@ static bool crsfSendTelemetry(void)
 
         if (sensor) {
             sbuf_t *dst = crsfInitializeSbuf();
-            switch (sensor->telid) {
+            switch (sensor->sensor_id) {
                 case TELEM_ATTITUDE:
                     crsfFrameAttitude(dst);
                     break;
@@ -1301,11 +1303,11 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
 
 static void INIT_CODE crsfInitNativeTelemetry(void)
 {
-    telemetryScheduleInit(crsfNativeTelemetrySensors, ARRAYLEN(crsfNativeTelemetrySensors));
+    telemetryScheduleInit(crsfNativeTelemetrySensors, ARRAYLEN(crsfNativeTelemetrySensors), false);
 
     for (size_t i = 0; i < ARRAYLEN(crsfNativeTelemetrySensors); i++) {
         telemetrySensor_t * sensor = &crsfNativeTelemetrySensors[i];
-        if (telemetryIsSensorEnabled(sensor->tcode)) {
+        if (telemetryIsSensorEnabled(sensor->app_id)) {
             telemetryScheduleAdd(sensor);
         }
     }
@@ -1313,7 +1315,7 @@ static void INIT_CODE crsfInitNativeTelemetry(void)
 
 static void INIT_CODE crsfInitCustomTelemetry(void)
 {
-    telemetryScheduleInit(crsfCustomTelemetrySensors, ARRAYLEN(crsfCustomTelemetrySensors));
+    telemetryScheduleInit(crsfCustomTelemetrySensors, ARRAYLEN(crsfCustomTelemetrySensors), false);
 
     for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
         sensor_id_e id = telemetryConfig()->crsf_telemetry_sensors[i];
@@ -1321,9 +1323,9 @@ static void INIT_CODE crsfInitCustomTelemetry(void)
             telemetrySensor_t * sensor = crsfGetCustomSensor(id);
             if (sensor) {
                 if (telemetryConfig()->crsf_telemetry_interval[i])
-                    sensor->min_interval = telemetryConfig()->crsf_telemetry_interval[i];
-                if (sensor->max_interval > 1000)
-                    sensor->max_interval += rand() % 100;
+                    sensor->fast_interval = telemetryConfig()->crsf_telemetry_interval[i];
+                if (sensor->slow_interval > 1000)
+                    sensor->slow_interval += rand() % 100;
                 telemetryScheduleAdd(sensor);
             }
         }
