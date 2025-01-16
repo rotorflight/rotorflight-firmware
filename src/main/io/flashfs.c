@@ -773,9 +773,9 @@ void flashfsLoopInitialErase()
         return;
     }
 
-    const int32_t bytesNeeded = flashfsGetOffset() +
-                                blackboxConfig()->initialEraseFreeSpace -
-                                flashfsSize;
+    const int32_t bytesNeeded =
+        flashfsGetOffset() + blackboxConfig()->initialEraseFreeSpaceKiB * 1024 -
+        flashfsSize;
 
     if (bytesNeeded <= 0) {
         return;
