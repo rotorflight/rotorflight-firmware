@@ -27,6 +27,7 @@ extern "C" {
 extern uint32_t flashfsSize;
 extern uint32_t headAddress;
 extern uint32_t tailAddress;
+void flashfsClearBuffer();
 }
 
 #include "flashfs_unittest.include/flash_c_stub.h"
@@ -66,6 +67,7 @@ class FlashFSTestBase : public ::testing::Test {
         page_size_ = flash_emulator_->kPageSize;
         sector_size_ = flash_emulator_->kSectorSize;
         flashfs_size_ = flash_emulator_->kFlashFSSize;
+        flashfsClearBuffer();
     }
 
     uint16_t page_size_;

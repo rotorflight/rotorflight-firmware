@@ -20,8 +20,10 @@
 
 #pragma once
 
-#define FLASHFS_WRITE_BUFFER_SIZE 256
+#define FLASHFS_WRITE_BUFFER_SIZE 512
 #define FLASHFS_WRITE_BUFFER_USABLE (FLASHFS_WRITE_BUFFER_SIZE - 1)
+
+#define FLASHFS_SUSPEND_THRESHOLD (FLASHFS_WRITE_BUFFER_USABLE / 2)
 
 void flashfsEraseCompletely(void);
 void flashfsEraseRange(uint32_t start, uint32_t end);

@@ -66,6 +66,8 @@ typedef enum {
     FLASHFS_INITIAL_ERASING,
     FLASHFS_ROLLING_ERASE_PENDING,
     FLASHFS_ROLLING_ERASING,
+    FLASHFS_ROLLING_ERASE_SUSPENDING,
+    FLASHFS_ROLLING_ERASE_SUSPENDED,
 } flashfsState_e;
 
 static const flashPartition_t *flashPartition = NULL;
@@ -124,7 +126,7 @@ static inline uint32_t flashfsAddressShift(uint32_t address, int32_t offset) {
 #endif
 }
 
-static void flashfsClearBuffer(void)
+STATIC_UNIT_TESTED void flashfsClearBuffer(void)
 {
     bufferTail = bufferHead = 0;
 }
@@ -192,7 +194,10 @@ bool flashfsIsReady(void)
 {
     // Check for flash chip existence first, then check if idle and ready.
 
-    return (flashfsIsSupported() && (flashfsState == FLASHFS_IDLE) && flashIsReady());
+    return (flashfsIsSupported() &&
+            (flashfsState == FLASHFS_IDLE ||
+             flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDED) &&
+            flashIsReady());
 }
 
 bool flashfsIsSupported(void)
@@ -293,33 +298,61 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
         }
     } else {
         if (!flashIsReady()) {
+            /*
+             * If flash is busy, see if we can suspend. Condition:
+             *   * Flash supports suspend
+             *   * Flash is running rolling erasing
+             *   * Used buffer is larger than a threashold
+             *   * Flashfs is not EOF (won't be able to write anyways)
+             */
+            if (flashSuspendSupported() &&
+                flashfsState == FLASHFS_ROLLING_ERASING &&
+                flashfsTransmitBufferUsed() >= FLASHFS_SUSPEND_THRESHOLD &&
+                !flashfsIsEOF()) {
+
+                flashSuspend();
+                flashfsState = FLASHFS_ROLLING_ERASE_SUSPENDING;
+            }
             return 0;
         }
+
         /*
-         * Also bail out if we are running any of the erases.
+         * Also bail out if we are RUNNING any of the erases.
          * There are a few cases:
-         *   * FLASHFS_INITIAL_ERASING: logging is running ("switch" mode) and
-         *     initial erase has triggered or running. We can't write.
+         *   * FLASHFS_INITIAL_ERASING: basically it means logging is running
+         *     ("switch" mode) and initial erase has triggered. (We will not
+         *     enter here in this state.)
          *   * FLASHFS_ROLLING_ERASE_PENDING: rolling erase is pending. We
          *     can't write. (If we write, those bytes will be discarded on
-         *     erase).
+         *     erase, for w25m).
          *   * FLASHFS_ROLLING_ERASING: technically we can write (under this
          *     state and flashIsReady()), because rolling erase erases only 1
          *     sector. For simplicity, we wait for the task to update the state.
-         *   * FLASHFS_ALL_ERASING: we can't write. We may land between erase
-         *     sectors.
+         *   * FLASHFS_ALL_ERASING: We can't write. We may land between erase
+         *     sectors. (we will not enter here in this state.)
+         *   * FLASHFS_ROLLING_ERASE_SUSPENDING: Need to wait for suspend
+         *     complete.
          */
-        if (flashfsState != FLASHFS_IDLE) {
+        if (!(flashfsState == FLASHFS_IDLE ||
+              flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDED)) {
             return 0;
         }
     }
+
+    // From here below, we are sure:
+    // 1. flashIsReady() is true;
+    // 2. flashfsState is either FLASH_IDLE or FLASHFS_ROLLING_ERASE_SUSPENDED
 
     // Are we at EOF already? Abort.
     if (flashfsIsEOF()) {
 #ifdef USE_FLASHFS_LOOP
         // If EOF, request an rolling erase unconditionally
         if (blackboxConfig()->rollingErase) {
-            flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
+            // In rare case we can have rolling erase suspended (erase speed <
+            // write speed), which we can't do anything.
+            if (flashfsState == FLASHFS_IDLE) {
+                flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
+            }
         }
 #endif
         return 0;
@@ -333,7 +366,9 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
     // Check if rolling erase is needed. Why here? Because we can only
     // erase when a page (aligned) program is completed.
     const uint32_t freeSpace = flashfsSize - flashfsGetOffset();
-    if (blackboxConfig()->rollingErase &&
+    // We skip checking if another erase is suspended.
+    if (flashfsState != FLASHFS_ROLLING_ERASE_SUSPENDED &&
+        blackboxConfig()->rollingErase &&
         freeSpace < flashGeometry->sectorSize) {
         // See if we are finishing a page.
         uint32_t bytes_to_write = 0;
@@ -439,7 +474,7 @@ bool flashfsFlushAsync(void)
         return true; // Nothing to flush
     }
 
-    if (!flashfsNewData() || !flashIsReady()) {
+    if (!flashfsNewData()) {
         // The previous write has yet to complete
         return false;
     }
@@ -525,13 +560,23 @@ void flashfsEraseAsync(void)
             }
         } else if (flashfsState == FLASHFS_ROLLING_ERASE_PENDING) {
             flashEraseSector(headAddress);
-            headAddress =
-                flashfsAddressShift(headAddress, flashGeometry->sectorSize);
             flashfsState = FLASHFS_ROLLING_ERASING;
             LED1_TOGGLE;
         } else if (flashfsState == FLASHFS_ROLLING_ERASING) {
             flashfsState = FLASHFS_IDLE;
+            headAddress =
+                flashfsAddressShift(headAddress, flashGeometry->sectorSize);
             LED1_OFF;
+        } else if (flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDING) {
+            if (flashIsSuspended()) {
+                flashfsState = FLASHFS_ROLLING_ERASE_SUSPENDED;
+            }
+        } else if (flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDED) {
+            if (flashfsTransmitBufferUsed() < FLASHFS_SUSPEND_THRESHOLD ||
+                flashfsIsEOF()) {
+                flashResume();
+                flashfsState = FLASHFS_ROLLING_ERASING;
+            }
         }
     }
 }
@@ -558,12 +603,18 @@ void flashfsWriteByte(uint8_t byte)
 #ifdef CHECK_FLASH
     byte = checkFlashWrite++;
 #endif
-
-    flashWriteBuffer[bufferHead++] = byte;
-
-    if (bufferHead >= FLASHFS_WRITE_BUFFER_SIZE) {
-        bufferHead = 0;
+    uint16_t newHead = bufferHead + 1;
+    if (newHead >= FLASHFS_WRITE_BUFFER_SIZE) {
+        newHead = 0;
     }
+    if (newHead == bufferTail) {
+        // buffer full
+        return;
+    }
+
+    flashWriteBuffer[bufferHead] = byte;
+
+    bufferHead = newHead;
 }
 
 /**
@@ -783,6 +834,11 @@ void flashfsInit(void)
     }
 
     flashfsSize = FLASH_PARTITION_SECTOR_COUNT(flashPartition) * flashGeometry->sectorSize;
+
+    if (flashSuspendSupported() && flashIsSuspended()) {
+        flashResume();
+        while (!flashIsReady());
+    }
 
 #ifdef USE_FLASHFS_LOOP
     headAddress = flashfsIdentifyStartOfUsedSpace();
