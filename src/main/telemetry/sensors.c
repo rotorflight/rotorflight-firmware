@@ -504,9 +504,60 @@ bool telemetrySensorActive(sensor_id_e id)
 
 /** Legacy sensors **/
 
+static uint32_t telemetry_legacy_sensors = 0;
+
+sensor_e telemetryGetLegacySensor(sensor_id_e sensor_id)
+{
+    switch (sensor_id)
+    {
+        case TELEM_BATTERY_VOLTAGE:
+            return SENSOR_VOLTAGE;
+        case TELEM_BATTERY_CURRENT:
+            return SENSOR_CURRENT;
+        case TELEM_BATTERY_CONSUMPTION:
+            return SENSOR_CAP_USED;
+        case TELEM_BATTERY_CHARGE_LEVEL:
+            return SENSOR_FUEL;
+        case TELEM_FLIGHT_MODE:
+            return SENSOR_MODE;
+        case TELEM_ACCEL_X:
+            return SENSOR_ACC_X;
+        case TELEM_ACCEL_Y:
+            return SENSOR_ACC_Y;
+        case TELEM_ACCEL_Z:
+            return SENSOR_ACC_Z;
+        case TELEM_ATTITUDE_PITCH:
+            return SENSOR_PITCH;
+        case TELEM_ATTITUDE_ROLL:
+            return SENSOR_ROLL;
+        case TELEM_ATTITUDE_YAW:
+            return SENSOR_HEADING;
+        case TELEM_ALTITUDE:
+            return SENSOR_ALTITUDE;
+        case TELEM_VARIOMETER:
+            return SENSOR_VARIO;
+        case TELEM_GPS_COORD:
+            return SENSOR_LAT_LONG;
+        case TELEM_GPS_GROUNDSPEED:
+            return SENSOR_GROUND_SPEED;
+        default:
+            return 0;
+    }
+}
+
 bool telemetryIsSensorEnabled(uint32_t sensor_bits)
 {
-    return (telemetryConfig()->enableSensors & sensor_bits);
+    return (telemetry_legacy_sensors & sensor_bits);
+}
+
+void INIT_CODE legacySensorInit(void)
+{
+    telemetry_legacy_sensors = 0;
+
+    for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
+        sensor_id_e id = telemetryConfig()->telemetry_sensors[i];
+        telemetry_legacy_sensors |= telemetryGetLegacySensor(id);
+    }
 }
 
 #endif /* USE_TELEMETRY */

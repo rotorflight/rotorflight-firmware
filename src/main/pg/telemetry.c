@@ -44,14 +44,6 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
         IBUS_SENSOR_TYPE_RPM_FLYSKY,
         IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
     },
-    .enableSensors =
-        SENSOR_VOLTAGE |
-        SENSOR_CURRENT |
-        SENSOR_FUEL |
-        SENSOR_MODE |
-        SENSOR_CAP_USED |
-        ESC_SENSOR_RPM |
-        ESC_SENSOR_TEMPERATURE,
     .mavlink_mah_as_heading_divisor = 0,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
     .crsf_telemetry_link_rate = 250,

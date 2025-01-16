@@ -23,41 +23,6 @@
 
 #include "pg/pg.h"
 
-
-typedef enum {
-    SENSOR_VOLTAGE         = BIT(0),
-    SENSOR_CURRENT         = BIT(1),
-    SENSOR_FUEL            = BIT(2),
-    SENSOR_MODE            = BIT(3),
-    SENSOR_ACC_X           = BIT(4),
-    SENSOR_ACC_Y           = BIT(5),
-    SENSOR_ACC_Z           = BIT(6),
-    SENSOR_PITCH           = BIT(7),
-    SENSOR_ROLL            = BIT(8),
-    SENSOR_HEADING         = BIT(9),
-    SENSOR_ALTITUDE        = BIT(10),
-    SENSOR_VARIO           = BIT(11),
-    SENSOR_LAT_LONG        = BIT(12),
-    SENSOR_GROUND_SPEED    = BIT(13),
-    SENSOR_DISTANCE        = BIT(14),
-    ESC_SENSOR_CURRENT     = BIT(15),
-    ESC_SENSOR_VOLTAGE     = BIT(16),
-    ESC_SENSOR_RPM         = BIT(17),
-    ESC_SENSOR_TEMPERATURE = BIT(18),
-    SENSOR_TEMPERATURE     = BIT(19),
-    SENSOR_CAP_USED        = BIT(20),
-    SENSOR_ADJUSTMENT      = BIT(21),
-    SENSOR_GOV_MODE        = BIT(22),
-    SENSOR_MODEL_ID        = BIT(23),
-    SENSOR_PID_PROFILE     = BIT(24),
-    SENSOR_RATES_PROFILE   = BIT(25),
-    SENSOR_BEC_VOLTAGE     = BIT(26),
-    SENSOR_HEADSPEED       = BIT(27),
-    SENSOR_TAILSPEED       = BIT(28),
-    SENSOR_THROTTLE_CONTROL= BIT(29),
-    SENSOR_ARMING_FLAGS    = BIT(30),
-} sensor_e;
-
 typedef enum {
     FRSKY_FORMAT_DMS = 0,
     FRSKY_FORMAT_NMEA
@@ -83,7 +48,6 @@ typedef struct telemetryConfig_s {
     uint8_t report_cell_voltage;
     uint8_t flysky_sensors[IBUS_SENSOR_COUNT];
     uint16_t mavlink_mah_as_heading_divisor;
-    uint32_t enableSensors;
     uint8_t crsf_telemetry_mode;
     uint16_t crsf_telemetry_link_rate;
     uint16_t crsf_telemetry_link_ratio;
