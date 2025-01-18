@@ -15,35 +15,7 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "flash_interface.h"
+#include <memory>
 
-#include "types.h"
-#include "platform.h"
-
-#include "pg/pg.h"
-
-
-typedef enum {
-    BLACKBOX_DEVICE_NONE = 0,
-    BLACKBOX_DEVICE_FLASH = 1,
-    BLACKBOX_DEVICE_SDCARD = 2,
-    BLACKBOX_DEVICE_SERIAL = 3
-} BlackboxDevice_e;
-
-typedef enum {
-    BLACKBOX_MODE_OFF = 0,
-    BLACKBOX_MODE_NORMAL,
-    BLACKBOX_MODE_ARMED,
-    BLACKBOX_MODE_SWITCH,
-} BlackboxMode_e;
-
-
-typedef struct blackboxConfig_s {
-    uint8_t     device;
-    uint8_t     mode;
-    uint16_t    denom;
-    uint32_t    fields;
-    uint16_t    initialEraseFreeSpaceKiB;
-} blackboxConfig_t;
-
-PG_DECLARE(blackboxConfig_t, blackboxConfig);
+extern std::weak_ptr<FlashInterface> g_flash_stub;

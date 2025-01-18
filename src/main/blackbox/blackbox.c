@@ -335,6 +335,8 @@ static const blackboxSimpleFieldDefinition_t blackboxSlowFields[] = {
 typedef enum BlackboxState {
     BLACKBOX_STATE_DISABLED = 0,
     BLACKBOX_STATE_STOPPED,
+    BLACKBOX_STATE_WAIT_FOR_READY,
+    BLACKBOX_STATE_INITIAL_ERASE,
     BLACKBOX_STATE_PREPARE_LOG_FILE,
     BLACKBOX_STATE_SEND_HEADER,
     BLACKBOX_STATE_SEND_MAIN_FIELD_HEADER,
@@ -345,6 +347,7 @@ typedef enum BlackboxState {
     BLACKBOX_STATE_CACHE_FLUSH,
     BLACKBOX_STATE_PAUSED,
     BLACKBOX_STATE_RUNNING,
+    BLACKBOX_STATE_FULL,
     BLACKBOX_STATE_SHUTTING_DOWN,
     BLACKBOX_STATE_START_ERASE,
     BLACKBOX_STATE_ERASING,
@@ -1175,7 +1178,7 @@ static void blackboxStart(void)
     blackboxLastRescueState = getRescueState();
     blackboxLastAirborneState = isAirborne();
 
-    blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
+    blackboxSetState(BLACKBOX_STATE_WAIT_FOR_READY);
 }
 
 void blackboxCheckEnabler(void)
@@ -1972,6 +1975,15 @@ bool isBlackboxErased(void)
     return isBlackboxDeviceReady();
 }
 
+void blackboxInitialErase(void)
+{
+#ifdef USE_FLASHFS
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
+        blackboxDeviceInitialErase();
+    }
+#endif
+}
+
 /**
  * Call each flight loop iteration to perform blackbox logging.
  */
@@ -1991,6 +2003,17 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         if (blackboxIsLoggingEnabled()) {
             blackboxOpen();
             blackboxStart();
+        }
+        break;
+    case BLACKBOX_STATE_WAIT_FOR_READY:
+        if (isBlackboxDeviceReady()) {
+            blackboxInitialErase();
+            blackboxSetState(BLACKBOX_STATE_INITIAL_ERASE);
+        }
+        break;
+    case BLACKBOX_STATE_INITIAL_ERASE:
+        if (isBlackboxDeviceReady()) {
+            blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
         }
         break;
     case BLACKBOX_STATE_PREPARE_LOG_FILE:
@@ -2138,7 +2161,13 @@ void blackboxUpdate(timeUs_t currentTimeUs)
             blackboxSetState(BLACKBOX_STATE_STOPPED);
             blackboxStarted = false;
         }
-    break;
+        break;
+    case BLACKBOX_STATE_FULL:
+        if (!blackboxIsLoggingEnabled()) {
+            blackboxDeviceClose();
+            blackboxSetState(BLACKBOX_STATE_STOPPED);
+        }
+        break;
 #endif
     default:
         break;
@@ -2146,8 +2175,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     // Did we run out of room on the device? Stop!
     if (isBlackboxDeviceFull()) {
-        if (blackboxState < BLACKBOX_STATE_START_ERASE) {
-            blackboxSetState(BLACKBOX_STATE_STOPPED);
+        if (blackboxState == BLACKBOX_STATE_RUNNING) {
+            blackboxSetState(BLACKBOX_STATE_FULL);
         }
     }
 }

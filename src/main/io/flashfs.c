@@ -32,6 +32,10 @@
  * and make calls through that, at the moment flashfs just calls m25p16_* routines explicitly.
  */
 
+/**
+ * With USE_FLASHFS_LOOP enabled, the data stream will be wrapped. Flashfs will
+ * keep at least 1 page free to identify the stream start and stream end.
+ */
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -45,16 +49,20 @@
 
 #include "io/flashfs.h"
 
+#include "pg/blackbox.h"
+
 typedef enum {
     FLASHFS_IDLE,
-    FLASHFS_ERASING,
+    FLASHFS_ALL_ERASING,
+    FLASHFS_INITIAL_ERASING,
 } flashfsState_e;
 
 static const flashPartition_t *flashPartition = NULL;
 static const flashGeometry_t *flashGeometry = NULL;
-static uint32_t flashfsSize = 0;
+STATIC_UNIT_TESTED uint32_t flashfsSize = 0;
 static flashfsState_e flashfsState = FLASHFS_IDLE;
 static flashSector_t eraseSectorCurrent = 0;
+static uint16_t initialEraseSectors = 0;
 
 static DMA_DATA_ZERO_INIT uint8_t flashWriteBuffer[FLASHFS_WRITE_BUFFER_SIZE];
 
@@ -92,8 +100,18 @@ uint8_t checkFlashExpected = 0x00;
 uint32_t checkFlashErrors = 0;
 #endif
 
+// The position of head address. headAddress can only be at sector boundary.
+STATIC_UNIT_TESTED uint32_t headAddress = 0;
 // The position of the buffer's tail in the overall flash address space:
-static uint32_t tailAddress = 0;
+STATIC_UNIT_TESTED uint32_t tailAddress = 0;
+
+static inline uint32_t flashfsAddressShift(uint32_t address, int32_t offset) {
+#ifdef USE_FLASHFS_LOOP
+    return (address + offset + flashfsSize) % flashfsSize;
+#else
+    return address + offset;
+#endif
+}
 
 static void flashfsClearBuffer(void)
 {
@@ -120,12 +138,13 @@ void flashfsEraseCompletely(void)
         } else {
             // start asynchronous erase of all sectors
             eraseSectorCurrent = flashPartition->startSector;
-            flashfsState = FLASHFS_ERASING;
+            flashfsState = FLASHFS_ALL_ERASING;
         }
     }
 
     flashfsClearBuffer();
 
+    headAddress = 0;
     flashfsSetTailAddress(0);
 }
 
@@ -234,7 +253,7 @@ static void flashfsAdvanceTailInBuffer(uint32_t delta)
 void flashfsWriteCallback(uint32_t arg)
 {
     // Advance the cursor in the file system to match the bytes we wrote
-    flashfsSetTailAddress(tailAddress + arg);
+    flashfsSetTailAddress(flashfsAddressShift(tailAddress, arg));
 
     // Free bytes in the ring buffer
     flashfsAdvanceTailInBuffer(arg);
@@ -324,7 +343,7 @@ static bool flashfsNewData()
 
 
 /**
- * Get the current offset of the file pointer within the volume.
+ * Get the current usage of the volume, including the buffered ones.
  */
 uint32_t flashfsGetOffset(void)
 {
@@ -335,7 +354,8 @@ uint32_t flashfsGetOffset(void)
 
     flashfsGetDirtyDataBuffers(buffers, bufferSizes);
 
-    return tailAddress + bufferSizes[0] + bufferSizes[1];
+    return flashfsAddressShift(tailAddress + bufferSizes[0] + bufferSizes[1],
+                               -headAddress);
 }
 
 /**
@@ -410,11 +430,12 @@ void flashfsFlushSync(void)
  */
 void flashfsEraseAsync(void)
 {
-    if (flashfsState == FLASHFS_ERASING) {
-        if ((flashfsIsSupported() && flashIsReady())) {
+    if ((flashfsIsSupported() && flashIsReady())) {
+        if (flashfsState == FLASHFS_ALL_ERASING) {
             if (eraseSectorCurrent <= flashPartition->endSector) {
                 // Erase sector
-                uint32_t sectorAddress = eraseSectorCurrent * flashGeometry->sectorSize;
+                uint32_t sectorAddress =
+                    eraseSectorCurrent * flashGeometry->sectorSize;
                 flashEraseSector(sectorAddress);
                 eraseSectorCurrent++;
                 LED1_TOGGLE;
@@ -423,11 +444,22 @@ void flashfsEraseAsync(void)
                 flashfsState = FLASHFS_IDLE;
                 LED1_OFF;
             }
+        } else if (flashfsState == FLASHFS_INITIAL_ERASING) {
+            if (initialEraseSectors > 0) {
+                flashEraseSector(headAddress);
+                initialEraseSectors--;
+                headAddress =
+                    flashfsAddressShift(headAddress, flashGeometry->sectorSize);
+                LED1_TOGGLE;
+            } else {
+                flashfsState = FLASHFS_IDLE;
+                LED1_OFF;
+            }
         }
     }
 }
 
-void flashfsSeekAbs(uint32_t offset)
+void flashfsSeekPhysical(uint32_t offset)
 {
     flashfsFlushSync();
 
@@ -465,11 +497,11 @@ void flashfsWrite(const uint8_t *data, unsigned int len)
 }
 
 /**
- * Read `len` bytes from the given address into the supplied buffer.
+ * Read `len` bytes from the given physical address into the supplied buffer.
  *
  * Returns the number of bytes actually read which may be less than that requested.
  */
-int flashfsReadAbs(uint32_t address, uint8_t *buffer, unsigned int len)
+int flashfsReadPhysical(uint32_t address, uint8_t *buffer, unsigned int len)
 {
     int bytesRead;
 
@@ -488,7 +520,63 @@ int flashfsReadAbs(uint32_t address, uint8_t *buffer, unsigned int len)
 }
 
 /**
- * Find the offset of the start of the free space on the device (or the size of the device if it is full).
+ * Read `len` bytes from the given address into the supplied buffer.
+ *
+ * Returns the number of bytes actually read which may be less than that requested.
+ */
+int flashfsReadAbs(uint32_t address, uint8_t *buffer, unsigned int len)
+{
+    uint32_t physicalAddress = flashfsAddressShift(headAddress, address);
+    uint16_t len1 = len, len2 = 0;
+    int bytesRead;
+
+    // Wrapped read?
+    if (physicalAddress + len1 > flashfsSize) {
+        len1 = flashfsSize - physicalAddress;
+        len2 = len - len1;
+    }
+
+    flashfsFlushSync();
+
+    bytesRead = flashReadBytes(physicalAddress, buffer, len1);
+    if (len2) {
+        // Second section
+        bytesRead += flashReadBytes(0, buffer + len1, len2);
+    }
+
+    return bytesRead;
+}
+
+// This function takes a physical address
+static bool flashfsIsPageErased(uint32_t address){
+    enum {
+        /* We don't expect valid data to ever contain this many consecutive uint32_t's of all 1 bits: */
+        EMPTY_PAGE_TEST_SIZE_INTS = 4, // i.e. 16 bytes
+        EMPTY_PAGE_TEST_SIZE_BYTES = EMPTY_PAGE_TEST_SIZE_INTS * sizeof(uint32_t)
+    };
+
+    STATIC_DMA_DATA_AUTO union {
+        uint8_t bytes[EMPTY_PAGE_TEST_SIZE_BYTES];
+        uint32_t ints[EMPTY_PAGE_TEST_SIZE_INTS];
+    } testBuffer;
+
+    if (flashReadBytes(address, testBuffer.bytes, EMPTY_PAGE_TEST_SIZE_BYTES) < EMPTY_PAGE_TEST_SIZE_BYTES) {
+        // Unexpected timeout from flash, so bail early (reporting the device fuller than it really is)
+        return false;
+    }
+
+    // Checking the buffer 4 bytes at a time like this is probably faster than byte-by-byte, but I didn't benchmark it :)
+    for (uint8_t i = 0; i < EMPTY_PAGE_TEST_SIZE_INTS; i++) {
+        if (testBuffer.ints[i] != 0xFFFFFFFF) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Find the absolute address of the start of the free space on the device.
+ * `headAddress` must be setup prior to this function.
  */
 int flashfsIdentifyStartOfFreeSpace(void)
 {
@@ -501,50 +589,26 @@ int flashfsIdentifyStartOfFreeSpace(void)
      * bandwidth and block more often.
      */
 
-    enum {
-        /* We can choose whatever power of 2 size we like, which determines how much wastage of free space we'll have
-         * at the end of the last written data. But smaller blocksizes will require more searching.
-         */
-        FREE_BLOCK_SIZE = 2048, // XXX This can't be smaller than page size for underlying flash device.
 
-        /* We don't expect valid data to ever contain this many consecutive uint32_t's of all 1 bits: */
-        FREE_BLOCK_TEST_SIZE_INTS = 4, // i.e. 16 bytes
-        FREE_BLOCK_TEST_SIZE_BYTES = FREE_BLOCK_TEST_SIZE_INTS * sizeof(uint32_t)
-    };
+    const uint16_t pageSize = flashGeometry->pageSize;
 
-    STATIC_ASSERT(FREE_BLOCK_SIZE >= FLASH_MAX_PAGE_SIZE, FREE_BLOCK_SIZE_too_small);
-
-    STATIC_DMA_DATA_AUTO union {
-        uint8_t bytes[FREE_BLOCK_TEST_SIZE_BYTES];
-        uint32_t ints[FREE_BLOCK_TEST_SIZE_INTS];
-    } testBuffer;
-
-    int left = 0; // Smallest block index in the search region
-    int right = flashfsSize / FREE_BLOCK_SIZE; // One past the largest block index in the search region
+    int left = 0; // Smallest page index in the search region
+    int right = flashfsSize / pageSize; // One past the largest page index in the search region
+#ifdef USE_FLASHFS_LOOP
+    right--;
+    // We must leave one empty page to:
+    //  1. identify empty space
+    //  2. differenciate between full and empty
+#endif
     int mid;
     int result = right;
-    int i;
-    bool blockErased;
 
     while (left < right) {
         mid = (left + right) / 2;
 
-        if (flashReadBytes(mid * FREE_BLOCK_SIZE, testBuffer.bytes, FREE_BLOCK_TEST_SIZE_BYTES) < FREE_BLOCK_TEST_SIZE_BYTES) {
-            // Unexpected timeout from flash, so bail early (reporting the device fuller than it really is)
-            break;
-        }
-
-        // Checking the buffer 4 bytes at a time like this is probably faster than byte-by-byte, but I didn't benchmark it :)
-        blockErased = true;
-        for (i = 0; i < FREE_BLOCK_TEST_SIZE_INTS; i++) {
-            if (testBuffer.ints[i] != 0xFFFFFFFF) {
-                blockErased = false;
-                break;
-            }
-        }
-
-        if (blockErased) {
-            /* This erased block might be the leftmost erased block in the volume, but we'll need to continue the
+        uint32_t address = flashfsAddressShift(headAddress, mid * pageSize);
+        if (flashfsIsPageErased(address)) {
+            /* This empty page might be the leftmost empty page in the volume, but we'll need to continue the
              * search leftwards to find out:
              */
             result = mid;
@@ -555,7 +619,7 @@ int flashfsIdentifyStartOfFreeSpace(void)
         }
     }
 
-    return result * FREE_BLOCK_SIZE;
+    return flashfsAddressShift(headAddress, result * pageSize);
 }
 
 /**
@@ -563,7 +627,18 @@ int flashfsIdentifyStartOfFreeSpace(void)
  */
 bool flashfsIsEOF(void)
 {
+#ifdef USE_FLASHFS_LOOP
+    // In case of using LOOP_FLASHFS, we need
+    //  * 1 free page before a sector to identify boundary.
+    //  * +flashfs buffer size to avoid writing to that 1 free page.
+    uint32_t persistedBytes = flashfsAddressShift(tailAddress, -headAddress);
+
+    return persistedBytes >=
+           flashfsSize - flashGeometry->pageSize - FLASHFS_WRITE_BUFFER_SIZE;
+
+#else
     return tailAddress >= flashfsSize;
+#endif
 }
 
 void flashfsClose(void)
@@ -572,11 +647,41 @@ void flashfsClose(void)
         case FLASH_TYPE_NAND:
             flashFlush();
             /* FALL THROUGH */
-        case FLASH_TYPE_NOR:
+        case FLASH_TYPE_NOR: {
             flashfsClearBuffer();
-            flashfsSetTailAddress((tailAddress + 2047) & ~2047);
+
+            const uint16_t pageSize = flashGeometry->pageSize;
+            const uint32_t padding = (tailAddress % pageSize == 0
+                                          ? 0
+                                          : pageSize - tailAddress % pageSize);
+
+            flashfsSetTailAddress(flashfsAddressShift(tailAddress, padding));
             break;
+        }
     }
+}
+
+/*
+ * Locate the start physical address of the used space. Return 0 if all space
+ * are unused.
+ */
+uint32_t flashfsIdentifyStartOfUsedSpace() {
+    // Locate the boundary between erased and filled.
+    // This can only be at the sector boundary.
+
+    // We skip the startSector because the calculation is a bit different and we
+    // will use that as fallback.
+    for (uint16_t sector = flashPartition->startSector + 1;
+         sector <= flashPartition->endSector; sector++) {
+        uint32_t startAddress = sector * flashGeometry->sectorSize;
+        uint32_t endAddress = startAddress - flashGeometry->pageSize;
+        if (flashfsIsPageErased(endAddress) && !flashfsIsPageErased(startAddress)) {
+            return sector * flashGeometry->sectorSize;
+        }
+    }
+
+    // fallback
+    return flashPartition->startSector * flashGeometry->sectorSize;
 }
 
 /**
@@ -595,18 +700,26 @@ void flashfsInit(void)
 
     flashfsSize = FLASH_PARTITION_SECTOR_COUNT(flashPartition) * flashGeometry->sectorSize;
 
+#ifdef USE_FLASHFS_LOOP
+    headAddress = flashfsIdentifyStartOfUsedSpace();
+#endif
+
     // Start the file pointer off at the beginning of free space so caller can start writing immediately
-    flashfsSeekAbs(flashfsIdentifyStartOfFreeSpace());
+    flashfsSeekPhysical(flashfsIdentifyStartOfFreeSpace());
 }
 
 #ifdef USE_FLASH_TOOLS
-bool flashfsVerifyEntireFlash(void)
+
+void flashfsFillEntireFlash(void)
 {
     flashfsEraseCompletely();
+    while(flashfsState != FLASHFS_IDLE) {
+        flashfsEraseAsync();
+    }
     flashfsInit();
 
     uint32_t address = 0;
-    flashfsSeekAbs(address);
+    flashfsSeekPhysical(address);
 
     const int bufferSize = 32;
     char buffer[bufferSize + 1];
@@ -616,20 +729,33 @@ bool flashfsVerifyEntireFlash(void)
     for (address = 0; address < testLimit; address += bufferSize) {
         tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", address);
         flashfsWrite((uint8_t*)buffer, strlen(buffer));
+        flashfsFlushSync();
     }
-    flashfsFlushSync();
     flashfsClose();
+}
 
+bool flashfsVerifyEntireFlash(void)
+{
+    flashfsInit();
+    uint32_t address = 0;
+
+    const int bufferSize = 32;
+    char buffer[bufferSize + 1];
+
+    uint32_t testLimit = flashfsGetSize();
+#ifdef USE_FLASHFS_LOOP
+    testLimit -= flashGeometry->pageSize + FLASHFS_WRITE_BUFFER_SIZE;
+#endif
     char expectedBuffer[bufferSize + 1];
 
-    flashfsSeekAbs(0);
+    flashfsSeekPhysical(0);
 
     int verificationFailures = 0;
     for (address = 0; address < testLimit; address += bufferSize) {
         tfp_sprintf(expectedBuffer, "%08x >> **0123456789ABCDEF**", address);
 
         memset(buffer, 0, sizeof(buffer));
-        int bytesRead = flashfsReadAbs(address, (uint8_t *)buffer, bufferSize);
+        int bytesRead = flashfsReadPhysical(address, (uint8_t *)buffer, bufferSize);
 
         int result = strncmp(buffer, expectedBuffer, bufferSize);
         if (result != 0 || bytesRead != bufferSize) {
@@ -639,3 +765,34 @@ bool flashfsVerifyEntireFlash(void)
     return verificationFailures == 0;
 }
 #endif // USE_FLASH_TOOLS
+
+#ifdef USE_FLASHFS_LOOP
+void flashfsLoopInitialErase()
+{
+    if (flashfsState != FLASHFS_IDLE) {
+        return;
+    }
+
+    const int32_t bytesNeeded =
+        flashfsGetOffset() + blackboxConfig()->initialEraseFreeSpaceKiB * 1024 -
+        flashfsSize;
+
+    if (bytesNeeded <= 0) {
+        return;
+    }
+    const uint32_t sectorSize = flashGeometry->sectorSize;
+    initialEraseSectors = (bytesNeeded + sectorSize - 1) / sectorSize;
+
+    flashfsState = FLASHFS_INITIAL_ERASING;
+}
+#endif
+
+uint32_t flashfsGetHeadAddress()
+{
+    return headAddress;
+}
+
+uint32_t flashfsGetTailAddress()
+{
+    return tailAddress;
+}
