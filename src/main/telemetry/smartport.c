@@ -462,7 +462,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
 
     if (skipRequests) {
         skipRequests--;
-        *clearToSend = false;
+        // Send a null frame
         return;
     }
 
@@ -473,7 +473,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
 
         // Skip a few telemetry requests before sending response
         if (skipRequests) {
-            *clearToSend = false;
+            // Send null frame
             return;
         }
     }
@@ -498,7 +498,7 @@ void processSmartPortTelemetry(smartPortPayload_t *payload, volatile bool *clear
         if (nextSensorSendTime != 0) {
             if (cmpTimeUs(micros(), nextSensorSendTime) <= 0) {
                 // Don't send sensor data now. This will improve the reception of the MSP message.
-                *clearToSend = false;
+                // Send a null frame instead.
                 return;
             } else {
                 // Blackout window passed. Reset `nextSendTime`.
