@@ -192,7 +192,7 @@ INIT_CODE void rpmFilterInit(void)
         notchMinHz = constrain(config->min_hz, 5, 0.5f * notchMaxHz);
         notchFadeHz = 1.2f * notchMinHz;
 
-        #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto error
+        #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto norpm
 
         for (int axis = 0; axis < RPM_FILTER_AXIS_COUNT; axis++) {
             for (int bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
@@ -269,6 +269,8 @@ INIT_CODE void rpmFilterInit(void)
 
     return;
 
+norpm:
+    setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
 error:
     setArmingDisabled(ARMING_DISABLED_RPMFILTER);
 }
