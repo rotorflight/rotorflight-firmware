@@ -34,6 +34,10 @@
 #define INIT_CODE
 #define INIT_ZERO  { 0, }
 
+#define DMA_DATA_ZERO_INIT
+#define DMA_DATA
+#define STATIC_DMA_DATA_AUTO        static
+
 #define	__unused	__attribute__((__unused__))
 
 #define PID_PROFILE_COUNT 3

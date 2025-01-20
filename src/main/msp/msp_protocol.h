@@ -195,6 +195,8 @@
 #define MSP_SET_LED_STRIP_SETTINGS           151
 #define MSP_SBUS_OUTPUT_CONFIG               152
 #define MSP_SET_SBUS_OUTPUT_CONFIG           153
+#define MSP_RPM_FILTER_V2                    154
+#define MSP_SET_RPM_FILTER_V2                155
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159

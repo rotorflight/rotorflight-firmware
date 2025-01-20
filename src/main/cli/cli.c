@@ -2682,6 +2682,11 @@ static void cliFlashInfo(const char *cmdName, char *cmdline)
             FLASH_PARTITION_SECTOR_COUNT(flashPartition) * layout->sectorSize,
             flashfsGetOffset()
     );
+#ifdef USE_FLASHFS_LOOP
+    cliPrintLinef("FlashFSLoop Head = 0x%08x, Tail = 0x%08x",
+            flashfsGetHeadAddress(),
+            flashfsGetTailAddress());
+#endif
 #endif
 }
 
@@ -2706,6 +2711,7 @@ static void cliFlashErase(const char *cmdName, char *cmdline)
     flashfsEraseCompletely();
 
     while (!flashfsIsReady()) {
+        flashfsEraseAsync();
 #ifndef MINIMAL_CLI
         cliPrintf(".");
         if (i++ > 120) {
@@ -2723,6 +2729,16 @@ static void cliFlashErase(const char *cmdName, char *cmdline)
 }
 
 #ifdef USE_FLASH_TOOLS
+
+static void cliFlashFill(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    UNUSED(cmdline);
+
+    cliPrintLine("Filling");
+    flashfsFillEntireFlash();
+    cliPrintLine("Done");
+}
 
 static void cliFlashVerify(const char *cmdName, char *cmdline)
 {
@@ -2744,7 +2760,7 @@ static void cliFlashWrite(const char *cmdName, char *cmdline)
     if (!text) {
         cliShowInvalidArgumentCountError(cmdName);
     } else {
-        flashfsSeekAbs(address);
+        flashfsSeekPhysical(address);
         flashfsWrite((uint8_t*)text, strlen(text));
         flashfsFlushSync();
 
@@ -2767,7 +2783,7 @@ static void cliFlashRead(const char *cmdName, char *cmdline)
 
         uint8_t buffer[32];
         while (length > 0) {
-            int bytesRead = flashfsReadAbs(address, buffer, length < sizeof(buffer) ? length : sizeof(buffer));
+            int bytesRead = flashfsReadPhysical(address, buffer, length < sizeof(buffer) ? length : sizeof(buffer));
 
             for (int i = 0; i < bytesRead; i++) {
                 cliWrite(buffer[i]);
@@ -2784,6 +2800,67 @@ static void cliFlashRead(const char *cmdName, char *cmdline)
         cliPrintLinefeed();
     }
 }
+
+static void cliFlashEraseSector(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+
+    const char *ptr = cmdline;
+    uint32_t address = atoi(ptr);
+    ptr = nextArg(cmdline);
+    uint32_t length = atoi(ptr);
+
+    const uint32_t sectorSize = flashGetGeometry()->sectorSize;
+    const uint32_t totalSize = flashGetGeometry()->totalSize;
+
+    if (length == 0) {
+        length = 1;
+    }
+
+    // Round down `address`, round up `end_address`, and update `length`
+    uint32_t end_address = address + length;
+    address = address / sectorSize * sectorSize;
+    end_address = (end_address + sectorSize - 1) / sectorSize * sectorSize;
+    length = end_address - address;
+
+    flashSector_t count = length / sectorSize;
+
+    if (address > totalSize - sectorSize) {
+        cliShowArgumentRangeError(cmdName, "address", 0,
+                                  totalSize - sectorSize);
+        return;
+    }
+    if (end_address > totalSize) {
+        cliShowArgumentRangeError(cmdName, "length", sectorSize,
+                                  totalSize - address);
+        return;
+    }
+    timeUs_t start = micros();
+    for (uint32_t i = 0; i < count; i++) {
+        flashEraseSector(address + i * sectorSize);
+        flashWaitForReady();
+    }
+    timeUs_t end = micros();
+    cliPrintLinef("Erased address %u length %u (%u sectors) in %u us", address,
+                  length, count, end - start);
+}
+
+#ifdef USE_FLASHFS_LOOP
+static void cliFlashfsInitialErase(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    UNUSED(cmdline);
+    flashfsInit();
+
+    timeUs_t start = micros();
+    flashfsLoopInitialErase();
+    while(!flashfsIsReady()) {
+        flashfsEraseAsync();
+    }
+    timeUs_t end = micros();
+    cliPrintLinef("FlashfsInitialErase %u us", end - start);
+}
+#endif  // USE_FLASHFS_LOOP
 
 #endif
 #endif
@@ -6429,8 +6506,13 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("flash_info", "show flash chip info", NULL, cliFlashInfo),
 #ifdef USE_FLASH_TOOLS
     CLI_COMMAND_DEF("flash_read", NULL, "<length> <address>", cliFlashRead),
-    CLI_COMMAND_DEF("flash_scan", "scan flash device for errors", NULL, cliFlashVerify),
+    CLI_COMMAND_DEF("flash_fill", "fill device with predefined pattern", NULL, cliFlashFill),
+    CLI_COMMAND_DEF("flash_verify", "verify device with predefined pattern", NULL, cliFlashVerify),
     CLI_COMMAND_DEF("flash_write", NULL, "<address> <message>", cliFlashWrite),
+    CLI_COMMAND_DEF("flash_erase_sector", "erase flash sector(s)", "<address> [<length>]", cliFlashEraseSector),
+#ifdef USE_FLASHFS_LOOP
+    CLI_COMMAND_DEF("flashfs_initial_erase", "invoke initial erase", NULL, cliFlashfsInitialErase),
+#endif  // USE_FLASHFS_LOOP
 #endif
 #endif
     CLI_COMMAND_DEF("get", "get variable value", "[name]", cliGet),
