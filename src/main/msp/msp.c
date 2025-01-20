@@ -1007,7 +1007,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     }
 
     case MSP_EXPERIMENTAL:
-        /* 
+        /*
          * Send your experimental parameters to LUA. Like:
          *
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
@@ -1721,12 +1721,16 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, blackboxConfig()->mode);
         sbufWriteU16(dst, blackboxConfig()->denom);
         sbufWriteU32(dst, blackboxConfig()->fields);
+        sbufWriteU16(dst, blackboxConfig()->initialEraseFreeSpaceKiB);
+        sbufWriteU8(dst, blackboxConfig()->rollingErase);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
         sbufWriteU32(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU8(dst, 0);
 #endif
         break;
 
@@ -1785,18 +1789,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, 0);
         sbufWriteU16(dst, 0);
 #endif
-        break;
-
-#ifdef USE_RPM_FILTER
-    case MSP_RPM_FILTER:
-        for (int i = 0; i < RPM_FILTER_BANK_COUNT; i++) {
-            sbufWriteU8(dst, rpmFilterConfig()->filter_bank_rpm_source[i]);
-            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_ratio[i]);
-            sbufWriteU16(dst, rpmFilterConfig()->filter_bank_rpm_limit[i]);
-            sbufWriteU8(dst, rpmFilterConfig()->filter_bank_notch_q[i]);
-        }
-        break;
+#if defined(USE_RPM_FILTER)
+        sbufWriteU8(dst, rpmFilterConfig()->preset);
+        sbufWriteU8(dst, rpmFilterConfig()->min_hz);
+#else
+        sbufWriteU8(dst, 0);
+        sbufWriteU8(dst, 0);
 #endif
+        break;
 
     case MSP_PID_PROFILE:
         sbufWriteU8(dst, currentPidProfile->pid_mode);
@@ -2024,8 +2024,25 @@ void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
 
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
-
     switch (cmdMSP) {
+#ifdef USE_RPM_FILTER
+    case MSP_RPM_FILTER_V2:
+        if (sbufBytesRemaining(src) == 1) {
+            const uint axis = sbufReadU8(src);
+            if (axis >= RPM_FILTER_AXIS_COUNT)
+                return MSP_RESULT_ERROR;
+            for (uint bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                sbufWriteU8(dst, rpmFilterConfig()->custom.notch_source[axis][bank]);
+                sbufWriteU16(dst, rpmFilterConfig()->custom.notch_center[axis][bank]);
+                sbufWriteU8(dst, rpmFilterConfig()->custom.notch_q[axis][bank]);
+            }
+        }
+        else {
+            return MSP_RESULT_ERROR;
+        }
+        break;
+#endif
+
     case MSP_BOXNAMES:
         {
             const int page = sbufBytesRemaining(src) ? sbufReadU8(src) : 0;
@@ -2547,21 +2564,38 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         sbufReadU16(src);
         sbufReadU16(src);
 #endif
+#if defined(USE_RPM_FILTER)
+        if (sbufBytesRemaining(src) >= 2) {
+            rpmFilterConfigMutable()->preset = sbufReadU8(src);
+            rpmFilterConfigMutable()->min_hz = sbufReadU8(src);
+        }
+#endif
         // reinitialize the gyro filters with the new values
         validateAndFixGyroConfig();
         gyroInitFilters();
+#if defined(USE_RPM_FILTER)
+        validateAndFixRPMFilterConfig();
+        rpmFilterInit();
+#endif
         break;
 
 #ifdef USE_RPM_FILTER
-    case MSP_SET_RPM_FILTER:
-        i = sbufReadU8(src);
-        if (i >= RPM_FILTER_BANK_COUNT) {
+    case MSP_SET_RPM_FILTER_V2:
+        if (sbufBytesRemaining(src) == 1 + 4 * RPM_FILTER_NOTCH_COUNT) {
+            const uint axis = sbufReadU8(src);
+            if (axis >= RPM_FILTER_AXIS_COUNT)
+                return MSP_RESULT_ERROR;
+            for (uint bank = 0; bank < RPM_FILTER_NOTCH_COUNT; bank++) {
+                rpmFilterConfigMutable()->custom.notch_source[axis][bank] = sbufReadU8(src);
+                rpmFilterConfigMutable()->custom.notch_center[axis][bank] = sbufReadU16(src);
+                rpmFilterConfigMutable()->custom.notch_q[axis][bank] = sbufReadU8(src);
+            }
+            validateAndFixRPMFilterConfig();
+            rpmFilterInit();
+        }
+        else {
             return MSP_RESULT_ERROR;
         }
-        rpmFilterConfigMutable()->filter_bank_rpm_source[i] = sbufReadU8(src);
-        rpmFilterConfigMutable()->filter_bank_rpm_ratio[i] = sbufReadU16(src);
-        rpmFilterConfigMutable()->filter_bank_rpm_limit[i] = sbufReadU16(src);
-        rpmFilterConfigMutable()->filter_bank_notch_q[i] = sbufReadU8(src);
         break;
 #endif
 
@@ -2762,6 +2796,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             blackboxConfigMutable()->mode = sbufReadU8(src);
             blackboxConfigMutable()->denom = sbufReadU16(src);
             blackboxConfigMutable()->fields = sbufReadU32(src);
+            if (sbufBytesRemaining(src) >= 3) {
+                blackboxConfigMutable()->initialEraseFreeSpaceKiB = sbufReadU16(src);
+                blackboxConfigMutable()->rollingErase = sbufReadU8(src);
+            }
         }
         break;
 #endif
