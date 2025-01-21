@@ -60,7 +60,7 @@
  *
  */
 
-#define VBAT_STABLE_MAX_DELTA           200         // mV
+#define VBAT_STABLE_MAX_DELTA           500         // mV
 #define LVC_AFFECT_TIME                 10000000    // 10 secs for the LVC to slowly kick in
 
 
