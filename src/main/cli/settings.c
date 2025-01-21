@@ -802,6 +802,11 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_esc",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_bec",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_esc2",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC2, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
+
+#ifdef USE_FLASHFS_LOOP
+    { "blackbox_initial_erase_kb",  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT16_MAX }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, initialEraseFreeSpaceKiB) },
+    { "blackbox_rolling_erase",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, rollingErase) },
+#endif
 #endif
 
 // PG_MOTOR_CONFIG
@@ -1109,8 +1114,9 @@ const clivalue_t valueTable[] = {
 
     { "yaw_cyclic_ff_gain",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cyclic_ff_gain) },
     { "yaw_collective_ff_gain",       VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_gain) },
-    { "yaw_collective_dynamic_gain",  VAR_INT8  | PROFILE_VALUE, .config.minmax = { -125, 125 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_dynamic_gain) },
-    { "yaw_collective_dynamic_decay", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_dynamic_decay) },
+
+    { "yaw_inertia_precomp_gain",      VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_inertia_precomp_gain) },
+    { "yaw_inertia_precomp_cutoff",    VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_inertia_precomp_cutoff) },
 
     { "pitch_collective_ff_gain",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, pitch_collective_ff_gain) },
 

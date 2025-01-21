@@ -1082,6 +1082,7 @@ void governorInit(const pidProfile_t *pidProfile)
         if (gov.mode >= GM_STANDARD) {
             if (!isMotorFastRpmSourceActive(0)) {
                 setArmingDisabled(ARMING_DISABLED_GOVERNOR);
+                setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
                 gov.mode = GM_OFF;
             }
         }

@@ -1721,12 +1721,16 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, blackboxConfig()->mode);
         sbufWriteU16(dst, blackboxConfig()->denom);
         sbufWriteU32(dst, blackboxConfig()->fields);
+        sbufWriteU16(dst, blackboxConfig()->initialEraseFreeSpaceKiB);
+        sbufWriteU8(dst, blackboxConfig()->rollingErase);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, 0);
         sbufWriteU16(dst, 0);
         sbufWriteU32(dst, 0);
+        sbufWriteU16(dst, 0);
+        sbufWriteU8(dst, 0);
 #endif
         break;
 
@@ -1820,8 +1824,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_precomp_cutoff);
         sbufWriteU8(dst, currentPidProfile->yaw_cyclic_ff_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_collective_ff_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_collective_dynamic_gain);
-        sbufWriteU8(dst, currentPidProfile->yaw_collective_dynamic_decay);
+        sbufWriteU8(dst, 0); // was currentPidProfile->yaw_collective_dynamic_gain
+        sbufWriteU8(dst, 0); // was currentPidProfile->yaw_collective_dynamic_decay
         sbufWriteU8(dst, currentPidProfile->pitch_collective_ff_gain);
         /* Angle mode */
         sbufWriteU8(dst, currentPidProfile->angle.level_strength);
@@ -1842,6 +1846,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[0]);
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[1]);
         sbufWriteU8(dst, currentPidProfile->bterm_cutoff[2]);
+        /* Inertia precomps */
+        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2621,8 +2628,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->yaw_precomp_cutoff = sbufReadU8(src);
         currentPidProfile->yaw_cyclic_ff_gain = sbufReadU8(src);
         currentPidProfile->yaw_collective_ff_gain = sbufReadU8(src);
-        currentPidProfile->yaw_collective_dynamic_gain = sbufReadU8(src);
-        currentPidProfile->yaw_collective_dynamic_decay = sbufReadU8(src);
+        sbufReadU8(src); // was currentPidProfile->yaw_collective_dynamic_gain
+        sbufReadU8(src); // was currentPidProfile->yaw_collective_dynamic_decay
         currentPidProfile->pitch_collective_ff_gain = sbufReadU8(src);
         /* Angle mode */
         currentPidProfile->angle.level_strength = sbufReadU8(src);
@@ -2648,6 +2655,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->bterm_cutoff[0] = sbufReadU8(src);
             currentPidProfile->bterm_cutoff[1] = sbufReadU8(src);
             currentPidProfile->bterm_cutoff[2] = sbufReadU8(src);
+        }
+        /* Inertia precomps */
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->yaw_inertia_precomp_gain = sbufReadU8(src);
+            currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
         }
         /* Load new values */
         pidInitProfile(currentPidProfile);
@@ -2792,6 +2804,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             blackboxConfigMutable()->mode = sbufReadU8(src);
             blackboxConfigMutable()->denom = sbufReadU16(src);
             blackboxConfigMutable()->fields = sbufReadU32(src);
+            if (sbufBytesRemaining(src) >= 3) {
+                blackboxConfigMutable()->initialEraseFreeSpaceKiB = sbufReadU16(src);
+                blackboxConfigMutable()->rollingErase = sbufReadU8(src);
+            }
         }
         break;
 #endif
