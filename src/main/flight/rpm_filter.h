@@ -23,3 +23,5 @@
 void  rpmFilterInit(void);
 float rpmFilterGyro(int axis, float values);
 void  rpmFilterUpdate(void);
+
+void validateAndFixRPMFilterConfig(void);

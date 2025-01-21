@@ -605,7 +605,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
         } else if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
             if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
-                clearToSend = false;
+                // Send null frame
             } else if (!sendNullFrame) {
                 processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
                 mspPayload = NULL;

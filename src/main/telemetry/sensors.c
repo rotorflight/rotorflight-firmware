@@ -64,13 +64,13 @@
 static int getVoltage(voltageMeterId_e id)
 {
     voltageMeter_t voltage;
-    return voltageMeterRead(id, &voltage) ? voltage.voltage / 10 : 0;
+    return voltageMeterRead(id, &voltage) ? voltage.voltage : 0;
 }
 
 static int getCurrent(currentMeterId_e id)
 {
     currentMeter_t current;
-    return currentMeterRead(id, &current) ? current.current / 10: 0;
+    return currentMeterRead(id, &current) ? current.current : 0;
 }
 
 static int getEscSensorValue(uint8_t motor, uint8_t id)
@@ -80,9 +80,9 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
     if (data) {
         switch (id) {
             case 1:
-                return data->voltage / 10;
+                return data->voltage;
             case 2:
-                return data->current / 10;
+                return data->current;
             case 3:
                 return data->consumption;
             case 4:
@@ -92,13 +92,13 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
             case 6:
                 return data->throttle;
             case 7:
-                return data->temperature / 10;
+                return data->temperature;
             case 8:
-                return data->temperature2 / 10;
+                return data->temperature2;
             case 9:
-                return data->bec_voltage / 10;
+                return data->bec_voltage;
             case 10:
-                return data->bec_current / 10;
+                return data->bec_current;
             case 11:
                 return data->status;
             case 12:
@@ -145,15 +145,15 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_CONTROL:
             return millis();
         case TELEM_PITCH_CONTROL:
-            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 120);
+            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_PITCH) * 1200);
         case TELEM_ROLL_CONTROL:
-            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 120);
+            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_ROLL) * 1200);
         case TELEM_YAW_CONTROL:
-            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_YAW) * 240);
+            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_YAW) * 2400);
         case TELEM_COLLECTIVE_CONTROL:
-            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE) * 120);
+            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE) * 1200);
         case TELEM_THROTTLE_CONTROL:
-            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_THROTTLE) * 100);
+            return lrintf(mixerGetInput(MIXER_IN_STABILIZED_THROTTLE) * 1000);
 
         case TELEM_ESC1_DATA:
         case TELEM_ESC1_VOLTAGE:
@@ -235,20 +235,20 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ATTITUDE:
             return millis();
         case TELEM_ATTITUDE_PITCH:
-            return attitude.values.pitch / 10;
+            return attitude.values.pitch;
         case TELEM_ATTITUDE_ROLL:
-            return attitude.values.roll / 10;
+            return attitude.values.roll;
         case TELEM_ATTITUDE_YAW:
-            return attitude.values.yaw / 10;
+            return attitude.values.yaw;
 
         case TELEM_ACCEL:
             return millis();
         case TELEM_ACCEL_X:
-            return lrintf(acc.accADC[0] * acc.dev.acc_1G_rec * 10);
+            return lrintf(acc.accADC[0] * acc.dev.acc_1G_rec * 1000);
         case TELEM_ACCEL_Y:
-            return lrintf(acc.accADC[1] * acc.dev.acc_1G_rec * 10);
+            return lrintf(acc.accADC[1] * acc.dev.acc_1G_rec * 1000);
         case TELEM_ACCEL_Z:
-            return lrintf(acc.accADC[2] * acc.dev.acc_1G_rec * 10);
+            return lrintf(acc.accADC[2] * acc.dev.acc_1G_rec * 1000);
 
         case TELEM_GPS:
             return millis();
@@ -278,11 +278,11 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_LOAD:
             return millis();
         case TELEM_CPU_LOAD:
-            return getAverageCPULoadPercent();
+            return getAverageCPULoad();
         case TELEM_SYS_LOAD:
-            return getAverageSystemLoadPercent();
+            return getAverageSystemLoad();
         case TELEM_RT_LOAD:
-            return getMaxRealTimeLoadPercent();
+            return getMaxRealTimeLoad();
 
         case TELEM_MODEL_ID:
             return pilotConfig()->modelId;
@@ -504,9 +504,60 @@ bool telemetrySensorActive(sensor_id_e id)
 
 /** Legacy sensors **/
 
+static uint32_t telemetry_legacy_sensors = 0;
+
+sensor_e telemetryGetLegacySensor(sensor_id_e sensor_id)
+{
+    switch (sensor_id)
+    {
+        case TELEM_BATTERY_VOLTAGE:
+            return SENSOR_VOLTAGE;
+        case TELEM_BATTERY_CURRENT:
+            return SENSOR_CURRENT;
+        case TELEM_BATTERY_CONSUMPTION:
+            return SENSOR_CAP_USED;
+        case TELEM_BATTERY_CHARGE_LEVEL:
+            return SENSOR_FUEL;
+        case TELEM_FLIGHT_MODE:
+            return SENSOR_MODE;
+        case TELEM_ACCEL_X:
+            return SENSOR_ACC_X;
+        case TELEM_ACCEL_Y:
+            return SENSOR_ACC_Y;
+        case TELEM_ACCEL_Z:
+            return SENSOR_ACC_Z;
+        case TELEM_ATTITUDE_PITCH:
+            return SENSOR_PITCH;
+        case TELEM_ATTITUDE_ROLL:
+            return SENSOR_ROLL;
+        case TELEM_ATTITUDE_YAW:
+            return SENSOR_HEADING;
+        case TELEM_ALTITUDE:
+            return SENSOR_ALTITUDE;
+        case TELEM_VARIOMETER:
+            return SENSOR_VARIO;
+        case TELEM_GPS_COORD:
+            return SENSOR_LAT_LONG;
+        case TELEM_GPS_GROUNDSPEED:
+            return SENSOR_GROUND_SPEED;
+        default:
+            return 0;
+    }
+}
+
 bool telemetryIsSensorEnabled(uint32_t sensor_bits)
 {
-    return (telemetryConfig()->enableSensors & sensor_bits);
+    return (telemetry_legacy_sensors & sensor_bits);
+}
+
+void INIT_CODE legacySensorInit(void)
+{
+    telemetry_legacy_sensors = 0;
+
+    for (int i = 0; i < TELEM_SENSOR_SLOT_COUNT; i++) {
+        sensor_id_e id = telemetryConfig()->telemetry_sensors[i];
+        telemetry_legacy_sensors |= telemetryGetLegacySensor(id);
+    }
 }
 
 #endif /* USE_TELEMETRY */

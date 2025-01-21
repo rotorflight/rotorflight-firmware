@@ -335,6 +335,8 @@ static const blackboxSimpleFieldDefinition_t blackboxSlowFields[] = {
 typedef enum BlackboxState {
     BLACKBOX_STATE_DISABLED = 0,
     BLACKBOX_STATE_STOPPED,
+    BLACKBOX_STATE_WAIT_FOR_READY,
+    BLACKBOX_STATE_INITIAL_ERASE,
     BLACKBOX_STATE_PREPARE_LOG_FILE,
     BLACKBOX_STATE_SEND_HEADER,
     BLACKBOX_STATE_SEND_MAIN_FIELD_HEADER,
@@ -345,6 +347,7 @@ typedef enum BlackboxState {
     BLACKBOX_STATE_CACHE_FLUSH,
     BLACKBOX_STATE_PAUSED,
     BLACKBOX_STATE_RUNNING,
+    BLACKBOX_STATE_FULL,
     BLACKBOX_STATE_SHUTTING_DOWN,
     BLACKBOX_STATE_START_ERASE,
     BLACKBOX_STATE_ERASING,
@@ -1175,7 +1178,7 @@ static void blackboxStart(void)
     blackboxLastRescueState = getRescueState();
     blackboxLastAirborneState = isAirborne();
 
-    blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
+    blackboxSetState(BLACKBOX_STATE_WAIT_FOR_READY);
 }
 
 void blackboxCheckEnabler(void)
@@ -1640,8 +1643,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yaw_precomp", "%d,%d,%d",               currentPidProfile->yaw_precomp_cutoff,
                                                                             currentPidProfile->yaw_cyclic_ff_gain,
                                                                             currentPidProfile->yaw_collective_ff_gain);
-        BLACKBOX_PRINT_HEADER_LINE("yaw_precomp_impulse", "%d,%d",          currentPidProfile->yaw_collective_dynamic_gain,
-                                                                            currentPidProfile->yaw_collective_dynamic_decay);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_inertia_precomp", "%d,%d",          currentPidProfile->yaw_inertia_precomp_gain,
+                                                                            currentPidProfile->yaw_inertia_precomp_cutoff);
         BLACKBOX_PRINT_HEADER_LINE("yaw_tta", "%d,%d",                      currentPidProfile->governor.tta_gain,
                                                                             currentPidProfile->governor.tta_limit);
         BLACKBOX_PRINT_HEADER_LINE("hsi_gain", "%d,%d",                     currentPidProfile->pid[PID_ROLL].O,
@@ -1681,14 +1684,27 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DSHOT_BIDIR, "%d",            motorConfig()->dev.useDshotTelemetry);
 #endif
 #ifdef USE_RPM_FILTER
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_source", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_source);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_ratio", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_ratio);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_rpm_limit", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_rpm_limit);
-        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_filter_bank_notch_q", "%d",
-            RPM_FILTER_BANK_COUNT, rpmFilterConfig()->filter_bank_notch_q);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_preset", "%d",           rpmFilterConfig()->preset);
+        BLACKBOX_PRINT_HEADER_LINE("gyro_rpm_notch_min_hz", "%d",           rpmFilterConfig()->min_hz);
+
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_pitch", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_PITCH]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_roll", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_ROLL]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_source_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_source[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_center_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_center[FD_YAW]);
+        BLACKBOX_PRINT_HEADER_ARRAY("gyro_rpm_notch_q_yaw", "%d",
+            RPM_FILTER_NOTCH_COUNT, rpmFilterConfig()->custom.notch_q[FD_YAW]);
 #endif
 #if defined(USE_ACC)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_ACC_LPF_HZ, "%d",             accelerometerConfig()->acc_lpf_hz * 100);
@@ -1959,6 +1975,15 @@ bool isBlackboxErased(void)
     return isBlackboxDeviceReady();
 }
 
+void blackboxInitialErase(void)
+{
+#ifdef USE_FLASHFS
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
+        blackboxDeviceInitialErase();
+    }
+#endif
+}
+
 /**
  * Call each flight loop iteration to perform blackbox logging.
  */
@@ -1978,6 +2003,17 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         if (blackboxIsLoggingEnabled()) {
             blackboxOpen();
             blackboxStart();
+        }
+        break;
+    case BLACKBOX_STATE_WAIT_FOR_READY:
+        if (isBlackboxDeviceReady()) {
+            blackboxInitialErase();
+            blackboxSetState(BLACKBOX_STATE_INITIAL_ERASE);
+        }
+        break;
+    case BLACKBOX_STATE_INITIAL_ERASE:
+        if (isBlackboxDeviceReady()) {
+            blackboxSetState(BLACKBOX_STATE_PREPARE_LOG_FILE);
         }
         break;
     case BLACKBOX_STATE_PREPARE_LOG_FILE:
@@ -2125,7 +2161,13 @@ void blackboxUpdate(timeUs_t currentTimeUs)
             blackboxSetState(BLACKBOX_STATE_STOPPED);
             blackboxStarted = false;
         }
-    break;
+        break;
+    case BLACKBOX_STATE_FULL:
+        if (!blackboxIsLoggingEnabled()) {
+            blackboxDeviceClose();
+            blackboxSetState(BLACKBOX_STATE_STOPPED);
+        }
+        break;
 #endif
     default:
         break;
@@ -2133,8 +2175,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     // Did we run out of room on the device? Stop!
     if (isBlackboxDeviceFull()) {
-        if (blackboxState < BLACKBOX_STATE_START_ERASE) {
-            blackboxSetState(BLACKBOX_STATE_STOPPED);
+        if (blackboxState == BLACKBOX_STATE_RUNNING) {
+            blackboxSetState(BLACKBOX_STATE_FULL);
         }
     }
 }

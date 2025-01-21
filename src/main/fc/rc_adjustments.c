@@ -283,10 +283,10 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             value = currentPidProfile->yaw_collective_ff_gain;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DYN:
-            value = currentPidProfile->yaw_collective_dynamic_gain;
+            value = 0;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
-            value = currentPidProfile->yaw_collective_dynamic_decay;
+            value = 0;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             value = currentPidProfile->pitch_collective_ff_gain;
@@ -389,6 +389,12 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             break;
         case ADJUSTMENT_ACC_TRIM_ROLL:
             value = accelerometerConfig()->accelerometerTrims.values.roll;
+            break;
+        case ADJUSTMENT_INERTIA_PRECOMP_GAIN:
+            value = currentPidProfile->yaw_inertia_precomp_gain;
+            break;
+        case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
+            value = currentPidProfile->yaw_inertia_precomp_cutoff;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
@@ -494,10 +500,8 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             currentPidProfile->yaw_collective_ff_gain = value;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DYN:
-            currentPidProfile->yaw_collective_dynamic_gain = value;
             break;
         case ADJUSTMENT_YAW_COLLECTIVE_DECAY:
-            currentPidProfile->yaw_collective_dynamic_decay = value;
             break;
         case ADJUSTMENT_PITCH_COLLECTIVE_FF:
             currentPidProfile->pitch_collective_ff_gain = value;
@@ -600,6 +604,12 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             break;
         case ADJUSTMENT_ACC_TRIM_ROLL:
             accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
+            break;
+        case ADJUSTMENT_INERTIA_PRECOMP_GAIN:
+            currentPidProfile->yaw_inertia_precomp_gain = value;
+            break;
+        case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
+            currentPidProfile->yaw_inertia_precomp_cutoff = value;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;

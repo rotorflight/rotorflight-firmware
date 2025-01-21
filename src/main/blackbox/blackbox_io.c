@@ -341,7 +341,7 @@ bool blackboxDeviceOpen(void)
         break;
 #ifdef USE_FLASHFS
     case BLACKBOX_DEVICE_FLASH:
-        if (!flashfsIsSupported() || isBlackboxDeviceFull()) {
+        if (!flashfsIsSupported()) {
             return false;
         }
 
@@ -376,18 +376,32 @@ void blackboxDeviceErase(void)
         flashfsEraseCompletely();
     }
 }
+#endif
 
 /**
  * Check to see if erasing is done
  */
 bool isBlackboxDeviceReady(void)
 {
+#ifdef USE_FLASHFS
     if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
         return flashfsIsReady();
     }
+#endif
     return true;
 }
+
+/**
+ * Perform an initial erase to get some empty space.
+ */
+void blackboxDeviceInitialErase(void)
+{
+#ifdef USE_FLASHFS_LOOP
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
+        flashfsLoopInitialErase();
+    }
 #endif
+}
 
 /**
  * Close the Blackbox logging device.
