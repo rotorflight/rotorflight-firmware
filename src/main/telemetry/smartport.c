@@ -397,7 +397,7 @@ static void INIT_CODE configureSmartPortTelemetryPort(void)
     if (portConfig) {
         portOptions_e portOptions =
             (telemetryConfig()->telemetry_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED) |
-            (telemetryConfig()->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            (telemetryConfig()->halfDuplex ? SERIAL_BIDIR | SERIAL_BIDIR_PP : SERIAL_UNIDIR) |
             (telemetryConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP);
 
         smartPortSerialPort = openSerialPort(
