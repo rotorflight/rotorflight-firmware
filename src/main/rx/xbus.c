@@ -292,10 +292,11 @@ static void xBusDataReceive(uint16_t c, void *data)
 
     // Check if we shall reset frame position due to time
     const timeUs_t now = microsISR();
-    xBusTimeInterval = now - xBusTimeLast;
+    //xBusTimeInterval = now - xBusTimeLast;
+    xBusTimeInterval = cmp32(now, xBusTimeLast);
     xBusTimeLast = now;
 
-    if (xBusTimeInterval > xBusMaxFrameTime) {
+    if (xBusTimeInterval > (timeDelta_t)xBusMaxFrameTime) {
         xBusFramePosition = 0;
         xBusDataIncoming = false;
     }
