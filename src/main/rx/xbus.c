@@ -287,7 +287,8 @@ static void xBusDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
 
-    static timeUs_t xBusTimeLast, xBusTimeInterval;
+    static timeUs_t xBusTimeLast;
+    static timeDelta_t xBusTimeInterval;
 
     // Check if we shall reset frame position due to time
     const timeUs_t now = microsISR();
