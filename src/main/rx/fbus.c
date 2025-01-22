@@ -605,7 +605,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
         } else if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
             if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
-                clearToSend = false;
+                // Send null frame
             } else if (!sendNullFrame) {
                 processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
                 mspPayload = NULL;
@@ -666,7 +666,7 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
 
     uint32_t options = FBUS_PORT_OPTIONS |
         (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
-        (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+        (rxConfig->halfDuplex ? SERIAL_BIDIR | SERIAL_BIDIR_PP : SERIAL_UNIDIR) |
         (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP);
 
     fbusPort = openSerialPort(portConfig->identifier,

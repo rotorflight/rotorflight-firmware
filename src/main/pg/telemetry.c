@@ -38,27 +38,18 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .frsky_unit = UNIT_METRIC,
     .frsky_vfas_precision = 0,
     .hottAlarmSoundInterval = 5,
-    .pidValuesAsTelemetry = 0,
     .report_cell_voltage = false,
     .flysky_sensors = {
         IBUS_SENSOR_TYPE_TEMPERATURE,
         IBUS_SENSOR_TYPE_RPM_FLYSKY,
         IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE
     },
-    .enableSensors =
-        SENSOR_VOLTAGE |
-        SENSOR_CURRENT |
-        SENSOR_FUEL |
-        SENSOR_MODE |
-        SENSOR_CAP_USED |
-        ESC_SENSOR_RPM |
-        ESC_SENSOR_TEMPERATURE,
     .mavlink_mah_as_heading_divisor = 0,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
-    .crsf_telemetry_sensors = INIT_ZERO,
-    .crsf_telemetry_interval = INIT_ZERO,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
+    .telemetry_sensors = INIT_ZERO,
+    .telemetry_interval = INIT_ZERO,
 );
 
 #endif

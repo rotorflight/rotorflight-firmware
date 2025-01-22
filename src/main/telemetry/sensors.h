@@ -169,20 +169,29 @@ typedef enum
 
 typedef struct telemetrySensor_s telemetrySensor_t;
 
-typedef void (*telemetryEncode_f)(sbuf_t *buf, telemetrySensor_t *sensor);
+typedef void (*telemetryEncode_f)(telemetrySensor_t *sensor, void *ptr);
 
 struct telemetrySensor_s {
 
-    uint16_t                telid;
-    uint32_t                tcode;
+    uint16_t                index;
 
-    uint16_t                min_interval;
-    uint16_t                max_interval;
+    uint16_t                sensor_id;
+    uint32_t                app_id;
+
+    uint16_t                fast_weight;
+    uint16_t                slow_weight;
+    uint16_t                fast_interval;
+    uint16_t                slow_interval;
+
+    int                     ratio_num;
+    int                     ratio_den;
+
+    int                     value;
 
     bool                    active;
     bool                    update;
+
     int                     bucket;
-    int                     value;
 
     telemetryEncode_f       encode;
 };
@@ -193,6 +202,26 @@ bool telemetrySensorActive(sensor_id_e id);
 
 
 /** Legacy sensors **/
+
+typedef enum {
+    SENSOR_VOLTAGE         = BIT(0),
+    SENSOR_CURRENT         = BIT(1),
+    SENSOR_CAP_USED        = BIT(2),
+    SENSOR_FUEL            = BIT(3),
+    SENSOR_MODE            = BIT(4),
+    SENSOR_ACC_X           = BIT(5),
+    SENSOR_ACC_Y           = BIT(6),
+    SENSOR_ACC_Z           = BIT(7),
+    SENSOR_PITCH           = BIT(8),
+    SENSOR_ROLL            = BIT(9),
+    SENSOR_HEADING         = BIT(10),
+    SENSOR_ALTITUDE        = BIT(11),
+    SENSOR_VARIO           = BIT(12),
+    SENSOR_LAT_LONG        = BIT(13),
+    SENSOR_GROUND_SPEED    = BIT(14),
+} sensor_e;
+
+void legacySensorInit(void);
 
 bool telemetryIsSensorEnabled(uint32_t sensor_bits);
 
