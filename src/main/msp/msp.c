@@ -1013,6 +1013,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterB);
          */
+        sbufWriteU8(dst, currentPidProfile->p_scale_yaw);
+        sbufWriteU8(dst, currentPidProfile->p_scale_collective);
         break;
 
     default:
@@ -3650,6 +3652,10 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
          *     currentPidProfile->yourFancyParameterB = sbufReadU8(src);
          * }
          */
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->p_scale_yaw = sbufReadU8(src);
+            currentPidProfile->p_scale_collective = sbufReadU8(src);
+        }
         break;
 
     default:
