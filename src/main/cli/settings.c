@@ -1202,6 +1202,7 @@ const clivalue_t valueTable[] = {
 
     { "p_scale_yaw",                VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, p_scale_yaw) },
     { "p_scale_collective",         VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, p_scale_collective) },
+    { "p_scale_collective_tau",     VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, p_scale_collective_tau) },
 
 // PG_TELEMETRY_CONFIG
 #ifdef USE_TELEMETRY

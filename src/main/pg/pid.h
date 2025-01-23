@@ -186,6 +186,7 @@ typedef struct pidProfile_s {
 
     uint8_t             p_scale_yaw;
     uint8_t             p_scale_collective;
+    uint8_t             p_scale_collective_tau;
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
