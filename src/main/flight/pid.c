@@ -257,6 +257,12 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+
+    uint8_t tau10 = pidProfile->p_scale_collective_tau;
+    if (tau10 == 0) {
+      tau10 = 1;
+    }
+    lowpassFilterInit(&pid.p_scale_collective_filter, LPF_DAMPED, 10.0f/tau10, pid.freq, 0);
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
@@ -1160,8 +1166,9 @@ static void pidApplyYawMode3(const pidProfile_t *pidProfile)
 
   //// P-term
 
+    float dampedCollectiveDeflectAbs = filterApply(&pid.p_scale_collective_filter, getCollectiveDeflectionAbs());
     float Kp_scale = (1.0f - getYawDeflectionAbs() * pidProfile->p_scale_yaw / 100.0f);
-    Kp_scale *= (1.0f - getCollectiveDeflectionAbs() * pidProfile->p_scale_collective / 100.0f);
+    Kp_scale *= (1.0f - dampedCollectiveDeflectAbs * pidProfile->p_scale_collective / 100.0f);
     Kp_scale = constrainf(Kp_scale, 0.0f, 1.0f);
 
     // Calculate P-component
