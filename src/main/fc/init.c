@@ -681,9 +681,6 @@ void init(void)
     // Finally initialize the gyro filtering
     gyroInitFilters();
 
-    // Initialize PID control
-    pidInit(currentPidProfile);
-
 #ifdef USE_SERVOS
     servoInit();
 #endif
@@ -735,20 +732,6 @@ void init(void)
 
     positionInit();
 
-#ifdef USE_GPS
-    if (featureIsEnabled(FEATURE_GPS)) {
-        gpsInit();
-    }
-#endif
-
-#ifdef USE_LED_STRIP
-    ledStripInit();
-
-    if (featureIsEnabled(FEATURE_LED_STRIP)) {
-        ledStripEnable();
-    }
-#endif
-
 #ifdef USE_ESC_SENSOR
     if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
         escSensorInit();
@@ -775,12 +758,28 @@ void init(void)
     }
 #endif
 
+    pidInit(currentPidProfile);
+
     if (featureIsEnabled(FEATURE_GOVERNOR)) {
         governorInit(currentPidProfile);
     }
 
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
+#endif
+
+#ifdef USE_GPS
+    if (featureIsEnabled(FEATURE_GPS)) {
+        gpsInit();
+    }
+#endif
+
+#ifdef USE_LED_STRIP
+    ledStripInit();
+
+    if (featureIsEnabled(FEATURE_LED_STRIP)) {
+        ledStripEnable();
+    }
 #endif
 
 #ifdef USE_FLASH_CHIP
