@@ -350,9 +350,9 @@ static float mixerCollectiveScale(float SC, float SR, float SP)
 {
     float beta;
     if (SC > 0) {
-        beta = mixerConfig()->collective_scale_pos / 100.0f;
+        beta = mixerConfig()->collective_geo_correction_pos / 100.0f;
     } else {
-        beta = -mixerConfig()->collective_scale_neg / 100.0f;
+        beta = -mixerConfig()->collective_geo_correction_neg / 100.0f;
     }
     float scale = 1 + beta * (SR * SR + SP * SP);
     scale = constrainf(scale, 0.0f, 2.0f);
