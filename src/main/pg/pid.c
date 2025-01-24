@@ -129,6 +129,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_ff_weight = 100,
         .governor.max_throttle = 100,
         .governor.min_throttle = 10,
+        .p_scale_yaw_d_cutoff = 25,
         .p_scale_collective_tau = 30,
     );
 }
