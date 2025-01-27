@@ -45,13 +45,20 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_SETPOINT) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MIXER) |
               BIT(FLIGHT_LOG_FIELD_SELECT_PID) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_GYRO) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_ATTITUDE) |
               BIT(FLIGHT_LOG_FIELD_SELECT_GYRAW) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_RSSI) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_GYRO) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_ALT) |
               BIT(FLIGHT_LOG_FIELD_SELECT_BATTERY) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_RSSI) |
               BIT(FLIGHT_LOG_FIELD_SELECT_RPM) |
               BIT(FLIGHT_LOG_FIELD_SELECT_MOTOR) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_SERVO),
+              BIT(FLIGHT_LOG_FIELD_SELECT_SERVO) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_VBEC) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_TEMP) |
+              0,
     .initialEraseFreeSpaceKiB = 0,
     .rollingErase = 0,
 );
