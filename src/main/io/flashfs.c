@@ -1,22 +1,20 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
+
 
 /**
  * This provides a stream interface to a flash chip if one is present.
@@ -27,15 +25,13 @@
  *
  * Note that bits can only be set to 0 when writing, not back to 1 from 0. You must erase sectors in order
  * to bring bits back to 1 again.
- *
- * In future, we can add support for multiple different flash chips by adding a flash device driver vtable
- * and make calls through that, at the moment flashfs just calls m25p16_* routines explicitly.
  */
 
 /**
  * With USE_FLASHFS_LOOP enabled, the data stream will be wrapped. Flashfs will
  * keep at least 1 page free to identify the stream start and stream end.
  */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -101,29 +97,15 @@ static volatile uint16_t bufferTail = 0;
   */
 static volatile bool dataWritten = true;
 
-//#define CHECK_FLASH
-
-#ifdef CHECK_FLASH
-// Write an incrementing sequence of bytes instead of the requested data and verify
-DMA_DATA uint8_t checkFlashBuffer[FLASHFS_WRITE_BUFFER_SIZE];
-uint32_t checkFlashPtr = 0;
-uint32_t checkFlashLen = 0;
-uint8_t checkFlashWrite = 0x00;
-uint8_t checkFlashExpected = 0x00;
-uint32_t checkFlashErrors = 0;
-#endif
-
 // The position of head address. headAddress can only be at sector boundary.
 STATIC_UNIT_TESTED uint32_t headAddress = 0;
+
 // The position of the buffer's tail in the overall flash address space:
 STATIC_UNIT_TESTED uint32_t tailAddress = 0;
 
-static inline uint32_t flashfsAddressShift(uint32_t address, int32_t offset) {
-#ifdef USE_FLASHFS_LOOP
-    return (address + offset + flashfsSize) % flashfsSize;
-#else
-    return address + offset;
-#endif
+static inline void flashfsSetState(flashfsState_e state)
+{
+    flashfsState = state;
 }
 
 STATIC_UNIT_TESTED void flashfsClearBuffer(void)
@@ -131,14 +113,38 @@ STATIC_UNIT_TESTED void flashfsClearBuffer(void)
     bufferTail = bufferHead = 0;
 }
 
-static bool flashfsBufferIsEmpty(void)
+static inline bool flashfsBufferIsEmpty(void)
 {
     return bufferTail == bufferHead;
 }
 
-static void flashfsSetTailAddress(uint32_t address)
+uint32_t flashfsGetHeadAddress()
+{
+    return headAddress;
+}
+
+uint32_t flashfsGetTailAddress()
+{
+    return tailAddress;
+}
+
+static inline void flashfsSetHeadAddress(uint32_t address)
+{
+    headAddress = address;
+}
+
+static inline void flashfsSetTailAddress(uint32_t address)
 {
     tailAddress = address;
+}
+
+static inline uint32_t flashfsAddressShift(uint32_t address, int32_t offset)
+{
+#ifdef USE_FLASHFS_LOOP
+    return (address + offset + flashfsSize) % flashfsSize;
+#else
+    return address + offset;
+#endif
 }
 
 void flashfsEraseCompletely(void)
@@ -151,13 +157,13 @@ void flashfsEraseCompletely(void)
         } else {
             // start asynchronous erase of all sectors
             eraseSectorCurrent = flashPartition->startSector;
-            flashfsState = FLASHFS_ALL_ERASING;
+            flashfsSetState(FLASHFS_ALL_ERASING);
         }
     }
 
     flashfsClearBuffer();
 
-    headAddress = 0;
+    flashfsSetHeadAddress(0);
     flashfsSetTailAddress(0);
 }
 
@@ -358,10 +364,6 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
         return 0;
     }
 
-#ifdef CHECK_FLASH
-    checkFlashPtr = tailAddress;
-#endif
-
 #ifdef USE_FLASHFS_LOOP
     // Check if rolling erase is needed. Why here? Because we can only
     // erase when a page (aligned) program is completed.
@@ -380,10 +382,9 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
             (tailAddress + bytes_to_write) / flashGeometry->pageSize) {
             // We will write to or write over a page boundary. We can erase when
             // this write is done.
-            flashfsState = FLASHFS_ROLLING_ERASE_PENDING;
+            flashfsSetState(FLASHFS_ROLLING_ERASE_PENDING);
         }
     }
-
 #endif
 
     flashPageProgramBegin(tailAddress, flashfsWriteCallback);
@@ -392,12 +393,7 @@ static uint32_t flashfsWriteBuffers(uint8_t const **buffers, uint32_t *bufferSiz
      * to be idle at this point
      */
     dataWritten = false;
-
     bytesWritten = flashPageProgramContinue(buffers, bufferSizes, bufferCount);
-
-#ifdef CHECK_FLASH
-    checkFlashLen = bytesWritten;
-#endif
 
     flashPageProgramFinish();
 
@@ -435,13 +431,6 @@ static int flashfsGetDirtyDataBuffers(uint8_t const *buffers[], uint32_t bufferS
     return 0;
 }
 
-
-static bool flashfsNewData()
-{
-    return dataWritten;
-}
-
-
 /**
  * Get the current usage of the volume, including the buffered ones.
  */
@@ -454,8 +443,7 @@ uint32_t flashfsGetOffset(void)
 
     flashfsGetDirtyDataBuffers(buffers, bufferSizes);
 
-    return flashfsAddressShift(tailAddress + bufferSizes[0] + bufferSizes[1],
-                               -headAddress);
+    return flashfsAddressShift(tailAddress + bufferSizes[0] + bufferSizes[1], -headAddress);
 }
 
 /**
@@ -474,24 +462,10 @@ bool flashfsFlushAsync(void)
         return true; // Nothing to flush
     }
 
-    if (!flashfsNewData()) {
+    if (dataWritten == 0) {
         // The previous write has yet to complete
         return false;
     }
-
-#ifdef CHECK_FLASH
-    // Verify the data written last time
-    if (checkFlashLen) {
-        while (!flashIsReady());
-        flashReadBytes(checkFlashPtr, checkFlashBuffer, checkFlashLen);
-
-        for (uint32_t i = 0; i < checkFlashLen; i++) {
-            if (checkFlashBuffer[i] != checkFlashExpected++) {
-                checkFlashErrors++; // <-- insert breakpoint here to catch errors
-            }
-        }
-    }
-#endif
 
     bufCount = flashfsGetDirtyDataBuffers(buffers, bufferSizes);
     if (bufCount) {
@@ -541,7 +515,7 @@ void flashfsEraseAsync(void)
                 LED1_TOGGLE;
             } else {
                 // Done erasing
-                flashfsState = FLASHFS_IDLE;
+                flashfsSetState(FLASHFS_IDLE);
                 LED1_OFF;
             }
         } else if (flashfsState == FLASHFS_INITIAL_ERASING) {
@@ -551,31 +525,28 @@ void flashfsEraseAsync(void)
                 // We immediately set the head before erase is completed.
                 // This should be fine since write will be blocked until this
                 // state is cleared.
-                headAddress =
-                    flashfsAddressShift(headAddress, flashGeometry->sectorSize);
+                flashfsSetHeadAddress(flashfsAddressShift(headAddress, flashGeometry->sectorSize));
                 LED1_TOGGLE;
             } else {
-                flashfsState = FLASHFS_IDLE;
+                flashfsSetState(FLASHFS_IDLE);
                 LED1_OFF;
             }
         } else if (flashfsState == FLASHFS_ROLLING_ERASE_PENDING) {
             flashEraseSector(headAddress);
-            flashfsState = FLASHFS_ROLLING_ERASING;
+            flashfsSetState(FLASHFS_ROLLING_ERASING);
             LED1_TOGGLE;
         } else if (flashfsState == FLASHFS_ROLLING_ERASING) {
-            flashfsState = FLASHFS_IDLE;
-            headAddress =
-                flashfsAddressShift(headAddress, flashGeometry->sectorSize);
+            flashfsSetState(FLASHFS_IDLE);
+            flashfsSetHeadAddress(flashfsAddressShift(headAddress, flashGeometry->sectorSize));
             LED1_OFF;
         } else if (flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDING) {
             if (flashIsSuspended()) {
-                flashfsState = FLASHFS_ROLLING_ERASE_SUSPENDED;
+                flashfsSetState(FLASHFS_ROLLING_ERASE_SUSPENDED);
             }
         } else if (flashfsState == FLASHFS_ROLLING_ERASE_SUSPENDED) {
-            if (flashfsTransmitBufferUsed() < FLASHFS_SUSPEND_THRESHOLD ||
-                flashfsIsEOF()) {
+            if (flashfsTransmitBufferUsed() < FLASHFS_SUSPEND_THRESHOLD || flashfsIsEOF()) {
                 flashResume();
-                flashfsState = FLASHFS_ROLLING_ERASING;
+                flashfsSetState(FLASHFS_ROLLING_ERASING);
             }
         }
     }
@@ -600,9 +571,6 @@ void flashfsSeekPhysical(uint32_t offset)
  */
 void flashfsWriteByte(uint8_t byte)
 {
-#ifdef CHECK_FLASH
-    byte = checkFlashWrite++;
-#endif
     uint16_t newHead = bufferHead + 1;
     if (newHead >= FLASHFS_WRITE_BUFFER_SIZE) {
         newHead = 0;
@@ -683,7 +651,8 @@ int flashfsReadAbs(uint32_t address, uint8_t *buffer, unsigned int len)
 }
 
 // This function takes a physical address
-static bool flashfsIsPageErased(uint32_t address){
+static bool flashfsIsPageErased(uint32_t address)
+{
     enum {
         /* We don't expect valid data to ever contain this many consecutive uint32_t's of all 1 bits: */
         EMPTY_PAGE_TEST_SIZE_INTS = 4, // i.e. 16 bytes
@@ -713,7 +682,7 @@ static bool flashfsIsPageErased(uint32_t address){
  * Find the absolute address of the start of the free space on the device.
  * `headAddress` must be setup prior to this function.
  */
-int flashfsIdentifyStartOfFreeSpace(void)
+static int flashfsIdentifyStartOfFreeSpace(void)
 {
     /* Find the start of the free space on the device by examining the beginning of blocks with a binary search,
      * looking for ones that appear to be erased. We can achieve this with good accuracy because an erased block
@@ -730,10 +699,10 @@ int flashfsIdentifyStartOfFreeSpace(void)
     int left = 0; // Smallest page index in the search region
     int right = flashfsSize / pageSize; // One past the largest page index in the search region
 #ifdef USE_FLASHFS_LOOP
-    right--;
     // We must leave one empty page to:
     //  1. identify empty space
     //  2. differenciate between full and empty
+    right--;
 #endif
     int mid;
     int result = right;
@@ -747,14 +716,15 @@ int flashfsIdentifyStartOfFreeSpace(void)
              * search leftwards to find out:
              */
             result = mid;
-
             right = mid;
         } else {
             left = mid + 1;
         }
     }
 
-    return flashfsAddressShift(headAddress, result * pageSize);
+    const int address = flashfsAddressShift(headAddress, result * pageSize);
+
+    return address;
 }
 
 /**
@@ -781,14 +751,13 @@ void flashfsClose(void)
     switch(flashGeometry->flashType) {
         case FLASH_TYPE_NAND:
             flashFlush();
-            /* FALL THROUGH */
+            FALLTHROUGH;
         case FLASH_TYPE_NOR: {
             flashfsClearBuffer();
 
             const uint16_t pageSize = flashGeometry->pageSize;
-            const uint32_t padding = (tailAddress % pageSize == 0
-                                          ? 0
-                                          : pageSize - tailAddress % pageSize);
+            const uint32_t padding = (tailAddress % pageSize == 0) ?
+                0 : pageSize - tailAddress % pageSize;
 
             flashfsSetTailAddress(flashfsAddressShift(tailAddress, padding));
             break;
@@ -800,7 +769,8 @@ void flashfsClose(void)
  * Locate the start physical address of the used space. Return 0 if all space
  * are unused.
  */
-uint32_t flashfsIdentifyStartOfUsedSpace() {
+static uint32_t flashfsIdentifyStartOfUsedSpace(void)
+{
     // Locate the boundary between erased and filled.
     // This can only be at the sector boundary.
 
@@ -818,6 +788,23 @@ uint32_t flashfsIdentifyStartOfUsedSpace() {
     // fallback
     return flashPartition->startSector * flashGeometry->sectorSize;
 }
+
+#ifdef USE_FLASHFS_LOOP
+void flashfsLoopInitialErase(void)
+{
+    if (flashfsState == FLASHFS_IDLE) {
+        const int32_t bytesNeeded = flashfsGetOffset() +
+            blackboxConfig()->initialEraseFreeSpaceKiB * 1024 - flashfsSize;
+
+        if (bytesNeeded > 0) {
+            const uint32_t sectorSize = flashGeometry->sectorSize;
+            initialEraseSectors = (bytesNeeded + sectorSize - 1) / sectorSize;
+
+            flashfsSetState(FLASHFS_INITIAL_ERASING);
+        }
+    }
+}
+#endif /* USE_FLASHFS_LOOP */
 
 /**
  * Call after initializing the flash chip in order to set up the filesystem.
@@ -841,13 +828,13 @@ void flashfsInit(void)
     }
 
 #ifdef USE_FLASHFS_LOOP
-    headAddress = flashfsIdentifyStartOfUsedSpace();
+    flashfsSetHeadAddress(flashfsIdentifyStartOfUsedSpace());
 #endif
 
     // Start the file pointer off at the beginning of free space so caller can start writing immediately
     flashfsSeekPhysical(flashfsIdentifyStartOfFreeSpace());
 
-    flashfsState = FLASHFS_IDLE;
+    flashfsSetState(FLASHFS_IDLE);
 }
 
 #ifdef USE_FLASH_TOOLS
@@ -908,33 +895,3 @@ bool flashfsVerifyEntireFlash(void)
 }
 #endif // USE_FLASH_TOOLS
 
-#ifdef USE_FLASHFS_LOOP
-void flashfsLoopInitialErase()
-{
-    if (flashfsState != FLASHFS_IDLE) {
-        return;
-    }
-
-    const int32_t bytesNeeded =
-        flashfsGetOffset() + blackboxConfig()->initialEraseFreeSpaceKiB * 1024 -
-        flashfsSize;
-
-    if (bytesNeeded <= 0) {
-        return;
-    }
-    const uint32_t sectorSize = flashGeometry->sectorSize;
-    initialEraseSectors = (bytesNeeded + sectorSize - 1) / sectorSize;
-
-    flashfsState = FLASHFS_INITIAL_ERASING;
-}
-#endif
-
-uint32_t flashfsGetHeadAddress()
-{
-    return headAddress;
-}
-
-uint32_t flashfsGetTailAddress()
-{
-    return tailAddress;
-}
