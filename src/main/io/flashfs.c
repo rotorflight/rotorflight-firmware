@@ -765,6 +765,7 @@ void flashfsClose(void)
 /*
  * Locate the start physical address of the used space.
  */
+#ifdef USE_FLASHFS_LOOP
 static uint32_t flashfsIdentifyStartOfUsedSpace(void)
 {
     // Locate the boundary between erased and filled.
@@ -786,7 +787,6 @@ static uint32_t flashfsIdentifyStartOfUsedSpace(void)
     return flashPartition->startSector * flashGeometry->sectorSize;
 }
 
-#ifdef USE_FLASHFS_LOOP
 void flashfsLoopInitialErase(void)
 {
     if (flashfsState == FLASHFS_IDLE) {
