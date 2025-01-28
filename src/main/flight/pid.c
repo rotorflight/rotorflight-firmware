@@ -126,14 +126,28 @@ static void INIT_CODE pidSetLooptime(uint32_t pidLooptime)
 #endif
 }
 
-void INIT_CODE pidInit(const pidProfile_t *pidProfile)
+static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
 {
-    pidSetLooptime(gyro.targetLooptime);
-    pidInitProfile(pidProfile);
+    // PID Derivative Filters
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+        difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
+        difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+    }
+
+    // RPM change filter
+    difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
+
+    // Cross-coupling filters
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 }
 
 void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 {
+    // PID not initialised yet
+    if (pid.dT == 0)
+      return;
+
     // PID algorithm
     pid.pidMode = pidProfile->pid_mode;
 
@@ -194,8 +208,8 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
         lowpassFilterInit(&pid.errorFilter[i], LPF_ORDER1, pidProfile->error_cutoff[i], pid.freq, 0);
-        difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
-        difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+        difFilterUpdate(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
+        difFilterUpdate(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
     }
 
     // Error relax
@@ -220,17 +234,12 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     lowpassFilterInit(&pid.precomp.yawPrecompFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
 
     // RPM change filter
-    difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
+    difFilterUpdate(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
 
     // Tail/yaw precomp
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
     pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 100.0f;
-
-    // Fast RPM signal required
-    if (pidProfile->yaw_inertia_precomp_gain && !isMotorFastRpmSourceActive(0)) {
-      setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
-    }
 
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
@@ -240,8 +249,8 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.cyclicCrossCouplingGain[FD_ROLL]  = pid.cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
 
     // Cross-coupling filters
-    firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
-    firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
@@ -252,6 +261,21 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+}
+
+void INIT_CODE pidInit(const pidProfile_t *pidProfile)
+{
+    pidSetLooptime(gyro.targetLooptime);
+    pidInitFilters(pidProfile);
+    pidInitProfile(pidProfile);
+}
+
+void INIT_CODE pidPostInit(void)
+{
+    // Fast RPM signal required
+    if (pid.precomp.yawInertiaGain && !isMotorFastRpmSourceActive(0)) {
+        setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
+    }
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
