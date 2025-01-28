@@ -44,7 +44,10 @@
 
 #include "msc/usbd_storage.h"
 
-#define FILESYSTEM_SIZE_MB 256
+#define EMFAT_MAX_LOG_ENTRY 100
+
+#define FILESYSTEM_MIN_SIZE_MB 64
+
 #define HDR_BUF_SIZE 32
 
 #ifdef USE_EMFAT_AUTORUN
@@ -53,18 +56,12 @@ static const char autorun_file[] =
     "icon=icon.ico\r\n"
     "label=Rotorflight Blackbox\r\n" ;
 #define AUTORUN_SIZE (sizeof(autorun_file) - 1)
-#define EMFAT_INCR_AUTORUN 1
-#else
-#define EMFAT_INCR_AUTORUN 0
 #endif
 
 #ifdef USE_EMFAT_README
 static const char readme_file[] =
     "This is readme file\r\n";
 #define README_SIZE  (sizeof(readme_file) - 1)
-#define EMFAT_INCR_README 1
-#else
-#define EMFAT_INCR_README 0
 #endif
 
 #ifdef USE_EMFAT_ICON
@@ -73,12 +70,35 @@ static const char icon_file[] =
     #include "icon.hex"
 };
 #define ICON_SIZE    (sizeof(icon_file))
-#define EMFAT_INCR_ICON 1
-#else
-#define EMFAT_INCR_ICON 0
 #endif
 
-#define CMA_TIME EMFAT_ENCODE_CMA_TIME(1,1,2018, 13,0,0)
+enum {
+    EMFAT_ENTRY_DIR = 0,
+#ifdef USE_EMFAT_AUTORUN
+    EMFAT_ENTRY_AUTORUN,
+#endif
+#ifdef USE_EMFAT_ICON
+    EMFAT_ENTRY_ICON,
+#endif
+#ifdef USE_EMFAT_README
+    EMFAT_ENTRY_README,
+#endif
+    EMFAT_PREDEF_FILE_COUNT,
+
+    // Two extra entries
+    EMFAT_ENTRY_ALL_LOGS = EMFAT_PREDEF_FILE_COUNT,
+    EMFAT_ENTRY_PADDING,
+
+    EMFAT_PREDEF_ENTRY_COUNT
+};
+
+// RTFL_002_20251012_141213.bbl
+//     1234567890123456789012345
+#define EMFAT_MAX_NAME_LENGTH (MAX_NAME_LENGTH + 25)
+
+#define EMFAT_MAX_ENTRY (EMFAT_MAX_LOG_ENTRY + EMFAT_PREDEF_ENTRY_COUNT + 1)
+
+#define CMA_TIME EMFAT_ENCODE_CMA_TIME(1,1,2000, 0,0,0)
 #define CMA { CMA_TIME, CMA_TIME, CMA_TIME }
 
 #if defined (USE_EMFAT_AUTORUN) || defined (USE_EMFAT_ICON) || defined (USE_EMFAT_README)
@@ -109,34 +129,30 @@ static void bblog_read_proc(uint8_t *dest, int size, uint32_t offset, emfat_entr
 
 static const emfat_entry_t entriesPredefined[] =
 {
-    // name           dir    attr         lvl offset  size             max_size        user                time  read               write
-    { "",             true,  0,           0,  0,      0,               0,              0,                  CMA,  NULL,              NULL, { 0 } },
+    // index                    name            dir    attr         lvl offset  size             max_size        user                time  read               write
+    [EMFAT_ENTRY_DIR]       = { "",             true,  0,           0,  0,      0,               0,              0,                  CMA,  NULL,              NULL, { 0 } },
 #ifdef USE_EMFAT_AUTORUN
-    { "autorun.inf",  false, ATTR_HIDDEN, 1,  0,      AUTORUN_SIZE,    AUTORUN_SIZE,   (long)autorun_file, CMA,  memory_read_proc,  NULL, { 0 } },
+    [EMFAT_ENTRY_AUTORUN]   = { "autorun.inf",  false, ATTR_HIDDEN, 1,  0,      AUTORUN_SIZE,    AUTORUN_SIZE,   (long)autorun_file, CMA,  memory_read_proc,  NULL, { 0 } },
 #endif
 #ifdef USE_EMFAT_ICON
-    { "icon.ico",     false, ATTR_HIDDEN, 1,  0,      ICON_SIZE,       ICON_SIZE,      (long)icon_file,    CMA,  memory_read_proc,  NULL, { 0 } },
+    [EMFAT_ENTRY_ICON]      = { "icon.ico",     false, ATTR_HIDDEN, 1,  0,      ICON_SIZE,       ICON_SIZE,      (long)icon_file,    CMA,  memory_read_proc,  NULL, { 0 } },
 #endif
 #ifdef USE_EMFAT_README
-    { "readme.txt",   false, 0,           1,  0,      README_SIZE,     1024*1024,      (long)readme_file,  CMA,  memory_read_proc,  NULL, { 0 } },
+    [EMFAT_ENTRY_README]    = { "readme.txt",   false, 0,           1,  0,      README_SIZE,     1024*1024,      (long)readme_file,  CMA,  memory_read_proc,  NULL, { 0 } },
 #endif
-    { FC_FIRMWARE_IDENTIFIER "_ALL.BBL", 0,     0,           1,  0,      0,               0,              0,                  CMA,  bblog_read_proc,   NULL, { 0 } },
-    { "PADDING.TXT",  0,     ATTR_HIDDEN, 1,  0,      0,               0,              0,                  CMA,  NULL,              NULL, { 0 } },
+    [EMFAT_ENTRY_ALL_LOGS]  = { "",             false, 0,           1,  0,      0,               0,              0,                  CMA,  bblog_read_proc,   NULL, { 0 } },
+    [EMFAT_ENTRY_PADDING]   = { "padding.nul",  false, ATTR_HIDDEN, 1,  0,      0,               0,              0,                  CMA,  NULL,              NULL, { 0 } },
 };
 
-#define PREDEFINED_ENTRY_COUNT (1 + EMFAT_INCR_AUTORUN + EMFAT_INCR_ICON + EMFAT_INCR_README)
-#define APPENDED_ENTRY_COUNT 2
+static char logFileNames[EMFAT_MAX_LOG_ENTRY + 1][EMFAT_MAX_NAME_LENGTH];
 
-#define EMFAT_MAX_LOG_ENTRY 100
-#define EMFAT_MAX_ENTRY (PREDEFINED_ENTRY_COUNT + EMFAT_MAX_LOG_ENTRY + APPENDED_ENTRY_COUNT)
-
-static emfat_entry_t entries[1 + EMFAT_MAX_ENTRY];
+static emfat_entry_t entries[EMFAT_MAX_ENTRY];
 
 emfat_t emfat;
+
 static uint32_t cmaTime = CMA_TIME;
 
-// The craft name to compose log filenames. It includes a separator "_".
-static char craft_name[MAX_NAME_LENGTH + 2];
+static char logPrefix[MAX_NAME_LENGTH + 1];
 
 static void emfat_set_entry_cma(emfat_entry_t *entry)
 {
@@ -190,46 +206,42 @@ void legalize_filename(char *name)
             continue;
         }
         switch (name[i]) {
-        case ' ':
-        case '$':
-        case '%':
-        case '-':
-        case '_':
-        case '@':
-        case '~':
-        case '`':
-        case '!':
-        case '(':
-        case ')':
-        case '{':
-        case '}':
-        case '^':
-        case '#':
-        case '&':
-        case '.': // Spec says only 1 dot is allowed. We don't care this rule.
-            continue;
+            case ' ':
+            case '$':
+            case '%':
+            case '-':
+            case '_':
+            case '@':
+            case '~':
+            case '`':
+            case '!':
+            case '(':
+            case ')':
+            case '{':
+            case '}':
+            case '^':
+            case '#':
+            case '&':
+            case '.': // Spec says only 1 dot is allowed. We don't care this rule.
+                continue;
         }
 
         name[i] = '_';
     }
 }
 
-static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
-                          uint32_t size)
+static void emfat_set_log_file_name(emfat_entry_t *entry, int number)
 {
-    static char logNames[1 + EMFAT_MAX_LOG_ENTRY]
-                        [4 + MAX_NAME_LENGTH + 1 + 1 + 9 + 6 + 4 + 1];
-
-    if (entry->cma_time[0] == cmaTime) {
-        // Unrecognized timestamp
-        tfp_sprintf(logNames[number], FC_FIRMWARE_IDENTIFIER "%s_%03d.bbl",
-                    craft_name,
-                    number + 1);
+    if (entry->cma_time[0] == cmaTime && number > 0) {
+        tfp_sprintf(logFileNames[number],
+                    "%s_%03d.bbl",
+                    logPrefix,
+                    number);
     } else {
-        // Recognized timestamp, create a meaningful filename.
-        tfp_sprintf(logNames[number],
-                    FC_FIRMWARE_IDENTIFIER "%s_%04d%02d%02d_%02d%02d%02d.bbl",
-                    craft_name,
+        tfp_sprintf(logFileNames[number],
+                    "%s%s_%04d%02d%02d_%02d%02d%02d.bbl",
+                    logPrefix,
+                    number == 0 ? "_all" : "",
                     emfat_decode_year(entry->cma_time[0]),
                     emfat_decode_month(entry->cma_time[0]),
                     emfat_decode_day(entry->cma_time[0]),
@@ -237,12 +249,25 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
                     emfat_decode_minute(entry->cma_time[0]),
                     emfat_decode_second(entry->cma_time[0]));
     }
-    entry->name = logNames[number];
+
+    entry->name = logFileNames[number];
+}
+
+static void emfat_set_entry_size(emfat_entry_t *entry, uint32_t offset, uint32_t size)
+{
     entry->level = 1;
     entry->offset = offset;
     entry->curr_size = size;
     entry->max_size = entry->curr_size;
+}
+
+static void emfat_set_log_entry(emfat_entry_t *entry, uint32_t offset, uint32_t size)
+{
+    emfat_set_entry_size(entry, offset, size);
+
+    // Log data reader
     entry->readcb = bblog_read_proc;
+
     // Set file modification/access times to be the same as the creation time
     entry->cma_time[1] = entry->cma_time[0];
     entry->cma_time[2] = entry->cma_time[0];
@@ -251,17 +276,19 @@ static void emfat_add_log(emfat_entry_t *entry, int number, uint32_t offset,
 static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpace)
 {
     static uint8_t buffer[HDR_BUF_SIZE];
+
+    const char *logHeader = "H Product:Blackbox";
+    int lenLogHeader = strlen(logHeader);
+    const char *timeHeader = "H Log start datetime:";
+    int lenTimeHeader = strlen(timeHeader);
+
+    int timeHeaderMatched = 0;
     int lastOffset = -1;
     int currOffset = 0;
     int buffOffset;
     int hdrOffset;
-    int fileNumber = 0;
+    int fileNumber = 1;
     int logCount = 0;
-    char *logHeader = "H Product:Blackbox";
-    int lenLogHeader = strlen(logHeader);
-    char *timeHeader = "H Log start datetime:";
-    int lenTimeHeader = strlen(timeHeader);
-    int timeHeaderMatched = 0;
 
     for ( ; currOffset < flashfsUsedSpace ; currOffset += flashGetGeometry()->pageSize) {
 
@@ -277,13 +304,15 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
         // The length of the previous record is now known
         if (lastOffset != -1) {
             // Record the previous entry
-            emfat_add_log(entry++, fileNumber++, lastOffset, currOffset - lastOffset);
+            emfat_set_log_file_name(entry, fileNumber);
+            emfat_set_log_entry(entry, lastOffset, currOffset - lastOffset);
 
+            entry++;
             logCount++;
+            fileNumber++;
         }
 
         // Find the "Log start datetime" entry, example encoding "H Log start datetime:2019-08-15T13:18:22.199+00:00"
-
         buffOffset = lenLogHeader;
         hdrOffset = currOffset;
 
@@ -340,9 +369,10 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
     }
 
     // Now add the final entry
-    if (fileNumber != maxCount && lastOffset != currOffset) {
-        emfat_add_log(entry, fileNumber, lastOffset, currOffset - lastOffset);
-        ++logCount;
+    if (fileNumber < maxCount && lastOffset != currOffset) {
+        emfat_set_log_file_name(entry, fileNumber);
+        emfat_set_log_entry(entry, lastOffset, currOffset - lastOffset);
+        logCount++;
     }
 
     return logCount;
@@ -351,9 +381,8 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
 
 void emfat_init_files(void)
 {
-    int flashfsUsedSpace = 0;
-    int entryIndex = PREDEFINED_ENTRY_COUNT;
-    emfat_entry_t *entry;
+    emfat_entry_t *entry = entries;
+
     memset(entries, 0, sizeof(entries));
 
 #ifdef USE_PERSISTENT_MSC_RTC
@@ -365,55 +394,52 @@ void emfat_init_files(void)
 #endif
 
     // create the predefined entries
-    for (size_t i = 0 ; i < PREDEFINED_ENTRY_COUNT ; i++) {
-        entries[i] = entriesPredefined[i];
-        // These entries have timestamps corresponding to when the filesystem is mounted
-        emfat_set_entry_cma(&entries[i]);
+    for (size_t i = 0 ; i < EMFAT_PREDEF_FILE_COUNT ; i++) {
+        memcpy(entry, &entriesPredefined[i], sizeof(emfat_entry_t));
+        emfat_set_entry_cma(entry);
+        entry++;
     }
 
 #ifdef USE_FLASHFS
-    if (pilotConfig()->name[0]) {
-        tfp_sprintf(craft_name, "_%s", pilotConfig()->name);
-        legalize_filename(craft_name);
-    } else {
-        craft_name[0] = 0;
-    }
+    strcpy(logPrefix, pilotConfig()->name[0] ? pilotConfig()->name : "rtfl");
+    legalize_filename(logPrefix);
 
     flashInit(flashConfig());
     flashfsInit();
     LED0_OFF;
 
-    flashfsUsedSpace = flashfsGetOffset();
+    const int flashfsUsedSpace = flashfsGetOffset();
 
     // Detect and create entries for each individual log
-    const int logCount = emfat_find_log(&entries[PREDEFINED_ENTRY_COUNT], EMFAT_MAX_LOG_ENTRY, flashfsUsedSpace);
-
-    entryIndex += logCount;
+    const int logCount = emfat_find_log(entry, EMFAT_MAX_LOG_ENTRY, flashfsUsedSpace);
+    entry += logCount;
 
     if (logCount > 0) {
         // Create the all logs entry that represents all used flash space to
         // allow downloading the entire log in one file
-        entries[entryIndex] = entriesPredefined[PREDEFINED_ENTRY_COUNT];
-        entry = &entries[entryIndex];
-        entry->curr_size = flashfsUsedSpace;
-        entry->max_size = entry->curr_size;
-        // This entry has timestamps corresponding to when the filesystem is mounted
+        memcpy(entry, &entriesPredefined[EMFAT_ENTRY_ALL_LOGS], sizeof(emfat_entry_t));
+
         emfat_set_entry_cma(entry);
-        ++entryIndex;
+        emfat_set_log_file_name(entry, 0);
+        emfat_set_log_entry(entry, 0, flashfsUsedSpace);
+
+        entry++;
     }
 #endif // USE_FLASHFS
 
-    // Padding file to fill out the filesystem size to FILESYSTEM_SIZE_MB
-    if (flashfsUsedSpace * 2 < FILESYSTEM_SIZE_MB * 1024 * 1024) {
-        entries[entryIndex] = entriesPredefined[PREDEFINED_ENTRY_COUNT + 1];
-        entry = &entries[entryIndex];
-        // used space is doubled because of the individual files plus the single complete file
-        entry->curr_size = (FILESYSTEM_SIZE_MB * 1024 * 1024) - (flashfsUsedSpace * 2);
-        entry->max_size = entry->curr_size;
-        // This entry has timestamps corresponding to when the filesystem is mounted
+    // Padding file to fill out the filesystem size to FILESYSTEM_MIN_SIZE_MB
+    const int padding = FILESYSTEM_MIN_SIZE_MB * 1024 * 1024 - flashfsUsedSpace * 2;
+
+    if (padding > 0) {
+        memcpy(entry, &entriesPredefined[EMFAT_ENTRY_PADDING], sizeof(emfat_entry_t));
+
         emfat_set_entry_cma(entry);
+        emfat_set_entry_size(entry, 0, padding);
+
+        entry++;
     }
 
-    emfat_init(&emfat, "RTFL       ", entries);
+    emfat_init(&emfat, "Rotorflight", entries);
+
     LED0_OFF;
 }
