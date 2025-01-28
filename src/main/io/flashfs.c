@@ -650,31 +650,28 @@ int flashfsReadAbs(uint32_t address, uint8_t *buffer, unsigned int len)
     return bytesRead;
 }
 
-// This function takes a physical address
+/**
+ * Check if the page pointed by address is empty.
+ * This function takes a physical address, pointing to the start of the page.
+ *
+ * Returns true if the page is considered empty.
+ */
 static bool flashfsIsPageErased(uint32_t address)
 {
-    enum {
-        /* We don't expect valid data to ever contain this many consecutive uint32_t's of all 1 bits: */
-        EMPTY_PAGE_TEST_SIZE_INTS = 4, // i.e. 16 bytes
-        EMPTY_PAGE_TEST_SIZE_BYTES = EMPTY_PAGE_TEST_SIZE_INTS * sizeof(uint32_t)
-    };
+    enum { EMPTY_PAGE_TEST_SIZE_BYTES = 16 };
 
-    STATIC_DMA_DATA_AUTO union {
-        uint8_t bytes[EMPTY_PAGE_TEST_SIZE_BYTES];
-        uint32_t ints[EMPTY_PAGE_TEST_SIZE_INTS];
-    } testBuffer;
+    STATIC_DMA_DATA_AUTO uint8_t bytes[EMPTY_PAGE_TEST_SIZE_BYTES];
 
-    if (flashReadBytes(address, testBuffer.bytes, EMPTY_PAGE_TEST_SIZE_BYTES) < EMPTY_PAGE_TEST_SIZE_BYTES) {
+    if (flashReadBytes(address, bytes, EMPTY_PAGE_TEST_SIZE_BYTES) < EMPTY_PAGE_TEST_SIZE_BYTES) {
         // Unexpected timeout from flash, so bail early (reporting the device fuller than it really is)
         return false;
     }
 
-    // Checking the buffer 4 bytes at a time like this is probably faster than byte-by-byte, but I didn't benchmark it :)
-    for (uint8_t i = 0; i < EMPTY_PAGE_TEST_SIZE_INTS; i++) {
-        if (testBuffer.ints[i] != 0xFFFFFFFF) {
+    for (int i = 0; i < EMPTY_PAGE_TEST_SIZE_BYTES; i++) {
+        if (bytes[i] != 0xff)
             return false;
-        }
     }
+
     return true;
 }
 
@@ -766,23 +763,23 @@ void flashfsClose(void)
 }
 
 /*
- * Locate the start physical address of the used space. Return 0 if all space
- * are unused.
+ * Locate the start physical address of the used space.
  */
 static uint32_t flashfsIdentifyStartOfUsedSpace(void)
 {
     // Locate the boundary between erased and filled.
     // This can only be at the sector boundary.
+    int last_erased = -1;
+    int first_used = -1;
 
-    // We skip the startSector because the calculation is a bit different and we
-    // will use that as fallback.
-    for (uint16_t sector = flashPartition->startSector + 1;
-         sector <= flashPartition->endSector; sector++) {
-        uint32_t startAddress = sector * flashGeometry->sectorSize;
-        uint32_t endAddress = startAddress - flashGeometry->pageSize;
-        if (flashfsIsPageErased(endAddress) && !flashfsIsPageErased(startAddress)) {
-            return sector * flashGeometry->sectorSize;
-        }
+    for (int sector = flashPartition->startSector; sector <= flashPartition->endSector; sector++) {
+        if (flashfsIsPageErased(sector * flashGeometry->sectorSize))
+            last_erased = sector;
+        else
+            first_used = sector;
+
+        if (first_used > flashPartition->startSector && first_used == last_erased + 1)
+            return first_used * flashGeometry->sectorSize;
     }
 
     // fallback
