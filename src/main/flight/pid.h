@@ -148,8 +148,6 @@ void pidInit(const pidProfile_t *pidProfile);
 void pidInitProfile(const pidProfile_t *pidProfile);
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
-void pidPostInit(void);
-
 float pidGetDT();
 float pidGetPidFrequency();
 

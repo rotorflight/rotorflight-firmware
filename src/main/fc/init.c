@@ -779,8 +779,6 @@ void init(void)
         governorInit(currentPidProfile);
     }
 
-    pidPostInit();
-
 #ifdef USE_USB_DETECT
     usbCableDetectInit();
 #endif

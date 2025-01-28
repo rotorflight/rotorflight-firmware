@@ -270,14 +270,6 @@ void INIT_CODE pidInit(const pidProfile_t *pidProfile)
     pidInitProfile(pidProfile);
 }
 
-void INIT_CODE pidPostInit(void)
-{
-    // Fast RPM signal required
-    if (pid.precomp.yawInertiaGain && !isMotorFastRpmSourceActive(0)) {
-        setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
-    }
-}
-
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
 {
     if (dstPidProfileIndex < PID_PROFILE_COUNT && srcPidProfileIndex < PID_PROFILE_COUNT &&
