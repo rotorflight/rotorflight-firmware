@@ -112,3 +112,9 @@ int flashPartitionCount(void) {
     auto flash_intf = g_flash_stub.lock();
     return flash_intf->flashPartitionCount();
 }
+
+// Dummy functions we don't care
+bool flashSuspendSupported(void) { return false; }
+void flashSuspend(void) {}
+void flashResume(void) {}
+bool flashIsSuspended(void) { return false; }
