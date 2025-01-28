@@ -103,7 +103,7 @@
 //0xFFFF      2200uSec
 #define XBUS_MODEA_CONVERT_TO_USEC(V) (800 + ((V * 1400) >> 16))
 // As Mode A has a difference frame time, lets set it in a global
-static uint32_t xBusMaxFrameTime;
+static timeDelta_t xBusMaxFrameTime;
 
 static bool xBusFrameReceived = false;
 static bool xBusDataIncoming = false;
@@ -296,7 +296,7 @@ static void xBusDataReceive(uint16_t c, void *data)
     xBusTimeInterval = cmp32(now, xBusTimeLast);
     xBusTimeLast = now;
 
-    if (xBusTimeInterval > (timeDelta_t)xBusMaxFrameTime) {
+    if (xBusTimeInterval > xBusMaxFrameTime) {
         xBusFramePosition = 0;
         xBusDataIncoming = false;
     }
