@@ -200,6 +200,7 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
         break;
 #endif
 #ifdef USE_SERIALRX_XBUS
+    case SERIALRX_XBUS_MODE_A:
     case SERIALRX_XBUS_MODE_B:
     case SERIALRX_XBUS_MODE_B_RJ01:
         enabled = xBusInit(rxConfig, rxRuntimeState);
