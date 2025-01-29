@@ -1643,8 +1643,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yaw_precomp", "%d,%d,%d",               currentPidProfile->yaw_precomp_cutoff,
                                                                             currentPidProfile->yaw_cyclic_ff_gain,
                                                                             currentPidProfile->yaw_collective_ff_gain);
-        BLACKBOX_PRINT_HEADER_LINE("yaw_precomp_impulse", "%d,%d",          currentPidProfile->yaw_collective_dynamic_gain,
-                                                                            currentPidProfile->yaw_collective_dynamic_decay);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_inertia_precomp", "%d,%d",          currentPidProfile->yaw_inertia_precomp_gain,
+                                                                            currentPidProfile->yaw_inertia_precomp_cutoff);
         BLACKBOX_PRINT_HEADER_LINE("yaw_tta", "%d,%d",                      currentPidProfile->governor.tta_gain,
                                                                             currentPidProfile->governor.tta_limit);
         BLACKBOX_PRINT_HEADER_LINE("hsi_gain", "%d,%d",                     currentPidProfile->pid[PID_ROLL].O,
@@ -2174,7 +2174,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     }
 
     // Did we run out of room on the device? Stop!
-    if (isBlackboxDeviceFull()) {
+    if (isBlackboxDeviceFull() && !blackboxConfig()->rollingErase) {
         if (blackboxState == BLACKBOX_STATE_RUNNING) {
             blackboxSetState(BLACKBOX_STATE_FULL);
         }

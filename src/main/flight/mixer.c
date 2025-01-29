@@ -346,15 +346,31 @@ static float mixerCollectiveCorrection(float SC)
     return SC;
 }
 
+static float mixerCollectiveScale(float SC, float SR, float SP)
+{
+    float beta;
+    if (SC > 0) {
+        beta = mixerConfig()->collective_geo_correction_pos / 100.0f;
+    } else {
+        beta = -mixerConfig()->collective_geo_correction_neg / 100.0f;
+    }
+    float scale = 1 + beta * (SR * SR + SP * SP);
+    scale = constrainf(scale, 0.0f, 2.0f);
+    return SC * scale;
+}
+
 static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
         // Yaw input value - positive is against torque
-        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+        float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Add center trim
-        float throttle = yaw + mixer.tailCenterTrim;
+        yaw += mixer.tailCenterTrim;
+
+        // Square root law
+        float throttle = sqrtf(fmaxf(yaw, 0));
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
@@ -373,10 +389,13 @@ static void mixerUpdateMotorizedTail(void)
     // Bidirectional tail motor
     else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
         // Yaw input value - positive is against torque
-        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+        float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Add center trim
-        float throttle = yaw + mixer.tailCenterTrim;
+        yaw += mixer.tailCenterTrim;
+
+        // Use square root law
+        float throttle = copysignf(sqrtf(fabsf(yaw)), yaw);
 
         // Apply minimum throttle
         if (throttle > -mixer.tailMotorIdle && throttle < mixer.tailMotorIdle)
@@ -415,6 +434,7 @@ static void mixerUpdateSwash(void)
         float TC = mixer.tailCenterTrim;
 
         SC = mixerCollectiveCorrection(SC);
+        SC = mixerCollectiveScale(SC, SR, SP);
 
         SR += mixer.swashTrim[0];
         SP += mixer.swashTrim[1];

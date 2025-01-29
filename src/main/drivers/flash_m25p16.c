@@ -52,11 +52,19 @@
 
 #define W25Q256_INSTRUCTION_ENTER_4BYTE_ADDRESS_MODE 0xB7
 
+#define W25Q_INSTRUCTION_SUSPEND           0x75
+#define W25Q_INSTRUCTION_RESUME            0x7A
+#define W25Q_INSTRUCTION_READ_STATUS2_REG  0x35
+#define W25Q_STATUS2_SUS_MASK              (1<<7)
+
 // SPI transaction segment indicies for m25p16_pageProgramContinue()
 enum {READ_STATUS, WRITE_ENABLE, PAGE_PROGRAM, DATA1, DATA2};
 
 static uint32_t maxClkSPIHz;
 static uint32_t maxReadClkSPIHz;
+
+const flashVTable_t m25p16_vTable;
+const flashVTable_t w25q_vTable;
 
 // Table of recognised FLASH devices
 struct {
@@ -65,68 +73,67 @@ struct {
     uint16_t        maxReadClkSPIMHz;
     flashSector_t   sectors;
     uint16_t        pagesPerSector;
+    const flashVTable_t *vTable;
 } m25p16FlashConfig[] = {
     // Macronix MX25L3206E
     // Datasheet: https://docs.rs-online.com/5c85/0900766b814ac6f9.pdf
-    { 0xC22016, 86, 33, 64, 256 },
+    { 0xC22016, 86, 33, 64, 256, &m25p16_vTable },
     // Macronix MX25L6406E
     // Datasheet: https://www.macronix.com/Lists/Datasheet/Attachments/7370/MX25L6406E,%203V,%2064Mb,%20v1.9.pdf
-    { 0xC22017, 86, 33, 128, 256 },
+    { 0xC22017, 86, 33, 128, 256, &m25p16_vTable },
     // Macronix MX25L25635E
     // Datasheet: https://www.macronix.com/Lists/Datasheet/Attachments/7331/MX25L25635E,%203V,%20256Mb,%20v1.3.pdf
-    { 0xC22019, 80, 50, 512, 256 },
+    { 0xC22019, 80, 50, 512, 256, &m25p16_vTable },
     // Micron M25P16
     // Datasheet: https://www.micron.com/-/media/client/global/documents/products/data-sheet/nor-flash/serial-nor/m25p/m25p16.pdf
-    { 0x202015, 25, 20, 32, 256 },
+    { 0x202015, 25, 20, 32, 256, &m25p16_vTable },
     // Micron N25Q064
     // Datasheet: https://www.micron.com/-/media/client/global/documents/products/data-sheet/nor-flash/serial-nor/n25q/n25q_64a_3v_65nm.pdf
-    { 0x20BA17, 108, 54, 128, 256 },
+    { 0x20BA17, 108, 54, 128, 256, &m25p16_vTable },
     // Micron N25Q128
     // Datasheet: https://www.micron.com/-/media/client/global/documents/products/data-sheet/nor-flash/serial-nor/n25q/n25q_128mb_1_8v_65nm.pdf
-    { 0x20ba18, 108, 54, 256, 256 },
+    { 0x20ba18, 108, 54, 256, 256, &m25p16_vTable },
     // Winbond W25Q16
     // Datasheet: https://www.winbond.com/resource-files/w25q16dv_revi_nov1714_web.pdf
-    { 0xEF4015, 104, 50, 32, 256 },
+    { 0xEF4015, 104, 50, 32, 256, &w25q_vTable },
     // Winbond W25X32
     // Datasheet: https://www.winbond.com/resource-files/w25x32a_revb_080709.pdf
-    { 0xEF3016, 133, 50, 64, 256 },
+    { 0xEF3016, 133, 50, 64, 256, &m25p16_vTable },
     // Winbond W25Q32
     // Datasheet: https://www.winbond.com/resource-files/w25q32jv%20dtr%20revf%2002242017.pdf?__locale=zh_TW
-    { 0xEF4016, 133, 50, 64, 256 },
+    { 0xEF4016, 133, 50, 64, 256, &w25q_vTable },
     // Winbond W25Q64
     // Datasheet: https://www.winbond.com/resource-files/w25q64jv%20spi%20%20%20revc%2006032016%20kms.pdf
-    { 0xEF4017, 133, 50, 128, 256 }, // W25Q64JV-IQ/JQ 
-    { 0xEF7017, 133, 50, 128, 256 }, // W25Q64JV-IM/JM*
+    { 0xEF4017, 133, 50, 128, 256, &w25q_vTable }, // W25Q64JV-IQ/JQ
+    { 0xEF7017, 133, 50, 128, 256, &w25q_vTable }, // W25Q64JV-IM/JM*
     // Winbond W25Q128
     // Datasheet: https://www.winbond.com/resource-files/w25q128fv%20rev.l%2008242015.pdf
-    { 0xEF4018, 104, 50, 256, 256 },
+    { 0xEF4018, 104, 50, 256, 256, &w25q_vTable },
     // Zbit ZB25VQ128
     // Datasheet: http://zbitsemi.com/upload/file/20201010/20201010174048_82182.pdf
-    { 0x5E4018, 104, 50, 256, 256 },
+    { 0x5E4018, 104, 50, 256, 256, &m25p16_vTable },
     // Winbond W25Q128_DTR
     // Datasheet: https://www.winbond.com/resource-files/w25q128jv%20dtr%20revb%2011042016.pdf
-    { 0xEF7018, 66, 50, 256, 256 },
+    { 0xEF7018, 66, 50, 256, 256, &w25q_vTable },
     // Winbond W25Q256
     // Datasheet: https://www.winbond.com/resource-files/w25q256jv%20spi%20revb%2009202016.pdf
-    { 0xEF4019, 133, 50, 512, 256 },
+    { 0xEF4019, 133, 50, 512, 256, &w25q_vTable },
     // Cypress S25FL064L
     // Datasheet: https://www.cypress.com/file/316661/download
-    { 0x016017, 133, 50, 128, 256 },
+    { 0x016017, 133, 50, 128, 256, &m25p16_vTable },
     // Cypress S25FL128L
     // Datasheet: https://www.cypress.com/file/316171/download
-    { 0x016018, 133, 50, 256, 256 },
+    { 0x016018, 133, 50, 256, 256, &m25p16_vTable },
     // BergMicro W25Q32
     // Datasheet: https://www.winbond.com/resource-files/w25q32jv%20dtr%20revf%2002242017.pdf?__locale=zh_TW
-    { 0xE04016, 133, 50, 1024, 16 },
+    { 0xE04016, 133, 50, 1024, 16, &w25q_vTable },
     // End of list
-    { 0x000000, 0, 0, 0, 0 }
+    { 0x000000, 0, 0, 0, 0, NULL }
 };
 
 #define M25P16_PAGESIZE 256
 
 STATIC_ASSERT(M25P16_PAGESIZE < FLASH_MAX_PAGE_SIZE, M25P16_PAGESIZE_too_small);
-
-const flashVTable_t m25p16_vTable;
 
 static uint8_t m25p16_readStatus(flashDevice_t *fdevice)
 {
@@ -179,6 +186,7 @@ bool m25p16_detect(flashDevice_t *fdevice, uint32_t chipID)
             maxReadClkSPIHz = m25p16FlashConfig[index].maxReadClkSPIMHz * 1000000;
             geometry->sectors = m25p16FlashConfig[index].sectors;
             geometry->pagesPerSector = m25p16FlashConfig[index].pagesPerSector;
+            fdevice->vTable = m25p16FlashConfig[index].vTable;
             break;
         }
     }
@@ -210,7 +218,6 @@ bool m25p16_detect(flashDevice_t *fdevice, uint32_t chipID)
     }
 
     fdevice->couldBeBusy = true; // Just for luck we'll assume the chip could be busy even though it isn't specced to be
-    fdevice->vTable = &m25p16_vTable;
     return true;
 }
 
@@ -471,5 +478,43 @@ const flashVTable_t m25p16_vTable = {
     .pageProgram = m25p16_pageProgram,
     .readBytes = m25p16_readBytes,
     .getGeometry = m25p16_getGeometry,
+    .suspend = NULL,
+    .resume = NULL,
+    .isSuspended = NULL,
+};
+
+/*
+ * w25q family suspend/resume commands.
+ * Note: m25p16 or its family don't support erase suspend. However, some of the
+ * other compatible chips support this function.
+ */
+static void w25q_suspend(flashDevice_t *fdevice) {
+    spiReadWrite(fdevice->io.handle.dev, W25Q_INSTRUCTION_SUSPEND);
+}
+static void w25q_resume(flashDevice_t *fdevice) {
+    spiReadWrite(fdevice->io.handle.dev, W25Q_INSTRUCTION_RESUME);
+    fdevice->couldBeBusy = true;
+}
+static bool w25q_isSuspended(flashDevice_t *fdevice) {
+    STATIC_DMA_DATA_AUTO uint8_t readStatus[2] = { W25Q_INSTRUCTION_READ_STATUS2_REG, 0 };
+    STATIC_DMA_DATA_AUTO uint8_t status[2];
+    spiReadWriteBuf(fdevice->io.handle.dev, readStatus, status, sizeof(readStatus));
+    return status[1] & W25Q_STATUS2_SUS_MASK;
+}
+
+const flashVTable_t w25q_vTable = {
+    .isReady = m25p16_isReady,
+    .waitForReady = m25p16_waitForReady,
+    .eraseSector = m25p16_eraseSector,
+    .eraseCompletely = m25p16_eraseCompletely,
+    .pageProgramBegin = m25p16_pageProgramBegin,
+    .pageProgramContinue = m25p16_pageProgramContinue,
+    .pageProgramFinish = m25p16_pageProgramFinish,
+    .pageProgram = m25p16_pageProgram,
+    .readBytes = m25p16_readBytes,
+    .getGeometry = m25p16_getGeometry,
+    .suspend = w25q_suspend,
+    .resume = w25q_resume,
+    .isSuspended = w25q_isSuspended,
 };
 #endif

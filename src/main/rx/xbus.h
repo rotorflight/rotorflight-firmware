@@ -20,4 +20,5 @@
 
 #pragma once
 
+uint8_t crc8_dallas(const uint8_t* data, const uint8_t size);
 bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState);

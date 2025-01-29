@@ -265,5 +265,8 @@ static const flashVTable_t w25m_vTable = {
     .pageProgram = w25m_pageProgram,
     .readBytes = w25m_readBytes,
     .getGeometry = w25m_getGeometry,
+    .suspend = NULL,
+    .resume = NULL,
+    .isSuspended = NULL,
 };
 #endif
