@@ -679,7 +679,7 @@ static bool flashfsIsPageErased(uint32_t address)
  * Find the absolute address of the start of the free space on the device.
  * `headAddress` must be setup prior to this function.
  */
-static int flashfsIdentifyStartOfFreeSpace(void)
+int flashfsIdentifyStartOfFreeSpace(void)
 {
     /* Find the start of the free space on the device by examining the beginning of blocks with a binary search,
      * looking for ones that appear to be erased. We can achieve this with good accuracy because an erased block
@@ -724,6 +724,31 @@ static int flashfsIdentifyStartOfFreeSpace(void)
     return address;
 }
 
+/*
+ * Locate the start physical address of the used space.
+ */
+#ifdef USE_FLASHFS_LOOP
+static uint32_t flashfsIdentifyStartOfUsedSpace(void)
+{
+    // Locate the boundary between erased and filled.
+    // This can only be at the sector boundary.
+
+    // We skip the startSector because the calculation is a bit different and we
+    // will use that as fallback.
+    for (uint32_t sector = flashPartition->startSector + 1;
+         sector <= flashPartition->endSector; sector++) {
+        const uint32_t startAddress = sector * flashGeometry->sectorSize;
+        const uint32_t endAddress = startAddress - flashGeometry->pageSize;
+        if (flashfsIsPageErased(endAddress) && !flashfsIsPageErased(startAddress)) {
+            return sector * flashGeometry->sectorSize;
+        }
+    }
+
+    // fallback
+    return flashPartition->startSector * flashGeometry->sectorSize;
+}
+#endif
+
 /**
  * Returns true if the file pointer is at the end of the device.
  */
@@ -762,31 +787,7 @@ void flashfsClose(void)
     }
 }
 
-/*
- * Locate the start physical address of the used space.
- */
 #ifdef USE_FLASHFS_LOOP
-static uint32_t flashfsIdentifyStartOfUsedSpace(void)
-{
-    // Locate the boundary between erased and filled.
-    // This can only be at the sector boundary.
-    int last_erased = -1;
-    int first_used = -1;
-
-    for (int sector = flashPartition->startSector; sector <= flashPartition->endSector; sector++) {
-        if (flashfsIsPageErased(sector * flashGeometry->sectorSize))
-            last_erased = sector;
-        else
-            first_used = sector;
-
-        if (first_used > flashPartition->startSector && first_used == last_erased + 1)
-            return first_used * flashGeometry->sectorSize;
-    }
-
-    // fallback
-    return flashPartition->startSector * flashGeometry->sectorSize;
-}
-
 void flashfsLoopInitialErase(void)
 {
     if (flashfsState == FLASHFS_IDLE) {

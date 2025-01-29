@@ -55,6 +55,8 @@ bool flashfsIsEOF(void);
 void flashfsFillEntireFlash(void);
 bool flashfsVerifyEntireFlash(void);
 
+int flashfsIdentifyStartOfFreeSpace(void);
+
 #ifdef USE_FLASHFS_LOOP
 void flashfsLoopInitialErase(void);
 uint32_t flashfsGetHeadAddress(void);
