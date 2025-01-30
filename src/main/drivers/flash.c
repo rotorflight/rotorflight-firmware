@@ -304,6 +304,34 @@ void flashFlush(void)
     }
 }
 
+bool flashSuspendSupported()
+{
+    return flashDevice.vTable->suspend && flashDevice.vTable->resume &&
+           flashDevice.vTable->isSuspended;
+}
+
+void flashSuspend(void)
+{
+    if (flashDevice.vTable->suspend) {
+        flashDevice.vTable->suspend(&flashDevice);
+    }
+}
+
+void flashResume(void)
+{
+    if (flashDevice.vTable->resume) {
+        flashDevice.vTable->resume(&flashDevice);
+    }
+}
+
+bool flashIsSuspended(void)
+{
+    if (flashDevice.vTable->isSuspended) {
+        return flashDevice.vTable->isSuspended(&flashDevice);
+    }
+    return false;
+}
+
 static const flashGeometry_t noFlashGeometry = {
     .totalSize = 0,
 };

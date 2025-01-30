@@ -799,6 +799,9 @@ const flashVTable_t w25n01g_vTable = {
     .flush = w25n01g_flush,
     .readBytes = w25n01g_readBytes,
     .getGeometry = w25n01g_getGeometry,
+    .suspend = NULL,
+    .resume = NULL,
+    .isSuspended = NULL,
 };
 
 typedef volatile struct cb_context_s {

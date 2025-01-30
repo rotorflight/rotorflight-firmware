@@ -2174,7 +2174,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     }
 
     // Did we run out of room on the device? Stop!
-    if (isBlackboxDeviceFull()) {
+    if (isBlackboxDeviceFull() && !blackboxConfig()->rollingErase) {
         if (blackboxState == BLACKBOX_STATE_RUNNING) {
             blackboxSetState(BLACKBOX_STATE_FULL);
         }
