@@ -266,6 +266,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+
+    uint8_t tau10 = pidProfile->scale_collective_tau10;
+    if (tau10 == 0) {
+      tau10 = 1;
+    }
+
+    lowpassFilterInit(&pid.scale_collective_filter, LPF_DAMPED, 10.0f/tau10, pid.freq, 0);
 }
 
 void INIT_CODE pidInit(const pidProfile_t *pidProfile)
@@ -1157,7 +1164,7 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
 }
 
 
-static void pidApplyYawMode3(void)
+static void pidApplyYawMode3(const pidProfile_t *pidProfile)
 {
     const uint8_t axis = FD_YAW;
 
@@ -1175,12 +1182,31 @@ static void pidApplyYawMode3(void)
 
 
   //// P-term
+    // Experimental: calculate scale
+    const float dampedCollectiveDeflectAbs = filterApply(&pid.scale_collective_filter, getCollectiveDeflectionAbs());
+    const float Kp_scale_yaw = scaleRangef(fabsf(gyroRate),
+                                           0.0f, 360.0f,
+                                           1.0f, pidProfile->scale_p_yaw / 100.0f);
+    const float Kp_scale_collective =
+        scaleRangef(dampedCollectiveDeflectAbs,
+                    0.0f, 1.0f,
+                    1.0f, pidProfile->scale_p_collective / 100.0f);
+    const float Kp_scale = constrainf(Kp_scale_yaw * Kp_scale_collective, 0.0f, 2.0f);
 
     // Calculate P-component
-    pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain;
+    pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain * Kp_scale;
 
 
   //// D-term
+    // Experimental: calculate scale
+    const float Kd_scale_yaw = scaleRangef(fabsf(gyroRate),
+                                           0.0f, 360.0f,
+                                           1.0f, pidProfile->scale_d_yaw / 100.0f);
+    const float Kd_scale_collective =
+        scaleRangef(dampedCollectiveDeflectAbs,
+                    0.0f, 1.0f,
+                    1.0f, pidProfile->scale_d_collective / 100.0f);
+    const float Kd_scale = constrainf(Kd_scale_yaw * Kd_scale_collective, 0.0f, 2.0f);
 
     // Select D-term on error or gyro
     const float dError = pid.dtermModeYaw ? errorRate : -gyroRate;
@@ -1189,7 +1215,7 @@ static void pidApplyYawMode3(void)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+    pid.data[axis].D = pid.coef[axis].Kd * dTerm * Kd_scale;
 
 
   //// I-term
@@ -1273,7 +1299,7 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
             pidApplyOffsetBleed(pidProfile);
             pidApplyOffsetFlood(pidProfile);
             pidApplyCyclicCrossCoupling();
-            pidApplyYawMode3();
+            pidApplyYawMode3(pidProfile);
             break;
         case 2:
             pidApplyCyclicMode2(PID_ROLL);
