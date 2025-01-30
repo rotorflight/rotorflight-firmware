@@ -1014,12 +1014,10 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterB);
          */
         sbufWriteU8(dst, currentPidProfile->scale_p_yaw);
-        sbufWriteU8(dst, currentPidProfile->scale_p_yaw_d);
-        sbufWriteU8(dst, currentPidProfile->scale_p_yaw_d_cutoff);
-        sbufWriteU8(dst, currentPidProfile->scale_p_collective);
-        sbufWriteU8(dst, currentPidProfile->scale_p_collective_tau);
         sbufWriteU8(dst, currentPidProfile->scale_d_yaw);
+        sbufWriteU8(dst, currentPidProfile->scale_p_collective);
         sbufWriteU8(dst, currentPidProfile->scale_d_collective);
+        sbufWriteU8(dst, currentPidProfile->scale_collective_tau10);
         break;
 
     default:
@@ -3657,16 +3655,14 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
          *     currentPidProfile->yourFancyParameterB = sbufReadU8(src);
          * }
          */
-        if (sbufBytesRemaining(src) >= 7) {
+        if (sbufBytesRemaining(src) >= 5) {
             currentPidProfile->scale_p_yaw = sbufReadU8(src);
-            currentPidProfile->scale_p_yaw_d = sbufReadU8(src);
-            currentPidProfile->scale_p_yaw_d_cutoff = sbufReadU8(src);
-            currentPidProfile->scale_p_collective = sbufReadU8(src);
-            currentPidProfile->scale_p_collective_tau = sbufReadU8(src);
             currentPidProfile->scale_d_yaw = sbufReadU8(src);
+            currentPidProfile->scale_p_collective = sbufReadU8(src);
             currentPidProfile->scale_d_collective = sbufReadU8(src);
-            if (currentPidProfile->scale_p_collective_tau == 0) {
-                currentPidProfile->scale_p_collective_tau = 1;
+            currentPidProfile->scale_collective_tau10 = sbufReadU8(src);
+            if (currentPidProfile->scale_collective_tau10 == 0) {
+                currentPidProfile->scale_collective_tau10 = 1;
             }
         }
         break;
