@@ -45,6 +45,7 @@ typedef struct blackboxConfig_s {
     uint32_t    fields;
     uint16_t    initialEraseFreeSpaceKiB;
     uint8_t     rollingErase;
+    uint8_t     gracefulPeriod;
 } blackboxConfig_t;
 
 PG_DECLARE(blackboxConfig_t, blackboxConfig);
