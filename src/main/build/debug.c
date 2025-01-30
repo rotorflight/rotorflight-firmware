@@ -112,4 +112,6 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(ERROR_DECAY),
     DEBUG_NAME(HS_OFFSET),
     DEBUG_NAME(HS_BLEED),
+    DEBUG_NAME(AC_CORRECTION),
+    DEBUG_NAME(AC_ERROR),
 };
