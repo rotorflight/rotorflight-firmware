@@ -1183,10 +1183,15 @@ static void pidApplyYawMode3(const pidProfile_t *pidProfile)
 
   //// P-term
     // Experimental: calculate scale
-    const float Kp_scale_yaw = (1.0f - fabsf(gyroRate) / 360 * pidProfile->scale_p_yaw / 100.0f);
     const float dampedCollectiveDeflectAbs = filterApply(&pid.scale_collective_filter, getCollectiveDeflectionAbs());
-    const float Kp_scale_collective = 1.0f - dampedCollectiveDeflectAbs * pidProfile->scale_p_collective / 100.0f;
-    const float Kp_scale = constrainf(Kp_scale_yaw * Kp_scale_collective, 0.0f, 3.0f);
+    const float Kp_scale_yaw = scaleRangef(fabsf(gyroRate),
+                                           0.0f, 360.0f,
+                                           1.0f, pidProfile->scale_p_yaw / 100.0f);
+    const float Kp_scale_collective =
+        scaleRangef(dampedCollectiveDeflectAbs,
+                    0.0f, 1.0f,
+                    1.0f, pidProfile->scale_p_collective / 100.0f);
+    const float Kp_scale = constrainf(Kp_scale_yaw * Kp_scale_collective, 0.0f, 2.0f);
 
     // Calculate P-component
     pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain * Kp_scale;
@@ -1194,9 +1199,14 @@ static void pidApplyYawMode3(const pidProfile_t *pidProfile)
 
   //// D-term
     // Experimental: calculate scale
-    const float Kd_scale_yaw = (1.0f - fabsf(gyroRate) / 360 * pidProfile->scale_p_yaw / 100.0f);
-    const float Kd_scale_collective = 1.0f - dampedCollectiveDeflectAbs * pidProfile->scale_d_collective / 100.0f;
-    const float Kd_scale = constrainf(Kd_scale_yaw * Kd_scale_collective, 0.0f, 3.0f);
+    const float Kd_scale_yaw = scaleRangef(fabsf(gyroRate),
+                                           0.0f, 360.0f,
+                                           1.0f, pidProfile->scale_d_yaw / 100.0f);
+    const float Kd_scale_collective =
+        scaleRangef(dampedCollectiveDeflectAbs,
+                    0.0f, 1.0f,
+                    1.0f, pidProfile->scale_d_collective / 100.0f);
+    const float Kd_scale = constrainf(Kd_scale_yaw * Kd_scale_collective, 0.0f, 2.0f);
 
     // Select D-term on error or gyro
     const float dError = pid.dtermModeYaw ? errorRate : -gyroRate;
