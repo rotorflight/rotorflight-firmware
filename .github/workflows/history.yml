@@ -1,0 +1,80 @@
+name: History
+
+on:
+  push:
+    tags:
+      - 'history/*'
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 500
+
+    - name: Delete tag
+      run: git push origin :${GITHUB_REF}
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Set build variables
+      run: |
+        echo "GIT_VER=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+        echo "GIT_TAG=${GITHUB_REF##refs/tags/}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
+
+    - name: Machine details
+      run: |
+        free
+        cat /proc/cpuinfo  | grep -E '^(processor)|(vendor_id)|(model name)|(cpu MHz)|(cache size)'
+
+    - name: Build git history
+      run: |
+        testbuild()
+        {
+            echo "Building $1"
+            ( nice make TARGET=$1 JFLAG='-j2' || echo '**FAILURE**' ) 2>&1 > $2.$1.out
+            grep -E -H -i '(warning:)|(error:)' $2.$1.out || true
+            grep -E -H '( RAM:)|( ITCM_RAM:)|( DTCM_RAM:)|( FLASH1:)|( AXIM_FLASH1:)' $2.$1.out || true
+        }
+
+        N=${GIT_VER%%-*}
+        M=${GIT_VER##*-}
+
+        while [[ $N -lt $M ]]
+        do
+            RESULT=$(printf '%04d' $N)
+
+            git checkout ${GITHUB_REF}~$N --force --detach
+
+            rm -fr obj
+
+            testbuild STM32H743 ${RESULT} &
+            testbuild STM32F745 ${RESULT} &
+            testbuild STM32F7X2 ${RESULT} &
+            testbuild STM32F411 ${RESULT} &
+            testbuild STM32F405 ${RESULT} &
+            testbuild STM32G47X ${RESULT} &
+            testbuild MATEKH743 ${RESULT} &
+            testbuild MATEKF722 ${RESULT} &
+            testbuild MATEKF411 ${RESULT} &
+            testbuild MATEKF405 ${RESULT} &
+
+            wait
+
+            let N+=1
+        done
+
+        ! grep -F -H '**FAILURE**' *.out
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-history-${{ env.GIT_VER }}
+        path: 0*.out

@@ -1,0 +1,46 @@
+name: Testing
+
+on:
+  push:
+    tags:
+      - 'testing/*'
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Set build variables
+      run: |
+        echo "GIT_VER=${GITHUB_REF##*/}" >> ${GITHUB_ENV}
+        echo "GIT_TAG=${GITHUB_REF##refs/tags/}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
+
+    - name: Machine details
+      run: |
+        free
+        cat /proc/cpuinfo  | grep -E '^(processor)|(vendor_id)|(model name)|(cpu MHz)|(cache size)'
+
+    - name: Build HEX files for unified targets
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
+
+    - name: Move HEX
+      run: mv -v obj/*.hex .
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-test-${{ env.GIT_VER }}
+        path: rotorflight*.hex
+
+    - name: Delete tag
+      run: git push origin :${GITHUB_REF}
+

@@ -1,0 +1,46 @@
+name: PR-CI
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'RF-*'
+
+env:
+
+  TARGETS: unified MATEKF405 MATEKF411 MATEKF722 MATEKH743
+
+jobs:
+
+  ci-build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Set build variables
+      run: |
+        PR=${GITHUB_REF}
+        PR=${PR%%/merge}
+        PR=${PR##*/}
+        echo "GIT_PR=${PR}" >> ${GITHUB_ENV}
+        echo "GIT_VER=PR${PR}-${GITHUB_SHA:0:7}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
+
+    - name: Build HEX files for multiple targets
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
+
+    - name: Move HEX
+      run: mv -v obj/*STM32*.hex .
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-${{ env.GIT_VER }}
+        path: rotorflight*.hex
+
