@@ -72,4 +72,7 @@ typedef struct flashVTable_s {
     void (*flush)(flashDevice_t *fdevice);
     int (*readBytes)(flashDevice_t *fdevice, uint32_t address, uint8_t *buffer, uint32_t length);
     const flashGeometry_t *(*getGeometry)(flashDevice_t *fdevice);
+    void (*suspend)(flashDevice_t *fdevice);
+    void (*resume)(flashDevice_t *fdevice);
+    bool (*isSuspended)(flashDevice_t *fdevice);
 } flashVTable_t;

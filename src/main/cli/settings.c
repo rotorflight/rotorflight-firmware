@@ -236,6 +236,7 @@ static const char * const lookupTableSerialRX[] = {
     "SBUS2",
     "FPORT2",
     "FBUS",
+    "XB-A",
 };
 #endif
 
@@ -926,6 +927,8 @@ const clivalue_t valueTable[] = {
     { "swash_pitch_limit",          VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 3000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_pitch_limit) },
     { "swash_tta_precomp",          VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_tta_precomp) },
     { "swash_geo_correction",       VAR_INT8   | MASTER_VALUE,  .config.minmax = { -125, 125 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, swash_geo_correction) },
+    { "collective_tilt_correction_pos", VAR_INT8 | MASTER_VALUE,  .config.minmax = { -100, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, collective_tilt_correction_pos) },
+    { "collective_tilt_correction_neg", VAR_INT8 | MASTER_VALUE,  .config.minmax = { -100, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, collective_tilt_correction_neg) },
 
 // PG_GOVERNOR_CONFIG
     { "gov_mode",                   VAR_UINT8  |  MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },
@@ -1142,6 +1145,9 @@ const clivalue_t valueTable[] = {
     { "offset_bleed_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_rate_curve) },
     { "offset_bleed_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_limit_curve) },
     { "offset_charge_curve",        VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_charge_curve) },
+    { "offset_flood_curve",         VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_curve) },
+    { "offset_flood_relax_level",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_level) },
+    { "offset_flood_relax_cutoff",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_cutoff) },
 
     { "iterm_relax_type",           VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_ITERM_RELAX_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_type) },
     { "iterm_relax_level",          VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, iterm_relax_level) },

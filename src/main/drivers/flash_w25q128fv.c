@@ -311,7 +311,7 @@ static void w25q128fv_eraseSector(flashDevice_t *fdevice, uint32_t address)
     w25q128fv_writeEnable(fdevice);
 
     w25q128fv_performCommandWithAddress(&fdevice->io, W25Q128FV_INSTRUCTION_BLOCK_ERASE_64KB, address);
-    
+
     w25q128fv_setTimeout(fdevice, W25Q128FV_TIMEOUT_BLOCK_ERASE_64KB_MS);
 }
 
@@ -431,6 +431,9 @@ const flashVTable_t w25q128fv_vTable = {
     .flush = w25q128fv_flush,
     .readBytes = w25q128fv_readBytes,
     .getGeometry = w25q128fv_getGeometry,
+    .suspend = NULL,
+    .resume = NULL,
+    .isSuspended = NULL,
 };
 
 static void w25q128fv_deviceInit(flashDevice_t *flashdev)

@@ -126,14 +126,28 @@ static void INIT_CODE pidSetLooptime(uint32_t pidLooptime)
 #endif
 }
 
-void INIT_CODE pidInit(const pidProfile_t *pidProfile)
+static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
 {
-    pidSetLooptime(gyro.targetLooptime);
-    pidInitProfile(pidProfile);
+    // PID Derivative Filters
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+        difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
+        difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+    }
+
+    // RPM change filter
+    difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
+
+    // Cross-coupling filters
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 }
 
 void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
 {
+    // PID not initialised yet
+    if (pid.dT == 0)
+      return;
+
     // PID algorithm
     pid.pidMode = pidProfile->pid_mode;
 
@@ -194,8 +208,8 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
         lowpassFilterInit(&pid.errorFilter[i], LPF_ORDER1, pidProfile->error_cutoff[i], pid.freq, 0);
-        difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
-        difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+        difFilterUpdate(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
+        difFilterUpdate(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
     }
 
     // Error relax
@@ -220,17 +234,12 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     lowpassFilterInit(&pid.precomp.yawPrecompFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
 
     // RPM change filter
-    difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
+    difFilterUpdate(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
 
     // Tail/yaw precomp
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
     pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 100.0f;
-
-    // Fast RPM signal required
-    if (pidProfile->yaw_inertia_precomp_gain && !isMotorFastRpmSourceActive(0)) {
-      setArmingDisabled(ARMING_DISABLED_RPM_SIGNAL);
-    }
 
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
@@ -240,8 +249,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.cyclicCrossCouplingGain[FD_ROLL]  = pid.cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
 
     // Cross-coupling filters
-    firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
-    firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+    firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+
+    // Offset flood
+    const uint8_t offset_flood_relax_freq =
+        constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
+    pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
@@ -252,6 +266,13 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+}
+
+void INIT_CODE pidInit(const pidProfile_t *pidProfile)
+{
+    pidSetLooptime(gyro.targetLooptime);
+    pidInitFilters(pidProfile);
+    pidInitProfile(pidProfile);
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
@@ -557,6 +578,79 @@ static void pidApplyOffsetBleed(const pidProfile_t * pidProfile)
     DEBUG(HS_BLEED, 7, bleedR * 1e6);
 }
 
+/*
+ * Offset flood: convert axisError to axisOffset according to collective
+ */
+static void pidApplyOffsetFlood(const pidProfile_t * pidProfile) {
+    // Calculate `offsetFloodRelaxFactor`
+    const float collective = getCollectiveDeflection();
+    const float collectiveLpf =
+        pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
+    const float collectiveHpf = collective - collectiveLpf;
+    const float offsetFloodRelaxLevel =
+        fmaxf(pidProfile->offset_flood_relax_level, 1);
+    const float offsetFloodRelaxFactor =
+        fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
+
+    // Prepare curve lookup. Curve points are stored in 0..15° range.
+    const float curve = fabsf(collective) * 0.8f;
+
+    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++) {
+        // The algorithm only makes sense if both Ki and Ko !=0;
+        if (pid.coef[axis].Ki == 0 || pid.coef[axis].Ko == 0 ) {
+            continue;
+        }
+
+        const float axisError = pid.data[axis].axisError;
+        const float axisOffset = pid.data[axis].axisOffset;
+        const float Ki = pid.coef[axis].Ki;
+        const float Ko = pid.coef[axis].Ko;
+
+        // 0. calculate bleed rate
+        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve,
+                                         LOOKUP_CURVE_POINTS) *
+                          0.08f;
+        bleedRate = copysignf(bleedRate, axisError);
+        bleedRate *= offsetFloodRelaxFactor;
+
+        // 1. offsetDelta = value to be added to axisOffset
+        float offsetDelta = bleedRate * pid.dT;
+        // 1. determin sign of offsetDelta
+        // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
+        // && collective<0
+        offsetDelta = copysignf(offsetDelta, bleedRate * collective);
+
+        // 1. Check offsetLimit
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) -
+                      axisOffset;
+
+        // 2. calculate equivalent output delta and errorDelta
+        // errorDelta = value to be substract from axisError.
+        // Note:
+        //    output = axisOffset * collective * Ko
+        //    output = axisError * Ki
+        float outputDelta = collective * offsetDelta * Ko;
+        float errorDelta = outputDelta / Ki;
+
+        // 2. Check axisError limit
+        // Note: axisError and errorDelta have same sign
+        // collective == 0 -> errorDelta == 0 and we will not enter (safe)
+        if (fabsf(axisError) - fabsf(errorDelta) < 0) {
+            // We need to re-calculate outputDelta and offsetDelta:
+            errorDelta = axisError;
+            outputDelta = errorDelta * Ki;
+            offsetDelta = outputDelta / collective / Ko;
+        }
+
+        // 3. Update axisError and axisOffset
+        pid.data[axis].axisError -= errorDelta;
+        pid.data[axis].axisOffset += offsetDelta;
+
+        // Updating .I and .O isn't necessary. It's just for better logging.
+        pid.data[axis].I -= outputDelta;
+        pid.data[axis].O += outputDelta;
+    }
+}
 
 /** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **
  **
@@ -1177,6 +1271,7 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
             pidApplyCyclicMode3(PID_ROLL, pidProfile);
             pidApplyCyclicMode3(PID_PITCH, pidProfile);
             pidApplyOffsetBleed(pidProfile);
+            pidApplyOffsetFlood(pidProfile);
             pidApplyCyclicCrossCoupling();
             pidApplyYawMode3();
             break;
