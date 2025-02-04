@@ -1007,7 +1007,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     }
 
     case MSP_EXPERIMENTAL:
-        /* 
+        /*
          * Send your experimental parameters to LUA. Like:
          *
          * sbufWriteU8(dst, currentPidProfile->yourFancyParameterA);
@@ -1518,8 +1518,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, mixerConfig()->swash_trim[2]);
         sbufWriteU8(dst, mixerConfig()->swash_tta_precomp);
         sbufWriteU8(dst, mixerConfig()->swash_geo_correction);
-        sbufWriteS8(dst, mixerConfig()->collective_geo_correction_pos);
-        sbufWriteS8(dst, mixerConfig()->collective_geo_correction_neg);
+        sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_pos);
+        sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_neg);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -3092,8 +3092,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerConfigMutable()->swash_tta_precomp = sbufReadU8(src);
         mixerConfigMutable()->swash_geo_correction = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 2) {
-            mixerConfigMutable()->collective_geo_correction_pos = sbufReadS8(src);
-            mixerConfigMutable()->collective_geo_correction_neg = sbufReadS8(src);
+            mixerConfigMutable()->collective_tilt_correction_pos = sbufReadS8(src);
+            mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
         }
         mixerInitConfig();
         break;
