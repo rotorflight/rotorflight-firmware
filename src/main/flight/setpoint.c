@@ -46,6 +46,8 @@
 #define SP_MAX_UP_CUTOFF                   20.0f
 #define SP_MAX_DN_CUTOFF                    0.5f
 
+#define SP_BOOST_SCALE                   0.1e-4f
+
 typedef struct
 {
     float setpoint[4];
@@ -66,6 +68,8 @@ typedef struct
     float maxGainDown;
     float movementThreshold[4];
 
+    float boostGain[4];
+    difFilter_t boostFilter[4];
 } setpointData_t;
 
 static FAST_DATA_ZERO_INIT setpointData_t sp;
@@ -135,6 +139,9 @@ INIT_CODE void setpointInitProfile(void)
         }
 
         sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
+
+        sp.boostGain[i] = currentControlRateProfile->setpoint_boost[i] * SP_BOOST_SCALE;
+        difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
 }
 
@@ -148,6 +155,7 @@ INIT_CODE void setpointInit(void)
 
     for (int i = 0; i < 4; i++) {
         lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
+        difFilterInit(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
 
     setpointInitProfile();
@@ -200,6 +208,10 @@ void setpointUpdate(void)
 
         SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);
         DEBUG_AXIS(SETPOINT, axis, 4, SP);
+
+        // Apply boost
+        SP = sp.setpoint[axis] +=
+            difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
     }
 }
 
