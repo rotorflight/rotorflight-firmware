@@ -21,10 +21,6 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "pg/rx.h"
-#include "pg/pid.h"
-
-
 float getSetpoint(int axis);
 float getDeflection(int axis);
 

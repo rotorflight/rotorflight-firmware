@@ -24,6 +24,7 @@
 #include "pg/blackbox.h"
 
 #include "blackbox/blackbox_fielddefs.h"
+#include "common/utils.h"
 
 
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)

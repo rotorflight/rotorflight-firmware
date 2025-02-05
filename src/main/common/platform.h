@@ -120,8 +120,10 @@
 #error "Invalid chipset specified. Update platform.h"
 #endif
 
+#if !defined(UNIT_TEST)
 #include "target/common_pre.h"
 #include "target.h"
 #include "target/common_deprecated_post.h"
 #include "target/common_post.h"
 #include "target/common_defaults_post.h"
+#endif
