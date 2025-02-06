@@ -184,6 +184,11 @@ typedef struct pidProfile_s {
     pidRescueConfig_t   rescue;
     governorProfile_t   governor;
 
+    uint8_t             scale_p_yaw;
+    uint8_t             scale_d_yaw;
+    uint8_t             scale_p_collective;
+    uint8_t             scale_d_collective;
+    uint8_t             scale_collective_tau10;
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
