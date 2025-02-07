@@ -108,6 +108,7 @@ enum {
 #define ESC_SIG_PL5               0xFD
 #define ESC_SIG_TRIB              0x53
 #define ESC_SIG_OPENYGE           0xA5
+#define ESC_SIG_XDFLY             0xA6
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
 #define ESC_SIG_RESTART           0xFF
@@ -1489,7 +1490,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
 #define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
 
-#define FLY_PARAM_FRAME_PERIOD              2                   // asap
+#define FLY_PARAM_FRAME_PERIOD              10                   // asap
 #define FLY_PARAM_CONNECT_TIMEOUT           10
 #define FLY_PARAM_DISCONNECT_TIMEOUT        100
 #define FLY_PARAM_READ_TIMEOUT              100
@@ -3307,6 +3308,368 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
     return rrfsmDataReceive;
 }
 
+/*
+ * XDFLY
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0xA5)
+ *      1:      length in bytes (8)
+ *      2:      command 
+ *          0x03 handshake
+ *          0x34 set_par
+ *          0x33 get_par
+ *      3:      param number
+ *      4-5:    param value
+ *      6-7:      CRC16
+ * 
+ * 
+ * checking whether the param is valid for the connected ESC:
+ *      if the highest bit of the value is set, the parameter is valid for the connected ESC
+ *          bool paramValid = paramValueRaw & 0x8000 != 0 //param shall not be displayed
+ *      the actual data is in the lower 15 bits
+ *          uint16_t paramValue =  paramValueRaw & 0x7FFF
+ * 
+ * for setting a param the high bit of the value is set to 1
+ *     uint16_t paramValueRaw = paramValue | 0x8000
+ * 
+ * when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
+ */
+#define XDFLY_SYNC                          0xA5                // start byte
+#define XDFLY_HEADER_LENGTH                 3                   // header length
+#define XDFLY_PAYLOAD_LENGTH                3
+#define XDFLY_FOOTER_LENGTH                 2                   // CRC
+#define XDFLY_FRAME_LENGTH                  (XDFLY_HEADER_LENGTH + XDFLY_PAYLOAD_LENGTH + XDFLY_FOOTER_LENGTH)
+#define XDFLY_BOOT_DELAY                    5000
+
+#define XDFLY_SYNC_TELEM                    0xDD
+#define XDFLY_TELEM_VERSION                 0x01
+#define XDFLY_TELEM_FRAME_LENGTH            0x20
+#define XDFLY_PARAM_FRAME_PERIOD            10
+#define XDFLY_PARAM_FRAME_TIMEOUT           200
+
+#define XDFLY_CMD_HANDSHAKE                 0x03
+#define XDFLY_CMD_RESPONSE                  0xCD
+#define XDFLY_CMD_SET_PARAM                 0x34
+#define XDFLY_CMD_GET_PARAM                 0x33
+#define XDFLY_NUM_VALIDITY_FIELDS           2
+
+ enum {
+    XDFLY_PARAM_MODEL = 0,
+    XDFLY_PARAM_GOV_MODE,
+    XDFLY_PARAM_CUTOFF,
+    XDFLY_PARAM_TIMING,
+    XDFLY_PARAM_LV_BEC_VOLT,
+    XDFLY_PARAM_ROTATION_DIR,
+    XDFLY_PARAM_GOV_P,
+    XDFLY_PARAM_GOV_I,
+    XDFLY_PARAM_ACCEL,
+    XDFLY_PARAM_AUTO_RESTART_TIME,
+    XDFLY_PARAM_HV_BEC_VOLT,
+    XDFLY_PARAM_RSTARTUP_POWER,
+    XDFLY_PARAM_BRAKE_TYPE,
+    XDFLY_PARAM_RBRAKE_FORCE,
+    XDFLY_PARAM_SR_FUNC,
+    XDFLY_PARAM_CAPACITY_CORR,
+    XDFLY_PARAM_MOTOR_POLES,
+    XDLFY_PARAM_LED_COL,
+    XDFLY_PARAM_SMART_FAN,
+    XDFLY_VALID_1,
+    XDFLY_VALID_2,
+    XDFLY_PARAM_COUNT
+};
+
+uint16_t xdflyParams[XDFLY_PARAM_COUNT] = {0};
+bool xdflyParamsActive[XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS] = {0};
+bool xdflyParamCached[XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS] = {0};
+
+typedef enum {
+    XDFLY_INIT = 0,
+    XDFLY_CACHE_PARAMS,
+    XDFLY_PARAMSREADY,
+    XDFLY_WAIT_FOR_HANDSHAKE,
+    XDFLY_WRITE_PARAMS,
+} xdflySetupStatus_e;
+
+static xdflySetupStatus_e xdflySetupStatus = XDFLY_INIT;
+
+static bool xdflyConnected = false;
+static bool xdflySendHandshake = false;
+static bool xdflyHandshakeResponsePending = false;
+static timeMs_t xdflyHandshakeTimestamp = 0;
+static int xdflyParamIndex = 0;
+static int xdflyWriteParamIndex = 0;
+
+static void xdflySensorProcess(timeUs_t currentTimeUs)
+{
+    // check for any available bytes in the rx buffer
+    if (buffer[1] == 0x01 && buffer[2] == 0x20) { // we got a telemetry frame
+        uint16_t rpm = buffer[8] << 8 | buffer[9];
+        uint16_t temp = buffer[10];
+        uint16_t throttle = buffer[7];
+        uint16_t power = buffer[12];
+        uint16_t voltage = buffer[3] << 8 | buffer[4];
+        uint16_t current = buffer[5] << 8 | buffer[6];
+        uint16_t capacity = buffer[15] << 8 | buffer[16];
+        uint16_t status = buffer[13] << 8 | buffer[14];
+        uint16_t voltBEC = buffer[19];
+
+        escSensorData[0].id = ESC_SIG_XDFLY;
+        escSensorData[0].age = 0;
+        escSensorData[0].erpm = rpm * 10;
+        escSensorData[0].throttle = throttle * 10;
+        escSensorData[0].pwm = power * 10;
+        escSensorData[0].voltage = voltage * 100;
+        escSensorData[0].current = current * 100;
+        escSensorData[0].consumption = capacity;
+        escSensorData[0].temperature = temp * 10;
+        escSensorData[0].bec_voltage = voltBEC * 1000;
+        escSensorData[0].status = status;
+
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+        dataUpdateUs = currentTimeUs;
+
+        totalFrameCount++;
+    }
+    // Maximum frame spacing 50ms, sync after 3 frames
+    checkFrameTimeout(currentTimeUs, 500000);
+}
+
+static void xdflyBuildReq(uint8_t cmd, int *paramIdx, uint16_t framePeriod, uint16_t frameTimeout)
+{
+    uint8_t idx = 0;
+    reqbuffer[idx++] = XDFLY_SYNC;
+    reqbuffer[idx++] = XDFLY_FRAME_LENGTH;
+    reqbuffer[idx++] = cmd;
+    if(cmd == XDFLY_CMD_HANDSHAKE) { // empty payload when sending handshake
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+    }else if(cmd == XDFLY_CMD_GET_PARAM) {
+        memcpy(reqbuffer + idx, paramIdx, XDFLY_PAYLOAD_LENGTH);
+        idx++;
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+    } else if(cmd == XDFLY_CMD_SET_PARAM) {
+        memcpy(reqbuffer + idx, paramIdx, XDFLY_PAYLOAD_LENGTH);
+        idx++;
+        reqbuffer[idx++] = paramUpdPayload[(*paramIdx)*2+1] | 0x80; //mark as active
+        reqbuffer[idx++] = paramUpdPayload[(*paramIdx)*2];
+    }   
+    uint8_t crclen = idx;
+    uint16_t crc16 = calculateCRC16_MODBUS(reqbuffer, crclen);
+    reqbuffer[idx++] = crc16 >> 8;
+    reqbuffer[idx++] = crc16 & 0xFF;
+
+    reqLength = idx;
+    rrfsmFramePeriod = framePeriod;
+    rrfsmFrameTimeout = frameTimeout;
+}
+
+static void xdflyGetNextParam()
+{
+    if(!xdflyParamCached[xdflyParamIndex]){
+        xdflyBuildReq(XDFLY_CMD_GET_PARAM , &xdflyParamIndex , 1, 0);
+    }
+}
+
+static void xdflyWriteNextParam()
+{
+    xdflyBuildReq(XDFLY_CMD_SET_PARAM , &xdflyWriteParamIndex , 1, 0);
+}
+
+static void xdflyStartCachingParams()
+{
+    xdflySetupStatus = XDFLY_CACHE_PARAMS;
+    xdflyParamIndex = 0; //invalidate cache
+    for(uint8_t i = 0; i < XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS; i++){
+        xdflyParamCached[i] = false;
+        xdflyParamsActive[i] = false;
+    }
+    xdflyParams[XDFLY_VALID_1] = 0;
+    xdflyParams[XDFLY_VALID_2] = 0;
+    xdflyGetNextParam();
+}
+
+static bool xdflyDecode(timeUs_t currentTimeUs)
+{
+    if(buffer[0] == XDFLY_SYNC){
+        if (buffer[1] != XDFLY_FRAME_LENGTH)
+        return false;
+
+        // check CRC
+        const  uint16_t crc16 = buffer[6] << 8 | buffer[7];
+        if (calculateCRC16_MODBUS(buffer, XDFLY_FRAME_LENGTH - XDFLY_FOOTER_LENGTH) != crc16)
+            return false;
+
+        // decode
+        switch (buffer[2]) {
+            case XDFLY_CMD_HANDSHAKE:
+            case XDFLY_CMD_RESPONSE:
+                if(buffer[3] == 0x00 && buffer[4] == 0x55 && buffer[5] == 0x55){
+                    rrfsmFramePeriod = 0;
+                    xdflyHandshakeTimestamp = currentTimeUs;
+                    xdflyHandshakeResponsePending = false;
+                    xdflyConnected = true;
+                    rrfsmInvalidateReq();
+                    xdflyStartCachingParams();
+                    return true;
+                }else if(xdflySetupStatus == XDFLY_WRITE_PARAMS){
+                    //response to our write request
+                    if(buffer[3] == xdflyWriteParamIndex){
+                        xdflyWriteParamIndex++;
+                        //only write params which are marked as active
+                        while (xdflyWriteParamIndex < XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS && !xdflyParamsActive[xdflyWriteParamIndex]){
+                            xdflyWriteParamIndex++;
+                        }
+                    } 
+                    //all params written?
+                    if(xdflyWriteParamIndex >= XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS){
+                        xdflyStartCachingParams();
+                    }else{
+                        xdflyWriteNextParam();
+                    }                   
+                    return true;
+                }else if(buffer[3] == xdflyParamIndex || (buffer[3] == 0x0F && xdflyParamIndex == 0)){
+                    xdflyParamCached[xdflyParamIndex] = true;
+                    xdflyParams[xdflyParamIndex] = (buffer[4] << 8 | buffer[5]) & 0x7FFF;
+                    xdflyParamsActive[xdflyParamIndex] = buffer[4] & 0x80;
+                    xdflyParamIndex++;
+                    if(xdflyParamIndex == XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS){
+                        for(uint8_t i = 0; i < XDFLY_PARAM_COUNT-2; i++){
+                            if(i < 16){
+                                xdflyParams[XDFLY_VALID_1] |=  xdflyParamsActive[i] << i;
+                            }else{
+                                xdflyParams[XDFLY_VALID_2] |=  xdflyParamsActive[i] << (i - 16);
+                            }
+                        }
+                        xdflySetupStatus = XDFLY_PARAMSREADY;
+                        paramPayloadLength = XDFLY_PARAM_COUNT * 2;
+                        memcpy(paramPayload, xdflyParams, paramPayloadLength);
+                    }
+                    xdflyGetNextParam(); 
+                    return true;
+                }
+                break;
+
+            default:
+                return false;
+        }
+    }else if (buffer[0] == XDFLY_SYNC_TELEM){
+        if (buffer[1] != XDFLY_TELEM_VERSION)
+            return false;
+
+        if (buffer[2] != XDFLY_TELEM_FRAME_LENGTH)
+            return false;
+        xdflySensorProcess(currentTimeUs);
+
+        if(xdflySetupStatus == XDFLY_CACHE_PARAMS){
+            xdflyGetNextParam();               
+        }else if(xdflySetupStatus == XDFLY_WRITE_PARAMS){
+            //wait for the next frame and start writing after telem frmae
+            xdflyWriteNextParam();
+        }
+        return true;
+    }
+    return false;    
+}
+
+static bool xdflyParamCommit(uint8_t cmd)
+{
+    //start from 1, we won't be writing FW version back
+    xdflyWriteParamIndex = 1;
+    xdflySetupStatus = XDFLY_WRITE_PARAMS;
+    UNUSED(cmd);
+    return true; 
+}
+
+static bool xdflyCrankUncSetup(timeUs_t currentTimeUs)
+{
+    switch(xdflySetupStatus) {
+        case XDFLY_INIT:
+            xdflySensorProcess(currentTimeUs);
+            if(!xdflyConnected) { // param access requested
+                xdflySetupStatus = XDFLY_WAIT_FOR_HANDSHAKE;    
+                rrfsmFrameLength = XDFLY_FRAME_LENGTH;   
+                rrfsmMinFrameLength = XDFLY_FRAME_LENGTH; 
+                xdflySendHandshake = true;  
+            }
+            break;
+        case XDFLY_WAIT_FOR_HANDSHAKE:
+            if(currentTimeUs > xdflyHandshakeTimestamp + 10000 && xdflyHandshakeResponsePending){
+                xdflySendHandshake = true;
+           }  
+            if(xdflySendHandshake){
+                xdflySendHandshake = false;
+                xdflyHandshakeResponsePending = true;
+                xdflyBuildReq(XDFLY_CMD_HANDSHAKE, NULL , XDFLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);          
+                rrfsmFrameLength = XDFLY_FRAME_LENGTH; 
+                rrfsmMinFrameLength = XDFLY_FRAME_LENGTH;
+            }
+            break;
+        case XDFLY_CACHE_PARAMS:
+            break;
+        case XDFLY_PARAMSREADY:
+            //wait for param changes
+            break;
+        case XDFLY_WRITE_PARAMS:
+            break;
+    }
+    return true;
+}
+
+static int8_t xdflyAccept(uint16_t c)
+{ 
+    static uint8_t gotTelemFrame = false;
+    if (readBytes == 1) {
+        // [0] start byte
+        if(c == XDFLY_SYNC_TELEM){
+            gotTelemFrame = true;
+        }else if(c == XDFLY_SYNC){
+            gotTelemFrame = false;
+        }else{
+            return -1;
+        }
+            
+    }else if (readBytes == 2) {
+        if(gotTelemFrame){
+            if (c != XDFLY_TELEM_VERSION)
+                return -1;
+        }else{
+            if (c != XDFLY_FRAME_LENGTH)
+                return -1;
+            rrfsmFrameLength = c;
+            return 1;
+        }
+    }
+    else if (readBytes == 3) {
+        if(gotTelemFrame){
+            if (c != XDFLY_TELEM_FRAME_LENGTH){
+                return -1;
+            }else{
+                rrfsmFrameLength = c;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
 
 /*
  * Raw Telemetry Data Recorder
@@ -3365,6 +3728,9 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_GRAUPNER:
+                rrfsmSensorProcess(currentTimeUs);
+                break;
+            case ESC_SENSOR_PROTO_XDFLY:
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
@@ -3445,6 +3811,15 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_GRAUPNER:
             callback = graupnerSensorInit();
             baudrate = 19200;
+            break;
+        case ESC_SENSOR_PROTO_XDFLY:
+            baudrate = 115200;
+            rrfsmCrank = xdflyCrankUncSetup;
+            rrfsmDecode = xdflyDecode;
+            callback = rrfsmDataReceive;
+            rrfsmAccept = xdflyAccept;
+            paramCommit = xdflyParamCommit;
+            escSig = ESC_SIG_XDFLY;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
