@@ -45,6 +45,9 @@ typedef struct controlRateConfig_s {
 
     uint8_t setpoint_boost[4];
     uint8_t setpoint_boost_cutoff[4];
+
+    uint8_t dynamic_deadband_gain;
+    uint8_t dynamic_deadband_cutoff;
 } controlRateConfig_t;
 
 PG_DECLARE_ARRAY(controlRateConfig_t, CONTROL_RATE_PROFILE_COUNT, controlRateProfiles);
