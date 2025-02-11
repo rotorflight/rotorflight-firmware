@@ -115,6 +115,7 @@ typedef struct
 #define WS2811_DMA_TC_FLAG (void *)1
 #define WS2811_DMA_HANDLER_IDENTIFER 0
 #define NVIC_PriorityGroup_2 0x500
+#define SYSTEM_HSE_VALUE 0
 
 #define MCU_TYPE_ID   99
 #define MCU_TYPE_NAME "UNIT_TEST"
