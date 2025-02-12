@@ -33,4 +33,6 @@ PG_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig,
         .hw4_current_offset = 0,
         .hw4_current_gain = 0,
         .hw4_voltage_gain = 0,
+        .currentCorrectionFactor = 100,
+        .consumptionCorrectionFactor = 100,
 );
