@@ -48,7 +48,8 @@
 
 #define SP_BOOST_SCALE                   0.1e-4f
 #define DYNAMIC_DEADBAND_SCALE             1e-4f
-#define DYNAMIC_DEADBAND_LIMIT             0.20f
+#define DYNAMIC_DEADBAND_LIMIT             0.70f
+#define DYNAMIC_DEADBAND_LPF_CUTOFF        6.0f
 
 typedef struct
 {
@@ -76,6 +77,7 @@ typedef struct
     float dynamicDeadbandGain;
     difFilter_t dynamicDeadbandFilter;
     float dynamicDeadband;
+    filter_t dynamicDeadbandLPF;
 } setpointData_t;
 
 static FAST_DATA_ZERO_INIT setpointData_t sp;
@@ -172,7 +174,7 @@ INIT_CODE void setpointInit(void)
         lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
         difFilterInit(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
-
+    lowpassFilterInit(&sp.dynamicDeadbandLPF, LPF_1ST_ORDER, DYNAMIC_DEADBAND_LPF_CUTOFF, pidGetPidFrequency(), LPF_UPDATE);
     difFilterInit(&sp.dynamicDeadbandFilter, currentControlRateProfile->dynamic_deadband_cutoff, pidGetPidFrequency());
     setpointInitProfile();
 }
@@ -181,7 +183,10 @@ void updateDynamicYawDeadband(float deflection)
 {
     sp.dynamicDeadband =
         fabsf(difFilterApply(&sp.dynamicDeadbandFilter, deflection) *
-              sp.dynamicDeadbandGain);
+              sp.dynamicDeadbandGain * 5.0f);
+
+    sp.dynamicDeadband = filterApply(&sp.dynamicDeadbandLPF, sp.dynamicDeadband);
+
     sp.dynamicDeadband =
         constrainf(sp.dynamicDeadband, 0, DYNAMIC_DEADBAND_LIMIT);
 }
@@ -189,6 +194,8 @@ void updateDynamicYawDeadband(float deflection)
 void setpointUpdate(void)
 {
     float deflection[4];
+    float data;
+    float range;
 
     for (int axis = 0; axis < 4; axis++) {
         deflection[axis] = getRcDeflection(axis);
@@ -227,7 +234,13 @@ void setpointUpdate(void)
 
         if (axis == FD_YAW) {
             updateDynamicYawDeadband(SP);
-            SP = fapplyDeadband(SP, sp.dynamicDeadband);
+            data = fapplyDeadband(SP, sp.dynamicDeadband);
+            range = 1.0f - sp.dynamicDeadband;
+
+            // Deflection range is -1..1
+            SP = limitf(data / range, 1.0f);
+
+            DEBUG_AXIS(SETPOINT, axis, 1, sp.dynamicDeadband * 1000);
         }
 
         SP = filterApply(&sp.smoothingFilter[axis], SP);
