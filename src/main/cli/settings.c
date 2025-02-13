@@ -807,7 +807,7 @@ const clivalue_t valueTable[] = {
     { "blackbox_initial_erase_kb",  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT16_MAX }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, initialEraseFreeSpaceKiB) },
     { "blackbox_rolling_erase",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, rollingErase) },
 #endif
-    { "blackbox_graceful_period",   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, gracefulPeriod) },
+    { "blackbox_grace_period",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, gracePeriod) },
 #endif
 
 // PG_MOTOR_CONFIG

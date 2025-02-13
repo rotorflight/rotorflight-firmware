@@ -1725,7 +1725,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, blackboxConfig()->fields);
         sbufWriteU16(dst, blackboxConfig()->initialEraseFreeSpaceKiB);
         sbufWriteU8(dst, blackboxConfig()->rollingErase);
-        sbufWriteU8(dst, blackboxConfig()->gracefulPeriod);
+        sbufWriteU8(dst, blackboxConfig()->gracePeriod);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
@@ -2813,7 +2813,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 blackboxConfigMutable()->rollingErase = sbufReadU8(src);
             }
             if (sbufBytesRemaining(src) >= 1) {
-                blackboxConfigMutable()->gracefulPeriod = sbufReadU8(src);
+                blackboxConfigMutable()->gracePeriod = sbufReadU8(src);
             }
         }
         break;
