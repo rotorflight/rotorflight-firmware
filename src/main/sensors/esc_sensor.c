@@ -1490,7 +1490,7 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
 #define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
 
-#define FLY_PARAM_FRAME_PERIOD              10                   // asap
+#define FLY_PARAM_FRAME_PERIOD              2                   // asap
 #define FLY_PARAM_CONNECT_TIMEOUT           10
 #define FLY_PARAM_DISCONNECT_TIMEOUT        100
 #define FLY_PARAM_READ_TIMEOUT              100
@@ -3375,7 +3375,7 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
     XDFLY_PARAM_SR_FUNC,
     XDFLY_PARAM_CAPACITY_CORR,
     XDFLY_PARAM_MOTOR_POLES,
-    XDLFY_PARAM_LED_COL,
+    XDFLY_PARAM_LED_COL,
     XDFLY_PARAM_SMART_FAN,
     XDFLY_VALID_1,
     XDFLY_VALID_2,
@@ -3551,8 +3551,8 @@ static bool xdflyDecode(timeUs_t currentTimeUs)
                     xdflyParams[xdflyParamIndex] = (buffer[4] << 8 | buffer[5]) & 0x7FFF;
                     xdflyParamsActive[xdflyParamIndex] = buffer[4] & 0x80;
                     xdflyParamIndex++;
-                    if(xdflyParamIndex == XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS){
-                        for(uint8_t i = 0; i < XDFLY_PARAM_COUNT-2; i++){
+                    if(xdflyParamIndex >= XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS){
+                        for(uint8_t i = 0; i < XDFLY_PARAM_COUNT-XDFLY_NUM_VALIDITY_FIELDS; i++){
                             if(i < 16){
                                 xdflyParams[XDFLY_VALID_1] |=  xdflyParamsActive[i] << i;
                             }else{
@@ -3562,8 +3562,9 @@ static bool xdflyDecode(timeUs_t currentTimeUs)
                         xdflySetupStatus = XDFLY_PARAMSREADY;
                         paramPayloadLength = XDFLY_PARAM_COUNT * 2;
                         memcpy(paramPayload, xdflyParams, paramPayloadLength);
-                    }
-                    xdflyGetNextParam(); 
+                    }else{
+                        xdflyGetNextParam();
+                    } 
                     return true;
                 }
                 break;
@@ -3670,6 +3671,18 @@ static int8_t xdflyAccept(uint16_t c)
     }
     return 0;
 }
+
+static serialReceiveCallbackPtr xdflySensorInit(void)
+{
+    rrfsmCrank = xdflyCrankUncSetup;
+    rrfsmDecode = xdflyDecode;
+    rrfsmAccept = xdflyAccept;
+    paramCommit = xdflyParamCommit;
+    escSig = ESC_SIG_XDFLY;
+
+    return rrfsmDataReceive;
+}
+
 
 /*
  * Raw Telemetry Data Recorder
@@ -3813,13 +3826,8 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_XDFLY:
+            callback = xdflySensorInit();
             baudrate = 115200;
-            rrfsmCrank = xdflyCrankUncSetup;
-            rrfsmDecode = xdflyDecode;
-            callback = rrfsmDataReceive;
-            rrfsmAccept = xdflyAccept;
-            paramCommit = xdflyParamCommit;
-            escSig = ESC_SIG_XDFLY;
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
