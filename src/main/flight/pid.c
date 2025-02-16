@@ -1189,7 +1189,7 @@ static void pidApplyYawMode3(void)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm * stopGain;
+    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
 
 
   //// I-term
