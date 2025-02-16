@@ -1014,6 +1014,7 @@ static void pidApplyYawMode2(void)
  **
  **   setPoint => Kf => F-term
  **   setPoint => difFilter => Kb => B-term
+ **   P and I term has stop gains
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
