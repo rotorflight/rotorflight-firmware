@@ -290,3 +290,14 @@ typedef struct simpleLowpassFilter_s {
 
 int32_t simpleLPFilterUpdate(simpleLowpassFilter_t *filter, int32_t newVal);
 void simpleLPFilterInit(simpleLowpassFilter_t *filter, int32_t beta, int32_t fpShift);
+
+typedef struct simpleKalmanFilter_s {
+    float x;  // Estimated value
+    float p;  // Estimated uncertainty
+    float q;  // Process noise
+    float r;  // Measurement noise
+    float k;  // Kalman gain
+} simpleKalmanFilter_t;
+
+void simpleKalmanFilterInit(simpleKalmanFilter_t *filter, float x, float p, float q, float r);
+float simpleKalmanFilterUpdate(simpleKalmanFilter_t *filter, float z);
