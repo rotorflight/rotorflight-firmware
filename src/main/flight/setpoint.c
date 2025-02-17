@@ -140,7 +140,7 @@ INIT_CODE void setpointInitProfile(void)
 
         sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
 
-        sp.boostGain[i] = currentControlRateProfile->setpoint_boost[i] * SP_BOOST_SCALE;
+        sp.boostGain[i] = currentControlRateProfile->setpoint_boost_gain[i] * SP_BOOST_SCALE;
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
 }
@@ -212,6 +212,7 @@ void setpointUpdate(void)
         // Apply boost
         SP = sp.setpoint[axis] +=
             difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
+        DEBUG_AXIS(SETPOINT, axis, 7, SP);
     }
 }
 

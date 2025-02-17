@@ -43,7 +43,7 @@ typedef struct controlRateConfig_s {
 
     uint8_t cyclic_ring;
 
-    uint8_t setpoint_boost[4];
+    uint8_t setpoint_boost_gain[4];
     uint8_t setpoint_boost_cutoff[4];
 } controlRateConfig_t;
 

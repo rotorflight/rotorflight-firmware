@@ -50,7 +50,7 @@ class SetpointBoostTest : public ::testing::Test {
     void TearDown() override { g_mock = nullptr; }
     void SetBoostParam(uint8_t boost, uint8_t cutoff)
     {
-        controlRateProfile.setpoint_boost[0] = boost;
+        controlRateProfile.setpoint_boost_gain[0] = boost;
         controlRateProfile.setpoint_boost_cutoff[0] = cutoff;
         setpointInitProfile();
     }
