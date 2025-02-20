@@ -2782,6 +2782,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_EEPROM_WRITE:
         if (ARMING_FLAG(ARMED)) {
+            setConfigDirty();
             return MSP_RESULT_ERROR;
         }
 
