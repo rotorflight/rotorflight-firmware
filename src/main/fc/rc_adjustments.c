@@ -181,6 +181,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(ACC_TRIM_PITCH,          NONE,  -300, 300),
     ADJ_CONFIG(ACC_TRIM_ROLL,           NONE,  -300, 300),
+
+    ADJ_CONFIG(INERTIA_PRECOMP_GAIN,    PROF,  0, 250),
+    ADJ_CONFIG(INERTIA_PRECOMP_CUTOFF,  PROF,  0, 250),
 };
 
 
