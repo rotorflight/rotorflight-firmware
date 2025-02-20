@@ -1339,6 +1339,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->response_time[i]);
             sbufWriteU16(dst, currentControlRateProfile->accel_limit[i]);
         }
+        for (int i = 0; i < 4; i++) {
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_gain[i]);
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_cutoff[i]);
+        }
         break;
 
     case MSP_PID_TUNING:
@@ -2393,6 +2397,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->rates[i] = sbufReadU8(src);
             currentControlRateProfile->response_time[i] = sbufReadU8(src);
             currentControlRateProfile->accel_limit[i] = sbufReadU16(src);
+        }
+        if (sbufBytesRemaining(src) >= 8) {
+            for (int i = 0; i < 4; i++) {
+                currentControlRateProfile->setpoint_boost_gain[i] =
+                    sbufReadU8(src);
+                currentControlRateProfile->setpoint_boost_cutoff[i] =
+                    sbufReadU8(src);
+            }
         }
         loadControlRateProfile();
         break;
