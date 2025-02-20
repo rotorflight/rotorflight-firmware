@@ -1,6 +1,31 @@
+# 4.4.1
+
+This is an _Official Release_ of the Rotorflight firmware for RF 2.1.
+
+**NOTE!** The firmware for RF 2.1 uses version number 4.4.x.
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.0
+
+- Support for VBasic Rx
+- Support for inverted FrSky FBUS/F.Port/S.Port
+- Enable most BlackBox fields by default
+- Add extra Jeti telemetry sensors
+- Revert Governor D-gain 10x change
+
+
+***
+
 # 4.4.0
 
-This is the _the Official Release_ of the Rotorflight firmware for RF 2.1.0.
+This is an _Official Release_ of the Rotorflight firmware for RF 2.1.0.
 
 **NOTE!** The firmware for RF 2.1 uses version number 4.4.x.
 
