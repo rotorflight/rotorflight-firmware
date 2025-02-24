@@ -154,7 +154,6 @@ typedef struct pidProfile_s {
     uint8_t             offset_limit[CYCLIC_AXIS_COUNT];
     uint8_t             error_limit[PID_AXIS_COUNT];
 
-    uint8_t             error_cutoff[PID_AXIS_COUNT];
     uint8_t             dterm_cutoff[PID_AXIS_COUNT];
     uint8_t             bterm_cutoff[PID_AXIS_COUNT];
     uint8_t             gyro_cutoff[PID_AXIS_COUNT];
