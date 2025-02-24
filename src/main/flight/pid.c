@@ -221,10 +221,6 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
         }
     }
 
-    // D-term calculation
-    pid.dtermMode = pidProfile->dterm_mode;
-    pid.dtermModeYaw = pidProfile->dterm_mode_yaw;
-
     // Tail/yaw PID parameters
     pid.yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
@@ -252,8 +248,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 
     // Offset flood
-    const uint8_t offset_flood_relax_freq =
-        constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
+    const uint8_t offset_flood_relax_freq = constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
     pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 
     // Initialise sub-profiles
@@ -706,11 +701,8 @@ static void pidApplyCyclicMode3(uint8_t axis, const pidProfile_t * pidProfile)
 
   //// D-term (gyro only)
 
-    // Select D-term on error or gyro
-    const float dError = pid.dtermMode ? errorRate : -gyroRate;
-
     // Calculate D-term with bandwidth limit
-    const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
     pid.data[axis].D = pid.coef[axis].Kd * dTerm;
@@ -851,11 +843,8 @@ static void pidApplyYawMode3(void)
 
   //// D-term
 
-    // Select D-term on error or gyro
-    const float dError = pid.dtermModeYaw ? errorRate : -gyroRate;
-
     // Calculate D-term with bandwidth limit
-    const float dTerm = difFilterApply(&pid.dtermFilter[axis], dError);
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
     pid.data[axis].D = pid.coef[axis].Kd * dTerm;

@@ -489,10 +489,6 @@ const char * const lookupTableSwashType[] = {
     "NONE", "PASSTHROUGH", "CP120", "CP135", "CP140", "FP90L", "FP90V",
 };
 
-const char * const lookupTableDtermMode[] = {
-    "GYRO", "ERROR",
-};
-
 const char * const lookupTableTelemMode[] = {
     "NATIVE", "CUSTOM",
 };
@@ -618,7 +614,6 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
-    LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
     LOOKUP_TABLE_ENTRY(lookupTableTelemMode),
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
@@ -1074,8 +1069,6 @@ const clivalue_t valueTable[] = {
 #endif
 
     { "pid_mode",                   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 9 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid_mode) },
-    { "pid_dterm_mode",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode) },
-    { "pid_dterm_mode_yaw",         VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode_yaw) },
 
     { "pid_gyro_filter_type",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_filter_type) },
 
