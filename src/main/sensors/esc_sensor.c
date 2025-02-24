@@ -125,7 +125,9 @@ static timeUs_t consumptionUpdateUs = 0;
 static float consumptionDelta = 0.0f;
 static float totalConsumption = 0.0f;
 
-simpleKalmanFilter_t hw4CurrentKalmanFilter;
+// HW4 filtering foo
+static simpleKalmanFilter_t hw4CurrentKalmanFilter;
+static uint32_t validReadingsCounterBeforeEnable = 0;
 
 static uint32_t totalByteCount = 0;
 static uint32_t totalFrameCount = 0;
@@ -638,7 +640,24 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                     current = 0;
                 }
 
-                current = simpleKalmanFilterUpdate(&hw4CurrentKalmanFilter, current);
+                // filter mode 0 means leave as is
+                if (escSensorConfig()->hw4_filter_mode == 1)
+                    current = simpleKalmanFilterUpdate(&hw4CurrentKalmanFilter, current);
+                else if (escSensorConfig()->hw4_filter_mode == 2)
+                {
+                    if (validReadingsCounterBeforeEnable < escSensorConfig()->hw4_valid_current_readings_threshold)
+                    {
+                        if (current != 0)
+                        {
+                            if (++validReadingsCounterBeforeEnable < escSensorConfig()->hw4_valid_current_readings_threshold)
+                            {
+                                current = 0;
+                            }
+                        }
+                        else
+                            validReadingsCounterBeforeEnable = 0;
+                    }
+                }
 
                 setConsumptionCurrent(current);
 
