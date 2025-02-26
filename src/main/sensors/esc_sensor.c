@@ -3546,7 +3546,7 @@ static bool xdflyDecode(timeUs_t currentTimeUs)
                         xdflyWriteNextParam();
                     }                   
                     return true;
-                }else if(buffer[3] == xdflyParamIndex || (buffer[3] == 0x0F && xdflyParamIndex == 0)){
+                }else if(buffer[3] == xdflyParamIndex || xdflyParamIndex == 0){
                     xdflyParamCached[xdflyParamIndex] = true;
                     xdflyParams[xdflyParamIndex] = (buffer[4] << 8 | buffer[5]) & 0x7FFF;
                     xdflyParamsActive[xdflyParamIndex] = buffer[4] & 0x80;
