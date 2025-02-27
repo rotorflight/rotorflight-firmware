@@ -52,6 +52,8 @@ typedef struct {
     uint8_t     hw4_current_gain;       // HobbyWing V4 current gain
     uint8_t     hw4_voltage_gain;       // HobbyWing V4 voltage gain
     uint8_t     filter_cutoff;          // Frequency cutoff in Hz
+    uint8_t     hw4_filter_mode;
+    uint8_t     hw4_valid_current_readings_threshold;
 } escSensorConfig_t;
 
 PG_DECLARE(escSensorConfig_t, escSensorConfig);

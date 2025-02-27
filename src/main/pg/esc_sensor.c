@@ -33,4 +33,6 @@ PG_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig,
         .hw4_current_offset = 0,
         .hw4_current_gain = 0,
         .hw4_voltage_gain = 0,
+        .hw4_filter_mode = 2, // 1 = kalman, 2 = last readings > THRESHOLD
+        .hw4_valid_current_readings_threshold = 5,
 );

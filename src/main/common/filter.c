@@ -25,6 +25,7 @@
 #include "common/filter.h"
 #include "common/maths.h"
 #include "common/utils.h"
+#include "filter.h"
 
 
 static inline float limitCutoff(float cutoff, float sampleRate)
@@ -852,4 +853,22 @@ void simpleLPFilterInit(simpleLowpassFilter_t *filter, int32_t beta, int32_t fpS
     filter->fp = 0;
     filter->beta = beta;
     filter->fpShift = fpShift;
+}
+
+void simpleKalmanFilterInit(simpleKalmanFilter_t *filter, float x, float p, float q, float r)
+{
+    filter->x = x;
+    filter->p = p;
+    filter->q = q;
+    filter->r = r;
+}
+
+float simpleKalmanFilterUpdate(simpleKalmanFilter_t *filter, float z)
+{
+    filter->p += filter->q;
+    filter->k = filter->p / (filter->p + filter->r);
+    filter->x += filter->k * (z - filter->x);
+    filter->p *= (1 - filter->k);
+
+    return filter->x;
 }

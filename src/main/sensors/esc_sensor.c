@@ -32,6 +32,7 @@
 
 #include "common/time.h"
 #include "common/crc.h"
+#include "common/filter.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -123,6 +124,9 @@ static timeUs_t consumptionUpdateUs = 0;
 
 static float consumptionDelta = 0.0f;
 static float totalConsumption = 0.0f;
+
+// HW4 filtering foo
+static simpleKalmanFilter_t hw4CurrentKalmanFilter;
 
 static uint32_t totalByteCount = 0;
 static uint32_t totalFrameCount = 0;
@@ -633,6 +637,23 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 // repeated until the motor has totally stopped.
                 if (pwm == 0) {
                     current = 0;
+                }
+
+                // filter mode 0 means leave as is
+                if (escSensorConfig()->hw4_filter_mode == 1)
+                    current = simpleKalmanFilterUpdate(&hw4CurrentKalmanFilter, current);
+                else if (escSensorConfig()->hw4_filter_mode == 2)
+                {
+                    static uint32_t nonZeroReadingsCnt = 0;
+                    if (current != 0)
+                    {
+                        if (++nonZeroReadingsCnt <= escSensorConfig()->hw4_valid_current_readings_threshold)
+                        {
+                            current = 0;
+                        }
+                    }
+                    else
+                        nonZeroReadingsCnt = 0;
                 }
 
                 setConsumptionCurrent(current);
@@ -3415,6 +3436,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_HW4:
+            simpleKalmanFilterInit(&hw4CurrentKalmanFilter, 0, 0, 0.5, 5);
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_SCORPION:
