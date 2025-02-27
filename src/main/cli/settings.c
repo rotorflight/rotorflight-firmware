@@ -1544,7 +1544,7 @@ const clivalue_t valueTable[] = {
     { "esc_sensor_hw4_current_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_gain) },
     { "esc_sensor_hw4_voltage_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_voltage_gain) },
     { "esc_sensor_filter_cutoff",       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, filter_cutoff) },
-    { "esc_sensor_hw4_filter_mode",     VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 3 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_filter_mode) },
+    { "esc_sensor_hw4_filter_mode",     VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 1, 2 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_filter_mode) },
     { "esc_sensor_hw4_valid_current_readings_threshold",     VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 254 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_valid_current_readings_threshold) },
 #endif
 
