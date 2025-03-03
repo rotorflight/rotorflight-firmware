@@ -172,7 +172,7 @@ void setpointUpdate(void)
         float delta = sq(deflection[axis])- sp.maximum[axis];
         sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
 
-        DEBUG_AXIS(SETPOINT, axis, 5, sp.maximum[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 1, sp.maximum[axis]);
     }
 
     DEBUG(AIRBORNE, 0, sqrtf(sp.maximum[FD_ROLL]) * 1000);
@@ -212,7 +212,7 @@ void setpointUpdate(void)
         // Apply boost
         SP = sp.setpoint[axis] +=
             difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
-        DEBUG_AXIS(SETPOINT, axis, 7, SP);
+        DEBUG_AXIS(SETPOINT, axis, 5, SP);
     }
 }
 
