@@ -13,7 +13,7 @@ typedef struct castleInterrupt_s {
     timerCCHandlerRec_t pwmEdgeCb;
     volatile timCCR_t *timingChannelCCR;
     volatile timCCR_t *directChannelCCR;
-    timerChannel_t* timer;
+    timerChannel_t *timer;
     timCCR_t outputEnableTime;
     timCCR_t pwmEdge;
     timCCR_t saveCCR;
@@ -28,7 +28,7 @@ static FAST_DATA_ZERO_INIT castleInterrupt_t castleState;
 void getCastleTelemetry(castleTelemetry_t* telem)
 {
     ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
-        memcpy(telem, &castleState.telem[castleState.whichTelem^1], sizeof(castleTelemetry_t));
+        memcpy(telem, &castleState.telem[castleState.whichTelem ^ 1], sizeof(castleTelemetry_t));
     }
 }
 
@@ -75,14 +75,14 @@ void getCastleTelemetry(castleTelemetry_t* telem)
 // or IC_FILTER, IC_PSC, and IC_INPUT
 typedef uint32_t timCCMR_t;
 #define CAPTURE_CONFIGURE(tim, channelIndex, conf) do {                 \
-        timCCMR_t val = *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1));	\
+        timCCMR_t val = *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1));   \
         val = (val & (~((timCCMR_t)0xFF)<< (((channelIndex) & 1)<<3))) | ((timCCMR_t)(conf) << (((channelIndex) & 1)<<3)); \
-        *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1)) = val;		\
+        *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1)) = val;     \
     } while(0)
 
 static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingCompare)
 {
-    castleInterrupt_t* state = container_of(cbRec, castleInterrupt_t, pwmEdgeCb);
+    castleInterrupt_t *state = container_of(cbRec, castleInterrupt_t, pwmEdgeCb);
     // Castle uses an inverted (active low) PWM pulse and between pulses, the ESC will quickly
     // pull the line down and then release it (they call it a 'tick').  The timing of the tick
     // starting from the end of the PWM pulse is the telemetry value.
@@ -107,7 +107,7 @@ static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingC
             } else if (++state->telemIndex == CASTLE_TELEM_NFRAMES) {
                 state->telemIndex = 0;
                 // Note the first valid telemetry generation is 1.
-                state->telem[state->whichTelem^1].generation =
+                state->telem[state->whichTelem ^ 1].generation =
                     ++state->telem[state->whichTelem].generation;
                 state->whichTelem ^= 1;
             }
@@ -143,7 +143,7 @@ static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingC
 
 // Assumes timer is already set up for output.
 bool castleInputConfig(const timerHardware_t* timerHardware,
-                       timerChannel_t* timerChannel,
+                       timerChannel_t *timerChannel,
                        uint32_t hz)
 {
     TIM_HandleTypeDef* Handle = timerFindTimerHandle(timerHardware->tim);
@@ -158,7 +158,7 @@ bool castleInputConfig(const timerHardware_t* timerHardware,
     for (int8_t channelIndex = CC_CHANNELS_PER_TIMER - 1; channelIndex > 0; channelIndex--) {
         uint8_t channel = CC_CHANNEL_FROM_INDEX(channelIndex);
         if (!timerGetConfiguredByNumberAndChannel(timerGetTIMNumber(timerHardware->tim),
-                channel)) {
+                                                  channel)) {
             timingChannel = channel;
             break;
         }
