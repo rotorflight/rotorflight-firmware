@@ -134,7 +134,8 @@ bool isMotorProtocolDshot(void)
     return motorProtocolDshot;
 }
 
-bool isMotorProtocolCastlePWM(void) {
+bool isMotorProtocolCastlePWM(void)
+{
 #ifdef USE_TELEMETRY_CASTLE
     return motorConfig()->dev.motorPwmProtocol == PWM_TYPE_CASTLE_LINK;
 #else

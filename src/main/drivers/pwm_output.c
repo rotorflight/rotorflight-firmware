@@ -95,9 +95,9 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
 
 #if defined(USE_HAL_DRIVER)
     if (timerHardware->output & TIMER_OUTPUT_N_CHANNEL)
-         HAL_TIMEx_PWMN_Start(Handle, timerHardware->channel);
+        HAL_TIMEx_PWMN_Start(Handle, timerHardware->channel);
     else
-         HAL_TIM_PWM_Start(Handle, timerHardware->channel);
+        HAL_TIM_PWM_Start(Handle, timerHardware->channel);
     HAL_TIM_Base_Start(Handle);
 #else
     TIM_CtrlPWMOutputs(timerHardware->tim, ENABLE);
@@ -280,12 +280,16 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t moto
         motors[motorIndex].pulseScale = (sLen * hz) / 1000.0f;
         motors[motorIndex].pulseOffset = (sMin * hz) - (motors[motorIndex].pulseScale * 1000);
 
-        pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, 0, motorConfig->motorPwmProtocol == PWM_TYPE_CASTLE_LINK /*inversion*/);
 #ifdef USE_TELEMETRY_CASTLE
         if (motorConfig->motorPwmProtocol == PWM_TYPE_CASTLE_LINK) {
+	    pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, 0, true);
             castleInputConfig(timerHardware, &motors[motorIndex].channel, hz);
         }
+	else
 #endif
+	{
+	    pwmOutConfig(&motors[motorIndex].channel, timerHardware, hz, period, 0, 0);
+	}
 
         bool timerAlreadyUsed = false;
         for (int i = 0; i < motorIndex; i++) {

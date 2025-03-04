@@ -40,9 +40,7 @@
 #include "common/maths.h"
 #include "common/utils.h"
 
-#ifdef USE_TELEMETRY_CASTLE
 #include "drivers/castle_telemetry_decode.h"
-#endif
 #include "drivers/timer.h"
 #include "drivers/motor.h"
 #include "drivers/dshot.h"
@@ -113,7 +111,7 @@ enum {
 #define ESC_SIG_OPENYGE           0xA5
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
-#define ESC_SIG_CASTLE            0x0C
+#define ESC_SIG_CASTLE            0xCC
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -3371,7 +3369,8 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
     CASTLE_DECODE_1(tele, item, CASTLE_##scale##_SCALE, cal0p5)
 
 #ifdef USE_TELEMETRY_CASTLE
-static float castleDecodeTemperature(castleTelemetry_t* tele) {
+static float castleDecodeTemperature(castleTelemetry_t* tele)
+{
     if (tele->linTempOrHalfMs < tele->ntcTempOrHalfMs) {
         float value = CASTLE_DECODE(tele, ntcTempOrHalfMs, NTC_TEMP, tele->linTempOrHalfMs);
         value = constrainf(value, 1, 255);
@@ -3447,7 +3446,8 @@ static void castleDecodeTeleFrame(timeUs_t currentTimeUs, castleTelemetry_t* tel
     dataUpdateUs = currentTimeUs;
 }
 
-static void castleSensorProcess(timeUs_t currentTimeUs) {
+static void castleSensorProcess(timeUs_t currentTimeUs)
+{
     // buffer[0..1] holds our current generation, then the next 22 bytes hold
     // the telemetry value
     castleTelemetry_t* rawTelemetry = (castleTelemetry_t*)&buffer[2];
@@ -3516,11 +3516,12 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_CRC_ERRORS, totalCrcErrorCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
-#ifdef USE_TELEMETRY_CASTLE
-    } else if (isMotorProtocolCastlePWM()) {
-        castleSensorProcess(currentTimeUs);
-#endif
     }
+#ifdef USE_TELEMETRY_CASTLE
+    else if (isMotorProtocolCastlePWM()) {
+        castleSensorProcess(currentTimeUs);
+    }
+#endif
 }
 
 void INIT_CODE validateAndFixEscSensorConfig(void)
@@ -3541,7 +3542,8 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
     }
 }
 
-void INIT_CODE escSensorCommonInit(void) {
+void INIT_CODE escSensorCommonInit(void)
+{
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
         escSensorData[i].age = ESC_DATA_INVALID;
     }

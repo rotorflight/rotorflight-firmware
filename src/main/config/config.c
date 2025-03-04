@@ -36,9 +36,7 @@
 #include "config/config_eeprom.h"
 #include "config/feature.h"
 
-#ifdef USE_TELEMETRY_CASTLE
 #include "drivers/castle_telemetry_decode.h"
-#endif
 #include "drivers/dshot_command.h"
 #include "drivers/motor.h"
 #include "drivers/system.h"
