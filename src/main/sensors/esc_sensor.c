@@ -3382,7 +3382,7 @@ static float castleDecodeTemperature(castleTelemetry_t* tele)
         // (Why would they use a 10.2K and not a 10K resistor?)
         // B = NTC Beta (Probably the B_25/100 value)
         // 273 = 0C in K (Almost certainly really 273.15)
-        return (1/(logf(value * CASTLE_NTC_R2 /(255 - value)/CASTLE_NTC_R0)/CASTLE_NTC_B + 1.0f/298.0f)) - 273;
+        return (1 / (logf(value * CASTLE_NTC_R2 / (255 - value) / CASTLE_NTC_R0) / CASTLE_NTC_B + 1.0f / 298.0f)) - 273;
     } else {
         return CASTLE_DECODE(tele, linTempOrHalfMs, NTC_TEMP, tele->ntcTempOrHalfMs);
     }
@@ -3450,7 +3450,7 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
 {
     // buffer[0..1] holds our current generation, then the next 22 bytes hold
     // the telemetry value
-    castleTelemetry_t* rawTelemetry = (castleTelemetry_t*)&buffer[2];
+    castleTelemetry_t *rawTelemetry = (castleTelemetry_t*)&buffer[2];
     getCastleTelemetry(rawTelemetry);
     if (rawTelemetry->generation == *(uint16_t*)buffer) {
         // We expect every 12 PWM frames we'll get new data.  Max frame

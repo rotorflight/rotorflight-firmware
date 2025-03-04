@@ -256,15 +256,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t moto
 
         /* standard PWM outputs */
         // margin of safety is 4 periods when unsynced
-        //
-        // Castle link requires 5.5ms wait for tick, after a max 2ms
-        // pulse, which implies an absolute maximum rate of about 133
-        // Hz.  The protocol document specifies 50Hz.  This code
-        // requires at least 9ms + epsilon cycle time, so we set a
-        // maximum of 100Hz to be reasonably safe.
-        const unsigned pwmRateHz = useUnsyncedPwm ?
-                                   ((motorConfig->motorPwmProtocol == PWM_TYPE_CASTLE_LINK) ? MIN(CASTLE_PWM_HZ_MAX, motorConfig->motorPwmRate) : motorConfig->motorPwmRate) :
-                                   ceilf(1 / ((sMin + sLen) * 4));
+        const unsigned pwmRateHz = useUnsyncedPwm ? motorConfig->motorPwmRate : ceilf(1 / ((sMin + sLen) * 4));
 
         const uint32_t clock = timerClock(timerHardware->tim);
         /* used to find the desired timer frequency for max resolution */
