@@ -43,15 +43,18 @@ enum {
 };
 
 typedef struct {
-    uint8_t     protocol;               // ESC telemetry protocol
-    uint8_t     halfDuplex;             // Set to false to listen on the TX pin for telemetry data
-    uint8_t     pinSwap;                // Swap rx and tx pins around compared to the resource settings
-    uint16_t    update_hz;              // Update frequency
-    uint16_t    current_offset;         // Offset (extra current) consumed by the VTX / cam (mA)
-    uint16_t    hw4_current_offset;     // HobbyWing V4 raw current offset
-    uint8_t     hw4_current_gain;       // HobbyWing V4 current gain
-    uint8_t     hw4_voltage_gain;       // HobbyWing V4 voltage gain
-    uint8_t     filter_cutoff;          // Frequency cutoff in Hz
+    uint8_t     protocol;                       // ESC telemetry protocol
+    uint8_t     halfDuplex;                     // Set to false to listen on the TX pin for telemetry data
+    uint8_t     pinSwap;                        // Swap rx and tx pins around compared to the resource settings
+    uint16_t    update_hz;                      // Update frequency
+    uint16_t    current_offset;                 // Offset (extra current) consumed by the VTX / cam (mA)
+    uint16_t    hw4_current_offset;             // HobbyWing V4 raw current offset
+    uint8_t     hw4_current_gain;               // HobbyWing V4 current gain
+    uint8_t     hw4_voltage_gain;               // HobbyWing V4 voltage gain
+    uint8_t     filter_cutoff;                  // Frequency cutoff in Hz
+    int8_t      voltage_correction;             // Correction for voltage over/under reporting in +-%, 0% = no correction
+    int8_t      current_correction;             // Correction for current over/under reporting in +-%, 0% = no correction
+    int8_t      consumption_correction;         // Correction for consumption over/under reporting in +-%, 0% = no correction
 } escSensorConfig_t;
 
 PG_DECLARE(escSensorConfig_t, escSensorConfig);

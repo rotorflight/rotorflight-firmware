@@ -175,6 +175,30 @@ uint32_t getEscSensorRPM(uint8_t motorNumber)
     return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
 }
 
+static uint32_t applyVoltageCorrection(uint32_t voltage)
+{
+    if (escSensorConfig()->voltage_correction == 0)
+        return voltage;
+
+    return (voltage * (100 + escSensorConfig()->voltage_correction)) / 100;
+}
+
+static uint32_t applyCurrentCorrection(uint32_t current)
+{
+    if (escSensorConfig()->current_correction == 0)
+        return current;
+
+    return (current * (100 + escSensorConfig()->current_correction)) / 100;
+}
+
+static uint32_t applyConsumptionCorrection(uint32_t consumption)
+{
+    if (escSensorConfig()->consumption_correction == 0)
+        return consumption;
+
+    return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
+}
+
 static void combinedDataUpdate(void)
 {
     const int motorCount = getMotorCount();
@@ -280,7 +304,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, totalConsumption);
 
-    escSensorData[0].consumption = totalConsumption;
+    escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
 
@@ -367,9 +391,9 @@ static uint8_t blDecodeTelemetryFrame(void)
         escSensorData[currentEsc].id = ESC_SIG_BLHELI32;
         escSensorData[currentEsc].age = 0;
         escSensorData[currentEsc].erpm = erpm * 100;
-        escSensorData[currentEsc].voltage = volt * 10;
-        escSensorData[currentEsc].current = curr * 10;
-        escSensorData[currentEsc].consumption = capa;
+        escSensorData[currentEsc].voltage = applyVoltageCorrection(volt * 10);
+        escSensorData[currentEsc].current = applyCurrentCorrection(curr * 10);
+        escSensorData[currentEsc].consumption = applyConsumptionCorrection(capa);
         escSensorData[currentEsc].temperature = temp * 10;
 
         combinedNeedsUpdate = true;
@@ -649,8 +673,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
-                escSensorData[0].voltage = lrintf(voltage * 1000);
-                escSensorData[0].current = lrintf(current * 1000);
+                escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
+                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
@@ -877,9 +901,9 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = (throttle + 100) * 5;
                 escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = tempFET * 10;
                 escSensorData[0].temperature2 = tempBEC * 10;
                 escSensorData[0].bec_voltage = voltBEC;
@@ -993,9 +1017,9 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = temp * 10;
                 escSensorData[0].status = status;
 
@@ -1115,9 +1139,9 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = temp * 10;
                 escSensorData[0].bec_voltage = voltBEC * 1000;
                 escSensorData[0].status = status;
@@ -1261,8 +1285,8 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = throttle;
                 escSensorData[0].pwm = power;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 80;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 80);
                 escSensorData[0].temperature = lrintf(temp * 10);
                 escSensorData[0].status = status;
 
@@ -1644,9 +1668,9 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 10;
     escSensorData[0].pwm = power * 10;
-    escSensorData[0].voltage = voltage * 10;
-    escSensorData[0].current = current * 10;
-    escSensorData[0].consumption = consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(consumption);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = mcuTemp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
@@ -2036,8 +2060,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
     escSensorData[0].pwm = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = current * 100;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
     escSensorData[0].temperature = tele->temperature * 10;
     escSensorData[0].temperature2 = tele->bec_temp * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage * 100;
@@ -2553,9 +2577,9 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
     escSensorData[0].pwm = power * 5;
-    escSensorData[0].voltage = voltage * 100;
-    escSensorData[0].current = current * 100;
-    escSensorData[0].consumption = capacity;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(capacity);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
@@ -2974,9 +2998,9 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].pwm = tele->pwm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 10;
-    escSensorData[0].current = tele->current * 10;
-    escSensorData[0].consumption = tele->consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->consumption);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
@@ -3228,9 +3252,9 @@ static bool graupnerDecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].id = ESC_SIG_GRAUPNER;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = tele->current * 100;
-    escSensorData[0].consumption = tele->capacity * 10;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->capacity * 10);
     escSensorData[0].temperature = tele->temperature * 10 - 200;
     escSensorData[0].status = tele->flags;
 
