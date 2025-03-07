@@ -805,6 +805,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
         sbufWriteU8(dst, escSensorConfig()->pinSwap);
+        sbufWriteS8(dst, escSensorConfig()->voltage_correction);
+        sbufWriteS8(dst, escSensorConfig()->current_correction);
+        sbufWriteS8(dst, escSensorConfig()->consumption_correction);
         break;
 
     case MSP_ESC_PARAMETERS:
@@ -2775,6 +2778,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
             escSensorConfigMutable()->pinSwap = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 3) {
+            escSensorConfigMutable()->voltage_correction = sbufReadS8(src);
+            escSensorConfigMutable()->current_correction = sbufReadS8(src);
+            escSensorConfigMutable()->consumption_correction = sbufReadS8(src);
         }
         break;
 
