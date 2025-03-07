@@ -74,6 +74,7 @@ typedef enum {
 } gyroHardwareLpf_e;
 
 typedef enum {
+    GYRO_RATE_400_Hz,
     GYRO_RATE_1_kHz,
     GYRO_RATE_1100_Hz,
     GYRO_RATE_2000_Hz,

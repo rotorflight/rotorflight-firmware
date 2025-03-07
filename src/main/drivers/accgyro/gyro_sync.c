@@ -30,6 +30,7 @@
 
 #include "platform.h"
 
+#include "sensors/gyro.h"
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/gyro_sync.h"
@@ -73,7 +74,19 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
             gyroSampleRateHz = 2000;
             accSampleRateHz = 800;
-            break;
+            switch(gyroConfig()->gyro_hardware_lpf) {
+                case GYRO_HARDWARE_LPF_OPTION_2:
+                    gyro->gyroRateKHz = GYRO_RATE_1_kHz;
+                    gyroSampleRateHz = 1000;;
+                    break;
+        #ifdef USE_GYRO_DLPF_EXPERIMENTAL
+                case GYRO_HARDWARE_LPF_EXPERIMENTAL:
+                    gyro->gyroRateKHz = GYRO_RATE_400Hz;
+                    gyroSampleRateHz = 400;
+                    break;
+        #endif
+            }
+                break;
 
         case BMI_270_SPI:
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL

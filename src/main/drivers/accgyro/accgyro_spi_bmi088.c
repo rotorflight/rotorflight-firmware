@@ -138,7 +138,29 @@ void bmi088SpiGyroInit(gyroDev_t *gyro)
     //config sensor
 
     spiWriteReg(dev, BMI088_REG_GYRO_RANGE, BMI088_G_RANGE_2000DPS);
-    spiWriteReg(dev, BMI088_REG_GYRO_BANDWIDTH, BMI088_G_BANDWIDTH_230HZ);
+
+    uint8_t filtConf = 0;
+
+    switch(gyroConfig()->gyro_hardware_lpf) {
+        case GYRO_HARDWARE_LPF_NORMAL:
+            filtConf = BMI088_G_BANDWIDTH_532HZ;
+            break;
+        case GYRO_HARDWARE_LPF_OPTION_1:
+            filtConf = BMI088_G_BANDWIDTH_230HZ;
+            break;
+        case GYRO_HARDWARE_LPF_OPTION_2:
+            filtConf = BMI088_G_BANDWIDTH_116HZ;
+            break;
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
+        case GYRO_HARDWARE_LPF_EXPERIMENTAL:
+            filtConf = BMI088_G_BANDWIDTH_47HZ;
+            break;
+#endif
+        default:
+            filtConf = BMI088_G_BANDWIDTH_230HZ;
+            break;
+    }
+    spiWriteReg(dev, BMI088_REG_GYRO_BANDWIDTH, filtConf);
 
     // enable dataready interrupt
     spiWriteReg(dev, BMI088_REG_GYRO_INT_CTRL, BMI088_EN_DRDY_INT);
