@@ -67,6 +67,14 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .accel_limit[FD_PITCH] = 0,
             .accel_limit[FD_YAW] = 0,
             .accel_limit[FD_COLL] = 0,
+            .setpoint_boost_gain[FD_ROLL] = 0,
+            .setpoint_boost_gain[FD_PITCH] = 0,
+            .setpoint_boost_gain[FD_YAW] = 0,
+            .setpoint_boost_gain[FD_COLL] = 0,
+            .setpoint_boost_cutoff[FD_ROLL] = 15,
+            .setpoint_boost_cutoff[FD_PITCH] = 15,
+            .setpoint_boost_cutoff[FD_YAW] = 90,
+            .setpoint_boost_cutoff[FD_COLL] = 15,
         );
     }
 }
