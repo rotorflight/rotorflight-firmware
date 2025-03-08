@@ -689,7 +689,7 @@ static void pidApplyMode0(uint8_t axis)
  **   gyroFilter => Relax => Ki => I-term
  **
  **   -- Using gyro-only D-term
- **   -- Yaw stop gain on P only
+ **   -- Yaw stop gain on P and D
  **   -- Error filter on P-term only
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
@@ -1014,6 +1014,7 @@ static void pidApplyYawMode2(void)
  **
  **   setPoint => Kf => F-term
  **   setPoint => difFilter => Kb => B-term
+ **   P and I term has stop gains
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
@@ -1201,7 +1202,7 @@ static void pidApplyYawMode3(void)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * stopGain;
 
     // Calculate I-component
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
