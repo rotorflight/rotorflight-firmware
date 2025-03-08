@@ -177,7 +177,7 @@ INIT_CODE void setpointInit(void)
         difFilterInit(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
     difFilterInit(&sp.yawDynamicDeadbandDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
-    pt1FilterInit(&sp.yawDynamicDeadbandLPF, currentControlRateProfile->yaw_dynamic_deadband_filter, pidGetPidFrequency());
+    pt1FilterInit(&sp.yawDynamicDeadbandLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
     setpointInitProfile();
 }
