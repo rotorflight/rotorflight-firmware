@@ -184,6 +184,12 @@ typedef struct pidProfile_s {
     pidRescueConfig_t   rescue;
     governorProfile_t   governor;
 
+
+    uint8_t   abs_control;                    // Enable absolute control
+    uint8_t   abs_control_gain;               // How strongly should the absolute accumulated error be corrected for
+    uint8_t   abs_control_limit;              // Limit to the correction
+    uint8_t   abs_control_error_limit;        // Limit to the accumulated error
+    uint8_t   abs_control_cutoff;             // Cutoff frequency for path estimation in abs control
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
