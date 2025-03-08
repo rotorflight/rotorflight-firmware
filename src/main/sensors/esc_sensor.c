@@ -3592,11 +3592,11 @@ bool INIT_CODE escSensorInit(void)
     uint32_t baudrate = 0;
 
     if (isMotorProtocolCastlePWM() && (!portConfig || escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE)) {
-      escSensorCommonInit();
-      return true;
+        escSensorCommonInit();
+        return true;
     }
     if (!portConfig) {
-      return false;
+        return false;
     }
 
     options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED |
