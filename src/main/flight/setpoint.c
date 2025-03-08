@@ -48,7 +48,7 @@
 
 #define SP_BOOST_SCALE                   0.1e-4f
 
-#define DYNAMIC_DEADBAND_SCALE             1e-4f
+#define DYNAMIC_DEADBAND_SCALE             5e-4f
 #define DYNAMIC_DEADBAND_LIMIT             0.40f
 
 
