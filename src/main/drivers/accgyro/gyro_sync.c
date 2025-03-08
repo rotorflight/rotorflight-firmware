@@ -71,20 +71,24 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             break;
 
         case BMI_088_SPI:
-            gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
-            gyroSampleRateHz = 2000;
             accSampleRateHz = 800;
             switch(gyroConfig()->gyro_hardware_lpf) {
+                case GYRO_HARDWARE_LPF_NORMAL:
+                case GYRO_HARDWARE_LPF_OPTION_1:
+                    gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
+                    gyroSampleRateHz = 2000;
+                    break;
                 case GYRO_HARDWARE_LPF_OPTION_2:
                     gyro->gyroRateKHz = GYRO_RATE_1_kHz;
-                    gyroSampleRateHz = 1000;;
+                    gyroSampleRateHz = 1000;
                     break;
-        #ifdef USE_GYRO_DLPF_EXPERIMENTAL
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
                 case GYRO_HARDWARE_LPF_EXPERIMENTAL:
-                    gyro->gyroRateKHz = GYRO_RATE_400Hz;
-                    gyroSampleRateHz = 400;
+#endif
+                default:    
+                    gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
+                    gyroSampleRateHz = 2000;
                     break;
-        #endif
             }
                 break;
 
