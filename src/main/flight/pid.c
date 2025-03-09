@@ -575,25 +575,23 @@ static void pidApplyOffsetBleed(const pidProfile_t * pidProfile)
 /*
  * Offset flood: convert axisError to axisOffset according to collective
  */
-static void pidApplyOffsetFlood(const pidProfile_t * pidProfile) {
+static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
+{
     // Calculate `offsetFloodRelaxFactor`
     const float collective = getCollectiveDeflection();
-    const float collectiveLpf =
-        pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
+    const float collectiveLpf = pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
     const float collectiveHpf = collective - collectiveLpf;
-    const float offsetFloodRelaxLevel =
-        fmaxf(pidProfile->offset_flood_relax_level, 1);
-    const float offsetFloodRelaxFactor =
-        fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
+    const float offsetFloodRelaxLevel = fmaxf(pidProfile->offset_flood_relax_level, 1.0f);
+    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
 
     // Prepare curve lookup. Curve points are stored in 0..15° range.
     const float curve = fabsf(collective) * 0.8f;
 
-    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++) {
+    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++)
+    {
         // The algorithm only makes sense if both Ki and Ko !=0;
-        if (pid.coef[axis].Ki == 0 || pid.coef[axis].Ko == 0 ) {
+        if (pid.coef[axis].Ki == 0 || pid.coef[axis].Ko == 0)
             continue;
-        }
 
         const float axisError = pid.data[axis].axisError;
         const float axisOffset = pid.data[axis].axisOffset;
@@ -601,22 +599,19 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile) {
         const float Ko = pid.coef[axis].Ko;
 
         // 0. calculate bleed rate
-        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve,
-                                         LOOKUP_CURVE_POINTS) *
-                          0.08f;
-        bleedRate = copysignf(bleedRate, axisError);
-        bleedRate *= offsetFloodRelaxFactor;
+        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve, LOOKUP_CURVE_POINTS) * 0.08f;
+        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor;
 
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
+
         // 1. determin sign of offsetDelta
         // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
         // && collective<0
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
 
         // 1. Check offsetLimit
-        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) -
-                      axisOffset;
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) - axisOffset;
 
         // 2. calculate equivalent output delta and errorDelta
         // errorDelta = value to be substract from axisError.
