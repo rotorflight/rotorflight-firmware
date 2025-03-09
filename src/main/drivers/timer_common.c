@@ -94,6 +94,20 @@ const timerHardware_t *timerGetAllocatedByNumberAndChannel(int8_t timerNumber, u
 #endif
 }
 
+const timerHardware_t *timerGetConfiguredByNumberAndChannel(int8_t timerNumber, uint16_t timerChannel)
+{
+    for (unsigned i = 0; i < MAX_TIMER_PINMAP_COUNT; i++) {
+        const timerHardware_t *timer = timerGetByTagAndIndex(timerIOConfig(i)->ioTag, timerIOConfig(i)->index);
+        if (timer && timerGetTIMNumber(timer->tim) == timerNumber && timer->channel == timerChannel) {
+            return timer;
+        }
+    }
+
+    // This doesn't take into account the bitbang dshot pacer timers.  Probably a method of managing
+    // timers with no I/O pins should be set up and the bitbang dshot code folded into it.
+    return NULL;
+}
+
 const resourceOwner_t *timerGetOwner(const timerHardware_t *timer)
 {
     for (unsigned i = 0; i < MAX_TIMER_PINMAP_COUNT; i++) {
@@ -175,5 +189,10 @@ ioTag_t timerioTagGetByUsage(timerUsageFlag_e usageFlag, uint8_t index)
     UNUSED(index);
 #endif
     return IO_TAG_NONE;
+}
+
+volatile timCCR_t* timerCCR(TIM_TypeDef *tim, uint8_t channel)
+{
+    return (volatile timCCR_t*)((volatile char*)&tim->CCR1 + channel);
 }
 #endif

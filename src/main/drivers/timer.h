@@ -272,6 +272,7 @@ struct timerIOConfig_s;
 
 struct timerIOConfig_s *timerIoConfigByTag(ioTag_t ioTag);
 const timerHardware_t *timerGetAllocatedByNumberAndChannel(int8_t timerNumber, uint16_t timerChannel);
+const timerHardware_t *timerGetConfiguredByNumberAndChannel(int8_t timerNumber, uint16_t timerChannel);
 const resourceOwner_t *timerGetOwner(const timerHardware_t *timer);
 #endif
 const timerHardware_t *timerGetConfiguredByTag(ioTag_t ioTag);
