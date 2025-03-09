@@ -589,14 +589,12 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
 
     for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++)
     {
-        // The algorithm only makes sense if both Ki and Ko !=0;
-        if (pid.coef[axis].Ki == 0 || pid.coef[axis].Ko == 0)
+        // The algorithm only makes sense if Kc <> 0
+        if (pid.coef[axis].Kc == 0)
             continue;
 
         const float axisError = pid.data[axis].axisError;
         const float axisOffset = pid.data[axis].axisOffset;
-        const float Ki = pid.coef[axis].Ki;
-        const float Ko = pid.coef[axis].Ko;
 
         // 0. calculate bleed rate
         float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve, LOOKUP_CURVE_POINTS) * 0.08f;
@@ -615,11 +613,7 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
 
         // 2. calculate equivalent output delta and errorDelta
         // errorDelta = value to be substract from axisError.
-        // Note:
-        //    output = axisOffset * collective * Ko
-        //    output = axisError * Ki
-        float outputDelta = collective * offsetDelta * Ko;
-        float errorDelta = outputDelta / Ki;
+        float errorDelta = offsetDelta * collective * pid.coef[axis].Kc;
 
         // 2. Check axisError limit
         // Note: axisError and errorDelta have same sign
@@ -627,8 +621,7 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
         if (fabsf(axisError) - fabsf(errorDelta) < 0) {
             // We need to re-calculate outputDelta and offsetDelta:
             errorDelta = axisError;
-            outputDelta = errorDelta * Ki;
-            offsetDelta = outputDelta / collective / Ko;
+            offsetDelta = errorDelta / collective / pid.coef[axis].Kc;
         }
 
         // 3. Update axisError and axisOffset
