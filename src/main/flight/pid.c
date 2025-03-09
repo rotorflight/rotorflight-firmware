@@ -634,10 +634,6 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
         // 3. Update axisError and axisOffset
         pid.data[axis].axisError -= errorDelta;
         pid.data[axis].axisOffset += offsetDelta;
-
-        // Updating .I and .O isn't necessary. It's just for better logging.
-        pid.data[axis].I -= outputDelta;
-        pid.data[axis].O += outputDelta;
     }
 }
 
