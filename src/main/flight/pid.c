@@ -248,6 +248,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 
     // Offset flood
+    pid.offsetFloodRelaxLevel = constrain(pidProfile->offset_flood_relax_level, 10, 250);
     const uint8_t offset_flood_relax_freq = constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
     pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 
@@ -615,8 +616,7 @@ static void pidApplyOffsetFloodMode3(const pidProfile_t * pidProfile)
     const float collective = getCollectiveDeflection();
     const float collectiveLpf = pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
     const float collectiveHpf = collective - collectiveLpf;
-    const float offsetFloodRelaxLevel = fmaxf(pidProfile->offset_flood_relax_level, 1.0f);
-    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
+    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) / pid.offsetFloodRelaxLevel);
 
     // Prepare curve lookup. Curve points are stored in 0..15° range.
     const float curve = fabsf(collective) * 0.8f;
@@ -964,8 +964,7 @@ static void pidApplyOffsetFloodMode4(const pidProfile_t * pidProfile)
     const float collective = getCollectiveDeflection();
     const float collectiveLpf = pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
     const float collectiveHpf = collective - collectiveLpf;
-    const float offsetFloodRelaxLevel = fmaxf(pidProfile->offset_flood_relax_level, 1.0f);
-    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
+    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) / pid.offsetFloodRelaxLevel);
 
     // Prepare curve lookup. Curve points are stored in 0..15° range.
     const float curve = fabsf(collective) * 0.8f;
