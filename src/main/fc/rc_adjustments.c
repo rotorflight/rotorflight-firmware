@@ -194,6 +194,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(YAW_DYN_DEADBAND_GAIN,   RATE,  0, 250),
     ADJ_CONFIG(YAW_DYN_DEADBAND_FILTER, RATE,  0, 250),
 
+    ADJ_CONFIG(YAW_PRECOMP_CUTOFF,      PROF,  0, 250),
 };
 
 
@@ -429,6 +430,9 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             break;
         case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
             value = currentControlRateProfile->yaw_dynamic_deadband_filter;
+            break;
+        case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
+            value = currentPidProfile->yaw_precomp_cutoff;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
@@ -666,7 +670,9 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
         case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
             currentControlRateProfile->yaw_dynamic_deadband_filter = value;
             break;
-
+        case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
+            currentPidProfile->yaw_precomp_cutoff = value;
+            break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
     }

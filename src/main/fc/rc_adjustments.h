@@ -142,6 +142,9 @@ typedef enum {
     ADJUSTMENT_YAW_DYN_DEADBAND_GAIN    = 73,
     ADJUSTMENT_YAW_DYN_DEADBAND_FILTER  = 74,
 
+    // Precomp cutoff
+    ADJUSTMENT_YAW_PRECOMP_CUTOFF       = 75,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;
 
