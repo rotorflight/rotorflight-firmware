@@ -75,10 +75,12 @@ typedef struct
     float boostGain[4];
     difFilter_t boostFilter[4];
 
+    float yawDynamicCeiling;
+    float yawDynamicCeilingGain;
     float yawDynamicDeadband;
     float yawDynamicDeadbandGain;
-    difFilter_t yawDynamicDeadbandDiff;
     pt1Filter_t yawDynamicDeadbandLPF;
+    difFilter_t yawDynamicDeadbandDiff;
 
 } setpointData_t;
 
@@ -158,6 +160,7 @@ INIT_CODE void setpointInitProfile(void)
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
 
+    sp.yawDynamicCeilingGain = currentControlRateProfile->yaw_dynamic_ceiling_gain * DYNAMIC_DEADBAND_SCALE;
     sp.yawDynamicDeadbandGain = currentControlRateProfile->yaw_dynamic_deadband_gain * DYNAMIC_DEADBAND_SCALE;
 
     difFilterUpdate(&sp.yawDynamicDeadbandDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
@@ -182,15 +185,13 @@ INIT_CODE void setpointInit(void)
     setpointInitProfile();
 }
 
-static float getYawDynamicDeadband(float setpoint)
+static void applyYawDynamicRange(float setpoint)
 {
-    float deadband = difFilterApply(&sp.yawDynamicDeadbandDiff, setpoint);
+    float factor = difFilterApply(&sp.yawDynamicDeadbandDiff, setpoint);
+    factor = pt1FilterApply(&sp.yawDynamicDeadbandLPF, fabsf(factor));
 
-    deadband = fabsf(deadband * sp.yawDynamicDeadbandGain);
-    deadband = pt1FilterApply(&sp.yawDynamicDeadbandLPF, deadband);
-    deadband = constrainf(deadband, 0, DYNAMIC_DEADBAND_LIMIT);
-
-    return deadband;
+    sp.yawDynamicCeiling = constrainf(factor  * sp.yawDynamicCeilingGain, 0, DYNAMIC_DEADBAND_LIMIT);
+    sp.yawDynamicDeadband = constrainf(factor  * sp.yawDynamicDeadbandGain, 0, DYNAMIC_DEADBAND_LIMIT);
 }
 
 void setpointUpdate(void)
@@ -235,12 +236,12 @@ void setpointUpdate(void)
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
         if (axis == FD_YAW) {
-            sp.yawDynamicDeadband = getYawDynamicDeadband(SP);
-            const float setpoint = fapplyDeadband(SP, sp.yawDynamicDeadband);
-            const float range = 1.0f - sp.yawDynamicDeadband;
+            applyYawDynamicRange(SP);
 
-            // Deflection range is -1..1
-            SP = limitf(setpoint / range, 1.0f);
+            const float point = fapplyDeadband(SP, sp.yawDynamicDeadband);
+            const float range = 1.0f - sp.yawDynamicDeadband - sp.yawDynamicCeiling;
+
+            SP = limitf(point / range, 1.0f);
 
             DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
         }
