@@ -43,7 +43,7 @@
 
 #include "flash_m25p16.h"
 #include "flash_w25m.h"
-#include "flash_w25n01g.h"
+#include "flash_w25n.h"
 
 #include "pg/flash.h"
 
@@ -143,7 +143,7 @@ bool w25m_detect(flashDevice_t *fdevice, uint32_t chipID)
             w25m_dieSelect(fdevice->io.handle.dev, die);
             dieDevice[die].io.handle.dev = fdevice->io.handle.dev;
             dieDevice[die].io.mode = fdevice->io.mode;
-            w25n01g_detect(&dieDevice[die], JEDEC_ID_WINBOND_W25N01GV);
+            w25n_detect(&dieDevice[die], JEDEC_ID_WINBOND_W25N01GV);
         }
 
         fdevice->geometry.flashType = FLASH_TYPE_NAND;
