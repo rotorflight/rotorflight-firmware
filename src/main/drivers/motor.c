@@ -134,6 +134,15 @@ bool isMotorProtocolDshot(void)
     return motorProtocolDshot;
 }
 
+bool isMotorProtocolCastlePWM(void)
+{
+#ifdef USE_TELEMETRY_CASTLE
+    return motorConfig()->dev.motorPwmProtocol == PWM_TYPE_CASTLE_LINK;
+#else
+    return false;
+#endif
+}
+
 bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig)
 {
     switch (motorDevConfig->motorPwmProtocol) {
@@ -146,6 +155,9 @@ bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig)
     case PWM_TYPE_DSHOT300:
     case PWM_TYPE_DSHOT600:
     case PWM_TYPE_PROSHOT1000:
+#endif
+#ifdef USE_TELEMETRY_CASTLE
+    case PWM_TYPE_CASTLE_LINK:
 #endif
         return true;
     }
