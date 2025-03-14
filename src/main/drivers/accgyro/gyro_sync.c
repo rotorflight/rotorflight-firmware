@@ -75,15 +75,15 @@ void gyroSetSampleRate(gyroDev_t *gyro)
             switch(gyroConfig()->gyro_hardware_lpf) {
                 case GYRO_HARDWARE_LPF_NORMAL:
                 case GYRO_HARDWARE_LPF_OPTION_1:
+                case GYRO_HARDWARE_LPF_OPTION_2:
                     gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
                     gyroSampleRateHz = 2000;
                     break;
-                case GYRO_HARDWARE_LPF_OPTION_2:
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
+                case GYRO_HARDWARE_LPF_EXPERIMENTAL:
                     gyro->gyroRateKHz = GYRO_RATE_1_kHz;
                     gyroSampleRateHz = 1000;
                     break;
-#ifdef USE_GYRO_DLPF_EXPERIMENTAL
-                case GYRO_HARDWARE_LPF_EXPERIMENTAL:
 #endif
                 default:    
                     gyro->gyroRateKHz = GYRO_RATE_2000_Hz;

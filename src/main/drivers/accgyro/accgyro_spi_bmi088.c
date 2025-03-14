@@ -144,19 +144,21 @@ void bmi088SpiGyroInit(gyroDev_t *gyro)
     switch(gyroConfig()->gyro_hardware_lpf) {
         case GYRO_HARDWARE_LPF_NORMAL:
             //ODR: 2Khz
-            filtConf = BMI088_G_BANDWIDTH_532HZ;
+            filtConf = BMI088_G_BANDWIDTH_230HZ;
             break;
         case GYRO_HARDWARE_LPF_OPTION_1:
             //ODR: 2kHz
-            filtConf = BMI088_G_BANDWIDTH_230HZ;
+            filtConf = BMI088_G_BANDWIDTH_532HZ;
             break;
         case GYRO_HARDWARE_LPF_OPTION_2:
-            //ODR: 1kHz
-            filtConf = BMI088_G_BANDWIDTH_116HZ; 
+            //ODR: 2kHz
+            filtConf = BMI088_G_BANDWIDTH_532HZ; 
             break;
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
-        //this option is not used for BMI088
+            //ODR: 1kHz
         case GYRO_HARDWARE_LPF_EXPERIMENTAL:
+            filtConf = BMI088_G_BANDWIDTH_116HZ;
+            break; 
 #endif        
         default:
             filtConf = BMI088_G_BANDWIDTH_230HZ;
