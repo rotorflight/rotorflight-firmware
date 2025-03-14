@@ -50,6 +50,7 @@
 
 #define DYNAMIC_DEADBAND_SCALE             5e-4f
 #define DYNAMIC_DEADBAND_LIMIT             0.40f
+#define DYNAMIC_CEILING_LIMIT              0.40f
 
 
 typedef struct
@@ -79,8 +80,9 @@ typedef struct
     float yawDynamicCeilingGain;
     float yawDynamicDeadband;
     float yawDynamicDeadbandGain;
-    pt1Filter_t yawDynamicDeadbandLPF;
-    difFilter_t yawDynamicDeadbandDiff;
+
+    pt1Filter_t yawDynamicSepointLPF;
+    difFilter_t yawDynamicSepointDiff;
 
 } setpointData_t;
 
@@ -163,8 +165,8 @@ INIT_CODE void setpointInitProfile(void)
     sp.yawDynamicCeilingGain = currentControlRateProfile->yaw_dynamic_ceiling_gain * DYNAMIC_DEADBAND_SCALE;
     sp.yawDynamicDeadbandGain = currentControlRateProfile->yaw_dynamic_deadband_gain * DYNAMIC_DEADBAND_SCALE;
 
-    difFilterUpdate(&sp.yawDynamicDeadbandDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
-    pt1FilterUpdate(&sp.yawDynamicDeadbandLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
+    difFilterUpdate(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
+    pt1FilterUpdate(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 }
 
 INIT_CODE void setpointInit(void)
@@ -179,19 +181,26 @@ INIT_CODE void setpointInit(void)
         lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
         difFilterInit(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
-    difFilterInit(&sp.yawDynamicDeadbandDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
-    pt1FilterInit(&sp.yawDynamicDeadbandLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
+    difFilterInit(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
+    pt1FilterInit(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
     setpointInitProfile();
 }
 
-static void applyYawDynamicRange(float setpoint)
+static float applyYawDynamicRange(float setpoint)
 {
-    float factor = difFilterApply(&sp.yawDynamicDeadbandDiff, setpoint);
-    factor = pt1FilterApply(&sp.yawDynamicDeadbandLPF, fabsf(factor));
+    const float spdiff = difFilterApply(&sp.yawDynamicSepointDiff, setpoint);
+    const float factor = pt1FilterApply(&sp.yawDynamicSepointLPF, fabsf(spdiff));
 
-    sp.yawDynamicCeiling = constrainf(factor  * sp.yawDynamicCeilingGain, 0, DYNAMIC_DEADBAND_LIMIT);
+    sp.yawDynamicCeiling = constrainf(factor  * sp.yawDynamicCeilingGain, 0, DYNAMIC_CEILING_LIMIT);
     sp.yawDynamicDeadband = constrainf(factor  * sp.yawDynamicDeadbandGain, 0, DYNAMIC_DEADBAND_LIMIT);
+
+    const float point = fapplyDeadband(setpoint, sp.yawDynamicDeadband);
+    const float range = 1.0f - sp.yawDynamicDeadband - sp.yawDynamicCeiling;
+
+    setpoint = limitf(point / range, 1.0f);
+
+    return setpoint;
 }
 
 void setpointUpdate(void)
@@ -236,13 +245,7 @@ void setpointUpdate(void)
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
         if (axis == FD_YAW) {
-            applyYawDynamicRange(SP);
-
-            const float point = fapplyDeadband(SP, sp.yawDynamicDeadband);
-            const float range = 1.0f - sp.yawDynamicDeadband - sp.yawDynamicCeiling;
-
-            SP = limitf(point / range, 1.0f);
-
+            SP = applyYawDynamicRange(SP);
             DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
         }
 
@@ -252,7 +255,6 @@ void setpointUpdate(void)
         SP = applyRatesCurve(axis, SP);
         DEBUG_AXIS(SETPOINT, axis, 5, SP);
 
-        // Apply boost
         SP += difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
         DEBUG_AXIS(SETPOINT, axis, 6, SP);
 
