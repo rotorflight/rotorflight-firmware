@@ -3449,8 +3449,8 @@ static void castleDecodeTeleFrame(timeUs_t currentTimeUs, castleTelemetry_t* tel
     escSensorData[0].throttle = throttle;
     escSensorData[0].pwm = pwm;
     escSensorData[0].erpm = rpm;
-    escSensorData[0].voltage = voltage;
-    escSensorData[0].current = current;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage);
+    escSensorData[0].current = applyCurrentCorrection(current);
     escSensorData[0].bec_voltage = becVoltage;
     escSensorData[0].bec_current = becCurrent;
     escSensorData[0].temperature = temperature;
