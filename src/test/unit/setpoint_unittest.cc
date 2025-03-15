@@ -40,7 +40,7 @@ controlRateConfig_t *currentControlRateProfile = &controlRateProfile;
 
 using testing::StrictMock;
 
-class SetpointBoostTest : public ::testing::Test {
+class SetpointTestBase : public ::testing::Test {
   public:
     void SetUp() override
     {
@@ -48,6 +48,11 @@ class SetpointBoostTest : public ::testing::Test {
         setpointInit();
     }
     void TearDown() override { g_mock = nullptr; }
+    StrictMock<MockInterface> mock;
+};
+
+class SetpointBoostTest : public SetpointTestBase {
+  public:
     void SetBoostParam(uint8_t boost, uint8_t cutoff)
     {
         controlRateProfile.setpoint_boost_gain[0] = boost;
@@ -74,7 +79,6 @@ class SetpointBoostTest : public ::testing::Test {
             1000, nullptr, 0.01);
         return {sr.GetSettleTime(), sr.GetOvershootTime(), sr.GetOvershoot()};
     }
-    StrictMock<MockInterface> mock;
 };
 
 TEST_F(SetpointBoostTest, Boost0)
@@ -100,5 +104,74 @@ TEST_F(SetpointBoostTest, Boost90)
     EXPECT_GT(overshoot, 0.05);
 
     std::cout << "Boost 90: " << settle_time << ", " << overshoot_time << ", "
+              << overshoot << std::endl;
+}
+
+extern "C" float getDynamicDeadband(void);
+class DynamicDeadbandTest : public SetpointTestBase {
+  public:
+    void SetDynamicDeadbandParam(uint8_t gain, uint8_t cutoff)
+    {
+        controlRateProfile.yaw_dynamic_deadband_gain = gain;
+        controlRateProfile.yaw_dynamic_deadband_cutoff = cutoff;
+        setpointInitProfile();
+    }
+
+    // ms = yaw stick centering speed (1.0 -> 0 in ms).
+    std::tuple<int, int, float> CalcResponse(int ms)
+    {
+        // Output 1 for 1000 iterations
+        EXPECT_CALL(mock, getRcDeflection(testing::_))
+            .WillRepeatedly(testing::Return(1));
+        for (int i = 0; i < 1000; ++i) {
+            setpointUpdate();
+        }
+
+        EXPECT_CALL(mock, getRcDeflection(0))
+            .WillRepeatedly(testing::Return(1));
+        EXPECT_CALL(mock, getRcDeflection(1))
+            .WillRepeatedly(testing::Return(1));
+        EXPECT_CALL(mock, getRcDeflection(3))
+            .WillRepeatedly(testing::Return(1));
+
+        // Reduce to 0 in ms iterations.
+        EXPECT_CALL(mock, getRcDeflection(2))
+            .WillRepeatedly([&]()->float {
+                static int count = 0;
+                return count++ < ms ? 1 - (float)count/ms : 0;
+            });
+        step_response::StepResponse sr(
+            [](void *) -> float {
+                setpointUpdate();
+                return getDynamicDeadband();
+            },
+            250, nullptr, 0.01);
+        return {sr.GetSettleTime(), sr.GetOvershootTime(), sr.GetOvershoot()};
+    }
+};
+
+TEST_F(DynamicDeadbandTest, Gain100)
+{
+    SetDynamicDeadbandParam(100, 30);
+    auto [settle_time, overshoot_time, overshoot] = CalcResponse(75);
+
+    // 20ms settle time and >10% max deadband (estimate)
+    EXPECT_LT(settle_time, 75+20);
+    EXPECT_GT(overshoot, 0.10);
+
+    std::cout << "Gain 90: " << settle_time << ", " << overshoot_time << ", "
+              << overshoot << std::endl;
+}
+
+TEST_F(DynamicDeadbandTest, Limit)
+{
+    SetDynamicDeadbandParam(200, 30);
+    auto [settle_time, overshoot_time, overshoot] = CalcResponse(25);
+
+    // 20ms settle time and max deadband capped by 20% limit
+    EXPECT_LT(settle_time, 25+20);
+    EXPECT_LT(overshoot, 0.25);
+
+    std::cout << "Gain 90: " << settle_time << ", " << overshoot_time << ", "
               << overshoot << std::endl;
 }
