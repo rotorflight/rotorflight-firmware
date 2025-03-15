@@ -181,6 +181,14 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(ACC_TRIM_PITCH,          NONE,  -300, 300),
     ADJ_CONFIG(ACC_TRIM_ROLL,           NONE,  -300, 300),
+
+    ADJ_CONFIG(INERTIA_PRECOMP_GAIN,    PROF,  0, 250),
+    ADJ_CONFIG(INERTIA_PRECOMP_CUTOFF,  PROF,  0, 250),
+
+    ADJ_CONFIG(PITCH_SP_BOOST_GAIN,     RATE,  0, 255),
+    ADJ_CONFIG(ROLL_SP_BOOST_GAIN,      RATE,  0, 255),
+    ADJ_CONFIG(YAW_SP_BOOST_GAIN,       RATE,  0, 255),
+    ADJ_CONFIG(COLL_SP_BOOST_GAIN,      RATE,  0, 255),
 };
 
 
@@ -396,6 +404,18 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
         case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
             value = currentPidProfile->yaw_inertia_precomp_cutoff;
             break;
+        case ADJUSTMENT_PITCH_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_ROLL];
+            break;
+        case ADJUSTMENT_YAW_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_YAW];
+            break;
+        case ADJUSTMENT_COLL_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_COLL];
+            break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
     }
@@ -610,6 +630,18 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             break;
         case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
             currentPidProfile->yaw_inertia_precomp_cutoff = value;
+            break;
+        case ADJUSTMENT_PITCH_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_YAW] = value;
+            break;
+        case ADJUSTMENT_COLL_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_COLL] = value;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;

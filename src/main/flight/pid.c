@@ -59,7 +59,7 @@
 
 #include "pid.h"
 
-static FAST_DATA_ZERO_INIT pid_t pid;
+static FAST_DATA_ZERO_INIT pidData_t pid;
 
 
 float pidGetDT()

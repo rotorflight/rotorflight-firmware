@@ -805,6 +805,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
         sbufWriteU8(dst, escSensorConfig()->pinSwap);
+        sbufWriteS8(dst, escSensorConfig()->voltage_correction);
+        sbufWriteS8(dst, escSensorConfig()->current_correction);
+        sbufWriteS8(dst, escSensorConfig()->consumption_correction);
         break;
 
     case MSP_ESC_PARAMETERS:
@@ -1339,6 +1342,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->response_time[i]);
             sbufWriteU16(dst, currentControlRateProfile->accel_limit[i]);
         }
+        for (int i = 0; i < 4; i++) {
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_gain[i]);
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_cutoff[i]);
+        }
         break;
 
     case MSP_PID_TUNING:
@@ -1725,7 +1732,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU32(dst, blackboxConfig()->fields);
         sbufWriteU16(dst, blackboxConfig()->initialEraseFreeSpaceKiB);
         sbufWriteU8(dst, blackboxConfig()->rollingErase);
-        sbufWriteU8(dst, blackboxConfig()->gracefulPeriod);
+        sbufWriteU8(dst, blackboxConfig()->gracePeriod);
 #else
         sbufWriteU8(dst, 0); // Blackbox not supported
         sbufWriteU8(dst, 0);
@@ -2394,6 +2401,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->response_time[i] = sbufReadU8(src);
             currentControlRateProfile->accel_limit[i] = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 8) {
+            for (int i = 0; i < 4; i++) {
+                currentControlRateProfile->setpoint_boost_gain[i] =
+                    sbufReadU8(src);
+                currentControlRateProfile->setpoint_boost_cutoff[i] =
+                    sbufReadU8(src);
+            }
+        }
         loadControlRateProfile();
         break;
 
@@ -2764,6 +2779,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 1) {
             escSensorConfigMutable()->pinSwap = sbufReadU8(src);
         }
+        if (sbufBytesRemaining(src) >= 3) {
+            escSensorConfigMutable()->voltage_correction = sbufReadS8(src);
+            escSensorConfigMutable()->current_correction = sbufReadS8(src);
+            escSensorConfigMutable()->consumption_correction = sbufReadS8(src);
+        }
         break;
 
     case MSP_SET_ESC_PARAMETERS:
@@ -2782,6 +2802,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_EEPROM_WRITE:
         if (ARMING_FLAG(ARMED)) {
+            setConfigDirty();
             return MSP_RESULT_ERROR;
         }
 
@@ -2813,7 +2834,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 blackboxConfigMutable()->rollingErase = sbufReadU8(src);
             }
             if (sbufBytesRemaining(src) >= 1) {
-                blackboxConfigMutable()->gracefulPeriod = sbufReadU8(src);
+                blackboxConfigMutable()->gracePeriod = sbufReadU8(src);
             }
         }
         break;
