@@ -662,7 +662,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
-                if (pwm == 0) {
+                if (thr == 0) {
                     current = 0;
                 }
 
