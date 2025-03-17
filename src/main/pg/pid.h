@@ -83,6 +83,10 @@ typedef struct {
     uint8_t     i_gain;
     uint8_t     d_gain;
     uint8_t     f_gain;
+    uint8_t     p_limit;
+    uint8_t     i_limit;
+    uint8_t     d_limit;
+    uint8_t     f_limit;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
     uint8_t     yaw_ff_weight;
