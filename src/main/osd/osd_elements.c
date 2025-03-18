@@ -1120,21 +1120,21 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
 
     switch (element->type) {
     case OSD_ELEMENT_TYPE_3:  // mAh remaining percentage (counts down as battery is used)
-        displayBasis = constrain(batteryConfig()->batteryCapacity - usedCapacity, 0, batteryConfig()->batteryCapacity);
+        displayBasis = constrain(getBatteryCapacity() - usedCapacity, 0, getBatteryCapacity());
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_4:  // mAh used percentage (counts up as battery is used)
         {
             int displayPercent = 0;
-            if (batteryConfig()->batteryCapacity) {
-                displayPercent = constrain(lrintf(100.0f * displayBasis / batteryConfig()->batteryCapacity), 0, 100);
+            if (getBatteryCapacity()) {
+                displayPercent = constrain(lrintf(100.0f * displayBasis / getBatteryCapacity()), 0, 100);
             }
             tfp_sprintf(element->buff, "%c%d%%", SYM_MAH, displayPercent);
             break;
         }
 
     case OSD_ELEMENT_TYPE_2:  // mAh used graphical progress bar (grows as battery is used)
-        displayBasis = constrain(batteryConfig()->batteryCapacity - usedCapacity, 0, batteryConfig()->batteryCapacity);
+        displayBasis = constrain(getBatteryCapacity() - usedCapacity, 0, getBatteryCapacity());
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_1:  // mAh remaining graphical progress bar (shrinks as battery is used)
@@ -1142,9 +1142,9 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
         {
             uint8_t remainingCapacityBars = 0;
 
-            if (batteryConfig()->batteryCapacity) {
-                const float batteryRemaining = constrain(batteryConfig()->batteryCapacity - displayBasis, 0, batteryConfig()->batteryCapacity);
-                remainingCapacityBars = ceilf((batteryRemaining / (batteryConfig()->batteryCapacity / MAIN_BATT_USAGE_STEPS)));
+            if (getBatteryCapacity()) {
+                const float batteryRemaining = constrain(getBatteryCapacity() - displayBasis, 0, getBatteryCapacity());
+                remainingCapacityBars = ceilf((batteryRemaining / (getBatteryCapacity() / MAIN_BATT_USAGE_STEPS)));
             }
 
             // Create empty battery indicator bar

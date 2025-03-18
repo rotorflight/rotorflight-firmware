@@ -42,6 +42,7 @@
 
 #define PID_PROFILE_COUNT 3
 #define CONTROL_RATE_PROFILE_COUNT  6
+#define BATTERY_PROFILE_COUNT 6
 #define USE_MAG
 #define USE_BARO
 #define USE_GPS
@@ -118,6 +119,7 @@ typedef struct
 
 #define MCU_TYPE_ID   99
 #define MCU_TYPE_NAME "UNIT_TEST"
+#define SYSTEM_HSE_VALUE 0
 
 #include "target.h"
 

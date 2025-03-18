@@ -52,10 +52,13 @@ typedef enum {
 } currentMeterSource_e;
 
 typedef struct {
-
-    // battery size
     uint16_t    batteryCapacity;            // mAh
     uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
+} batteryProfile_t;
+
+typedef struct {
+    // battery size
+    batteryProfile_t batteryProfiles[BATTERY_PROFILE_COUNT];
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used

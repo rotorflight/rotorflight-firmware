@@ -48,6 +48,9 @@ void changePidProfile(uint8_t pidProfileIndex);
 uint8_t getCurrentControlRateProfileIndex(void);
 void changeControlRateProfile(uint8_t profileIndex);
 
+uint8_t getCurrentBatteryProfileIndex(void);
+void changeBatteryProfile(uint8_t batteryProfileIndex);
+
 bool canSoftwareSerialBeUsed(void);
 
 uint16_t getCurrentMinthrottle(void);

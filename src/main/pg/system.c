@@ -35,5 +35,6 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .cpu_overclock = DEFAULT_CPU_OVERCLOCK,
     .hseMhz = SYSTEM_HSE_VALUE,
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
+    .batteryProfileIndex = 0,
 );
 

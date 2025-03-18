@@ -87,6 +87,16 @@ baro_ms5611_unittest_DEFINES := \
 #		$(USER_DIR)/sensors/battery.c \
 #		$(USER_DIR)/common/maths.c
 
+battery_profile_unittest_SRC := \
+		$(USER_DIR)/sensors/battery.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/pg/system.c \
+		$(USER_DIR)/pg/battery.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c
 
 # This test is disabled due to build errors.
 #blackbox_unittest_SRC :=  \

@@ -80,6 +80,7 @@ const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
 // Note: Cell count can be 0 when no battery is detected or
 //       when the battery voltage sensor is missing or disabled
 static uint8_t batteryCellCount;
+static uint16_t batteryCapacity;
 
 static uint32_t batteryVoltage;
 static uint32_t batteryCurrent;
@@ -132,6 +133,11 @@ uint16_t getLegacyBatteryVoltage(void)
 uint16_t getBatteryVoltageSample(void)
 {
     return voltageMeter.sample / 10;
+}
+
+uint32_t getBatteryCapacity()
+{
+    return batteryCapacity;
 }
 
 uint8_t getBatteryCellCount(void)
@@ -205,7 +211,6 @@ const char * getBatteryStateString(void)
 uint8_t calculateBatteryPercentageRemaining(void)
 {
     int batteryPercentage = 0;
-    int batteryCapacity = batteryConfig()->batteryCapacity;
 
     if (batteryCapacity > 0) {
         batteryPercentage = 100 * (batteryCapacity - (int)currentMeter.capacity) / batteryCapacity;
@@ -265,10 +270,7 @@ void batteryUpdatePresence(void)
         // Battery has just been connected - calculate cells, warning voltages and reset state
         consumptionState = voltageState = BATTERY_OK;
 
-        if (batteryConfig()->batteryCellCount != 0) {
-            batteryCellCount = batteryConfig()->batteryCellCount;
-        }
-        else {
+        if (batteryCellCount == 0) {
             static const unsigned auto_cells[] = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 12 };
             unsigned voltage = getBatteryVoltage();
             batteryCellCount = 1;
@@ -366,7 +368,7 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && batteryConfig()->batteryCapacity > 0 && batteryCellCount > 0) {
+    if (batteryConfig()->useConsumptionAlerts && batteryCapacity > 0 && batteryCellCount > 0) {
         uint8_t batteryPercentageRemaining = calculateBatteryPercentageRemaining();
 
         if (batteryPercentageRemaining == 0) {
@@ -393,11 +395,9 @@ static void batteryUpdateStates(timeUs_t currentTimeUs)
 
 void taskBatteryAlerts(timeUs_t currentTimeUs)
 {
-    if (!ARMING_FLAG(ARMED)) {
-        // the battery *might* fall out in flight, but if that happens the FC will likely be off too unless the user has battery backup.
+    if (voltageState == BATTERY_INIT) {
         batteryUpdatePresence();
     }
-
     batteryUpdateStates(currentTimeUs);
     batteryUpdateAlarms();
 }
@@ -469,6 +469,29 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     DEBUG(BATTERY, 3, batteryCurrent);
 }
 
+/*
+ * Reset the local battery states to the initial values from the profile.
+ * This function is intended to be called when the battery profile is changed.
+ * It will reset the states (i.e., re-detect cell) even if the profile index is
+ * unchanged.
+ */
+void loadBatteryProfile(void)
+{
+    const batteryProfile_t *currentBatteryProfile =
+        &batteryConfig()->batteryProfiles[systemConfig()->batteryProfileIndex];
+    batteryCapacity = currentBatteryProfile->batteryCapacity;
+    /*
+     * batteryCellCount is loaded from battery profile. In the case of
+     * autodetection (=0), it will be overwritten by `batteryUpdatePresence()`
+     */
+    batteryCellCount = currentBatteryProfile->batteryCellCount;
+
+    voltageState = BATTERY_INIT;
+    consumptionState = BATTERY_OK;
+
+    // batteryState = MAX(voltageState, consumptionState);
+    batteryState = BATTERY_INIT;
+}
 
 void batteryInit(void)
 {
@@ -493,7 +516,6 @@ void batteryInit(void)
 
     // presence
     batteryState = BATTERY_INIT;
-    batteryCellCount = 0;
 
     // voltage
     voltageState = BATTERY_INIT;
@@ -507,5 +529,7 @@ void batteryInit(void)
 
     // current
     consumptionState = BATTERY_OK;
+
+    loadBatteryProfile();
 }
 

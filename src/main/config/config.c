@@ -129,6 +129,20 @@ uint8_t getCurrentControlRateProfileIndex(void)
     return systemConfig()->activeRateProfile;
 }
 
+uint8_t getCurrentBatteryProfileIndex(void)
+{
+    return systemConfig()->batteryProfileIndex;
+}
+
+void changeBatteryProfile(uint8_t batteryProfileIndex)
+{
+    uint8_t old_index = systemConfig()->batteryProfileIndex;
+    systemConfigMutable()->batteryProfileIndex = batteryProfileIndex;
+    if (old_index != batteryProfileIndex) {
+        loadBatteryProfile();
+    }
+}
+
 uint16_t getCurrentMinthrottle(void)
 {
     return motorConfig()->minthrottle;
