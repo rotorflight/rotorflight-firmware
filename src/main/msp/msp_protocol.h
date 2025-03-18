@@ -273,3 +273,5 @@
 #define MSP_DEBUGMSG                         253
 #define MSP_DEBUG                            254
 #define MSP_V2_FRAME                         255
+
+#define MSP_SELECT_BATTERY                   256
