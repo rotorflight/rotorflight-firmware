@@ -851,9 +851,9 @@ static void pidApplyYawMode3(void)
     pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
 
     // Apply error decay
-    float decayRate, decayLimit, errorDecay;
+    float decayRate, decayLimit;
 
-    if (isSpooledUp() || !pid.errorDecayRateGround) {
+    if (isSpooledUp()) {
       decayRate = pid.errorDecayRateYaw;
       decayLimit = pid.errorDecayLimitYaw;
     }
@@ -862,11 +862,9 @@ static void pidApplyYawMode3(void)
       decayLimit = 3600;
     }
 
-    errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
+    const float errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
 
-    pid.data[axis].axisError -= pid.dT * limitf(pid.data[axis].axisError *
-      (isSpooledUp() ? pid.errorDecayRateYaw : pid.errorDecayRateGround),
-      pid.errorDecayLimitYaw);
+    pid.data[axis].axisError -= errorDecay * pid.dT;
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
