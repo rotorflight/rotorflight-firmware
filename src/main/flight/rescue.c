@@ -158,23 +158,35 @@ static void rescueApplyLimits(void)
     }
 }
 
+static inline int wrap180(int angle)
+{
+    while (angle > 1800)
+        angle -= 3600;
+    while (angle < -1800)
+        angle += 3600;
+    return angle;
+}
+
 static void rescueApplyLeveling(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    float rollError = -(attitude.values.roll - trim->values.roll);
-    float pitchError = -(attitude.values.pitch - trim->values.pitch);
+    const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
+    const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    if (allow_inverted) {
-        if (attitude.values.roll > 900) {
-            pitchError = -pitchError;
-            rollError += 1800;
-        }
-        else if (attitude.values.roll < -900) {
-            pitchError = -pitchError;
-            rollError -= 1800;
-        }
+    float rollError, pitchError;
+
+    if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
+        pitchError = pitchAngle;
+        rollError = -rollAngle + 1800;
     }
+    else {
+        pitchError = -pitchAngle;
+        rollError = -rollAngle;
+    }
+
+    pitchError = wrap180(pitchError);
+    rollError = wrap180(rollError);
 
     // Avoid "gimbal lock"
     if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
@@ -190,21 +202,23 @@ static void rescueApplyStabilisation(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    float rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE  -
-        (attitude.values.roll - trim->values.roll);
-    float pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE -
-        (attitude.values.pitch - trim->values.pitch);
+    const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
+    const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    if (allow_inverted) {
-        if (attitude.values.roll > 900) {
-            pitchError = -pitchError;
-            rollError += 1800;
-        }
-        else if (attitude.values.roll < -900) {
-            pitchError = -pitchError;
-            rollError -= 1800;
-        }
+    float rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE;
+    float pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE;
+
+    if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
+        pitchError += pitchAngle;
+        rollError -= rollAngle - 1800;
     }
+    else {
+        pitchError -= pitchAngle;
+        rollError -= rollAngle;
+    }
+
+    pitchError = wrap180(pitchError);
+    rollError = wrap180(rollError);
 
     // Avoid "gimbal lock"
     if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
@@ -246,38 +260,35 @@ static float rescueApplyAltitudePID(float altitude)
 static void rescueApplyClimbCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    float collective = 0;
+    const float tlt2 = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        collective = rescue.climbCollective;
+        rescue.setpoint[FD_COLL] = rescue.climbCollective * tlt2;
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        collective = rescueApplyAltitudePID(rescue.hoverAltitude);
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * tlt2;
     }
-
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
 }
 
 static void rescueApplyHoverCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    float collective = 0;
+    const float tlt2 = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        collective = rescue.hoverCollective + 0.5f * getSetpoint(FD_COLL);
+        rescue.setpoint[FD_COLL] = rescue.hoverCollective * tlt2 + 0.25f * getSetpoint(FD_COLL);
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        collective = rescueApplyAltitudePID(rescue.hoverAltitude);
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * tlt2;
     }
-
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
 }
 
 static void rescueApplyCollective(float collective)
 {
     const float tilt = getCosTiltAngle();
+    const float tlt2 = tilt * fabsf(tilt);
 
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
+    rescue.setpoint[FD_COLL] = collective * tlt2;
 }
 
 static void rescuePullUp(void)
