@@ -248,6 +248,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 
     // Offset flood
+    pid.offsetFloodRelaxLevel = 1.0f / constrain(pidProfile->offset_flood_relax_level, 10, 250);
     const uint8_t offset_flood_relax_freq = constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
     pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 
@@ -575,56 +576,45 @@ static void pidApplyOffsetBleed(const pidProfile_t * pidProfile)
 /*
  * Offset flood: convert axisError to axisOffset according to collective
  */
-static void pidApplyOffsetFlood(const pidProfile_t * pidProfile) {
+static void pidApplyOffsetFlood(const pidProfile_t * pidProfile)
+{
     // Calculate `offsetFloodRelaxFactor`
     const float collective = getCollectiveDeflection();
-    const float collectiveLpf =
-        pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
+    const float collectiveLpf = pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
     const float collectiveHpf = collective - collectiveLpf;
-    const float offsetFloodRelaxLevel =
-        fmaxf(pidProfile->offset_flood_relax_level, 1);
-    const float offsetFloodRelaxFactor =
-        fmaxf(0, 1.0f - fabsf(collectiveHpf) / offsetFloodRelaxLevel);
+    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) * pid.offsetFloodRelaxLevel);
 
     // Prepare curve lookup. Curve points are stored in 0..15° range.
     const float curve = fabsf(collective) * 0.8f;
 
-    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++) {
-        // The algorithm only makes sense if both Ki and Ko !=0;
-        if (pid.coef[axis].Ki == 0 || pid.coef[axis].Ko == 0 ) {
+    // Apply on ROLL and PITCH
+    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++)
+    {
+        // The algorithm only makes sense if Kc <> 0
+        if (pid.coef[axis].Kc == 0)
             continue;
-        }
 
         const float axisError = pid.data[axis].axisError;
         const float axisOffset = pid.data[axis].axisOffset;
-        const float Ki = pid.coef[axis].Ki;
-        const float Ko = pid.coef[axis].Ko;
 
         // 0. calculate bleed rate
-        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve,
-                                         LOOKUP_CURVE_POINTS) *
-                          0.08f;
-        bleedRate = copysignf(bleedRate, axisError);
-        bleedRate *= offsetFloodRelaxFactor;
+        float bleedRate = pidTableLookup(curve, pidProfile->offset_flood_curve, LOOKUP_CURVE_POINTS) * 0.08f;
+        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor;
 
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
+
         // 1. determin sign of offsetDelta
         // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
         // && collective<0
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
 
         // 1. Check offsetLimit
-        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) -
-                      axisOffset;
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) - axisOffset;
 
         // 2. calculate equivalent output delta and errorDelta
         // errorDelta = value to be substract from axisError.
-        // Note:
-        //    output = axisOffset * collective * Ko
-        //    output = axisError * Ki
-        float outputDelta = collective * offsetDelta * Ko;
-        float errorDelta = outputDelta / Ki;
+        float errorDelta = offsetDelta * collective * pid.coef[axis].Kc;
 
         // 2. Check axisError limit
         // Note: axisError and errorDelta have same sign
@@ -632,17 +622,12 @@ static void pidApplyOffsetFlood(const pidProfile_t * pidProfile) {
         if (fabsf(axisError) - fabsf(errorDelta) < 0) {
             // We need to re-calculate outputDelta and offsetDelta:
             errorDelta = axisError;
-            outputDelta = errorDelta * Ki;
-            offsetDelta = outputDelta / collective / Ko;
+            offsetDelta = errorDelta / (collective * pid.coef[axis].Kc);
         }
 
         // 3. Update axisError and axisOffset
         pid.data[axis].axisError -= errorDelta;
         pid.data[axis].axisOffset += offsetDelta;
-
-        // Updating .I and .O isn't necessary. It's just for better logging.
-        pid.data[axis].I -= outputDelta;
-        pid.data[axis].O += outputDelta;
     }
 }
 

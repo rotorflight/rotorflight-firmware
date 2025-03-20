@@ -107,6 +107,8 @@ typedef struct pid_s {
     float errorDecayRateYaw;
     float errorDecayLimitYaw;
 
+    float offsetFloodRelaxLevel;
+
     float offsetLimit[XY_AXIS_COUNT];
     float errorLimit[PID_AXIS_COUNT];
 
@@ -132,6 +134,7 @@ typedef struct pid_s {
     order1Filter_t crossCouplingFilter[XY_AXIS_COUNT];
 
     pt1Filter_t offsetFloodRelaxFilter;
+
 } pidData_t;
 
 
