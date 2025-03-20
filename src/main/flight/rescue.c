@@ -174,7 +174,7 @@ static void rescueApplyLeveling(bool allow_inverted)
     const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
     const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    float rollError, pitchError;
+    int rollError, pitchError;
 
     if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
         pitchError = pitchAngle;
@@ -205,8 +205,8 @@ static void rescueApplyStabilisation(bool allow_inverted)
     const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
     const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    float rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE;
-    float pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE;
+    int rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE;
+    int pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE;
 
     if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
         pitchError += pitchAngle;
