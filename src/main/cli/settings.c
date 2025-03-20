@@ -1480,6 +1480,7 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_DEBUG_AXIS,        VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 255 }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, debug_axis) },
 #ifdef USE_OVERCLOCK
     { "cpu_overclock",              VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OVERCLOCK }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, cpu_overclock) },
+    { "battery_profile",            VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 5 }, PG_SYSTEM_CONFIG, offsetof(systemConfig_t, batteryProfileIndex) },
 #endif
 
 // PG_VTX_CONFIG

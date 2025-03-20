@@ -258,9 +258,10 @@
 
 #define MSP_MULTIPLE_MSP                     230
 #define MSP_MODE_RANGES_EXTRA                238
-#define MSP_ACC_TRIM                         240
 #define MSP_SET_ACC_TRIM                     239
+#define MSP_ACC_TRIM                         240
 
+#define MSP_SELECT_BATTERY                   244
 #define MSP_SET_PASSTHROUGH                  245
 #define MSP_SET_RTC                          246
 #define MSP_RTC                              247
@@ -273,5 +274,3 @@
 #define MSP_DEBUGMSG                         253
 #define MSP_DEBUG                            254
 #define MSP_V2_FRAME                         255
-
-#define MSP_SELECT_BATTERY                   256

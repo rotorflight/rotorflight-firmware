@@ -295,7 +295,11 @@ void batteryUpdatePresence(void)
         // battery has been disconnected - can take a while for filter cap to disharge so we use a threshold of batteryConfig()->vbatnotpresentcellvoltage
         consumptionState = voltageState = BATTERY_NOT_PRESENT;
 
-        batteryCellCount = 0;
+        // Un-detect battery cell count.
+        const batteryProfile_t *currentBatteryProfile =
+            &batteryConfig()->batteryProfiles[systemConfig()->batteryProfileIndex];
+        batteryCellCount = currentBatteryProfile->batteryCellCount;
+
         batteryWarningVoltage = 0;
         batteryCriticalVoltage = 0;
         batteryWarningHysteresisVoltage = 0;
@@ -395,9 +399,7 @@ static void batteryUpdateStates(timeUs_t currentTimeUs)
 
 void taskBatteryAlerts(timeUs_t currentTimeUs)
 {
-    if (voltageState == BATTERY_INIT) {
-        batteryUpdatePresence();
-    }
+    batteryUpdatePresence();
     batteryUpdateStates(currentTimeUs);
     batteryUpdateAlarms();
 }
