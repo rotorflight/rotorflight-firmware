@@ -354,11 +354,13 @@ static inline bool rescueSlowExitDone(void)
 
 static void rescueUpdateState(void)
 {
-    // Handle DISARM separately
+#ifdef RESCUE_REQUIRES_ARMING
     if (!ARMING_FLAG(ARMED)) {
         rescueChangeState(RESCUE_STATE_OFF);
     }
-    else {
+    else
+#endif
+    {
         switch (rescue.state)
         {
             case RESCUE_STATE_OFF:
