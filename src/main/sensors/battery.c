@@ -251,7 +251,7 @@ static void batteryUpdateAlarms(void)
 
 static bool isVoltageStable(void)
 {
-    return ABS(batteryVoltage - voltageMeter.sample) <= VBAT_STABLE_MAX_DELTA;
+    return ABS((int32_t)(batteryVoltage - voltageMeter.sample)) <= VBAT_STABLE_MAX_DELTA;
 }
 
 static bool isVoltageFromBat(void)
@@ -534,4 +534,3 @@ void batteryInit(void)
 
     loadBatteryProfile();
 }
-
