@@ -260,35 +260,35 @@ static float rescueApplyAltitudePID(float altitude)
 static void rescueApplyClimbCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    const float tlt2 = tilt * fabsf(tilt);
+    const float factor = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        rescue.setpoint[FD_COLL] = rescue.climbCollective * tlt2;
+        rescue.setpoint[FD_COLL] = rescue.climbCollective * factor;
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * tlt2;
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * factor;
     }
 }
 
 static void rescueApplyHoverCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    const float tlt2 = tilt * fabsf(tilt);
+    const float factor = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        rescue.setpoint[FD_COLL] = rescue.hoverCollective * tlt2 + 0.25f * getSetpoint(FD_COLL);
+        rescue.setpoint[FD_COLL] = rescue.hoverCollective * factor + 0.25f * getSetpoint(FD_COLL);
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * tlt2;
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * factor;
     }
 }
 
 static void rescueApplyCollective(float collective)
 {
     const float tilt = getCosTiltAngle();
-    const float tlt2 = tilt * fabsf(tilt);
+    const float factor = tilt * fabsf(tilt);
 
-    rescue.setpoint[FD_COLL] = collective * tlt2;
+    rescue.setpoint[FD_COLL] = collective * factor;
 }
 
 static void rescuePullUp(void)
