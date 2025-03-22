@@ -189,6 +189,11 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(ROLL_SP_BOOST_GAIN,      RATE,  0, 255),
     ADJ_CONFIG(YAW_SP_BOOST_GAIN,       RATE,  0, 255),
     ADJ_CONFIG(COLL_SP_BOOST_GAIN,      RATE,  0, 255),
+
+    ADJ_CONFIG(YAW_DYN_CEILING_GAIN,    RATE,  0, 250),
+    ADJ_CONFIG(YAW_DYN_DEADBAND_GAIN,   RATE,  0, 250),
+    ADJ_CONFIG(YAW_DYN_DEADBAND_FILTER, RATE,  0, 250),
+
 };
 
 
@@ -415,6 +420,15 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             break;
         case ADJUSTMENT_COLL_SP_BOOST_GAIN:
             value = currentControlRateProfile->setpoint_boost_gain[FD_COLL];
+            break;
+        case ADJUSTMENT_YAW_DYN_CEILING_GAIN:
+            value = currentControlRateProfile->yaw_dynamic_ceiling_gain;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_GAIN:
+            value = currentControlRateProfile->yaw_dynamic_deadband_gain;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
+            value = currentControlRateProfile->yaw_dynamic_deadband_filter;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
@@ -643,6 +657,16 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
         case ADJUSTMENT_COLL_SP_BOOST_GAIN:
             currentControlRateProfile->setpoint_boost_gain[FD_COLL] = value;
             break;
+        case ADJUSTMENT_YAW_DYN_CEILING_GAIN:
+            currentControlRateProfile->yaw_dynamic_ceiling_gain = value;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_GAIN:
+            currentControlRateProfile->yaw_dynamic_deadband_gain = value;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
+            currentControlRateProfile->yaw_dynamic_deadband_filter = value;
+            break;
+
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
     }

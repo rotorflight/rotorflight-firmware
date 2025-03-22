@@ -48,6 +48,11 @@
 
 #define SP_BOOST_SCALE                   0.1e-4f
 
+#define DYNAMIC_DEADBAND_SCALE             5e-4f
+#define DYNAMIC_DEADBAND_LIMIT             0.40f
+#define DYNAMIC_CEILING_LIMIT              0.40f
+
+
 typedef struct
 {
     float setpoint[4];
@@ -70,10 +75,18 @@ typedef struct
 
     float boostGain[4];
     difFilter_t boostFilter[4];
+
+    float yawDynamicCeiling;
+    float yawDynamicCeilingGain;
+    float yawDynamicDeadband;
+    float yawDynamicDeadbandGain;
+
+    pt1Filter_t yawDynamicSepointLPF;
+    difFilter_t yawDynamicSepointDiff;
+
 } setpointData_t;
 
 static FAST_DATA_ZERO_INIT setpointData_t sp;
-
 
 float getSetpoint(int axis)
 {
@@ -83,6 +96,11 @@ float getSetpoint(int axis)
 float getDeflection(int axis)
 {
     return sp.deflection[axis];
+}
+
+float getDynamicDeadband(void)
+{
+    return sp.yawDynamicDeadband;
 }
 
 static float setpointResponseAccel(int axis, float value)
@@ -110,12 +128,12 @@ void setpointUpdateTiming(float frameTimeUs)
     if (sp.smoothingCutoff != cutoff) {
         for (int i = 0; i < 4; i++) {
             filterUpdate(&sp.smoothingFilter[i], cutoff, pidGetPidFrequency());
-            DEBUG_AXIS(SETPOINT, i, 6, cutoff);
+            //DEBUG_AXIS(SETPOINT, i, 6, cutoff);
         }
         sp.smoothingCutoff = cutoff;
     }
 
-    DEBUG(SETPOINT, 7, frameTimeUs);
+    //DEBUG(SETPOINT, 7, frameTimeUs);
 }
 
 INIT_CODE void setpointInitProfile(void)
@@ -143,6 +161,12 @@ INIT_CODE void setpointInitProfile(void)
         sp.boostGain[i] = currentControlRateProfile->setpoint_boost_gain[i] * SP_BOOST_SCALE;
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
+
+    sp.yawDynamicCeilingGain = currentControlRateProfile->yaw_dynamic_ceiling_gain * DYNAMIC_DEADBAND_SCALE;
+    sp.yawDynamicDeadbandGain = currentControlRateProfile->yaw_dynamic_deadband_gain * DYNAMIC_DEADBAND_SCALE;
+
+    difFilterUpdate(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
+    pt1FilterUpdate(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 }
 
 INIT_CODE void setpointInit(void)
@@ -157,8 +181,26 @@ INIT_CODE void setpointInit(void)
         lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
         difFilterInit(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
+    difFilterInit(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
+    pt1FilterInit(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
     setpointInitProfile();
+}
+
+static float applyYawDynamicRange(float setpoint)
+{
+    const float spdiff = difFilterApply(&sp.yawDynamicSepointDiff, setpoint);
+    const float factor = pt1FilterApply(&sp.yawDynamicSepointLPF, fabsf(spdiff));
+
+    sp.yawDynamicCeiling = constrainf(factor  * sp.yawDynamicCeilingGain, 0, DYNAMIC_CEILING_LIMIT);
+    sp.yawDynamicDeadband = constrainf(factor  * sp.yawDynamicDeadbandGain, 0, DYNAMIC_DEADBAND_LIMIT);
+
+    const float point = fapplyDeadband(setpoint, sp.yawDynamicDeadband);
+    const float range = 1.0f - sp.yawDynamicDeadband - sp.yawDynamicCeiling;
+
+    setpoint = limitf(point / range, 1.0f);
+
+    return setpoint;
 }
 
 void setpointUpdate(void)
@@ -171,8 +213,6 @@ void setpointUpdate(void)
 
         float delta = sq(deflection[axis])- sp.maximum[axis];
         sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
-
-        DEBUG_AXIS(SETPOINT, axis, 1, sp.maximum[axis]);
     }
 
     DEBUG(AIRBORNE, 0, sqrtf(sp.maximum[FD_ROLL]) * 1000);
@@ -195,6 +235,7 @@ void setpointUpdate(void)
 
     for (int axis = 0; axis < 4; axis++) {
         float SP = deflection[axis];
+        DEBUG_AXIS(SETPOINT, axis, 1, SP * 1000);
 
         // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
         if (axis == FD_YAW)
@@ -203,16 +244,21 @@ void setpointUpdate(void)
         SP = filterApply(&sp.smoothingFilter[axis], SP);
         DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
 
+        if (axis == FD_YAW) {
+            SP = applyYawDynamicRange(SP);
+            DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
+        }
+
         SP = sp.deflection[axis] = setpointResponseAccel(axis, SP);
-        DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
+        DEBUG_AXIS(SETPOINT, axis, 4, SP * 1000);
 
-        SP = sp.setpoint[axis] = applyRatesCurve(axis, SP);
-        DEBUG_AXIS(SETPOINT, axis, 4, SP);
-
-        // Apply boost
-        SP = sp.setpoint[axis] +=
-            difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
+        SP = applyRatesCurve(axis, SP);
         DEBUG_AXIS(SETPOINT, axis, 5, SP);
+
+        SP += difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
+        DEBUG_AXIS(SETPOINT, axis, 6, SP);
+
+        sp.setpoint[axis] = SP;
     }
 }
 

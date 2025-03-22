@@ -1346,6 +1346,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_gain[i]);
             sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_cutoff[i]);
         }
+        sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_ceiling_gain);
+        sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_gain);
+        sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_filter);
         break;
 
     case MSP_PID_TUNING:
@@ -2408,6 +2411,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 currentControlRateProfile->setpoint_boost_cutoff[i] =
                     sbufReadU8(src);
             }
+        }
+        if (sbufBytesRemaining(src) >= 3) {
+            currentControlRateProfile->yaw_dynamic_ceiling_gain = sbufReadU8(src);
+            currentControlRateProfile->yaw_dynamic_deadband_gain = sbufReadU8(src);
+            currentControlRateProfile->yaw_dynamic_deadband_filter= sbufReadU8(src);
         }
         loadControlRateProfile();
         break;
