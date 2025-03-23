@@ -553,7 +553,7 @@ ifeq ($(shell $(CC) -v 2>&1 | grep -q "clang version" && echo "clang"),clang)
 # Travis reports CC_VERSION of 4.2.1
 CC_VERSION_MAJOR := $(firstword $(subst ., ,$(CC_VERSION)))
 CC_VERSION_CHECK_MIN := 7
-CC_VERSION_CHECK_MAX := 18
+CC_VERSION_CHECK_MAX := 999  # Don't check for max version
 
 # Added flags for clang 11 - 13 are not backwards compatible
 ifeq ($(shell expr $(CC_VERSION_MAJOR) \> 10 \& $(CC_VERSION_MAJOR) \< 14), 1)
