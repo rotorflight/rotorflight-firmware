@@ -31,9 +31,9 @@
 #include "flash.h"
 #include "flash_impl.h"
 #include "flash_m25p16.h"
-#include "flash_w25n01g.h"
 #include "flash_w25q128fv.h"
 #include "flash_w25m.h"
+#include "flash_w25n.h"
 #include "drivers/bus_spi.h"
 #include "drivers/bus_quadspi.h"
 #include "drivers/io.h"
@@ -107,7 +107,7 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
 
             if (offset == 1) {
 #ifdef USE_FLASH_W25N01G
-                if (!detected && w25n01g_detect(&flashDevice, chipID)) {
+                if (!detected && w25n_detect(&flashDevice, chipID)) {
                     detected = true;
                 }
 #endif
@@ -193,7 +193,7 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
     chipID = (readIdResponse[1] << 16) | (readIdResponse[2] << 8) | (readIdResponse[3]);
 
 #ifdef USE_FLASH_W25N01G
-    if (w25n01g_detect(&flashDevice, chipID)) {
+    if (w25n_detect(&flashDevice, chipID)) {
         return true;
     }
 #endif

@@ -805,6 +805,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
         sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
         sbufWriteU8(dst, escSensorConfig()->pinSwap);
+        sbufWriteS8(dst, escSensorConfig()->voltage_correction);
+        sbufWriteS8(dst, escSensorConfig()->current_correction);
+        sbufWriteS8(dst, escSensorConfig()->consumption_correction);
         break;
 
     case MSP_ESC_PARAMETERS:
@@ -1345,6 +1348,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, currentControlRateProfile->rates[i]);
             sbufWriteU8(dst, currentControlRateProfile->response_time[i]);
             sbufWriteU16(dst, currentControlRateProfile->accel_limit[i]);
+        }
+        for (int i = 0; i < 4; i++) {
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_gain[i]);
+            sbufWriteU8(dst, currentControlRateProfile->setpoint_boost_cutoff[i]);
         }
         break;
 
@@ -2409,6 +2416,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->response_time[i] = sbufReadU8(src);
             currentControlRateProfile->accel_limit[i] = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 8) {
+            for (int i = 0; i < 4; i++) {
+                currentControlRateProfile->setpoint_boost_gain[i] =
+                    sbufReadU8(src);
+                currentControlRateProfile->setpoint_boost_cutoff[i] =
+                    sbufReadU8(src);
+            }
+        }
         loadControlRateProfile();
         break;
 
@@ -2778,6 +2793,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
             escSensorConfigMutable()->pinSwap = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 3) {
+            escSensorConfigMutable()->voltage_correction = sbufReadS8(src);
+            escSensorConfigMutable()->current_correction = sbufReadS8(src);
+            escSensorConfigMutable()->consumption_correction = sbufReadS8(src);
         }
         break;
 

@@ -75,6 +75,7 @@ COMMON_SRC = \
             fc/init.c \
             drivers/camera_control.c \
             drivers/accgyro/gyro_sync.c \
+            drivers/castle_telemetry_decode.c \
             drivers/pwm_output.c \
             drivers/sbus_output.c \
             drivers/rx/rx_spi.c \
@@ -249,6 +250,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             drivers/bus_spi.c \
             drivers/exti.c \
             drivers/io.c \
+            drivers/castle_telemetry_decode.c \
             drivers/pwm_output.c \
             drivers/rcc.c \
             drivers/serial.c \
@@ -404,9 +406,9 @@ ifneq ($(filter ONBOARDFLASH,$(FEATURES)),)
 SRC += \
             drivers/flash.c \
             drivers/flash_m25p16.c \
-            drivers/flash_w25n01g.c \
             drivers/flash_w25q128fv.c \
             drivers/flash_w25m.c \
+            drivers/flash_w25n.c \
             io/flashfs.c \
             $(MSC_SRC)
 endif

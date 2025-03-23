@@ -507,6 +507,12 @@ flashfs_unittest_SRC := \
 flashfs_unittest_DEFINES := \
 		USE_FLASHFS_LOOP
 
+setpoint_unittest_SRC := \
+        $(USER_DIR)/flight/setpoint.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c
+
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
 # but shouldn't modify.
