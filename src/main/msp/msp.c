@@ -884,8 +884,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, 0);  // was batteryConfig()->batteryCapacity;
-        sbufWriteU8(dst, 0);  // was batteryConfig()->batteryCellCount;
+        sbufWriteU16(dst, batteryConfig()->batteryProfiles[0].batteryCapacity);
+        sbufWriteU8(dst, batteryConfig()->batteryProfiles[0].batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
         sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage);
@@ -894,7 +894,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
         sbufWriteU8(dst, batteryConfig()->lvcPercentage);
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
-        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++) {
+        for (int i = 1; i < BATTERY_PROFILE_COUNT; i++) {
             sbufWriteU16(dst, batteryConfig()->batteryProfiles[i].batteryCapacity);
             sbufWriteU8(dst, batteryConfig()->batteryProfiles[i].batteryCellCount);
         }
@@ -3516,8 +3516,8 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        sbufReadU16(src);  // old batteryCapacity
-        sbufReadU8(src);  // old batteryCellCount
+        batteryConfigMutable()->batteryProfiles[0].batteryCapacity = sbufReadU16(src);
+        batteryConfigMutable()->batteryProfiles[0].batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
         batteryConfigMutable()->vbatmincellvoltage = sbufReadU16(src);
@@ -3526,8 +3526,9 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
-        if (sbufBytesRemaining(src) >= BATTERY_PROFILE_COUNT * 3) {
-            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++) {
+        // Additional battery profiles
+        if (sbufBytesRemaining(src) >= (BATTERY_PROFILE_COUNT - 1) * 3) {
+            for (int i = 1; i < BATTERY_PROFILE_COUNT; i++) {
                 batteryConfigMutable()->batteryProfiles[i].batteryCapacity = sbufReadU16(src);
                 batteryConfigMutable()->batteryProfiles[i].batteryCellCount = sbufReadU8(src);
             }
