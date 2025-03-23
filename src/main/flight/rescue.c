@@ -354,76 +354,68 @@ static inline bool rescueSlowExitDone(void)
 
 static void rescueUpdateState(void)
 {
-#ifdef RESCUE_REQUIRES_ARMING
-    if (!ARMING_FLAG(ARMED)) {
-        rescueChangeState(RESCUE_STATE_OFF);
-    }
-    else
-#endif
+    switch (rescue.state)
     {
-        switch (rescue.state)
-        {
-            case RESCUE_STATE_OFF:
-                if (rescueActive()) {
-                    rescueChangeState(RESCUE_STATE_PULLUP);
-                    rescuePullUp();
-                }
-                break;
-
-            case RESCUE_STATE_PULLUP:
+        case RESCUE_STATE_OFF:
+            if (rescueActive()) {
+                rescueChangeState(RESCUE_STATE_PULLUP);
                 rescuePullUp();
-                if (!rescueActive())
-                    rescueChangeState(RESCUE_STATE_EXIT);
-                else if (rescuePullUpDone()) {
-                    if (rescueIsLeveled()) {
-                        if (rescue.flip && rescueIsInverted())
-                            rescueChangeState(RESCUE_STATE_FLIP);
-                        else
-                            rescueChangeState(RESCUE_STATE_CLIMB);
-                    }
-                    else {
-                        rescueChangeState(RESCUE_STATE_EXIT);
-                    }
-                }
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_FLIP:
-                rescueFlipOver();
-                if (rescueFlipDone()) {
-                    if (!rescueActive())
-                        rescueChangeState(RESCUE_STATE_EXIT);
+        case RESCUE_STATE_PULLUP:
+            rescuePullUp();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            else if (rescuePullUpDone()) {
+                if (rescueIsLeveled()) {
+                    if (rescue.flip && rescueIsInverted())
+                        rescueChangeState(RESCUE_STATE_FLIP);
                     else
                         rescueChangeState(RESCUE_STATE_CLIMB);
                 }
-                else if (rescueFlipTimeout()) {
-                    if (rescueIsLeveled())
-                        rescueChangeState(RESCUE_STATE_CLIMB);
-                    else
-                        rescueChangeState(RESCUE_STATE_EXIT);
+                else {
+                    rescueChangeState(RESCUE_STATE_EXIT);
                 }
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_CLIMB:
-                rescueClimb();
+        case RESCUE_STATE_FLIP:
+            rescueFlipOver();
+            if (rescueFlipDone()) {
                 if (!rescueActive())
                     rescueChangeState(RESCUE_STATE_EXIT);
-                else if (rescueClimbDone())
-                    rescueChangeState(RESCUE_STATE_HOVER);
-                break;
-
-            case RESCUE_STATE_HOVER:
-                rescueHover();
-                if (!rescueActive())
+                else
+                    rescueChangeState(RESCUE_STATE_CLIMB);
+            }
+            else if (rescueFlipTimeout()) {
+                if (rescueIsLeveled())
+                    rescueChangeState(RESCUE_STATE_CLIMB);
+                else
                     rescueChangeState(RESCUE_STATE_EXIT);
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_EXIT:
-                if (rescueActive())
-                    rescueChangeState(RESCUE_STATE_PULLUP);
-                else if (rescueSlowExitDone())
-                    rescueChangeState(RESCUE_STATE_OFF);
-                break;
-        }
+        case RESCUE_STATE_CLIMB:
+            rescueClimb();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            else if (rescueClimbDone())
+                rescueChangeState(RESCUE_STATE_HOVER);
+            break;
+
+        case RESCUE_STATE_HOVER:
+            rescueHover();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            break;
+
+        case RESCUE_STATE_EXIT:
+            if (rescueActive())
+                rescueChangeState(RESCUE_STATE_PULLUP);
+            else if (rescueSlowExitDone())
+                rescueChangeState(RESCUE_STATE_OFF);
+            break;
     }
 }
 
