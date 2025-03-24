@@ -141,7 +141,7 @@ void bmi088SpiGyroInit(gyroDev_t *gyro)
 
     uint8_t filtConf = 0;
 
-    switch(gyroConfig()->gyro_hardware_lpf) {
+    switch (gyroConfig()->gyro_hardware_lpf) {
         case GYRO_HARDWARE_LPF_NORMAL:
             //ODR: 2Khz
             filtConf = BMI088_G_BANDWIDTH_230HZ;
@@ -294,7 +294,7 @@ uint8_t bmi088SpiDetect(const extDevice_t *dev)
 
 bool bmi088SpiGyroDetect(gyroDev_t *gyro)
 {
-    if(gyro->mpuDetectionResult.sensor != BMI_088_SPI){
+    if (gyro->mpuDetectionResult.sensor != BMI_088_SPI){
 		return false;
 	}
     uint8_t resultBITE = spiReadReg(&gyro->dev, BMI088_REG_GYRO_SELF_TEST| 0x80);
@@ -307,7 +307,7 @@ bool bmi088SpiGyroDetect(gyroDev_t *gyro)
     }while(startBITETime - millis() < 50 && (resultBITE & 0x02) != 0x02);
     
     
-    if((resultBITE & 0x04) == 0x04){
+    if ((resultBITE & 0x04) == 0x04){
         //BITE failed
         return false;
     }
@@ -415,7 +415,7 @@ void bmi088SpiAccInit(accDev_t *acc)
 
 bool bmi088SpiAccDetect(accDev_t *acc)
 {
-    if(acc->mpuDetectionResult.sensor != BMI_088_SPI){
+    if (acc->mpuDetectionResult.sensor != BMI_088_SPI){
       return false;
     }
     
