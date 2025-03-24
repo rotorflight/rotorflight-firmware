@@ -1656,7 +1656,7 @@ static void flyDecodeTelemetryFrame(void)
 
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
-    const int16_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
+    const int16_t motorTemp = buffer[hl + 11] - FLY_TEMP_OFFSET;
     const uint8_t power = buffer[hl + 8];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
@@ -1672,7 +1672,7 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].current = applyCurrentCorrection(current * 10);
     escSensorData[0].consumption = applyConsumptionCorrection(consumption);
     escSensorData[0].temperature = temp * 10;
-    escSensorData[0].temperature2 = mcuTemp * 10;
+    escSensorData[0].temperature2 = motorTemp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
 
