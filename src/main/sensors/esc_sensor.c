@@ -40,6 +40,7 @@
 #include "common/maths.h"
 #include "common/utils.h"
 
+#include "drivers/castle_telemetry_decode.h"
 #include "drivers/timer.h"
 #include "drivers/motor.h"
 #include "drivers/dshot.h"
@@ -111,6 +112,7 @@ enum {
 #define ESC_SIG_XDFLY             0xA6
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
+#define ESC_SIG_CASTLE            0xCC
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -157,7 +159,6 @@ static bool paramMspActive = false;
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
 
-
 static void paramEscNeedRestart(void)
 {
     escSensorData[0].age = 0;
@@ -167,12 +168,36 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
-    return escSensorPort != NULL;
+    return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 
 uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
     return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
+}
+
+static uint32_t applyVoltageCorrection(uint32_t voltage)
+{
+    if (escSensorConfig()->voltage_correction == 0)
+        return voltage;
+
+    return (voltage * (100 + escSensorConfig()->voltage_correction)) / 100;
+}
+
+static uint32_t applyCurrentCorrection(uint32_t current)
+{
+    if (escSensorConfig()->current_correction == 0)
+        return current;
+
+    return (current * (100 + escSensorConfig()->current_correction)) / 100;
+}
+
+static uint32_t applyConsumptionCorrection(uint32_t consumption)
+{
+    if (escSensorConfig()->consumption_correction == 0)
+        return consumption;
+
+    return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
 static void combinedDataUpdate(void)
@@ -203,6 +228,12 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 {
     if (getMotorCount() > 0 && featureIsEnabled(FEATURE_ESC_SENSOR)) {
         if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE) {
+#ifdef USE_TELEMETRY_CASTLE
+            if (isMotorProtocolCastlePWM()) {
+                if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED)
+                    return &escSensorData[0];
+            }
+#endif
             return NULL;
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
@@ -274,7 +305,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, totalConsumption);
 
-    escSensorData[0].consumption = totalConsumption;
+    escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
 
@@ -361,9 +392,9 @@ static uint8_t blDecodeTelemetryFrame(void)
         escSensorData[currentEsc].id = ESC_SIG_BLHELI32;
         escSensorData[currentEsc].age = 0;
         escSensorData[currentEsc].erpm = erpm * 100;
-        escSensorData[currentEsc].voltage = volt * 10;
-        escSensorData[currentEsc].current = curr * 10;
-        escSensorData[currentEsc].consumption = capa;
+        escSensorData[currentEsc].voltage = applyVoltageCorrection(volt * 10);
+        escSensorData[currentEsc].current = applyCurrentCorrection(curr * 10);
+        escSensorData[currentEsc].consumption = applyConsumptionCorrection(capa);
         escSensorData[currentEsc].temperature = temp * 10;
 
         combinedNeedsUpdate = true;
@@ -632,7 +663,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
-                if (pwm == 0) {
+                if (thr == 0) {
                     current = 0;
                 }
 
@@ -643,8 +674,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
-                escSensorData[0].voltage = lrintf(voltage * 1000);
-                escSensorData[0].current = lrintf(current * 1000);
+                escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
+                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
@@ -871,9 +902,9 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = (throttle + 100) * 5;
                 escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = tempFET * 10;
                 escSensorData[0].temperature2 = tempBEC * 10;
                 escSensorData[0].bec_voltage = voltBEC;
@@ -987,9 +1018,9 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = temp * 10;
                 escSensorData[0].status = status;
 
@@ -1109,9 +1140,9 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm * 10;
                 escSensorData[0].throttle = throttle * 10;
                 escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = temp * 10;
                 escSensorData[0].bec_voltage = voltBEC * 1000;
                 escSensorData[0].status = status;
@@ -1255,8 +1286,8 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = throttle;
                 escSensorData[0].pwm = power;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 80;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 80);
                 escSensorData[0].temperature = lrintf(temp * 10);
                 escSensorData[0].status = status;
 
@@ -1626,7 +1657,7 @@ static void flyDecodeTelemetryFrame(void)
 
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
-    const int16_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
+    const int16_t motorTemp = buffer[hl + 11] - FLY_TEMP_OFFSET;
     const uint8_t power = buffer[hl + 8];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
@@ -1638,11 +1669,11 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 10;
     escSensorData[0].pwm = power * 10;
-    escSensorData[0].voltage = voltage * 10;
-    escSensorData[0].current = current * 10;
-    escSensorData[0].consumption = consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(consumption);
     escSensorData[0].temperature = temp * 10;
-    escSensorData[0].temperature2 = mcuTemp * 10;
+    escSensorData[0].temperature2 = motorTemp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
 
@@ -2030,8 +2061,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
     escSensorData[0].pwm = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = current * 100;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
     escSensorData[0].temperature = tele->temperature * 10;
     escSensorData[0].temperature2 = tele->bec_temp * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage * 100;
@@ -2547,9 +2578,9 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
     escSensorData[0].pwm = power * 5;
-    escSensorData[0].voltage = voltage * 100;
-    escSensorData[0].current = current * 100;
-    escSensorData[0].consumption = capacity;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(capacity);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
@@ -2968,9 +2999,9 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].pwm = tele->pwm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 10;
-    escSensorData[0].current = tele->current * 10;
-    escSensorData[0].consumption = tele->consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->consumption);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
@@ -3222,9 +3253,9 @@ static bool graupnerDecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].id = ESC_SIG_GRAUPNER;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = tele->current * 100;
-    escSensorData[0].consumption = tele->capacity * 10;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->capacity * 10);
     escSensorData[0].temperature = tele->temperature * 10 - 200;
     escSensorData[0].status = tele->flags;
 
@@ -3704,6 +3735,144 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
 }
 
 
+/*
+ * Castle Live Link Telemetry Data Recorder
+ */
+
+#define CASTLE_BATTERY_VOLTAGE_SCALE 20000.0f // in mV, not volts
+#define CASTLE_RIPPLE_VOLTAGE_SCALE 4000.0f  // in mV, not volts
+#define CASTLE_BATTERY_CURRENT_SCALE 50000.0f // in mA, not amps
+#define CASTLE_THROTTLE_SCALE 1.0f // in ms.
+// Note the doc for POWER_SCALE says the unit is percent for scale 0.2502,
+// but that actually puts it in a 0..1 range, not 0..100.
+#define CASTLE_POWER_SCALE 250.2f // in per-thousands (mils)
+#define CASTLE_RPM_SCALE 20416.7f
+#define CASTLE_BEC_VOLTAGE_SCALE 4000.0f  // in mV, not volts
+#define CASTLE_BEC_CURRENT_SCALE 4000.0f  // in mA, not amps
+#define CASTLE_LIN_TEMP_SCALE 30.0f // in degrees C
+// CASTLE_NTC_TEMP_SCALE is modified from the Castle-documented value of 63.8125
+// to match the range of 1-4096 used by calcTempNTC() instead of 1-255 as assumed by Castle.
+#define CASTLE_NTC_TEMP_SCALE 1025.0039215686f
+
+// Castle Link telemetry is not digital; it's the length of time between the rising edge of the
+// output (inverted) pwm and the falling edge of the input "tick" generated by the ESC.  To
+// calibrate this time, each frame includes minimum-length (0.5ms) and 1ms calibration items.
+// The "max" below is required because a data item could be smaller than the 0.5ms calibration
+// item due to measurement error.
+#define CASTLE_DECODE_1(tele, item, scale, cal0p5) \
+    ((MAX(tele->item, cal0p5) - cal0p5) * scale / tele->oneMs)
+
+#define CASTLE_DECODE(tele, item, scale, cal0p5) \
+    CASTLE_DECODE_1(tele, item, CASTLE_##scale##_SCALE, cal0p5)
+
+/* Temp sensor design for Castle ESCs equipped with an NTC sensor:
+ * ―――――――――――――――――――
+ *  β  = 3455
+ *  Rᵣ = 10.2k
+ *  Rₙ = 10k
+ *  Tₙ = 25°C = 298.15K
+ *
+ *  γ = 1 / β = 0.0002894…
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(102/100) + 1/298.15 = 0.0033597…
+ *
+ * Note Castle's official values are Tₙ = 24.85°C and Tₖ = 273K.  These are unlikely to be
+ * correct. The discrepency with the official calculation is only about 0.2 degrees at the upper end
+ * of the temperature range (and less elsewhere).
+ */
+#define CASTLE_NTC_GAMMA  0.0002894356005f
+#define CASTLE_NTC_DELTA  0.0033597480200f
+
+#ifdef USE_TELEMETRY_CASTLE
+static float castleDecodeTemperature(castleTelemetry_t* tele)
+{
+    if (tele->linTempOrHalfMs < tele->ntcTempOrHalfMs) {
+        float value = CASTLE_DECODE(tele, ntcTempOrHalfMs, NTC_TEMP, tele->linTempOrHalfMs);
+        return calcTempNTC(value, CASTLE_NTC_GAMMA, CASTLE_NTC_DELTA);
+    } else {
+        return CASTLE_DECODE(tele, linTempOrHalfMs, NTC_TEMP, tele->ntcTempOrHalfMs);
+    }
+}
+
+static void castleDecodeTeleFrame(timeUs_t currentTimeUs, castleTelemetry_t* tele)
+{
+    // The half-millisecond (minimum) calibration value is in the same
+    // field as whichever temperature sensor is not installed, so we
+    // find it by choosing the lesser of the two temperature fields.
+    uint16_t halfMs = tele->linTempOrHalfMs;
+    bool linTemp = false;
+    if (tele->ntcTempOrHalfMs < halfMs) {
+        linTemp = true;
+        halfMs = tele->ntcTempOrHalfMs;
+    }
+
+    // We might want to use the configured min/max throttle values to create the telemetry
+    // per-1000 value instead of the standard 1ms-2ms.
+    float throttleMs = constrainf(CASTLE_DECODE(tele, throttle, THROTTLE, halfMs), 1.0, 2.0);
+    uint16_t throttle = lrintf((throttleMs - 1.0) * 1000.0);
+    uint16_t pwm = lrintf(CASTLE_DECODE(tele, outputPower, POWER, halfMs));
+    uint32_t rpm = lrintf(CASTLE_DECODE(tele, rpm, RPM, halfMs));
+    uint32_t voltage = lrintf(CASTLE_DECODE(tele, battVoltage, BATTERY_VOLTAGE, halfMs));
+    uint32_t current = lrintf(CASTLE_DECODE(tele, battCurrent, BATTERY_CURRENT, halfMs));
+    uint32_t becVoltage = lrintf(CASTLE_DECODE(tele, becVoltage, BEC_VOLTAGE, halfMs));
+    uint32_t becCurrent = lrintf(CASTLE_DECODE(tele, becCurrent, BEC_CURRENT, halfMs));
+    int16_t temperature = lrintf(castleDecodeTemperature(tele) * 10.0);
+
+    escSensorData[0].id = ESC_SIG_CASTLE;
+    escSensorData[0].age = 0;
+    escSensorData[0].throttle = throttle;
+    escSensorData[0].pwm = pwm;
+    escSensorData[0].erpm = rpm;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage);
+    escSensorData[0].current = applyCurrentCorrection(current);
+    escSensorData[0].bec_voltage = becVoltage;
+    escSensorData[0].bec_current = becCurrent;
+    escSensorData[0].temperature = temperature;
+
+    setConsumptionCurrent(current / 1000.0);
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temperature);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, tele->rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, tele->outputPower);
+    if (linTemp) {
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->linTempOrHalfMs);
+    } else {
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->ntcTempOrHalfMs);
+    }
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->battVoltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->battCurrent);
+    // We don't use DEBUG_DATA_CAPACITY here, because it is not in the Castle Link telemetry.
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->throttle);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    dataUpdateUs = currentTimeUs;
+}
+
+static void castleSensorProcess(timeUs_t currentTimeUs)
+{
+    // buffer[0..1] holds our current generation, then the next 22 bytes hold
+    // the telemetry value
+    castleTelemetry_t *rawTelemetry = (castleTelemetry_t*)&buffer[2];
+    getCastleTelemetry(rawTelemetry);
+    if (rawTelemetry->generation == *(uint16_t*)buffer) {
+        // We expect every 12 PWM frames we'll get new data.  Max frame
+        // length is 20ms for 50Hz, and we allow one frame extra.
+        checkFrameTimeout(currentTimeUs,
+                          (CASTLE_TELEM_NFRAMES + 1) *
+                          CASTLE_PWM_PERIOD_MS_MAX * 1000);
+        return;
+    }
+    dataUpdateUs = currentTimeUs;
+    *(uint16_t*)buffer = rawTelemetry->generation;
+    castleDecodeTeleFrame(currentTimeUs, rawTelemetry);
+    updateConsumption(currentTimeUs);
+}
+#endif // USE_TELEMETRY_CASTLE
+
 void escSensorProcess(timeUs_t currentTimeUs)
 {
     if (escSensorPort && motorIsEnabled()) {
@@ -3757,6 +3926,11 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
     }
+#ifdef USE_TELEMETRY_CASTLE
+    else if (isMotorProtocolCastlePWM()) {
+        castleSensorProcess(currentTimeUs);
+    }
+#endif
 }
 
 void INIT_CODE validateAndFixEscSensorConfig(void)
@@ -3765,9 +3939,25 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
         case ESC_SENSOR_PROTO_GRAUPNER:
             escSensorConfigMutable()->halfDuplex = true;
             break;
+#ifdef USE_TELEMETRY_CASTLE
+        case ESC_SENSOR_PROTO_NONE:
+            if (isMotorProtocolCastlePWM()) {
+                escSensorConfigMutable()->update_hz = motorConfig()->dev.motorPwmRate / CASTLE_TELEM_NFRAMES;
+            }
+            break;
+#endif
         default:
             break;
     }
+}
+
+void INIT_CODE escSensorCommonInit(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+        escSensorData[i].age = ESC_DATA_INVALID;
+    }
+
+    escSensorDataCombined.age = ESC_DATA_INVALID;
 }
 
 bool INIT_CODE escSensorInit(void)
@@ -3778,6 +3968,10 @@ bool INIT_CODE escSensorInit(void)
     portOptions_e options = 0;
     uint32_t baudrate = 0;
 
+    if (isMotorProtocolCastlePWM() && (!portConfig || escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE)) {
+        escSensorCommonInit();
+        return true;
+    }
     if (!portConfig) {
         return false;
     }
@@ -3836,12 +4030,7 @@ bool INIT_CODE escSensorInit(void)
         escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, escHalfDuplex ? MODE_RXTX : MODE_RX, options);
     }
 
-    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        escSensorData[i].age = ESC_DATA_INVALID;
-    }
-
-    escSensorDataCombined.age = ESC_DATA_INVALID;
-
+    escSensorCommonInit();
     return (escSensorPort != NULL);
 }
 

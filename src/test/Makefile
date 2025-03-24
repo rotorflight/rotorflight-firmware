@@ -408,22 +408,19 @@ huffman_unittest_DEFINES := \
 #		USE_RCDEVICE=
 
 
-# This test is disabled due to build errors.
-#pid_unittest_SRC :=  \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
-#		$(USER_DIR)/fc/controlrate_profile.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/flight/pid.c \
-#		$(USER_DIR)/flight/pid_init.c \
-#		$(USER_DIR)/pg/pg.c
-#
-#pid_unittest_DEFINES := \
-#		USE_ITERM_RELAX= \
-#		USE_LAUNCH_CONTROL= \
+pid_unittest_SRC :=  \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/flight/pid.c \
+		$(USER_DIR)/pg/pid.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/rates.c
 
 #vtx_unittest_SRC := \
 #		$(USER_DIR)/fc/core.c \
@@ -499,6 +496,12 @@ flashfs_unittest_SRC := \
 
 flashfs_unittest_DEFINES := \
 		USE_FLASHFS_LOOP
+
+setpoint_unittest_SRC := \
+        $(USER_DIR)/flight/setpoint.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c
 
 # Please tweak the following variable definitions as needed by your
 # project, except GTEST_HEADERS, which you can use in your own targets
