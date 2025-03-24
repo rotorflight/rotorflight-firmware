@@ -98,11 +98,6 @@ float getDeflection(int axis)
     return sp.deflection[axis];
 }
 
-float getDynamicDeadband(void)
-{
-    return sp.yawDynamicDeadband;
-}
-
 static float setpointResponseAccel(int axis, float value)
 {
     sp.limited[axis] += limitf((value - sp.limited[axis]) * sp.responseFactor[axis], sp.responseAccel[axis]);
@@ -128,12 +123,9 @@ void setpointUpdateTiming(float frameTimeUs)
     if (sp.smoothingCutoff != cutoff) {
         for (int i = 0; i < 4; i++) {
             filterUpdate(&sp.smoothingFilter[i], cutoff, pidGetPidFrequency());
-            //DEBUG_AXIS(SETPOINT, i, 6, cutoff);
         }
         sp.smoothingCutoff = cutoff;
     }
-
-    //DEBUG(SETPOINT, 7, frameTimeUs);
 }
 
 INIT_CODE void setpointInitProfile(void)
