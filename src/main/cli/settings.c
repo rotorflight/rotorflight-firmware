@@ -983,8 +983,8 @@ const clivalue_t valueTable[] = {
 
     { "yaw_dynamic_ceiling_gain",    VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_ceiling_gain) },
     { "yaw_dynamic_deadband_gain",   VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_gain) },
-    { "yaw_dynamic_deadband_cutoff", VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_cutoff) },
     { "yaw_dynamic_deadband_filter", VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_filter) },
+    { "yaw_dynamic_deadband_cutoff", VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_cutoff) },
 
 // PG_SERIAL_CONFIG
     { "reboot_character",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 48, 126 }, PG_SERIAL_CONFIG, offsetof(serialConfig_t, reboot_character) },
