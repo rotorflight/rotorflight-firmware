@@ -303,8 +303,9 @@ int telemetrySensorValue(sensor_id_e id)
             return getCurrentPidProfileIndex() + 1;
         case TELEM_RATES_PROFILE:
             return getCurrentControlRateProfileIndex() + 1;
-        case TELEM_LED_PROFILE:
         case TELEM_BATTERY_PROFILE:
+            return getCurrentBatteryProfileIndex() + 1;
+        case TELEM_LED_PROFILE:
             return 0;
 
         case TELEM_ADJFUNC:
@@ -475,9 +476,9 @@ bool telemetrySensorActive(sensor_id_e id)
 
         case TELEM_PID_PROFILE:
         case TELEM_RATES_PROFILE:
+        case TELEM_BATTERY_PROFILE:
             return true;
 
-        case TELEM_BATTERY_PROFILE:
         case TELEM_LED_PROFILE:
             return false;
 
