@@ -69,13 +69,7 @@
 #define GOV_NOMINAL_CELL_VOLTAGE        3.70f
 
 // PID term limits
-#define GOV_P_TERM_LIMIT                0.20f
-#define GOV_I_TERM_LIMIT                0.95f
-#define GOV_D_TERM_LIMIT                0.20f
-#define GOV_F_TERM_LIMIT                0.50f
-
 #define SPOOLUP_P_TERM_LIMIT            0.10f
-#define SPOOLUP_I_TERM_LIMIT            0.95f
 
 
 //// Internal Data
@@ -161,6 +155,12 @@ typedef struct {
     float           Ki;
     float           Kd;
     float           Kf;
+
+    // PID Limits
+    float           Lp;
+    float           Li;
+    float           Ld;
+    float           Lf;
 
     // Feedforward
     float           yawWeight;
@@ -830,7 +830,7 @@ static void govSpoolUpInit(void)
     gov.I = gov.throttle - gov.P;
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, SPOOLUP_I_TERM_LIMIT);
+    gov.I = constrainf(gov.I, 0, gov.Li);
 }
 
 static float govSpoolUpControl(void)
@@ -839,7 +839,7 @@ static float govSpoolUpControl(void)
 
     // PID limits
     gov.P = constrainf(gov.P, -SPOOLUP_P_TERM_LIMIT, SPOOLUP_P_TERM_LIMIT);
-    gov.I = constrainf(gov.I,                     0, SPOOLUP_I_TERM_LIMIT);
+    gov.I = constrainf(gov.I, 0, gov.Li);
     gov.D = 0;
 
     // Governor PI sum
@@ -866,13 +866,13 @@ static float govSpoolUpControl(void)
 static void govPIDInit(void)
 {
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
 
     // Use gov.I to reach the target
     gov.I = gov.throttle - gov.P;
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
+    gov.I = constrainf(gov.I, 0, gov.Li);
 }
 
 static float govPIDControl(void)
@@ -880,9 +880,9 @@ static float govPIDControl(void)
     float output;
 
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
-    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
-    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
+    gov.I = constrainf(gov.I,       0, gov.Li);
+    gov.D = constrainf(gov.D, -gov.Ld, gov.Ld);
 
     // Governor PID sum
     gov.pidSum = gov.P + gov.I + gov.D + gov.C;
@@ -908,15 +908,15 @@ static float govPIDControl(void)
 static void govMode1Init(void)
 {
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
-    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
-    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
+    gov.D = constrainf(gov.D, -gov.Ld, gov.Ld);
+    gov.F = constrainf(gov.F,       0, gov.Lf);
 
     // Use gov.I to reach the target
     gov.I = gov.throttle - (gov.P + gov.D + gov.F);
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
+    gov.I = constrainf(gov.I, 0, gov.Li);
 }
 
 static float govMode1Control(void)
@@ -924,10 +924,10 @@ static float govMode1Control(void)
     float output;
 
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
-    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
-    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
-    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
+    gov.I = constrainf(gov.I,       0, gov.Li);
+    gov.D = constrainf(gov.D, -gov.Ld, gov.Ld);
+    gov.F = constrainf(gov.F,       0, gov.Lf);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
@@ -959,15 +959,15 @@ static void govMode2Init(void)
     float pidTarget = gov.throttle / pidGain;
 
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
-    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
-    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
+    gov.D = constrainf(gov.D, -gov.Ld, gov.Ld);
+    gov.F = constrainf(gov.F,       0, gov.Lf);
 
     // Use gov.I to reach the target
     gov.I = pidTarget - (gov.P + gov.D + gov.F);
 
     // Limited range
-    gov.I = constrainf(gov.I, 0, GOV_I_TERM_LIMIT);
+    gov.I = constrainf(gov.I, 0, gov.Li);
 }
 
 static float govMode2Control(void)
@@ -978,10 +978,10 @@ static float govMode2Control(void)
     float pidGain = gov.nominalVoltage / gov.motorVoltage;
 
     // PID limits
-    gov.P = constrainf(gov.P, -GOV_P_TERM_LIMIT, GOV_P_TERM_LIMIT);
-    gov.I = constrainf(gov.I,                 0, GOV_I_TERM_LIMIT);
-    gov.D = constrainf(gov.D, -GOV_D_TERM_LIMIT, GOV_D_TERM_LIMIT);
-    gov.F = constrainf(gov.F,                 0, GOV_F_TERM_LIMIT);
+    gov.P = constrainf(gov.P, -gov.Lp, gov.Lp);
+    gov.I = constrainf(gov.I,       0, gov.Li);
+    gov.D = constrainf(gov.D, -gov.Ld, gov.Ld);
+    gov.F = constrainf(gov.F,       0, gov.Lf);
 
     // Governor PIDF sum
     gov.pidSum = gov.P + gov.I + gov.C + gov.D + gov.F;
@@ -1044,6 +1044,11 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.Ki = pidProfile->governor.i_gain / 10.0f;
         gov.Kd = pidProfile->governor.d_gain / 100.0f;
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
+
+        gov.Lp = pidProfile->governor.p_limit / 100.0f;
+        gov.Li = pidProfile->governor.i_limit / 100.0f;
+        gov.Ld = pidProfile->governor.d_limit / 100.0f;
+        gov.Lf = pidProfile->governor.f_limit / 100.0f;
 
         gov.TTAGain   = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
         gov.TTALimit  = pidProfile->governor.tta_limit / 100.0f;
