@@ -666,7 +666,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 // repeated until the motor has totally stopped.
                 if (thr == 0) {
                     currentUpdated = 0;
-                } else if (pwm > 0 && current > 0.1) {
+                } else if (thr > 0 && current > 0.1) {
                     currentUpdated = current;
                 }
 
