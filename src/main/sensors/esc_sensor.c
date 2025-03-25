@@ -647,6 +647,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             if (buffer[4] < 4 && buffer[6] < 4 && buffer[11] < 0x10 &&
                 buffer[13] < 0x10 && buffer[15] < 0x10 && buffer[17] < 0x10) {
 
+                static float currentUpdated = 0;
                 //uint32_t cnt = buffer[1] << 16 | buffer[2] << 8 | buffer[3];
                 uint16_t thr = buffer[4] << 8 | buffer[5];
                 uint16_t pwm = buffer[6] << 8 | buffer[7];
@@ -664,7 +665,9 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
                 if (thr == 0) {
-                    current = 0;
+                    currentUpdated = 0;
+                } else if (pwm > 0 && current > 0.1) {
+                    currentUpdated = current;
                 }
 
                 setConsumptionCurrent(current);
@@ -675,14 +678,14 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
                 escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
-                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
+                escSensorData[0].current = applyCurrentCorrection(lrintf(currentUpdated * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, lrintf(tempFET * 10));
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, lrintf(voltage * 100));
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, lrintf(current * 100));
+                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, lrintf(currentUpdated * 100));
 
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
