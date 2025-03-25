@@ -655,7 +655,7 @@ void processRxModes(timeUs_t currentTimeUs)
         }
 #endif
 
-        if (ARMING_FLAG(ARMED) && IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
             ENABLE_FLIGHT_MODE(RESCUE_MODE);
         } else {
             DISABLE_FLIGHT_MODE(RESCUE_MODE);
