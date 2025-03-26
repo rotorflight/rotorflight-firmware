@@ -789,6 +789,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(PID_PROFILE,             0x1211,   200,  3000,    0,     U8),
     TLM_SENSOR(RATES_PROFILE,           0x1212,   200,  3000,    0,     U8),
     TLM_SENSOR(LED_PROFILE,             0x1213,   200,  3000,    0,     U8),
+    TLM_SENSOR(BATTERY_PROFILE,         0x1214,   200,  3000,    0,     U8),
 
     TLM_SENSOR(ADJFUNC,                 0x1220,   200,  3000,    0,     AdjFunc),
 
