@@ -35,7 +35,7 @@
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 3);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
-    .batteryCellCount = 0,
+    .batteryProfiles = {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
     .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
@@ -45,7 +45,6 @@ PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .vbatnotpresentcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_ABSENT,
     .vbathysteresis = 1,
     .lvcPercentage = 100, // Off by default at 100%
-    .batteryCapacity = 0,
     .consumptionWarningPercentage = 10,
     .useVoltageAlerts = true,
     .useConsumptionAlerts = false,

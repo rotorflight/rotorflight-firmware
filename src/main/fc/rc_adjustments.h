@@ -131,6 +131,7 @@ typedef enum {
     ADJUSTMENT_INERTIA_PRECOMP_GAIN     = 66,
     ADJUSTMENT_INERTIA_PRECOMP_CUTOFF   = 67,
 
+    // New in 2.2
     // Setpoint boost
     ADJUSTMENT_PITCH_SP_BOOST_GAIN      = 68,
     ADJUSTMENT_ROLL_SP_BOOST_GAIN       = 69,
@@ -141,6 +142,9 @@ typedef enum {
     ADJUSTMENT_YAW_DYN_CEILING_GAIN     = 72,
     ADJUSTMENT_YAW_DYN_DEADBAND_GAIN    = 73,
     ADJUSTMENT_YAW_DYN_DEADBAND_FILTER  = 74,
+
+    // Battery profile
+    ADJUSTMENT_BATTERY_PROFILE          = 75,
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;

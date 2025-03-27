@@ -4241,6 +4241,63 @@ static void cliDumpRateProfile(const char *cmdName, uint8_t rateProfileIndex, du
     rateProfileIndexToUse = CURRENT_PROFILE_INDEX;
 }
 
+static void printBatteryProfile(dumpFlags_t dumpMask, const batteryProfile_t *batteryProfiles, const batteryProfile_t *defaultBatteryProfiles, const char *headingStr)
+{
+    const char *format = "batteryprofile %u %u %u";
+    headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
+    for (uint8_t i = 0; i < BATTERY_PROFILE_COUNT; i++) {
+        const batteryProfile_t *battery = &batteryProfiles[i];
+        bool equalsDefault = false;
+        if (defaultBatteryProfiles) {
+            const batteryProfile_t *batteryDefault = &defaultBatteryProfiles[i];
+            equalsDefault = !memcmp(battery, batteryDefault, sizeof(*battery));
+            headingStr = cliPrintSectionHeading(dumpMask, !equalsDefault, headingStr);
+            cliDefaultPrintLinef(dumpMask, equalsDefault, format, i, battery->batteryCapacity, battery->batteryCellCount);
+        }
+        cliDumpPrintLinef(dumpMask, equalsDefault, format, i, battery->batteryCapacity, battery->batteryCellCount);
+    }
+}
+
+static void cliBatteryProfile(const char *cmdName, char *cmdline)
+{
+    const char *format = "batteryprofile %u %u %u";
+    if (isEmpty(cmdline)) {
+        printBatteryProfile(DUMP_MASTER, batteryConfig()->batteryProfiles, NULL, NULL);
+    } else {
+        enum {INDEX = 0, CAPACITY, CELL_COUNT, ARGS_COUNT};
+        int args[ARGS_COUNT];
+        int argNo = 0;
+        char *saveptr;
+        const char* ptr = strtok_r(cmdline, " ", &saveptr);
+        while (ptr && argNo < ARGS_COUNT) {
+            args[argNo++] = atoi(ptr);
+            ptr = strtok_r(NULL, " ", &saveptr);
+        }
+
+        if (ptr != NULL || argNo != ARGS_COUNT) {
+            cliShowInvalidArgumentCountError(cmdName);
+            return;
+        }
+
+        const int idx = args[INDEX];
+        const int capacity = args[CAPACITY];
+        const int cell_count = args[CELL_COUNT];
+        if (idx >= 0 && idx < BATTERY_PROFILE_COUNT &&
+            capacity >= 0 && capacity <= 20000 &&
+            cell_count >= 0 && cell_count <= 24) {
+            batteryProfile_t *battery = &batteryConfigMutable()->batteryProfiles[idx];
+            battery->batteryCapacity = capacity;
+            battery->batteryCellCount = cell_count;
+        } else {
+            cliShowParseError(cmdName);
+            return;
+        }
+
+        // values are validated
+        cliPrintLinef(format, idx, capacity, cell_count);
+    }
+}
+
 #ifdef USE_CLI_BATCH
 static void cliPrintCommandBatchWarning(const char *cmdName, const char *warning)
 {
@@ -6306,6 +6363,8 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #endif
 
             printRxFailsafe(dumpMask, rxFailsafeChannelConfigs_CopyArray, rxFailsafeChannelConfigs(0), "rxfail");
+
+            printBatteryProfile(dumpMask, batteryConfig_Copy.batteryProfiles, batteryConfig()->batteryProfiles, "batteryprofile");
         }
 
         if (dumpMask & HARDWARE_ONLY) {
@@ -6445,6 +6504,7 @@ const clicmd_t cmdTable[] = {
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
 #endif
+    CLI_COMMAND_DEF("batteryprofile", "configure battery profiles", "<index> <capacity> <cell count>", cliBatteryProfile),
 #if defined(USE_BEEPER)
 #if defined(USE_DSHOT)
     CLI_COMMAND_DEF("beacon", "enable/disable Dshot beacon for a condition", "list\r\n"
