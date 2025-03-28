@@ -1557,10 +1557,14 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
 #define FLY_CMD_READ_ADV_RESP               0x9D                // Read ESC advanced parameters resp
 #define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
+#define FLY_CMD_READ_OTHER                  0x64                // Read ESC other parameters
+#define FLY_CMD_READ_OTHER_RESP             0x9B                // Read ESC other parameters resp
 #define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
 #define FLY_CMD_WRITE_BASIC_RESP            0x6F                // Write ESC basic parameters resp
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
 #define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
+#define FLY_CMD_WRITE_OTHER                 0x92                // Write ESC other parameters
+#define FLY_CMD_WRITE_OTHER_RESP            0x6D                // Write ESC other parameters resp
 
 #define FLY_PARAM_FRAME_PERIOD              2                   // asap
 #define FLY_PARAM_CONNECT_TIMEOUT           10
@@ -1571,13 +1575,14 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_PARAM_PAGE_INFO                 0
 #define FLY_PARAM_PAGE_BASIC                1
 #define FLY_PARAM_PAGE_ADV                  2
-#define FLY_PARAM_PAGE_ALL                  7
+#define FLY_PARAM_PAGE_OTHER                3
+#define FLY_PARAM_PAGE_ALL                  0x0F
 #define FLY_PARAM_PAGE_LEN_MASK             0xFF
 
 // param pages - hi-byte=offset, low-byte=length
-static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A };
-static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV };
-static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV };
+static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A, 0x2C0A };
+static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV, FLY_CMD_READ_OTHER };
+static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV, FLY_CMD_WRITE_OTHER };
 
 static uint8_t flyInvalidParamPages = 0;
 static uint8_t flyDirtyParamPages = 0;
@@ -1839,10 +1844,14 @@ static bool flyDecode(timeUs_t currentTimeUs)
             return flyDecodeReadResp(FLY_PARAM_PAGE_BASIC);
         case FLY_CMD_READ_ADV_RESP:
             return flyDecodeReadResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_READ_OTHER_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_OTHER);
         case FLY_CMD_WRITE_BASIC_RESP:
             return flyDecodeWriteResp(FLY_PARAM_PAGE_BASIC);
         case FLY_CMD_WRITE_ADV_RESP:
             return flyDecodeWriteResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_WRITE_OTHER_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_OTHER);
         default:
             return false;
     }
@@ -1863,8 +1872,10 @@ static int8_t flyAccept(uint16_t c)
             case FLY_CMD_READ_INFO_RESP:
             case FLY_CMD_READ_BASIC_RESP:
             case FLY_CMD_READ_ADV_RESP:
+            case FLY_CMD_READ_OTHER_RESP:
             case FLY_CMD_WRITE_BASIC_RESP:
             case FLY_CMD_WRITE_ADV_RESP:
+            case FLY_CMD_WRITE_OTHER_RESP:
                 break;
             default:
                 // unsupported frame type
