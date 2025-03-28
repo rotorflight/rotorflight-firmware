@@ -1549,6 +1549,7 @@ const clivalue_t valueTable[] = {
     { "esc_sensor_voltage_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, voltage_correction) },
     { "esc_sensor_current_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_correction) },
     { "esc_sensor_consumption_correction",  VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, consumption_correction) },
+    { "esc_sensor_hw4_valid_current_threshold",     VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 500 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_validCurrentThreshold) },
 #endif
 
 #ifdef USE_RX_FRSKY_SPI

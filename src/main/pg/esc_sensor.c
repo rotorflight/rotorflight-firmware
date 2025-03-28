@@ -36,4 +36,5 @@ PG_RESET_TEMPLATE(escSensorConfig_t, escSensorConfig,
         .voltage_correction = 0,
         .current_correction = 0,
         .consumption_correction = 0,
+        .hw4_validCurrentThreshold = 250,
 );

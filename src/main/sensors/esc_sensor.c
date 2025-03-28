@@ -697,7 +697,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 }
 
                 // below this threshold the current readings are not reliable
-                if (thr < 250) {
+                if (thr < escSensorConfig()->hw4_validCurrentThreshold) {
                     currentUpdated = 0;
                 }
 
