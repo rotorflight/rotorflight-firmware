@@ -490,12 +490,12 @@ static void mixerUpdateSwash(void)
                 break;
         }
 
-            setMotorOutput(0, ST);
+        setMotorOutput(0, ST);
 
-            if (mixerMotorizedTail())
-                setMotorOutput(1, SY);
-            else
-                setServoOutput(3, SY + TC);
+        if (mixerMotorizedTail())
+            setMotorOutput(1, SY);
+        else
+            setServoOutput(3, SY + TC);
     }
 }
 
@@ -750,12 +750,12 @@ void INIT_CODE mixerInit(void)
                 break;
         }
 
-            addMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
+        addMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
 
-            if (mixerMotorizedTail())
-                addMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
-            else
-                addServoMapping(MIXER_IN_STABILIZED_YAW, 3);
+        if (mixerMotorizedTail())
+            addMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
+        else
+            addServoMapping(MIXER_IN_STABILIZED_YAW, 3);
     }
 
     for (int i = 0; i < MIXER_RULE_COUNT; i++)
