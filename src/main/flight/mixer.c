@@ -469,6 +469,20 @@ static void mixerUpdateSwash(void)
                 setServoOutput(1, -0.70710678f * SR + 0.70710678f * SP);
                 break;
 
+            case SWASH_TYPE_C90H:
+                setServoOutput(0, 0.5f * SC + SP); //front
+                setServoOutput(1, 0.5f * SC - SP); //back
+                setServoOutput(2, 0.5f * SC - SR); //right
+                setServoOutput(4, 0.5f * SC + SR); //left
+                break;
+            
+            case SWASH_TYPE_C90X:
+                setServoOutput(0, 0.5f * SC + 0.70710678f * SP - 0.70710678f * SR); //front-right
+                setServoOutput(1, 0.5f * SC + 0.70710678f * SP + 0.70710678f * SR); //front-left
+                setServoOutput(2, 0.5f * SC - 0.70710678f * SP + 0.70710678f * SR); //back-left
+                setServoOutput(4, 0.5f * SC - 0.70710678f * SP - 0.70710678f * SR); //back-right
+                break;
+
             case SWASH_TYPE_THRU:
                 setServoOutput(0, SP);
                 setServoOutput(1, SR);
@@ -476,12 +490,12 @@ static void mixerUpdateSwash(void)
                 break;
         }
 
-        setMotorOutput(0, ST);
+            setMotorOutput(0, ST);
 
-        if (mixerMotorizedTail())
-            setMotorOutput(1, SY);
-        else
-            setServoOutput(3, SY + TC);
+            if (mixerMotorizedTail())
+                setMotorOutput(1, SY);
+            else
+                setServoOutput(3, SY + TC);
     }
 }
 
@@ -690,6 +704,32 @@ void INIT_CODE mixerInit(void)
                 addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
                 addServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
                 break;
+            
+            case SWASH_TYPE_C90H:
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 0);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 1);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 2);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 4);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 4);
+                break;
+
+            case SWASH_TYPE_C90X:
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 0);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 1);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 2);
+                addServoMapping(MIXER_IN_STABILIZED_COLLECTIVE, 4);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 1);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 2);
+                addServoMapping(MIXER_IN_STABILIZED_PITCH, 4);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 0);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 1);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 2);
+                addServoMapping(MIXER_IN_STABILIZED_ROLL, 4);
+                break;
 
             case SWASH_TYPE_90L:
                 addServoMapping(MIXER_IN_STABILIZED_PITCH, 0);
@@ -710,12 +750,12 @@ void INIT_CODE mixerInit(void)
                 break;
         }
 
-        addMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
+            addMotorMapping(MIXER_IN_STABILIZED_THROTTLE, 0);
 
-        if (mixerMotorizedTail())
-            addMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
-        else
-            addServoMapping(MIXER_IN_STABILIZED_YAW, 3);
+            if (mixerMotorizedTail())
+                addMotorMapping(MIXER_IN_STABILIZED_YAW, 1);
+            else
+                addServoMapping(MIXER_IN_STABILIZED_YAW, 3);
     }
 
     for (int i = 0; i < MIXER_RULE_COUNT; i++)
