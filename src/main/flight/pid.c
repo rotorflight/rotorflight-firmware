@@ -135,6 +135,7 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
     }
 
     // RPM change filter
+    lowpassFilterInit(&pid.precomp.headspeedFilter, LPF_PT2, 20, pid.freq, 0);
     difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
 
     // Cross-coupling filters
@@ -234,7 +235,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Tail/yaw precomp
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
-    pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 100.0f;
+    pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 200.0f;
 
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
@@ -439,7 +440,8 @@ static void pidApplyPrecomp(void)
     const float rotorSpeed = (getHeadSpeedf() + mixerRotationSign() * pidGetSetpoint(FD_YAW) / 6) / 3000;
 
     // Rotorspeed derivative
-    const float speedChange = difFilterApply(&pid.precomp.yawInertiaFilter, rotorSpeed);
+    const float speedFiltered = filterApply(&pid.precomp.headspeedFilter, rotorSpeed);
+    const float speedChange = difFilterApply(&pid.precomp.yawInertiaFilter, speedFiltered);
 
     // Momentum change precomp
     const float torquePrecomp = speedChange * pid.precomp.yawInertiaGain;
