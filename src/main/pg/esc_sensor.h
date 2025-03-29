@@ -56,7 +56,7 @@ typedef struct {
     int8_t      voltage_correction;             // Correction for voltage over/under reporting in +-%, 0% = no correction
     int8_t      current_correction;             // Correction for current over/under reporting in +-%, 0% = no correction
     int8_t      consumption_correction;         // Correction for consumption over/under reporting in +-%, 0% = no 
-    uint8_t     hw4_validCurrentThreshold;      // HobbyWing V4 valid current threshold
+    uint8_t     hw4_valid_current_threshold;    // HobbyWing V4 valid current threshold
 } escSensorConfig_t;
 
 PG_DECLARE(escSensorConfig_t, escSensorConfig);
