@@ -235,7 +235,7 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     // Tail/yaw precomp
     pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
     pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
-    pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 100.0f;
+    pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 200.0f;
 
     // Pitch precomp
     pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
