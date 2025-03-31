@@ -206,7 +206,6 @@ void legalize_filename(char *name)
             continue;
         }
         switch (name[i]) {
-            case ' ':
             case '$':
             case '%':
             case '-':
