@@ -449,14 +449,14 @@ static void mixerUpdateSwash(void)
 
             case SWASH_TYPE_135:
                 setServoOutput(0, 0.5f * SC - SP);
-                setServoOutput(1, 0.5f * SC + 0.70710678f * SR + 0.70710678f * SP);
-                setServoOutput(2, 0.5f * SC - 0.70710678f * SR + 0.70710678f * SP);
+                setServoOutput(1, 0.5f * SC + SR + SP);
+                setServoOutput(2, 0.5f * SC - SR + SP);
                 break;
 
             case SWASH_TYPE_140:
                 setServoOutput(0, 0.5f * SC - SP);
-                setServoOutput(1, 0.5f * SC + 0.64278760f * SR + 0.76604444f * SP);
-                setServoOutput(2, 0.5f * SC - 0.64278760f * SR + 0.76604444f * SP);
+                setServoOutput(1, 0.5f * SC + 0.866025f * SR + SP);
+                setServoOutput(2, 0.5f * SC - 0.866025f * SR + SP);
                 break;
 
             case SWASH_TYPE_90L:
