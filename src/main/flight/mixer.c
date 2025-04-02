@@ -364,13 +364,10 @@ static void mixerUpdateMotorizedTail(void)
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
         // Yaw input value - positive is against torque
-        float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Add center trim
-        yaw += mixer.tailCenterTrim;
-
-        // Square root law
-        float throttle = sqrtf(fmaxf(yaw, 0));
+        float throttle = yaw + mixer.tailCenterTrim;
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
@@ -389,13 +386,10 @@ static void mixerUpdateMotorizedTail(void)
     // Bidirectional tail motor
     else if (mixerIsTailMode(TAIL_MODE_BIDIRECTIONAL)) {
         // Yaw input value - positive is against torque
-        float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 
         // Add center trim
-        yaw += mixer.tailCenterTrim;
-
-        // Use square root law
-        float throttle = copysignf(sqrtf(fabsf(yaw)), yaw);
+        float throttle = yaw + mixer.tailCenterTrim;
 
         // Apply minimum throttle
         if (throttle > -mixer.tailMotorIdle && throttle < mixer.tailMotorIdle)
