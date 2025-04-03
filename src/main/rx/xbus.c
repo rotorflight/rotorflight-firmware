@@ -104,6 +104,7 @@
 #define XBUS_MODEA_CONVERT_TO_USEC(V) (800 + ((V * 1400) >> 16))
 // As Mode A has a difference frame time, lets set it in a global
 static timeDelta_t xBusMaxFrameTime;
+static timeUs_t xBusTimeLast = 0;
 
 static bool xBusFrameReceived = false;
 static bool xBusDataIncoming = false;
@@ -159,16 +160,6 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
-
-    //
-    // Check we have correct length of message
-    //
-    if (xBusFrame[1] != XBUS_MODEA_FRAME_SIZE - 3)
-    {
-        // Unknown package as length is not ok
-        return;
-    }
-
     // Calculate the CRC according to JR XBus Specs
     // Using a CRC lookup table is faster than without
     if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) == xBusFrame[xBusFrame[1] + 2])
@@ -287,19 +278,14 @@ static void xBusDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
 
-    static timeUs_t xBusTimeLast;
-    static timeDelta_t xBusTimeInterval;
-
     // Check if we shall reset frame position due to time
     const timeUs_t now = microsISR();
-    //xBusTimeInterval = now - xBusTimeLast;
-    xBusTimeInterval = cmp32(now, xBusTimeLast);
-    xBusTimeLast = now;
 
-    if (xBusTimeInterval > xBusMaxFrameTime) {
+    if (cmpTimeUs(now, xBusTimeLast) > xBusMaxFrameTime) {
         xBusFramePosition = 0;
         xBusDataIncoming = false;
     }
+    xBusTimeLast = now;
 
     // Check if we shall start a frame?
     if (xBusFramePosition == 0) {
@@ -349,15 +335,26 @@ static void xBusDataReceive(uint16_t c, void *data)
 // Indicate time to read a frame from the data...
 static uint8_t xBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
 {
-    UNUSED(rxRuntimeState);
+    uint8_t frameStatus = RX_FRAME_PENDING;
 
     if (!xBusFrameReceived) {
-        return RX_FRAME_PENDING;
+        return frameStatus;
     }
 
     xBusFrameReceived = false;
+    frameStatus = RX_FRAME_COMPLETE;
 
-    return RX_FRAME_COMPLETE;
+    if (rxRuntimeState->serialrxProvider == SERIALRX_XBUS_MODE_A) {
+        if (xBusFrame[2] == 0x00 && xBusFrame[3] == 0x80) {
+            frameStatus = RX_FRAME_COMPLETE | RX_FRAME_FAILSAFE;
+        }
+    }
+    
+    if (!(frameStatus & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
+        rxRuntimeState->lastRcFrameTimeUs = xBusTimeLast; // xBuslastFrameTimeUs;
+    }
+    
+    return frameStatus;
 }
 
 static float xBusReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan)
@@ -384,6 +381,7 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 
     rxRuntimeState->rcReadRawFn = xBusReadRawRC;
     rxRuntimeState->rcFrameStatusFn = xBusFrameStatus;
+    rxRuntimeState->rcFrameTimeUsFn = rxFrameTimeUs;
 
     switch (rxRuntimeState->serialrxProvider) {
     case SERIALRX_XBUS_MODE_A:
