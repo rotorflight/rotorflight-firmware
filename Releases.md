@@ -1,3 +1,329 @@
+# 4.5.0-RC1
+
+This is the _first Release Candidate_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+**NOTE** The final 4.5.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0-RC1)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0-RC1)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0-RC1)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0-RC1)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0-RC1)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.1
+
+- Driver for Bosch BMI088 gyro/acc
+- Driver update for Winbond W25Nxx
+- Driver for Castle ESC telemetry
+- XDFly ESC forward programming
+- FrSky telemetry refactor and new sensors
+- JR DMSS XBUS Mode A protocol
+- RPM Filter refactor & presets
+- BB loop recording
+- BB automatic erase
+- BB log grace period after disarm
+- BB unique filename support with date
+- Improved HSI: Offset flood
+- Collective tilt correction
+- Setpoint Boost
+- Yaw dynamic deadband/ceiling
+- Yaw precomp refactor
+- Yaw inertia precomp
+- ESC voltage and current correction
+- Delayed EEPROM save on disarm
+- Governor PID limits for nitro
+- Mixer override passthrough option
+- Increase Adjustment Function count to 42
+- Fix 135° and 140° swash mixers
+- Fix stick controls in inverted rescue hover
+- Fix Hobbywing Platinum V4 telemetry when motor not running
+- Fix S.Port/F.Port/FBUS UART settings for un-inverted serial
+
+
+***
+
+# 4.4.1
+
+This is an _Official Release_ of the Rotorflight firmware for RF 2.1.
+
+**NOTE!** The firmware for RF 2.1 uses version number 4.4.x.
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.0
+
+- Support for VBasic Rx
+- Support for inverted FrSky FBUS/F.Port/S.Port
+- Enable most BlackBox fields by default
+- Add extra Jeti telemetry sensors
+- Revert Governor D-gain 10x change
+
+
+***
+
+# 4.4.0
+
+This is an _Official Release_ of the Rotorflight firmware for RF 2.1.0.
+
+**NOTE!** The firmware for RF 2.1 uses version number 4.4.x.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0)
+
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration _dump_ from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.3.0
+
+#### Custom CRSF/ELRS telemetry
+
+A brand new custom telemetry has been implemented for ELRS. It allows an arbitrary number of sensors,
+not limited by the CRSF protocol. Currently there are over 100 sensors to choose from, and a maximum of
+40 sensors total. With the ELRS configurable telemetry ratio, the sensors can be updated
+up to 20 times per second.
+
+#### Swashplate wiggle indications
+
+The swashplate is now indicating the FC readiness by doing a wiggle. Also, any errors or arming
+failures are now clearly indicated. Currently there are four different kind of wiggles:
+- FC ready to be armed
+- Arming temporarily disabled
+- Arming permanent failure
+- Armed succesfully (disabled by default)
+
+#### FBUS support
+
+With help from FrSky, FBUS is now officially supported.
+
+#### SBUS2 support
+
+Futaba SBUS2 telemetry is now available on the F7 and H7 targets.
+
+#### SBUS Output support
+
+SBUS output is available as a tech preview, on CLI only. It allows expanding the number of servo outputs
+with an expander, or using SBUS servos directly.
+
+#### Tx/Rx pinswap for serial ports
+
+A support for swapping the Tx/Rx pins on serial receivers, ESC telemetry,
+and transmitter telemetry UARTs have been added.
+
+#### ESC Forward Programming support
+
+A support for ESC Forward Programming has been added. So far, four ESC vendors/models are supported:
+- Hobbywing Platinum V5
+- Scorpion
+- YGE
+- FlyRotor
+
+#### BB logging for ESC telemetry
+
+Three new BB log options have been added: ESC, BEC and ESC2.
+These options are logging the data received from the ESC(s).
+
+#### Other Changes
+
+- Allow RPM filter Q up to 25
+- Add Graupner ESC telemetry
+- Add RPM (freq) input edge and pull parameters
+- Add model_id and MSP_PILOT_CONFIG for Lua integration
+- Add more SmartPort sensors
+- Add gov_min_throttle for nitro
+- Add Adjustments for ACC trims
+- Improved PID defaults
+- Improved Rates defaults
+- Improved Cyclic Cross-Coupling
+- Improved Govnernor precomps
+- Improved BB headers
+- Improved battery voltage filtering
+- Fix adjfunction initilisation bug
+- Fix RPM filter update rate calculation
+- Fix lost S.Port telemetry issue
+- Fix UART bidir mode pull-up on F4
+- Fix beep on disarm
+- Various CMS fixes
+
+
+***
+
+# 4.4.0-RC3
+
+This is the _third Release Candidate_ of the Rotorflight 2.1 firmware.
+
+**NOTE** The firmware for RF 2.1 uses version number 4.4.x.
+
+**NOTE** The final 4.4.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0-RC3)
+
+The other components are not updated this time. Please use RC2 instead:
+
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0-RC2)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0-RC2)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration dump from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.0-RC2
+
+- Use pull-up on F4 UART bidir mode
+
+
+***
+
+# 4.4.0-RC2
+
+This is the _second Release Candidate_ of the Rotorflight 2.1 firmware.
+
+**NOTE** The firmware for RF 2.1 uses version number 4.4.x.
+
+**NOTE** The final 4.4.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0-RC2)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0-RC2)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0-RC2)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0-RC2)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration dump from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4.0-RC1
+
+- Add support for FrSky FBUS
+- Add support for SBUS output
+- Wiggle only before first arming
+- Increase governor D-gain by 10x
+- Fix SPort telemetry lost after 35mins issue
+
+
+***
+
+# 4.4.0-RC1
+
+This is the _first Release Candidate_ of the Rotorflight 2.1 firmware.
+
+**NOTE** The final 4.4.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.1.0-RC1)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.1.0-RC1)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.1.0-RC1)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.1.0-RC1)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.1.0-RC1)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- RF 2.1 *is* backward compatible with RF 2.0. You *can* load your configuration dump from RF 2.0 into 2.1.
+
+- If updating from RF1, please setup your helicopter from scratch. Follow the instructions on the website!
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.3.0
+
+- Add Custom ELRS telemetry
+- Add Swashplate indications
+- Add SBUS2 support
+- Add Graupner ESC telemetry
+- Add ESC telemetry and programming for FlyRotor ESC
+- Add ESC telemetry to Blackbox
+- Add Tx/Rx pinswap options for serial ports
+- Add RPM (freq) input edge and pull parameters
+- Add model_id and MSP_PILOT_CONFIG for Lua integration
+- Add more SmartPort sensors
+- Add gov_min_throttle for nitro
+- Improved PID defaults
+- Improved Rates defaults
+- Improved Cyclic Cross-Coupling
+- Improved Rates acceleration and response filter
+- Improvements in BB headers
+- Fix adjfunction initilisation bug
+- Fix RPM filter update rate calculation
+- Better battery voltage filtering
+- Add Adjustments for ACC trims
+- Various CMS fixes
+
+## Changes from 4.4.0-20240929
+
+- Enable Dyn.Notch filters by default
+- More SmartPort sensors
+- Add Graupner ESC telemetry
+- Fix a few bugs in ELRS custom telemetry
+- Remove exponent from gov precomps
+- Allow RPM filter Q up to 25.0
+- Better Cyclic Cross-Coupling defaults
+- Add gov_min_throttle for nitro
+- Use PT2 filter in governor
+
+
+***
+
 # 4.4.0-20240929
 
 This is a _development snapshot_ of the Rotorflight 2.1 firmware.
