@@ -171,18 +171,18 @@ bool voltageSensorESCReadTotal(voltageMeter_t *meter)
 
     meter->sample = state->sample;
     meter->voltage = state->voltage;
-#else
-    voltageMeterReset(meter);
-#endif
 
     return state->enabled;
+#else
+    voltageMeterReset(meter);
+    return false;
+#endif
 }
 
 void voltageSensorESCRefresh(void)
 {
-    voltageSensorState_t * state = &voltageESCSensor;
-
 #ifdef USE_ESC_SENSOR
+    voltageSensorState_t * state = &voltageESCSensor;
     const escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
 
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
@@ -192,11 +192,11 @@ void voltageSensorESCRefresh(void)
         state->enabled = true;
     }
     else
-#endif
     {
         state->sample = 0;
         state->voltage = 0;
     }
+#endif
 }
 
 void voltageSensorESCInit(void)

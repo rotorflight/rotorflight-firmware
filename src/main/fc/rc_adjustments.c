@@ -194,6 +194,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(YAW_DYN_DEADBAND_GAIN,   RATE,  0, 250),
     ADJ_CONFIG(YAW_DYN_DEADBAND_FILTER, RATE,  0, 250),
 
+
+    ADJ_CONFIG(BATTERY_PROFILE,         NONE,  1, BATTERY_PROFILE_COUNT),
 };
 
 
@@ -219,6 +221,9 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
 #ifdef USE_OSD_PROFILES
             value = getCurrentOsdProfileIndex();
 #endif
+            break;
+        case ADJUSTMENT_BATTERY_PROFILE:
+            value = getCurrentBatteryProfileIndex() + 1;
             break;
         case ADJUSTMENT_PITCH_RATE:
             value = currentControlRateProfile->rates[FD_PITCH];
@@ -457,6 +462,9 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
 #ifdef USE_OSD_PROFILES
             changeOsdProfileIndex(value);
 #endif
+            break;
+        case ADJUSTMENT_BATTERY_PROFILE:
+            changeBatteryProfile(value - 1);
             break;
         case ADJUSTMENT_PITCH_RATE:
             currentControlRateProfile->rates[FD_PITCH] = value;
@@ -699,7 +707,8 @@ static void updateAdjustmentData(adjustmentFunc_e adjFunc, int value)
         adjFunc != ADJUSTMENT_OSD_PROFILE &&
 #endif
         adjFunc != ADJUSTMENT_PID_PROFILE &&
-        adjFunc != ADJUSTMENT_RATE_PROFILE)
+        adjFunc != ADJUSTMENT_RATE_PROFILE &&
+        adjFunc != ADJUSTMENT_BATTERY_PROFILE)
     {
         adjustmentTime   = now;
         adjustmentName   = adjustmentConfigs[adjFunc].cfgName;
