@@ -46,7 +46,7 @@
 
 #define EMFAT_MAX_LOG_ENTRY 100
 
-#define FILESYSTEM_MIN_SIZE_MB 64
+#define FILESYSTEM_MIN_SIZE_MB 256
 
 #define HDR_BUF_SIZE 32
 
@@ -368,7 +368,7 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
     }
 
     // Now add the final entry
-    if (fileNumber < maxCount && lastOffset != currOffset) {
+    if (fileNumber < maxCount && lastOffset != currOffset && lastOffset != -1) {
         emfat_set_log_file_name(entry, fileNumber);
         emfat_set_log_entry(entry, lastOffset, currOffset - lastOffset);
         logCount++;

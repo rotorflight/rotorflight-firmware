@@ -1042,7 +1042,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
         gov.K  = pidProfile->governor.gain / 100.0f;
         gov.Kp = pidProfile->governor.p_gain / 10.0f;
         gov.Ki = pidProfile->governor.i_gain / 10.0f;
-        gov.Kd = pidProfile->governor.d_gain / 100.0f;
+        gov.Kd = pidProfile->governor.d_gain / 1000.0f;
         gov.Kf = pidProfile->governor.f_gain / 100.0f;
 
         gov.Lp = pidProfile->governor.p_limit / 100.0f;
