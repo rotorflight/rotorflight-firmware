@@ -3946,6 +3946,7 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
 {
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
+        case ESC_SENSOR_PROTO_XDFLY:
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE
