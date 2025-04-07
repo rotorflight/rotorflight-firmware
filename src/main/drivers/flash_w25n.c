@@ -36,7 +36,8 @@
 #include "drivers/time.h"
 
 // Non-blocking write (programPage) only works on SPI interface
-#ifndef USE_QUADSPI
+// STM32G474 is not working either - fix later
+#if !defined(USE_QUADSPI) && !defined(STM32G4)
 #define W25N_NONBLOCKING_WRITE
 #endif
 
