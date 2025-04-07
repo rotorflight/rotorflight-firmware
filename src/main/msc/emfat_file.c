@@ -368,7 +368,7 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
     }
 
     // Now add the final entry
-    if (fileNumber < maxCount && lastOffset != currOffset) {
+    if (fileNumber < maxCount && lastOffset != currOffset && lastOffset != -1) {
         emfat_set_log_file_name(entry, fileNumber);
         emfat_set_log_entry(entry, lastOffset, currOffset - lastOffset);
         logCount++;
