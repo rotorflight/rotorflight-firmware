@@ -1,3 +1,40 @@
+# 4.5.0-RC2
+
+This is the _second Release Candidate_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+**NOTE!** Please use 2.2.0-RC1 version of the other components with this firmware.
+
+**NOTE** The final 4.5.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0-RC1)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0-RC1)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0-RC1)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0-RC1)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0-RC1)
+
+## Instructions
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+## Changes from 4.5.0-RC1
+
+- Flashing this firmware erases config automatically (built with FLASH_CONFIG_ERASE=yes)
+- Revert governor D-gain scale change (to match 4.4.1)
+- Fix blackbox MSC showing empty files with fully erased flash
+- Fix blackbox MSC not being detected on Mac
+- Fix lockup on G4 - Disable W25N non-blocking DMA writes
+- Fix JR XBus Mode A with less than 16 channels
+- Fix XDFly ESC telemetry causing FC lockup
+
+
+***
+
 # 4.5.0-RC1
 
 This is the _first Release Candidate_ of the Rotorflight firmware for RF 2.2.
