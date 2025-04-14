@@ -808,7 +808,7 @@ void processRcAdjustments(void)
             loadControlRateProfile();
         }
         if (changed & ADJUSTMENT_TYPE_PROF) {
-            pidInitProfile(currentPidProfile);
+            pidLoadProfile(currentPidProfile);
         }
         if (changed & ADJUSTMENT_TYPE_GOV) {
             governorInitProfile(currentPidProfile);
