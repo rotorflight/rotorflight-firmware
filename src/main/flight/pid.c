@@ -902,6 +902,347 @@ static void pidApplyYawMode3(void)
 }
 
 
+/** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **
+ **
+ ** MODE 4 - Test mode for new features
+ **
+ ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
+
+static void pidApplyOffsetBleedMode4(void)
+{
+    // Actual collective
+    const float collective = getCollectiveDeflection();
+
+    // Offset vector
+    const float Bx = pid.data[PID_PITCH].axisOffset;
+    const float By = pid.data[PID_ROLL ].axisOffset;
+
+    // Cyclic vector
+    const float Ax = pid.data[PID_PITCH].setPoint;
+    const float Ay = pid.data[PID_ROLL].setPoint;
+
+    // Cyclic norm²
+    const float A2 = Ax * Ax + Ay * Ay;
+
+    // Curve lookup input
+    const float Cx = sqrtf(A2) / 300.0f;
+
+    // Projection dot-product (>1 for stability)
+    const float Dp = (A2 > 1) ? (Ax * Bx + Ay * By) / A2 : 0;
+
+    // Projection components
+    const float Px = Ax * Dp;
+    const float Py = Ay * Dp;
+
+    // Bleed variables
+    float bleedRate = pidTableLookup(Cx, offset_bleed_rate_curve, PID_LOOKUP_CURVE_POINTS) * 0.04f;
+    float bleedLimit = pidTableLookup(Cx, offset_bleed_limit_curve, PID_LOOKUP_CURVE_POINTS);
+
+    // Offset bleed amount
+    float bleedP = limitf(Px * bleedRate, bleedLimit) * pid.dT;
+    float bleedR = limitf(Py * bleedRate, bleedLimit) * pid.dT;
+
+    // Bleed from axisOffset to axisError
+    pid.data[PID_PITCH].axisOffset -= bleedP;
+    pid.data[PID_ROLL].axisOffset  -= bleedR;
+    pid.data[PID_PITCH].axisError  += bleedP * pid.coef[PID_PITCH].Kc * collective;
+    pid.data[PID_ROLL].axisError   += bleedR * pid.coef[PID_ROLL].Kc * collective;
+
+    DEBUG(HS_BLEED, 0, pid.data[PID_PITCH].axisOffset * 10);
+    DEBUG(HS_BLEED, 1, pid.data[PID_ROLL].axisOffset * 10);
+    DEBUG(HS_BLEED, 2, pid.data[PID_PITCH].axisError * 10);
+    DEBUG(HS_BLEED, 3, pid.data[PID_ROLL].axisError * 10);
+    DEBUG(HS_BLEED, 4, bleedRate * 1000);
+    DEBUG(HS_BLEED, 5, bleedLimit * 1000);
+    DEBUG(HS_BLEED, 6, bleedP * 1e6);
+    DEBUG(HS_BLEED, 7, bleedR * 1e6);
+}
+
+static void pidApplyOffsetFloodMode4(void)
+{
+    // Calculate `offsetFloodRelaxFactor`
+    const float collective = getCollectiveDeflection();
+    const float collectiveLpf = pt1FilterApply(&pid.offsetFloodRelaxFilter, collective);
+    const float collectiveHpf = collective - collectiveLpf;
+    const float offsetFloodRelaxFactor = fmaxf(0, 1.0f - fabsf(collectiveHpf) * pid.offsetFloodRelaxLevel);
+
+    // Prepare curve lookup. Curve points are stored in 0..15° range.
+    const float curve = fabsf(collective) * 0.8f;
+
+    // Apply on ROLL and PITCH
+    for (uint8_t axis = PID_ROLL; axis <= PID_PITCH; axis++)
+    {
+        // The algorithm only makes sense if Kc <> 0
+        if (pid.coef[axis].Kc == 0)
+            continue;
+
+        const float axisError = pid.data[axis].axisError;
+        const float axisOffset = pid.data[axis].axisOffset;
+
+        // 0. calculate bleed rate
+        float bleedRate = pidTableLookup(curve, offset_flood_curve, PID_LOOKUP_CURVE_POINTS) * 0.08f;
+        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor;
+
+        // 1. offsetDelta = value to be added to axisOffset
+        float offsetDelta = bleedRate * pid.dT;
+
+        // 1. determin sign of offsetDelta
+        // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
+        // && collective<0
+        offsetDelta = copysignf(offsetDelta, bleedRate * collective);
+
+        // 1. Check offsetLimit
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) - axisOffset;
+
+        // 2. calculate equivalent output delta and errorDelta
+        // errorDelta = value to be substract from axisError.
+        float errorDelta = offsetDelta * collective * pid.coef[axis].Kc;
+
+        // 2. Check axisError limit
+        // Note: axisError and errorDelta have same sign
+        // collective == 0 -> errorDelta == 0 and we will not enter (safe)
+        if (fabsf(axisError) - fabsf(errorDelta) < 0) {
+            // We need to re-calculate outputDelta and offsetDelta:
+            errorDelta = axisError;
+            offsetDelta = errorDelta / (collective * pid.coef[axis].Kc);
+        }
+
+        // 3. Update axisError and axisOffset
+        pid.data[axis].axisError -= errorDelta;
+        pid.data[axis].axisOffset += offsetDelta;
+    }
+}
+
+
+static void pidApplyCyclicMode4(uint8_t axis)
+{
+    // Rate setpoint
+    const float setpoint = pidApplySetpoint(axis);
+
+    // Get gyro rate
+    const float gyroRate = pidApplyGyroRate(axis);
+
+    // Calculate error rate
+    const float errorRate = setpoint - gyroRate;
+
+
+  //// P-term
+
+    // Calculate P-component
+    pid.data[axis].P = pid.coef[axis].Kp * errorRate;
+
+
+  //// D-term (gyro only)
+
+    // Calculate D-term with bandwidth limit
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
+
+    // Calculate D-component
+    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+
+
+  //// I-term
+
+    // Apply error relax
+    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
+
+    // I-term change
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+
+    // Calculate I-component
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
+    pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
+
+    // Get actual collective from the mixer
+    const float collective = getCollectiveDeflection();
+
+    // Expand to 0..15° range
+    const float curve = fabsf(collective) * 0.8f;
+
+    // Apply error decay
+    float errorDecayRate, errorDecayLimit;
+
+    if (isAirborne() || pid.errorDecayRateGround == 0) {
+      errorDecayRate  = pid.errorDecayRateCyclic * pidTableLookup(curve, error_decay_rate_curve, PID_LOOKUP_CURVE_POINTS) * 0.08f;
+      errorDecayLimit = pid.errorDecayLimitCyclic * pidTableLookup(curve, error_decay_limit_curve, PID_LOOKUP_CURVE_POINTS) * 0.08f;
+    }
+    else {
+      errorDecayRate  = pid.errorDecayRateGround;
+      errorDecayLimit = 3600;
+    }
+
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit);
+
+    pid.data[axis].axisError -= errorDecay * pid.dT;
+
+    DEBUG_AXIS(ERROR_DECAY, axis, 0, errorDecayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 1, errorDecayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
+
+
+  //// Offset term
+
+    // Offset saturation
+    const bool offSaturation = (pidAxisSaturated(axis) && pid.data[axis].axisOffset * itermErrorRate * collective > 0);
+
+    // Offset change modulated by collective
+    const float offMod = copysignf(pidTableLookup(curve, offset_charge_curve, PID_LOOKUP_CURVE_POINTS), collective) / 100.0f;
+    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod;
+
+    // Calculate Offset component
+    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis]);
+    pid.data[axis].O = pid.coef[axis].Ko * pid.data[axis].axisOffset * collective;
+
+    DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 1, itermErrorRate * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 2, offMod * 1000);
+    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1000000);
+    DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 6, pid.data[axis].O * 1000);
+    DEBUG_AXIS(HS_OFFSET, axis, 7, pid.data[axis].I * 1000);
+
+    // Apply offset decay
+    float offsetDecayRate, offsetDecayLimit;
+
+    if (isAirborne() || pid.errorDecayRateGround == 0) {
+      offsetDecayRate  = pidTableLookup(curve, offset_decay_rate_curve, PID_LOOKUP_CURVE_POINTS) * 0.04f;
+      offsetDecayLimit = pidTableLookup(curve, offset_decay_limit_curve, PID_LOOKUP_CURVE_POINTS);
+    }
+    else {
+      offsetDecayRate  = pid.errorDecayRateGround;
+      offsetDecayLimit = 3600;
+    }
+
+    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit);
+
+    pid.data[axis].axisOffset -= offsetDecay * pid.dT;
+
+    DEBUG_AXIS(ERROR_DECAY, axis, 4, offsetDecayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 5, offsetDecayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 10);
+
+
+  //// Feedforward
+
+    // Calculate F component
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+
+
+  //// Feedforward Boost (FF Derivative)
+
+    // Calculate B-term with bandwidth limit
+    const float bTerm = difFilterApply(&pid.btermFilter[axis], setpoint);
+
+    // Calculate B-component
+    pid.data[axis].B = pid.coef[axis].Kb * bTerm;
+
+
+  //// PID Sum
+
+    // Calculate sum of all terms
+    pid.data[axis].pidSum = pid.data[axis].P + pid.data[axis].I + pid.data[axis].D +
+                            pid.data[axis].F + pid.data[axis].B + pid.data[axis].O;
+}
+
+
+static void pidApplyYawMode4(void)
+{
+    const uint8_t axis = FD_YAW;
+
+    // Rate setpoint
+    const float setpoint = pidApplySetpoint(axis);
+
+    // Get gyro rate
+    const float gyroRate = pidApplyGyroRate(axis);
+
+    // Calculate error rate
+    const float errorRate = setpoint - gyroRate;
+
+    // Select stop gain
+    const float stopGain = transition(errorRate, -10, 10, pid.yawCCWStopGain, pid.yawCWStopGain);
+
+
+  //// P-term
+
+    // Calculate P-component
+    pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain;
+
+
+  //// D-term
+
+    // Calculate D-term with bandwidth limit
+    const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
+
+    // Calculate D-component
+    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+
+
+  //// I-term
+
+    // Apply error relax
+    const float itermErrorRate = applyItermRelax(axis, errorRate, gyroRate, setpoint);
+
+    // Saturation
+    const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
+
+    // I-term change
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+
+    // Calculate I-component
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
+    pid.data[axis].I = pid.coef[axis].Ki * pid.data[axis].axisError;
+
+    // Apply error decay
+    float decayRate, decayLimit;
+
+    if (isSpooledUp()) {
+      decayRate = pid.errorDecayRateYaw;
+      decayLimit = pid.errorDecayLimitYaw;
+    }
+    else {
+      decayRate = pid.errorDecayRateGround;
+      decayLimit = 3600;
+    }
+
+    const float errorDecay = limitf(pid.data[axis].axisError * decayRate, decayLimit);
+
+    pid.data[axis].axisError -= errorDecay * pid.dT;
+
+    DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
+
+
+  //// Feedforward
+
+    // Calculate F component
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+
+
+  //// Feedforward Boost (FF Derivative)
+
+    // Calculate B-term with bandwidth limit
+    const float bTerm = difFilterApply(&pid.btermFilter[axis], setpoint);
+
+    // Calculate B-component
+    pid.data[axis].B = pid.coef[axis].Kb * bTerm;
+
+
+  //// PID Sum
+
+    // Calculate sum of all terms
+    pid.data[axis].pidSum = pid.data[axis].P + pid.data[axis].I + pid.data[axis].D +
+                            pid.data[axis].F + pid.data[axis].B;
+}
+
+
 /** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
 void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
@@ -914,6 +1255,14 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 
     // Apply PID for each axis
     switch (pid.pidMode) {
+        case 4:
+            pidApplyCyclicMode4(PID_ROLL);
+            pidApplyCyclicMode4(PID_PITCH);
+            pidApplyOffsetBleedMode4();
+            pidApplyOffsetFloodMode4();
+            pidApplyCyclicCrossCoupling();
+            pidApplyYawMode4();
+            break;
         case 3:
             pidApplyCyclicMode3(PID_ROLL);
             pidApplyCyclicMode3(PID_PITCH);
