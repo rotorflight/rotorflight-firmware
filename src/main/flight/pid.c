@@ -1034,6 +1034,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     // Gains must be equal for both axis
     const float Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
     const float Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
+    const float Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
 
 
   //// P-term
@@ -1143,7 +1144,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+    pid.data[axis].F = Kf * setpoint;
 
 
   //// Feedforward Boost (FF Derivative)
