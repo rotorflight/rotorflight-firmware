@@ -53,6 +53,9 @@
 
 #define CROSS_COUPLING_SCALE        10.0e-6f
 
+#define PID_LOOKUP_CURVE_POINTS     16
+
+
 typedef struct {
     float P;
     float I;
