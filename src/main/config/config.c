@@ -152,7 +152,7 @@ static void activateConfig(void)
     initRcProcessing();
     adjustmentRangeInit();
 
-    pidInitProfile(currentPidProfile);
+    pidChangeProfile(currentPidProfile);
 
     rcControlsInit();
 
@@ -815,7 +815,7 @@ void changePidProfile(uint8_t pidProfileIndex)
     if (pidProfileIndex < PID_PROFILE_COUNT) {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
-        pidInitProfile(currentPidProfile);
+        pidChangeProfile(currentPidProfile);
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

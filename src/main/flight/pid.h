@@ -148,7 +148,9 @@ void pidResetAxisErrors(void);
 void pidResetAxisError(int axis);
 
 void pidInit(const pidProfile_t *pidProfile);
-void pidInitProfile(const pidProfile_t *pidProfile);
+void pidLoadProfile(const pidProfile_t *pidProfile);
+void pidChangeProfile(const pidProfile_t *pidProfile);
+
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
 float pidGetDT();
