@@ -155,7 +155,7 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
     firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
 }
 
-void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
+void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 {
     // PID not initialised yet
     if (pid.dT == 0)
@@ -273,11 +273,18 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     rescueInitProfile(pidProfile);
 }
 
+void INIT_CODE pidChangeProfile(const pidProfile_t *pidProfile)
+{
+    pidLoadProfile(pidProfile);
+    pidResetAxisErrors();
+}
+
 void INIT_CODE pidInit(const pidProfile_t *pidProfile)
 {
+    pidReset();
     pidSetLooptime(gyro.targetLooptime);
     pidInitFilters(pidProfile);
-    pidInitProfile(pidProfile);
+    pidChangeProfile(pidProfile);
 }
 
 void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex)
