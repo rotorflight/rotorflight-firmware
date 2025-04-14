@@ -1235,7 +1235,7 @@ static void pidApplyYawMode4(void)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint * stopGain;
 
 
   //// Feedforward Boost (FF Derivative)
