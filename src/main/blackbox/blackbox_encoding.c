@@ -65,6 +65,22 @@ int blackboxPrintf(const char *fmt, ...)
  * printf a Blackbox header line with a leading "H " and trailing "\n" added automatically. blackboxHeaderBudget is
  * decreased to account for the number of bytes written.
  */
+void blackboxPrintHeaderLine(const char *name, const char *value)
+{
+    blackboxWrite('H');
+    blackboxWrite(' ');
+    blackboxWriteString(name);
+    blackboxWrite(':');
+    blackboxWriteString(value);
+    blackboxWrite('\n');
+
+    blackboxHeaderBudget -= strlen(name) + strlen(value) + 4;
+}
+
+/*
+ * printf a Blackbox header line with a leading "H " and trailing "\n" added automatically. blackboxHeaderBudget is
+ * decreased to account for the number of bytes written.
+ */
 void blackboxPrintfHeaderLine(const char *name, const char *fmt, ...)
 {
     va_list va;
@@ -82,7 +98,7 @@ void blackboxPrintfHeaderLine(const char *name, const char *fmt, ...)
 
     blackboxWrite('\n');
 
-    blackboxHeaderBudget -= written + 3;
+    blackboxHeaderBudget -= strlen(name) + written + 4;
 }
 
 /**
