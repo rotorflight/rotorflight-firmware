@@ -326,7 +326,7 @@ static void xBusDataReceive(uint16_t c, void *data)
             break; // Changed to not fall through
         case SERIALRX_XBUS_MODE_A:
             xBusUnpackModeAFrame(XBUS_MODEA_OFFSET_BYTES);
-			break;
+            break;
         }
         xBusDataIncoming = false;
         xBusFramePosition = 0;
