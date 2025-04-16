@@ -320,12 +320,13 @@ static void xBusDataReceive(uint16_t c, void *data)
         switch (xBusProvider) {
         case SERIALRX_XBUS_MODE_B:
             xBusUnpackModeBFrame(0);
-            FALLTHROUGH; //!!TODO - check this fall through is correct
+            break; // Changed to not fall through
         case SERIALRX_XBUS_MODE_B_RJ01:
             xBusUnpackRJ01Frame();
-            FALLTHROUGH; //!!TODO - check this fall through is correct
+            break; // Changed to not fall through
         case SERIALRX_XBUS_MODE_A:
             xBusUnpackModeAFrame(XBUS_MODEA_OFFSET_BYTES);
+			break;
         }
         xBusDataIncoming = false;
         xBusFramePosition = 0;
