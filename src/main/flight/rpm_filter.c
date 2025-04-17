@@ -189,8 +189,8 @@ INIT_CODE void rpmFilterInit(void)
         const bool enable2x = !mixerMotorizedTail() || isMotorFastRpmSourceActive(tailMotorIndex);
 
         notchMaxHz = 0.45f * gyro.filterRateHz;
-        notchMinHz = constrain(config->min_hz, 5, 0.5f * notchMaxHz);
-        notchFadeHz = 1.2f * notchMinHz;
+        notchMinHz = constrain(config->min_hz, 10, 0.5f * notchMaxHz);
+        notchFadeHz = 1.25f * notchMinHz;
 
         #define CHECK_SOURCE(motor) if (!isMotorFastRpmSourceActive(motor)) goto norpm
 
@@ -306,7 +306,7 @@ void rpmFilterUpdate()
                 // Calculate notch filter center frequency
                 const float rpm = getMotorRPMf(filter->motor);
                 const float freq = rpm * filter->ratio;
-                const float center = constrainf(freq, 1, notchMaxHz);
+                const float center = constrainf(freq, notchMinHz, notchMaxHz);
 
                 // Calculate fading
                 filter->fader = transition(freq, notchMinHz, notchFadeHz, 0, 1);
