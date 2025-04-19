@@ -1,3 +1,34 @@
+# 4.5.0-RC3
+
+This is the _third Release Candidate_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+**NOTE** The final 4.5.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0-RC3)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0-RC3)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0-RC3)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0-RC3)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0-RC3)
+
+## Instructions
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+## Changes from 4.5.0-RC2
+
+- HSI parameter arrays removed from CLI config
+- Fix RPM Notch Filter glitching on startup and low RPM
+- Fix JR XBus Mode B bug
+
+
+***
+
 # 4.5.0-RC2
 
 This is the _second Release Candidate_ of the Rotorflight firmware for RF 2.2.
