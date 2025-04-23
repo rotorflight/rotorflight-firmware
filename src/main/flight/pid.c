@@ -187,6 +187,11 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_YAW].Kf = YAW_F_TERM_SCALE * pidProfile->pid[PID_YAW].F;
     pid.coef[PID_YAW].Kb = YAW_B_TERM_SCALE * pidProfile->pid[PID_YAW].B;
 
+    // Adjust for PID Mode4
+    if (pidProfile->pid_mode == 4) {
+      pid.coef[PID_PITCH].Kb *= 10;
+    }
+
     // Bleed conversion for pitch
     if (pidProfile->pid[PID_PITCH].O > 0 && pidProfile->pid[PID_PITCH].I > 0)
       pid.coef[PID_PITCH].Kc = pid.coef[PID_PITCH].Ko / pid.coef[PID_PITCH].Ki;
