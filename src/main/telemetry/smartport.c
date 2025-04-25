@@ -181,7 +181,7 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(ESC1_THROTTLE,           0x5269,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(ESC1_TEMP1,              0x0418,   100,  3000,   1,  10,   10,   INT),
     TLM_SENSOR(ESC1_TEMP2,              0x0419,   100,  3000,   1,  10,   10,   INT),
-    TLM_SENSOR(ESC1_BEC_VOLTAGE,        0x0219,   100,  3000,   1,  10,   100,  INT),
+    TLM_SENSOR(ESC1_BEC_VOLTAGE,        0x0219,   100,  3000,   1,  10,   10,   INT),
     TLM_SENSOR(ESC1_BEC_CURRENT,        0x0229,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(ESC1_STATUS,             0x5128,   200,  3000,   0,   0,   0,    INT),
     TLM_SENSOR(ESC1_MODEL,              0x5129,   200,  3000,   0,   0,   0,    INT),
