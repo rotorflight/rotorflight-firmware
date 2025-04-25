@@ -21,6 +21,7 @@
 #pragma once
 
 int blackboxPrintf(const char *fmt, ...);
+void blackboxPrintHeaderLine(const char *name, const char *value);
 void blackboxPrintfHeaderLine(const char *name, const char *fmt, ...);
 
 void blackboxWriteUnsignedVB(uint32_t value);
