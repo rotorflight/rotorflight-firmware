@@ -43,6 +43,7 @@ extern "C" {
 #define SECT              512
 #define CLUST             4096
 #define SECT_PER_CLUST    (CLUST / SECT)
+#define MIN_CLUST_COUNT   65525
 #define SIZE_TO_NSECT(s)  ((s) == 0 ? 1 : ((s) + SECT - 1) / SECT)
 #define SIZE_TO_NCLUST(s) ((s) == 0 ? 1 : ((s) + CLUST - 1) / CLUST)
 
@@ -414,13 +415,18 @@ bool emfat_init(emfat_t *emfat, const char *label, emfat_entry_t *entries)
             e->priv.last_reserved = e->priv.last_clust;
         } else {
             e->priv.first_clust = clust;
-            e->priv.last_clust = e->priv.first_clust + SIZE_TO_NCLUST(entries[i].curr_size) - 1;
-            e->priv.last_reserved = e->priv.first_clust + SIZE_TO_NCLUST(entries[i].max_size) - 1;
+            e->priv.last_clust = e->priv.first_clust + SIZE_TO_NCLUST(e->curr_size) - 1;
+            e->priv.last_reserved = e->priv.first_clust + SIZE_TO_NCLUST(e->max_size) - 1;
         }
         reserved_clust += e->priv.last_reserved - e->priv.last_clust;
         clust = e->priv.last_reserved + 1;
     }
     clust -= 2;
+
+    if (clust < MIN_CLUST_COUNT) {
+        reserved_clust += MIN_CLUST_COUNT - clust;
+        clust = MIN_CLUST_COUNT;
+    }
 
     emfat->vol_label = label;
     emfat->priv.num_entries = i;
@@ -493,7 +499,7 @@ void read_boot_sector(const emfat_t *emfat, uint8_t *sect)
     bs->volume_id[1] = 14;
     bs->volume_id[2] = 13;
     bs->volume_id[3] = 8;
-    memcpy(bs->volume_label, "NO NAME    ", VOL_LABEL_LEN);
+    memcpy(bs->volume_label, emfat->vol_label, VOL_LABEL_LEN);
     memcpy(bs->file_system_type, "FAT32   ", FILE_SYS_TYPE_LENGTH);
     sect[SECT - 2] = 0x55;
     sect[SECT - 1] = 0xAA;
