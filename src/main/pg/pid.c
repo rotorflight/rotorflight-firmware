@@ -57,7 +57,6 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .error_decay_limit_yaw = 0,
         .offset_flood_relax_level = 40,
         .offset_flood_relax_cutoff = 3,
-        .error_rotation = true,
         .iterm_relax_type = ITERM_RELAX_RPY,
         .iterm_relax_level = { 40, 40, 40 },
         .iterm_relax_cutoff = { 10, 10, 10 },

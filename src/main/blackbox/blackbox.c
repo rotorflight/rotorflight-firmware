@@ -1670,7 +1670,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
                                                                             currentPidProfile->offset_limit[1]);
-        BLACKBOX_PRINT_HEADER_LINE("piro_compensation", "%d",               currentPidProfile->error_rotation);
         BLACKBOX_PRINT_HEADER_LINE("pitch_compensation", "%d",              currentPidProfile->pitch_collective_ff_gain);
 
 

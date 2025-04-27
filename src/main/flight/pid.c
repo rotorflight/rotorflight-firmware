@@ -214,9 +214,6 @@ void INIT_CODE pidInitProfile(const pidProfile_t *pidProfile)
     pid.errorDecayLimitCyclic = (pidProfile->error_decay_limit_cyclic) ? pidProfile->error_decay_limit_cyclic : 3600;
     pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? pidProfile->error_decay_limit_yaw : 3600;
 
-    // Error Rotation enable
-    pid.errorRotation = pidProfile->error_rotation;
-
     // Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
@@ -318,25 +315,23 @@ void INIT_CODE pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileI
 
 static inline void rotateAxisError(void)
 {
-    if (pid.errorRotation) {
-        const float r = gyro.gyroADCf[Z] * RAD * pid.dT;
+      const float r = gyro.gyroADCf[Z] * RAD * pid.dT;
 
-        const float t = r * r / 2;
-        const float C = t * (1 - t / 6);
-        const float S = r * (1 - t / 3);
+      const float t = r * r / 2;
+      const float C = t * (1 - t / 6);
+      const float S = r * (1 - t / 3);
 
-        const float x = pid.data[PID_ROLL].axisError;
-        const float y = pid.data[PID_PITCH].axisError;
+      const float x = pid.data[PID_ROLL].axisError;
+      const float y = pid.data[PID_PITCH].axisError;
 
-        pid.data[PID_ROLL].axisError  -= x * C - y * S;
-        pid.data[PID_PITCH].axisError -= y * C + x * S;
+      pid.data[PID_ROLL].axisError  -= x * C - y * S;
+      pid.data[PID_PITCH].axisError -= y * C + x * S;
 
-        const float fx = pid.data[PID_ROLL].axisOffset;
-        const float fy = pid.data[PID_PITCH].axisOffset;
+      const float fx = pid.data[PID_ROLL].axisOffset;
+      const float fy = pid.data[PID_PITCH].axisOffset;
 
-        pid.data[PID_ROLL].axisOffset  -= fx * C - fy * S;
-        pid.data[PID_PITCH].axisOffset -= fy * C + fx * S;
-    }
+      pid.data[PID_ROLL].axisOffset  -= fx * C - fy * S;
+      pid.data[PID_PITCH].axisOffset -= fy * C + fx * S;
 }
 
 
