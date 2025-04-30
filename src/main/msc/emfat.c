@@ -43,7 +43,7 @@ extern "C" {
 #define SECT              512
 #define CLUST             4096
 #define SECT_PER_CLUST    (CLUST / SECT)
-#define MIN_CLUST_COUNT   65525
+#define MIN_CLUST_COUNT   65526 // should be 65525 but android has an off by one bug
 #define SIZE_TO_NSECT(s)  ((s) == 0 ? 1 : ((s) + SECT - 1) / SECT)
 #define SIZE_TO_NCLUST(s) ((s) == 0 ? 1 : ((s) + CLUST - 1) / CLUST)
 
