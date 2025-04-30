@@ -43,7 +43,7 @@ This doc will guide you to set up Rotorflight firmware debugging in VSCode.
             "type": "shell",
             "label": "build STM32F7X2",
             "command": "make",
-            "args": ["STM32F7X2", "DEBUG=INFO", "-j8"],
+            "args": ["STM32F7X2", "DEBUG=INFO"],
             "problemMatcher": [],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -102,12 +102,43 @@ This doc will guide you to set up Rotorflight firmware debugging in VSCode.
 ## Advanced debugging topic
 
 ### Attach to a running target
-Duplicate the launch configuration. Replace `"request": "launch"` with `"request": "attach"` (and probably remove the `preLaunchTask` too). Give it a new name and select from the menu.
+Use this Launch configuration:
+```
+    {
+      "name": "Attach STM32F7X2 JLink",
+      "cwd": "${workspaceRoot}",
+      "executable": "${workspaceRoot}/obj/main/rotorflight_STM32F7X2.elf",
+      "request": "attach",
+      "type": "cortex-debug",
+      "servertype": "jlink",
+      "serverpath": "JLinkGDBServerCLExe",
+      "ipAddress": "xxx.yyy.aaa.bbb", // Replace with your JLink host. Remove if run locally.
+      "device": "STM32F722RE",
+      "serverArgs": [
+        "-speed", "6000" // Optional: in case your jlink doesn't auto detect optimal speed for you
+      ],
+      "swoConfig": {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 216000000,
+        "decoders": [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "SWO output",
+            "encoding": "ascii"
+          }
+        ]
+      }
+    }
+```
+(Changes: `launch`->`attach`, remove `runToEntryPoint` and `preLaunchTask`)
 
 ### SWO
 SWO is an optional debug pin can be used for various purposes (https://kb.segger.com/SWO).
 
-On Flydragon, the SWO pin (PB3) is not exposed as a pad but connects to the buzzer (through a driver). You will need to carefully solder a wire to this tiny resistor:\
+On Flydragon, the SWO pin (PB3) is not exposed as a pad but connects to the buzzer (through a driver circuit). You will need to carefully solder a wire to this tiny resistor:\
 ![](assets/vscode/SWO.jpg)\
 ![](assets/vscode/SWO-2.jpg)
 
