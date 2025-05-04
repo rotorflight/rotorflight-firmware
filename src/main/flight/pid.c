@@ -219,6 +219,11 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.errorDecayLimitCyclic = (pidProfile->error_decay_limit_cyclic) ? pidProfile->error_decay_limit_cyclic : 3600;
     pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? pidProfile->error_decay_limit_yaw : 3600;
 
+    // If in rate-mode (I-gain == 0), decay remaining I-term
+    if (pidProfile->pid_mode == 4 && pidProfile->pid[PID_YAW].I == 0) {
+      pid.errorDecayRateYaw = 10.0f / 50;
+    }
+
     // Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
         lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
