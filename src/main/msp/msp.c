@@ -2437,7 +2437,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             int throttle = sbufReadU16(src);
             if (motorIsEnabled() && motorIsMotorEnabled(i)) {
                 if (throttle >= 1000 && throttle <= 2000)
-                    setMotorOverride(i, throttle - 1000);
+                    setMotorOverride(i, throttle - 1000, 0);
             }
         }
 #endif
@@ -2449,7 +2449,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MAX_SUPPORTED_MOTORS) {
             return MSP_RESULT_ERROR;
         }
-        setMotorOverride(i, sbufReadU16(src));
+        setMotorOverride(i, sbufReadU16(src), 250000);
 #endif
         break;
 
