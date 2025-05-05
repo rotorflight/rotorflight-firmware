@@ -1,3 +1,38 @@
+# 4.5.0-RC4
+
+This is the _fourth Release Candidate_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** Please adjust your PID loop speed! The Gyro rate has been changed. This will also change the PID loop speed.
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+**NOTE** The final 4.5.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0-RC4)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0-RC4)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0-RC4)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0-RC4)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0-RC4)
+
+## Instructions
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+## Changes from 4.5.0-RC3
+
+- Fix USB Mass Storage (MSC) on Mac and Android (#296)
+- Drop gyro ODR to 4k on F7 and F4 (#291)
+- Fix ESC1 sensor scaling in S.Port telemetry (#295)
+- Use static buffer for BB header printf (#286)
+- Add Adjustment function for yaw_precomp_cutoff (#290)
+
+
+***
+
 # 4.5.0-RC3
 
 This is the _third Release Candidate_ of the Rotorflight firmware for RF 2.2.
