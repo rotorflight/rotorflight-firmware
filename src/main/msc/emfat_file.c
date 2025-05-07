@@ -46,8 +46,6 @@
 
 #define EMFAT_MAX_LOG_ENTRY 100
 
-#define FILESYSTEM_MIN_SIZE_MB 64
-
 #define HDR_BUF_SIZE 32
 
 #ifdef USE_EMFAT_AUTORUN
@@ -87,8 +85,6 @@ enum {
 
     // Two extra entries
     EMFAT_ENTRY_ALL_LOGS = EMFAT_PREDEF_FILE_COUNT,
-    EMFAT_ENTRY_PADDING,
-
     EMFAT_PREDEF_ENTRY_COUNT
 };
 
@@ -141,7 +137,6 @@ static const emfat_entry_t entriesPredefined[] =
     [EMFAT_ENTRY_README]    = { "readme.txt",   false, 0,           1,  0,      README_SIZE,     1024*1024,      (long)readme_file,  CMA,  memory_read_proc,  NULL, { 0 } },
 #endif
     [EMFAT_ENTRY_ALL_LOGS]  = { "",             false, 0,           1,  0,      0,               0,              0,                  CMA,  bblog_read_proc,   NULL, { 0 } },
-    [EMFAT_ENTRY_PADDING]   = { "padding.nul",  false, ATTR_HIDDEN, 1,  0,      0,               0,              0,                  CMA,  NULL,              NULL, { 0 } },
 };
 
 static char logFileNames[EMFAT_MAX_LOG_ENTRY + 1][EMFAT_MAX_NAME_LENGTH];
@@ -206,7 +201,6 @@ void legalize_filename(char *name)
             continue;
         }
         switch (name[i]) {
-            case ' ':
             case '$':
             case '%':
             case '-':
@@ -369,7 +363,7 @@ static int emfat_find_log(emfat_entry_t *entry, int maxCount, int flashfsUsedSpa
     }
 
     // Now add the final entry
-    if (fileNumber < maxCount && lastOffset != currOffset) {
+    if (fileNumber < maxCount && lastOffset != currOffset && lastOffset != -1) {
         emfat_set_log_file_name(entry, fileNumber);
         emfat_set_log_entry(entry, lastOffset, currOffset - lastOffset);
         logCount++;
@@ -426,18 +420,6 @@ void emfat_init_files(void)
         entry++;
     }
 #endif // USE_FLASHFS
-
-    // Padding file to fill out the filesystem size to FILESYSTEM_MIN_SIZE_MB
-    const int padding = FILESYSTEM_MIN_SIZE_MB * 1024 * 1024 - flashfsUsedSpace * 2;
-
-    if (padding > 0) {
-        memcpy(entry, &entriesPredefined[EMFAT_ENTRY_PADDING], sizeof(emfat_entry_t));
-
-        emfat_set_entry_cma(entry);
-        emfat_set_entry_size(entry, 0, padding);
-
-        entry++;
-    }
 
     emfat_init(&emfat, "Rotorflight", entries);
 

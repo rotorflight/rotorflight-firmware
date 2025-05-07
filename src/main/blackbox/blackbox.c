@@ -1523,6 +1523,9 @@ static char *blackboxGetStartDateTime(char *buf)
     return buf;
 }
 
+
+static char header_buffer[128];
+
 #define BLACKBOX_PRINT_HEADER_LINE(name, format, ...) \
     case __COUNTER__: { \
         blackboxPrintfHeaderLine(name, format, __VA_ARGS__); \
@@ -1531,12 +1534,12 @@ static char *blackboxGetStartDateTime(char *buf)
 
 #define BLACKBOX_PRINT_HEADER_ARRAY(name, format, count, array) \
     case __COUNTER__: { \
-        char *ptr = buf; \
+        char *ptr = header_buffer; \
         for (int i=0; i<(count); i++) { \
             if (i > 0) *ptr++ = ','; \
             ptr += tfp_sprintf(ptr, format, array[i]); \
         } \
-        blackboxPrintfHeaderLine(name, buf); \
+        blackboxPrintHeaderLine(name, header_buffer); \
         break; \
     }
 
@@ -1552,8 +1555,6 @@ static char *blackboxGetStartDateTime(char *buf)
  */
 static bool blackboxWriteSysinfo(void)
 {
-    char buf[128];
-
 #ifndef UNIT_TEST
     // Make sure we have enough room in the buffer for our longest line (as of this writing, the "Firmware date" line)
     if (blackboxDeviceReserveBufferSpace(64) != BLACKBOX_RESERVE_SUCCESS) {
@@ -1569,7 +1570,7 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_BOARD_INFO
         BLACKBOX_PRINT_HEADER_LINE("Board information", "%s %s",            getManufacturerId(), getBoardName());
 #endif
-        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(buf));
+        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(header_buffer));
         BLACKBOX_PRINT_HEADER_LINE("Craft name", "%s",                      pilotConfig()->name);
         BLACKBOX_PRINT_HEADER_LINE("I interval", "%d",                      blackboxIInterval);
         BLACKBOX_PRINT_HEADER_LINE("P interval", "%d",                      blackboxPInterval);
@@ -1669,7 +1670,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
                                                                             currentPidProfile->offset_limit[1]);
-        BLACKBOX_PRINT_HEADER_LINE("piro_compensation", "%d",               currentPidProfile->error_rotation);
         BLACKBOX_PRINT_HEADER_LINE("pitch_compensation", "%d",              currentPidProfile->pitch_collective_ff_gain);
 
 

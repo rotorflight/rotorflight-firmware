@@ -53,6 +53,9 @@
 
 #define CROSS_COUPLING_SCALE        10.0e-6f
 
+#define PID_LOOKUP_CURVE_POINTS     16
+
+
 typedef struct {
     float P;
     float I;
@@ -80,6 +83,7 @@ typedef struct {
 typedef struct {
 
     filter_t yawPrecompFilter;
+    filter_t headspeedFilter;
     difFilter_t yawInertiaFilter;
 
     float yawCollectiveFFGain;
@@ -98,8 +102,6 @@ typedef struct pid_s {
 
     uint8_t itermRelaxType;
     uint8_t itermRelaxLevel[PID_AXIS_COUNT];
-
-    uint8_t errorRotation;
 
     float errorDecayRateGround;
     float errorDecayRateCyclic;

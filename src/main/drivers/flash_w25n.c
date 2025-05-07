@@ -36,7 +36,8 @@
 #include "drivers/time.h"
 
 // Non-blocking write (programPage) only works on SPI interface
-#ifndef USE_QUADSPI
+// STM32G474 is not working either - fix later
+#if !defined(USE_QUADSPI) && !defined(STM32G4)
 #define W25N_NONBLOCKING_WRITE
 #endif
 
@@ -138,6 +139,7 @@ struct {
 } w25nFlashConfig[] = {
     { JEDEC_ID_WINBOND_W25N01GV, 1024, 20 + 1 },
     { JEDEC_ID_WINBOND_W25N01KV, 1024, 0 },
+    { JEDEC_ID_WINBOND_W25N02KV, 2048, 0 },
     { 0, 0, 0 },
 };
 

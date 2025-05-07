@@ -3483,8 +3483,8 @@ static bool xdfly_connected = false;
 static bool xdfly_send_handshake = false;
 static bool xdfly_handshake_response_pending = false;
 static timeMs_t xdfly_handshake_timestamp = 0;
-static int xdfly_param_index = 0;
-static int xdfly_write_param_index = 0;
+static uint8_t xdfly_param_index = 0;
+static uint8_t xdfly_write_param_index = 0;
 
 static void xdfly_sensor_process(timeUs_t current_time_us)
 {
@@ -3531,7 +3531,7 @@ static void xdfly_sensor_process(timeUs_t current_time_us)
     checkFrameTimeout(current_time_us, 500000);
 }
 
-static void xdfly_build_req(uint8_t cmd, int *param_idx, uint16_t frame_period, uint16_t frame_timeout)
+static void xdfly_build_req(uint8_t cmd, uint8_t param_idx, uint16_t frame_period, uint16_t frame_timeout)
 {
     uint8_t idx = 0;
 
@@ -3544,15 +3544,13 @@ static void xdfly_build_req(uint8_t cmd, int *param_idx, uint16_t frame_period, 
         reqbuffer[idx++] = 0;
         reqbuffer[idx++] = 0;
     } else if (cmd == XDFLY_CMD_GET_PARAM) {
-        memcpy(reqbuffer + idx, param_idx, XDFLY_PAYLOAD_LENGTH);
-        idx++;
+        reqbuffer[idx++] = param_idx;
         reqbuffer[idx++] = 0;
         reqbuffer[idx++] = 0;
     } else if (cmd == XDFLY_CMD_SET_PARAM) {
-        memcpy(reqbuffer + idx, param_idx, XDFLY_PAYLOAD_LENGTH);
-        idx++;
-        reqbuffer[idx++] = paramUpdPayload[(*param_idx) * 2 + 1] | 0x80;
-        reqbuffer[idx++] = paramUpdPayload[(*param_idx) * 2];
+        reqbuffer[idx++] = param_idx;
+        reqbuffer[idx++] = paramUpdPayload[param_idx * 2 + 1] | 0x80;
+        reqbuffer[idx++] = paramUpdPayload[param_idx * 2];
     }
 
     uint8_t crclen = idx;
@@ -3568,12 +3566,12 @@ static void xdfly_build_req(uint8_t cmd, int *param_idx, uint16_t frame_period, 
 static void xdfly_get_next_param(void)
 {
     if (!xdfly_param_cached[xdfly_param_index])
-        xdfly_build_req(XDFLY_CMD_GET_PARAM, &xdfly_param_index, 1, 0);
+        xdfly_build_req(XDFLY_CMD_GET_PARAM, xdfly_param_index, 1, 0);
 }
 
 static void xdfly_write_next_param(void)
 {
-    xdfly_build_req(XDFLY_CMD_SET_PARAM, &xdfly_write_param_index, 1, 0);
+    xdfly_build_req(XDFLY_CMD_SET_PARAM, xdfly_write_param_index, 1, 0);
 }
 
 static void xdfly_start_caching_params(void)
@@ -3700,7 +3698,7 @@ static bool xdfly_crank_unc_setup(timeUs_t current_time_us)
         if (xdfly_send_handshake) {
             xdfly_send_handshake = false;
             xdfly_handshake_response_pending = true;
-            xdfly_build_req(XDFLY_CMD_HANDSHAKE, NULL, XDFLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
+            xdfly_build_req(XDFLY_CMD_HANDSHAKE, 0, XDFLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
             rrfsmFrameLength = XDFLY_FRAME_LENGTH;
             rrfsmMinFrameLength = XDFLY_FRAME_LENGTH;
         }
@@ -3989,6 +3987,7 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
 {
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
+        case ESC_SENSOR_PROTO_XDFLY:
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE

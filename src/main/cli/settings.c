@@ -477,7 +477,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "RECORD",
+    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "RECORD",
 };
 #endif
 
@@ -1125,8 +1125,6 @@ const clivalue_t valueTable[] = {
     { "cyclic_cross_coupling_ratio",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_ratio) },
     { "cyclic_cross_coupling_cutoff", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_cutoff) },
 
-    { "error_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, error_rotation) },
-
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
     { "offset_limit",               VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 2, PG_PID_PROFILE, offsetof(pidProfile_t, offset_limit) },
 
@@ -1136,14 +1134,6 @@ const clivalue_t valueTable[] = {
     { "error_decay_limit_cyclic",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_cyclic) },
     { "error_decay_limit_yaw",      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_yaw) },
 
-    { "error_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_rate_curve) },
-    { "error_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_curve) },
-    { "offset_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_rate_curve) },
-    { "offset_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_limit_curve) },
-    { "offset_bleed_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_rate_curve) },
-    { "offset_bleed_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_limit_curve) },
-    { "offset_charge_curve",        VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_charge_curve) },
-    { "offset_flood_curve",         VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_curve) },
     { "offset_flood_relax_level",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_level) },
     { "offset_flood_relax_cutoff",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_cutoff) },
 

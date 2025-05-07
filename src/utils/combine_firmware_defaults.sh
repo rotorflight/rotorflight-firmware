@@ -9,7 +9,7 @@
 HEXFILE=$1
 CONFIG=$2
 
-TEMPFILE=$(tempfile)
+TEMPFILE=$(mktemp)
 
 # CUSTOM_DEFAULTS is always at this address
 ADDRESS1=0x08002800
