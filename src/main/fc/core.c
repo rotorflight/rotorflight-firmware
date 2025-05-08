@@ -495,6 +495,8 @@ void tryArm(void)
         armingWiggle = WIGGLE_NOT_DONE;
         armingEnabledWiggle = WIGGLE_DONE;
 
+        resetMotorOverride();
+
 #ifdef USE_ACRO_TRAINER
         acroTrainerReset();
 #endif
@@ -780,7 +782,7 @@ static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
         servoUpdate();
 #endif
 #ifdef USE_MOTOR
-        motorUpdate();
+        motorUpdate(currentTimeUs);
 #endif
     }
 }
