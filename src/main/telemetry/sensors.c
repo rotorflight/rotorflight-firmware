@@ -164,6 +164,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC1_THROTTLE:
         case TELEM_ESC1_TEMP1:
         case TELEM_ESC1_TEMP2:
+        case TELEM_ESC1_BEC_VOLTAGE:
         case TELEM_ESC1_BEC_CURRENT:
         case TELEM_ESC1_STATUS:
         case TELEM_ESC1_MODEL:
@@ -178,6 +179,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC2_THROTTLE:
         case TELEM_ESC2_TEMP1:
         case TELEM_ESC2_TEMP2:
+        case TELEM_ESC2_BEC_VOLTAGE:
         case TELEM_ESC2_BEC_CURRENT:
         case TELEM_ESC2_STATUS:
         case TELEM_ESC2_MODEL:
@@ -186,8 +188,6 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC_VOLTAGE:
             return getVoltage(VOLTAGE_METER_ID_ESC_COMBINED);
         case TELEM_BEC_VOLTAGE:
-        case TELEM_ESC1_BEC_VOLTAGE:
-        case TELEM_ESC2_BEC_VOLTAGE:
             return getVoltage(VOLTAGE_METER_ID_BEC);
         case TELEM_BUS_VOLTAGE:
             return getVoltage(VOLTAGE_METER_ID_BUS);
