@@ -50,9 +50,11 @@
 #include "flight/mixer.h"
 
 #include "io/serial.h"
+#include "io/serial_4way.h"
 
 #include "esc_sensor.h"
 
+#include "drivers/time.h"
 
 enum {
     DEBUG_ESC_1_RPM = 0,
@@ -110,6 +112,7 @@ enum {
 #define ESC_SIG_OPENYGE           0xA5
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
+#define ESC_SIG_AM32              0xC2
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -143,6 +146,7 @@ static uint8_t reqLength = 0;
 static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
 static uint8_t escSig = 0;
+static uint8_t escID = 0;
 
 static uint8_t paramPayloadLength = 0;
 static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
@@ -275,6 +279,112 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     escSensorData[0].consumption = totalConsumption;
 }
+
+/*
+ * Mapping to 4wayif
+ */
+
+ // true = ok, false = error
+#define AM32_SIG_G071_2KB 0x2b
+#define AM32_G071_2KB_EEPROM_ADDR 0x7E00
+#define AM32_SIG_F0_1KB 0x1f
+#define AM32_F0_1KB_EEPROM_ADDR 0x7C00
+#define AM32_SIG_F3_2KB 0x35
+#define AM32_F3_2KB_EEPROM_ADDR 0xF800
+#define AM32_NUM_EEPROM_BYTES 48
+
+#define ESC_INIT_DELAY 1500
+
+
+static uint32_t fwif_eepromAddr = 0;
+//static uint8_t fwif_esc_params[48] = {0};
+static bool am32paramChached[MAX_SUPPORTED_MOTORS] = {false};
+ 
+
+ static bool fourwayIfFetchData(uint8_t escID)
+ {
+    uint8_t escCount = 0;
+    //1. activate 4wayIf
+    //2. fetch ESC info
+    //3. fetch ESC parameters
+    //4. deactivate 4wayIf
+
+    bool retVal = false;
+
+    if(am32paramChached[escID]){
+        return true; // params fetched already, so just return the data
+    }
+
+    paramPayloadLength = 0;
+    // try to fetch all ESCs
+
+    //the ESCs need tome time to switch mode
+    escCount = esc4wayInit();
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+    uint32_t initStart = millis();
+
+    while( millis() < initStart + ESC_INIT_DELAY); //the ESCs need 1.5s to switch from SW to BL
+
+    if (pwmMotors[escID].enabled && escID < escCount) {
+        if (pwmMotors[escID].io != IO_NONE) {
+            uint8_32_u *devInfo;
+            int j = 0;
+            do{
+                devInfo = fwif_cmd_DeviceInitFlash(escID);
+            }while(devInfo == NULL && j++ < 5); // allow several retries
+            
+
+            if(devInfo != NULL){ // AM32 signatures
+
+                if(devInfo->bytes[1] == AM32_SIG_F0_1KB){
+                    fwif_eepromAddr = AM32_F0_1KB_EEPROM_ADDR;
+                }else if(devInfo->bytes[1] == AM32_SIG_F3_2KB){
+                    fwif_eepromAddr = AM32_F3_2KB_EEPROM_ADDR;
+                }else if(devInfo->bytes[1] == AM32_SIG_G071_2KB){
+                    fwif_eepromAddr = AM32_G071_2KB_EEPROM_ADDR;
+                }
+
+                //fetch data now
+                bool status = fwif_cmd_DeviceRead(AM32_NUM_EEPROM_BYTES, paramPayload,  fwif_eepromAddr);
+                if(status){ // return upon success
+                    retVal = true;
+                    //escSIG = fwif_eepromAddr[i];
+                    escSig = ESC_SIG_AM32;
+                    am32paramChached[escID] = true;
+                }
+            }
+        }
+    }
+
+
+    //check ESC info and determine if we need to fetch parameters
+    //set ESC sig based on info
+
+    esc4wayRelease();
+
+    return retVal;
+ }
+
+ static bool fourwayIfWriteData(uint8_t escID)
+ {
+    bool retVal = false;
+
+    uint8_t escCount = 0;
+    escCount = esc4wayInit();
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+    //uint32_t initStart = millis();
+
+    //upon write success:
+    //1. set paramChached[escID] = false (we have changed the settings, so we need to fetch them again)
+
+    if (pwmMotors[escID].enabled && escID < escCount) {
+
+    }
+
+    esc4wayRelease();
+
+    return retVal;
+ }
 
 
 /*
@@ -3465,9 +3575,18 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength(void)
+uint8_t escGetParamBufferLength(uint8_t id)
 {
     paramMspActive = true;
+    escID = id;
+
+    if(escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE || escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        //we may have connected a 4wayIf compatible ESC
+
+        //first call will fail, since we need to switch the ESCs to BL mode first
+        fourwayIfFetchData(escID);
+    }
+
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
@@ -3478,13 +3597,16 @@ uint8_t *escGetParamBuffer(void)
     return paramBuffer;
 }
 
-uint8_t *escGetParamUpdBuffer(void)
+uint8_t *escGetParamUpdBuffer()
 {
     return paramUpdBuffer;
 }
 
-bool escCommitParameters(void)
+bool escCommitParameters()
 {
+    if(escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE || escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        fourwayIfWriteData(escID);
+    }    
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
         paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);

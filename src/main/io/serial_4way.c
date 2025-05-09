@@ -348,6 +348,9 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
             CurrentInterfaceMode = imSK;
             return 1;
         } else {
+            uint32_t startTime = micros();
+            while(micros() < startTime + 500) {
+            }
             if (BL_ConnectEx(pDeviceInfo)) {
                 if  SILABS_DEVICE_MATCH {
                     CurrentInterfaceMode = imSIL_BLB;
@@ -412,6 +415,97 @@ static void WriteByteCrc(uint8_t b)
     WriteByte(b);
     CRCout.word = _crc_xmodem_update(CRCout.word, b);
 }
+
+uint8_32_u *fwif_cmd_DeviceInitFlash(uint8_t escIdx)
+{
+    CurrentInterfaceMode = 0;
+    SET_DISCONNECTED;
+    if (escIdx < escCount) {
+        //Channel may change here
+        //ESC_LO or ESC_HI; Halt state for prev channel
+        selected_esc = escIdx;
+    } else {
+        return NULL;
+    }
+    if (Connect(&DeviceInfo)) {
+        DeviceInfo.bytes[INTF_MODE_IDX] = CurrentInterfaceMode;
+    } else {
+        SET_DISCONNECTED;
+        return NULL;
+    }
+    return &DeviceInfo;
+}
+
+bool fwif_cmd_DeviceRead(uint8_t numbytes, uint8_t *dataBuffer, uint32_t addr)
+{
+    ioMem_t ioMem;
+    ioMem.D_NUM_BYTES = numbytes;
+    ioMem.D_PTR_I = dataBuffer;
+    ioMem.D_FLASH_ADDR_H = (uint8_t) (addr >> 8);
+    ioMem.D_FLASH_ADDR_L = (uint8_t) (addr & 0xFF);
+    switch (CurrentInterfaceMode)
+    {
+        case imSIL_BLB:
+        case imATM_BLB:
+        case imARM_BLB:
+        {
+            if (!BL_ReadFlash(CurrentInterfaceMode, &ioMem))
+            {
+                return false;
+            }
+            break;
+        }
+        case imSK:
+        {
+            if (!Stk_ReadFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+        }
+        default:
+        return false;
+    }
+    return true;
+}
+
+bool fwif_receiveMessage(uint8_t *dataBuffer, uint8_t *CMD)
+{
+    uint8_t ESC;
+    uint8_t I_PARAM_LEN;
+    uint8_t *InBuff;
+    uint8_16_u CRC_check;
+
+    do {
+        CRC_in.word = 0;
+        ESC = ReadByteCrc();
+    } while (ESC != cmd_Local_Escape);
+
+    RX_LED_ON;
+
+    *CMD = ReadByteCrc();
+    ioMem.D_FLASH_ADDR_H = ReadByteCrc();
+    ioMem.D_FLASH_ADDR_L = ReadByteCrc();
+    I_PARAM_LEN = ReadByteCrc();
+
+    InBuff = dataBuffer;
+    uint8_t i = I_PARAM_LEN;
+    do {
+    *InBuff = ReadByteCrc();
+    InBuff++;
+    i--;
+    } while (i != 0);
+
+    CRC_check.bytes[1] = ReadByte();
+    CRC_check.bytes[0] = ReadByte();
+
+    if (CRC_check.word == CRC_in.word) {
+        return true;
+    }
+
+    return false;
+}
+
 
 void esc4wayProcess(serialPort_t *mspPort)
 {

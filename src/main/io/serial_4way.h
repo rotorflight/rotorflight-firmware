@@ -54,3 +54,5 @@ uint8_t esc4wayInit(void);
 struct serialPort_s;
 void esc4wayProcess(struct serialPort_s *mspPort);
 void esc4wayRelease(void);
+uint8_32_u *fwif_cmd_DeviceInitFlash(uint8_t escIdx);
+bool fwif_cmd_DeviceRead(uint8_t numbytes, uint8_t *dataBuffer, uint32_t addr);
