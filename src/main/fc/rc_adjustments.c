@@ -181,6 +181,20 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_CONFIG(ACC_TRIM_PITCH,          NONE,  -300, 300),
     ADJ_CONFIG(ACC_TRIM_ROLL,           NONE,  -300, 300),
+
+    ADJ_CONFIG(INERTIA_PRECOMP_GAIN,    PROF,  0, 250),
+    ADJ_CONFIG(INERTIA_PRECOMP_CUTOFF,  PROF,  0, 250),
+
+    ADJ_CONFIG(PITCH_SP_BOOST_GAIN,     RATE,  0, 255),
+    ADJ_CONFIG(ROLL_SP_BOOST_GAIN,      RATE,  0, 255),
+    ADJ_CONFIG(YAW_SP_BOOST_GAIN,       RATE,  0, 255),
+    ADJ_CONFIG(COLL_SP_BOOST_GAIN,      RATE,  0, 255),
+
+    ADJ_CONFIG(YAW_DYN_CEILING_GAIN,    RATE,  0, 250),
+    ADJ_CONFIG(YAW_DYN_DEADBAND_GAIN,   RATE,  0, 250),
+    ADJ_CONFIG(YAW_DYN_DEADBAND_FILTER, RATE,  0, 250),
+
+    ADJ_CONFIG(YAW_PRECOMP_CUTOFF,      PROF,  0, 250),
 };
 
 
@@ -396,6 +410,30 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
         case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
             value = currentPidProfile->yaw_inertia_precomp_cutoff;
             break;
+        case ADJUSTMENT_PITCH_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_PITCH];
+            break;
+        case ADJUSTMENT_ROLL_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_ROLL];
+            break;
+        case ADJUSTMENT_YAW_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_YAW];
+            break;
+        case ADJUSTMENT_COLL_SP_BOOST_GAIN:
+            value = currentControlRateProfile->setpoint_boost_gain[FD_COLL];
+            break;
+        case ADJUSTMENT_YAW_DYN_CEILING_GAIN:
+            value = currentControlRateProfile->yaw_dynamic_ceiling_gain;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_GAIN:
+            value = currentControlRateProfile->yaw_dynamic_deadband_gain;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
+            value = currentControlRateProfile->yaw_dynamic_deadband_filter;
+            break;
+        case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
+            value = currentPidProfile->yaw_precomp_cutoff;
+            break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
     }
@@ -610,6 +648,30 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             break;
         case ADJUSTMENT_INERTIA_PRECOMP_CUTOFF:
             currentPidProfile->yaw_inertia_precomp_cutoff = value;
+            break;
+        case ADJUSTMENT_PITCH_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_PITCH] = value;
+            break;
+        case ADJUSTMENT_ROLL_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_ROLL] = value;
+            break;
+        case ADJUSTMENT_YAW_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_YAW] = value;
+            break;
+        case ADJUSTMENT_COLL_SP_BOOST_GAIN:
+            currentControlRateProfile->setpoint_boost_gain[FD_COLL] = value;
+            break;
+        case ADJUSTMENT_YAW_DYN_CEILING_GAIN:
+            currentControlRateProfile->yaw_dynamic_ceiling_gain = value;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_GAIN:
+            currentControlRateProfile->yaw_dynamic_deadband_gain = value;
+            break;
+        case ADJUSTMENT_YAW_DYN_DEADBAND_FILTER:
+            currentControlRateProfile->yaw_dynamic_deadband_filter = value;
+            break;
+        case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
+            currentPidProfile->yaw_precomp_cutoff = value;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;

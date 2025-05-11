@@ -83,6 +83,10 @@ typedef struct {
     uint8_t     i_gain;
     uint8_t     d_gain;
     uint8_t     f_gain;
+    uint8_t     p_limit;
+    uint8_t     i_limit;
+    uint8_t     d_limit;
+    uint8_t     f_limit;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
     uint8_t     yaw_ff_weight;
@@ -116,8 +120,6 @@ typedef struct {
 
 #define MAX_PROFILE_NAME_LENGTH 8u
 
-#define LOOKUP_CURVE_POINTS     16
-
 typedef struct pidProfile_s {
 
     char                profileName[MAX_PROFILE_NAME_LENGTH + 1];
@@ -125,8 +127,6 @@ typedef struct pidProfile_s {
     pidf_t              pid[PID_ITEM_COUNT];
 
     uint8_t             pid_mode;
-    uint8_t             dterm_mode;
-    uint8_t             dterm_mode_yaw;
 
     uint8_t             error_decay_time_ground;
     uint8_t             error_decay_time_cyclic;
@@ -134,18 +134,8 @@ typedef struct pidProfile_s {
     uint8_t             error_decay_limit_cyclic;
     uint8_t             error_decay_limit_yaw;
 
-    uint8_t             error_decay_rate_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             error_decay_limit_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_decay_rate_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_decay_limit_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_bleed_rate_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_bleed_limit_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_charge_curve[LOOKUP_CURVE_POINTS];
-    uint8_t             offset_flood_curve[LOOKUP_CURVE_POINTS];
     uint8_t             offset_flood_relax_level;
     uint8_t             offset_flood_relax_cutoff;
-
-    uint8_t             error_rotation;
 
     uint8_t             iterm_relax_type;
     uint8_t             iterm_relax_level[PID_AXIS_COUNT];
@@ -154,7 +144,6 @@ typedef struct pidProfile_s {
     uint8_t             offset_limit[CYCLIC_AXIS_COUNT];
     uint8_t             error_limit[PID_AXIS_COUNT];
 
-    uint8_t             error_cutoff[PID_AXIS_COUNT];
     uint8_t             dterm_cutoff[PID_AXIS_COUNT];
     uint8_t             bterm_cutoff[PID_AXIS_COUNT];
     uint8_t             gyro_cutoff[PID_AXIS_COUNT];

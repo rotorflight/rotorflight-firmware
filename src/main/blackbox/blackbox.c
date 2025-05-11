@@ -348,6 +348,7 @@ typedef enum BlackboxState {
     BLACKBOX_STATE_PAUSED,
     BLACKBOX_STATE_RUNNING,
     BLACKBOX_STATE_FULL,
+    BLACKBOX_STATE_GRACE_PERIOD,
     BLACKBOX_STATE_SHUTTING_DOWN,
     BLACKBOX_STATE_START_ERASE,
     BLACKBOX_STATE_ERASING,
@@ -1181,8 +1182,9 @@ static void blackboxStart(void)
     blackboxSetState(BLACKBOX_STATE_WAIT_FOR_READY);
 }
 
-void blackboxCheckEnabler(void)
+void blackboxCheckEnabler(timeUs_t currentTimeUs)
 {
+    static timeUs_t gracePeriodEnd = 0;
     if (!blackboxIsLoggingEnabled()) {
         switch (blackboxState) {
         case BLACKBOX_STATE_DISABLED:
@@ -1195,6 +1197,22 @@ void blackboxCheckEnabler(void)
             // Busy erasing
             break;
         case BLACKBOX_STATE_RUNNING:
+            if (blackboxConfig()->mode == BLACKBOX_MODE_SWITCH) {
+                // `BLACKBOX_STATE_PAUSED` with logging disabled is equivalent
+                // to stopping without grace period.
+                blackboxSetState(BLACKBOX_STATE_PAUSED);
+                break;
+            }
+            gracePeriodEnd =
+                currentTimeUs + blackboxConfig()->gracePeriod * 1000000;
+            blackboxSetState(BLACKBOX_STATE_GRACE_PERIOD);
+            FALLTHROUGH;
+        case BLACKBOX_STATE_GRACE_PERIOD:
+            if (cmpTimeUs(currentTimeUs, gracePeriodEnd) < 0) {
+                break;
+            }
+            // if grace period passed:
+            FALLTHROUGH;
         case BLACKBOX_STATE_PAUSED:
             blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
             FALLTHROUGH;
@@ -1505,6 +1523,9 @@ static char *blackboxGetStartDateTime(char *buf)
     return buf;
 }
 
+
+static char header_buffer[128];
+
 #define BLACKBOX_PRINT_HEADER_LINE(name, format, ...) \
     case __COUNTER__: { \
         blackboxPrintfHeaderLine(name, format, __VA_ARGS__); \
@@ -1513,12 +1534,12 @@ static char *blackboxGetStartDateTime(char *buf)
 
 #define BLACKBOX_PRINT_HEADER_ARRAY(name, format, count, array) \
     case __COUNTER__: { \
-        char *ptr = buf; \
+        char *ptr = header_buffer; \
         for (int i=0; i<(count); i++) { \
             if (i > 0) *ptr++ = ','; \
             ptr += tfp_sprintf(ptr, format, array[i]); \
         } \
-        blackboxPrintfHeaderLine(name, buf); \
+        blackboxPrintHeaderLine(name, header_buffer); \
         break; \
     }
 
@@ -1534,8 +1555,6 @@ static char *blackboxGetStartDateTime(char *buf)
  */
 static bool blackboxWriteSysinfo(void)
 {
-    char buf[128];
-
 #ifndef UNIT_TEST
     // Make sure we have enough room in the buffer for our longest line (as of this writing, the "Firmware date" line)
     if (blackboxDeviceReserveBufferSpace(64) != BLACKBOX_RESERVE_SUCCESS) {
@@ -1551,7 +1570,7 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_BOARD_INFO
         BLACKBOX_PRINT_HEADER_LINE("Board information", "%s %s",            getManufacturerId(), getBoardName());
 #endif
-        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(buf));
+        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(header_buffer));
         BLACKBOX_PRINT_HEADER_LINE("Craft name", "%s",                      pilotConfig()->name);
         BLACKBOX_PRINT_HEADER_LINE("I interval", "%d",                      blackboxIInterval);
         BLACKBOX_PRINT_HEADER_LINE("P interval", "%d",                      blackboxPInterval);
@@ -1651,7 +1670,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
                                                                             currentPidProfile->offset_limit[1]);
-        BLACKBOX_PRINT_HEADER_LINE("piro_compensation", "%d",               currentPidProfile->error_rotation);
         BLACKBOX_PRINT_HEADER_LINE("pitch_compensation", "%d",              currentPidProfile->pitch_collective_ff_gain);
 
 
@@ -1746,7 +1764,9 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     uint8_t length;
 
     // Only allow events to be logged after headers have been written
-    if (!(blackboxState == BLACKBOX_STATE_RUNNING || blackboxState == BLACKBOX_STATE_PAUSED)) {
+    if (!(blackboxState == BLACKBOX_STATE_RUNNING ||
+          blackboxState == BLACKBOX_STATE_PAUSED ||
+          blackboxState == BLACKBOX_STATE_GRACE_PERIOD)) {
         return;
     }
 
@@ -1991,7 +2011,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static BlackboxState cacheFlushNextState;
 
-    blackboxCheckEnabler();
+    blackboxCheckEnabler(currentTimeUs);
 
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE) &&
         blackboxState > BLACKBOX_STATE_DISABLED && blackboxState < BLACKBOX_STATE_START_ERASE) {
@@ -2119,6 +2139,11 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // Keep the logging timers ticking so our log iteration continues to advance
         blackboxAdvanceIterationTimers();
         break;
+    case BLACKBOX_STATE_GRACE_PERIOD:
+        if (blackboxIsLoggingEnabled()) {
+            blackboxSetState(BLACKBOX_STATE_RUNNING);
+        }
+        FALLTHROUGH;  // Keep logging during the grace period.
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration reset to 0
         if (blackboxIsLoggingPaused()) {
@@ -2139,6 +2164,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         if (blackboxDeviceEndLog(blackboxLoggedAnyFrames) && (millis() > xmitState.u.startTime + BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS || blackboxDeviceFlushForce())) {
             blackboxDeviceClose();
             blackboxSetState(BLACKBOX_STATE_STOPPED);
+
+            blackboxStarted = false;
         }
         break;
 #ifdef USE_FLASHFS

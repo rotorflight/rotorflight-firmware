@@ -43,6 +43,7 @@ extern "C" {
 #define SECT              512
 #define CLUST             4096
 #define SECT_PER_CLUST    (CLUST / SECT)
+#define MIN_CLUST_COUNT   65526 // should be 65525 but android has an off by one bug
 #define SIZE_TO_NSECT(s)  ((s) == 0 ? 1 : ((s) + SECT - 1) / SECT)
 #define SIZE_TO_NCLUST(s) ((s) == 0 ? 1 : ((s) + CLUST - 1) / CLUST)
 
@@ -244,8 +245,9 @@ STATIC_UNIT_TESTED uint8_t sfn_checksum(const char* short_name, const char* exte
 /*
  * Subroutine to populate 8+3 filename, checksum and the number of entries for an
  * `emfat_entry_t`.
+ * In case of long file name, the `index` is used to generate a unique SFN.
  */
-STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry)
+STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry, int index)
 {
     int i, l, l1, l2;
     int dot_pos;
@@ -287,6 +289,16 @@ STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry)
     memcpy(entry->priv.short_name, entry->name, l1);
     memset(entry->priv.extension, ' ', FILE_NAME_EXTN_LEN);
     memcpy(entry->priv.extension, entry->name + dot_pos + 1, l2);
+
+    if (need_lfn) {
+        int pos = FILE_NAME_SHRT_LEN - 1;
+        int suffix = index;
+        while (pos >= 0 && suffix) {
+            entry->priv.short_name[pos] = suffix % 10 + '0';
+            suffix /= 10;
+            pos--;
+        }
+    }
 
     for (i = 0; i < FILE_NAME_SHRT_LEN; i++) {
         if (entry->priv.short_name[i] >= 'a' && entry->priv.short_name[i] <= 'z') {
@@ -334,7 +346,7 @@ bool emfat_init_entries(emfat_entry_t *entries)
         entries[i].priv.next = NULL;
         entries[i].priv.sub = NULL;
         entries[i].priv.num_subentry = 0;
-        emfat_init_sfn(&entries[i]);
+        emfat_init_sfn(&entries[i], i);
         if (entries[i].level == n - 1) {
             if (n == 0) return false;
             e = e->priv.top;
@@ -414,13 +426,18 @@ bool emfat_init(emfat_t *emfat, const char *label, emfat_entry_t *entries)
             e->priv.last_reserved = e->priv.last_clust;
         } else {
             e->priv.first_clust = clust;
-            e->priv.last_clust = e->priv.first_clust + SIZE_TO_NCLUST(entries[i].curr_size) - 1;
-            e->priv.last_reserved = e->priv.first_clust + SIZE_TO_NCLUST(entries[i].max_size) - 1;
+            e->priv.last_clust = e->priv.first_clust + SIZE_TO_NCLUST(e->curr_size) - 1;
+            e->priv.last_reserved = e->priv.first_clust + SIZE_TO_NCLUST(e->max_size) - 1;
         }
         reserved_clust += e->priv.last_reserved - e->priv.last_clust;
         clust = e->priv.last_reserved + 1;
     }
     clust -= 2;
+
+    if (clust < MIN_CLUST_COUNT) {
+        reserved_clust += MIN_CLUST_COUNT - clust;
+        clust = MIN_CLUST_COUNT;
+    }
 
     emfat->vol_label = label;
     emfat->priv.num_entries = i;
@@ -493,7 +510,7 @@ void read_boot_sector(const emfat_t *emfat, uint8_t *sect)
     bs->volume_id[1] = 14;
     bs->volume_id[2] = 13;
     bs->volume_id[3] = 8;
-    memcpy(bs->volume_label, "NO NAME    ", VOL_LABEL_LEN);
+    memcpy(bs->volume_label, emfat->vol_label, VOL_LABEL_LEN);
     memcpy(bs->file_system_type, "FAT32   ", FILE_SYS_TYPE_LENGTH);
     sect[SECT - 2] = 0x55;
     sect[SECT - 1] = 0xAA;

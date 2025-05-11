@@ -24,6 +24,7 @@
 #include "pg/blackbox.h"
 
 #include "blackbox/blackbox_fielddefs.h"
+#include "common/utils.h"
 
 
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
@@ -61,6 +62,7 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               0,
     .initialEraseFreeSpaceKiB = 0,
     .rollingErase = 0,
+    .gracePeriod = 5,
 );
 
 #endif

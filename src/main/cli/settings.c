@@ -285,7 +285,7 @@ static const char * const lookupTableCameraControlMode[] = {
 
 static const char * const lookupTablePwmProtocol[] = {
     "PWM", "ONESHOT125", "ONESHOT42", "MULTISHOT", "RESERVED",
-    "DSHOT150", "DSHOT300", "DSHOT600", "PROSHOT1000",
+    "DSHOT150", "DSHOT300", "DSHOT600", "PROSHOT1000", "CASTLE",
     "DISABLED"
 };
 
@@ -477,7 +477,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "RECORD",
+    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "RECORD",
 };
 #endif
 
@@ -487,10 +487,6 @@ const char * const lookupTableRescueMode[] = {
 
 const char * const lookupTableSwashType[] = {
     "NONE", "PASSTHROUGH", "CP120", "CP135", "CP140", "FP90L", "FP90V",
-};
-
-const char * const lookupTableDtermMode[] = {
-    "GYRO", "ERROR",
 };
 
 const char * const lookupTableTelemMode[] = {
@@ -618,7 +614,6 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
-    LOOKUP_TABLE_ENTRY(lookupTableDtermMode),
     LOOKUP_TABLE_ENTRY(lookupTableTelemMode),
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
@@ -803,11 +798,11 @@ const clivalue_t valueTable[] = {
     { "blackbox_log_esc",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_bec",           VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_BEC, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
     { "blackbox_log_esc2",          VAR_UINT32 | MASTER_VALUE | MODE_BITSET, .config.bitpos = FLIGHT_LOG_FIELD_SELECT_ESC2, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, fields) },
-
 #ifdef USE_FLASHFS_LOOP
     { "blackbox_initial_erase_kb",  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, UINT16_MAX }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, initialEraseFreeSpaceKiB) },
     { "blackbox_rolling_erase",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, rollingErase) },
 #endif
+    { "blackbox_grace_period",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, gracePeriod) },
 #endif
 
 // PG_MOTOR_CONFIG
@@ -983,6 +978,14 @@ const clivalue_t valueTable[] = {
 
     { "cyclic_ring",                VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, cyclic_ring) },
 
+    { "setpoint_boost_gain",        VAR_UINT8  | PROFILE_RATE_VALUE | MODE_ARRAY, .config.array.length = 4, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, setpoint_boost_gain) },
+    { "setpoint_boost_cutoff",      VAR_UINT8  | PROFILE_RATE_VALUE | MODE_ARRAY, .config.array.length = 4, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, setpoint_boost_cutoff) },
+
+    { "yaw_dynamic_ceiling_gain",    VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_ceiling_gain) },
+    { "yaw_dynamic_deadband_gain",   VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_gain) },
+    { "yaw_dynamic_deadband_filter", VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_filter) },
+    { "yaw_dynamic_deadband_cutoff", VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, yaw_dynamic_deadband_cutoff) },
+
 // PG_SERIAL_CONFIG
     { "reboot_character",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 48, 126 }, PG_SERIAL_CONFIG, offsetof(serialConfig_t, reboot_character) },
     { "serial_update_rate_hz",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 100, 2000 }, PG_SERIAL_CONFIG, offsetof(serialConfig_t, serial_update_rate_hz) },
@@ -1071,8 +1074,6 @@ const clivalue_t valueTable[] = {
 #endif
 
     { "pid_mode",                   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 9 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid_mode) },
-    { "pid_dterm_mode",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode) },
-    { "pid_dterm_mode_yaw",         VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_DTERM_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_mode_yaw) },
 
     { "pid_gyro_filter_type",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_filter_type) },
 
@@ -1097,17 +1098,14 @@ const clivalue_t valueTable[] = {
     { "pitch_d_cutoff",             VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_cutoff[PID_PITCH]) },
     { "pitch_b_cutoff",             VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, bterm_cutoff[PID_PITCH]) },
     { "pitch_gyro_cutoff",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_cutoff[PID_PITCH]) },
-    { "pitch_error_cutoff",         VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_cutoff[PID_PITCH]) },
 
     { "roll_d_cutoff",              VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_cutoff[PID_ROLL]) },
     { "roll_b_cutoff",              VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, bterm_cutoff[PID_ROLL]) },
     { "roll_gyro_cutoff",           VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_cutoff[PID_ROLL]) },
-    { "roll_error_cutoff",          VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_cutoff[PID_ROLL]) },
 
     { "yaw_d_cutoff",               VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, dterm_cutoff[PID_YAW]) },
     { "yaw_b_cutoff",               VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, bterm_cutoff[PID_YAW]) },
     { "yaw_gyro_cutoff",            VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_cutoff[PID_YAW]) },
-    { "yaw_error_cutoff",           VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_cutoff[PID_YAW]) },
 
     { "yaw_cw_stop_gain",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cw_stop_gain) },
     { "yaw_ccw_stop_gain",          VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_ccw_stop_gain) },
@@ -1127,8 +1125,6 @@ const clivalue_t valueTable[] = {
     { "cyclic_cross_coupling_ratio",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_ratio) },
     { "cyclic_cross_coupling_cutoff", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_cutoff) },
 
-    { "error_rotation",             VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_PID_PROFILE, offsetof(pidProfile_t, error_rotation) },
-
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
     { "offset_limit",               VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 2, PG_PID_PROFILE, offsetof(pidProfile_t, offset_limit) },
 
@@ -1138,14 +1134,6 @@ const clivalue_t valueTable[] = {
     { "error_decay_limit_cyclic",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_cyclic) },
     { "error_decay_limit_yaw",      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_yaw) },
 
-    { "error_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_rate_curve) },
-    { "error_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_curve) },
-    { "offset_decay_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_rate_curve) },
-    { "offset_decay_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_decay_limit_curve) },
-    { "offset_bleed_rate_curve",    VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_rate_curve) },
-    { "offset_bleed_limit_curve",   VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_bleed_limit_curve) },
-    { "offset_charge_curve",        VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_charge_curve) },
-    { "offset_flood_curve",         VAR_UINT8 | PROFILE_VALUE | MODE_ARRAY, .config.array.length = LOOKUP_CURVE_POINTS, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_curve) },
     { "offset_flood_relax_level",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 10, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_level) },
     { "offset_flood_relax_cutoff",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, offset_flood_relax_cutoff) },
 
@@ -1192,6 +1180,10 @@ const clivalue_t valueTable[] = {
     { "gov_i_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.i_gain) },
     { "gov_d_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.d_gain) },
     { "gov_f_gain",                 VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.f_gain) },
+    { "gov_p_limit",                VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.p_limit) },
+    { "gov_i_limit",                VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.i_limit) },
+    { "gov_d_limit",                VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.d_limit) },
+    { "gov_f_limit",                VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.f_limit) },
     { "gov_tta_gain",               VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.tta_gain) },
     { "gov_tta_limit",              VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.tta_limit) },
     { "gov_yaw_ff_weight",          VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.yaw_ff_weight) },
@@ -1538,12 +1530,15 @@ const clivalue_t valueTable[] = {
 #ifdef USE_SERIAL_PINSWAP
     { "esc_sensor_pinswap",             VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, pinSwap) },
 #endif
-    { "esc_sensor_update_hz",           VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 10, 500 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, update_hz) },
-    { "esc_sensor_current_offset",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_offset) },
-    { "esc_sensor_hw4_current_offset",  VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_offset) },
-    { "esc_sensor_hw4_current_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_gain) },
-    { "esc_sensor_hw4_voltage_gain",    VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_voltage_gain) },
-    { "esc_sensor_filter_cutoff",       VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, filter_cutoff) },
+    { "esc_sensor_update_hz",               VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 4, 500 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, update_hz) },
+    { "esc_sensor_current_offset",          VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 16000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_offset) },
+    { "esc_sensor_hw4_current_offset",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 1000 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_offset) },
+    { "esc_sensor_hw4_current_gain",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_current_gain) },
+    { "esc_sensor_hw4_voltage_gain",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, hw4_voltage_gain) },
+    { "esc_sensor_filter_cutoff",           VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, filter_cutoff) },
+    { "esc_sensor_voltage_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, voltage_correction) },
+    { "esc_sensor_current_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_correction) },
+    { "esc_sensor_consumption_correction",  VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, consumption_correction) },
 #endif
 
 #ifdef USE_RX_FRSKY_SPI
