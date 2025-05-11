@@ -812,17 +812,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 
     case MSP_ESC_PARAMETERS:
         {
-            const uint8_t len = escGetParamBufferLength(0);
-            if (len == 0)
-                return false;
-
-            sbufWriteData(dst, escGetParamBuffer(), len);
-        }
-        break;
-
-    case MSP_ESC2_PARAMETERS:
-        {
-            const uint8_t len = escGetParamBufferLength(1);
+            const uint8_t len = escGetParamBufferLength();
             if (len == 0)
                 return false;
 
@@ -2806,7 +2796,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_ESC_PARAMETERS:
         {
-            const uint8_t len = escGetParamBufferLength(0);
+            const uint8_t len = escGetParamBufferLength();
             if (len == 0)
                 return MSP_RESULT_ERROR;
 
@@ -2817,16 +2807,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         break;
     
-    case MSP_SET_ESC2_PARAMETERS:
+    case MSP_SET_4WIF_ESC_FWD_PROG:
         {
-            const uint8_t len = escGetParamBufferLength(1);
-            if (len == 0)
-                return MSP_RESULT_ERROR;
-
-            sbufReadData(src, escGetParamUpdBuffer(), len);
-
-            if (!escCommitParameters())
-                return MSP_RESULT_ERROR;
+            uint8_t id = sbufReadS8(src); 
+            escSet4WIfESC(id);
         }
         break;
 #endif

@@ -149,7 +149,7 @@ static uint8_t reqLength = 0;
 static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
 static uint8_t escSig = 0;
-static uint8_t escID = 0;
+static uint8_t escID = MAX_SUPPORTED_MOTORS + 1;
 
 static uint8_t paramPayloadLength = 0;
 static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
@@ -330,7 +330,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
 static uint32_t fwif_eepromAddr = 0;
 //static uint8_t fwif_esc_params[48] = {0};
-static bool am32paramChached[MAX_SUPPORTED_MOTORS] = {false};
+static bool am32paramCached[MAX_SUPPORTED_MOTORS] = {false};
  
 
  static bool fourwayIfFetchData(uint8_t escID)
@@ -343,7 +343,7 @@ static bool am32paramChached[MAX_SUPPORTED_MOTORS] = {false};
 
     bool retVal = false;
 
-    if(am32paramChached[escID]){
+    if(am32paramCached[escID]){
         return true; // params fetched already, so just return the data
     }
 
@@ -382,7 +382,7 @@ static bool am32paramChached[MAX_SUPPORTED_MOTORS] = {false};
                     retVal = true;
                     //escSIG = fwif_eepromAddr[i];
                     escSig = ESC_SIG_AM32;
-                    am32paramChached[escID] = true;
+                    am32paramCached[escID] = true;
                 }
             }
         }
@@ -4155,19 +4155,23 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength(uint8_t id)
+uint8_t escGetParamBufferLength()
 {
     paramMspActive = true;
-    escID = id;
-
-    if(escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE || escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
-        //we may have connected a 4wayIf compatible ESC
-
+    
+    if(escID < MAX_SUPPORTED_MOTORS) {
+        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
         //first call will fail, since we need to switch the ESCs to BL mode first
         fourwayIfFetchData(escID);
     }
 
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+}
+
+uint8_t escSet4WIfESC(uint8_t id)
+{
+    escID = id;
+    return 0;
 }
 
 uint8_t *escGetParamBuffer(void)
