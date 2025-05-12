@@ -261,7 +261,7 @@
 #define MSP_ACC_TRIM                         240
 #define MSP_SET_ACC_TRIM                     239
 
-#define MSP_SET_4WIF_ESC_FWD_PROG            240
+#define MSP_SET_4WIF_ESC_FWD_PROG            244
 
 #define MSP_SET_PASSTHROUGH                  245
 #define MSP_SET_RTC                          246
