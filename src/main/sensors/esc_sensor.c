@@ -344,13 +344,14 @@ static bool am32paramCached[MAX_SUPPORTED_MOTORS] = {false};
     bool retVal = false;
 
     if(am32paramCached[escID]){
+        paramPayloadLength = AM32_NUM_EEPROM_BYTES;
         return true; // params fetched already, so just return the data
     }
 
     paramPayloadLength = 0;
     // try to fetch all ESCs
 
-    //the ESCs need tome time to switch mode
+    //the ESCs need some time to switch mode
     escCount = esc4wayInit();
     pwmOutputPort_t *pwmMotors = pwmGetMotors();
     uint32_t initStart = millis();
@@ -383,6 +384,7 @@ static bool am32paramCached[MAX_SUPPORTED_MOTORS] = {false};
                     //escSIG = fwif_eepromAddr[i];
                     escSig = ESC_SIG_AM32;
                     am32paramCached[escID] = true;
+                    paramPayloadLength = AM32_NUM_EEPROM_BYTES;
                 }
             }
         }
