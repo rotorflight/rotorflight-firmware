@@ -770,9 +770,8 @@ void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32
 void read_data_sector(emfat_t *emfat, uint8_t *data, uint32_t rel_sect)
 {
     emfat_entry_t *le;
-    uint32_t cluster;
-    cluster = rel_sect / 8 + 2;
-    rel_sect = rel_sect % 8;
+    uint32_t cluster = rel_sect / 8 + 2;
+    uint32_t sector = rel_sect % 8;
 
     le = emfat->priv.last_entry;
     if (!IS_CLUST_OF(cluster, le)) {
@@ -795,7 +794,7 @@ void read_data_sector(emfat_t *emfat, uint8_t *data, uint32_t rel_sect)
         memset(data, 0, SECT);
     } else {
         uint32_t offset = cluster - le->priv.first_clust;
-        offset = offset * CLUST + rel_sect * SECT;
+        offset = offset * CLUST + sector * SECT;
         le->readcb(data, SECT, offset + le->offset, le);
     }
 
@@ -829,9 +828,8 @@ void emfat_read(emfat_t *emfat, uint8_t *data, uint32_t sector, int num_sectors)
 void write_data_sector(emfat_t *emfat, const uint8_t *data, uint32_t rel_sect)
 {
     emfat_entry_t *le;
-    uint32_t cluster;
-    cluster = rel_sect / 8 + 2;
-    rel_sect = rel_sect % 8;
+    uint32_t cluster = rel_sect / 8 + 2;
+    uint32_t sector = rel_sect % 8;
 
     le = emfat->priv.last_entry;
 
@@ -847,7 +845,7 @@ void write_data_sector(emfat_t *emfat, const uint8_t *data, uint32_t rel_sect)
     }
 
     if (le->writecb != NULL) {
-        le->writecb(data, SECT, rel_sect * SECT + le->offset, le);
+        le->writecb(data, SECT, sector * SECT + le->offset, le);
     }
 }
 
