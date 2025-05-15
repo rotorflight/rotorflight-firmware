@@ -349,7 +349,7 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
             return 1;
         } else {
             uint32_t startTime = micros();
-            while(micros() < startTime + 500) {
+            while(micros() < startTime + 1000) {
             }
             if (BL_ConnectEx(pDeviceInfo)) {
                 if  SILABS_DEVICE_MATCH {
@@ -458,6 +458,39 @@ bool fwif_cmd_DeviceRead(uint8_t numbytes, uint8_t *dataBuffer, uint32_t addr)
         case imSK:
         {
             if (!Stk_ReadFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+        }
+        default:
+        return false;
+    }
+    return true;
+}
+
+bool fwif_cmd_DeviceWrite(uint8_t numbytes, uint8_t *dataBuffer, uint32_t addr)
+{
+    ioMem_t ioMem;
+    ioMem.D_NUM_BYTES = numbytes;
+    ioMem.D_PTR_I = dataBuffer;
+    ioMem.D_FLASH_ADDR_H = (uint8_t) (addr >> 8);
+    ioMem.D_FLASH_ADDR_L = (uint8_t) (addr & 0xFF);
+    switch (CurrentInterfaceMode)
+    {
+        case imSIL_BLB:
+        case imATM_BLB:
+        case imARM_BLB:
+        {
+            if (!BL_WriteFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+        }
+        case imSK:
+        {
+            if (!Stk_WriteFlash(&ioMem))
             {
                 return false;
             }
