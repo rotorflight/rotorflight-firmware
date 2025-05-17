@@ -367,7 +367,7 @@ static bool am32paramWritten[MAX_SUPPORTED_MOTORS] = {false};
                 uint32_t iterationStart = millis();
                 devInfo = fwif_cmd_DeviceInitFlash(escID);
                 if (devInfo != NULL) {
-                    // wait for 1ms to allow the ESC to process the command
+                    // wait for 10ms to allow the ESC to process the command
                     while (millis() < iterationStart + 10);
                 }
             }while(devInfo == NULL && j++ < 5); // allow several retries
@@ -4194,12 +4194,6 @@ bool INIT_CODE escSensorInit(void)
 uint8_t escGetParamBufferLength()
 {
     paramMspActive = true;
-    
-    if(escID < MAX_SUPPORTED_MOTORS) {
-        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
-        //first call will fail, since we need to switch the ESCs to BL mode first
-        fourwayIfFetchData(escID);
-    }
 
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
@@ -4207,6 +4201,11 @@ uint8_t escGetParamBufferLength()
 uint8_t escSet4WIfESC(uint8_t id)
 {
     escID = id;
+    if(escID < MAX_SUPPORTED_MOTORS) {
+        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        //first call will fail, since we need to switch the ESCs to BL mode first
+        fourwayIfFetchData(escID);
+    }
     return 0;
 }
 

@@ -349,7 +349,7 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
             return 1;
         } else {
             uint32_t startTime = micros();
-            while(micros() < startTime + 1000) {
+            while(micros() < startTime + 10000) {
             }
             if (BL_ConnectEx(pDeviceInfo)) {
                 if  SILABS_DEVICE_MATCH {
