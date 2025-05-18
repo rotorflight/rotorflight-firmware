@@ -397,10 +397,16 @@ static bool am32paramWritten[MAX_SUPPORTED_MOTORS] = {false};
         }
     }
 
+    uint32_t start = millis();
+    while( millis() < start + 15);
 
-    //check ESC info and determine if we need to fetch parameters
-    //set ESC sig based on info
+    //set the pins low to switch back to normal mode
+    esc4wayDeinit();
 
+    start = millis();
+    while( millis() < start + 100);
+
+    //re-enmable motors
     esc4wayRelease();
 
     return retVal;
@@ -4194,18 +4200,17 @@ bool INIT_CODE escSensorInit(void)
 uint8_t escGetParamBufferLength()
 {
     paramMspActive = true;
-
+    if(escID < MAX_SUPPORTED_MOTORS) {
+        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        //first call will fail, since we need to switch the ESCs to BL mode first
+        fourwayIfFetchData(escID);
+    }
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
 uint8_t escSet4WIfESC(uint8_t id)
 {
     escID = id;
-    if(escID < MAX_SUPPORTED_MOTORS) {
-        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
-        //first call will fail, since we need to switch the ESCs to BL mode first
-        fourwayIfFetchData(escID);
-    }
     return 0;
 }
 

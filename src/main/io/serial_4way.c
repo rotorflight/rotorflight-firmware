@@ -156,6 +156,16 @@ uint8_t esc4wayInit(void)
     return escCount;
 }
 
+void esc4wayDeinit(void)
+{
+    uint8_t cnt = escCount;
+    while (cnt > 0) {
+        cnt--;
+        IOConfigGPIO(escHardware[cnt].io, IOCFG_AF_PP);
+        setEscLo(cnt);
+    }
+}
+
 void esc4wayRelease(void)
 {
     while (escCount > 0) {
