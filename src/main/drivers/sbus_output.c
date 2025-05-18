@@ -62,7 +62,7 @@ STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
     frame->endByte = 0;
 }
 
-static float sbusOutGetRX(uint8_t channel)
+float sbusOutGetRX(uint8_t channel)
 {
     if (channel < MAX_SUPPORTED_RC_CHANNEL_COUNT)
         return rcChannel[channel];
@@ -70,14 +70,14 @@ static float sbusOutGetRX(uint8_t channel)
 }
 
 // Note: this returns 1000x normalized value (-1000 - 1000).
-static float sbusOutGetValueMixer(uint8_t channel)
+float sbusOutGetValueMixer(uint8_t channel)
 {
     if (channel < MIXER_OUTPUT_COUNT)
         return 1000.0f * mixerGetOutput(channel);
     return 0;
 }
 
-static float sbusOutGetServo(uint8_t channel)
+float sbusOutGetServo(uint8_t channel)
 {
     if (channel < MAX_SUPPORTED_SERVOS)
         return getServoOutput(channel);
@@ -86,7 +86,7 @@ static float sbusOutGetServo(uint8_t channel)
 
 // Note: this returns 0 - 1000 range (or -1000 - 1000 for bidirectional
 // motor)
-static float sbusOutGetMotor(uint8_t channel)
+float sbusOutGetMotor(uint8_t channel)
 {
     if (channel < MAX_SUPPORTED_MOTORS)
         return getMotorOutput(channel);

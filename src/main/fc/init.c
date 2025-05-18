@@ -67,6 +67,7 @@
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 #include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
@@ -694,6 +695,10 @@ void init(void)
 
 #ifdef USE_SBUS_OUTPUT
     sbusOutInit();
+#endif
+
+#ifdef USE_FBUS_MASTER
+    fbusMasterInit();
 #endif
 
 #ifdef USE_PINIO

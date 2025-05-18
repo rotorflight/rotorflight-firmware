@@ -125,6 +125,7 @@
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
 #include "pg/sbus_output.h"
+#include "pg/fbus_master.h"
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1718,6 +1719,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
+        }
+        break;
+#endif
+
+#ifdef USE_FBUS_MASTER
+    case MSP_SET_FBUS_MASTER_CONFIG:
+        for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceType[i]);
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceIndex[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeLow[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeHigh[i]);
         }
         break;
 #endif
