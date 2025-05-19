@@ -247,6 +247,7 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 #define USE_SBUS_OUTPUT         // SBus Output feature
 #define USE_FBUS_MASTER         // FBUS Master feature
+#define FXL6408
 
 #if (TARGET_FLASH_SIZE > 256)
 #define PID_PROFILE_COUNT 6
