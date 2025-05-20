@@ -1,3 +1,38 @@
+# 4.5.0-RC5
+
+This is the _fifth Release Candidate_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** The Gyro rate has been changed. This may change the PID loop speed. Please check your PID loop speed!
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+**NOTE** The final 4.5.0 firmware will be released _after_ a few release candidates. Please don't use RCs once the final release is out.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0-RC5)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0-RC5)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0-RC5)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0-RC5)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0-RC5)
+
+## Instructions
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+## Changes from 4.5.0-RC4
+
+- Fixed MSC/EMFAT driver (wrong directory listings)
+- Fixed build on MSYS2 mingw
+- Default PID D-gains lowered
+- Default HSI gains increased
+- Default collective-to-yaw precomp increased
+
+
+***
+
 # 4.5.0-RC4
 
 This is the _fourth Release Candidate_ of the Rotorflight firmware for RF 2.2.
