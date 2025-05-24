@@ -4119,11 +4119,11 @@ static void cliMotor(const char *cmdName, char *cmdline)
             }
             if (index == 0) {
                 for (int i=0; i<getMotorCount(); i++) {
-                    setMotorOverride(i, value);
+                    setMotorOverride(i, value, 0);
                     printMotorOverride(i);
                 }
             } else {
-                setMotorOverride(index - 1, value);
+                setMotorOverride(index - 1, value, 0);
                 printMotorOverride(index - 1);
             }
         }
