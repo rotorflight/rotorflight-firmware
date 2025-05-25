@@ -1,19 +1,19 @@
 /*
-* This file is part of Rotorflight.
-*
-* Rotorflight is free software. You can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* Rotorflight is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-* See the GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this software. If not, see <https://www.gnu.org/licenses/>.
-*/
+ * This file is part of Rotorflight.
+ *
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -256,8 +256,8 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 
 
 /*
-* Common functions
-*/
+ * Common functions
+ */
 
 static void frameSyncError(void)
 {
@@ -310,21 +310,21 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
 
 /*
-* BLHeli32 / KISS Telemetry Protocol
-*
-*     - Serial protocol is 115200,8N1
-*     - Big-Endian byte order
-*
-* Data Frame Format
-* ―――――――――――――――――――――――――――――――――――――――――――――――
-*     0:       Temperature
-*   1,2:       Voltage in 10mV
-*   3,4:       Current in 10mA
-*   5,6:       Consumption mAh
-*   7,8:       RPM in 100rpm steps
-*     9:       CRC8
-*
-*/
+ * BLHeli32 / KISS Telemetry Protocol
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ *
+ * Data Frame Format
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *     0:       Temperature
+ *   1,2:       Voltage in 10mV
+ *   3,4:       Current in 10mA
+ *   5,6:       Consumption mAh
+ *   7,8:       RPM in 100rpm steps
+ *     9:       CRC8
+ *
+ */
 #define BLHELI32_BOOT_DELAY       5000            // 5 seconds
 #define BLHELI32_REQ_TIMEOUT      100             // 100 ms (data transfer takes only 900us)
 #define BLHELI32_FRAME_SIZE       10
@@ -470,47 +470,47 @@ static void blSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* Calculate temperature from an NTC sensor ADC reading
-*
-* Let
-*     Rᵣ = Reference R
-*     Rₙ = NTC nominal R
-*     Tₙ = NTC nominal temp (25°C)
-*     Tₖ = 0°C in Kelvin = 273.15K
-*     β  = NTC beta
-*
-* and
-*
-*     T₁ = Tₖ + Tₙ = 298.15K
-*
-* Then
-*
-*          x         Rᵣ
-*  R = ―――――――――― ⋅ ――――
-*       4096 - x     Rₙ
-*
-*
-*             1
-*  T = ――――――――――――――― - Tₖ
-*       ln(R)/β + 1/T₁
-*
-*
-* Simplify:
-*
-*            1
-*  T = ―――――――――――――― - Tₖ
-*        γ⋅ln(S) + δ
-*
-* Where
-*          x
-*  S = ――――――――――
-*       4096 - x
-*
-*  γ = 1 / β
-*
-*  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁
-*
-*/
+ * Calculate temperature from an NTC sensor ADC reading
+ *
+ * Let
+ *     Rᵣ = Reference R
+ *     Rₙ = NTC nominal R
+ *     Tₙ = NTC nominal temp (25°C)
+ *     Tₖ = 0°C in Kelvin = 273.15K
+ *     β  = NTC beta
+ *
+ * and
+ *
+ *     T₁ = Tₖ + Tₙ = 298.15K
+ *
+ * Then
+ *
+ *          x         Rᵣ
+ *  R = ―――――――――― ⋅ ――――
+ *       4096 - x     Rₙ
+ *
+ *
+ *             1
+ *  T = ――――――――――――――― - Tₖ
+ *       ln(R)/β + 1/T₁
+ *
+ *
+ * Simplify:
+ *
+ *            1
+ *  T = ―――――――――――――― - Tₖ
+ *        γ⋅ln(S) + δ
+ *
+ * Where
+ *          x
+ *  S = ――――――――――
+ *       4096 - x
+ *
+ *  γ = 1 / β
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁
+ *
+ */
 
 static float calcTempNTC(uint16_t adc, float gamma, float delta)
 {
@@ -524,59 +524,59 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
 
 
 /*
-* Hobbywing V4 telemetry
-*
-*    - Serial protocol 19200,8N1
-*    - Frame rate running:20Hz idle:2.5Hz
-*    - Big-Endian fields
-*
-* Data Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*     0:       Sync 0x9B
-*   1-3:       Packet counter
-*   4-5:       Throttle %
-*   6-7:       PWM duty cycle %
-*  8-10:       RPM
-* 11-12:       Voltage ADC
-* 13-14:       Current ADC
-* 15-16:       Temperature ADC (FET)
-* 17-18:       Temperature ADC (CAP)
-*    19:       Sync 0xB9 (present only in slow rate)
-*
-* Info Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*     0:       Sync 0x9B
-*     1:       Sync 0x9B
-*   2-3:       Throttle step
-*     4:       RPM steps (always 1)
-*   5-6:       Voltage constants
-*   7-9:       Current constants
-* 10-11:       Temperature constants
-*    12:       Sync 0xB9
-*
-*
-* Gain values reported by the ESCs:
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-* Model        V1  V2  I1   I2  I3     Vgain Igain Ioffset
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-* 60A          8   91   0    1   0      109      0      0
-* 80A          8   91  33  150  90      109    146    409
-* 120A         8   91  33  113 110      109    110    377
-* HV130A       11  65  30  146   0      210    157      0
-* HV200A       11  65  30  146  98      210    157    477
-* FFHV160A     11  65  33   68 185      210     66    381
-*
-* Temp sensor design:
-* ―――――――――――――――――――
-*  β  = 3950
-*  Tₙ = 25°C
-*  Rᵣ = 10k
-*  Rₙ = 47k
-*
-*  γ = 1 / β = 0.0002531…
-*
-*  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(10/47) + 1/298.15 = 0.002962…
-*/
+ * Hobbywing V4 telemetry
+ *
+ *    - Serial protocol 19200,8N1
+ *    - Frame rate running:20Hz idle:2.5Hz
+ *    - Big-Endian fields
+ *
+ * Data Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *     0:       Sync 0x9B
+ *   1-3:       Packet counter
+ *   4-5:       Throttle %
+ *   6-7:       PWM duty cycle %
+ *  8-10:       RPM
+ * 11-12:       Voltage ADC
+ * 13-14:       Current ADC
+ * 15-16:       Temperature ADC (FET)
+ * 17-18:       Temperature ADC (CAP)
+ *    19:       Sync 0xB9 (present only in slow rate)
+ *
+ * Info Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *     0:       Sync 0x9B
+ *     1:       Sync 0x9B
+ *   2-3:       Throttle step
+ *     4:       RPM steps (always 1)
+ *   5-6:       Voltage constants
+ *   7-9:       Current constants
+ * 10-11:       Temperature constants
+ *    12:       Sync 0xB9
+ *
+ *
+ * Gain values reported by the ESCs:
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ * Model        V1  V2  I1   I2  I3     Vgain Igain Ioffset
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ * 60A          8   91   0    1   0      109      0      0
+ * 80A          8   91  33  150  90      109    146    409
+ * 120A         8   91  33  113 110      109    110    377
+ * HV130A       11  65  30  146   0      210    157      0
+ * HV200A       11  65  30  146  98      210    157    477
+ * FFHV160A     11  65  33   68 185      210     66    381
+ *
+ * Temp sensor design:
+ * ―――――――――――――――――――
+ *  β  = 3950
+ *  Tₙ = 25°C
+ *  Rᵣ = 10k
+ *  Rₙ = 47k
+ *
+ *  γ = 1 / β = 0.0002531…
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(10/47) + 1/298.15 = 0.002962…
+ */
 
 #define HW4_NTC_GAMMA       0.00025316455696f
 #define HW4_NTC_DELTA       0.00296226896087f
@@ -778,61 +778,61 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* Kontronik Telemetry V4 (23.11.2018)
-*
-*    - Serial protocol is 115200,8E1
-*    - Frame rate 100Hz
-*    - Little-Endian fields
-*    - CRC32
-*    - Error flags:
-*         0:  Undervoltage on the battery
-*         1:  Overvoltage on the battery
-*         2:  Overcurrent error
-*         3:  Overcurrent warning
-*         4:  Temperature warning
-*         5:  Temperature error
-*         6:  BEC under-voltage error
-*         7:  BEC over-voltage error
-*         8:  BEC over-current error
-*         9:  BEC temperature error
-*         10: Switch-off by rudder movement
-*         11: Capacity limit reached
-*         12: Operational error
-*         13: Operational warning
-*         14: Self-test error
-*         15: EEPROM error
-*         16: Watchdog error
-*         17: Programming is still permitted
-*         18: Battery limit reached
-*         19: Current limit reached
-*         20: ESC temperature limit reached
-*         21: BEC temperature limit reached
-*         22: ESC current limit reached
-*         23: Capacity limit reached
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    0-3:      Sync 0x4B 0x4F 0x44 0x4C "KODL"
-*    4-7:      RPM
-*    8-9:      Battery voltage in 10mV
-*  10-11:      Battery current in 0.1A
-*  12-13:      Motor current average in 0.1A
-*  14-15:      Motor current peak in 0.1A
-*  16-17:      Capacity in mAh
-*  18-19:      BEC current in mA
-*  20-21:      BEC Voltage n mV
-*  22-23:      PWM in us
-*     24:      Throttle % (-100..100)
-*     25:      PWM duty cycle %
-*     26:      FET temperature -128..127°C
-*     27:      BEC temperature -128..127°C
-*  28-31:      Error Flags
-*     32:      Operational condition
-*     33:      Timing 0..30
-*  34-35:      Reserved
-*  36-39:      CRC32
-*
-*/
+ * Kontronik Telemetry V4 (23.11.2018)
+ *
+ *    - Serial protocol is 115200,8E1
+ *    - Frame rate 100Hz
+ *    - Little-Endian fields
+ *    - CRC32
+ *    - Error flags:
+ *         0:  Undervoltage on the battery
+ *         1:  Overvoltage on the battery
+ *         2:  Overcurrent error
+ *         3:  Overcurrent warning
+ *         4:  Temperature warning
+ *         5:  Temperature error
+ *         6:  BEC under-voltage error
+ *         7:  BEC over-voltage error
+ *         8:  BEC over-current error
+ *         9:  BEC temperature error
+ *         10: Switch-off by rudder movement
+ *         11: Capacity limit reached
+ *         12: Operational error
+ *         13: Operational warning
+ *         14: Self-test error
+ *         15: EEPROM error
+ *         16: Watchdog error
+ *         17: Programming is still permitted
+ *         18: Battery limit reached
+ *         19: Current limit reached
+ *         20: ESC temperature limit reached
+ *         21: BEC temperature limit reached
+ *         22: ESC current limit reached
+ *         23: Capacity limit reached
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-3:      Sync 0x4B 0x4F 0x44 0x4C "KODL"
+ *    4-7:      RPM
+ *    8-9:      Battery voltage in 10mV
+ *  10-11:      Battery current in 0.1A
+ *  12-13:      Motor current average in 0.1A
+ *  14-15:      Motor current peak in 0.1A
+ *  16-17:      Capacity in mAh
+ *  18-19:      BEC current in mA
+ *  20-21:      BEC Voltage n mV
+ *  22-23:      PWM in us
+ *     24:      Throttle % (-100..100)
+ *     25:      PWM duty cycle %
+ *     26:      FET temperature -128..127°C
+ *     27:      BEC temperature -128..127°C
+ *  28-31:      Error Flags
+ *     32:      Operational condition
+ *     33:      Timing 0..30
+ *  34-35:      Reserved
+ *  36-39:      CRC32
+ *
+ */
 #define KON_FRAME_LENGTH                40
 #define KON_FRAME_LENGTH_LEGACY         38
 #define KON_CRC_LENGTH                  4
@@ -981,41 +981,41 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* OMP Hobby M4 Telemetry
-*
-*    - Serial protocol is 115200,8N1
-*    - Frame rate 20Hz
-*    - Frame length includes header and CRC
-*    - Big-Endian fields
-*    - Status Code bits:
-*         0:  Short-circuit protection
-*         1:  Motor connection error
-*         2:  Throttle signal lost
-*         3:  Throttle signal >0 on startup error
-*         4:  Low voltage protection
-*         5:  Temperature protection
-*         6:  Startup protection
-*         7:  Current protection
-*         8:  Throttle signal error
-*        12:  Battery voltage error
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*      0:      Start Flag (0xdd)
-*      1:      Protocol version (0x01)
-*      2:      Frame lenght (32)
-*    3-4:      Battery voltage in 0.1V
-*    5-6:      Battery current in 0.1V
-*      7:      Throttle %
-*    8-9:      RPM in 10rpm steps
-*     10:      ESC Temperature °C
-*     11:      Motor Temperature °C
-*     12:      PWM duty cycle %
-*  13-14:      Status Code
-*  15-16:      Capacity mAh
-*  17-31:      Unused / Zeros
-*
-*/
+ * OMP Hobby M4 Telemetry
+ *
+ *    - Serial protocol is 115200,8N1
+ *    - Frame rate 20Hz
+ *    - Frame length includes header and CRC
+ *    - Big-Endian fields
+ *    - Status Code bits:
+ *         0:  Short-circuit protection
+ *         1:  Motor connection error
+ *         2:  Throttle signal lost
+ *         3:  Throttle signal >0 on startup error
+ *         4:  Low voltage protection
+ *         5:  Temperature protection
+ *         6:  Startup protection
+ *         7:  Current protection
+ *         8:  Throttle signal error
+ *        12:  Battery voltage error
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      Start Flag (0xdd)
+ *      1:      Protocol version (0x01)
+ *      2:      Frame lenght (32)
+ *    3-4:      Battery voltage in 0.1V
+ *    5-6:      Battery current in 0.1V
+ *      7:      Throttle %
+ *    8-9:      RPM in 10rpm steps
+ *     10:      ESC Temperature °C
+ *     11:      Motor Temperature °C
+ *     12:      PWM duty cycle %
+ *  13-14:      Status Code
+ *  15-16:      Capacity mAh
+ *  17-31:      Unused / Zeros
+ *
+ */
 
 static bool processOMPTelemetryStream(uint8_t dataByte)
 {
@@ -1095,49 +1095,49 @@ static void ompSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* ZTW Telemetry
-*
-*    - Serial protocol is 115200,8N1
-*    - Frame rate 20Hz
-*    - Frame length includes header and CRC
-*    - Big-Endian fields
-*    - Checksum (unknown)
-*    - Status Code bits:
-*         0:  Short-circuit protection
-*         1:  Motor connection error
-*         2:  Throttle signal lost
-*         3:  Throttle signal >0 on startup error
-*         4:  Low voltage protection
-*         5:  Temperature protection
-*         6:  Startup protection
-*         7:  Current protection
-*         8:  Throttle signal error
-*         9:  UART throttle error
-*        10:  UART throttle lost
-*        11:  CAN throttle lost
-*        12:  Battery voltage error
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*      0:      Start Flag (0xdd)
-*      1:      Protocol version (0x01)
-*      2:      Frame lenght (32)
-*    3-4:      Battery voltage in 0.1V
-*    5-6:      Battery current in 0.1V
-*      7:      Throttle %
-*    8-9:      RPM in 10rpm steps
-*     10:      ESC Temperature °C
-*     11:      Motor Temperature °C
-*     12:      PWM duty cycle %
-*  13-14:      Status Code
-*  15-16:      Capacity mAh
-*     17:      Serial Throttle input (unused)
-*     18:      CAN Throttle input (unused)
-*     19:      BEC Voltage
-*  20-29:      Unused
-*  30-31:      Checksum
-*
-*/
+ * ZTW Telemetry
+ *
+ *    - Serial protocol is 115200,8N1
+ *    - Frame rate 20Hz
+ *    - Frame length includes header and CRC
+ *    - Big-Endian fields
+ *    - Checksum (unknown)
+ *    - Status Code bits:
+ *         0:  Short-circuit protection
+ *         1:  Motor connection error
+ *         2:  Throttle signal lost
+ *         3:  Throttle signal >0 on startup error
+ *         4:  Low voltage protection
+ *         5:  Temperature protection
+ *         6:  Startup protection
+ *         7:  Current protection
+ *         8:  Throttle signal error
+ *         9:  UART throttle error
+ *        10:  UART throttle lost
+ *        11:  CAN throttle lost
+ *        12:  Battery voltage error
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      Start Flag (0xdd)
+ *      1:      Protocol version (0x01)
+ *      2:      Frame lenght (32)
+ *    3-4:      Battery voltage in 0.1V
+ *    5-6:      Battery current in 0.1V
+ *      7:      Throttle %
+ *    8-9:      RPM in 10rpm steps
+ *     10:      ESC Temperature °C
+ *     11:      Motor Temperature °C
+ *     12:      PWM duty cycle %
+ *  13-14:      Status Code
+ *  15-16:      Capacity mAh
+ *     17:      Serial Throttle input (unused)
+ *     18:      CAN Throttle input (unused)
+ *     19:      BEC Voltage
+ *  20-29:      Unused
+ *  30-31:      Checksum
+ *
+ */
 
 static bool processZTWTelemetryStream(uint8_t dataByte)
 {
@@ -1218,47 +1218,47 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* Advanced Power Drives UART Telemetry
-*
-*    - Serial protocol is 115200,8N1
-*    - Little-Endian fields
-*    - Fletcher16 checksum
-*    - Status Flags:
-*         0:  Motor started
-*         1:  Motor saturation
-*         2:  Over-temperature
-*         3:  Over-voltage
-*         4:  Under-voltage
-*         5:  Startup error
-*         6:  Unused
-*         7:  Unused
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    0-1:      Sync 0xFFFF
-*    2-3:      Voltage in 10mV steps
-*    4-5:      Temperature ADC
-*    6-7:      Current in 80mA steps
-*    8-9:      Unused
-*  10-13:      ERPM
-*  14-15:      Throttle in 0.1%
-*  16-17:      PWM duty cycle in 0.1%
-*     18:      Status flags
-*     19:      Unused
-*  20-21:      Checksum
-*
-* Temp sensor design:
-* ―――――――――――――――――――
-*  β  = 3455
-*  Rᵣ = 10k
-*  Rₙ = 10k
-*  Tₙ = 25°C
-*
-*  γ = 1 / β = 0.0002894…
-*
-*  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = 1/298.15 = 0.0033540…
-*
-*/
+ * Advanced Power Drives UART Telemetry
+ *
+ *    - Serial protocol is 115200,8N1
+ *    - Little-Endian fields
+ *    - Fletcher16 checksum
+ *    - Status Flags:
+ *         0:  Motor started
+ *         1:  Motor saturation
+ *         2:  Over-temperature
+ *         3:  Over-voltage
+ *         4:  Under-voltage
+ *         5:  Startup error
+ *         6:  Unused
+ *         7:  Unused
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-1:      Sync 0xFFFF
+ *    2-3:      Voltage in 10mV steps
+ *    4-5:      Temperature ADC
+ *    6-7:      Current in 80mA steps
+ *    8-9:      Unused
+ *  10-13:      ERPM
+ *  14-15:      Throttle in 0.1%
+ *  16-17:      PWM duty cycle in 0.1%
+ *     18:      Status flags
+ *     19:      Unused
+ *  20-21:      Checksum
+ *
+ * Temp sensor design:
+ * ―――――――――――――――――――
+ *  β  = 3455
+ *  Rᵣ = 10k
+ *  Rₙ = 10k
+ *  Tₙ = 25°C
+ *
+ *  γ = 1 / β = 0.0002894…
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = 1/298.15 = 0.0033540…
+ *
+ */
 
 #define APD_NTC_GAMMA  0.0002894356005f
 #define APD_NTC_DELTA  0.0033540164346f
@@ -1363,9 +1363,9 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* RRFSM
-*
-*/
+ * RRFSM
+ *
+ */
 // > 0: frame accepted, count as synced (may not be complete), continue accepting
 // < 0: frame rejected, will be logged as sync error
 //   0: continue accepting
@@ -1507,34 +1507,34 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* FlyRotor Telemetry
-*
-*     - Serial protocol is 115200,8N1
-*     - Big-Endian byte order
-* 
-* Telemetry Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*      0:      start byte (0x73)
-*      1:      0 <- command (0 == data, 0x60 == read esc info etc)
-*    2-3:      data length
-* 
-* Telemetry Data
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    4-5:      Battery voltage x10mV [0-65535] 
-*    6-7:      Current x10mA [0-65535]
-*    8-9:      Capacity 1mAh [0-65535]
-*  10-11:      ERPM 10rpm [0-65535]
-*     12:      Throttle [0-100]
-*     13:      ESC Temperature 1°C [-30-225]
-*     14:      MCU Temperature 1°C [-30-225]
-*     15:      Motor Temperature 1°C [-30-225]
-*     16:      BEC Voltage x100mV [0-255]
-*     17:      Status flag
-*     18:      Mode [0-255]
-* 
-*     19:      CRC8
-*     20:      end byte (0x65)
-*/
+ * FlyRotor Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Telemetry Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0x73)
+ *      1:      0 <- command (0 == data, 0x60 == read esc info etc)
+ *    2-3:      data length
+ * 
+ * Telemetry Data
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    4-5:      Battery voltage x10mV [0-65535] 
+ *    6-7:      Current x10mA [0-65535]
+ *    8-9:      Capacity 1mAh [0-65535]
+ *  10-11:      ERPM 10rpm [0-65535]
+ *     12:      Throttle [0-100]
+ *     13:      ESC Temperature 1°C [-30-225]
+ *     14:      MCU Temperature 1°C [-30-225]
+ *     15:      Motor Temperature 1°C [-30-225]
+ *     16:      BEC Voltage x100mV [0-255]
+ *     17:      Status flag
+ *     18:      Mode [0-255]
+ * 
+ *     19:      CRC8
+ *     20:      end byte (0x65)
+ */
 #define FLY_SYNC                            0x73                // start byte
 #define FLY_END                             0x65                // end byte
 #define FLY_HEADER_LENGTH                   4                   // header length
@@ -1919,43 +1919,43 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 
 
 /*
-* Hobbywing V5 Telemetry
-*
-*    - Serial protocol 115200,8N1
-*    - Frame rate running:50Hz idle:2.5Hz
-*    - Little-Endian fields
-*    - Frame length over data (23)
-*    - CRC16-MODBUS (poly 0x8005, init 0xffff)
-*    - Fault code bits:
-*         0:  Motor locked protection
-*         1:  Over-temp protection
-*         2:  Input throttle error at startup
-*         3:  Throttle signal lost
-*         4:  Over-current error
-*         5:  Low-voltage error
-*         6:  Input-voltage error
-*         7:  Motor connection error
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
-*      6:      Data frame length (23)
-*    7-8:      Data type 0x06 0x00
-*      9:      Throttle value in %
-*  10-11:      Unknown
-*     12:      Fault code
-*  13-14:      RPM in 10rpm steps
-*  15-16:      Voltage in 0.1V
-*  17-18:      Current in 0.1A
-*     19:      ESC Temperature in °C
-*     20:      BEC Temperature in °C
-*     21:      Motor Temperature in °C
-*     22:      BEC Voltage in 0.1V
-*     23:      BEC Current in 0.1A
-*  24-29:      Unused 0xFF
-*  30-31:      CRC16 MODBUS
-*
-*/
+ * Hobbywing V5 Telemetry
+ *
+ *    - Serial protocol 115200,8N1
+ *    - Frame rate running:50Hz idle:2.5Hz
+ *    - Little-Endian fields
+ *    - Frame length over data (23)
+ *    - CRC16-MODBUS (poly 0x8005, init 0xffff)
+ *    - Fault code bits:
+ *         0:  Motor locked protection
+ *         1:  Over-temp protection
+ *         2:  Input throttle error at startup
+ *         3:  Throttle signal lost
+ *         4:  Over-current error
+ *         5:  Low-voltage error
+ *         6:  Input-voltage error
+ *         7:  Motor connection error
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-5:      Sync header (0xFE 0x01 0x00 0x03 0x30 0x5C)
+ *      6:      Data frame length (23)
+ *    7-8:      Data type 0x06 0x00
+ *      9:      Throttle value in %
+ *  10-11:      Unknown
+ *     12:      Fault code
+ *  13-14:      RPM in 10rpm steps
+ *  15-16:      Voltage in 0.1V
+ *  17-18:      Current in 0.1A
+ *     19:      ESC Temperature in °C
+ *     20:      BEC Temperature in °C
+ *     21:      Motor Temperature in °C
+ *     22:      BEC Voltage in 0.1V
+ *     23:      BEC Current in 0.1A
+ *  24-29:      Unused 0xFF
+ *  30-31:      CRC16 MODBUS
+ *
+ */
 #define PL5_MIN_FRAME_LENGTH                8
 #define PL5_BOOT_DELAY                      5000
 #define PL5_TELE_FRAME_TIMEOUT              500
@@ -2299,55 +2299,55 @@ static serialReceiveCallbackPtr pl5SensorInit(bool bidirectional)
 
 
 /*
-* Scorpion Telemetry
-*    - Serial protocol is 38400,8N1
-*    - Frame rate running:10Hz idle:1Hz
-*    - Little-Endian fields
-*    - CRC16-CCITT
-*    - Error Code bits:
-*         0:  N/A
-*         1:  BEC voltage error
-*         2:  Temperature error
-*         3:  Consumption error
-*         4:  Input voltage error
-*         5:  Current error
-*         6:  N/A
-*         7:  Throttle error
-*
-* Request Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*      0:      Req: MSN - read = 0x5, write = 0xD, LSN - region
-*  1,2,3:      Address: Starting address in region to access
-*      4:      Length: Data length to read/write, does not include Data crc
-*              Requested data length in bytes should not be more than 32 bytes and should  be a multiple of 2 bytes
-*      5:      CRC: Header CRC. 0 value means that crc is not used. And no additional bytes for data crc
-* 
-* Regions
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-* 0 – System region, read only
-* 1 – Status region, read only
-* 2 – Control region, stay away
-* 3 – Settings region, read/write access
-* 4 – FW region, write only, encrypted. Stay away
-* 5 - Log region, read only
-* 6 – User data
-*
-* Telemetry Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    0-5:      Header
-*  +0-+2:      Timestamp ms
-*     +3:      Throttle in 0.5%
-*  +4-+5:      Current in 0.1A
-*  +6-+7:      Voltage in 0.1V
-*  +8-+9:      Consumption in mAh
-*    +10:      Temperature in °C
-*    +11:      PWM duty cycle in 0.5%
-*    +12:      BEC voltage in 0.1V
-*+13-+14:      RPM in 5rpm steps
-*    +15:      Error code
-*+16-+17:      CRC16 CCITT
-*
-*/
+ * Scorpion Telemetry
+ *    - Serial protocol is 38400,8N1
+ *    - Frame rate running:10Hz idle:1Hz
+ *    - Little-Endian fields
+ *    - CRC16-CCITT
+ *    - Error Code bits:
+ *         0:  N/A
+ *         1:  BEC voltage error
+ *         2:  Temperature error
+ *         3:  Consumption error
+ *         4:  Input voltage error
+ *         5:  Current error
+ *         6:  N/A
+ *         7:  Throttle error
+ *
+ * Request Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      Req: MSN - read = 0x5, write = 0xD, LSN - region
+ *  1,2,3:      Address: Starting address in region to access
+ *      4:      Length: Data length to read/write, does not include Data crc
+ *              Requested data length in bytes should not be more than 32 bytes and should  be a multiple of 2 bytes
+ *      5:      CRC: Header CRC. 0 value means that crc is not used. And no additional bytes for data crc
+ * 
+ * Regions
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ * 0 – System region, read only
+ * 1 – Status region, read only
+ * 2 – Control region, stay away
+ * 3 – Settings region, read/write access
+ * 4 – FW region, write only, encrypted. Stay away
+ * 5 - Log region, read only
+ * 6 – User data
+ *
+ * Telemetry Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-5:      Header
+ *  +0-+2:      Timestamp ms
+ *     +3:      Throttle in 0.5%
+ *  +4-+5:      Current in 0.1A
+ *  +6-+7:      Voltage in 0.1V
+ *  +8-+9:      Consumption in mAh
+ *    +10:      Temperature in °C
+ *    +11:      PWM duty cycle in 0.5%
+ *    +12:      BEC voltage in 0.1V
+ *+13-+14:      RPM in 5rpm steps
+ *    +15:      Error code
+ *+16-+17:      CRC16 CCITT
+ *
+ */
 #define TRIB_REQ_WRITE                  0x80                // request write bit
 #define TRIB_REQ_SIG                    0x50                // request signature bits
 #define TRIB_BOOT_DELAY                 10000               // 10 seconds quiet time before expecting first frame
@@ -2810,44 +2810,44 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 
 
 /*
-* OpenYGE Telemetry
-*
-*     - Serial protocol is 115200,8N1
-*     - Little-Endian byte order
-*     - Frame rate 20Hz
-*     - Thanks Fabian!
-*
-* Motor states (4 LSB of status1)
-* ―――――――――――――――――――――――――――――――――――――――――――――――
-*      STATE_DISARMED              = 0x00,     // Motor stopped
-*      STATE_POWER_CUT             = 0x01,     // Power cut maybe Overvoltage
-*      STATE_FAST_START            = 0x02,     // "Bailout" State
-*      STATE_RESERVED2             = 0x03,     // reserved
-*      STATE_ALIGN_FOR_POS         = 0x04,     // "Positioning"
-*      STATE_RESERVED3             = 0x05,     // reserved
-*      STATE_BRAKEING_NORM_FINI    = 0x06,
-*      STATE_BRAKEING_SYNC_FINI    = 0x07,
-*      STATE_STARTING              = 0x08,     // "Starting"
-*      STATE_BRAKEING_NORM         = 0x09,
-*      STATE_BRAKEING_SYNC         = 0x0A,
-*      STATE_RESERVED4             = 0x0B,     // reserved
-*      STATE_WINDMILLING           = 0x0C,     // still rotating no power drive can be named "Idle"
-*      STATE_RESERVED5             = 0x0D,
-*      STATE_RUNNING_NORM          = 0x0E,     // normal "Running"
-*      STATE_RESERVED6             = 0x0F,
-*
-* Warning/error codes (4 MSB of status1)
-* ―――――――――――――――――――――――――――――――――――――――――――――――
-*      WARN_DEVICE_MASK            = 0xC0       // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
-*      WARN_DEVICE_ESC             = 0x00       // warning indicators are for ESC
-*      WARN_DEVICE_BEC             = 0x80       // warning indicators are for BEC
-*
-*      WARN_OK                     = 0x00       // Overvoltage if Motor Status == STATE_POWER_CUT
-*      WARN_UNDERVOLTAGE           = 0x10       // Fail if Motor Status < STATE_STARTING
-*      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
-*      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
-*      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
-*/
+ * OpenYGE Telemetry
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Little-Endian byte order
+ *     - Frame rate 20Hz
+ *     - Thanks Fabian!
+ *
+ * Motor states (4 LSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      STATE_DISARMED              = 0x00,     // Motor stopped
+ *      STATE_POWER_CUT             = 0x01,     // Power cut maybe Overvoltage
+ *      STATE_FAST_START            = 0x02,     // "Bailout" State
+ *      STATE_RESERVED2             = 0x03,     // reserved
+ *      STATE_ALIGN_FOR_POS         = 0x04,     // "Positioning"
+ *      STATE_RESERVED3             = 0x05,     // reserved
+ *      STATE_BRAKEING_NORM_FINI    = 0x06,
+ *      STATE_BRAKEING_SYNC_FINI    = 0x07,
+ *      STATE_STARTING              = 0x08,     // "Starting"
+ *      STATE_BRAKEING_NORM         = 0x09,
+ *      STATE_BRAKEING_SYNC         = 0x0A,
+ *      STATE_RESERVED4             = 0x0B,     // reserved
+ *      STATE_WINDMILLING           = 0x0C,     // still rotating no power drive can be named "Idle"
+ *      STATE_RESERVED5             = 0x0D,
+ *      STATE_RUNNING_NORM          = 0x0E,     // normal "Running"
+ *      STATE_RESERVED6             = 0x0F,
+ *
+ * Warning/error codes (4 MSB of status1)
+ * ―――――――――――――――――――――――――――――――――――――――――――――――
+ *      WARN_DEVICE_MASK            = 0xC0       // device ID bit mask (note WARN_SETPOINT_NOISE = 0xC0)
+ *      WARN_DEVICE_ESC             = 0x00       // warning indicators are for ESC
+ *      WARN_DEVICE_BEC             = 0x80       // warning indicators are for BEC
+ *
+ *      WARN_OK                     = 0x00       // Overvoltage if Motor Status == STATE_POWER_CUT
+ *      WARN_UNDERVOLTAGE           = 0x10       // Fail if Motor Status < STATE_STARTING
+ *      WARN_OVERTEMP               = 0x20       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_OVERAMP                = 0x40       // Fail if Motor Status == STATE_POWER_CUT
+ *      WARN_SETPOINT_NOISE         = 0xC0       // note this is special case (can never have OVERAMP w/ BEC hence reuse)
+ */
 #define OPENYGE_SYNC                        0xA5                // sync
 #define OPENYGE_VERSION                     3                   // protocol version
 #define OPENYGE_HEADER_LENGTH               6                   // header length
@@ -3211,40 +3211,40 @@ static serialReceiveCallbackPtr oygeSensorInit(bool bidirectional)
 
 
 /*
-* Graupner Telemetry
-*
-*    - Serial protocol 19200,8N1
-*    - Little-Endian fields
-*    - Frame length 45 bytes
-*    - Warning flags:
-*          0:  Low voltage
-*          1:  Temp limit exceeded
-*          2:  Motor temp exceeded
-*          3:  Max current exceeded
-*          4:  RPM less than limit
-*          5:  Capacity exceeded
-*          6:  Current limit exceeded
-*
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*    0-1:      Sync header (0x7C 0x8C)
-*      2:      Warning tone
-*      3:      Sensor ID (0xC0)
-*    4-5:      Warning flags
-*    6-7:      Voltage
-*    8-9:      Min Voltage
-*  10-11:      Capacity
-*     12:      Temperature
-*     13:      Max temp
-*  14-15:      Current
-*  15-16:      Max Current
-*  17-18:      RPM
-*  19-20:      Max RPM
-*  21-42:      Reserved
-*     43:      End byte (0x7D)
-*     44:      Checksum
-*
-*/
+ * Graupner Telemetry
+ *
+ *    - Serial protocol 19200,8N1
+ *    - Little-Endian fields
+ *    - Frame length 45 bytes
+ *    - Warning flags:
+ *          0:  Low voltage
+ *          1:  Temp limit exceeded
+ *          2:  Motor temp exceeded
+ *          3:  Max current exceeded
+ *          4:  RPM less than limit
+ *          5:  Capacity exceeded
+ *          6:  Current limit exceeded
+ *
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *    0-1:      Sync header (0x7C 0x8C)
+ *      2:      Warning tone
+ *      3:      Sensor ID (0xC0)
+ *    4-5:      Warning flags
+ *    6-7:      Voltage
+ *    8-9:      Min Voltage
+ *  10-11:      Capacity
+ *     12:      Temperature
+ *     13:      Max temp
+ *  14-15:      Current
+ *  15-16:      Max Current
+ *  17-18:      RPM
+ *  19-20:      Max RPM
+ *  21-42:      Reserved
+ *     43:      End byte (0x7D)
+ *     44:      Checksum
+ *
+ */
 
 #define GRAUPNER_MIN_FRAME_LENGTH                45
 #define GRAUPNER_BOOT_DELAY                      5000
@@ -3392,35 +3392,35 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
 }
 
 /*
-* XDFLY
-*
-*     - Serial protocol is 115200,8N1
-*     - Big-Endian byte order
-* 
-* Frame Format
-* ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
-*      0:      start byte (0xA5)
-*      1:      length in bytes (8)
-*      2:      command 
-*          0x03 handshake
-*          0x34 set_par
-*          0x33 get_par
-*      3:      param number
-*      4-5:    param value
-*      6-7:      CRC16
-* 
-* 
-* checking whether the param is valid for the connected ESC:
-*      if the highest bit of the value is set, the parameter is valid for the connected ESC
-*          bool paramValid = paramValueRaw & 0x8000 != 0 //param shall not be displayed
-*      the actual data is in the lower 15 bits
-*          uint16_t paramValue =  paramValueRaw & 0x7FFF
-* 
-* for setting a param the high bit of the value is set to 1
-*     uint16_t paramValueRaw = paramValue | 0x8000
-* 
-* when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
-*/
+ * XDFLY
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0xA5)
+ *      1:      length in bytes (8)
+ *      2:      command 
+ *          0x03 handshake
+ *          0x34 set_par
+ *          0x33 get_par
+ *      3:      param number
+ *      4-5:    param value
+ *      6-7:      CRC16
+ * 
+ * 
+ * checking whether the param is valid for the connected ESC:
+ *      if the highest bit of the value is set, the parameter is valid for the connected ESC
+ *          bool paramValid = paramValueRaw & 0x8000 != 0 //param shall not be displayed
+ *      the actual data is in the lower 15 bits
+ *          uint16_t paramValue =  paramValueRaw & 0x7FFF
+ * 
+ * for setting a param the high bit of the value is set to 1
+ *     uint16_t paramValueRaw = paramValue | 0x8000
+ * 
+ * when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
+ */
 #define XDFLY_SYNC                          0xA5                // start byte
 #define XDFLY_HEADER_LENGTH                 3                   // header length
 #define XDFLY_PAYLOAD_LENGTH                3
@@ -3440,7 +3440,7 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
 #define XDFLY_CMD_GET_PARAM                 0x33
 #define XDFLY_NUM_VALIDITY_FIELDS           2
 
-enum {
+ enum {
     XDFLY_PARAM_MODEL = 0,
     XDFLY_PARAM_GOV_MODE,
     XDFLY_PARAM_CUTOFF,
@@ -3614,7 +3614,7 @@ static bool xdfly_decode(timeUs_t current_time_us)
                 if (buffer[3] == xdfly_write_param_index) {
                     xdfly_write_param_index++;
                     while (xdfly_write_param_index < XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS &&
-                        !xdfly_params_active[xdfly_write_param_index]) {
+                           !xdfly_params_active[xdfly_write_param_index]) {
                         xdfly_write_param_index++;
                     }
                 }
@@ -3764,8 +3764,8 @@ static serialReceiveCallbackPtr xdflySensorInit(void)
 
 
 /*
-* Raw Telemetry Data Recorder
-*/
+ * Raw Telemetry Data Recorder
+ */
 
 static void recordSensorProcess(timeUs_t currentTimeUs)
 {
@@ -3786,8 +3786,8 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
-* Castle Live Link Telemetry Data Recorder
-*/
+ * Castle Live Link Telemetry Data Recorder
+ */
 
 #define CASTLE_BATTERY_VOLTAGE_SCALE 20000.0f // in mV, not volts
 #define CASTLE_RIPPLE_VOLTAGE_SCALE 4000.0f  // in mV, not volts
@@ -3816,20 +3816,20 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
     CASTLE_DECODE_1(tele, item, CASTLE_##scale##_SCALE, cal0p5)
 
 /* Temp sensor design for Castle ESCs equipped with an NTC sensor:
-* ―――――――――――――――――――
-*  β  = 3455
-*  Rᵣ = 10.2k
-*  Rₙ = 10k
-*  Tₙ = 25°C = 298.15K
-*
-*  γ = 1 / β = 0.0002894…
-*
-*  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(102/100) + 1/298.15 = 0.0033597…
-*
-* Note Castle's official values are Tₙ = 24.85°C and Tₖ = 273K.  These are unlikely to be
-* correct. The discrepency with the official calculation is only about 0.2 degrees at the upper end
-* of the temperature range (and less elsewhere).
-*/
+ * ―――――――――――――――――――
+ *  β  = 3455
+ *  Rᵣ = 10.2k
+ *  Rₙ = 10k
+ *  Tₙ = 25°C = 298.15K
+ *
+ *  γ = 1 / β = 0.0002894…
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(102/100) + 1/298.15 = 0.0033597…
+ *
+ * Note Castle's official values are Tₙ = 24.85°C and Tₖ = 273K.  These are unlikely to be
+ * correct. The discrepency with the official calculation is only about 0.2 degrees at the upper end
+ * of the temperature range (and less elsewhere).
+ */
 #define CASTLE_NTC_GAMMA  0.0002894356005f
 #define CASTLE_NTC_DELTA  0.0033597480200f
 
@@ -3912,8 +3912,8 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
         // We expect every 12 PWM frames we'll get new data.  Max frame
         // length is 20ms for 50Hz, and we allow one frame extra.
         checkFrameTimeout(currentTimeUs,
-                        (CASTLE_TELEM_NFRAMES + 1) *
-                        CASTLE_PWM_PERIOD_MS_MAX * 1000);
+                          (CASTLE_TELEM_NFRAMES + 1) *
+                          CASTLE_PWM_PERIOD_MS_MAX * 1000);
         return;
     }
     dataUpdateUs = currentTimeUs;
