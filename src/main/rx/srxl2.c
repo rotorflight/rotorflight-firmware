@@ -483,6 +483,9 @@ bool srxl2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         channelData[i] = SRXL2_CHANNEL_CENTER;
     }
 
+    // Force half duplex in a way so RFC can see it
+    rxConfigMutable()->halfDuplex = true;
+
     unitId = rxConfig->srxl2_unit_id;
     baudRate = rxConfig->srxl2_baud_fast;
 
