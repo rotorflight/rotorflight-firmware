@@ -2431,6 +2431,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         loadControlRateProfile();
         break;
 
+#ifdef USE_MSP_SET_MOTOR
     case MSP_SET_MOTOR:
 #ifdef USE_MOTOR
         for (int i = 0; i < getMotorCount(); i++) {
@@ -2442,6 +2443,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
 #endif
         break;
+#endif
 
     case MSP_SET_MOTOR_OVERRIDE:
 #ifdef USE_MOTOR
