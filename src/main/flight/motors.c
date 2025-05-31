@@ -115,7 +115,7 @@ int16_t setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout)
 
     if (!ARMING_FLAG(ARMED) && motor < motorCount) {
         motorOverride[motor] = value;
-        motorOverrideTimeout = timeout ? (micros() + timeout) | 1 : 0;
+        motorOverrideTimeout = timeout ? (micros() + timeout) | BIT(0) : 0;
     }
 
     return output;
