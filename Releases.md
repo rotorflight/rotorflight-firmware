@@ -1,3 +1,66 @@
+# 4.5.0
+
+This is the _Official Release_ of the Rotorflight firmware for RF 2.2.
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.0)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.0)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.4
+
+- Better default PIDs and others
+- Driver for Bosch BMI088 gyro/acc
+- Driver update for Winbond W25Nxx
+- Driver for Castle ESC telemetry
+- XDFly ESC forward programming
+- FrSky telemetry refactor and new sensors
+- JR DMSS XBUS Mode A protocol
+- RPM Filter refactor & presets
+- BB loop recording
+- BB initial erase
+- BB log grace period after disarm
+- BB unique/long filename support with date
+- Improved HSI: Offset flood
+- Collective tilt correction
+- Setpoint Boost
+- Yaw dynamic deadband/ceiling
+- Yaw precomp refactor
+- Yaw inertia precomp
+- ESC voltage and current telemetry correction
+- Delayed settings EEPROM save on disarm
+- Governor PID limits for nitro
+- Mixer override passthrough option
+- Ten new Adjustment function parameters
+- Total number of Adjustments increased to 42
+- New flag for ARMING_DISABLED_RPM_SIGNAL
+- Gyro ODR changed to 4k on MPU/ICM gyros
+- Fix 135° and 140° swash mixers
+- Fix stick controls in inverted rescue hover
+- Fix Hobbywing Platinum V4 telemetry when motor not running
+- Fix S.Port/F.Port/FBUS UART settings for un-inverted serial
+- Fix kick caused by filter init in PID controller
+
+## Changes from 4.5.0-RC5
+
+- NONE
+
+
+***
+
 # 4.5.0-RC5
 
 This is the _fifth Release Candidate_ of the Rotorflight firmware for RF 2.2.
