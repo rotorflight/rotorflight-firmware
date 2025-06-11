@@ -69,9 +69,9 @@ static bool fxl6408Init()
     bool ack = true;
     busDeviceRegister(&fxlDev);
 
-    ack = ack && busWriteRegister(&fxlDev, FXL6408_REG_IO_DIR, 0x30); // Set all pins to output
+    ack = ack && busWriteRegister(&fxlDev, FXL6408_REG_IO_DIR, 0xFF); // Set all pins to output
     ack = ack && busWriteRegister(&fxlDev, FXL6408_REG_OUT_STATE, 0xFF);
-    ack = ack && busWriteRegister(&fxlDev, FXL6408_REG_OUT_HIGHZ, 0xCF);
+    ack = ack && busWriteRegister(&fxlDev, FXL6408_REG_OUT_HIGHZ, 0x00);
 
     if (!ack) {
         return false;

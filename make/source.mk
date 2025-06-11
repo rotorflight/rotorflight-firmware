@@ -49,6 +49,7 @@ COMMON_SRC = \
             drivers/timer_common.c \
             drivers/timer.c \
             drivers/freq.c \
+            drivers/FXL6408.c \
             fc/board_info.c \
             fc/dispatch.c \
             fc/hardfaults.c \

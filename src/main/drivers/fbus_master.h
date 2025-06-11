@@ -65,8 +65,7 @@ typedef struct {
     uint8_t length;
     uint8_t phyID;
     uint8_t prim;
-    uint8_t appIdL;
-    uint8_t appIdH;
+    uint16_t appId ;
     uint8_t data[4];
     uint8_t crc;
 } __attribute__((__packed__)) fbusMasterDownlink_t;
