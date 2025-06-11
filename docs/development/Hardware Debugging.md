@@ -62,11 +62,12 @@ http://www.goodluckbuy.com/cepark-stlink-st-link-v2-emulator-programmer-stm8-stm
 
 ## Compilation options
 
-use `DEBUG=GDB` make argument.
+1. Use `make DEBUG=INFO ...` to build with debug information for gdb to load, without affecting the code optimization.
+2. Use `make DEBUG=GDB ...` to build with reduced optimization to preserve debugging (-Og).
 
-You may find that if you compile all the files with debug information on that the program is too big to fit on the target device.  If this happens you have some options:
+You may find that if you compile all the files with `DEBUG=GDB` on that the program is too big to fit on the target device.  If this happens you have some options:
 
-* Compile all files without debug information (`make clean`, `make ...`), then re-save or `touch` the files you want to be able to step though and then run `make DEBUG=GDB`.  This will then re-compile the files you're interested in debugging with debugging symbols and you will get a smaller binary file which should then fit on the device.
+* Compile all files with normal optimization (`make clean`, `make DEBUG=INFO ...`), then re-save or `touch` the files you want to be able to step though and then run `make DEBUG=GDB ...`.  This will then re-compile the files you're interested in debugging with debugging symbols and you will get a smaller binary file which should then fit on the device.
 * You could use a development board such as an PORT103R, development boards often have more flash rom.
 
 ## OSX
