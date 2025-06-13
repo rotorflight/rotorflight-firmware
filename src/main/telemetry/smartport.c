@@ -88,8 +88,8 @@ static void smartPortSensorEncodeINT(__unused telemetrySensor_t *sensor, smartPo
 
 static void smartPortSensorEncodeAttitude(__unused telemetrySensor_t *sensor, smartPortPayload_t *payload)
 {
-    const uint32_t roll = telemetrySensorValue(TELEM_ATTITUDE_ROLL) & 0xFFFF;
-    const uint32_t pitch = telemetrySensorValue(TELEM_ATTITUDE_PITCH) & 0xFFFF;
+    const uint32_t roll = telemetrySensorValue(TELEM_ATTITUDE_ROLL) * 10 & 0xFFFF;
+    const uint32_t pitch = telemetrySensorValue(TELEM_ATTITUDE_PITCH) * 10 & 0xFFFF;
 
     payload->data = roll | pitch << 16;
 }
