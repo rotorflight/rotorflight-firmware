@@ -24,30 +24,44 @@
 #include "flight/pid.h"
 
 typedef enum {
-    GM_OFF = 0,
-    GM_PASSTHROUGH,
-    GM_STANDARD,
-    GM_MODE1,
-    GM_MODE2,
+    GOV_MODE_NONE = 0,
+    GOV_MODE_EXTERNAL,
+    GOV_MODE_ELECTRIC,
+    GOV_MODE_NITRO,
 } govMode_e;
 
 typedef enum {
-    GS_THROTTLE_OFF,
-    GS_THROTTLE_IDLE,
-    GS_SPOOLING_UP,
-    GS_RECOVERY,
-    GS_ACTIVE,
-    GS_ZERO_THROTTLE,
-    GS_LOST_HEADSPEED,
-    GS_AUTOROTATION,
-    GS_AUTOROTATION_BAILOUT,
+    GOV_STATE_THROTTLE_OFF,
+    GOV_STATE_THROTTLE_IDLE,
+    GOV_STATE_SPOOLUP,
+    GOV_STATE_RECOVERY,
+    GOV_STATE_ACTIVE,
+    GOV_STATE_THROTTLE_HOLD,
+    GOV_STATE_FALLBACK,
+    GOV_STATE_AUTOROTATION,
+    GOV_STATE_BAILOUT,
+    GOV_STATE_PASSTHRU,
 } govState_e;
 
+enum {
+    GOV_FLAG_3POS_THROTTLE,
+    GOV_FLAG_DIRECT_PRECOMP,
+    GOV_FLAG_FALLBACK_PRECOMP,
+    GOV_FLAG_VOLTAGE_COMP,
+    GOV_FLAG_PID_SPOOLUP,
+    GOV_FLAG_HS_ON_THROTTLE,
+    GOV_FLAG_DYN_MIN_THROTTLE,
+    GOV_FLAG_AUTOROTATION,
+    GOV_FLAG_PASSTHRU,
+};
 
 void governorInit(const pidProfile_t *pidProfile);
 void governorInitProfile(const pidProfile_t *pidProfile);
 
 void governorUpdate(void);
+
+bool getGovernerEnabled(void);
+void setGovernorEnabled(bool enabled);
 
 int getGovernorState(void);
 
