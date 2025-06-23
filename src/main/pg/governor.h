@@ -28,17 +28,13 @@ typedef struct governorConfig_s {
     uint16_t gov_spoolup_time;
     uint16_t gov_tracking_time;
     uint16_t gov_recovery_time;
-    uint16_t gov_zero_throttle_timeout;
-    uint16_t gov_lost_headspeed_timeout;
-    uint16_t gov_autorotation_timeout;
-    uint16_t gov_autorotation_bailout_time;
-    uint16_t gov_autorotation_min_entry_time;
+    uint8_t  gov_throttle_hold_timeout;
     uint8_t  gov_handover_throttle;
     uint8_t  gov_pwr_filter;
     uint8_t  gov_rpm_filter;
     uint8_t  gov_tta_filter;
     uint8_t  gov_ff_filter;
-    uint8_t  gov_spoolup_min_throttle;
+    uint8_t  gov_d_cutoff;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);
