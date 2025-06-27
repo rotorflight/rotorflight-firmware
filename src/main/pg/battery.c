@@ -46,7 +46,7 @@ PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .vbathysteresis = 1,
     .lvcPercentage = 100, // Off by default at 100%
     .batteryCapacity = 0,
-    .consumptionWarningPercentage = 10,
+    .consumptionWarningPercentage = 35,
     .useVoltageAlerts = true,
     .useConsumptionAlerts = false,
     .vbatDurationForWarning = 0,
