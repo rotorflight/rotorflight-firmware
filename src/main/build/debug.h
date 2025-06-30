@@ -123,6 +123,7 @@ typedef enum {
     DEBUG_ERROR_DECAY,
     DEBUG_HS_OFFSET,
     DEBUG_HS_BLEED,
+    DEBUG_GOV_RPMK,
     DEBUG_COUNT
 } debugType_e;
 
