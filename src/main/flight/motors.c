@@ -109,16 +109,12 @@ int16_t getMotorOverride(uint8_t motor)
     return motorOverride[motor];
 }
 
-int16_t setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout)
+void setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout)
 {
-    int16_t output = 0;
-
     if (!ARMING_FLAG(ARMED) && motor < motorCount) {
         motorOverride[motor] = value;
         motorOverrideTimeout = timeout ? (micros() + timeout) | BIT(0) : 0;
     }
-
-    return output;
 }
 
 void resetMotorOverride(void)

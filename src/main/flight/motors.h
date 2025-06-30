@@ -27,12 +27,12 @@
 uint8_t getMotorCount(void);
 
 int16_t getMotorOutput(uint8_t motor);
-
 int16_t getMotorOverride(uint8_t motor);
-int16_t setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout);
+
+void setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout);
+void resetMotorOverride(void);
 
 bool hasMotorOverride(uint8_t motor);
-void resetMotorOverride(void);
 
 bool areMotorsRunning(void);
 
