@@ -8,6 +8,7 @@
 
 struct sbuf_s;
 
+void validateAndFixSrxl2Config();
 bool srxl2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState);
 bool srxl2RxIsActive(void);
 void srxl2RxWriteData(const void *data, int len);

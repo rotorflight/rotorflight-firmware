@@ -550,6 +550,7 @@ static void validateAndFixConfig(void)
     validateAndFixPositionConfig();
     validateAndFixServoConfig();
     validateAndFixMixerConfig();
+    validateAndFixRxConfig();
 }
 
 void validateAndFixGyroConfig(void)

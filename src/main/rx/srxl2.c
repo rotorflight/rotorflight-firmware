@@ -60,7 +60,7 @@
 
 #define SRXL2_PORT_BAUDRATE_DEFAULT    115200
 #define SRXL2_PORT_BAUDRATE_HIGH       400000
-#define SRXL2_PORT_OPTIONS             (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_BIDIR)
+#define SRXL2_PORT_OPTIONS             (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
 #define SRXL2_PORT_MODE                MODE_RXTX
 
 #define SRXL2_REPLY_QUIESCENCE         (2 * 10 * 1000000 / SRXL2_PORT_BAUDRATE_DEFAULT) // 2 * (lastIdleTimestamp - lastReceiveTimestamp). Time taken to send 2 bytes
@@ -474,6 +474,12 @@ void srxl2RxWriteData(const void *data, int len)
     len = MIN(len, (int)sizeof(writeBuffer));
     memcpy(writeBuffer, data, len);
     writeBufferIdx = len;
+}
+
+void validateAndFixSrxl2Config()
+{
+    // Force half duplex
+    rxConfigMutable()->halfDuplex = true;
 }
 
 bool srxl2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
