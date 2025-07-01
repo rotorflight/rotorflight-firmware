@@ -476,15 +476,18 @@ void srxl2RxWriteData(const void *data, int len)
     writeBufferIdx = len;
 }
 
+void validateAndFixSrxl2Config()
+{
+    // Force half duplex
+    rxConfigMutable()->halfDuplex = true;
+}
+
 bool srxl2RxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
     static uint16_t channelData[SRXL2_MAX_CHANNELS];
     for (size_t i = 0; i < SRXL2_MAX_CHANNELS; ++i) {
         channelData[i] = SRXL2_CHANNEL_CENTER;
     }
-
-    // Force half duplex in a way so RFC can see it
-    rxConfigMutable()->halfDuplex = true;
 
     unitId = rxConfig->srxl2_unit_id;
     baudRate = rxConfig->srxl2_baud_fast;

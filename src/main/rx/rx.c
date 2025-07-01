@@ -252,6 +252,25 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 }
 #endif
 
+void validateAndFixRxConfig()
+{
+#ifdef USE_SERIAL_RX
+    if (featureIsEnabled(FEATURE_RX_SERIAL)) {
+
+      switch (rxConfig()->serialrx_provider) {
+#ifdef USE_SERIALRX_SRXL2
+      case SERIALRX_SRXL2:
+          validateAndFixSrxl2Config();
+          break;
+#endif
+      default:
+          break;
+      }
+    }
+#endif
+}
+
+
 void rxInit(void)
 {
     if (featureIsEnabled(FEATURE_RX_PARALLEL_PWM)) {
