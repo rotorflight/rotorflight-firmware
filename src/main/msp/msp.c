@@ -1133,6 +1133,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, pilotConfig()->modelParam3Value);
         // Introduced in MSP API 12.9
         sbufWriteU32(dst, pilotConfig()->modelFlags);
+        break;
+
+    case MSP_FLIGHT_STATS:
+        // Introduced in MSP API 12.9
         sbufWriteU32(dst, statsConfig()->stats_total_flights);
         sbufWriteU32(dst, statsConfig()->stats_total_time_s);
         sbufWriteU32(dst, statsConfig()->stats_total_dist_m);
@@ -3382,14 +3386,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         pilotConfigMutable()->modelParam2Value = sbufReadU16(src);
         pilotConfigMutable()->modelParam3Type = sbufReadU8(src);
         pilotConfigMutable()->modelParam3Value = sbufReadU16(src);
-        if (sbufBytesRemaining(src) >= 17) {
+        if (sbufBytesRemaining(src) >= 4) {
             // Introduced in MSP API 12.9
             pilotConfigMutable()->modelFlags = sbufReadU32(src);
-            statsConfigMutable()->stats_total_flights = sbufReadU32(src);
-            statsConfigMutable()->stats_total_time_s = sbufReadU32(src);
-            statsConfigMutable()->stats_total_dist_m = sbufReadU32(src);
-            statsConfigMutable()->stats_min_armed_time_s = sbufReadS8(src);
         }
+        break;
+
+    case MSP_SET_FLIGHT_STATS:
+        // Introduced in MSP API 12.9
+        statsConfigMutable()->stats_total_flights = sbufReadU32(src);
+        statsConfigMutable()->stats_total_time_s = sbufReadU32(src);
+        statsConfigMutable()->stats_total_dist_m = sbufReadU32(src);
+        statsConfigMutable()->stats_min_armed_time_s = sbufReadS8(src);
         break;
 
 #ifdef USE_RTC_TIME
