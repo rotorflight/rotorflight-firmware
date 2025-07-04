@@ -3504,9 +3504,9 @@ static void xdfly_sensor_process(timeUs_t current_time_us)
         escSensorData[0].erpm = rpm * 10;
         escSensorData[0].throttle = throttle * 10;
         escSensorData[0].pwm = power * 10;
-        escSensorData[0].voltage = voltage * 100;
-        escSensorData[0].current = current * 100;
-        escSensorData[0].consumption = capacity;
+        escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+        escSensorData[0].current = applyCurrentCorrection(current * 100);
+        escSensorData[0].consumption = applyConsumptionCorrection(capacity);
         escSensorData[0].temperature = temp * 10;
         escSensorData[0].bec_voltage = volt_bec * 1000;
         escSensorData[0].status = status;
