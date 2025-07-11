@@ -36,11 +36,6 @@ the PID loop rate to half too.
 
 ## Features
 
-### S.PORT telemetry Scaling for attitude sensors
-
-The attitiude sensors where found to be out by a factor of 10.  The scaling
-in the firmware has been adjusted to set these correctly.
-
 ### Drop gyro ODR to 4k on F4 and F7 (#291)
 
 The gyro output data rate is changed from 8k to 4k on F4 and F7.
@@ -52,3 +47,11 @@ other functions. It should not affect performance.
 Using a Bessel filter in decimator should give better phase response
 near the cutoff frequency. This should give more consistent D-term
 reaction to fast movements.
+
+## Bug Fixes
+
+### S.PORT telemetry Scaling for attitude sensors
+
+The attitiude sensors where found to be out by a factor of 10.  The scaling
+in the firmware has been adjusted to set these correctly.
+https://github.com/rotorflight/rotorflight-firmware/pull/313
