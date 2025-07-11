@@ -32,8 +32,14 @@ the PID loop rate to half too.
 
 ## Defaults
 
+- cbat_alert_percent changed from 10 to 35 to better reflect heli usage,
 
 ## Features
+
+### S.PORT telemetry Scaling for attitude sensors
+
+The attitiude sensors where found to be out by a factor of 10.  The scaling
+in the firmware has been adjusted to set these correctly.
 
 ### Drop gyro ODR to 4k on F4 and F7 (#291)
 
