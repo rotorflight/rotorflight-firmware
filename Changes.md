@@ -20,6 +20,13 @@ consistent D-term reaction on transients.
 
 - `error_rotation` parameter is unused (#294)
 
+### MSP_PILOT_CONFIG
+
+- added `modelFlags` parameter (#317)
+
+### MSP_FLIGHT_STATS
+
+- added `MSP_FLIGHT_STATS` and `MSP_SET_FLIGHT_STATS` (#317)
 
 ## CLI Changes
 
