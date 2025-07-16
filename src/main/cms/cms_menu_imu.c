@@ -116,9 +116,9 @@ static void cmsx_initPidProfile()
 
 void cmsx_updateCurrentPidProfile()
 {
-  // Update current active PID profile only if it is the same as the one CMS has been working on 
+  // Update current active PID profile only if it is the same as the one CMS has been working on
   if (pidProfileIndex == getCurrentPidProfileIndex() ) {
-    pidInitProfile(currentPidProfile);
+    pidLoadProfile(currentPidProfile);
   }
 }
 
