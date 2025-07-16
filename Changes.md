@@ -36,6 +36,10 @@ the PID loop rate to half too.
 
 `error_rotation` parameter is removed in #294.
 
+`model_set_name` parameter added (ON/OFF). Corresponds with bit 0 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should set the name of the model on the radio.
+
+`model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
+
 
 ## Defaults
 
