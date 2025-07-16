@@ -293,7 +293,9 @@ void motorUpdate(timeUs_t currentTimeUs)
                 resetMotorOverride();
         }
         for (int i = 0; i < motorCount; i++)
-            motorOutput[i] = constrain(motorOverride[i], MOTOR_OVERRIDE_MIN, MOTOR_OVERRIDE_MAX) / 1000.0f;
+            motorOutput[i] = slewUpLimit(motorOutput[i],
+                constrain(motorOverride[i], MOTOR_OVERRIDE_MIN, MOTOR_OVERRIDE_MAX) / 1000.0f,
+                MOTOR_OVERRIDE_RATE * pidGetDT());
     }
 
     motorWriteAll(motorOutput);

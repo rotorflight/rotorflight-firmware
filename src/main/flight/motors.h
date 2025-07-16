@@ -19,9 +19,12 @@
 
 #include "platform.h"
 
-#define MOTOR_OVERRIDE_OFF      0
-#define MOTOR_OVERRIDE_MIN  -1000
-#define MOTOR_OVERRIDE_MAX   1000
+#define MOTOR_OVERRIDE_OFF             0
+#define MOTOR_OVERRIDE_MIN         -1000
+#define MOTOR_OVERRIDE_MAX          1000
+
+#define MOTOR_OVERRIDE_RATE        0.25f
+#define MOTOR_OVERRIDE_TIMEOUT   1000000
 
 
 uint8_t getMotorCount(void);

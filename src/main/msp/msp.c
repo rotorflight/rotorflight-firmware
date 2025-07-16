@@ -2451,7 +2451,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MAX_SUPPORTED_MOTORS) {
             return MSP_RESULT_ERROR;
         }
-        setMotorOverride(i, sbufReadU16(src), 250000);
+        setMotorOverride(i, sbufReadU16(src), MOTOR_OVERRIDE_TIMEOUT);
 #endif
         break;
 
