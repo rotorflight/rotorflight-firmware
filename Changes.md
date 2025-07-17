@@ -32,6 +32,8 @@ the PID loop rate to half too.
 
 ## Defaults
 
+`rescue_flip` default is changed from OFF to ON.
+
 
 ## Features
 
