@@ -20,6 +20,13 @@ consistent D-term reaction on transients.
 
 - `error_rotation` parameter is unused (#294)
 
+### MSP_PILOT_CONFIG
+
+- added `modelFlags` parameter (#317)
+
+### MSP_FLIGHT_STATS
+
+- added `MSP_FLIGHT_STATS` and `MSP_SET_FLIGHT_STATS` (#317)
 
 ## CLI Changes
 
@@ -29,10 +36,15 @@ the PID loop rate to half too.
 
 `error_rotation` parameter is removed in #294.
 
+`model_set_name` parameter added (ON/OFF). Corresponds with bit 0 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should set the name of the model on the radio.
+
+`model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
+
 
 ## Defaults
 
-- cbat_alert_percent changed from 10 to 35 to better reflect heli usage,
+`cbat_alert_percent` changed from 10 to 35 to better reflect heli usage.
+`rescue_flip` default is changed from OFF to ON.
 
 ## Features
 
@@ -53,5 +65,4 @@ reaction to fast movements.
 ### S.PORT telemetry Scaling for attitude sensors
 
 The attitiude sensors where found to be out by a factor of 10.  The scaling
-in the firmware has been adjusted to set these correctly.
-https://github.com/rotorflight/rotorflight-firmware/pull/313
+in the firmware has been adjusted to set these correctly. (#313)

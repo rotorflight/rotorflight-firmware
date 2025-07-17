@@ -88,7 +88,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .trainer.angle_limit = 20,
         .trainer.lookahead_ms = 50,
         .rescue.mode = 0,
-        .rescue.flip_mode = 0,
+        .rescue.flip_mode = 1,
         .rescue.flip_gain = 200,
         .rescue.level_gain = 100,
         .rescue.pull_up_time = 3,

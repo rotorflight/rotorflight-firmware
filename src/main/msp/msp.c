@@ -2355,7 +2355,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 currentPidProfile->pid[i].O = sbufReadU16(src);
             }
         }
-        pidInitProfile(currentPidProfile);
+        pidLoadProfile(currentPidProfile);
         break;
 
     case MSP_SET_MODE_RANGE:
@@ -2700,7 +2700,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
         }
         /* Load new values */
-        pidInitProfile(currentPidProfile);
+        pidLoadProfile(currentPidProfile);
         break;
 
     case MSP_SET_RESCUE_PROFILE:
