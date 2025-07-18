@@ -28,6 +28,16 @@ consistent D-term reaction on transients.
 
 - added `MSP_FLIGHT_STATS` and `MSP_SET_FLIGHT_STATS` (#317)
 
+### MSP_SET_MOTOR_OVERRIDE
+
+A 1.0s timeout is added to the override. The MSP call must be repeated
+at least once per second to keep the override active (#304).
+
+### MSP_SET_MOTOR
+
+This legacy MSP call is disabled, as it does not have a timeout (#304).
+
+
 ## CLI Changes
 
 `pid_process_denom` is a divider for the PID loop speed vs. the gyro
@@ -59,6 +69,13 @@ other functions. It should not affect performance.
 Using a Bessel filter in decimator should give better phase response
 near the cutoff frequency. This should give more consistent D-term
 reaction to fast movements.
+
+### Motor Override (#304)
+
+A safety mechanism is added to the Motor Override that will turn off the throttle
+if the override command is not repeated continuously. This guarantees that
+the motor is not left running if the connection to the FC is interrupted.
+
 
 ## Bug Fixes
 

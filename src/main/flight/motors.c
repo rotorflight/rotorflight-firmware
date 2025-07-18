@@ -66,22 +66,25 @@ typedef enum {
 
 static FAST_DATA_ZERO_INIT uint8_t        motorCount;
 
+static FAST_DATA_ZERO_INIT timeUs_t       motorOverrideTimeout;
+
 static FAST_DATA_ZERO_INIT float          motorOutput[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT int16_t        motorOverride[MAX_SUPPORTED_MOTORS];
 
-static FAST_DATA_ZERO_INIT float          motorRpm[MAX_SUPPORTED_MOTORS];
-static FAST_DATA_ZERO_INIT float          motorRpmRaw[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT uint8_t        motorRpmDiv[MAX_SUPPORTED_MOTORS];
+static FAST_DATA_ZERO_INIT float          motorRpmFactor[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT uint8_t        motorRpmSource[MAX_SUPPORTED_MOTORS];
 static FAST_DATA_ZERO_INIT filter_t       motorRpmFilter[MAX_SUPPORTED_MOTORS];
 
-static FAST_DATA_ZERO_INIT float          headSpeed;
-static FAST_DATA_ZERO_INIT float          tailSpeed;
+static FAST_DATA_ZERO_INIT float          motorRpm[MAX_SUPPORTED_MOTORS];
+static FAST_DATA_ZERO_INIT float          motorRpmRaw[MAX_SUPPORTED_MOTORS];
 
 static FAST_DATA_ZERO_INIT float          mainGearRatio;
 static FAST_DATA_ZERO_INIT float          tailGearRatio;
 
-static FAST_DATA_ZERO_INIT float          motorRpmFactor[MAX_SUPPORTED_MOTORS];
+static FAST_DATA_ZERO_INIT float          headSpeed;
+static FAST_DATA_ZERO_INIT float          tailSpeed;
+
 
 
 /*** Access functions ***/
@@ -106,15 +109,20 @@ int16_t getMotorOverride(uint8_t motor)
     return motorOverride[motor];
 }
 
-int16_t setMotorOverride(uint8_t motor, int16_t value)
+void setMotorOverride(uint8_t motor, int16_t value, timeDelta_t timeout)
 {
-    return motorOverride[motor] = value;
+    if (!ARMING_FLAG(ARMED) && motor < motorCount) {
+        motorOverride[motor] = value;
+        motorOverrideTimeout = timeout ? (micros() + timeout) | BIT(0) : 0;
+    }
 }
 
 void resetMotorOverride(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++)
         motorOverride[i] = MOTOR_OVERRIDE_OFF;
+
+    motorOverrideTimeout = 0;
 }
 
 float getMainGearRatio(void)
@@ -273,17 +281,21 @@ static float getSensorRPMf(uint8_t motor)
     return motorRpmFactor[motor] * erpm / motorRpmDiv[motor];
 }
 
-void motorUpdate(void)
+void motorUpdate(timeUs_t currentTimeUs)
 {
-    float output;
-
-    for (int i = 0; i < motorCount; i++) {
-        if (ARMING_FLAG(ARMED))
-            output = mixerGetMotorOutput(i);
-        else
-            output = motorOverride[i] / 1000.0f;
-
-        motorOutput[i] = constrainf(output, -1, 1);
+    if (ARMING_FLAG(ARMED)) {
+        for (int i = 0; i < motorCount; i++)
+            motorOutput[i] = constrainf(mixerGetMotorOutput(i), -1, 1);
+    }
+    else {
+        if (motorOverrideTimeout) {
+            if (cmp32(currentTimeUs, motorOverrideTimeout) > 0)
+                resetMotorOverride();
+        }
+        for (int i = 0; i < motorCount; i++)
+            motorOutput[i] = slewUpLimit(motorOutput[i],
+                constrain(motorOverride[i], MOTOR_OVERRIDE_MIN, MOTOR_OVERRIDE_MAX) / 1000.0f,
+                MOTOR_OVERRIDE_RATE * pidGetDT());
     }
 
     motorWriteAll(motorOutput);
