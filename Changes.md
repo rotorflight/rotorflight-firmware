@@ -43,8 +43,8 @@ the PID loop rate to half too.
 
 ## Defaults
 
+`cbat_alert_percent` changed from 10 to 35 to better reflect heli usage.
 `rescue_flip` default is changed from OFF to ON.
-
 
 ## Features
 
@@ -59,3 +59,10 @@ other functions. It should not affect performance.
 Using a Bessel filter in decimator should give better phase response
 near the cutoff frequency. This should give more consistent D-term
 reaction to fast movements.
+
+## Bug Fixes
+
+### S.PORT telemetry Scaling for attitude sensors
+
+The attitiude sensors where found to be out by a factor of 10.  The scaling
+in the firmware has been adjusted to set these correctly. (#313)
