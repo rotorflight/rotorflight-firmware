@@ -76,6 +76,11 @@ A safety mechanism is added to the Motor Override that will turn off the throttl
 if the override command is not repeated continuously. This guarantees that
 the motor is not left running if the connection to the FC is interrupted.
 
+### ELRS Custom Telemetry maximum frame size (#323)
+
+The maximum size of custom telemetry frames is reduced to 32.
+This will improve telemetry reception in poor radio conditions.
+
 
 ## Bug Fixes
 
