@@ -1906,11 +1906,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->governor.f_gain);
         sbufWriteU8(dst, currentPidProfile->governor.tta_gain);
         sbufWriteU8(dst, currentPidProfile->governor.tta_limit);
-        sbufWriteU8(dst, currentPidProfile->governor.yaw_ff_weight);
-        sbufWriteU8(dst, currentPidProfile->governor.cyclic_ff_weight);
-        sbufWriteU8(dst, currentPidProfile->governor.collective_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.yaw_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.cyclic_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.collective_weight);
         sbufWriteU8(dst, currentPidProfile->governor.max_throttle);
         sbufWriteU8(dst, currentPidProfile->governor.min_throttle);
+        sbufWriteU8(dst, currentPidProfile->governor.idle_throttle);
+        sbufWriteU8(dst, currentPidProfile->governor.auto_throttle);
+        sbufWriteU16(dst, currentPidProfile->governor.flags);
         break;
 
     case MSP_SENSOR_CONFIG:
@@ -2014,17 +2017,18 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_spoolup_time);
         sbufWriteU16(dst, governorConfig()->gov_tracking_time);
         sbufWriteU16(dst, governorConfig()->gov_recovery_time);
-        sbufWriteU16(dst, governorConfig()->gov_zero_throttle_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_lost_headspeed_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_bailout_time);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_min_entry_time);
+        sbufWriteU16(dst, governorConfig()->gov_throttle_hold_timeout);
+        sbufWriteU16(dst, 0); // governorConfig()->gov_lost_headspeed_timeout
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_timeout
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_bailout_time
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_min_entry_time
         sbufWriteU8(dst, governorConfig()->gov_handover_throttle);
         sbufWriteU8(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU8(dst, governorConfig()->gov_rpm_filter);
         sbufWriteU8(dst, governorConfig()->gov_tta_filter);
         sbufWriteU8(dst, governorConfig()->gov_ff_filter);
-        sbufWriteU8(dst, governorConfig()->gov_spoolup_min_throttle);
+        sbufWriteU8(dst, 0); // governorConfig()->gov_spoolup_min_throttle
+        sbufWriteU8(dst, governorConfig()->gov_d_cutoff);
         break;
 
     default:
@@ -2737,12 +2741,17 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->governor.f_gain = sbufReadU8(src);
         currentPidProfile->governor.tta_gain = sbufReadU8(src);
         currentPidProfile->governor.tta_limit = sbufReadU8(src);
-        currentPidProfile->governor.yaw_ff_weight = sbufReadU8(src);
-        currentPidProfile->governor.cyclic_ff_weight = sbufReadU8(src);
-        currentPidProfile->governor.collective_ff_weight = sbufReadU8(src);
+        currentPidProfile->governor.yaw_weight = sbufReadU8(src);
+        currentPidProfile->governor.cyclic_weight = sbufReadU8(src);
+        currentPidProfile->governor.collective_weight = sbufReadU8(src);
         currentPidProfile->governor.max_throttle = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->governor.min_throttle = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 4) {
+            currentPidProfile->governor.idle_throttle = sbufReadU8(src);
+            currentPidProfile->governor.auto_throttle = sbufReadU8(src);
+            currentPidProfile->governor.flags = sbufReadU16(src);
         }
         /* Load new values */
         governorInitProfile(currentPidProfile);
@@ -3488,18 +3497,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_spoolup_time = sbufReadU16(src);
         governorConfigMutable()->gov_tracking_time = sbufReadU16(src);
         governorConfigMutable()->gov_recovery_time = sbufReadU16(src);
-        governorConfigMutable()->gov_zero_throttle_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_lost_headspeed_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_bailout_time = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_min_entry_time = sbufReadU16(src);
+        governorConfigMutable()->gov_throttle_hold_timeout = sbufReadU16(src);
+        sbufReadU16(src); // governorConfigMutable()->gov_lost_headspeed_timeout = sbufReadU16(src);
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_bailout_time = sbufReadU16(src);
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_min_entry_time = sbufReadU16(src);
         governorConfigMutable()->gov_handover_throttle = sbufReadU8(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU8(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU8(src);
         governorConfigMutable()->gov_tta_filter = sbufReadU8(src);
         governorConfigMutable()->gov_ff_filter = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
-            governorConfigMutable()->gov_spoolup_min_throttle = sbufReadU8(src);
+            sbufReadU8(src); // governorConfigMutable()->gov_spoolup_min_throttle
         }
         break;
 
