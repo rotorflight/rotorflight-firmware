@@ -248,7 +248,10 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
 
     // Collective/cyclic deflection lowpass filters
-    lowpassFilterInit(&pid.precomp.yawPrecompFilter, pidProfile->yaw_precomp_filter_type, pidProfile->yaw_precomp_cutoff, pid.freq, 0);
+    lowpassFilterInit(&pid.precomp.yawPrecompFilter,
+      pidProfile->yaw_precomp_filter_type,
+      (pidProfile->pid_mode == 4) ? pidProfile->yaw_precomp_cutoff / 10.0f : pidProfile->yaw_precomp_cutoff,
+      pid.freq, 0);
 
     // RPM change filter
     difFilterUpdate(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
