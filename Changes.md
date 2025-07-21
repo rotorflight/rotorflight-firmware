@@ -9,6 +9,9 @@ the APIs or flight performance.
 The decimator is changed to use a Bessel filter (#287). It should give more
 consistent D-term reaction on transients.
 
+PID Mode 4 is introduced for testing new features (#293). The current default PID Mode 3
+is maintained for backward compatibility.
+
 
 ## MSP Changes
 
@@ -36,6 +39,10 @@ at least once per second to keep the override active (#304).
 ### MSP_SET_MOTOR
 
 This legacy MSP call is disabled, as it does not have a timeout (#304).
+
+### MSP_SET_PID_PROFILE
+
+The `pid_mode` parameter can be now changed.
 
 
 ## CLI Changes
@@ -80,6 +87,18 @@ the motor is not left running if the connection to the FC is interrupted.
 
 The maximum size of custom telemetry frames is reduced to 32.
 This will improve telemetry reception in poor radio conditions.
+
+### PID Mode 4 (#293)
+
+All new features and changes to the PID controller are done in the new PID mode 4.
+The current PID Mode 3 will be kept as-is for backward compatibility.
+
+**Changes:**
+- axis_error changed from actual angle to I-term units
+- I-gains, O-gains and F-gains forced to be the same for roll & pitch
+- I-term decay forced if I-gain is zero (Rate Mode)
+- Pitch B-gain scaled x10
+- Roll B-gain and D-gain scaled /5
 
 
 ## Bug Fixes
