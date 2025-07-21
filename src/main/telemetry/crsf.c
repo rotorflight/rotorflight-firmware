@@ -83,6 +83,8 @@
 #define CRSF_HEARTBEAT_RATE                 10
 #define CRSF_HEARTBEAT_PERIOD               (1000000 / CRSF_HEARTBEAT_RATE)
 
+#define CRSF_CUSTOM_TELEMETRY_MIN_SPACE     32
+
 enum {
     TELEMETRY_STATE_OFF = 0,
     TELEMETRY_STATE_NATIVE,
@@ -1196,7 +1198,7 @@ static bool crsfSendCustomTelemetry(void)
 
         crsfFrameCustomTelemetryHeader(dst);
 
-        while (sbufBytesRemaining(dst) > 6) {
+        while (sbufBytesRemaining(dst) > CRSF_CUSTOM_TELEMETRY_MIN_SPACE) {
             telemetrySensor_t *sensor = telemetryScheduleNext();
             if (sensor) {
                 uint8_t *ptr = sbufPtr(dst);
