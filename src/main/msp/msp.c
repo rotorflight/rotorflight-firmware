@@ -2643,7 +2643,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
     case MSP_SET_PID_PROFILE:
-        sbufReadU8(src); // PID mode can't be changed
+        currentPidProfile->pid_mode = sbufReadU8(src);
         currentPidProfile->error_decay_time_ground = sbufReadU8(src);
         currentPidProfile->error_decay_time_cyclic = sbufReadU8(src);
         currentPidProfile->error_decay_time_yaw = sbufReadU8(src);
