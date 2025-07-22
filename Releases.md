@@ -1,3 +1,36 @@
+# 4.5.1
+
+This is an _Official Bugfix Release_ of the Rotorflight firmware for RF 2.2
+
+**NOTE!** The firmware for RF 2.2 uses version number 4.5.x.
+
+## Downloads
+
+Please use release 2.2.0 of the Blackbox and Ethos Scripts.
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.2.1)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.2.0)
+- [Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.2.1)
+- [Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.2.0)
+- [Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.2.0)
+
+## Notes
+
+- Rotorflight setup instructions can be found on the RF website [www.rotorflight.org](https://www.rotorflight.org/).
+
+- As always, please double check your configuration on the bench before flying!
+
+## Changes from 4.5.0
+
+- FrSky attitude sensor scaling fixed
+- Voltage and Current corrections added to XDFly ESC telemetry
+- Force half-duplex setting with Spektrum SRXL2
+
+
+***
+
 # 4.5.0
 
 This is the _Official Release_ of the Rotorflight firmware for RF 2.2.
