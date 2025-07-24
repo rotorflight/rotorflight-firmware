@@ -50,11 +50,17 @@ the PID loop rate to half too.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
 
+`deadband` parameter maximum value is changed from 32 to 100 (#327).
+
 
 ## Defaults
 
 `cbat_alert_percent` changed from 10 to 35 to better reflect heli usage.
+
 `rescue_flip` default is changed from OFF to ON.
+
+`deadband` and `yaw_deadband` defaults changed to 5.
+
 
 ## Features
 
