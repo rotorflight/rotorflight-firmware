@@ -87,6 +87,14 @@ the motor is not left running if the connection to the FC is interrupted.
 The maximum size of custom telemetry frames is reduced to 32.
 This will improve telemetry reception in poor radio conditions.
 
+### ELRS RPM and Temperature telemetry frame types (#326)
+
+The native ELRS telemetry can now send RPM and temperature data.
+The RPM frame (0x0C) supports sending headspeed and tail speed.
+The temperature frame (0x0D) supports MCU and ESC temperatures.
+
+Two new RF Telemetry sensors are added: RPM (108) and TEMP (109).
+
 
 ## Bug Fixes
 

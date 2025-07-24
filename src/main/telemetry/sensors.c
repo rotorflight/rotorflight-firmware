@@ -203,9 +203,10 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_MCU_CURRENT:
             return getCurrent(CURRENT_METER_ID_MCU);
 
+        case TELEM_TEMP:
+            return millis();
         case TELEM_MCU_TEMP:
             return getCoreTemperatureCelsius();
-
         case TELEM_ESC_TEMP:
             return getEscSensorValue(ESC_SENSOR_COMBINED, 7);
         case TELEM_BEC_TEMP:
@@ -222,6 +223,9 @@ int telemetrySensorValue(sensor_id_e id)
             return getEstimatedAltitudeCm();
         case TELEM_VARIOMETER:
             return getEstimatedVarioCms();
+
+        case TELEM_RPM:
+            return millis();
 
         case TELEM_HEADSPEED:
             return getHeadSpeed();
@@ -407,6 +411,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_MCU_CURRENT:
             return true;
 
+        case TELEM_TEMP:
         case TELEM_MCU_TEMP:
         case TELEM_ESC_TEMP:
         case TELEM_BEC_TEMP:
@@ -422,6 +427,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_VARIOMETER:
             return true;
 
+        case TELEM_RPM:
         case TELEM_HEADSPEED:
         case TELEM_TAILSPEED:
             return true;
