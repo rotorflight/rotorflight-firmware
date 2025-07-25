@@ -195,6 +195,10 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_CONFIG(YAW_DYN_DEADBAND_FILTER, RATE,  0, 250),
 
     ADJ_CONFIG(YAW_PRECOMP_CUTOFF,      PROF,  0, 250),
+
+    ADJ_CONFIG(GOV_IDLE_THROTTLE,       GOV,   0, 100),
+    ADJ_CONFIG(GOV_AUTO_THROTTLE,       GOV,   0, 100),
+
 };
 
 
@@ -369,10 +373,10 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             value = currentPidProfile->governor.tta_gain;
             break;
         case ADJUSTMENT_GOV_CYCLIC_FF:
-            value = currentPidProfile->governor.cyclic_ff_weight;
+            value = currentPidProfile->governor.cyclic_weight;
             break;
         case ADJUSTMENT_GOV_COLLECTIVE_FF:
-            value = currentPidProfile->governor.collective_ff_weight;
+            value = currentPidProfile->governor.collective_weight;
             break;
         case ADJUSTMENT_PITCH_B_GAIN:
             value = currentPidProfile->pid[PID_PITCH].B;
@@ -433,6 +437,12 @@ static int getAdjustmentValue(adjustmentFunc_e adjFunc)
             break;
         case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
             value = currentPidProfile->yaw_precomp_cutoff;
+            break;
+        case ADJUSTMENT_GOV_IDLE_THROTTLE:
+            value = currentPidProfile->governor.idle_throttle;
+            break;
+        case ADJUSTMENT_GOV_AUTO_THROTTLE:
+            value = currentPidProfile->governor.auto_throttle;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
@@ -608,10 +618,10 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             currentPidProfile->governor.tta_gain = value;
             break;
         case ADJUSTMENT_GOV_CYCLIC_FF:
-            currentPidProfile->governor.cyclic_ff_weight = value;
+            currentPidProfile->governor.cyclic_weight = value;
             break;
         case ADJUSTMENT_GOV_COLLECTIVE_FF:
-            currentPidProfile->governor.collective_ff_weight = value;
+            currentPidProfile->governor.collective_weight = value;
             break;
         case ADJUSTMENT_PITCH_B_GAIN:
             currentPidProfile->pid[PID_PITCH].B = value;
@@ -672,6 +682,12 @@ static void setAdjustmentValue(adjustmentFunc_e adjFunc, int value)
             break;
         case ADJUSTMENT_YAW_PRECOMP_CUTOFF:
             currentPidProfile->yaw_precomp_cutoff = value;
+            break;
+        case ADJUSTMENT_GOV_IDLE_THROTTLE:
+            currentPidProfile->governor.idle_throttle = value;
+            break;
+        case ADJUSTMENT_GOV_AUTO_THROTTLE:
+            currentPidProfile->governor.auto_throttle = value;
             break;
         case ADJUSTMENT_FUNCTION_COUNT:
             break;
