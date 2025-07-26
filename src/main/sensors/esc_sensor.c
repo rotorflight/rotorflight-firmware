@@ -578,16 +578,18 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
  *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(10/47) + 1/298.15 = 0.002962…
  */
 
-#define HW4_NTC_GAMMA   0.00025316455696f
-#define HW4_NTC_DELTA   0.00296226896087f
+#define HW4_NTC_GAMMA       0.00025316455696f
+#define HW4_NTC_DELTA       0.00296226896087f
+#define HW4_ADC_RES         4096.0
+#define HW4_VOLTAGE_SCALE   0.00008056640625f
 
 #define calcTempHW(adc)  calcTempNTC(adc, HW4_NTC_GAMMA, HW4_NTC_DELTA)
 
-#define HW4_VOLTAGE_SCALE    0.00008056640625f
-#define HW4_CURRENT_SCALE    32.2265625f
+static bool hw4CurrentOffsetNeedsUpdate = false;
 
 static float hw4VoltageScale = 0;
-static float hw4CurrentScale = 0;
+static float hw4CurrentRefVoltage = 3.3;
+static float hw4CurrentGain = 110;
 static float hw4CurrentOffset = 0;
 
 static inline float calcVoltHW(uint16_t voltADC)
@@ -598,7 +600,7 @@ static inline float calcVoltHW(uint16_t voltADC)
 static inline float calcCurrHW(uint16_t currentADC)
 {
     return (currentADC > hw4CurrentOffset) ?
-        (currentADC - hw4CurrentOffset) * hw4CurrentScale : 0;
+        (currentADC - hw4CurrentOffset) * hw4CurrentRefVoltage / HW4_ADC_RES * hw4CurrentGain: 0;
 }
 
 #define HW4_FRAME_NONE   0
@@ -639,32 +641,69 @@ static uint8_t processHW4TelemetryStream(uint8_t dataByte)
 
 static void hw4SensorProcess(timeUs_t currentTimeUs)
 {
+    static float currentUpdated = 0;
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         const uint8_t frameType = processHW4TelemetryStream(serialRead(escSensorPort));
 
         if (frameType == HW4_FRAME_DATA) {
-            if (buffer[4] < 4 && buffer[6] < 4 && buffer[11] < 0x10 &&
-                buffer[13] < 0x10 && buffer[15] < 0x10 && buffer[17] < 0x10) {
 
+            bool gotValidFrame = false;
+
+            uint16_t thr = 0;
+            uint16_t pwm = 0;
+            uint32_t rpm = 0;
+            uint16_t Vadc = 0;
+            uint16_t Iadc = 0;
+            uint16_t Tadc = 0;
+            uint16_t Cadc = 0;
+            
+            if (buffer[4] < 4 && buffer[10] < 0x10 &&
+                buffer[12] < 0x0D && buffer[14] < 0x0D && buffer[16] < 0x10 && buffer[18] == 0xB9) {
+                //frame type 1
+                thr = buffer[4] << 8 | buffer[5];
+                rpm = buffer[6] << 16 | buffer[7] << 8 | buffer[8];
+                Vadc = buffer[9] << 16 | buffer[10] << 8 | buffer[11];
+                Iadc = buffer[12] << 8 | buffer[13];
+                Tadc = buffer[14] << 8 | buffer[15];
+                Cadc = buffer[16] << 8 | buffer[17];
+
+            } else  if (buffer[4] < 4 && buffer[6] < 4 && buffer[11] < 0x10 &&
+                buffer[13] < 0x10 && buffer[15] < 0x10 && buffer[17] < 0x10) {
+                //frame type 2
                 //uint32_t cnt = buffer[1] << 16 | buffer[2] << 8 | buffer[3];
-                uint16_t thr = buffer[4] << 8 | buffer[5];
-                uint16_t pwm = buffer[6] << 8 | buffer[7];
-                uint32_t rpm = buffer[8] << 16 | buffer[9] << 8 | buffer[10];
-                uint16_t Vadc = buffer[11] << 8 | buffer[12];
-                uint16_t Iadc = buffer[13] << 8 | buffer[14];
-                uint16_t Tadc = buffer[15] << 8 | buffer[16];
-                uint16_t Cadc = buffer[17] << 8 | buffer[18];
+                thr = buffer[4] << 8 | buffer[5];
+                pwm = buffer[6] << 8 | buffer[7];
+                rpm = buffer[8] << 16 | buffer[9] << 8 | buffer[10];
+                Vadc = buffer[11] << 8 | buffer[12];
+                Iadc = buffer[13] << 8 | buffer[14];
+                Tadc = buffer[15] << 8 | buffer[16];
+                Cadc = buffer[17] << 8 | buffer[18];
+
+                gotValidFrame = true;
+            }
+
+            if (gotValidFrame) {
 
                 float voltage = calcVoltHW(Vadc);
                 float current = calcCurrHW(Iadc);
                 float tempFET = calcTempHW(Tadc);
                 float tempCAP = calcTempHW(Cadc);
 
-                // When throttle changes to zero, the last current reading is
-                // repeated until the motor has totally stopped.
                 if (thr == 0) {
-                    current = 0;
+                    hw4CurrentOffsetNeedsUpdate = true;
+                } else if (thr > 0 && current > 0.1) {
+                    currentUpdated = current;
+                }
+
+                // below this threshold the current readings are not reliable
+                if (thr < escSensorConfig()->hw4_valid_current_threshold) {
+                    currentUpdated = 0;
+                }
+
+                if(hw4CurrentOffsetNeedsUpdate && thr > 0) {
+                    hw4CurrentOffset = Iadc;
+                    hw4CurrentOffsetNeedsUpdate = false;
                 }
 
                 setConsumptionCurrent(current);
@@ -675,14 +714,14 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].throttle = thr;
                 escSensorData[0].pwm = pwm;
                 escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
-                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
+                escSensorData[0].current = applyCurrentCorrection(lrintf(currentUpdated * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, lrintf(tempFET * 10));
                 DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, lrintf(voltage * 100));
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, lrintf(current * 100));
+                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, lrintf(currentUpdated * 100));
 
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
                 DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
@@ -712,16 +751,18 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             }
 
             if (escSensorConfig()->hw4_current_gain) {
-                hw4CurrentScale = HW4_CURRENT_SCALE / escSensorConfig()->hw4_current_gain;
+                hw4CurrentGain = escSensorConfig()->hw4_current_gain;
                 hw4CurrentOffset = escSensorConfig()->hw4_current_offset;
             }
             else {
                 if (buffer[7] && buffer[8]) {
-                    hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
-                    hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
+                    hw4CurrentRefVoltage = (float)buffer[7] / 10;
+                    hw4CurrentGain = (float)buffer[8];
+                    //hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
                 }
                 else {
-                    hw4CurrentScale = 0;
+                    hw4CurrentRefVoltage = 0;
+                    hw4CurrentGain = 0;
                     hw4CurrentOffset = 0;
                 }
             }
