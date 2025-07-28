@@ -162,6 +162,9 @@ typedef enum
     TELEM_DEBUG_6                       = 106,
     TELEM_DEBUG_7                       = 107,
 
+    TELEM_RPM                           = 108,
+    TELEM_TEMP                          = 109,
+
     TELEM_SENSOR_COUNT
 
 } sensor_id_e;
