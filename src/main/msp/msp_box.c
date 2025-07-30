@@ -101,6 +101,10 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXSTICKCOMMANDDISABLE, "STICK COMMANDS DISABLE", 51),
     BOXITEM(BOXBEEPERMUTE, "BEEPER MUTE", 52),
     BOXITEM(BOXRESCUE, "RESCUE", 53),
+    BOXITEM(BOXAUTOROTATION, "AUTOROTATION", 54),
+    BOXITEM(BOXGOVFALLBACK, "GOVERNOR FALLBACK", 55),
+    BOXITEM(BOXGOVSUSPEND, "GOVERNOR SUSPEND", 56),
+    BOXITEM(BOXGOVBYPASS, "GOVERNOR BYPASS", 57),
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
@@ -242,6 +246,11 @@ void initActiveBoxIds(void)
     BME(BOXVTXPITMODE);
     BME(BOXVTXCONTROLDISABLE);
 #endif
+
+    BME(BOXAUTOROTATION);
+    BME(BOXGOVFALLBACK);
+    BME(BOXGOVSUSPEND);
+    BME(BOXGOVBYPASS);
 
 #ifdef USE_PINIOBOX
     // Turn BOXUSERx only if pinioBox facility monitors them, as the facility is the only BOXUSERx observer.
