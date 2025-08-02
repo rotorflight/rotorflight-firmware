@@ -160,45 +160,50 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
-    // Calculate the CRC according to JR XBus Specs
-    // Using a CRC lookup table is faster than without
-    if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) == xBusFrame[xBusFrame[1] + 2])
-    {
-        // Need to do a check on bytes 2 and 3. 
-        // When failsafe, byte 2 goes from >0 to 0 and byte 3 goes from 0 to a value that appears to be dependant on the TX
-        // XG14 goes 0x1c 0x00 to 0x00 0x80
-        // Elite goes 0x17 0x00 to 0x00 0x80
-        if (xBusFrame[2] != 0x00 && xBusFrame[3] != 0x80)
-        {
-            // Unpack the data, as we have a valid frame
-            // As Mode A can address up to 50 channels, we need to loop through the channel
-            // data and update the corresponding channel. The reason for this is that the 
-            // number of the channel may not always be in the same spot in the packet. Also
-            // there are only 16 channels of data sent per packet
-            for (int i = 0; i <= xBusChannelCount; i++)
-            {
-                // Channel packets are constructed as such:
-                // Byte 0 - Channel number
-                // Byte 1 - CH Function (unused so ignore)
-                // Byte 2 - CH Data-High
-                // Byte 3 - CH Data-Low
-                // Channel number is 0 based, so we need to subtract 1 from the value
-                const uint8_t nChannelNumber = xBusFrame[offsetBytes + i * 4] - 1;
-                const uint8_t frameAddr = offsetBytes + 2 + i * 4;
-                uint16_t value = ((uint16_t)xBusFrame[frameAddr]) << 8;
-                value |= ((uint16_t)xBusFrame[frameAddr + 1]);
+	// Check that the frame length matches with the expected length
+    if (xBusFrame[1] < (XBUS_MODEA_CHANNEL_COUNT * 4)) {
+        return; // Frame too short
+    }
 
-                // Convert to internal format
-                if (nChannelNumber <= XBUS_MODEA_CHANNEL_COUNT)
-                {
-                    uint16_t val = XBUS_MODEA_CONVERT_TO_USEC(value);
+    // CRC check (per JR XBUS Mode A spec)
+    if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) != xBusFrame[xBusFrame[1] + 2]) {
+        return; // CRC failed
+    }
 
-                    xBusChannelData[nChannelNumber] = val;
-                }
+    // Need to do a check on bytes 2 and 3. 
+    // When failsafe, byte 2 goes from >0 to 0 and byte 3 goes from 0 to a value that appears to be dependant on the TX
+    // XG14 goes 0x1c 0x00 to 0x00 0x80
+    // Elite goes 0x17 0x00 to 0x00 0x80
+   if (xBusFrame[2] == 0x00 && xBusFrame[3] == 0x80) {
+        return; // Failsafe frame, do not update channels
+    }
+
+    // Unpack the data, as we have a valid frame
+    // As Mode A can address up to 50 channels, we need to loop through the channel
+    // data and update the corresponding channel. The reason for this is that the 
+    // number of the channel may not always be in the same spot in the packet. Also
+    // there are only 16 channels of data sent per packet
+    for (int i = 0; i < xBusChannelCount; i++) {
+        // Channel packets are constructed as such:
+        // Byte 0 - Channel number
+        // Byte 1 - CH Function (unused so ignore)
+        // Byte 2 - CH Data-High
+        // Byte 3 - CH Data-Low
+        // Channel number is 0 based, so we need to subtract 1 from the value
+        const uint8_t nChannelNumber = xBusFrame[offsetBytes + i * 4] - 1;
+        const uint8_t channelFunc = xBusFrame[offsetBytes + 1 + i * 4];
+        const uint8_t frameAddr = offsetBytes + 2 + i * 4;
+
+        // Convert to internal format
+        if (nChannelNumber < XBUS_MODEA_CHANNEL_COUNT) {
+            if (channelFunc == 0x00) {
+                uint16_t value = ((uint16_t)xBusFrame[frameAddr] << 8) | xBusFrame[frameAddr + 1];
+                uint16_t val = XBUS_MODEA_CONVERT_TO_USEC(value);
+                xBusChannelData[nChannelNumber] = val;
             }
-            xBusFrameReceived = true;
         }
     }
+    xBusFrameReceived = true;
 }
 
 static void xBusUnpackModeBFrame(uint8_t offsetBytes)
