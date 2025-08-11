@@ -59,99 +59,99 @@
 #define RX_RANGE_COUNT                    4
 
 
+// Legacy rcCommand for direct acceess
 FAST_DATA_ZERO_INIT float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];           // -500..+500 for RPYCT, more for AUX
 
-static FAST_DATA_ZERO_INIT float rcDeflection[5];                              // -1..1 for RPYC, 0..1 for THROTTLE
-static FAST_DATA_ZERO_INIT float rcDeadband[4];
+// Internal data
+typedef struct {
 
-static FAST_DATA_ZERO_INIT uint16_t currentRxRefreshRate;
-static FAST_DATA_ZERO_INIT float    averageRxRefreshRate;
-static FAST_DATA_ZERO_INIT timeUs_t lastRxTimeUs;
+    float       deflection[4];          // RPYC
+    float       deadband[4];
+    float       center[4];
+    float       range[4];
 
-static FAST_DATA_ZERO_INIT uint32_t changeCount;
-static FAST_DATA_ZERO_INIT uint16_t repeatCount;
-static FAST_DATA_ZERO_INIT uint32_t repeatRange[RX_RANGE_COUNT];
-static FAST_DATA_ZERO_INIT uint16_t lastRcValue;
-static FAST_DATA_ZERO_INIT uint8_t  currentMult;
+    float       throttle;
+    float       offThrottle;
+    float       minThrottle;
+    float       maxThrottle;
+
+    uint        currentRxRefreshMult;
+    uint        currentRxRefreshRate;
+    float       averageRxRefreshRate;
+
+    uint        lastRcValue;
+    timeUs_t    lastRxTimeUs;
+
+    uint        changeCount;
+    uint        repeatCount;
+    uint        repeatRange[RX_RANGE_COUNT];
 
 
-void resetYawAxis(void)
-{
-    rcCommand[YAW] = 0;
-    rcDeflection[YAW] = 0;
-}
+} rcData_t;
+
+static FAST_DATA_ZERO_INIT rcData_t rc;
+
 
 float getRcDeflection(int axis)
 {
-    return rcDeflection[axis];
+    return rc.deflection[axis];
 }
 
 float getThrottle(void)
 {
-    return rcDeflection[THROTTLE];
+    return rc.throttle;
 }
 
-bool isArmingThrottle(void)
+bool isThrottleOff(void)
 {
-    // Allow slight deadband
-    return (rcInput[THROTTLE] < rcControlsConfig()->rc_arm_throttle + 5);
+    return (rcInput[THROTTLE] < rc.offThrottle);
 }
 
-throttleStatus_e getThrottleStatus(void)
+uint getCurrentRxRefreshRate(void)
 {
-    return (rcInput[THROTTLE] < rcControlsConfig()->rc_min_throttle) ? THROTTLE_LOW : THROTTLE_HIGH;
-}
-
-uint16_t getCurrentRxRefreshRate(void)
-{
-    return currentRxRefreshRate;
+    return rc.currentRxRefreshRate;
 }
 
 float getAverageRxRefreshRate(void)
 {
-    return averageRxRefreshRate;
-}
-
-float getAverageRxUpdateRate(void)
-{
-    return averageRxRefreshRate * currentMult;
+    return rc.averageRxRefreshRate;
 }
 
 
 static void updateRcChange(void)
 {
-    const uint16_t rcValue = lrintf(rcCommand[FD_ROLL]);
+    const uint rcValue = lrintf(rcCommand[FD_ROLL]);
 
-    if (rcValue == lastRcValue) {
-        repeatCount++;
+    if (rcValue == rc.lastRcValue) {
+        rc.repeatCount++;
     }
     else {
-        if (repeatCount < RX_RANGE_COUNT) {
-            repeatRange[repeatCount]++;
-            changeCount++;
+        if (rc.repeatCount < RX_RANGE_COUNT) {
+            rc.repeatRange[rc.repeatCount]++;
+            rc.changeCount++;
         }
-        repeatCount = 0;
-        lastRcValue = rcValue;
+        rc.repeatCount = 0;
+        rc.lastRcValue = rcValue;
     }
 
-    uint32_t rangeLimit = constrain(changeCount / RX_RANGE_COUNT, 10, 1000);
+    const uint rangeLimit = constrain(rc.changeCount / RX_RANGE_COUNT, 10, 1000);
     for (int i=0; i<RX_RANGE_COUNT; i++) {
-        if (repeatRange[i] > rangeLimit) {
-            currentMult = i + 1;
+        if (rc.repeatRange[i] > rangeLimit) {
+            rc.currentRxRefreshMult = i + 1;
             break;
         }
     }
 
-    DEBUG(RX_TIMING, 7, currentMult);
+    DEBUG(RX_TIMING, 7, rc.currentRxRefreshMult);
 }
 
 void updateRcRefreshRate(timeUs_t currentTimeUs)
 {
     timeDelta_t frameAgeUs = 0;
     timeDelta_t frameDeltaUs = rxGetFrameDelta(&frameAgeUs);
-    timeDelta_t localDeltaUs = cmpTimeUs(currentTimeUs, lastRxTimeUs);
+    timeDelta_t localDeltaUs = cmpTimeUs(currentTimeUs, rc.lastRxTimeUs);
 
-    lastRxTimeUs = currentTimeUs;
+    rc.lastRxTimeUs = currentTimeUs;
 
     DEBUG(RX_TIMING, 4, frameDeltaUs);
     DEBUG(RX_TIMING, 5, localDeltaUs);
@@ -161,52 +161,49 @@ void updateRcRefreshRate(timeUs_t currentTimeUs)
         frameDeltaUs = localDeltaUs;
     }
 
-    currentRxRefreshRate = frameDeltaUs;
+    rc.currentRxRefreshRate = frameDeltaUs;
 
-    if (rxIsReceivingSignal() && currentRxRefreshRate > RX_REFRESH_RATE_MIN_US && currentRxRefreshRate < RX_REFRESH_RATE_MAX_US) {
-        averageRxRefreshRate += (frameDeltaUs - averageRxRefreshRate) / RX_REFRESH_RATE_AVERAGING;
-        updateRcChange();
+    if (rxIsReceivingSignal()) {
+        if (rc.currentRxRefreshRate > RX_REFRESH_RATE_MIN_US && rc.currentRxRefreshRate < RX_REFRESH_RATE_MAX_US) {
+            rc.averageRxRefreshRate += (frameDeltaUs - rc.averageRxRefreshRate) / RX_REFRESH_RATE_AVERAGING;
+            updateRcChange();
+        }
     }
 
-    DEBUG(RX_TIMING, 0, averageRxRefreshRate);
-    DEBUG(RX_TIMING, 1, averageRxRefreshRate * currentMult);
-    DEBUG(RX_TIMING, 2, currentRxRefreshRate);
+    DEBUG(RX_TIMING, 0, rc.averageRxRefreshRate);
+    DEBUG(RX_TIMING, 1, rc.averageRxRefreshRate * rc.currentRxRefreshMult);
+    DEBUG(RX_TIMING, 2, rc.currentRxRefreshRate);
 }
 
 
 void updateRcCommands(void)
 {
-    float data;
-    float range;
+    setpointUpdateTiming(rc.averageRxRefreshRate * rc.currentRxRefreshMult);
 
-    setpointUpdateTiming(averageRxRefreshRate * currentMult);
-
-    // rcInput => rcDeflection => rcCommand
+    // rcInput => rc.deflection => rcCommand
     for (int axis = 0; axis < 4; axis++) {
         // Center point
-        data = rcInput[axis] - rcControlsConfig()->rc_center;
+        float data = rcInput[axis] - rc.center[axis];
 
         // Apply deadband
-        data = fapplyDeadband(data, rcDeadband[axis]);
-        range = rcControlsConfig()->rc_deflection - rcDeadband[axis];
+        data = fapplyDeadband(data, rc.deadband[axis]);
 
         // Deflection range is -1..1
-        rcDeflection[axis] = limitf(data / range, 1.0f);
+        rc.deflection[axis] = constrainf(data / rc.range[axis], -1, 1);
 
-        // rcCommand range is -500..500
-        rcCommand[axis] = rcDeflection[axis] * 500;
+        // Legacy rcCommand range is -500..500
+        rcCommand[axis] = rc.deflection[axis] * 500;
 
         DEBUG(RC_COMMAND, axis, rcCommand[axis]);
     }
 
-    // Throttle deflection range is 0..1
-    data = scaleRangef(rcInput[THROTTLE], rcControlsConfig()->rc_min_throttle, rcControlsConfig()->rc_max_throttle, 0, 1);
-    rcDeflection[THROTTLE] = constrainf(data, 0, 1);
+    // Throttle range is 0..1
+    rc.throttle = transition(rcInput[THROTTLE], rc.minThrottle, rc.maxThrottle, 0, 1);
 
-    // Throttle command range is -500..500 for compatibility with other channels
-    rcCommand[THROTTLE] = rcDeflection[THROTTLE] * 1000 - 500;
+    // Legacy throttle command range is -500..500 for compatibility with other channels
+    rcCommand[THROTTLE] = rc.throttle * 1000 - 500;
 
-    DEBUG(RC_COMMAND, THROTTLE, lrintf(rcDeflection[THROTTLE] * 1000));
+    DEBUG(RC_COMMAND, THROTTLE, lrintf(rc.throttle * 1000));
 
     // AUX channels
     for (int axis = CONTROL_CHANNEL_COUNT; axis < MAX_SUPPORTED_RC_CHANNEL_COUNT; axis++) {
@@ -216,13 +213,32 @@ void updateRcCommands(void)
 
 INIT_CODE void initRcProcessing(void)
 {
-    rcDeadband[0] = rcControlsConfig()->rc_deadband;
-    rcDeadband[1] = rcControlsConfig()->rc_deadband;
-    rcDeadband[2] = rcControlsConfig()->rc_yaw_deadband;
-    rcDeadband[3] = 0;
+    rc.deadband[0] = rcControlsConfig()->rc_deadband;
+    rc.deadband[1] = rcControlsConfig()->rc_deadband;
+    rc.deadband[2] = rcControlsConfig()->rc_yaw_deadband;
+    rc.deadband[3] = 0;
 
-    averageRxRefreshRate = 10000;
+    for (int axis = 0; axis < 4; axis++) {
+        rc.center[axis] = rcControlsConfig()->rc_center;
+        rc.range[axis] = rcControlsConfig()->rc_deflection - rc.deadband[axis];
+    }
 
-    currentMult = 1;
+    if (rcControlsConfig()->rc_min_throttle)
+        rc.minThrottle = constrain(rcControlsConfig()->rc_min_throttle, RX_PWM_PULSE_MIN, RX_PWM_PULSE_MAX);
+    else
+        rc.minThrottle = rcControlsConfig()->rc_center - rcControlsConfig()->rc_deflection * 0.9f;
+
+    if (rcControlsConfig()->rc_max_throttle)
+        rc.maxThrottle = constrain(rcControlsConfig()->rc_max_throttle, RX_PWM_PULSE_MIN, RX_PWM_PULSE_MAX);
+    else
+        rc.maxThrottle = rcControlsConfig()->rc_center + rcControlsConfig()->rc_deflection * 0.9f;
+
+    rc.maxThrottle = fmaxf(rc.maxThrottle, rc.minThrottle + 10);
+
+    rc.offThrottle = rc.minThrottle - 1;
+
+    // Start with 100Hz rate
+    rc.averageRxRefreshRate = 10000;
+    rc.currentRxRefreshMult = 1;
 }
 

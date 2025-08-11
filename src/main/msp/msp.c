@@ -1615,7 +1615,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_RC_CONFIG:
         sbufWriteU16(dst, rcControlsConfig()->rc_center);
         sbufWriteU16(dst, rcControlsConfig()->rc_deflection);
-        sbufWriteU16(dst, rcControlsConfig()->rc_arm_throttle);
+        sbufWriteU16(dst, 0); // rcControlsConfig()->rc_arm_throttle
         sbufWriteU16(dst, rcControlsConfig()->rc_min_throttle);
         sbufWriteU16(dst, rcControlsConfig()->rc_max_throttle);
         sbufWriteU8(dst, rcControlsConfig()->rc_deadband);
@@ -3236,7 +3236,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_RC_CONFIG:
         rcControlsConfigMutable()->rc_center = sbufReadU16(src);
         rcControlsConfigMutable()->rc_deflection = sbufReadU16(src);
-        rcControlsConfigMutable()->rc_arm_throttle = sbufReadU16(src);
+        sbufReadU16(src); // rcControlsConfigMutable()->rc_arm_throttle
         rcControlsConfigMutable()->rc_min_throttle = sbufReadU16(src);
         rcControlsConfigMutable()->rc_max_throttle = sbufReadU16(src);
         rcControlsConfigMutable()->rc_deadband = sbufReadU8(src);
