@@ -58,6 +58,8 @@
 
 #define RX_RANGE_COUNT                    4
 
+#define RC_THROTTLE_DEADBAND              5
+
 
 // Legacy rcCommand for direct acceess
 FAST_DATA_ZERO_INIT float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];           // -500..+500 for RPYCT, more for AUX
@@ -235,7 +237,7 @@ INIT_CODE void initRcProcessing(void)
 
     rc.maxThrottle = fmaxf(rc.maxThrottle, rc.minThrottle + 10);
 
-    rc.offThrottle = rc.minThrottle - 1;
+    rc.offThrottle = rc.minThrottle - RC_THROTTLE_DEADBAND;
 
     // Start with 100Hz rate
     rc.averageRxRefreshRate = 10000;
