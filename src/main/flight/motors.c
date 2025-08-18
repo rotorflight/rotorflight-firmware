@@ -209,6 +209,10 @@ bool areMotorsRunning(void)
 INIT_CODE void rpmSourceInit(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+
+        if (motorConfig()->motorPoleCount[i] == 0)
+            motorRpmSource[i] = RPM_SRC_NONE;
+        else
 #ifdef USE_FREQ_SENSOR
         if (featureIsEnabled(FEATURE_FREQ_SENSOR) && isFreqSensorPortInitialized(i))
             motorRpmSource[i] = RPM_SRC_FREQ_SENSOR;
