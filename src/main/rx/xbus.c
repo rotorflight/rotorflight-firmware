@@ -160,11 +160,12 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
-	// Check that the frame length matches with the expected length
+
+/*	// Check that the frame length matches with the expected length
     if (xBusFrame[1] < (XBUS_MODEA_CHANNEL_COUNT * 4)) {
         return; // Frame too short
     }
-
+*/
     // CRC check (per JR XBUS Mode A spec)
     if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) != xBusFrame[xBusFrame[1] + 2]) {
         return; // CRC failed
@@ -182,8 +183,10 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
     // As Mode A can address up to 50 channels, we need to loop through the channel
     // data and update the corresponding channel. The reason for this is that the 
     // number of the channel may not always be in the same spot in the packet. Also
-    // there are only 16 channels of data sent per packet
-    for (int i = 0; i < xBusChannelCount; i++) {
+    // there are only a maximum of 16 channels of data sent per packet
+    //for (int i = 0; i < xBusChannelCount; i++) {
+ 	uint8_t nNumChannels = (xBusFrame[1] - 2)/ 4; // Calculate the number of channels in the frame
+    for (int i = 0; i < nNumChannels; i++) {
         // Channel packets are constructed as such:
         // Byte 0 - Channel number
         // Byte 1 - CH Function (unused so ignore)
@@ -289,6 +292,10 @@ static void xBusDataReceive(uint16_t c, void *data)
     if (cmpTimeUs(now, xBusTimeLast) > xBusMaxFrameTime) {
         xBusFramePosition = 0;
         xBusDataIncoming = false;
+
+        for (int i = 0; i < XBUS_MODEA_FRAME_SIZE; i++) {
+            xBusFrame[i] = 0; // Reset all channels
+        }
     }
     xBusTimeLast = now;
 
