@@ -160,12 +160,6 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
-
-/*	// Check that the frame length matches with the expected length
-    if (xBusFrame[1] < (XBUS_MODEA_CHANNEL_COUNT * 4)) {
-        return; // Frame too short
-    }
-*/
     // CRC check (per JR XBUS Mode A spec)
     if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) != xBusFrame[xBusFrame[1] + 2]) {
         return; // CRC failed
