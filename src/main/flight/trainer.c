@@ -30,6 +30,8 @@
 #include "build/build_config.h"
 #include "build/debug.h"
 
+#include "config/config.h"
+
 #include "common/axis.h"
 #include "common/filter.h"
 #include "common/maths.h"
@@ -60,6 +62,16 @@ typedef struct {
 
 static FAST_DATA_ZERO_INIT acroTrainer_t acroTrainer;
 
+int get_ADJUSTMENT_ACRO_TRAINER_GAIN(__unused int adjFunc)
+{
+    return currentPidProfile->trainer.gain;
+}
+
+void set_ADJUSTMENT_ACRO_TRAINER_GAIN(__unused int adjFunc, int value)
+{
+    currentPidProfile->trainer.gain = value;
+    acroTrainer.Gain = value / 10.0f;
+}
 
 INIT_CODE void acroTrainerInit(const pidProfile_t *pidProfile)
 {

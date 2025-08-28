@@ -23,6 +23,7 @@
 #include <stdint.h>
 
 #include "pg/rates.h"
+#include "pg/adjustments.h"
 
 #define CONTROL_RATE_CONFIG_RC_EXPO_MAX         100
 #define CONTROL_RATE_CONFIG_RC_RATES_MAX        255
@@ -51,8 +52,16 @@ extern const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT];
 
 float applyRatesCurve(const int axis, float rcCommandf);
 
-void initControlRates(void);
 void loadControlRateProfile(void);
 void changeControlRateProfile(uint8_t controlRateProfileIndex);
 void copyControlRateProfile(uint8_t dstControlRateProfileIndex, uint8_t srcControlRateProfileIndex);
 
+ADJFUN_DECLARE(PITCH_RATE)
+ADJFUN_DECLARE(ROLL_RATE)
+ADJFUN_DECLARE(YAW_RATE)
+ADJFUN_DECLARE(PITCH_RC_RATE)
+ADJFUN_DECLARE(ROLL_RC_RATE)
+ADJFUN_DECLARE(YAW_RC_RATE)
+ADJFUN_DECLARE(PITCH_RC_EXPO)
+ADJFUN_DECLARE(ROLL_RC_EXPO)
+ADJFUN_DECLARE(YAW_RC_EXPO)

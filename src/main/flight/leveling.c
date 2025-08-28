@@ -29,6 +29,8 @@
 #include "build/build_config.h"
 #include "build/debug.h"
 
+#include "config/config.h"
+
 #ifdef USE_ACC
 
 #include "common/axis.h"
@@ -75,6 +77,28 @@ INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
     horizon.TiltExpertMode = pidProfile->horizon.tilt_expert_mode;
     horizon.CutoffDegrees = (175 - pidProfile->horizon.tilt_effect) * 1.8f;
     horizon.FactorRatio = (100 - pidProfile->horizon.tilt_effect) * 0.01f;
+}
+
+int get_ADJUSTMENT_ANGLE_LEVEL_GAIN(__unused int adjFunc)
+{
+    return currentPidProfile->angle.level_strength;
+}
+
+void set_ADJUSTMENT_ANGLE_LEVEL_GAIN(__unused int adjFunc, int value)
+{
+    currentPidProfile->angle.level_strength = value;
+    level.Gain = value / 10.0f;
+}
+
+int get_ADJUSTMENT_HORIZON_LEVEL_GAIN(__unused int adjFunc)
+{
+    return currentPidProfile->horizon.level_strength;
+}
+
+void set_ADJUSTMENT_HORIZON_LEVEL_GAIN(__unused int adjFunc, int value)
+{
+    currentPidProfile->horizon.level_strength = value;
+    horizon.Gain = value / 10.0f;
 }
 
 // calculate the stick deflection while applying level mode expo

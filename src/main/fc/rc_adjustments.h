@@ -24,7 +24,6 @@
 
 #include "pg/adjustments.h"
 
-
 /*
  * Adjustment Function codes
  *

@@ -22,6 +22,9 @@
 #include "pg/pg.h"
 #include "pg/modes.h"
 
+#define ADJFUN_DECLARE(id) \
+    int get_ADJUSTMENT_##id(int); \
+    void set_ADJUSTMENT_##id(int, int);
 
 typedef struct {
     uint8_t function;

@@ -88,6 +88,85 @@ typedef struct
 
 static FAST_DATA_ZERO_INIT setpointData_t sp;
 
+
+//// Adjustment Functions
+
+int get_ADJUSTMENT_PITCH_SP_BOOST_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->setpoint_boost_gain[FD_PITCH];
+}
+
+void set_ADJUSTMENT_PITCH_SP_BOOST_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->setpoint_boost_gain[FD_PITCH] = value;
+}
+
+int get_ADJUSTMENT_ROLL_SP_BOOST_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->setpoint_boost_gain[FD_ROLL];
+}
+
+void set_ADJUSTMENT_ROLL_SP_BOOST_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->setpoint_boost_gain[FD_ROLL] = value;
+}
+
+int get_ADJUSTMENT_YAW_SP_BOOST_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->setpoint_boost_gain[FD_YAW];
+}
+
+void set_ADJUSTMENT_YAW_SP_BOOST_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->setpoint_boost_gain[FD_YAW] = value;
+}
+
+int get_ADJUSTMENT_COLL_SP_BOOST_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->setpoint_boost_gain[FD_COLL];
+}
+
+void set_ADJUSTMENT_COLL_SP_BOOST_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->setpoint_boost_gain[FD_COLL] = value;
+}
+
+int get_ADJUSTMENT_YAW_DYN_CEILING_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->yaw_dynamic_ceiling_gain;
+}
+
+void set_ADJUSTMENT_YAW_DYN_CEILING_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->yaw_dynamic_ceiling_gain = value;
+    sp.yawDynamicCeilingGain = value * DYNAMIC_DEADBAND_SCALE;
+}
+
+int get_ADJUSTMENT_YAW_DYN_DEADBAND_GAIN(__unused int adjFunc)
+{
+    return currentControlRateProfile->yaw_dynamic_deadband_gain;
+}
+
+void set_ADJUSTMENT_YAW_DYN_DEADBAND_GAIN(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->yaw_dynamic_deadband_gain = value;
+    sp.yawDynamicDeadbandGain = value * DYNAMIC_DEADBAND_SCALE;
+}
+
+int get_ADJUSTMENT_YAW_DYN_DEADBAND_FILTER(__unused int adjFunc)
+{
+    return currentControlRateProfile->yaw_dynamic_deadband_filter;
+}
+
+void set_ADJUSTMENT_YAW_DYN_DEADBAND_FILTER(__unused int adjFunc, int value)
+{
+    currentControlRateProfile->yaw_dynamic_deadband_filter = value;
+    pt1FilterUpdate(&sp.yawDynamicSepointLPF, value / 10.0f, pidGetPidFrequency());
+}
+
+
+//// Access Functions
+
 float getSetpoint(int axis)
 {
     return sp.setpoint[axis];
