@@ -56,7 +56,7 @@ void pgResetFn_motorConfig(motorConfig_t *motorConfig)
     for (int motorIndex = 0; motorIndex < MAX_SUPPORTED_MOTORS; motorIndex++) {
         motorConfig->motorRpmLpf[motorIndex] = 100;
         motorConfig->motorRpmFactor[motorIndex] = 0;
-        motorConfig->motorPoleCount[motorIndex] = 8;
+        motorConfig->motorPoleCount[motorIndex] = 0;
     }
 
     motorConfig->mainRotorGearRatio[0] = 1;
