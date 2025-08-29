@@ -68,6 +68,8 @@ the actual values are calculated automatically (#332).
 
 `rc_min_throttle` and `rc_max_throttle` defaults are changed to 0.
 
+`motor_poles` default is changed to 0,0,0,0.
+
 
 ## Features
 
@@ -108,6 +110,11 @@ The input throttle range is now calculated automatically from `rc_deflection`.
 It can be still set by the user with `rc_min_throttle` and `rc_max_throttle`.
 The parameter `rc_arm_throttle` is removed, and arming is allowed when
 input throttle is well below `rc_min_throttle`.
+
+### Motor Pole Count (#333)
+
+The default pole count is now zero, which is effectively disabling the RPM input.
+This forces the user to enter the correct number, before the RPM input can be used.
 
 
 ## Bug Fixes
