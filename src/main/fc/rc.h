@@ -50,29 +50,22 @@ enum {
     AUX12
 };
 
-typedef enum {
-    THROTTLE_LOW = 0,
-    THROTTLE_HIGH
-} throttleStatus_e;
-
-
+// Legacy RC command -500..500
 extern float rcCommand[];
 
 void initRcProcessing(void);
 void updateRcCommands(void);
 
-void resetYawAxis(void);
-
 float getRcDeflection(int axis);
 
 float getThrottle(void);
+
 static inline float getThrottleCommand(void) { return getThrottle() * 1000; }
 static inline uint8_t getThrottlePercent(void) { return lrintf(getThrottle() * 100); }
 
-bool isArmingThrottle(void);
-throttleStatus_e getThrottleStatus(void);
+bool isThrottleOff(void);
 
-uint16_t getCurrentRxRefreshRate(void);
+uint getCurrentRxRefreshRate(void);
 float getAverageRxRefreshRate(void);
 
 void updateRcRefreshRate(timeUs_t currentTimeUs);

@@ -374,7 +374,7 @@ static void govUpdateInputs(void)
 {
     // Update throttle state
     gov.throttleInput = getThrottle();
-    gov.throttleInputLow = (getThrottleStatus() == THROTTLE_LOW);
+    gov.throttleInputLow = isThrottleOff();
 
     // Assume motor[0]
     gov.motorRPM = getMotorRawRPMf(0);
