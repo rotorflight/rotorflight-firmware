@@ -159,26 +159,6 @@ static void set_ADJUSTMENT_OSD_PROFILE(__unused int adjFunc, __unused int value)
 #endif
 }
 
-static int get_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc)
-{
-    return accelerometerConfig()->accelerometerTrims.values.pitch;
-}
-
-static void set_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc, int value)
-{
-    accelerometerConfigMutable()->accelerometerTrims.values.pitch = value;
-}
-
-static int get_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc)
-{
-    return accelerometerConfig()->accelerometerTrims.values.roll;
-}
-
-static void set_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc, int value)
-{
-    accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
-}
-
 
 //// Internal functions
 

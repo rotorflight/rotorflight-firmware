@@ -108,7 +108,6 @@ void accResetRollAndPitchTrims(void)
     resetRollAndPitchTrims(&accelerometerConfigMutable()->accelerometerTrims);
 }
 
-
 bool accDetect(accDev_t *dev, accelerationSensor_e accHardwareToUse)
 {
     accelerationSensor_e accHardware = ACC_NONE;
@@ -438,4 +437,25 @@ void applyAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
     accelerometerConfigMutable()->accelerometerTrims.values.roll += rollAndPitchTrimsDelta->values.roll;
     accelerometerConfigMutable()->accelerometerTrims.values.pitch += rollAndPitchTrimsDelta->values.pitch;
 }
+
+int get_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc)
+{
+    return accelerometerConfig()->accelerometerTrims.values.pitch;
+}
+
+void set_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc, int value)
+{
+    accelerometerConfigMutable()->accelerometerTrims.values.pitch = value;
+}
+
+int get_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc)
+{
+    return accelerometerConfig()->accelerometerTrims.values.roll;
+}
+
+void set_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc, int value)
+{
+    accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
+}
+
 #endif
