@@ -52,6 +52,11 @@ the PID loop rate to half too.
 
 `deadband` parameter maximum value is changed from 32 to 100 (#327).
 
+`rc_arm_throttle` parameter is removed (#332).
+
+`rc_min_throttle` and `rc_max_throttle` parameters default to zero, indicating that
+the actual values are calculated automatically (#332).
+
 
 ## Defaults
 
@@ -60,6 +65,10 @@ the PID loop rate to half too.
 `rescue_flip` default is changed from OFF to ON.
 
 `deadband` and `yaw_deadband` defaults changed to 5.
+
+`rc_min_throttle` and `rc_max_throttle` defaults are changed to 0.
+
+`motor_poles` default is changed to 0,0,0,0.
 
 
 ## Features
@@ -94,6 +103,18 @@ The RPM frame (0x0C) supports sending headspeed and tail speed.
 The temperature frame (0x0D) supports MCU and ESC temperatures.
 
 Two new RF Telemetry sensors are added: RPM (108) and TEMP (109).
+
+### Throttle Range calculated automatically (#332)
+
+The input throttle range is now calculated automatically from `rc_deflection`.
+It can be still set by the user with `rc_min_throttle` and `rc_max_throttle`.
+The parameter `rc_arm_throttle` is removed, and arming is allowed when
+input throttle is well below `rc_min_throttle`.
+
+### Motor Pole Count (#333)
+
+The default pole count is now zero, which is effectively disabling the RPM input.
+This forces the user to enter the correct number, before the RPM input can be used.
 
 
 ## Bug Fixes

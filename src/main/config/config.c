@@ -291,11 +291,10 @@ static void validateAndFixConfig(void)
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
-    if (rcControlsConfig()->rc_arm_throttle > rcControlsConfig()->rc_min_throttle - 10) {
-        rcControlsConfigMutable()->rc_arm_throttle = rcControlsConfig()->rc_min_throttle - 10;
-    }
-    if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
-        rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+    if (rcControlsConfig()->rc_max_throttle && rcControlsConfig()->rc_min_throttle) {
+        if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
+            rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+        }
     }
 
     if (!featureIsConfigured(FEATURE_GPS)
