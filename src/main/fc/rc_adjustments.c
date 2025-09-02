@@ -155,22 +155,6 @@ static void set_ADJUSTMENT_LED_PROFILE(__unused int adjFunc, int value)
 #endif
 }
 
-static int get_ADJUSTMENT_OSD_PROFILE(__unused int adjFunc)
-{
-#ifdef USE_OSD_PROFILES
-    return getCurrentOsdProfileIndex();
-#else
-    return 0;
-#endif
-}
-
-static void set_ADJUSTMENT_OSD_PROFILE(__unused int adjFunc, __unused int value)
-{
-#ifdef USE_OSD_PROFILES
-    changeOsdProfileIndex(value);
-#endif
-}
-
 
 //// Internal functions
 
@@ -190,7 +174,6 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(RATE_PROFILE,                 1, 6),
     ADJ_ENTRY(PID_PROFILE,                  1, 6),
     ADJ_ENTRY(LED_PROFILE,                  1, 4),
-    ADJ_ENTRY(OSD_PROFILE,                  1, 3),
 
     ADJ_ENTRY(PITCH_RATE,                   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
     ADJ_ENTRY(ROLL_RATE,                    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
@@ -301,11 +284,10 @@ static void updateAdjustmentData(int adjFunc, int value)
     const timeMs_t now = millis();
 
     if (adjFunc != ADJUSTMENT_NONE &&
-#ifdef USE_OSD_PROFILES
-        adjFunc != ADJUSTMENT_OSD_PROFILE &&
-#endif
         adjFunc != ADJUSTMENT_PID_PROFILE &&
-        adjFunc != ADJUSTMENT_RATE_PROFILE)
+        adjFunc != ADJUSTMENT_RATE_PROFILE &&
+        adjFunc != ADJUSTMENT_LED_PROFILE &&
+        adjFunc != ADJUSTMENT_BATTERY_PROFILE)
     {
         adjustmentTime   = now;
         adjustmentName   = adjustmentConfigs[adjFunc].cfgName;
