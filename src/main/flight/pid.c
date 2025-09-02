@@ -32,6 +32,7 @@
 
 #include "pg/pg.h"
 #include "pg/pid.h"
+#include "pg/adjustments.h"
 #include "pg/pg_ids.h"
 
 #include "drivers/pwm_output.h"
@@ -46,7 +47,6 @@
 #include "fc/core.h"
 #include "fc/rc.h"
 #include "fc/rc_controls.h"
-#include "fc/rc_adjustments.h"
 #include "fc/rc_rates.h"
 #include "fc/runtime_config.h"
 

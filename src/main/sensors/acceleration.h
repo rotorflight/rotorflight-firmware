@@ -22,8 +22,8 @@
 
 #include "common/time.h"
 #include "drivers/accgyro/accgyro.h"
-#include "fc/rc_adjustments.h"
 #include "sensors/sensors.h"
+#include "pg/adjustments.h"
 #include "pg/accel.h"
 
 // Type of accelerometer used/detected

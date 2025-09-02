@@ -38,7 +38,6 @@
 
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
-#include "fc/rc_adjustments.h"
 
 #include "flight/position.h"
 #include "flight/rescue.h"

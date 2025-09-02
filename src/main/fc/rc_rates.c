@@ -32,11 +32,11 @@
 #include "config/config.h"
 #include "config/config_reset.h"
 
+#include "pg/adjustments.h"
 #include "pg/rates.h"
 
 #include "fc/rc.h"
 #include "fc/rc_rates.h"
-#include "fc/rc_adjustments.h"
 
 
 const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT] = {
