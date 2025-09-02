@@ -63,6 +63,18 @@
 #include "rc_adjustments.h"
 
 
+//// Config
+
+// Stepped adjustment must remain active this long before executed
+#define TRIGGER_DELAY    100
+
+// No consegutive changes closer than this milliseconds
+#define REPEAT_DELAY     500
+
+// Timeout for the last changed adjustment (report for telemetry)
+#define ADJUSTMENT_LATENCY_MS 3000
+
+
 //// Internal Types
 
 typedef int     (*getVal_f)(int adjFunc);
@@ -167,8 +179,8 @@ static void set_ADJUSTMENT_OSD_PROFILE(__unused int adjFunc, __unused int value)
         .cfgName  = #id,                                    \
         .cfgMin   = (min),                                  \
         .cfgMax   = (max),                                  \
-        .cfgGet   = get_ADJUSTMENT_##id,                     \
-        .cfgSet   = set_ADJUSTMENT_##id,                     \
+        .cfgGet   = get_ADJUSTMENT_##id,                    \
+        .cfgSet   = set_ADJUSTMENT_##id,                    \
     }
 
 static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
@@ -284,8 +296,6 @@ static void blackboxAdjustmentEvent(int adjFunc, int value)
 #endif
 }
 
-#define ADJUSTMENT_LATENCY_MS 3000
-
 static void updateAdjustmentData(int adjFunc, int value)
 {
     const timeMs_t now = millis();
@@ -307,9 +317,6 @@ static void updateAdjustmentData(int adjFunc, int value)
         adjustmentName = NULL;
     }
 }
-
-#define REPEAT_DELAY     500
-#define TRIGGER_DELAY    100
 
 void processRcAdjustments(void)
 {
@@ -385,6 +392,7 @@ void processRcAdjustments(void)
                     if (adjFunc != ADJUSTMENT_PID_PROFILE) {
                       beeperConfirmationBeeps(1);
                     }
+
                     setConfigDirty();
 
                     adjState->deadTime = now + REPEAT_DELAY;
