@@ -119,41 +119,6 @@ static void set_ADJUSTMENT_NONE(__unused int adjFunc, __unused int value)
     // Nothing
 }
 
-static int get_ADJUSTMENT_PID_PROFILE(__unused int adjFunc)
-{
-    return getCurrentPidProfileIndex() + 1;
-}
-
-static void set_ADJUSTMENT_PID_PROFILE(__unused int adjFunc, int value)
-{
-    changePidProfile(value - 1);
-}
-
-static int get_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc)
-{
-    return getCurrentControlRateProfileIndex() + 1;
-}
-
-static void set_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc, int value)
-{
-    changeControlRateProfile(value - 1);
-}
-
-static int get_ADJUSTMENT_LED_PROFILE(__unused int adjFunc)
-{
-#ifdef USE_LED_STRIP
-    return getLedProfile() + 1;
-#else
-    return 0;
-#endif
-}
-
-static void set_ADJUSTMENT_LED_PROFILE(__unused int adjFunc, int value)
-{
-#ifdef USE_LED_STRIP
-    setLedProfile(value - 1);
-#endif
-}
 
 
 //// Internal functions

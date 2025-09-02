@@ -56,6 +56,16 @@ FAST_DATA_ZERO_INIT controlRateConfig_t * currentControlRateProfile;
 
 /*** Adjustment Functions ***/
 
+int get_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc)
+{
+    return getCurrentControlRateProfileIndex() + 1;
+}
+
+void set_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc, int value)
+{
+    changeControlRateProfile(value - 1);
+}
+
 int get_ADJUSTMENT_PITCH_RATE(__unused int adjFunc)
 {
     return currentControlRateProfile->rates[FD_PITCH];

@@ -133,6 +133,16 @@ void INIT_CODE pidResetAxisErrors(void)
 
 //// Adjustment functions
 
+int get_ADJUSTMENT_PID_PROFILE(__unused int adjFunc)
+{
+    return getCurrentPidProfileIndex() + 1;
+}
+
+void set_ADJUSTMENT_PID_PROFILE(__unused int adjFunc, int value)
+{
+    changePidProfile(value - 1);
+}
+
 int get_ADJUSTMENT_PITCH_P_GAIN(__unused int adjFunc)
 {
     return currentPidProfile->pid[PID_PITCH].P;

@@ -56,6 +56,7 @@ void loadControlRateProfile(void);
 void changeControlRateProfile(uint8_t controlRateProfileIndex);
 void copyControlRateProfile(uint8_t dstControlRateProfileIndex, uint8_t srcControlRateProfileIndex);
 
+ADJFUN_DECLARE(RATE_PROFILE)
 ADJFUN_DECLARE(PITCH_RATE)
 ADJFUN_DECLARE(ROLL_RATE)
 ADJFUN_DECLARE(YAW_RATE)

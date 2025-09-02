@@ -165,6 +165,7 @@ float pidGetCollective();
 
 const pidAxisData_t * pidGetAxisData(void);
 
+ADJFUN_DECLARE(PID_PROFILE)
 ADJFUN_DECLARE(PITCH_P_GAIN)
 ADJFUN_DECLARE(ROLL_P_GAIN)
 ADJFUN_DECLARE(YAW_P_GAIN)

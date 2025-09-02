@@ -28,6 +28,7 @@
 #include "drivers/io_types.h"
 #include "drivers/light_ws2811strip.h"
 
+#include "pg/adjustments.h"
 #include "pg/ledstrip.h"
 
 #define LED_POS_OFFSET                  0
@@ -214,3 +215,5 @@ void updateRequiredOverlay(void);
 
 uint8_t getLedProfile(void);
 void setLedProfile(uint8_t profile);
+
+ADJFUN_DECLARE(LED_PROFILE)
