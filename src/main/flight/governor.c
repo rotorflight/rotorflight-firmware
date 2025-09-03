@@ -647,14 +647,35 @@ static void govDataUpdate(void)
 
 static inline void govThrottleSlewControl(float minThrottle, float maxThrottle, float upRate, float downRate)
 {
-    // Limit input value range
-    const float throttle = constrainf(gov.throttleInput, minThrottle, maxThrottle);
+    if (gov.throttleInputOff) {
+        gov.throttleOutput = 0;
+        gov.targetHeadSpeed = 0;
+    }
+    else {
+        // Limit input value range
+        const float throttle = constrainf(gov.throttleInput, minThrottle, maxThrottle);
 
-    // Limit rate
-    gov.throttleOutput = slewUpDownLimit(gov.throttleOutput, throttle, upRate, downRate);
+        // Limit change rate
+        gov.throttleOutput = slewUpDownLimit(gov.throttleOutput, throttle, upRate, downRate);
 
-    // Update headspeed target
-    gov.targetHeadSpeed = gov.currentHeadSpeed;
+        // Update headspeed target
+        gov.targetHeadSpeed = gov.currentHeadSpeed;
+    }
+}
+
+static inline void govThrottleBypass(float minThrottle, float maxThrottle)
+{
+    if (gov.throttleInputOff) {
+        gov.throttleOutput = 0;
+        gov.targetHeadSpeed = 0;
+    }
+    else {
+        // Limit value range
+        gov.throttleOutput = constrainf(gov.throttleInput, minThrottle, maxThrottle);
+
+        // Update headspeed target
+        gov.targetHeadSpeed = gov.currentHeadSpeed;
+    }
 }
 
 static void govSpoolupInit(void)
@@ -1017,10 +1038,7 @@ static void govUpdateGovernedThrottle(void)
             govThrottleSlewControl(gov.idleThrottle, gov.handoverThrottle, gov.throttleStartupRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_THROTTLE_HOLD:
-            if (gov.throttleInputOff)
-                gov.throttleOutput = 0;
-            else
-                govThrottleSlewControl(gov.idleThrottle, gov.handoverThrottle, gov.throttleStartupRate, gov.throttleSpooldownRate);
+            govThrottleSlewControl(gov.idleThrottle, gov.handoverThrottle, gov.throttleStartupRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_SPOOLUP:
             govSpoolupControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleSpoolupRate);
@@ -1039,8 +1057,7 @@ static void govUpdateGovernedThrottle(void)
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
         case GOV_STATE_DISABLED:
-            gov.targetHeadSpeed = 0;
-            gov.throttleOutput = gov.throttleInputOff ? 0 : constrainf(gov.throttleInput, gov.idleThrottle, gov.maxThrottle);
+            govThrottleBypass(gov.idleThrottle, gov.maxThrottle);
             break;
         default:
             break;
