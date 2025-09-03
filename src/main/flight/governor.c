@@ -1190,7 +1190,7 @@ static void govUpdateGovernedState(void)
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle && gov.motorRPMGood)
-                    govEnterBailoutState();
+                    govEnterRecoveryState();
                 else
                     govChangeState(GOV_STATE_THROTTLE_IDLE);
                 break;
