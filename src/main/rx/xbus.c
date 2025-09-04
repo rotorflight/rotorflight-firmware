@@ -175,7 +175,8 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
             // data and update the corresponding channel. The reason for this is that the 
             // number of the channel may not always be in the same spot in the packet. Also
             // there are only 16 channels of data sent per packet
-            for (int i = 0; i <= xBusChannelCount; i++)
+            uint8_t nNumChannels = (xBusFrame[1] - 2) / 4; // Calculate the number of channels in the frame
+            for (int i = 0; i <= nNumChannels; i++)
             {
                 // Channel packets are constructed as such:
                 // Byte 0 - Channel number
