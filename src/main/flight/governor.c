@@ -1341,24 +1341,24 @@ void set_ADJUSTMENT_GOV_COLLECTIVE_FF(int value)
     gov.collectiveWeight = currentPidProfile->governor.collective_weight / 100.0f;
 }
 
-int get_ADJUSTMENT_GOV_IDLE_THROTTLE(__unused int adjFunc)
+int get_ADJUSTMENT_GOV_IDLE_THROTTLE(void)
 {
     return governorConfig()->gov_idle_throttle;
 }
 
-void set_ADJUSTMENT_GOV_IDLE_THROTTLE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_GOV_IDLE_THROTTLE(int value)
 {
     governorConfigMutable()->gov_idle_throttle = value;
     gov.idleThrottle = value / 100.0f;
     gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
-int get_ADJUSTMENT_GOV_AUTO_THROTTLE(__unused int adjFunc)
+int get_ADJUSTMENT_GOV_AUTO_THROTTLE(void)
 {
     return governorConfig()->gov_auto_throttle;
 }
 
-void set_ADJUSTMENT_GOV_AUTO_THROTTLE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 {
     governorConfigMutable()->gov_auto_throttle = value;
     gov.autoThrottle = value / 100.0f;
