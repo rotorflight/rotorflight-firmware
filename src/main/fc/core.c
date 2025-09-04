@@ -270,7 +270,7 @@ void updateArmingStatus(void)
             unsetArmingDisabled(ARMING_DISABLED_BOXFAILSAFE);
         }
 
-        if (!isArmingThrottle()) {
+        if (!isThrottleOff()) {
             setArmingDisabled(ARMING_DISABLED_THROTTLE);
         } else {
             unsetArmingDisabled(ARMING_DISABLED_THROTTLE);
@@ -584,7 +584,7 @@ void processRxModes(timeUs_t currentTimeUs)
 #ifdef USE_TELEMETRY
     static bool sharedPortTelemetryEnabled = false;
 #endif
-    const throttleStatus_e throttleStatus = getThrottleStatus();
+    const bool throttleOff = isThrottleOff();
 
     // When armed and motors aren't spinning, do beeps and then disarm
     // board after delay so users without buzzer won't lose fingers.
@@ -594,7 +594,7 @@ void processRxModes(timeUs_t currentTimeUs)
         && !FLIGHT_MODE(GPS_RESCUE_MODE)  // disable auto-disarm when GPS Rescue is active
     ) {
         if (isUsingSticksForArming()) {
-            if (throttleStatus == THROTTLE_LOW) {
+            if (throttleOff) {
                 if ((autoDisarmDelayUs > 0) && (currentTimeUs > disarmAt)) {
                     // auto-disarm configured and delay is over
                     disarm(DISARM_REASON_THROTTLE_TIMEOUT);
@@ -615,7 +615,7 @@ void processRxModes(timeUs_t currentTimeUs)
             }
         } else {
             // arming is via AUX switch; beep while throttle low
-            if (throttleStatus == THROTTLE_LOW) {
+            if (throttleOff) {
                 beeper(BEEPER_ARMED);
                 armedBeeperOn = true;
             } else if (armedBeeperOn) {

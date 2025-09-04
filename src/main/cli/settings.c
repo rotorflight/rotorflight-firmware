@@ -1055,9 +1055,8 @@ const clivalue_t valueTable[] = {
 // PG_RC_CONTROLS_CONFIG
     { "rc_center",                  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 1200, 1700 }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_center) },
     { "rc_deflection",              VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 250, 750 }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_deflection) },
-    { "rc_arm_throttle",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { PWM_PULSE_MIN, PWM_PULSE_MAX }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_arm_throttle) },
-    { "rc_min_throttle",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { PWM_PULSE_MIN, PWM_PULSE_MAX }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_min_throttle) },
-    { "rc_max_throttle",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { PWM_PULSE_MIN, PWM_PULSE_MAX }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_max_throttle) },
+    { "rc_min_throttle",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, PWM_PULSE_MAX }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_min_throttle) },
+    { "rc_max_throttle",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, PWM_PULSE_MAX }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_max_throttle) },
     { "rc_smoothness",              VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_smoothness) },
     { "rc_threshold",               VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = 4, PG_RC_CONTROLS_CONFIG, offsetof(rcControlsConfig_t, rc_threshold) },
 
