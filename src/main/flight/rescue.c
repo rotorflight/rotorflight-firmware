@@ -99,68 +99,68 @@ static FAST_DATA_ZERO_INIT rescueState_t rescue;
 
 //// Adjustment functions
 
-int get_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(void)
 {
     return currentPidProfile->rescue.climb_collective;
 }
 
-void set_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(int value)
 {
     currentPidProfile->rescue.climb_collective = value;
     rescue.climbCollective = currentPidProfile->rescue.climb_collective;
 
 }
 
-int get_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(void)
 {
     return currentPidProfile->rescue.hover_collective;
 }
 
-void set_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(int value)
 {
     currentPidProfile->rescue.hover_collective = value;
     rescue.hoverCollective = currentPidProfile->rescue.hover_collective;
 }
 
-int get_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(void)
 {
     return currentPidProfile->rescue.hover_altitude;
 }
 
-void set_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(int value)
 {
     currentPidProfile->rescue.hover_altitude = value;
     rescue.hoverAltitude = currentPidProfile->rescue.hover_altitude / 100.0f;
 }
 
-int get_ADJUSTMENT_RESCUE_ALT_P_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_ALT_P_GAIN(void)
 {
     return currentPidProfile->rescue.alt_p_gain;
 }
 
-void set_ADJUSTMENT_RESCUE_ALT_P_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_ALT_P_GAIN(int value)
 {
     currentPidProfile->rescue.alt_p_gain = value;
     rescue.alt_Kp = currentPidProfile->rescue.alt_p_gain;
 }
 
-int get_ADJUSTMENT_RESCUE_ALT_I_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_ALT_I_GAIN(void)
 {
     return currentPidProfile->rescue.alt_i_gain;
 }
 
-void set_ADJUSTMENT_RESCUE_ALT_I_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_ALT_I_GAIN(int value)
 {
     currentPidProfile->rescue.alt_i_gain = value;
     rescue.alt_Ki = currentPidProfile->rescue.alt_i_gain * pidGetDT() / 10.0f;
 }
 
-int get_ADJUSTMENT_RESCUE_ALT_D_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_RESCUE_ALT_D_GAIN(void)
 {
     return currentPidProfile->rescue.alt_d_gain;
 }
 
-void set_ADJUSTMENT_RESCUE_ALT_D_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RESCUE_ALT_D_GAIN(int value)
 {
     currentPidProfile->rescue.alt_d_gain = value;
     rescue.alt_Kd = currentPidProfile->rescue.alt_d_gain * -1.0f;

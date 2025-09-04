@@ -79,23 +79,23 @@ INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
     horizon.FactorRatio = (100 - pidProfile->horizon.tilt_effect) * 0.01f;
 }
 
-int get_ADJUSTMENT_ANGLE_LEVEL_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_ANGLE_LEVEL_GAIN(void)
 {
     return currentPidProfile->angle.level_strength;
 }
 
-void set_ADJUSTMENT_ANGLE_LEVEL_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ANGLE_LEVEL_GAIN(int value)
 {
     currentPidProfile->angle.level_strength = value;
     level.Gain = value / 10.0f;
 }
 
-int get_ADJUSTMENT_HORIZON_LEVEL_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_HORIZON_LEVEL_GAIN(void)
 {
     return currentPidProfile->horizon.level_strength;
 }
 
-void set_ADJUSTMENT_HORIZON_LEVEL_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_HORIZON_LEVEL_GAIN(int value)
 {
     currentPidProfile->horizon.level_strength = value;
     horizon.Gain = value / 10.0f;

@@ -56,102 +56,102 @@ FAST_DATA_ZERO_INIT controlRateConfig_t * currentControlRateProfile;
 
 /*** Adjustment Functions ***/
 
-int get_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc)
+int get_ADJUSTMENT_RATE_PROFILE(void)
 {
     return getCurrentControlRateProfileIndex() + 1;
 }
 
-void set_ADJUSTMENT_RATE_PROFILE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_RATE_PROFILE(int value)
 {
     changeControlRateProfile(value - 1);
 }
 
-int get_ADJUSTMENT_PITCH_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_PITCH_RATE(void)
 {
     return currentControlRateProfile->rates[FD_PITCH];
 }
 
-void set_ADJUSTMENT_PITCH_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_PITCH_RATE(int value)
 {
     currentControlRateProfile->rates[FD_PITCH] = value;
 }
 
-int get_ADJUSTMENT_ROLL_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_ROLL_RATE(void)
 {
     return currentControlRateProfile->rates[FD_ROLL];
 }
 
-void set_ADJUSTMENT_ROLL_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ROLL_RATE(int value)
 {
     currentControlRateProfile->rates[FD_ROLL] = value;
 }
 
-int get_ADJUSTMENT_YAW_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_YAW_RATE(void)
 {
     return currentControlRateProfile->rates[FD_YAW];
 }
 
-void set_ADJUSTMENT_YAW_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_YAW_RATE(int value)
 {
     currentControlRateProfile->rates[FD_YAW] = value;
 }
 
-int get_ADJUSTMENT_PITCH_RC_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_PITCH_RC_RATE(void)
 {
     return currentControlRateProfile->rcRates[FD_PITCH];
 }
 
-void set_ADJUSTMENT_PITCH_RC_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_PITCH_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_PITCH] = value;
 }
 
-int get_ADJUSTMENT_ROLL_RC_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_ROLL_RC_RATE(void)
 {
     return currentControlRateProfile->rcRates[FD_ROLL];
 }
 
-void set_ADJUSTMENT_ROLL_RC_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ROLL_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_ROLL] = value;
 }
 
-int get_ADJUSTMENT_YAW_RC_RATE(__unused int adjFunc)
+int get_ADJUSTMENT_YAW_RC_RATE(void)
 {
     return currentControlRateProfile->rcRates[FD_YAW];
 }
 
-void set_ADJUSTMENT_YAW_RC_RATE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_YAW_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_YAW] = value;
 }
 
-int get_ADJUSTMENT_PITCH_RC_EXPO(__unused int adjFunc)
+int get_ADJUSTMENT_PITCH_RC_EXPO(void)
 {
     return currentControlRateProfile->rcExpo[FD_PITCH];
 }
 
-void set_ADJUSTMENT_PITCH_RC_EXPO(__unused int adjFunc, int value)
+void set_ADJUSTMENT_PITCH_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_PITCH] = value;
 }
 
-int get_ADJUSTMENT_ROLL_RC_EXPO(__unused int adjFunc)
+int get_ADJUSTMENT_ROLL_RC_EXPO(void)
 {
     return currentControlRateProfile->rcExpo[FD_ROLL];
 }
 
-void set_ADJUSTMENT_ROLL_RC_EXPO(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ROLL_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_ROLL] = value;
 }
 
-int get_ADJUSTMENT_YAW_RC_EXPO(__unused int adjFunc)
+int get_ADJUSTMENT_YAW_RC_EXPO(void)
 {
     return currentControlRateProfile->rcExpo[FD_YAW];
 }
 
-void set_ADJUSTMENT_YAW_RC_EXPO(__unused int adjFunc, int value)
+void set_ADJUSTMENT_YAW_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_YAW] = value;
 }

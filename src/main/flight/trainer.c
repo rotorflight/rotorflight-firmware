@@ -62,12 +62,12 @@ typedef struct {
 
 static FAST_DATA_ZERO_INIT acroTrainer_t acroTrainer;
 
-int get_ADJUSTMENT_ACRO_TRAINER_GAIN(__unused int adjFunc)
+int get_ADJUSTMENT_ACRO_TRAINER_GAIN(void)
 {
     return currentPidProfile->trainer.gain;
 }
 
-void set_ADJUSTMENT_ACRO_TRAINER_GAIN(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ACRO_TRAINER_GAIN(int value)
 {
     currentPidProfile->trainer.gain = value;
     acroTrainer.Gain = value / 10.0f;

@@ -77,8 +77,8 @@
 
 //// Internal Types
 
-typedef int     (*getVal_f)(int adjFunc);
-typedef void    (*setVal_f)(int adjFunc, int value);
+typedef int     (*getVal_f)(void);
+typedef void    (*setVal_f)(int value);
 
 typedef struct {
     char *      cfgName;
@@ -109,12 +109,12 @@ static int            adjustmentValue  = 0;
 
 //// Get/Set Functions
 
-static int get_ADJUSTMENT_NONE(__unused int adjFunc)
+static int get_ADJUSTMENT_NONE(void)
 {
     return 0;
 }
 
-static void set_ADJUSTMENT_NONE(__unused int adjFunc, __unused int value)
+static void set_ADJUSTMENT_NONE(__unused int value)
 {
     // Nothing
 }
@@ -300,10 +300,10 @@ void processRcAdjustments(void)
                         continue;
                     }
                     if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange1)) {
-                        adjval = adjConfig->cfgGet(adjFunc) - adjRange->adjStep;
+                        adjval = adjConfig->cfgGet() - adjRange->adjStep;
                     }
                     else if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange2)) {
-                        adjval = adjConfig->cfgGet(adjFunc) + adjRange->adjStep;
+                        adjval = adjConfig->cfgGet() + adjRange->adjStep;
                     }
                     else {
                         continue;
@@ -329,7 +329,7 @@ void processRcAdjustments(void)
                 adjval = constrain(adjval, adjRange->adjMin, adjRange->adjMax);
 
                 if (adjval != adjState->adjValue) {
-                    adjConfig->cfgSet(adjFunc, adjval);
+                    adjConfig->cfgSet(adjval);
 
                     updateAdjustmentData(adjFunc, adjval);
                     blackboxAdjustmentEvent(adjFunc, adjval);
@@ -383,7 +383,7 @@ INIT_CODE void adjustmentRangeReset(int index)
     const int adjFunc = adjustmentRanges(index)->function;
     const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
 
-    adjustmentState[index].adjValue = adjConfig->cfgGet(adjFunc);
+    adjustmentState[index].adjValue = adjConfig->cfgGet();
     adjustmentState[index].deadTime = 0;
     adjustmentState[index].trigTime = 0;
     adjustmentState[index].chValue  = 0;

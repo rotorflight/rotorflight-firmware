@@ -1421,7 +1421,7 @@ void setLedProfile(uint8_t profile)
 
 #endif
 
-int get_ADJUSTMENT_LED_PROFILE(__unused int adjFunc)
+int get_ADJUSTMENT_LED_PROFILE(void)
 {
 #ifdef USE_LED_STRIP
     return getLedProfile() + 1;
@@ -1430,7 +1430,7 @@ int get_ADJUSTMENT_LED_PROFILE(__unused int adjFunc)
 #endif
 }
 
-void set_ADJUSTMENT_LED_PROFILE(__unused int adjFunc, int value)
+void set_ADJUSTMENT_LED_PROFILE(int value)
 {
 #ifdef USE_LED_STRIP
     setLedProfile(value - 1);

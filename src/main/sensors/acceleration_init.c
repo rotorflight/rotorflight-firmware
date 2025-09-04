@@ -438,22 +438,22 @@ void applyAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
     accelerometerConfigMutable()->accelerometerTrims.values.pitch += rollAndPitchTrimsDelta->values.pitch;
 }
 
-int get_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc)
+int get_ADJUSTMENT_ACC_TRIM_PITCH(void)
 {
     return accelerometerConfig()->accelerometerTrims.values.pitch;
 }
 
-void set_ADJUSTMENT_ACC_TRIM_PITCH(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ACC_TRIM_PITCH(int value)
 {
     accelerometerConfigMutable()->accelerometerTrims.values.pitch = value;
 }
 
-int get_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc)
+int get_ADJUSTMENT_ACC_TRIM_ROLL(void)
 {
     return accelerometerConfig()->accelerometerTrims.values.roll;
 }
 
-void set_ADJUSTMENT_ACC_TRIM_ROLL(__unused int adjFunc, int value)
+void set_ADJUSTMENT_ACC_TRIM_ROLL(int value)
 {
     accelerometerConfigMutable()->accelerometerTrims.values.roll = value;
 }
