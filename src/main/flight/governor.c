@@ -455,11 +455,11 @@ static void govGetInputThrottle(void)
         case GOV_THROTTLE_IDLE_AUTO_ON:
             if (!gov.throttleInputOff) {
                 if (gov.throttleInput < 0.333f) {
-                    gov.throttleInput = gov.idleThrottle;
+                    gov.throttleInput = 0.001f;
                     gov.useAutoRotation = false;
                 }
                 else if (gov.throttleInput < 0.666f) {
-                    gov.throttleInput = gov.autoThrottle;
+                    gov.throttleInput = 0.001f;
                     gov.useAutoRotation = true;
                 }
                 else {
