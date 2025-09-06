@@ -446,24 +446,29 @@ static void govGetInputThrottle(void)
             }
             else if (gov.throttleInput < 0.666f) {
                 gov.throttleInput = gov.idleThrottle;
+                gov.throttleInputOff = false;
             }
             else {
                 gov.throttleInput = gov.useFcThrottleCurve ? govGetMappedThrottle() : 1.0f;
+                gov.throttleInputOff = false;
             }
             break;
 
         case GOV_THROTTLE_IDLE_AUTO_ON:
             if (!gov.throttleInputOff) {
                 if (gov.throttleInput < 0.333f) {
-                    gov.throttleInput = gov.idleThrottle;
+                    gov.throttleInput = 0;
+                    gov.throttleInputOff = false;
                     gov.useAutoRotation = false;
                 }
                 else if (gov.throttleInput < 0.666f) {
-                    gov.throttleInput = gov.autoThrottle;
+                    gov.throttleInput = 0;
+                    gov.throttleInputOff = false;
                     gov.useAutoRotation = true;
                 }
                 else {
                     gov.throttleInput = gov.useFcThrottleCurve ? govGetMappedThrottle() : 1.0f;
+                    gov.throttleInputOff = false;
                     gov.useAutoRotation = false;
                 }
             }
