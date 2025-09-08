@@ -69,7 +69,7 @@
 #define TRIGGER_DELAY    100
 
 // No consegutive changes closer than this milliseconds
-#define REPEAT_DELAY     500
+#define REPEAT_DELAY     200
 
 // Timeout for the last changed adjustment (report for telemetry)
 #define ADJUSTMENT_LATENCY_MS 3000
