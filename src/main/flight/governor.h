@@ -20,6 +20,7 @@
 #include "platform.h"
 
 #include "pg/governor.h"
+#include "pg/adjustments.h"
 
 #include "flight/pid.h"
 
@@ -60,3 +61,11 @@ float getTTAIncrease(void);
 
 bool isSpooledUp(void);
 
+ADJFUN_DECLARE(GOV_GAIN)
+ADJFUN_DECLARE(GOV_P_GAIN)
+ADJFUN_DECLARE(GOV_I_GAIN)
+ADJFUN_DECLARE(GOV_D_GAIN)
+ADJFUN_DECLARE(GOV_F_GAIN)
+ADJFUN_DECLARE(GOV_TTA_GAIN)
+ADJFUN_DECLARE(GOV_CYCLIC_FF)
+ADJFUN_DECLARE(GOV_COLLECTIVE_FF)

@@ -21,6 +21,9 @@
 #include <stdint.h>
 #include <math.h>
 
+#include "pg/rates.h"
+#include "pg/adjustments.h"
+
 float getSetpoint(int axis);
 float getDeflection(int axis);
 
@@ -34,3 +37,10 @@ void setpointUpdate(void);
 bool isHandsOn(void);
 bool isAirborne(void);
 
+ADJFUN_DECLARE(PITCH_SP_BOOST_GAIN)
+ADJFUN_DECLARE(ROLL_SP_BOOST_GAIN)
+ADJFUN_DECLARE(YAW_SP_BOOST_GAIN)
+ADJFUN_DECLARE(COLL_SP_BOOST_GAIN)
+ADJFUN_DECLARE(YAW_DYN_CEILING_GAIN)
+ADJFUN_DECLARE(YAW_DYN_DEADBAND_GAIN)
+ADJFUN_DECLARE(YAW_DYN_DEADBAND_FILTER)
