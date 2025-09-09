@@ -44,6 +44,14 @@ This legacy MSP call is disabled, as it does not have a timeout (#304).
 
 The `pid_mode` parameter can be now changed.
 
+### MSP_GOVERNOR_PROFILE
+
+Multiple changes (#314).
+
+### MSP_GOVERNOR_CONFIG
+
+Multiple changes (#314).
+
 
 ## CLI Changes
 
@@ -63,6 +71,38 @@ the PID loop rate to half too.
 
 `rc_min_throttle` and `rc_max_throttle` parameters default to zero, indicating that
 the actual values are calculated automatically (#332).
+
+`gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`. (#314)
+
+`gov_throttle_type` is added, with possible values `NORMAL`, `OFF_ON`, `OFF_IDLE_ON`, `IDLE_AUTO_ON`. (#314)
+
+`gov_spooldown_time` is added. Value in 1/10s increments.
+
+`gov_idle_throttle` is added. Value in 0%..100%.
+
+`gov_auto_throttle` is added. Value in 0%..100%.
+
+`gov_wot_collective` is added. Value in -100%..100%.
+
+`gov_idle_collective` is added. Value in -100%..100%.
+
+`gov_use_<xyz>` flags have been added. Value is `OFF` or `ON`.
+
+`gov_fallback_drop` is added. Value in 0..50%.
+
+`gov_collective_curve` is added. Value in 5..40.
+
+`gov_autorotation_timeout` is removed.
+
+`gov_autorotation_bailout_time` is removed.
+
+`gov_autorotation_min_entry_time` is removed.
+
+`gov_lost_headspeed_timeout` is removed.
+
+`gov_spoolup_min_throttle` is removed.
+
+`blackbox_log_governor` flag is added.
 
 
 ## Defaults
@@ -135,6 +175,10 @@ The current PID Mode 3 will be kept as-is for backward compatibility.
 - Pitch B-gain scaled x10
 - Roll B-gain and D-gain scaled /5
 - Yaw precomp cutoff scaled by /10
+
+### Governor Refactoring (#314)
+
+The Governor has been refactored to accomodate I.C./nitro and other new features.
 
 
 ## Bug Fixes
