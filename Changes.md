@@ -74,7 +74,7 @@ the actual values are calculated automatically (#332).
 
 `gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`. (#314)
 
-`gov_throttle_type` is added, with possible values `NORMAL`, `OFF_ON`, `OFF_IDLE_ON`, `IDLE_AUTO_ON`. (#314)
+`gov_throttle_type` is added, with possible values `NORMAL`, `OFF_ON`, `OFF_IDLE_ON`, `OFF_IDLE_AUTO_ON`. (#314)
 
 `gov_spooldown_time` is added. Value in 1/10s increments.
 

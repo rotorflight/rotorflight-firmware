@@ -454,7 +454,7 @@ static void govGetInputThrottle(void)
             }
             break;
 
-        case GOV_THROTTLE_IDLE_AUTO_ON:
+        case GOV_THROTTLE_OFF_IDLE_AUTO_ON:
             if (!gov.throttleInputOff) {
                 if (gov.throttleInput < 0.333f) {
                     gov.throttleInput = 0;

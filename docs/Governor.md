@@ -138,9 +138,9 @@ The type of Throttle Channel.
 | Type | Description |
 | ---- | ----------- |
 | `NORMAL` | Normal throttle channel |
-| `OFF_ON` | Throttle channel is a two-way switch |
-| `OFF_IDLE_ON` | Throttle channel is a three-way switch |
-| `IDLE_AUTO_ON` | Throttle channel is a three-way switch |
+| `OFF_ON` | Throttle channel has two positions (two-way switch) |
+| `OFF_IDLE_ON` | Throttle channel has three positions (three-way switch) |
+| `OFF_IDLE_AUTO_ON` | Throttle channel has four positions (three-way switch & TC) |
 
 ### Startup time `gov_startup_time`
 

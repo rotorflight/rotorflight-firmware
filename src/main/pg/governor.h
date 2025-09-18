@@ -33,7 +33,7 @@ typedef enum {
     GOV_THROTTLE_NORMAL = 0,
     GOV_THROTTLE_OFF_ON,
     GOV_THROTTLE_OFF_IDLE_ON,
-    GOV_THROTTLE_IDLE_AUTO_ON,
+    GOV_THROTTLE_OFF_IDLE_AUTO_ON,
 } govThrottle_e;
 
 typedef enum {
