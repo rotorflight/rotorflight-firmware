@@ -246,6 +246,11 @@ void flashEraseSector(uint32_t address)
     flashDevice.vTable->eraseSector(&flashDevice, address);
 }
 
+bool flashEraseCompletelySupported(void)
+{
+    return flashDevice.vTable->eraseCompletely != NULL;
+}
+
 void flashEraseCompletely(void)
 {
     flashDevice.callback = NULL;
