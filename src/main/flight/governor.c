@@ -229,7 +229,6 @@ static void governorUpdateState(void);
 static void governorUpdatePassthrough(void);
 
 
-
 //// Access functions
 
 int getGovernorState(void)
@@ -1009,6 +1008,99 @@ static inline float govCalcRate(uint16_t param, uint16_t min, uint16_t max)
 }
 
 
+//// Adjustment functions
+
+int get_ADJUSTMENT_GOV_GAIN(void)
+{
+    return currentPidProfile->governor.gain;
+}
+
+void set_ADJUSTMENT_GOV_GAIN(int value)
+{
+    currentPidProfile->governor.gain = value;
+    gov.K  = currentPidProfile->governor.gain / 100.0f;
+}
+
+int get_ADJUSTMENT_GOV_P_GAIN(void)
+{
+    return currentPidProfile->governor.p_gain;
+}
+
+void set_ADJUSTMENT_GOV_P_GAIN(int value)
+{
+    currentPidProfile->governor.p_gain = value;
+    gov.Kp = currentPidProfile->governor.p_gain / 10.0f;
+}
+
+int get_ADJUSTMENT_GOV_I_GAIN(void)
+{
+    return currentPidProfile->governor.i_gain;
+}
+
+void set_ADJUSTMENT_GOV_I_GAIN(int value)
+{
+    currentPidProfile->governor.i_gain = value;
+    gov.Ki = currentPidProfile->governor.i_gain / 10.0f;
+}
+
+int get_ADJUSTMENT_GOV_D_GAIN(void)
+{
+    return currentPidProfile->governor.d_gain;
+}
+
+void set_ADJUSTMENT_GOV_D_GAIN(int value)
+{
+    currentPidProfile->governor.d_gain = value;
+    gov.Kd = currentPidProfile->governor.d_gain / 1000.0f;
+}
+
+int get_ADJUSTMENT_GOV_F_GAIN(void)
+{
+    return currentPidProfile->governor.f_gain;
+}
+
+void set_ADJUSTMENT_GOV_F_GAIN(int value)
+{
+    currentPidProfile->governor.f_gain = value;
+    gov.Kf = currentPidProfile->governor.f_gain / 100.0f;
+}
+
+int get_ADJUSTMENT_GOV_TTA_GAIN(void)
+{
+    return currentPidProfile->governor.tta_gain;
+}
+
+void set_ADJUSTMENT_GOV_TTA_GAIN(int value)
+{
+    currentPidProfile->governor.tta_gain = value;
+    gov.TTAGain = mixerRotationSign() * currentPidProfile->governor.tta_gain / -125.0f;
+    if (gov.mode >= GM_STANDARD)
+        gov.TTAGain /= gov.K * gov.Kp;
+}
+
+int get_ADJUSTMENT_GOV_CYCLIC_FF(void)
+{
+    return currentPidProfile->governor.cyclic_ff_weight;
+}
+
+void set_ADJUSTMENT_GOV_CYCLIC_FF(int value)
+{
+    currentPidProfile->governor.cyclic_ff_weight = value;
+    gov.cyclicWeight = currentPidProfile->governor.cyclic_ff_weight / 100.0f;
+}
+
+int get_ADJUSTMENT_GOV_COLLECTIVE_FF(void)
+{
+    return currentPidProfile->governor.collective_ff_weight;
+}
+
+void set_ADJUSTMENT_GOV_COLLECTIVE_FF(int value)
+{
+    currentPidProfile->governor.collective_ff_weight = value;
+    gov.collectiveWeight = currentPidProfile->governor.collective_ff_weight / 100.0f;
+}
+
+
 //// Interface functions
 
 void governorUpdate(void)
@@ -1035,7 +1127,7 @@ void governorUpdate(void)
     }
 }
 
-void governorInitProfile(const pidProfile_t *pidProfile)
+INIT_CODE void governorInitProfile(const pidProfile_t *pidProfile)
 {
     if (getMotorCount() > 0)
     {
@@ -1075,7 +1167,7 @@ void governorInitProfile(const pidProfile_t *pidProfile)
     }
 }
 
-void governorInit(const pidProfile_t *pidProfile)
+INIT_CODE void governorInit(const pidProfile_t *pidProfile)
 {
     // Must have at least one motor
     if (getMotorCount() > 0)
