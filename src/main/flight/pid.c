@@ -483,7 +483,9 @@ int get_ADJUSTMENT_YAW_PRECOMP_CUTOFF(void)
 void set_ADJUSTMENT_YAW_PRECOMP_CUTOFF(int value)
 {
     currentPidProfile->yaw_precomp_cutoff = value;
-    filterUpdate(&pid.precomp.yawPrecompFilter, value, pid.freq);
+    filterUpdate(&pid.precomp.yawPrecompFilter,
+        value * (pid.pidMode == 4 ? 0.1f : 1.0f),
+        pid.freq);
 }
 
 int get_ADJUSTMENT_CROSS_COUPLING_GAIN(void)
@@ -669,7 +671,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Collective/cyclic deflection lowpass filters
     lowpassFilterInit(&pid.precomp.yawPrecompFilter,
       pidProfile->yaw_precomp_filter_type,
-      (pid.pidMode == 4) ? pidProfile->yaw_precomp_cutoff / 10.0f : pidProfile->yaw_precomp_cutoff,
+      pidProfile->yaw_precomp_cutoff * (pid.pidMode == 4 ? 0.1f : 1.0f),
       pid.freq, 0);
 
     // RPM change filter
