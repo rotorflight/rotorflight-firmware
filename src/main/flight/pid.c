@@ -607,7 +607,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_YAW].Kb = YAW_B_TERM_SCALE * pidProfile->pid[PID_YAW].B;
 
     // Adjust for PID Mode4
-    if (pidProfile->pid_mode == 4) {
+    if (pid.pidMode == 4) {
       pid.coef[PID_PITCH].Kb *= 10;
       pid.coef[PID_ROLL].Kd /= 5;
       pid.coef[PID_ROLL].Kb /= 5;
@@ -641,7 +641,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? pidProfile->error_decay_limit_yaw : 3600;
 
     // If in rate-mode (I-gain == 0), decay remaining I-term
-    if (pidProfile->pid_mode == 4 && pidProfile->pid[PID_YAW].I == 0) {
+    if (pid.pidMode == 4 && pidProfile->pid[PID_YAW].I == 0) {
       pid.errorDecayRateYaw = PID_YAW_RATE_MODE_DECAY;
     }
 
@@ -669,7 +669,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Collective/cyclic deflection lowpass filters
     lowpassFilterInit(&pid.precomp.yawPrecompFilter,
       pidProfile->yaw_precomp_filter_type,
-      (pidProfile->pid_mode == 4) ? pidProfile->yaw_precomp_cutoff / 10.0f : pidProfile->yaw_precomp_cutoff,
+      (pid.pidMode == 4) ? pidProfile->yaw_precomp_cutoff / 10.0f : pidProfile->yaw_precomp_cutoff,
       pid.freq, 0);
 
     // RPM change filter
