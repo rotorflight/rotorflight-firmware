@@ -1354,7 +1354,7 @@ int get_ADJUSTMENT_GOV_IDLE_THROTTLE(void)
 void set_ADJUSTMENT_GOV_IDLE_THROTTLE(int value)
 {
     governorConfigMutable()->gov_idle_throttle = value;
-    gov.idleThrottle = value / 100.0f;
+    gov.idleThrottle = value / 1000.0f;
     gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
@@ -1366,7 +1366,7 @@ int get_ADJUSTMENT_GOV_AUTO_THROTTLE(void)
 void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 {
     governorConfigMutable()->gov_auto_throttle = value;
-    gov.autoThrottle = value / 100.0f;
+    gov.autoThrottle = value / 1000.0f;
 }
 
 
@@ -1535,8 +1535,8 @@ void INIT_CODE governorInit(const pidProfile_t *pidProfile)
 
             gov.throttleHoldTimeout  = governorConfig()->gov_throttle_hold_timeout * 100;
 
-            gov.idleThrottle = governorConfig()->gov_idle_throttle / 100.0f;
-            gov.autoThrottle = governorConfig()->gov_auto_throttle / 100.0f;
+            gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
+            gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
 
             gov.handoverThrottle = constrain(governorConfig()->gov_handover_throttle, 1, 100) / 100.0f;
 

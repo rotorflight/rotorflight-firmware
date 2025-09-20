@@ -222,8 +222,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(GOV_TTA_GAIN,                 0, 250),
     ADJ_ENTRY(GOV_CYCLIC_FF,                0, 250),
     ADJ_ENTRY(GOV_COLLECTIVE_FF,            0, 250),
-    ADJ_ENTRY(GOV_IDLE_THROTTLE,            0, 100),
-    ADJ_ENTRY(GOV_AUTO_THROTTLE,            0, 100),
+    ADJ_ENTRY(GOV_IDLE_THROTTLE,            0, 250),
+    ADJ_ENTRY(GOV_AUTO_THROTTLE,            0, 250),
 
     ADJ_ENTRY(ACC_TRIM_PITCH,               -300, 300),
     ADJ_ENTRY(ACC_TRIM_ROLL,                -300, 300),

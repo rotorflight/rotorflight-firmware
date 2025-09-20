@@ -78,9 +78,9 @@ the actual values are calculated automatically (#332).
 
 `gov_spooldown_time` is added. Value in 1/10s increments.
 
-`gov_idle_throttle` is added. Value in 0%..100%.
+`gov_idle_throttle` is added. Value in 0%..25%, with 0.1% steps.
 
-`gov_auto_throttle` is added. Value in 0%..100%.
+`gov_auto_throttle` is added. Value in 0%..25%, with 0.1% steps.
 
 `gov_wot_collective` is added. Value in -100%..100%.
 

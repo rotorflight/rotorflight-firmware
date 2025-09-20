@@ -389,7 +389,7 @@ checking the motor startup and the controls, before spooling up fully.
 
 ```
 set gov_throttle_type = OFF_IDLE_ON
-set gov_idle_throttle = 12
+set gov_idle_throttle = 120
 set gov_headspeed = 2800
 ```
 
@@ -410,6 +410,6 @@ is fully down.
 ```
 set gov_throttle_type = OFF_IDLE_ON
 set gov_use_fc_throttle_curve = ON
-set gov_idle_throttle = 10
+set gov_idle_throttle = 100
 set gov_headspeed = 2800
 ```
