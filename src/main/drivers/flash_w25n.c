@@ -403,17 +403,6 @@ void w25n_eraseSector(flashDevice_t *fdevice, uint32_t address)
     w25n_setTimeout(fdevice, W25N_TIMEOUT_BLOCK_ERASE_MS);
 }
 
-//
-// W25N01G does not support full chip erase.
-// Call eraseSector repeatedly.
-
-void w25n_eraseCompletely(flashDevice_t *fdevice)
-{
-    for (uint32_t block = 0; block < fdevice->geometry.sectors; block++) {
-        w25n_eraseSector(fdevice, W25N_BLOCK_TO_LINEAR(block));
-    }
-}
-
 #ifndef W25N_NONBLOCKING_WRITE
 static void w25n_programDataLoad(flashDevice_t *fdevice, uint16_t columnAddress, const uint8_t *data, int length)
 {
@@ -979,7 +968,7 @@ const flashVTable_t w25n_vTable = {
     .isReady = w25n_isReady,
     .waitForReady = w25n_waitForReady,
     .eraseSector = w25n_eraseSector,
-    .eraseCompletely = w25n_eraseCompletely,
+    .eraseCompletely = NULL,
     .pageProgramBegin = w25n_pageProgramBegin,
     .pageProgramContinue = w25n_pageProgramContinue,
     .pageProgramFinish = w25n_pageProgramFinish,
