@@ -25,7 +25,8 @@
 #include "common/time.h"
 #include "common/axis.h"
 
-#include "flight/pid.h"
+#include "pg/pid.h"
+#include "pg/adjustments.h"
 
 
 void acroTrainerInit(const pidProfile_t *pidProfile);
@@ -33,3 +34,5 @@ void acroTrainerReset(void);
 void acroTrainerSetState(bool state);
 
 float acroTrainerApply(int axis, float setPoint);
+
+ADJFUN_DECLARE(ACRO_TRAINER_GAIN)

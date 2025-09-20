@@ -23,6 +23,7 @@
 #include "common/time.h"
 #include "drivers/accgyro/accgyro.h"
 #include "sensors/sensors.h"
+#include "pg/adjustments.h"
 #include "pg/accel.h"
 
 // Type of accelerometer used/detected
@@ -45,3 +46,6 @@ bool accGetAccumulationAverage(float *accumulation);
 void setAccelerationTrims(flightDynamicsTrims_t *accelerationTrimsToUse);
 void accInitFilters(void);
 void applyAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta);
+
+ADJFUN_DECLARE(ACC_TRIM_PITCH)
+ADJFUN_DECLARE(ACC_TRIM_ROLL)

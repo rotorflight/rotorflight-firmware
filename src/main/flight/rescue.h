@@ -38,8 +38,16 @@ typedef enum {
     RESCUE_STATE_EXIT,
 } rescueState_e;
 
+
 int getRescueState(void);
 
 void rescueUpdate();
 float rescueApply(uint8_t axis, float setpoint);
 void rescueInitProfile(const pidProfile_t *pidProfile);
+
+ADJFUN_DECLARE(RESCUE_CLIMB_COLLECTIVE)
+ADJFUN_DECLARE(RESCUE_HOVER_COLLECTIVE)
+ADJFUN_DECLARE(RESCUE_HOVER_ALTITUDE)
+ADJFUN_DECLARE(RESCUE_ALT_P_GAIN)
+ADJFUN_DECLARE(RESCUE_ALT_I_GAIN)
+ADJFUN_DECLARE(RESCUE_ALT_D_GAIN)
