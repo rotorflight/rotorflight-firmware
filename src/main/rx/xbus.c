@@ -90,7 +90,9 @@
 // XBus Mode A additions
 #define XBUS_MODEA_CHANNEL_COUNT 16
 // Frame is: Frame(1 byte) + Length(1 byte) + Key and type (2 bytes - not used) + 16*channel(4 bytes) + CRC(1 byte)
-#define XBUS_MODEA_FRAME_SIZE 69
+// Some receivers may add an extra 2 bytes of information to the end of the packet, but before the CRC, therefore 
+// we need to increase the size of the packet to 71 bytes to account for this. These extra 2 bytes can be ignored.
+#define XBUS_MODEA_FRAME_SIZE 71
 #define XBUS_MODEA_OFFSET_BYTES 4
 #define XBUS_MODEA_BAUDRATE 250000
 #define XBUS_MODEA_MAX_FRAME_TIME 2700 // 2760us round up to 2800 (69/[250k/10bits]=2760)
@@ -176,7 +178,7 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
             // number of the channel may not always be in the same spot in the packet. Also
             // there are only 16 channels of data sent per packet
             uint8_t nNumChannels = (xBusFrame[1] - 2) / 4; // Calculate the number of channels in the frame
-            for (int i = 0; i <= nNumChannels; i++)
+            for (int i = 0; i < nNumChannels; i++)
             {
                 // Channel packets are constructed as such:
                 // Byte 0 - Channel number
