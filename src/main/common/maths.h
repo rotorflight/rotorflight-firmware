@@ -219,6 +219,17 @@ static inline float slewDownLimit(float current, float target, float rate)
     return target;
 }
 
+static inline float slewUpDownLimit(float current, float target, float uprate, float downrate)
+{
+    if (uprate > 0 && target > current + uprate) {
+        return current + uprate;
+    }
+    if (downrate > 0 && target < current - downrate) {
+        return current - downrate;
+    }
+    return target;
+}
+
 static inline int32_t applyDeadband(const int32_t value, const int32_t deadband)
 {
     if (value > deadband)
