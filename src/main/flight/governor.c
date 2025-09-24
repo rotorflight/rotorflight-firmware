@@ -1147,14 +1147,18 @@ static void govUpdateGovernedState(void)
                 break;
 
             // Fallback: No headspeed signal. Use curves.
-            //  -- If NO throttle, move to LOW
-            //  -- If headspeed recovers, move to RECOVERY or IDLE
-            //  -- When timer expires, move to OFF
+            //  -- If NO throttle, move to HOLD
+            //  -- If throttle below handover, change state
+            //  -- If headspeed recovers, move to RECOVERY
             case GOV_STATE_FALLBACK:
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_HOLD);
-                else if (gov.throttleInput < gov.handoverThrottle)
-                    govChangeState(GOV_STATE_THROTTLE_HOLD);
+                else if (gov.throttleInput < gov.handoverThrottle) {
+                    if (isAutorotation())
+                        govChangeState(GOV_STATE_AUTOROTATION);
+                    else
+                        govChangeState(GOV_STATE_THROTTLE_HOLD);
+                }
                 else if (gov.motorRPMGood)
                     govEnterRecoveryState();
                 break;
@@ -1176,9 +1180,8 @@ static void govUpdateGovernedState(void)
                 break;
 
             // Throttle passthrough with ramp up limit
-            //  -- If NO throttle, move to THROTTLE_OFF
-            //  -- If throttle > handover, move to BAILOUT
-            //  -- If timer expires, move to IDLE
+            //  -- If NO throttle, move to THROTTLE_HOLD
+            //  -- If throttle > handover with RPM, move to BAILOUT
             //  -- Map throttle to motor output
             case GOV_STATE_AUTOROTATION:
                 if (gov.throttleInputOff)
