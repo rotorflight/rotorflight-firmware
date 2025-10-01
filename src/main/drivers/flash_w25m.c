@@ -179,14 +179,6 @@ void w25m_eraseSector(flashDevice_t *fdevice, uint32_t address)
     dieDevice[dieNumber].vTable->eraseSector(&dieDevice[dieNumber], address % dieSize);
 }
 
-void w25m_eraseCompletely(flashDevice_t *fdevice)
-{
-    for (int dieNumber = 0 ; dieNumber < dieCount ; dieNumber++) {
-        w25m_dieSelect(fdevice->io.handle.dev, dieNumber);
-        dieDevice[dieNumber].vTable->eraseCompletely(&dieDevice[dieNumber]);
-    }
-}
-
 static uint32_t currentWriteAddress;
 static int currentWriteDie;
 
@@ -258,7 +250,7 @@ static const flashVTable_t w25m_vTable = {
     .isReady = w25m_isReady,
     .waitForReady = w25m_waitForReady,
     .eraseSector = w25m_eraseSector,
-    .eraseCompletely = w25m_eraseCompletely,
+    .eraseCompletely = NULL,
     .pageProgramBegin = w25m_pageProgramBegin,
     .pageProgramContinue = w25m_pageProgramContinue,
     .pageProgramFinish = w25m_pageProgramFinish,
