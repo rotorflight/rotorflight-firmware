@@ -6,9 +6,9 @@ conditions, amount of collective applied, the battery voltage level, and so on.
 It is also ensuring safe operation by limiting the spool up and down speeds,
 and dealing with failure situations.
 
-# Basic Operation
+## Basic Operation
 
-First, the Tx throttle channel is controlling the throttle, with a limited change rate.
+By default, the Tx throttle channel is controlling the throttle, with a limited change rate.
 Once the motor is spinning fast enough, and the headspeed is reached, the governor
 takes over, and the input throttle does not matter any more, as long as it is in
 the _active_ range, i.e. higher than _handover throttle_.
@@ -34,7 +34,7 @@ the motor idle level - there is another parameter for setting the idle level. In
 the `min_throttle` should be set close to stopping the motor.
 
 The `min_command` is a throttle level _below_ `min_throttle`, where the motor is **guaranteed
-to stop** and not run. With an ESC it's also a level that allows the ESC to arm.
+to stop** and not run. With an ESC it's also the level that allows the ESC to arm.
 
 **NOTE.** `min_throttle` and `max_throttle` defines the throttle range, that is later
 expressed as 0%..100% in the logs and in the telemetry.
@@ -42,16 +42,20 @@ expressed as 0%..100% in the logs and in the telemetry.
 
 # States
 
-The governor operates in multiple states. Each state is used for a specific purpose,
-and has its own parameters. Each state is entered when specific conditions are met.
+The governor operates in multiple states. Each state represents a different scenario, with
+different functionality and different parameters. For example, `SPOOLING_UP`, `AUTOROTATION`, etc.
+
+The governor is automatically moving between the states, based on the Tx throttle channel
+behaviour, and the previous states.
+
 
 #### State `THROTTLE_OFF`
 
-The motor is turned off.
+The motor is turned off. The value `min_command` is sent to the ESC/servo.
 
 #### State `THROTTLE_IDLE`
 
-The throttle is below _handover_, and the motor is either off or running slow.
+The throttle is below _handover_, and the motor is either stopped or running slow.
 The input throttle is passed to the output, but change speed is limited by
 `gov_startup_time`.
 
@@ -277,7 +281,7 @@ Collective curve exponent (/10). Values 15..25 are likely good.
 
 A gain for _Tail Torque Assist_.
 
-### TTA-limit `gov_tta_limig`
+### TTA-limit `gov_tta_limit`
 
 A limit for headspeed increase in % due to TTA.
 
@@ -393,7 +397,7 @@ set gov_idle_throttle = 120
 set gov_headspeed = 2800
 ```
 
-### OFF - IDLE/AUTO - IU (electric)
+### OFF - IDLE/AUTO - ON (electric)
 
 For autorotations, a simple Mode/AUX switch will change the IDLE position to _autorotation_.
 This switch should be activated whenever a fast recovery/bailout is needed from the
