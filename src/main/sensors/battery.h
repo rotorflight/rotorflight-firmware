@@ -62,6 +62,8 @@ const currentMeter_t * getBatteryCurrentMeter();
 const char * getBatteryStateString(void);
 
 bool isBatteryVoltageConfigured(void);
+uint8_t getBatteryVoltageSource(void);
+
 uint8_t getBatteryCellCount(void);
 uint16_t getBatteryCellVoltage(uint8_t cell);
 uint16_t getBatteryVoltage(void);

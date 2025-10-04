@@ -25,34 +25,38 @@
 #include "flight/pid.h"
 
 typedef enum {
-    GM_OFF = 0,
-    GM_PASSTHROUGH,
-    GM_STANDARD,
-    GM_MODE1,
-    GM_MODE2,
-} govMode_e;
-
-typedef enum {
-    GS_THROTTLE_OFF,
-    GS_THROTTLE_IDLE,
-    GS_SPOOLING_UP,
-    GS_RECOVERY,
-    GS_ACTIVE,
-    GS_ZERO_THROTTLE,
-    GS_LOST_HEADSPEED,
-    GS_AUTOROTATION,
-    GS_AUTOROTATION_BAILOUT,
+    GOV_STATE_THROTTLE_OFF,
+    GOV_STATE_THROTTLE_IDLE,
+    GOV_STATE_SPOOLUP,
+    GOV_STATE_RECOVERY,
+    GOV_STATE_ACTIVE,
+    GOV_STATE_THROTTLE_HOLD,
+    GOV_STATE_FALLBACK,
+    GOV_STATE_AUTOROTATION,
+    GOV_STATE_BAILOUT,
+    GOV_STATE_DISABLED,
 } govState_e;
 
+typedef struct {
+    int32_t    pidTerms[4];
+    int32_t    pidSum;
+    uint16_t   targetHS;
+    uint16_t   requestHS;
+} govLogData_t;
 
 void governorInit(const pidProfile_t *pidProfile);
 void governorInitProfile(const pidProfile_t *pidProfile);
 
 void governorUpdate(void);
 
+bool getGovernerEnabled(void);
+void setGovernorEnabled(bool enabled);
+
 int getGovernorState(void);
 
 float getGovernorOutput(void);
+
+void getGovernorLogData(govLogData_t *data);
 
 float getFullHeadSpeedRatio(void);
 float getSpoolUpRatio(void);
@@ -69,3 +73,5 @@ ADJFUN_DECLARE(GOV_F_GAIN)
 ADJFUN_DECLARE(GOV_TTA_GAIN)
 ADJFUN_DECLARE(GOV_CYCLIC_FF)
 ADJFUN_DECLARE(GOV_COLLECTIVE_FF)
+ADJFUN_DECLARE(GOV_IDLE_THROTTLE)
+ADJFUN_DECLARE(GOV_AUTO_THROTTLE)
