@@ -1378,12 +1378,15 @@ void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 
 void INIT_CODE validateAndFixGovernorConfig(void)
 {
-    pidProfile_t * pidProfile = currentPidProfile;
-
     while (governorConfig()->gov_wot_collective - governorConfig()->gov_idle_collective < 1) {
         governorConfigMutable()->gov_wot_collective = MIN(governorConfig()->gov_wot_collective + 1, 100);
         governorConfigMutable()->gov_idle_collective = MAX(governorConfig()->gov_idle_collective - 1, -100);
     }
+}
+
+void INIT_CODE validateAndFixGovernorProfile(void)
+{
+    pidProfile_t * pidProfile = currentPidProfile;
 
     if (governorConfig()->gov_mode == GOV_MODE_EXTERNAL) {
         CLEAR_BIT(pidProfile->governor.flags,
@@ -1444,6 +1447,8 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
 {
     if (gov.govMode)
     {
+        validateAndFixGovernorProfile();
+
         gov.stateResetReq = true;
 
         gov.useBypass = (pidProfile->governor.flags & BIT(GOV_FLAG_BYPASS));
