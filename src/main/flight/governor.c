@@ -1384,6 +1384,17 @@ void INIT_CODE validateAndFixGovernorConfig(void)
         governorConfigMutable()->gov_idle_collective = MAX(governorConfig()->gov_idle_collective - 1, -100);
     }
 
+    if (governorConfig()->gov_mode == GOV_MODE_EXTERNAL) {
+        CLEAR_BIT(pidProfile->governor.flags,
+            BIT(GOV_FLAG_TX_PRECOMP_CURVE) |
+            BIT(GOV_FLAG_FALLBACK_PRECOMP) |
+            BIT(GOV_FLAG_VOLTAGE_COMP) |
+            BIT(GOV_FLAG_PID_SPOOLUP) |
+            BIT(GOV_FLAG_HS_ADJUSTMENT) |
+            BIT(GOV_FLAG_DYN_MIN_THROTTLE) |
+            BIT(GOV_FLAG_SUSPEND));
+    }
+
     if (governorConfig()->gov_throttle_type != GOV_THROTTLE_NORMAL) {
         CLEAR_BIT(pidProfile->governor.flags,
             BIT(GOV_FLAG_TX_PRECOMP_CURVE) |
@@ -1397,7 +1408,8 @@ void INIT_CODE validateAndFixGovernorConfig(void)
             BIT(GOV_FLAG_PID_SPOOLUP) |
             BIT(GOV_FLAG_DYN_MIN_THROTTLE) |
             BIT(GOV_FLAG_VOLTAGE_COMP) |
-            BIT(GOV_FLAG_AUTOROTATION));
+            BIT(GOV_FLAG_AUTOROTATION) |
+            BIT(GOV_FLAG_SUSPEND));
     }
     if (pidProfile->governor.flags & BIT(GOV_FLAG_TX_PRECOMP_CURVE)) {
         CLEAR_BIT(pidProfile->governor.flags,
