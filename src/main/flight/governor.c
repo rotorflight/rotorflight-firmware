@@ -381,9 +381,10 @@ static inline bool isAutorotation(void)
     return IS_RC_MODE_ACTIVE(BOXAUTOROTATION) || gov.useAutoRotation;
 }
 
-static inline bool isGovDisabled(void)
+static inline bool isGovBypass(void)
 {
-    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) || gov.useBypass;
+    return (IS_RC_MODE_ACTIVE(BOXGOVBYPASS) || gov.useBypass) &&
+           (gov.throttleType == GOV_THROTTLE_NORMAL || gov.useFcThrottleCurve);
 }
 
 static inline bool isGovSuspend(void)
@@ -423,7 +424,7 @@ static void govGetInputThrottle(void)
     switch (gov.throttleType)
     {
         case GOV_THROTTLE_NORMAL:
-            if (gov.useHsAdjustment && gov.throttleInput > gov.handoverThrottle) {
+            if (!isGovBypass() && gov.useHsAdjustment && gov.throttleInput > gov.handoverThrottle) {
                 gov.requestedHeadSpeed = fmaxf(gov.throttleInput * gov.fullHeadSpeed, 100);
                 gov.throttleInput = 1.0f;
             }
@@ -880,7 +881,7 @@ static void govUpdateExternalState(void)
         govChangeState(GOV_STATE_THROTTLE_OFF);
     }
     // Governor bypassed / disabled
-    else if (isGovDisabled()) {
+    else if (isGovBypass()) {
         govChangeState(GOV_STATE_DISABLED);
     }
     else {
@@ -1076,7 +1077,7 @@ static void govUpdateGovernedState(void)
         govChangeState(GOV_STATE_THROTTLE_OFF);
     }
     // Governor bypassed / disabled
-    else if (isGovDisabled()) {
+    else if (isGovBypass()) {
         govChangeState(GOV_STATE_DISABLED);
     }
     else {
