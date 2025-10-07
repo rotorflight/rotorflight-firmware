@@ -62,9 +62,6 @@
 // Nominal battery cell voltage
 #define GOV_NOMINAL_CELL_VOLTAGE        3.70f
 
-// Dynamic min throttle limit (%)
-#define GOV_DYN_MIN_THROTTLE_LIMIT      0.80f
-
 // Motor constant K filter
 #define GOV_RPM_K_CUTOFF                0.05f
 
@@ -180,7 +177,7 @@ typedef struct {
     float           voltageCompGain;
 
     // Dynamic min throttle limit
-    float           dynMinLevel;  // TDB remove
+    float           dynMinLevel;
 
     // PID terms
     float           P;
@@ -562,7 +559,7 @@ static float govCalcDynMinThrottle(float minThrottle)
     if (gov.useDynMinThrottle) {
         if (gov.motorRPMK > gov.fullHeadSpeed) {
             const float throttleEst = gov.targetHeadSpeed / gov.motorRPMK;
-            minThrottle = fmaxf(minThrottle, throttleEst * gov.dynMinLevel); // GOV_DYN_MIN_THROTTLE_LIMIT
+            minThrottle = fmaxf(minThrottle, throttleEst * gov.dynMinLevel);
 
             DEBUG(GOV_MOTOR, 2, throttleEst);
             DEBUG(GOV_MOTOR, 3, minThrottle);
@@ -1490,7 +1487,7 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
 
         gov.fallbackRatio = (100 - constrain(pidProfile->governor.fallback_drop, 0, 50)) / 100.0f;
 
-        gov.dynMinLevel = pidProfile->governor.dyn_min_level / 100.0f; // TDB remove
+        gov.dynMinLevel = pidProfile->governor.dyn_min_level / 100.0f;
 
         gov.yawWeight = pidProfile->governor.yaw_weight / 100.0f;
         gov.cyclicWeight = pidProfile->governor.cyclic_weight / 100.0f;
