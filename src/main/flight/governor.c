@@ -308,7 +308,7 @@ float getSpoolUpRatio(void)
 
             case GOV_STATE_ACTIVE:
             case GOV_STATE_FALLBACK:
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 return 1.0f;
 
             case GOV_STATE_SPOOLUP:
@@ -336,7 +336,7 @@ bool isSpooledUp(void)
             case GOV_STATE_ACTIVE:
             case GOV_STATE_AUTOROTATION:
             case GOV_STATE_BAILOUT:
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 return true;
 
             case GOV_STATE_SPOOLUP:
@@ -855,7 +855,7 @@ static void govUpdateExternalThrottle(void)
         case GOV_STATE_BAILOUT:
             throttle = slewUpLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleRecoveryRate);
             break;
-        case GOV_STATE_DISABLED:
+        case GOV_STATE_BYPASS:
             throttle = gov.throttleInput;
             break;
         default:
@@ -879,7 +879,7 @@ static void govUpdateExternalState(void)
     }
     // Governor bypassed / disabled
     else if (isGovBypass()) {
-        govChangeState(GOV_STATE_DISABLED);
+        govChangeState(GOV_STATE_BYPASS);
     }
     else {
         switch (gov.state)
@@ -985,9 +985,9 @@ static void govUpdateExternalState(void)
                     govChangeState(GOV_STATE_ACTIVE);
                 break;
 
-            // Disabled: Direct throttle to output
+            // Bypass: Direct throttle to output
             //  -- If governor enabled, move back to approriate state
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle)
@@ -1059,7 +1059,7 @@ static void govUpdateGovernedThrottle(void)
         case GOV_STATE_BAILOUT:
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
-        case GOV_STATE_DISABLED:
+        case GOV_STATE_BYPASS:
             govThrottleBypass(gov.idleThrottle, gov.maxThrottle);
             break;
         default:
@@ -1075,7 +1075,7 @@ static void govUpdateGovernedState(void)
     }
     // Governor bypassed / disabled
     else if (isGovBypass()) {
-        govChangeState(GOV_STATE_DISABLED);
+        govChangeState(GOV_STATE_BYPASS);
     }
     else {
         switch (gov.state)
@@ -1207,9 +1207,9 @@ static void govUpdateGovernedState(void)
                     govChangeState(GOV_STATE_ACTIVE);
                 break;
 
-            // Governor deactivated: Direct throttle to output
+            // Bypass: Direct throttle to output
             //  -- If governor enabled, move back to approriate state
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle && gov.motorRPMGood)
