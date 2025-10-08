@@ -62,9 +62,6 @@
 // Nominal battery cell voltage
 #define GOV_NOMINAL_CELL_VOLTAGE        3.70f
 
-// Dynamic min throttle limit (%)
-#define GOV_DYN_MIN_THROTTLE_LIMIT      0.80f
-
 // Motor constant K filter
 #define GOV_RPM_K_CUTOFF                0.05f
 
@@ -180,7 +177,7 @@ typedef struct {
     float           voltageCompGain;
 
     // Dynamic min throttle limit
-    float           dynMinLevel;  // TDB remove
+    float           dynMinLevel;
 
     // PID terms
     float           P;
@@ -311,7 +308,7 @@ float getSpoolUpRatio(void)
 
             case GOV_STATE_ACTIVE:
             case GOV_STATE_FALLBACK:
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 return 1.0f;
 
             case GOV_STATE_SPOOLUP:
@@ -339,7 +336,7 @@ bool isSpooledUp(void)
             case GOV_STATE_ACTIVE:
             case GOV_STATE_AUTOROTATION:
             case GOV_STATE_BAILOUT:
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 return true;
 
             case GOV_STATE_SPOOLUP:
@@ -381,9 +378,10 @@ static inline bool isAutorotation(void)
     return IS_RC_MODE_ACTIVE(BOXAUTOROTATION) || gov.useAutoRotation;
 }
 
-static inline bool isGovDisabled(void)
+static inline bool isGovBypass(void)
 {
-    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) || gov.useBypass;
+    return (IS_RC_MODE_ACTIVE(BOXGOVBYPASS) || gov.useBypass) &&
+           (gov.throttleType == GOV_THROTTLE_NORMAL || gov.useFcThrottleCurve);
 }
 
 static inline bool isGovSuspend(void)
@@ -423,7 +421,7 @@ static void govGetInputThrottle(void)
     switch (gov.throttleType)
     {
         case GOV_THROTTLE_NORMAL:
-            if (gov.useHsAdjustment && gov.throttleInput > gov.handoverThrottle) {
+            if (!isGovBypass() && gov.useHsAdjustment && gov.throttleInput > gov.handoverThrottle) {
                 gov.requestedHeadSpeed = fmaxf(gov.throttleInput * gov.fullHeadSpeed, 100);
                 gov.throttleInput = 1.0f;
             }
@@ -561,7 +559,7 @@ static float govCalcDynMinThrottle(float minThrottle)
     if (gov.useDynMinThrottle) {
         if (gov.motorRPMK > gov.fullHeadSpeed) {
             const float throttleEst = gov.targetHeadSpeed / gov.motorRPMK;
-            minThrottle = fmaxf(minThrottle, throttleEst * gov.dynMinLevel); // GOV_DYN_MIN_THROTTLE_LIMIT
+            minThrottle = fmaxf(minThrottle, throttleEst * gov.dynMinLevel);
 
             DEBUG(GOV_MOTOR, 2, throttleEst);
             DEBUG(GOV_MOTOR, 3, minThrottle);
@@ -857,7 +855,7 @@ static void govUpdateExternalThrottle(void)
         case GOV_STATE_BAILOUT:
             throttle = slewUpLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleRecoveryRate);
             break;
-        case GOV_STATE_DISABLED:
+        case GOV_STATE_BYPASS:
             throttle = gov.throttleInput;
             break;
         default:
@@ -880,8 +878,8 @@ static void govUpdateExternalState(void)
         govChangeState(GOV_STATE_THROTTLE_OFF);
     }
     // Governor bypassed / disabled
-    else if (isGovDisabled()) {
-        govChangeState(GOV_STATE_DISABLED);
+    else if (isGovBypass()) {
+        govChangeState(GOV_STATE_BYPASS);
     }
     else {
         switch (gov.state)
@@ -987,9 +985,9 @@ static void govUpdateExternalState(void)
                     govChangeState(GOV_STATE_ACTIVE);
                 break;
 
-            // Disabled: Direct throttle to output
+            // Bypass: Direct throttle to output
             //  -- If governor enabled, move back to approriate state
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle)
@@ -1061,7 +1059,7 @@ static void govUpdateGovernedThrottle(void)
         case GOV_STATE_BAILOUT:
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
-        case GOV_STATE_DISABLED:
+        case GOV_STATE_BYPASS:
             govThrottleBypass(gov.idleThrottle, gov.maxThrottle);
             break;
         default:
@@ -1076,8 +1074,8 @@ static void govUpdateGovernedState(void)
         govChangeState(GOV_STATE_THROTTLE_OFF);
     }
     // Governor bypassed / disabled
-    else if (isGovDisabled()) {
-        govChangeState(GOV_STATE_DISABLED);
+    else if (isGovBypass()) {
+        govChangeState(GOV_STATE_BYPASS);
     }
     else {
         switch (gov.state)
@@ -1209,9 +1207,9 @@ static void govUpdateGovernedState(void)
                     govChangeState(GOV_STATE_ACTIVE);
                 break;
 
-            // Governor deactivated: Direct throttle to output
+            // Bypass: Direct throttle to output
             //  -- If governor enabled, move back to approriate state
-            case GOV_STATE_DISABLED:
+            case GOV_STATE_BYPASS:
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle && gov.motorRPMGood)
@@ -1377,11 +1375,25 @@ void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 
 void INIT_CODE validateAndFixGovernorConfig(void)
 {
-    pidProfile_t * pidProfile = currentPidProfile;
-
     while (governorConfig()->gov_wot_collective - governorConfig()->gov_idle_collective < 1) {
         governorConfigMutable()->gov_wot_collective = MIN(governorConfig()->gov_wot_collective + 1, 100);
         governorConfigMutable()->gov_idle_collective = MAX(governorConfig()->gov_idle_collective - 1, -100);
+    }
+}
+
+void INIT_CODE validateAndFixGovernorProfile(void)
+{
+    pidProfile_t * pidProfile = currentPidProfile;
+
+    if (governorConfig()->gov_mode == GOV_MODE_EXTERNAL) {
+        CLEAR_BIT(pidProfile->governor.flags,
+            BIT(GOV_FLAG_TX_PRECOMP_CURVE) |
+            BIT(GOV_FLAG_FALLBACK_PRECOMP) |
+            BIT(GOV_FLAG_VOLTAGE_COMP) |
+            BIT(GOV_FLAG_PID_SPOOLUP) |
+            BIT(GOV_FLAG_HS_ADJUSTMENT) |
+            BIT(GOV_FLAG_DYN_MIN_THROTTLE) |
+            BIT(GOV_FLAG_SUSPEND));
     }
 
     if (governorConfig()->gov_throttle_type != GOV_THROTTLE_NORMAL) {
@@ -1397,7 +1409,8 @@ void INIT_CODE validateAndFixGovernorConfig(void)
             BIT(GOV_FLAG_PID_SPOOLUP) |
             BIT(GOV_FLAG_DYN_MIN_THROTTLE) |
             BIT(GOV_FLAG_VOLTAGE_COMP) |
-            BIT(GOV_FLAG_AUTOROTATION));
+            BIT(GOV_FLAG_AUTOROTATION) |
+            BIT(GOV_FLAG_SUSPEND));
     }
     if (pidProfile->governor.flags & BIT(GOV_FLAG_TX_PRECOMP_CURVE)) {
         CLEAR_BIT(pidProfile->governor.flags,
@@ -1431,6 +1444,8 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
 {
     if (gov.govMode)
     {
+        validateAndFixGovernorProfile();
+
         gov.stateResetReq = true;
 
         gov.useBypass = (pidProfile->governor.flags & BIT(GOV_FLAG_BYPASS));
@@ -1472,7 +1487,7 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
 
         gov.fallbackRatio = (100 - constrain(pidProfile->governor.fallback_drop, 0, 50)) / 100.0f;
 
-        gov.dynMinLevel = pidProfile->governor.dyn_min_level / 100.0f; // TDB remove
+        gov.dynMinLevel = pidProfile->governor.dyn_min_level / 100.0f;
 
         gov.yawWeight = pidProfile->governor.yaw_weight / 100.0f;
         gov.cyclicWeight = pidProfile->governor.cyclic_weight / 100.0f;
