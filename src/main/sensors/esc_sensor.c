@@ -1270,11 +1270,14 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
 
             if (calculateFletcher16(buffer + 2, 18) == crc) {
                 uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
-                uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint16_t tadc = buffer[5] << 8 | buffer[4];
                 uint16_t throttle = buffer[15] << 8 | buffer[14];
-                uint16_t power = buffer[17] << 8 | buffer[16];
-                uint16_t voltage = buffer[1] << 8 | buffer[0];
-                uint16_t current = buffer[5] << 8 | buffer[4];
+                uint16_t power = buffer[17] << 8 | buffer[16]; 
+                uint16_t voltage = buffer[3] << 8 | buffer[2];
+                int16_t current = buffer[7] << 8 | buffer[6]; //handle negatives
+                if(current < 0){
+                    current = 0;
+                }
                 uint16_t status = buffer[18];
 
                 float temp = calcTempAPD(tadc);
