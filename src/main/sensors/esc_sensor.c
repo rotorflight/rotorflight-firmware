@@ -1242,20 +1242,19 @@ static bool processAPDTelemetryStream(uint8_t dataByte)
 
     buffer[readBytes++] = dataByte;
 
-    if (readBytes == 1) {
+    if (readBytes == 21) {
         if (dataByte != 0xFF)
             frameSyncError();
-    }
-    else if (readBytes == 2) {
-        if (dataByte != 0xFF)
-            frameSyncError();
-        else
-            syncCount++;
     }
     else if (readBytes == 22) {
-        readBytes = 0;
-        if (syncCount > 2)
-            return true;
+        if (dataByte != 0xFF) {
+            frameSyncError();
+        } else {
+            syncCount++;
+            readBytes = 0;
+            if (syncCount > 2)
+                return true;
+        }
     }
 
     return false;
@@ -1266,19 +1265,19 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
     // check for any available bytes in the rx buffer
     while (serialRxBytesWaiting(escSensorPort)) {
         if (processAPDTelemetryStream(serialRead(escSensorPort))) {
-            uint16_t crc = buffer[21] << 8 | buffer[20];
+            uint16_t crc = buffer[19] << 8 | buffer[18];
 
             if (calculateFletcher16(buffer + 2, 18) == crc) {
-                uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
-                uint16_t tadc = buffer[5] << 8 | buffer[4];
-                uint16_t throttle = buffer[15] << 8 | buffer[14];
-                uint16_t power = buffer[17] << 8 | buffer[16]; 
-                uint16_t voltage = buffer[3] << 8 | buffer[2];
-                int16_t current = buffer[7] << 8 | buffer[6]; //handle negatives
-                if(current < 0){
+                uint32_t rpm = buffer[11] << 24 | buffer[10] << 16 | buffer[9] << 8 | buffer[8];
+                uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint16_t throttle = buffer[13] << 8 | buffer[12];
+                uint16_t power = buffer[15] << 8 | buffer[14]; 
+                uint16_t voltage = buffer[1] << 8 | buffer[0];
+                int16_t current = buffer[5] << 8 | buffer[4]; 
+                if(current < 0){ //handle negatives
                     current = 0;
                 }
-                uint16_t status = buffer[18];
+                uint16_t status = buffer[16];
 
                 float temp = calcTempAPD(tadc);
 
