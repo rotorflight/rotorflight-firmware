@@ -34,7 +34,7 @@ typedef enum {
     GOV_STATE_FALLBACK,
     GOV_STATE_AUTOROTATION,
     GOV_STATE_BAILOUT,
-    GOV_STATE_DISABLED,
+    GOV_STATE_BYPASS,
 } govState_e;
 
 typedef struct {
