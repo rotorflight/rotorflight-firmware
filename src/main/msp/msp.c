@@ -802,9 +802,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->halfDuplex);
         sbufWriteU16(dst, escSensorConfig()->update_hz);
         sbufWriteU16(dst, escSensorConfig()->current_offset);
-        sbufWriteU16(dst, escSensorConfig()->hw4_current_offset);
-        sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
-        sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
+        sbufWriteU32(dst, 0); // Was HW4 parameters
         sbufWriteU8(dst, escSensorConfig()->pinSwap);
         sbufWriteS8(dst, escSensorConfig()->voltage_correction);
         sbufWriteS8(dst, escSensorConfig()->current_correction);
@@ -2807,9 +2805,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->halfDuplex = sbufReadU8(src);
         escSensorConfigMutable()->update_hz = sbufReadU16(src);
         escSensorConfigMutable()->current_offset = sbufReadU16(src);
-        escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
-        escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
-        escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
+        sbufReadU32(src); // Was HW4 parameters
         if (sbufBytesRemaining(src) >= 1) {
             escSensorConfigMutable()->pinSwap = sbufReadU8(src);
         }

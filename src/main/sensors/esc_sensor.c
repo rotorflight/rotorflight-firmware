@@ -554,18 +554,6 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
  * 10-11:       Temperature constants
  *    12:       Sync 0xB9
  *
- *
- * Gain values reported by the ESCs:
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * Model        V1  V2  I1   I2  I3     Vgain Igain Ioffset
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * 60A          8   91   0    1   0      109      0      0
- * 80A          8   91  33  150  90      109    146    409
- * 120A         8   91  33  113 110      109    110    377
- * HV130A       11  65  30  146   0      210    157      0
- * HV200A       11  65  30  146  98      210    157    477
- * FFHV160A     11  65  33   68 185      210     66    381
- *
  * Temp sensor design:
  * ―――――――――――――――――――
  *  β  = 3950
@@ -582,9 +570,6 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
 #define HW4_NTC_DELTA   0.00296226896087f
 
 #define calcTempHW(adc)  calcTempNTC(adc, HW4_NTC_GAMMA, HW4_NTC_DELTA)
-
-#define HW4_VOLTAGE_SCALE    0.00008056640625f
-#define HW4_CURRENT_SCALE    32.2265625f
 
 static float hw4VoltageScale = 0;
 static float hw4CurrentScale = 0;
@@ -701,29 +686,12 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             }
         }
         else if (frameType == HW4_FRAME_INFO) {
-            if (escSensorConfig()->hw4_voltage_gain) {
-                hw4VoltageScale = HW4_VOLTAGE_SCALE * escSensorConfig()->hw4_voltage_gain;
+            if (buffer[5] && buffer[6]) {
+                hw4VoltageScale = (float)buffer[5] / ((float)buffer[6] * 10);
             }
-            else {
-                if (buffer[5] && buffer[6])
-                    hw4VoltageScale = (float)buffer[5] / (float)buffer[6] / 10;
-                else
-                    hw4VoltageScale = 0;
-            }
-
-            if (escSensorConfig()->hw4_current_gain) {
-                hw4CurrentScale = HW4_CURRENT_SCALE / escSensorConfig()->hw4_current_gain;
-                hw4CurrentOffset = escSensorConfig()->hw4_current_offset;
-            }
-            else {
-                if (buffer[7] && buffer[8]) {
-                    hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
-                    hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
-                }
-                else {
-                    hw4CurrentScale = 0;
-                    hw4CurrentOffset = 0;
-                }
+            if (buffer[7] && buffer[8]) {
+                hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
+                hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
             }
         }
     }
