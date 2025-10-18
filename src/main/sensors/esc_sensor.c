@@ -1202,7 +1202,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
  *  12-13:      Throttle in 0.1%
  *  14-15:      PWM duty cycle in 0.1%
  *     16:      Status flags
- *     17:      Reservec
+ *     17:      Reserved
  *  18-19:      Checksum
  *  20-21:      Stop Byte 0xFFFF
  *
@@ -1275,7 +1275,7 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
                 uint16_t power = buffer[15] << 8 | buffer[14]; 
                 uint16_t voltage = buffer[1] << 8 | buffer[0];
                 int16_t current = buffer[5] << 8 | buffer[4]; 
-                if(current < 0){ //handle negatives
+                if (current < 0) { //ESC can output negative current, for example, during regen. Clamp the telemetry current to 0 if negative.
                     current = 0;
                 }
                 uint16_t status = buffer[16];
