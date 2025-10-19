@@ -575,15 +575,22 @@ static float hw4VoltageScale = 0;
 static float hw4CurrentScale = 0;
 static float hw4CurrentOffset = 0;
 
-static inline float calcVoltHW(uint16_t voltADC)
+static inline float calcVoltHW4(uint16_t voltADC)
 {
     return voltADC * hw4VoltageScale;
 }
 
-static inline float calcCurrHW(uint16_t currentADC)
+static inline float calcCurrHW4(uint16_t currentADC)
 {
     return (currentADC > hw4CurrentOffset) ?
         (currentADC - hw4CurrentOffset) * hw4CurrentScale : 0;
+}
+
+static uint32_t hw4ThrottleRange = 1000;
+
+static inline uint16_t calcThrottleHW4(uint16_t throttle)
+{
+    return throttle * 1000LU / hw4ThrottleRange;
 }
 
 #define HW4_FRAME_NONE   0
@@ -641,8 +648,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 uint16_t Tadc = buffer[15] << 8 | buffer[16];
                 uint16_t Cadc = buffer[17] << 8 | buffer[18];
 
-                float voltage = calcVoltHW(Vadc);
-                float current = calcCurrHW(Iadc);
+                float voltage = calcVoltHW4(Vadc);
+                float current = calcCurrHW4(Iadc);
                 float tempFET = calcTempHW(Tadc);
                 float tempCAP = calcTempHW(Cadc);
 
@@ -657,8 +664,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].id = ESC_SIG_HW4;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
-                escSensorData[0].throttle = thr;
-                escSensorData[0].pwm = pwm;
+                escSensorData[0].throttle = calcThrottleHW4(thr);
+                escSensorData[0].pwm = calcThrottleHW4(pwm);
                 escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
                 escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
@@ -686,6 +693,9 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             }
         }
         else if (frameType == HW4_FRAME_INFO) {
+            if (buffer[2] || buffer[3]) {
+                hw4ThrottleRange = buffer[2] << 8 | buffer[3];
+            }
             if (buffer[5] && buffer[6]) {
                 hw4VoltageScale = (float)buffer[5] / ((float)buffer[6] * 10);
             }
