@@ -39,6 +39,7 @@
 
 #include "common/maths.h"
 #include "common/utils.h"
+#include "common/filter.h"
 
 #include "drivers/castle_telemetry_decode.h"
 #include "drivers/timer.h"
@@ -593,6 +594,27 @@ static inline uint16_t calcThrottleHW4(uint16_t throttle)
     return throttle * 1000LU / hw4ThrottleRange;
 }
 
+#define HW4_CURRENT_FILTER_FAST_HZ  10.0f
+#define HW4_CURRENT_FILTER_SLOW_HZ   1.0f
+
+static float hw4CurrentFilter = 0;
+static float hw4CurrentValue = 0;
+static float hw4CurrentFast = 0;
+static float hw4CurrentSlow = 0;
+
+static inline void updateCurrentValueHW4(float current)
+{
+    hw4CurrentValue = current;
+}
+
+static inline float updateCurrentFilterHW4(void)
+{
+    hw4CurrentFilter += (hw4CurrentValue - hw4CurrentFilter) *
+     ((hw4CurrentValue > hw4CurrentFilter || hw4CurrentValue == 0) ? hw4CurrentFast : hw4CurrentSlow);
+
+    return hw4CurrentFilter;
+}
+
 #define HW4_FRAME_NONE   0
 #define HW4_FRAME_INFO   1
 #define HW4_FRAME_DATA   2
@@ -659,7 +681,7 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                     current = 0;
                 }
 
-                setConsumptionCurrent(current);
+                updateCurrentValueHW4(current);
 
                 escSensorData[0].id = ESC_SIG_HW4;
                 escSensorData[0].age = 0;
@@ -667,7 +689,6 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].throttle = calcThrottleHW4(thr);
                 escSensorData[0].pwm = calcThrottleHW4(pwm);
                 escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
-                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
@@ -706,7 +727,14 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
         }
     }
 
+    // Special filtering for current
+    const float current = updateCurrentFilterHW4();
+
+    // Update esc data on every cycle
+    escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
+
     // Update consumption on every cycle
+    setConsumptionCurrent(current);
     updateConsumption(currentTimeUs);
 
     // Maximum data frame spacing 400ms
@@ -3978,6 +4006,8 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_HW4:
             baudrate = 19200;
+            hw4CurrentFast = pt1FilterGain(HW4_CURRENT_FILTER_FAST_HZ, escSensorConfig()->update_hz);
+            hw4CurrentSlow = pt1FilterGain(HW4_CURRENT_FILTER_SLOW_HZ, escSensorConfig()->update_hz);
             break;
         case ESC_SENSOR_PROTO_SCORPION:
             callback = tribSensorInit(escHalfDuplex);
