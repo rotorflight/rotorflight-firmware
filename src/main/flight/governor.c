@@ -1370,6 +1370,54 @@ void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
     gov.autoThrottle = value / 1000.0f;
 }
 
+int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
+{
+    return currentPidProfile->governor.max_throttle;
+}
+
+void set_ADJUSTMENT_GOV_MAX_THROTTLE(int value)
+{
+    currentPidProfile->governor.max_throttle = value;
+    gov.maxThrottle = value / 100.0f;
+    gov.maxSpoolupThrottle = gov.maxThrottle;
+}
+
+int get_ADJUSTMENT_GOV_MIN_THROTTLE(void)
+{
+    return currentPidProfile->governor.min_throttle;
+}
+
+void set_ADJUSTMENT_GOV_MIN_THROTTLE(int value)
+{
+    currentPidProfile->governor.min_throttle = value;
+    gov.minActiveThrottle = value / 100.0f;
+}
+
+int get_ADJUSTMENT_GOV_HEADSPEED(void)
+{
+    return currentPidProfile->governor.headspeed;
+}
+
+void set_ADJUSTMENT_GOV_HEADSPEED(int value)
+{
+    currentPidProfile->governor.headspeed = value;
+    gov.fullHeadSpeed = constrainf(value, 100, 50000);
+    gov.motorRPMGlitchDelta = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_DELTA;
+    gov.motorRPMGlitchLimit = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_LIMIT;
+}
+
+int get_ADJUSTMENT_GOV_YAW_FF(void)
+{
+    return currentPidProfile->governor.yaw_weight;
+}
+
+void set_ADJUSTMENT_GOV_YAW_FF(int value)
+{
+    currentPidProfile->governor.yaw_weight = value;
+    gov.yawWeight = value / 100.0f;
+}
+
+
 
 //// Init functions
 
