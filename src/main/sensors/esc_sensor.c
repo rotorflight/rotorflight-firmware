@@ -1194,7 +1194,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
  *
  * Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *    0-1:      Sync 0xFFFF
+ *    0-1:      Sync 0xFFFF - This is actually the stop byte of previous frame, used as start byte for sync robustness
  *    2-3:      Voltage in 10mV steps
  *    4-5:      Temperature ADC
  *    6-7:      Current in 80mA steps
@@ -1269,12 +1269,15 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
             uint16_t crc = buffer[21] << 8 | buffer[20];
 
             if (calculateFletcher16(buffer + 2, 18) == crc) {
-                uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
-                uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint32_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
+                uint16_t tadc = buffer[5] << 8 | buffer[4];
                 uint16_t throttle = buffer[15] << 8 | buffer[14];
                 uint16_t power = buffer[17] << 8 | buffer[16];
-                uint16_t voltage = buffer[1] << 8 | buffer[0];
-                uint16_t current = buffer[5] << 8 | buffer[4];
+                uint16_t voltage = buffer[3] << 8 | buffer[2];
+                int16_t current = buffer[7] << 8 | buffer[6];
+                if (current < 0) { //ESC can output negative current, for example, during regen. Clamp the telemetry current to 0 if negative.
+                    current = 0;
+                }
                 uint16_t status = buffer[18];
 
                 float temp = calcTempAPD(tadc);
