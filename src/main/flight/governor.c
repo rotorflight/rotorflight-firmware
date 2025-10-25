@@ -848,8 +848,10 @@ static void govUpdateExternalThrottle(void)
             break;
         case GOV_STATE_ACTIVE:
         case GOV_STATE_FALLBACK:
-        case GOV_STATE_AUTOROTATION:
             throttle = slewLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleTrackingRate);
+            break;
+        case GOV_STATE_AUTOROTATION:
+            throttle = slewUpDownLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleRecoveryRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_RECOVERY:
         case GOV_STATE_BAILOUT:
@@ -1053,7 +1055,7 @@ static void govUpdateGovernedThrottle(void)
             govFallbackControl(gov.minActiveThrottle, gov.maxThrottle, gov.throttleTrackingRate);
             break;
         case GOV_STATE_AUTOROTATION:
-            govThrottleSlewControl(gov.autoThrottle, gov.handoverThrottle, gov.throttleTrackingRate, gov.throttleTrackingRate);
+            govThrottleSlewControl(gov.autoThrottle, gov.handoverThrottle, gov.throttleRecoveryRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_RECOVERY:
         case GOV_STATE_BAILOUT:
