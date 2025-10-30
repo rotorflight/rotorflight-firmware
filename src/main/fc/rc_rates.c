@@ -339,20 +339,13 @@ static float applyQuickRates(const int axis, const float rcCommandAbs)
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
 
-    // Super rate factor
+    // Super rate
     float maxRate = fmaxf(sRate, rcRate);
     float superRate = 1.0f - (rcRate / maxRate);
-
-    if (currentControlRateProfile->quickRatesRcExpo) {
-        float superFactor = 1.0f / constrainf(1.0f - rcCommandAbs * superRate, 0.01f, 1.00f);
-        expof = expof * superFactor;
-    } else {
-        float superFactor = 1.0f / constrainf(1.0f - expof * superRate, 0.01f, 1.00f);
-        expof = rcCommandAbs * superFactor;
-    }
+    float superFactor = 1.0f / constrainf(1.0f - expof * superRate, 0.01f, 1.00f);
 
     // Final angle rate
-    float angleRate = rcRate * expof;
+    float angleRate = rcRate * rcCommandAbs * superFactor;
 
     return angleRate;
 }
