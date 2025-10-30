@@ -25,17 +25,6 @@
 #include "config/config_reset.h"
 
 
-typedef enum {
-    RATES_TYPE_NONE = 0,
-    RATES_TYPE_BETAFLIGHT,
-    RATES_TYPE_RACEFLIGHT,
-    RATES_TYPE_KISS,
-    RATES_TYPE_ACTUAL,
-    RATES_TYPE_QUICK,
-    RATES_TYPE_COUNT
-} ratesType_e;
-
-
 PG_REGISTER_ARRAY_WITH_RESET_FN(controlRateConfig_t, CONTROL_RATE_PROFILE_COUNT, controlRateProfiles, PG_CONTROL_RATE_PROFILES, 4);
 
 void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
