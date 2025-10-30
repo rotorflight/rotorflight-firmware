@@ -38,11 +38,12 @@
 
 const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT] =
 {
-    [RATES_TYPE_BETAFLIGHT] = { 255, 100, 100 },
-    [RATES_TYPE_RACEFLIGHT] = { 200, 255, 100 },
-    [RATES_TYPE_KISS]       = { 255,  99, 100 },
-    [RATES_TYPE_ACTUAL]     = { 200, 200, 100 },
-    [RATES_TYPE_QUICK]      = { 255, 200, 100 },
+    [RATES_TYPE_BETAFLIGHT]     = { 255,  90, 100 },
+    [RATES_TYPE_RACEFLIGHT]     = { 200, 255, 100 },
+    [RATES_TYPE_KISS]           = { 255,  90, 100 },
+    [RATES_TYPE_ACTUAL]         = { 200, 200, 100 },
+    [RATES_TYPE_QUICK]          = { 255, 200, 100 },
+    [RATES_TYPE_ROTORFLIGHT]    = { 200, 100, 100 },
 };
 
 FAST_DATA_ZERO_INIT const ratesSettingsLimits_t * currentControlRateLimits;
@@ -360,6 +361,51 @@ static float applyQuickRates(const int axis, const float rcCommandAbs)
     return angleRate;
 }
 
+/*
+ * ROTORFLIGHT
+ */
+
+static float rfPow(const float x, const uint expo)
+{
+    // 0..100 range gives exponent ~ 2.0 .. 8.25
+    const uint bits = MIN(expo, 127u);
+
+    float y = x * x;
+    float z = x;
+
+    if (bits & BIT(4)) y *= z;
+    z *= z;
+    if (bits & BIT(5)) y *= z;
+    z *= z;
+    if (bits & BIT(6)) y *= z;
+
+    z = sqrtf(x);
+    if (bits & BIT(3)) y *= z;
+    z = sqrtf(z);
+    if (bits & BIT(2)) y *= z;
+    z = sqrtf(z);
+    if (bits & BIT(1)) y *= z;
+    z = sqrtf(z);
+    if (bits & BIT(0)) y *= z;
+
+    return y;
+}
+
+static float applyRotorflightRates(const int axis, const float rcCommandAbs)
+{
+    float rcRate = currentControlRateProfile->rcRates[axis] * 10;
+    float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
+    uint width = currentControlRateProfile->sRates[axis];
+
+    // Variable order Expo
+    float expof = rcCommandAbs * (1.0f - rcExpo) + rfPow(rcCommandAbs, width) * rcExpo;
+
+    // Final angle rate
+    float angleRate = rcRate * expof;
+
+    return angleRate;
+}
+
 
 float applyRatesCurve(const int axis, const float rcCommandf)
 {
@@ -382,6 +428,9 @@ float applyRatesCurve(const int axis, const float rcCommandf)
             break;
         case RATES_TYPE_QUICK:
             rate = applyQuickRates(axis, rcCommandAbs);
+            break;
+        case RATES_TYPE_ROTORFLIGHT:
+            rate = applyRotorflightRates(axis, rcCommandAbs);
             break;
         default:
             rate = applyNullRates(axis, rcCommandAbs);
