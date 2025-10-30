@@ -58,7 +58,6 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .sRates[FD_COLL] = 50,
             .levelExpo[FD_ROLL] = 0,
             .levelExpo[FD_PITCH] = 0,
-            .quickRatesRcExpo = 0,
             .response_time[FD_ROLL] = 0,
             .response_time[FD_PITCH] = 0,
             .response_time[FD_YAW] = 0,
