@@ -61,32 +61,32 @@ void set_ADJUSTMENT_RATE_PROFILE(int value)
     changeControlRateProfile(value - 1);
 }
 
-int get_ADJUSTMENT_PITCH_RATE(void)
+int get_ADJUSTMENT_PITCH_SRATE(void)
 {
     return currentControlRateProfile->sRates[FD_PITCH];
 }
 
-void set_ADJUSTMENT_PITCH_RATE(int value)
+void set_ADJUSTMENT_PITCH_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_PITCH] = value;
 }
 
-int get_ADJUSTMENT_ROLL_RATE(void)
+int get_ADJUSTMENT_ROLL_SRATE(void)
 {
     return currentControlRateProfile->sRates[FD_ROLL];
 }
 
-void set_ADJUSTMENT_ROLL_RATE(int value)
+void set_ADJUSTMENT_ROLL_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_ROLL] = value;
 }
 
-int get_ADJUSTMENT_YAW_RATE(void)
+int get_ADJUSTMENT_YAW_SRATE(void)
 {
     return currentControlRateProfile->sRates[FD_YAW];
 }
 
-void set_ADJUSTMENT_YAW_RATE(int value)
+void set_ADJUSTMENT_YAW_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_YAW] = value;
 }
