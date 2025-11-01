@@ -63,32 +63,32 @@ void set_ADJUSTMENT_RATE_PROFILE(int value)
 
 int get_ADJUSTMENT_PITCH_RATE(void)
 {
-    return currentControlRateProfile->rates[FD_PITCH];
+    return currentControlRateProfile->sRates[FD_PITCH];
 }
 
 void set_ADJUSTMENT_PITCH_RATE(int value)
 {
-    currentControlRateProfile->rates[FD_PITCH] = value;
+    currentControlRateProfile->sRates[FD_PITCH] = value;
 }
 
 int get_ADJUSTMENT_ROLL_RATE(void)
 {
-    return currentControlRateProfile->rates[FD_ROLL];
+    return currentControlRateProfile->sRates[FD_ROLL];
 }
 
 void set_ADJUSTMENT_ROLL_RATE(int value)
 {
-    currentControlRateProfile->rates[FD_ROLL] = value;
+    currentControlRateProfile->sRates[FD_ROLL] = value;
 }
 
 int get_ADJUSTMENT_YAW_RATE(void)
 {
-    return currentControlRateProfile->rates[FD_YAW];
+    return currentControlRateProfile->sRates[FD_YAW];
 }
 
 void set_ADJUSTMENT_YAW_RATE(int value)
 {
-    currentControlRateProfile->rates[FD_YAW] = value;
+    currentControlRateProfile->sRates[FD_YAW] = value;
 }
 
 int get_ADJUSTMENT_PITCH_RC_RATE(void)
@@ -176,8 +176,8 @@ static float applyNullRates(const int axis, const float rcCommandAbs)
  *          rcRate += RC_RATE_INCREMENTAL * (rcRate - 2.0f);
  *      }
  *      float angleRate = 200.0f * rcRate * rcCommandf;
- *      if (currentControlRateProfile->rates[axis]) {
- *          const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
+ *      if (currentControlRateProfile->sRates[axis]) {
+ *          const float rcSuperfactor = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->sRates[axis] / 100.0f)), 0.01f, 1.00f));
  *          angleRate *= rcSuperfactor;
  *      }
  *
@@ -189,7 +189,7 @@ static float applyBetaflightRates(const int axis, const float rcCommandAbs)
 {
     float rcRate = currentControlRateProfile->rcRates[axis] * 2;
     const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->rates[axis] / 100.0f;
+    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
 
     if (rcRate > 400) {
         rcRate += 14.54f * (rcRate - 400);
@@ -214,7 +214,7 @@ static float applyBetaflightRates(const int axis, const float rcCommandAbs)
  *  {
  *      rcCommandf = ((1.0f + 0.01f * currentControlRateProfile->rcExpo[axis] * (rcCommandf * rcCommandf - 1.0f)) * rcCommandf);
  *      float angleRate = 10.0f * currentControlRateProfile->rcRates[axis] * rcCommandf;
- *      angleRate = angleRate * (1 + rcCommandfAbs * (float)currentControlRateProfile->rates[axis] * 0.01f);
+ *      angleRate = angleRate * (1 + rcCommandfAbs * (float)currentControlRateProfile->sRates[axis] * 0.01f);
  *
  *      return angleRate;
  *  }
@@ -224,7 +224,7 @@ static float applyRaceFlightRates(const int axis, const float rcCommandAbs)
 {
     const float rcRate = currentControlRateProfile->rcRates[axis] * 10;
     const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->rates[axis] / 100.0f;
+    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
@@ -245,7 +245,7 @@ static float applyRaceFlightRates(const int axis, const float rcCommandAbs)
  *  {
  *      const float rcCurvef = currentControlRateProfile->rcExpo[axis] / 100.0f;
  *
- *      float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->rates[axis] / 100.0f)), 0.01f, 1.00f));
+ *      float kissRpyUseRates = 1.0f / (constrainf(1.0f - (rcCommandfAbs * (currentControlRateProfile->sRates[axis] / 100.0f)), 0.01f, 1.00f));
  *      float kissRcCommandf = (power3(rcCommandf) * rcCurvef + rcCommandf * (1 - rcCurvef)) * (currentControlRateProfile->rcRates[axis] / 1000.0f);
  *      float kissAngle = constrainf(((2000.0f * kissRpyUseRates) * kissRcCommandf), SETPOINT_RATE_LIMIT_MIN, SETPOINT_RATE_LIMIT_MAX);
  *
@@ -257,7 +257,7 @@ static float applyKissRates(const int axis, const float rcCommandAbs)
 {
     const float rcRate = currentControlRateProfile->rcRates[axis] * 2;
     const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->rates[axis] / 100.0f;
+    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
@@ -280,7 +280,7 @@ static float applyKissRates(const int axis, const float rcCommandAbs)
  *      expof = rcCommandfAbs * (power5(rcCommandf) * expof + rcCommandf * (1 - expof));
  *
  *      const float centerSensitivity = currentControlRateProfile->rcRates[axis] * 10.0f;
- *      const float stickMovement = MAX(0, currentControlRateProfile->rates[axis] * 10.0f - centerSensitivity);
+ *      const float stickMovement = MAX(0, currentControlRateProfile->sRates[axis] * 10.0f - centerSensitivity);
  *      const float angleRate = rcCommandf * centerSensitivity + stickMovement * expof;
  *
  *      return angleRate;
@@ -291,7 +291,7 @@ static float applyActualRates(const int axis, const float rcCommandAbs)
 {
     const float rcRate = currentControlRateProfile->rcRates[axis] * 10;
     const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->rates[axis] * 10;
+    const float sRate = currentControlRateProfile->sRates[axis] * 10;
 
     float aRate = fmaxf(0, sRate - rcRate);
 
@@ -310,7 +310,7 @@ static float applyActualRates(const int axis, const float rcCommandAbs)
  *  float applyQuickRates(const int axis, float rcCommandf, const float rcCommandfAbs)
  *  {
  *      const uint16_t rcRate = currentControlRateProfile->rcRates[axis] * 2;
- *      const uint16_t maxDPS = MAX(currentControlRateProfile->rates[axis] * 10, rcRate);
+ *      const uint16_t maxDPS = MAX(currentControlRateProfile->sRates[axis] * 10, rcRate);
  *      const float expof = currentControlRateProfile->rcExpo[axis] / 100.0f;
  *      const float superFactorConfig = ((float)maxDPS / rcRate - 1) / ((float)maxDPS / rcRate);
  *
@@ -334,7 +334,7 @@ static float applyQuickRates(const int axis, const float rcCommandAbs)
 {
     const float rcRate = currentControlRateProfile->rcRates[axis] * 2;
     const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->rates[axis] * 10;
+    const float sRate = currentControlRateProfile->sRates[axis] * 10;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
