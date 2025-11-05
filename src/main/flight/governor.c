@@ -712,10 +712,7 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
             gov.I += gov.C;
 
         // Limit value range
-        const float throttle = constrainf(gov.pidSum, minThrottle, maxThrottle);
-
-        // Update output throttle (don't exceed rate)
-        gov.throttleOutput = slewLimit(gov.throttleOutput, throttle, maxRate);
+        gov.throttleOutput = constrainf(gov.pidSum, minThrottle, maxThrottle);
 
         // Update headspeed target
         gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, govCalcHeadspeedRate(maxRate));
