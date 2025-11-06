@@ -1401,6 +1401,7 @@ void set_ADJUSTMENT_GOV_HEADSPEED(int value)
 {
     currentPidProfile->governor.headspeed = value;
     gov.fullHeadSpeed = constrainf(value, 100, 50000);
+    gov.requestedHeadSpeed = gov.fullHeadSpeed;
     gov.motorRPMGlitchDelta = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_DELTA;
     gov.motorRPMGlitchLimit = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_LIMIT;
 }
