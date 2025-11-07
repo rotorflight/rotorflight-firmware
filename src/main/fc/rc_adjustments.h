@@ -147,6 +147,10 @@ typedef enum {
     // Governor
     ADJUSTMENT_GOV_IDLE_THROTTLE        = 76,
     ADJUSTMENT_GOV_AUTO_THROTTLE        = 77,
+    ADJUSTMENT_GOV_MAX_THROTTLE         = 78,
+    ADJUSTMENT_GOV_MIN_THROTTLE         = 79,
+    ADJUSTMENT_GOV_HEADSPEED            = 80,
+    ADJUSTMENT_GOV_YAW_FF               = 81,
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;

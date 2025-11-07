@@ -99,7 +99,7 @@ typedef struct {
     uint8_t     collective_weight;
     uint8_t     collective_curve;
     uint8_t     fallback_drop;
-    uint8_t     dyn_min_level;      // TDB remove
+    uint8_t     dyn_min_level;
 } governorProfile_t;
 
 typedef struct {
