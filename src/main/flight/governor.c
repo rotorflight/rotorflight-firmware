@@ -65,9 +65,6 @@
 // Motor constant K filter
 #define GOV_RPM_K_CUTOFF                0.05f
 
-// Approx throttle headroom
-#define GOV_THROTTLE_HEADROOM           1.25f
-
 
 //// Internal Data
 
@@ -557,10 +554,9 @@ static float govCalcTTA(void)
 static float govCalcDynMinThrottle(float minThrottle)
 {
     if (gov.useDynMinThrottle) {
-        if (gov.motorRPMK > gov.fullHeadSpeed) {
+        if (gov.motorRPMGood && gov.motorRPMK > gov.fullHeadSpeed) {
             const float throttleEst = gov.targetHeadSpeed / gov.motorRPMK;
             minThrottle = fmaxf(minThrottle, throttleEst * gov.dynMinLevel);
-
             DEBUG(GOV_MOTOR, 2, throttleEst);
             DEBUG(GOV_MOTOR, 3, minThrottle);
         }
@@ -569,13 +565,17 @@ static float govCalcDynMinThrottle(float minThrottle)
     return minThrottle;
 }
 
+static float govCalcHeadspeedRate(float maxRate)
+{
+    return fmaxf(gov.fullHeadSpeed, gov.motorRPMK) * maxRate;
+}
+
 static void govMotorConstantUpdate(void)
 {
     if (gov.useMotorConstant) {
-        if (gov.throttleOutput > 0.25f && gov.fullHeadSpeedRatio > 0.25f && gov.currentHeadSpeed > 100) {
+        if (gov.motorRPMGood && gov.throttleOutput > 0.20f && gov.fullHeadSpeedRatio > 0.20f) {
             const float RPMK = gov.currentHeadSpeed / gov.throttleOutput;
             gov.motorRPMK = ewma1FilterApply(&gov.motorRPMKFilter, RPMK);
-
             DEBUG(GOV_MOTOR, 0, RPMK);
             DEBUG(GOV_MOTOR, 1, gov.motorRPMK);
         }
@@ -712,13 +712,10 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
             gov.I += gov.C;
 
         // Limit value range
-        const float throttle = constrainf(gov.pidSum, minThrottle, maxThrottle);
-
-        // Update output throttle (don't exceed rate)
-        gov.throttleOutput = slewLimit(gov.throttleOutput, throttle, maxRate);
+        gov.throttleOutput = constrainf(gov.pidSum, minThrottle, maxThrottle);
 
         // Update headspeed target
-        gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, maxRate * gov.fullHeadSpeed * GOV_THROTTLE_HEADROOM);
+        gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, govCalcHeadspeedRate(maxRate));
     }
     else
     {
@@ -741,6 +738,9 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
             gov.stateResetReq = true;
         }
     }
+
+    // Update motor data
+    govMotorConstantUpdate();
 }
 
 static void govPIDControl(float minThrottle, float maxThrottle, float maxRate)
@@ -783,11 +783,8 @@ static void govPIDControl(float minThrottle, float maxThrottle, float maxRate)
     // Limit value range
     gov.throttleOutput = constrainf(throttle, minThrottle, maxThrottle);
 
-    // Estimate HS change speed
-    const float hsRate = fmaxf(gov.fullHeadSpeed * GOV_THROTTLE_HEADROOM, gov.motorRPMK) * maxRate;
-
     // Update headspeed target
-    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, hsRate);
+    gov.targetHeadSpeed = slewLimit(gov.targetHeadSpeed, gov.requestedHeadSpeed, govCalcHeadspeedRate(maxRate));
 
     // Update motor data
     govMotorConstantUpdate();
@@ -848,8 +845,10 @@ static void govUpdateExternalThrottle(void)
             break;
         case GOV_STATE_ACTIVE:
         case GOV_STATE_FALLBACK:
-        case GOV_STATE_AUTOROTATION:
             throttle = slewLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleTrackingRate);
+            break;
+        case GOV_STATE_AUTOROTATION:
+            throttle = slewUpDownLimit(gov.throttlePrevInput, gov.throttleInput, gov.throttleRecoveryRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_RECOVERY:
         case GOV_STATE_BAILOUT:
@@ -1053,7 +1052,7 @@ static void govUpdateGovernedThrottle(void)
             govFallbackControl(gov.minActiveThrottle, gov.maxThrottle, gov.throttleTrackingRate);
             break;
         case GOV_STATE_AUTOROTATION:
-            govThrottleSlewControl(gov.autoThrottle, gov.handoverThrottle, gov.throttleTrackingRate, gov.throttleTrackingRate);
+            govThrottleSlewControl(gov.autoThrottle, gov.handoverThrottle, gov.throttleRecoveryRate, gov.throttleSpooldownRate);
             break;
         case GOV_STATE_RECOVERY:
         case GOV_STATE_BAILOUT:
@@ -1369,6 +1368,55 @@ void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
     governorConfigMutable()->gov_auto_throttle = value;
     gov.autoThrottle = value / 1000.0f;
 }
+
+int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
+{
+    return currentPidProfile->governor.max_throttle;
+}
+
+void set_ADJUSTMENT_GOV_MAX_THROTTLE(int value)
+{
+    currentPidProfile->governor.max_throttle = value;
+    gov.maxThrottle = value / 100.0f;
+    gov.maxSpoolupThrottle = gov.maxThrottle;
+}
+
+int get_ADJUSTMENT_GOV_MIN_THROTTLE(void)
+{
+    return currentPidProfile->governor.min_throttle;
+}
+
+void set_ADJUSTMENT_GOV_MIN_THROTTLE(int value)
+{
+    currentPidProfile->governor.min_throttle = value;
+    gov.minActiveThrottle = value / 100.0f;
+}
+
+int get_ADJUSTMENT_GOV_HEADSPEED(void)
+{
+    return currentPidProfile->governor.headspeed;
+}
+
+void set_ADJUSTMENT_GOV_HEADSPEED(int value)
+{
+    currentPidProfile->governor.headspeed = value;
+    gov.fullHeadSpeed = constrainf(value, 100, 50000);
+    gov.requestedHeadSpeed = gov.fullHeadSpeed;
+    gov.motorRPMGlitchDelta = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_DELTA;
+    gov.motorRPMGlitchLimit = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_LIMIT;
+}
+
+int get_ADJUSTMENT_GOV_YAW_FF(void)
+{
+    return currentPidProfile->governor.yaw_weight;
+}
+
+void set_ADJUSTMENT_GOV_YAW_FF(int value)
+{
+    currentPidProfile->governor.yaw_weight = value;
+    gov.yawWeight = value / 100.0f;
+}
+
 
 
 //// Init functions
