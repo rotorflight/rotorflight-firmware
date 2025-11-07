@@ -325,7 +325,7 @@ bool sendMspReply(const uint8_t payloadSizeMax, mspResponseFnPtr responseFn)
     sbufSwitchToReader(&responsePacket.buf, responseBuffer);// for CRC calculation
 
     responseFn(payloadArray, payloadBuf->ptr - payloadArray);
-    headerSent = false;               // reset for the next response
+    headerSent = false; // reset for the next response
     return false;
 }
 
