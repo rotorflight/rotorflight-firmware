@@ -39,6 +39,7 @@
 
 #include "common/maths.h"
 #include "common/utils.h"
+#include "common/filter.h"
 
 #include "drivers/castle_telemetry_decode.h"
 #include "drivers/timer.h"
@@ -554,18 +555,6 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
  * 10-11:       Temperature constants
  *    12:       Sync 0xB9
  *
- *
- * Gain values reported by the ESCs:
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * Model        V1  V2  I1   I2  I3     Vgain Igain Ioffset
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * 60A          8   91   0    1   0      109      0      0
- * 80A          8   91  33  150  90      109    146    409
- * 120A         8   91  33  113 110      109    110    377
- * HV130A       11  65  30  146   0      210    157      0
- * HV200A       11  65  30  146  98      210    157    477
- * FFHV160A     11  65  33   68 185      210     66    381
- *
  * Temp sensor design:
  * ―――――――――――――――――――
  *  β  = 3950
@@ -583,22 +572,47 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
 
 #define calcTempHW(adc)  calcTempNTC(adc, HW4_NTC_GAMMA, HW4_NTC_DELTA)
 
-#define HW4_VOLTAGE_SCALE    0.00008056640625f
-#define HW4_CURRENT_SCALE    32.2265625f
-
 static float hw4VoltageScale = 0;
 static float hw4CurrentScale = 0;
 static float hw4CurrentOffset = 0;
 
-static inline float calcVoltHW(uint16_t voltADC)
+static inline float calcVoltHW4(uint16_t voltADC)
 {
     return voltADC * hw4VoltageScale;
 }
 
-static inline float calcCurrHW(uint16_t currentADC)
+static inline float calcCurrHW4(uint16_t currentADC)
 {
     return (currentADC > hw4CurrentOffset) ?
         (currentADC - hw4CurrentOffset) * hw4CurrentScale : 0;
+}
+
+static uint32_t hw4ThrottleRange = 1000;
+
+static inline uint16_t calcThrottleHW4(uint16_t throttle)
+{
+    return throttle * 1000LU / hw4ThrottleRange;
+}
+
+#define HW4_CURRENT_FILTER_FAST_HZ  10.0f
+#define HW4_CURRENT_FILTER_SLOW_HZ   1.0f
+
+static float hw4CurrentFilter = 0;
+static float hw4CurrentValue = 0;
+static float hw4CurrentFast = 0;
+static float hw4CurrentSlow = 0;
+
+static inline void updateCurrentValueHW4(float current)
+{
+    hw4CurrentValue = current;
+}
+
+static inline float updateCurrentFilterHW4(void)
+{
+    hw4CurrentFilter += (hw4CurrentValue - hw4CurrentFilter) *
+     ((hw4CurrentValue > hw4CurrentFilter || hw4CurrentValue == 0) ? hw4CurrentFast : hw4CurrentSlow);
+
+    return hw4CurrentFilter;
 }
 
 #define HW4_FRAME_NONE   0
@@ -656,8 +670,8 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 uint16_t Tadc = buffer[15] << 8 | buffer[16];
                 uint16_t Cadc = buffer[17] << 8 | buffer[18];
 
-                float voltage = calcVoltHW(Vadc);
-                float current = calcCurrHW(Iadc);
+                float voltage = calcVoltHW4(Vadc);
+                float current = calcCurrHW4(Iadc);
                 float tempFET = calcTempHW(Tadc);
                 float tempCAP = calcTempHW(Cadc);
 
@@ -667,15 +681,14 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                     current = 0;
                 }
 
-                setConsumptionCurrent(current);
+                updateCurrentValueHW4(current);
 
                 escSensorData[0].id = ESC_SIG_HW4;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
-                escSensorData[0].throttle = thr;
-                escSensorData[0].pwm = pwm;
+                escSensorData[0].throttle = calcThrottleHW4(thr);
+                escSensorData[0].pwm = calcThrottleHW4(pwm);
                 escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
-                escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
@@ -701,34 +714,27 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             }
         }
         else if (frameType == HW4_FRAME_INFO) {
-            if (escSensorConfig()->hw4_voltage_gain) {
-                hw4VoltageScale = HW4_VOLTAGE_SCALE * escSensorConfig()->hw4_voltage_gain;
+            if (buffer[2] || buffer[3]) {
+                hw4ThrottleRange = buffer[2] << 8 | buffer[3];
             }
-            else {
-                if (buffer[5] && buffer[6])
-                    hw4VoltageScale = (float)buffer[5] / (float)buffer[6] / 10;
-                else
-                    hw4VoltageScale = 0;
+            if (buffer[5] && buffer[6]) {
+                hw4VoltageScale = (float)buffer[5] / ((float)buffer[6] * 10);
             }
-
-            if (escSensorConfig()->hw4_current_gain) {
-                hw4CurrentScale = HW4_CURRENT_SCALE / escSensorConfig()->hw4_current_gain;
-                hw4CurrentOffset = escSensorConfig()->hw4_current_offset;
-            }
-            else {
-                if (buffer[7] && buffer[8]) {
-                    hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
-                    hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
-                }
-                else {
-                    hw4CurrentScale = 0;
-                    hw4CurrentOffset = 0;
-                }
+            if (buffer[7] && buffer[8]) {
+                hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
+                hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
             }
         }
     }
 
+    // Special filtering for current
+    const float current = updateCurrentFilterHW4();
+
+    // Update esc data on every cycle
+    escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
+
     // Update consumption on every cycle
+    setConsumptionCurrent(current);
     updateConsumption(currentTimeUs);
 
     // Maximum data frame spacing 400ms
@@ -4000,6 +4006,8 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_HW4:
             baudrate = 19200;
+            hw4CurrentFast = pt1FilterGain(HW4_CURRENT_FILTER_FAST_HZ, escSensorConfig()->update_hz);
+            hw4CurrentSlow = pt1FilterGain(HW4_CURRENT_FILTER_SLOW_HZ, escSensorConfig()->update_hz);
             break;
         case ESC_SENSOR_PROTO_SCORPION:
             callback = tribSensorInit(escHalfDuplex);
