@@ -983,7 +983,8 @@ const clivalue_t valueTable[] = {
     { "yaw_response",             VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, response_time[FD_YAW]) },
     { "collective_response",      VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, response_time[FD_COLL]) },
 
-    { "cyclic_ring",                VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, cyclic_ring) },
+    { "cyclic_ring",                VAR_UINT8  | PROFILE_RATE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, cyclic_ring) },
+    { "cyclic_polar",               VAR_UINT8  | PROFILE_RATE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, cyclic_polar) },
 
     { "setpoint_boost_gain",        VAR_UINT8  | PROFILE_RATE_VALUE | MODE_ARRAY, .config.array.length = 4, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, setpoint_boost_gain) },
     { "setpoint_boost_cutoff",      VAR_UINT8  | PROFILE_RATE_VALUE | MODE_ARRAY, .config.array.length = 4, PG_CONTROL_RATE_PROFILES, offsetof(controlRateConfig_t, setpoint_boost_cutoff) },
