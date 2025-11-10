@@ -393,7 +393,7 @@ static float rfPow(const float x, const uint expo)
 
 static float applyRotorflightRates(const int axis, const float rcCommandAbs)
 {
-    float rcRate = currentControlRateProfile->rcRates[axis] * 10;
+    float rcRate = currentControlRateProfile->rcRates[axis] * 5;
     float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
     uint width = currentControlRateProfile->sRates[axis];
 
