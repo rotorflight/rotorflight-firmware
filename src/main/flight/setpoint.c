@@ -338,6 +338,9 @@ void setpointUpdate(void)
         SP[FD_ROLL] = SP[FD_ROLL] * RATIO;
         SP[FD_PITCH] = SP[FD_PITCH] * RATIO;
 
+        DEBUG(USER1, 2, RATES);
+        DEBUG(USER1, 3, RATIO);
+
         DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
         DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
     }
@@ -357,6 +360,9 @@ void setpointUpdate(void)
             SP[FD_PITCH] /= C;
         }
     }
+
+    DEBUG(USER1, 0, SP[FD_ROLL]);
+    DEBUG(USER1, 1, SP[FD_PITCH]);
 
     SP[FD_YAW] = applyRatesCurve(FD_YAW, SP[FD_YAW]);
     DEBUG_AXIS(SETPOINT, FD_YAW, 5, SP[FD_YAW]);
