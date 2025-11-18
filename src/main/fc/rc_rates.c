@@ -307,10 +307,10 @@ static float applyActualRates(const int axis, const float rcCommandAbs)
     float aRate = fmaxf(0, sRate - rcRate);
 
     // Sixth order Expo
-    float expof = rcCommandAbs * (1.0f - rcExpo) + POWER6(rcCommandAbs) * rcExpo;
+    float expof = rcCommandAbs * (1.0f - rcExpo) + POWER5(rcCommandAbs) * rcExpo;
 
     // Final angle rate
-    float angleRate = rcRate * rcCommandAbs + aRate * expof;
+    float angleRate = rcCommandAbs * (rcRate + aRate * expof);
 
     return angleRate;
 }
