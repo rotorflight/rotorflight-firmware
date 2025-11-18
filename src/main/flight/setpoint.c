@@ -333,7 +333,7 @@ void setpointUpdate(void)
     if (sp.polarCoord) {
         const float POLAR = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
         const float RATES = fminf(applyRatesCurve(FD_PITCH, POLAR), sp.ringLimit[FD_PITCH]);
-        const float RATIO = RATES / POLAR;
+        const float RATIO = (POLAR > 0.001) ? RATES / POLAR : 0;
 
         SP[FD_ROLL] = SP[FD_ROLL] * RATIO;
         SP[FD_PITCH] = SP[FD_PITCH] * RATIO;
