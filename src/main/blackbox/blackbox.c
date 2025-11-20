@@ -1640,7 +1640,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RATES_TYPE, "%d",             currentControlRateProfile->rates_type);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_rates", "%d", 3,                    currentControlRateProfile->rcRates);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_expo", "%d", 3,                     currentControlRateProfile->rcExpo);
-        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->rates);
+        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->sRates);
         BLACKBOX_PRINT_HEADER_ARRAY("response_time", "%d", 3,               currentControlRateProfile->response_time);
         BLACKBOX_PRINT_HEADER_ARRAY("accel_limit", "%d", 3,                 currentControlRateProfile->accel_limit);
 
