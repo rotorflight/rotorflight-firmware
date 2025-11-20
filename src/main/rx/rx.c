@@ -568,9 +568,9 @@ static uint16_t getRxfailValue(uint8_t channel)
         case PITCH:
         case YAW:
         case COLLECTIVE:
-            return rcControlsConfig()->rc_center;
+            return getFailsafeCenter();
         case THROTTLE:
-            return rcControlsConfig()->rc_min_throttle - 50;
+            return getFailsafeThrottle();
         }
 
     FALLTHROUGH;

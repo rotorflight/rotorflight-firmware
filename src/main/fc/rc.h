@@ -65,6 +65,9 @@ static inline uint8_t getThrottlePercent(void) { return lrintf(getThrottle() * 1
 
 bool isThrottleOff(void);
 
+uint16_t getFailsafeThrottle(void);
+uint16_t getFailsafeCenter(void);
+
 uint getCurrentRxRefreshRate(void);
 float getAverageRxRefreshRate(void);
 

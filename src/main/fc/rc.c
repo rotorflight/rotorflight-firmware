@@ -109,6 +109,16 @@ bool isThrottleOff(void)
     return (rcInput[THROTTLE] < rc.offThrottle);
 }
 
+uint16_t getFailsafeThrottle(void)
+{
+    return rc.offThrottle - RC_THROTTLE_DEADBAND;
+}
+
+uint16_t getFailsafeCenter(void)
+{
+    return rcControlsConfig()->rc_center;
+}
+
 uint getCurrentRxRefreshRate(void)
 {
     return rc.currentRxRefreshRate;
