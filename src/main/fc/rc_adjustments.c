@@ -336,22 +336,24 @@ void processRcAdjustments(void)
 
                 if (adjval != adjState->adjValue) {
                     adjConfig->cfgSet(adjval);
+                    adjval = adjConfig->cfgGet();
 
-                    updateAdjustmentData(adjFunc, adjval);
-                    blackboxAdjustmentEvent(adjFunc, adjval);
+                    if (adjval != adjState->adjValue) {
+                        updateAdjustmentData(adjFunc, adjval);
+                        blackboxAdjustmentEvent(adjFunc, adjval);
 
-                    // PID profile change does it's own confirmation, no of beeps eq profile no,
-                    // a single beep here will kill that.
-                    if (adjFunc != ADJUSTMENT_PID_PROFILE) {
-                      beeperConfirmationBeeps(1);
+                        // PID profile change does it's own confirmation, no of beeps eq profile no,
+                        // a single beep here will kill that.
+                        if (adjFunc != ADJUSTMENT_PID_PROFILE)
+                            beeperConfirmationBeeps(1);
+
+                        setConfigDirty();
+
+                        adjState->deadTime = now + REPEAT_DELAY;
+                        adjState->adjValue = adjval;
+
+                        changed = true;
                     }
-
-                    setConfigDirty();
-
-                    adjState->deadTime = now + REPEAT_DELAY;
-                    adjState->adjValue = adjval;
-
-                    changed = true;
                 }
             }
         }
