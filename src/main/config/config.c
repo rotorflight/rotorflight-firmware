@@ -638,10 +638,20 @@ void validateAndFixGyroConfig(void)
         }
 
         // Fix gyro filter limits
-        uint16_t decimation_limit = lrintf(0.3f * gyro.sampleRateHz / pidDenom);
+        if (gyroConfig()->gyro_decimation_hz) {
+            if (gyroConfig()->gyro_decimation_hz < 100) {
+                gyroConfigMutable()->gyro_decimation_hz = 100;
+            }
+            else {
+                // 4th order Bessel uses 1.6 * cutoff on the first SOS
+                // Make sure the resulting cutoff is below Nyquist
+                uint16_t decimation_limit = lrintf(0.3f * gyro.sampleRateHz / pidDenom);
+                adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
+            }
+        }
+
         uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / filtDenom);
 
-        adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf2_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_1, cutoff_limit, cutoff_limit);
