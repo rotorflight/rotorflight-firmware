@@ -138,8 +138,12 @@ void gyroInitFilters(void)
     }
 #endif
 
+    const float decimation_hz = gyroConfig()->gyro_decimation_hz ?
+        gyroConfig()->gyro_decimation_hz :
+        gyro.targetRateHz / 4.0f;
+
     gyroInitDecimationFilter(
-        gyroConfig()->gyro_decimation_hz,
+        decimation_hz,
         gyro.sampleRateHz
     );
 

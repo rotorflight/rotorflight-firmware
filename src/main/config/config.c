@@ -638,7 +638,7 @@ void validateAndFixGyroConfig(void)
         }
 
         // Fix gyro filter limits
-        uint16_t decimation_limit = lrintf(0.5f * gyro.sampleRateHz / pidDenom);
+        uint16_t decimation_limit = lrintf(0.3f * gyro.sampleRateHz / pidDenom);
         uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / filtDenom);
 
         adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
