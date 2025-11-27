@@ -104,7 +104,7 @@ enum {
 #define ESC_SIG_BLHELI32          0xC8
 #define ESC_SIG_HW4               0x9B
 #define ESC_SIG_KON               0x4B
-#define ESC_SIG_OMPHOBBY          0xD0
+#define ESC_SIG_OMP               0xD0
 #define ESC_SIG_ZTW               0xDD
 #define ESC_SIG_APD               0xA0
 #define ESC_SIG_PL5               0xFD
@@ -943,6 +943,7 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
     checkFrameTimeout(currentTimeUs, 500000);
 }
+
 
 /*
  * ZTW Telemetry
@@ -3275,6 +3276,7 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
  * when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
  */
 #define XDFLY_SYNC                          0xA5                // start byte
+#define OMPHOBBY_SYNC                       0xA4
 #define XDFLY_HEADER_LENGTH                 3                   // header length
 #define XDFLY_PAYLOAD_LENGTH                3
 #define XDFLY_FOOTER_LENGTH                 2                   // CRC
@@ -3332,6 +3334,11 @@ enum xdfly_setup_status {
 
 static enum xdfly_setup_status xdfly_setup_status = XDFLY_INIT;
 
+static inline uint8_t xdfly_sync_header(void)
+{
+    return (escSig == ESC_SIG_OMP) ? OMPHOBBY_SYNC : XDFLY_SYNC;
+}
+
 static bool xdfly_connected = false;
 static bool xdfly_send_handshake = false;
 static bool xdfly_handshake_response_pending = false;
@@ -3352,7 +3359,7 @@ static void xdfly_sensor_process(timeUs_t current_time_us)
         uint16_t status = buffer[13] << 8 | buffer[14];
         uint16_t volt_bec = buffer[19];
 
-        escSensorData[0].id = ESC_SIG_XDFLY;
+        escSensorData[0].id = escSig;
         escSensorData[0].age = 0;
         escSensorData[0].erpm = rpm * 10;
         escSensorData[0].throttle = throttle * 10;
@@ -3388,7 +3395,7 @@ static void xdfly_build_req(uint8_t cmd, uint8_t param_idx, uint16_t frame_perio
 {
     uint8_t idx = 0;
 
-    reqbuffer[idx++] = XDFLY_SYNC;
+    reqbuffer[idx++] = xdfly_sync_header();
     reqbuffer[idx++] = XDFLY_FRAME_LENGTH;
     reqbuffer[idx++] = cmd;
 
@@ -3444,7 +3451,7 @@ static void xdfly_start_caching_params(void)
 
 static bool xdfly_decode(timeUs_t current_time_us)
 {
-    if (buffer[0] == XDFLY_SYNC) {
+    if (buffer[0] == xdfly_sync_header()) {
         if (buffer[1] != XDFLY_FRAME_LENGTH)
             return false;
 
@@ -3576,7 +3583,7 @@ static int8_t xdfly_accept(uint16_t c)
     if (readBytes == 1) {
         if (c == XDFLY_SYNC_TELEM) {
             got_telem_frame = true;
-        } else if (c == XDFLY_SYNC) {
+        } else if (c == xdfly_sync_header()) {
             got_telem_frame = false;
         } else {
             return -1;
@@ -3615,375 +3622,11 @@ static serialReceiveCallbackPtr xdflySensorInit(void)
     return rrfsmDataReceive;
 }
 
-/*
- * OMPHOBBY
- *
- *     - Serial protocol is 115200,8N1
- *     - Big-Endian byte order
- * 
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      start byte (0xD0)
- *      1:      length in bytes (8)
- *      2:      command 
- *          0x03 handshake
- *          0x34 set_par
- *          0x33 get_par
- *      3:      param number
- *      4-5:    param value
- *      6-7:      CRC16
- * 
- * 
- * checking whether the param is valid for the connected ESC:
- *      if the highest bit of the value is set, the parameter is valid for the connected ESC
- *          bool paramValid = paramValueRaw & 0x8000 != 0 //param shall not be displayed
- *      the actual data is in the lower 15 bits
- *          uint16_t paramValue =  paramValueRaw & 0x7FFF
- * 
- * for setting a param the high bit of the value is set to 1
- *     uint16_t paramValueRaw = paramValue | 0x8000
- * 
- * when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
- */
-#define OMPHOBBY_SYNC                          0xA5                // start byte
-#define OMPHOBBY_HEADER_LENGTH                 3                   // header length
-#define OMPHOBBY_PAYLOAD_LENGTH                3
-#define OMPHOBBY_FOOTER_LENGTH                 2                   // CRC
-#define OMPHOBBY_FRAME_LENGTH                  (OMPHOBBY_HEADER_LENGTH + OMPHOBBY_PAYLOAD_LENGTH + OMPHOBBY_FOOTER_LENGTH)
-#define OMPHOBBY_BOOT_DELAY                    5000
-
-#define OMPHOBBY_SYNC_TELEM                    0xDD
-#define OMPHOBBY_TELEM_VERSION                 0x01
-#define OMPHOBBY_TELEM_FRAME_LENGTH            0x20
-#define OMPHOBBY_PARAM_FRAME_PERIOD            10
-#define OMPHOBBY_PARAM_FRAME_TIMEOUT           200
-
-#define OMPHOBBY_CMD_HANDSHAKE                 0x03
-#define OMPHOBBY_CMD_RESPONSE                  0xCD
-#define OMPHOBBY_CMD_SET_PARAM                 0x34
-#define OMPHOBBY_CMD_GET_PARAM                 0x33
-#define OMPHOBBY_NUM_VALIDITY_FIELDS           2
-
- enum {
-    OMPHOBBY_PARAM_MODEL = 0,
-    OMPHOBBY_PARAM_GOV_MODE,
-    OMPHOBBY_PARAM_CUTOFF,
-    OMPHOBBY_PARAM_TIMING,
-    OMPHOBBY_PARAM_LV_BEC_VOLT,
-    OMPHOBBY_PARAM_ROTATION_DIR,
-    OMPHOBBY_PARAM_GOV_P,
-    OMPHOBBY_PARAM_GOV_I,
-    OMPHOBBY_PARAM_ACCEL,
-    OMPHOBBY_PARAM_AUTO_RESTART_TIME,
-    OMPHOBBY_PARAM_HV_BEC_VOLT,
-    OMPHOBBY_PARAM_RSTARTUP_POWER,
-    OMPHOBBY_PARAM_BRAKE_TYPE,
-    OMPHOBBY_PARAM_RBRAKE_FORCE,
-    OMPHOBBY_PARAM_SR_FUNC,
-    OMPHOBBY_PARAM_CAPACITY_CORR,
-    OMPHOBBY_PARAM_MOTOR_POLES,
-    OMPHOBBY_PARAM_LED_COL,
-    OMPHOBBY_PARAM_SMART_FAN,
-    OMPHOBBY_VALID_1,
-    OMPHOBBY_VALID_2,
-    OMPHOBBY_PARAM_COUNT
-};
-
-uint16_t omphobby_params[OMPHOBBY_PARAM_COUNT] = {0};
-bool omphobby_params_active[OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS] = {0};
-bool omphobby_param_cached[OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS] = {0};
-
-enum omphobby_setup_status {
-    OMPHOBBY_INIT = 0,
-    OMPHOBBY_CACHE_PARAMS,
-    OMPHOBBY_PARAMS_READY,
-    OMPHOBBY_WAIT_FOR_HANDSHAKE,
-    OMPHOBBY_WRITE_PARAMS,
-};
-
-static enum omphobby_setup_status omphobby_setup_status = OMPHOBBY_INIT;
-
-static bool omphobby_connected = false;
-static bool omphobby_send_handshake = false;
-static bool omphobby_handshake_response_pending = false;
-static timeMs_t omphobby_handshake_timestamp = 0;
-static uint8_t omphobby_param_index = 0;
-static uint8_t omphobby_write_param_index = 0;
-
-static void omphobby_sensor_process(timeUs_t current_time_us)
+static serialReceiveCallbackPtr ompAsXdflySensorInit(void)
 {
-    if (buffer[1] == 0x01 && buffer[2] == 0x20) {
-        uint16_t rpm = buffer[8] << 8 | buffer[9];
-        uint16_t temp = buffer[10];
-        uint16_t throttle = buffer[7];
-        uint16_t power = buffer[12];
-        uint16_t voltage = buffer[3] << 8 | buffer[4];
-        uint16_t current = buffer[5] << 8 | buffer[6];
-        uint16_t capacity = buffer[15] << 8 | buffer[16];
-        uint16_t status = buffer[13] << 8 | buffer[14];
-        uint16_t volt_bec = buffer[19];
-
-        escSensorData[0].id = ESC_SIG_OMPHOBBY;
-        escSensorData[0].age = 0;
-        escSensorData[0].erpm = rpm * 10;
-        escSensorData[0].throttle = throttle * 10;
-        escSensorData[0].pwm = power * 10;
-        escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
-        escSensorData[0].current = applyCurrentCorrection(current * 100);
-        escSensorData[0].consumption = applyConsumptionCorrection(capacity);
-        escSensorData[0].temperature = temp * 10;
-        escSensorData[0].bec_voltage = volt_bec * 1000;
-        escSensorData[0].status = status;
-
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-        DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
-        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-        dataUpdateUs = current_time_us;
-        totalFrameCount++;
-    }
-    checkFrameTimeout(current_time_us, 500000);
-}
-
-static void omphobby_build_req(uint8_t cmd, uint8_t param_idx, uint16_t frame_period, uint16_t frame_timeout)
-{
-    uint8_t idx = 0;
-
-    reqbuffer[idx++] = OMPHOBBY_SYNC;
-    reqbuffer[idx++] = OMPHOBBY_FRAME_LENGTH;
-    reqbuffer[idx++] = cmd;
-
-    if (cmd == OMPHOBBY_CMD_HANDSHAKE) {
-        reqbuffer[idx++] = 0;
-        reqbuffer[idx++] = 0;
-        reqbuffer[idx++] = 0;
-    } else if (cmd == OMPHOBBY_CMD_GET_PARAM) {
-        reqbuffer[idx++] = param_idx;
-        reqbuffer[idx++] = 0;
-        reqbuffer[idx++] = 0;
-    } else if (cmd == OMPHOBBY_CMD_SET_PARAM) {
-        reqbuffer[idx++] = param_idx;
-        reqbuffer[idx++] = paramUpdPayload[param_idx * 2 + 1] | 0x80;
-        reqbuffer[idx++] = paramUpdPayload[param_idx * 2];
-    }
-
-    uint8_t crclen = idx;
-    uint16_t crc16 = calculateCRC16_MODBUS(reqbuffer, crclen);
-    reqbuffer[idx++] = crc16 >> 8;
-    reqbuffer[idx++] = crc16 & 0xFF;
-
-    reqLength = idx;
-    rrfsmFramePeriod = frame_period;
-    rrfsmFrameTimeout = frame_timeout;
-}
-
-static void omphobby_get_next_param(void)
-{
-    if (!omphobby_param_cached[omphobby_param_index])
-        omphobby_build_req(OMPHOBBY_CMD_GET_PARAM, omphobby_param_index, 1, 0);
-}
-
-static void omphobby_write_next_param(void)
-{
-    omphobby_build_req(OMPHOBBY_CMD_SET_PARAM, omphobby_write_param_index, 1, 0);
-}
-
-static void omphobby_start_caching_params(void)
-{
-    omphobby_setup_status = OMPHOBBY_CACHE_PARAMS;
-    omphobby_param_index = 0;
-
-    for (uint8_t i = 0; i < OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS; i++) {
-        omphobby_param_cached[i] = false;
-        omphobby_params_active[i] = false;
-    }
-
-    omphobby_params[OMPHOBBY_VALID_1] = 0;
-    omphobby_params[OMPHOBBY_VALID_2] = 0;
-    omphobby_get_next_param();
-}
-
-static bool omphobby_decode(timeUs_t current_time_us)
-{
-    if (buffer[0] == OMPHOBBY_SYNC) {
-        if (buffer[1] != OMPHOBBY_FRAME_LENGTH)
-            return false;
-
-        uint16_t crc16 = buffer[6] << 8 | buffer[7];
-        if (calculateCRC16_MODBUS(buffer, OMPHOBBY_FRAME_LENGTH - OMPHOBBY_FOOTER_LENGTH) != crc16)
-            return false;
-
-        switch (buffer[2]) {
-        case OMPHOBBY_CMD_HANDSHAKE:
-        case OMPHOBBY_CMD_RESPONSE:
-            if (buffer[3] == 0x00 && buffer[4] == 0x55 && buffer[5] == 0x55) {
-                rrfsmFramePeriod = 0;
-                omphobby_handshake_timestamp = current_time_us;
-                omphobby_handshake_response_pending = false;
-                omphobby_connected = true;
-                rrfsmInvalidateReq();
-                omphobby_start_caching_params();
-                return true;
-            } else if (omphobby_setup_status == OMPHOBBY_WRITE_PARAMS) {
-                if (buffer[3] == omphobby_write_param_index) {
-                    omphobby_write_param_index++;
-                    while (omphobby_write_param_index < OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS &&
-                           !omphobby_params_active[omphobby_write_param_index]) {
-                        omphobby_write_param_index++;
-                    }
-                }
-                if (omphobby_write_param_index >= OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS) {
-                    omphobby_start_caching_params();
-                } else {
-                    omphobby_write_next_param();
-                }
-                return true;
-            } else if (buffer[3] == omphobby_param_index || omphobby_param_index == 0) {
-                omphobby_param_cached[omphobby_param_index] = true;
-                omphobby_params[omphobby_param_index] = (buffer[4] << 8 | buffer[5]) & 0x7FFF;
-                omphobby_params_active[omphobby_param_index] = buffer[4] & 0x80;
-                omphobby_param_index++;
-
-                if (omphobby_param_index >= OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS) {
-                    for (uint8_t i = 0; i < OMPHOBBY_PARAM_COUNT - OMPHOBBY_NUM_VALIDITY_FIELDS; i++) {
-                        if (i < 16) {
-                            omphobby_params[OMPHOBBY_VALID_1] |= omphobby_params_active[i] << i;
-                        } else {
-                            omphobby_params[OMPHOBBY_VALID_2] |= omphobby_params_active[i] << (i - 16);
-                        }
-                    }
-                    omphobby_setup_status = OMPHOBBY_PARAMS_READY;
-                    paramPayloadLength = OMPHOBBY_PARAM_COUNT * 2;
-                    memcpy(paramPayload, omphobby_params, paramPayloadLength);
-                } else {
-                    omphobby_get_next_param();
-                }
-                return true;
-            }
-            break;
-
-        default:
-            return false;
-        }
-    } else if (buffer[0] == OMPHOBBY_SYNC_TELEM) {
-        if (buffer[1] != OMPHOBBY_TELEM_VERSION)
-            return false;
-
-        if (buffer[2] != OMPHOBBY_TELEM_FRAME_LENGTH)
-            return false;
-
-        omphobby_sensor_process(current_time_us);
-
-        if (omphobby_setup_status == OMPHOBBY_CACHE_PARAMS) {
-            omphobby_get_next_param();
-        } else if (omphobby_setup_status == OMPHOBBY_WRITE_PARAMS) {
-            omphobby_write_next_param();
-        }
-        return true;
-    }
-    return false;
-}
-
-static bool omphobby_param_commit(uint8_t cmd)
-{
-    omphobby_write_param_index = 1;
-    omphobby_setup_status = OMPHOBBY_WRITE_PARAMS;
-    UNUSED(cmd);
-    return true;
-}
-
-static bool omphobby_crank_unc_setup(timeUs_t current_time_us)
-{
-    switch (omphobby_setup_status) {
-    case OMPHOBBY_INIT:
-        omphobby_sensor_process(current_time_us);
-        if (!omphobby_connected) {
-            omphobby_setup_status = OMPHOBBY_WAIT_FOR_HANDSHAKE;
-            rrfsmFrameLength = OMPHOBBY_FRAME_LENGTH;
-            rrfsmMinFrameLength = OMPHOBBY_FRAME_LENGTH;
-            omphobby_send_handshake = true;
-        }
-        break;
-
-    case OMPHOBBY_WAIT_FOR_HANDSHAKE:
-        if (current_time_us > omphobby_handshake_timestamp + 10000 && omphobby_handshake_response_pending) {
-            omphobby_send_handshake = true;
-        }
-        if (omphobby_send_handshake) {
-            omphobby_send_handshake = false;
-            omphobby_handshake_response_pending = true;
-            omphobby_build_req(OMPHOBBY_CMD_HANDSHAKE, 0, OMPHOBBY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
-            rrfsmFrameLength = OMPHOBBY_FRAME_LENGTH;
-            rrfsmMinFrameLength = OMPHOBBY_FRAME_LENGTH;
-        }
-        break;
-
-    case OMPHOBBY_CACHE_PARAMS:
-        break;
-
-    case OMPHOBBY_PARAMS_READY:
-        break;
-
-    case OMPHOBBY_WRITE_PARAMS:
-        break;
-    }
-    return true;
-}
-
-static int8_t omphobby_accept(uint16_t c)
-{
-    static uint8_t got_telem_frame = false;
-
-    if (readBytes == 1) {
-        if (c == OMPHOBBY_SYNC_TELEM) {
-            got_telem_frame = true;
-        } else if (c == OMPHOBBY_SYNC) {
-            got_telem_frame = false;
-        } else {
-            return -1;
-        }
-    } else if (readBytes == 2) {
-        if (got_telem_frame) {
-            if (c != OMPHOBBY_TELEM_VERSION)
-                return -1;
-        } else {
-            if (c != OMPHOBBY_FRAME_LENGTH)
-                return -1;
-            rrfsmFrameLength = c;
-            return 1;
-        }
-    } else if (readBytes == 3) {
-        if (got_telem_frame) {
-            if (c != OMPHOBBY_TELEM_FRAME_LENGTH) {
-                return -1;
-            } else {
-                rrfsmFrameLength = c;
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-static serialReceiveCallbackPtr omphobbySensorInit(void)
-{
-    rrfsmCrank = omphobby_crank_unc_setup;
-    rrfsmDecode = omphobby_decode;
-    rrfsmAccept = omphobby_accept;
-    paramCommit = omphobby_param_commit;
-    escSig = ESC_SIG_OMPHOBBY;
-
-    return rrfsmDataReceive;
+    serialReceiveCallbackPtr cb = xdflySensorInit();
+    escSig = ESC_SIG_OMP;   // 0xD0 for OMP header
+    return cb;
 }
 
 /*
@@ -4165,9 +3808,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
                 break;
-            case ESC_SENSOR_PROTO_OMPHOBBY:
-                rrfsmSensorProcess(currentTimeUs);
-                break;
             case ESC_SENSOR_PROTO_ZTW:
                 ztwSensorProcess(currentTimeUs);
                 break;
@@ -4184,6 +3824,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_XDFLY:
+            case ESC_SENSOR_PROTO_OMPHOBBY:            
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
@@ -4272,6 +3913,10 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 115200;
             options |= SERIAL_PARITY_EVEN;
             break;
+        case ESC_SENSOR_PROTO_OMPHOBBY:
+            callback = ompAsXdflySensorInit();
+            baudrate = 115200;
+            break;        
         case ESC_SENSOR_PROTO_ZTW:
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
@@ -4296,10 +3941,6 @@ bool INIT_CODE escSensorInit(void)
             callback = xdflySensorInit();
             baudrate = 115200;
             break;
-        case ESC_SENSOR_PROTO_OMPHOBBY:
-            callback = omphobbySensorInit();
-            baudrate = 115200;
-            break;            
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
             break;
