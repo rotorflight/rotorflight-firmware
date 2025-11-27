@@ -1,3 +1,48 @@
+# 4.6.0-20251111
+
+This is a _development snapshot_ of the Rotorflight 2.3 firmware.
+
+## Notes
+
+This version is intended to be used for beta-testing only.
+It is not fully working nor stable, and should not be used by end-users.
+
+For more information, please join the Rotorflight Discord chat.
+
+Please also read [Configuration Changes](https://github.com/rotorflight/rotorflight-firmware/blob/snapshot/4.6.0-20251111/Changes.md).
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/snapshot/2.3.0-20251111)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/snapshot/2.3.0-20251111)
+- [LUA Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/snapshot/2.3.0-20251111)
+- [LUA Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/snapshot/2.3.0-20251111)
+
+## Changes from 4.5.1
+
+- Refactor Governor for Nitro/I.C.
+- Refactor throttle channel range and arm limit
+- Refactor Adjustment Function implementation
+- Add native ELRS telemetry sensors for RPM and TEMP
+- Improve Hobbywing v4 ESC telemetry
+- Add PID Mode4
+- Add MSP_FLIGHT_STATS
+- Add motor override timeout
+- Use Bessel filter in the decimator
+- Increase max cyclic deadband to 100
+- Change RESCUE default to FLIP
+- Change default motor pole count to 0
+- Change cbat_alert_percent_default to 35%
+- Fix JR Xbus Mode-A channel corruption
+- Fix BLACKBOX_ERASE Mode getting stuck
+- Fix APD ESC telemetry
+- Fix MSPv2 over SmartPort
+
+
+***
+
 # 4.5.1
 
 This is an _Official Bugfix Release_ of the Rotorflight firmware for RF 2.2
