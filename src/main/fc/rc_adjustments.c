@@ -205,7 +205,6 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_ENTRY(ANGLE_LEVEL_GAIN,             0, 200),
     ADJ_ENTRY(HORIZON_LEVEL_GAIN,           0, 200),
-    ADJ_ENTRY(ACRO_TRAINER_GAIN,            25, 255),
 
     ADJ_ENTRY(RESCUE_CLIMB_COLLECTIVE,      0, 1000),
     ADJ_ENTRY(RESCUE_HOVER_COLLECTIVE,      0, 1000),
@@ -231,6 +230,10 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_ENTRY(ACC_TRIM_PITCH,               -300, 300),
     ADJ_ENTRY(ACC_TRIM_ROLL,                -300, 300),
+
+#ifdef USE_ACRO_TRAINER
+    ADJ_ENTRY(ACRO_TRAINER_GAIN,            25, 255),
+#endif
 };
 
 
