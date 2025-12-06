@@ -946,129 +946,6 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
- * ZTW Telemetry
- *
- *    - Serial protocol is 115200,8N1
- *    - Frame rate 20Hz
- *    - Frame length includes header and CRC
- *    - Big-Endian fields
- *    - Checksum (unknown)
- *    - Status Code bits:
- *         0:  Short-circuit protection
- *         1:  Motor connection error
- *         2:  Throttle signal lost
- *         3:  Throttle signal >0 on startup error
- *         4:  Low voltage protection
- *         5:  Temperature protection
- *         6:  Startup protection
- *         7:  Current protection
- *         8:  Throttle signal error
- *         9:  UART throttle error
- *        10:  UART throttle lost
- *        11:  CAN throttle lost
- *        12:  Battery voltage error
- *
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      Start Flag (0xdd)
- *      1:      Protocol version (0x01)
- *      2:      Frame lenght (32)
- *    3-4:      Battery voltage in 0.1V
- *    5-6:      Battery current in 0.1V
- *      7:      Throttle %
- *    8-9:      RPM in 10rpm steps
- *     10:      ESC Temperature °C
- *     11:      Motor Temperature °C
- *     12:      PWM duty cycle %
- *  13-14:      Status Code
- *  15-16:      Capacity mAh
- *     17:      Serial Throttle input (unused)
- *     18:      CAN Throttle input (unused)
- *     19:      BEC Voltage
- *  20-29:      Unused
- *  30-31:      Checksum
- *
- */
-
-static bool processZTWTelemetryStream(uint8_t dataByte)
-{
-    totalByteCount++;
-
-    buffer[readBytes++] = dataByte;
-
-    if (readBytes == 1) {
-        if (dataByte != 0xDD)
-            frameSyncError();
-        else
-            syncCount++;
-    }
-    else if (readBytes == 32) {
-        readBytes = 0;
-        if (syncCount > 2)
-            return true;
-    }
-
-    return false;
-}
-
-static void ztwSensorProcess(timeUs_t currentTimeUs)
-{
-    // check for any available bytes in the rx buffer
-    while (serialRxBytesWaiting(escSensorPort)) {
-        if (processZTWTelemetryStream(serialRead(escSensorPort))) {
-            if (buffer[1] == 0x01 && buffer[2] == 0x20) {
-                uint16_t rpm = buffer[8] << 8 | buffer[9];
-                uint16_t temp = buffer[10];
-                uint16_t throttle = buffer[7];
-                uint16_t power = buffer[12];
-                uint16_t voltage = buffer[3] << 8 | buffer[4];
-                uint16_t current = buffer[5] << 8 | buffer[6];
-                uint16_t capacity = buffer[15] << 8 | buffer[16];
-                uint16_t status = buffer[13] << 8 | buffer[14];
-                uint16_t voltBEC = buffer[19];
-
-                escSensorData[0].id = ESC_SIG_ZTW;
-                escSensorData[0].age = 0;
-                escSensorData[0].erpm = rpm * 10;
-                escSensorData[0].throttle = throttle * 10;
-                escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
-                escSensorData[0].current = applyCurrentCorrection(current * 100);
-                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
-                escSensorData[0].temperature = temp * 10;
-                escSensorData[0].bec_voltage = voltBEC * 1000;
-                escSensorData[0].status = status;
-
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-                dataUpdateUs = currentTimeUs;
-
-                totalFrameCount++;
-            }
-            else {
-                totalCrcErrorCount++;
-            }
-        }
-    }
-
-    // Maximum frame spacing 50ms, sync after 3 frames
-    checkFrameTimeout(currentTimeUs, 500000);
-}
-
-
-/*
  * Advanced Power Drives UART Telemetry
  *
  *    - Serial protocol is 115200,8N1
@@ -3277,6 +3154,7 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
  */
 #define XDFLY_SYNC                          0xA5                // start byte
 #define OMPHOBBY_SYNC                       0xA4
+#define ZTW_SYNC                            0xA4                // TODO: set actual ZTW command header when known
 #define XDFLY_HEADER_LENGTH                 3                   // header length
 #define XDFLY_PAYLOAD_LENGTH                3
 #define XDFLY_FOOTER_LENGTH                 2                   // CRC
@@ -3336,7 +3214,7 @@ static enum xdfly_setup_status xdfly_setup_status = XDFLY_INIT;
 
 static inline uint8_t xdfly_sync_header(void)
 {
-    return (escSig == ESC_SIG_OMP) ? OMPHOBBY_SYNC : XDFLY_SYNC;
+    return (escSig == ESC_SIG_OMP) ? OMPHOBBY_SYNC : (escSig == ESC_SIG_ZTW) ? ZTW_SYNC : XDFLY_SYNC;
 }
 
 static bool xdfly_connected = false;
@@ -3611,23 +3489,19 @@ static int8_t xdfly_accept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr xdflySensorInit(void)
+static serialReceiveCallbackPtr xdflySensorInitCommon(uint8_t sig)
 {
-    rrfsmCrank = xdfly_crank_unc_setup;
+    rrfsmCrank  = xdfly_crank_unc_setup;
     rrfsmDecode = xdfly_decode;
     rrfsmAccept = xdfly_accept;
     paramCommit = xdfly_param_commit;
-    escSig = ESC_SIG_XDFLY;
-
+    escSig = sig;
     return rrfsmDataReceive;
 }
 
-static serialReceiveCallbackPtr ompAsXdflySensorInit(void)
-{
-    serialReceiveCallbackPtr cb = xdflySensorInit();
-    escSig = ESC_SIG_OMP;   // 0xD0 for OMP header
-    return cb;
-}
+static serialReceiveCallbackPtr xdflySensorInit(void)      { return xdflySensorInitCommon(ESC_SIG_XDFLY); }
+static serialReceiveCallbackPtr ompAsXdflySensorInit(void) { return xdflySensorInitCommon(ESC_SIG_OMP); }
+static serialReceiveCallbackPtr ztwAsXdflySensorInit(void) { return xdflySensorInitCommon(ESC_SIG_ZTW); }
 
 /*
  * Raw Telemetry Data Recorder
@@ -3808,9 +3682,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
                 break;
-            case ESC_SENSOR_PROTO_ZTW:
-                ztwSensorProcess(currentTimeUs);
-                break;
             case ESC_SENSOR_PROTO_APD:
                 apdSensorProcess(currentTimeUs);
                 break;
@@ -3824,6 +3695,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_XDFLY:
+            case ESC_SENSOR_PROTO_ZTW:
             case ESC_SENSOR_PROTO_OMPHOBBY:            
                 rrfsmSensorProcess(currentTimeUs);
                 break;
@@ -3852,6 +3724,8 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
         case ESC_SENSOR_PROTO_XDFLY:
+        case ESC_SENSOR_PROTO_OMPHOBBY:
+        case ESC_SENSOR_PROTO_ZTW:     
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE
@@ -3917,7 +3791,10 @@ bool INIT_CODE escSensorInit(void)
             callback = ompAsXdflySensorInit();
             baudrate = 115200;
             break;        
-        case ESC_SENSOR_PROTO_ZTW:
+         case ESC_SENSOR_PROTO_ZTW:
+            callback = ztwAsXdflySensorInit();
+            baudrate = 115200;
+            break;    
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
             break;
