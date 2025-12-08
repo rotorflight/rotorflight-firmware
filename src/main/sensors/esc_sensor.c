@@ -3154,7 +3154,7 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
  */
 #define XDFLY_SYNC                          0xA5                // start byte
 #define OMPHOBBY_SYNC                       0xA4
-#define ZTW_SYNC                            0xA4                // TODO: set actual ZTW command header when known
+#define ZTW_SYNC                            0xA3                
 #define XDFLY_HEADER_LENGTH                 3                   // header length
 #define XDFLY_PAYLOAD_LENGTH                3
 #define XDFLY_FOOTER_LENGTH                 2                   // CRC
