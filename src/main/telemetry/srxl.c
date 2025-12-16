@@ -76,7 +76,8 @@
 #define SRXL_FRAMETYPE_TELE_RPM     0x7E
 #define SRXL_FRAMETYPE_POWERBOX     0x0A
 #define SRXL_FRAMETYPE_TELE_FP_MAH  0x34
-#define TELE_DEVICE_VTX             0x0D   // Video Transmitter Status
+#define SRXL_FRAMETYPE_VTX          0x0D   // Video Transmitter Status
+#define SRXL_FRAMETYPE_ESC          0x20   // Electronic Speed Control
 #define SRXL_FRAMETYPE_SID          0x00
 #define SRXL_FRAMETYPE_GPS_LOC      0x16   // GPS Location Data (Eagle Tree)
 #define SRXL_FRAMETYPE_GPS_STAT     0x17
@@ -455,6 +456,101 @@ bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
     return false;
 }
 
+//  ****** ESC Telem*try frame ******
+//
+//	Uses big-endian byte order
+//
+/*
+typedef struct
+{
+    UINT8       identifier;      // Source device = 0x20
+    UINT8	sID;		 // Secondary ID
+    UINT16	RPM;		 // Electrical RPM, 10RPM (0-655340 RPM)  0xFFFF --> "No data"
+    UINT16	voltsInput;	 // Volts, 0.01v (0-655.34V)       0xFFFF --> "No data"
+    UINT16	tempFET;	 // Temperature, 0.1C (0-6553.4C)  0xFFFF --> "No data"
+    UINT16	currentMotor;	 // Current, 10mA (0-655.34A)      0xFFFF --> "No data"
+    UINT16	tempBEC;	 // Temperature, 0.1C (0-6553.4C)  0xFFFF --> "No data"
+    UINT8	currentBEC;	 // BEC Current, 100mA (0-25.4A)   0xFF ----> "No data"  // iX20 displays in mA but says A. Ex 9.0A (90) displays as 9000 A 
+    UINT8	voltsBEC;        // BEC Volts, 0.05V (0-12.70V)    0xFF ----> "No data"
+    UINT8	throttle;	 // 0.5% (0-100%)                  0xFF ----> "No data"  // Spec error or iX20 bug
+    UINT8	powerOut;	 // Power Output, 0.5% (0-127%)    0xFF ----> "No data"  // throttle and powerout fields seems swapped
+} STRU_TELE_ESC;
+*/
+
+#define ESC_KEEPALIVE_TIME_OUT 1000000 // 1s
+#define MOTOR1 0
+
+bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
+{
+    static timeUs_t lastTimeSentFPmAh = 0;
+    timeUs_t keepAlive = currentTimeUs - lastTimeSentFPmAh;
+
+    if ( isEscSensorActive()) {
+
+        uint8_t  iBec     = (uint8_t)(telemetrySensorValue(TELEM_ESC1_BEC_CURRENT) /100);
+        uint16_t iMotor   = (uint16_t)(telemetrySensorValue(TELEM_ESC1_CURRENT)    / 10);
+        uint16_t rpm      = (uint16_t)(telemetrySensorValue(TELEM_ESC1_ERPM)       / 10);
+        uint16_t vBat     = (uint16_t)(telemetrySensorValue(TELEM_ESC1_VOLTAGE)    / 10);
+        uint16_t tempFet  = (uint16_t)(telemetrySensorValue(TELEM_ESC1_TEMP1)      /  1);
+        uint16_t tempBec  = (uint16_t)(telemetrySensorValue(TELEM_ESC1_TEMP2)      /  1);
+        uint8_t  vBec     = (uint8_t)(telemetrySensorValue(TELEM_ESC1_BEC_VOLTAGE) / 50);
+        uint8_t  throttle = (uint8_t)(telemetrySensorValue(TELEM_ESC1_THROTTLE)    /  5);
+        uint8_t  powerOut = (uint8_t)(telemetrySensorValue(TELEM_ESC1_POWER)       /  5);
+
+        static uint16_t rpmSent;
+        static uint16_t vBatSent;
+        static uint16_t tempFetSent;
+        static uint16_t iMotorSent;
+        static uint16_t tempBecSent;
+        static uint8_t  iBecSent;
+        static uint8_t  vBecSent;
+        static uint8_t  throttleSent;
+        static uint8_t  powerOutSent;
+
+        if ( keepAlive > ESC_KEEPALIVE_TIME_OUT ||
+             rpm      != rpmSent  ||
+             vBat     != vBatSent ||
+             tempFet  != tempFetSent ||
+             iMotor   != iMotorSent ||
+             tempBec  != tempBecSent ||
+             iBec     != iBecSent ||
+             vBec     != vBecSent ||
+             throttle != throttleSent ||
+             powerOut != powerOutSent ) {
+
+            sbufWriteU8(dst,  SRXL_FRAMETYPE_ESC);
+            sbufWriteU8(dst,  SRXL_FRAMETYPE_SID);
+            sbufWriteU16BigEndian(dst, rpm);
+            sbufWriteU16BigEndian(dst, vBat);
+            sbufWriteU16BigEndian(dst, tempFet);
+            sbufWriteU16BigEndian(dst, iMotor);
+            sbufWriteU16BigEndian(dst, tempBec);
+            sbufWriteU8(dst, iBec);
+            sbufWriteU8(dst, vBec);
+            // Needs swapped order to display correctly on iX20 v2.01A.14 EU
+            sbufWriteU8(dst, powerOut);
+            sbufWriteU8(dst, throttle);
+
+            rpmSent      = rpm;
+            vBatSent     = vBat;
+            tempFetSent  = tempFet;
+            iMotorSent   = iMotor;
+            tempBecSent  = tempBec;
+            iBecSent     = iBec;
+            vBecSent     = vBec;
+            throttleSent = throttle;
+            powerOutSent = powerOut;
+            lastTimeSentFPmAh = currentTimeUs;
+
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+
 #if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
 
 // Betaflight CMS using Spektrum Tx telemetry TEXT_GEN sensor as display.
@@ -640,7 +736,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
         if ((memcmp(&vtxSent, &vtx, sizeof(spektrumVtx_t)) != 0) ||
             ((currentTimeUs - lastTimeSentVtx) > VTX_KEEPALIVE_TIME_OUT) ) {
             // Fill in the VTX tm structure
-            sbufWriteU8(dst, TELE_DEVICE_VTX);
+            sbufWriteU8(dst, SRXL_FRAMETYPE_VTX);
             sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
             sbufWriteU8(dst,  vtx.band);
             sbufWriteU8(dst,  vtx.channel);
@@ -669,6 +765,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_SCHEDULE_MANDATORY_COUNT  2 // Mandatory QOS and RPM sensors
 
 #define SRXL_FP_MAH_COUNT   1
+#define SRXL_ESC_COUNT   1
 
 #if defined(USE_GPS)
 #define SRXL_GPS_LOC_COUNT  1
@@ -690,7 +787,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_VTX_TM_COUNT        0
 #endif
 
-#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
+#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_ESC_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
 #define SRXL_SCHEDULE_COUNT_MAX  (SRXL_SCHEDULE_MANDATORY_COUNT + 1)
 #define SRXL_TOTAL_COUNT         (SRXL_SCHEDULE_MANDATORY_COUNT + SRXL_SCHEDULE_USER_COUNT)
 
@@ -701,6 +798,7 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
     srxlFrameQos,
     srxlFrameRpm,
     srxlFrameFlightPackCurrent,
+    srxlFrameEsc,
 #if defined(USE_GPS)
     srxlFrameGpsStat,
     srxlFrameGpsLoc,
