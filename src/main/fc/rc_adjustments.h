@@ -24,7 +24,6 @@
 
 #include "pg/adjustments.h"
 
-
 /*
  * Adjustment Function codes
  *
@@ -41,7 +40,7 @@ typedef enum {
     ADJUSTMENT_RATE_PROFILE             = 1,
     ADJUSTMENT_PID_PROFILE              = 2,
     ADJUSTMENT_LED_PROFILE              = 3,
-    ADJUSTMENT_OSD_PROFILE              = 4,
+    ADJUSTMENT_BATTERY_PROFILE          = 4,
 
     // Rates
     ADJUSTMENT_PITCH_RATE               = 5,
@@ -144,6 +143,14 @@ typedef enum {
 
     // Precomp cutoff
     ADJUSTMENT_YAW_PRECOMP_CUTOFF       = 75,
+
+    // Governor
+    ADJUSTMENT_GOV_IDLE_THROTTLE        = 76,
+    ADJUSTMENT_GOV_AUTO_THROTTLE        = 77,
+    ADJUSTMENT_GOV_MAX_THROTTLE         = 78,
+    ADJUSTMENT_GOV_MIN_THROTTLE         = 79,
+    ADJUSTMENT_GOV_HEADSPEED            = 80,
+    ADJUSTMENT_GOV_YAW_FF               = 81,
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;

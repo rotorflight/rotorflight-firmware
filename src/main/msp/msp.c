@@ -121,6 +121,7 @@
 #include "pg/motor.h"
 #include "pg/rx.h"
 #include "pg/rx_spi.h"
+#include "pg/stats.h"
 #include "pg/usb.h"
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
@@ -802,9 +803,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, escSensorConfig()->halfDuplex);
         sbufWriteU16(dst, escSensorConfig()->update_hz);
         sbufWriteU16(dst, escSensorConfig()->current_offset);
-        sbufWriteU16(dst, escSensorConfig()->hw4_current_offset);
-        sbufWriteU8(dst, escSensorConfig()->hw4_current_gain);
-        sbufWriteU8(dst, escSensorConfig()->hw4_voltage_gain);
+        sbufWriteU32(dst, 0); // Was HW4 parameters
         sbufWriteU8(dst, escSensorConfig()->pinSwap);
         sbufWriteS8(dst, escSensorConfig()->voltage_correction);
         sbufWriteS8(dst, escSensorConfig()->current_correction);
@@ -1131,6 +1130,16 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, pilotConfig()->modelParam2Value);
         sbufWriteU8(dst, pilotConfig()->modelParam3Type);
         sbufWriteU16(dst, pilotConfig()->modelParam3Value);
+        // Introduced in MSP API 12.9
+        sbufWriteU32(dst, pilotConfig()->modelFlags);
+        break;
+
+    case MSP_FLIGHT_STATS:
+        // Introduced in MSP API 12.9
+        sbufWriteU32(dst, statsConfig()->stats_total_flights);
+        sbufWriteU32(dst, statsConfig()->stats_total_time_s);
+        sbufWriteU32(dst, statsConfig()->stats_total_dist_m);
+        sbufWriteS8(dst, statsConfig()->stats_min_armed_time_s);
         break;
 
 #ifdef USE_SERVOS
@@ -1605,7 +1614,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_RC_CONFIG:
         sbufWriteU16(dst, rcControlsConfig()->rc_center);
         sbufWriteU16(dst, rcControlsConfig()->rc_deflection);
-        sbufWriteU16(dst, rcControlsConfig()->rc_arm_throttle);
+        sbufWriteU16(dst, 0); // rcControlsConfig()->rc_arm_throttle
         sbufWriteU16(dst, rcControlsConfig()->rc_min_throttle);
         sbufWriteU16(dst, rcControlsConfig()->rc_max_throttle);
         sbufWriteU8(dst, rcControlsConfig()->rc_deadband);
@@ -1907,11 +1916,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->governor.f_gain);
         sbufWriteU8(dst, currentPidProfile->governor.tta_gain);
         sbufWriteU8(dst, currentPidProfile->governor.tta_limit);
-        sbufWriteU8(dst, currentPidProfile->governor.yaw_ff_weight);
-        sbufWriteU8(dst, currentPidProfile->governor.cyclic_ff_weight);
-        sbufWriteU8(dst, currentPidProfile->governor.collective_ff_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.yaw_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.cyclic_weight);
+        sbufWriteU8(dst, currentPidProfile->governor.collective_weight);
         sbufWriteU8(dst, currentPidProfile->governor.max_throttle);
         sbufWriteU8(dst, currentPidProfile->governor.min_throttle);
+        sbufWriteU8(dst, currentPidProfile->governor.fallback_drop);
+        sbufWriteU16(dst, currentPidProfile->governor.flags);
         break;
 
     case MSP_SENSOR_CONFIG:
@@ -2015,17 +2026,24 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_spoolup_time);
         sbufWriteU16(dst, governorConfig()->gov_tracking_time);
         sbufWriteU16(dst, governorConfig()->gov_recovery_time);
-        sbufWriteU16(dst, governorConfig()->gov_zero_throttle_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_lost_headspeed_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_timeout);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_bailout_time);
-        sbufWriteU16(dst, governorConfig()->gov_autorotation_min_entry_time);
+        sbufWriteU16(dst, governorConfig()->gov_throttle_hold_timeout);
+        sbufWriteU16(dst, 0); // governorConfig()->gov_lost_headspeed_timeout
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_timeout
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_bailout_time
+        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_min_entry_time
         sbufWriteU8(dst, governorConfig()->gov_handover_throttle);
         sbufWriteU8(dst, governorConfig()->gov_pwr_filter);
         sbufWriteU8(dst, governorConfig()->gov_rpm_filter);
         sbufWriteU8(dst, governorConfig()->gov_tta_filter);
         sbufWriteU8(dst, governorConfig()->gov_ff_filter);
-        sbufWriteU8(dst, governorConfig()->gov_spoolup_min_throttle);
+        sbufWriteU8(dst, 0); // governorConfig()->gov_spoolup_min_throttle
+        sbufWriteU8(dst, governorConfig()->gov_d_filter);
+        sbufWriteU16(dst, governorConfig()->gov_spooldown_time);
+        sbufWriteU8(dst, governorConfig()->gov_throttle_type);
+        sbufWriteS8(dst, governorConfig()->gov_idle_collective);
+        sbufWriteS8(dst, governorConfig()->gov_wot_collective);
+        sbufWriteU8(dst, governorConfig()->gov_idle_throttle);
+        sbufWriteU8(dst, governorConfig()->gov_auto_throttle);
         break;
 
     default:
@@ -2356,7 +2374,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 currentPidProfile->pid[i].O = sbufReadU16(src);
             }
         }
-        pidInitProfile(currentPidProfile);
+        pidLoadProfile(currentPidProfile);
         break;
 
     case MSP_SET_MODE_RANGE:
@@ -2432,17 +2450,19 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         loadControlRateProfile();
         break;
 
+#ifdef USE_MSP_SET_MOTOR
     case MSP_SET_MOTOR:
 #ifdef USE_MOTOR
         for (int i = 0; i < getMotorCount(); i++) {
             int throttle = sbufReadU16(src);
             if (motorIsEnabled() && motorIsMotorEnabled(i)) {
                 if (throttle >= 1000 && throttle <= 2000)
-                    setMotorOverride(i, throttle - 1000);
+                    setMotorOverride(i, throttle - 1000, 0);
             }
         }
 #endif
         break;
+#endif
 
     case MSP_SET_MOTOR_OVERRIDE:
 #ifdef USE_MOTOR
@@ -2450,7 +2470,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MAX_SUPPORTED_MOTORS) {
             return MSP_RESULT_ERROR;
         }
-        setMotorOverride(i, sbufReadU16(src));
+        setMotorOverride(i, sbufReadU16(src), MOTOR_OVERRIDE_TIMEOUT);
 #endif
         break;
 
@@ -2642,7 +2662,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
     case MSP_SET_PID_PROFILE:
-        sbufReadU8(src); // PID mode can't be changed
+        currentPidProfile->pid_mode = sbufReadU8(src);
         currentPidProfile->error_decay_time_ground = sbufReadU8(src);
         currentPidProfile->error_decay_time_cyclic = sbufReadU8(src);
         currentPidProfile->error_decay_time_yaw = sbufReadU8(src);
@@ -2701,7 +2721,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
         }
         /* Load new values */
-        pidInitProfile(currentPidProfile);
+        pidLoadProfile(currentPidProfile);
         break;
 
     case MSP_SET_RESCUE_PROFILE:
@@ -2736,12 +2756,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         currentPidProfile->governor.f_gain = sbufReadU8(src);
         currentPidProfile->governor.tta_gain = sbufReadU8(src);
         currentPidProfile->governor.tta_limit = sbufReadU8(src);
-        currentPidProfile->governor.yaw_ff_weight = sbufReadU8(src);
-        currentPidProfile->governor.cyclic_ff_weight = sbufReadU8(src);
-        currentPidProfile->governor.collective_ff_weight = sbufReadU8(src);
+        currentPidProfile->governor.yaw_weight = sbufReadU8(src);
+        currentPidProfile->governor.cyclic_weight = sbufReadU8(src);
+        currentPidProfile->governor.collective_weight = sbufReadU8(src);
         currentPidProfile->governor.max_throttle = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->governor.min_throttle = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 3) {
+            currentPidProfile->governor.fallback_drop = sbufReadU8(src);
+            currentPidProfile->governor.flags = sbufReadU16(src);
         }
         /* Load new values */
         governorInitProfile(currentPidProfile);
@@ -2793,9 +2817,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         escSensorConfigMutable()->halfDuplex = sbufReadU8(src);
         escSensorConfigMutable()->update_hz = sbufReadU16(src);
         escSensorConfigMutable()->current_offset = sbufReadU16(src);
-        escSensorConfigMutable()->hw4_current_offset = sbufReadU16(src);
-        escSensorConfigMutable()->hw4_current_gain = sbufReadU8(src);
-        escSensorConfigMutable()->hw4_voltage_gain = sbufReadU8(src);
+        sbufReadU32(src); // Was HW4 parameters
         if (sbufBytesRemaining(src) >= 1) {
             escSensorConfigMutable()->pinSwap = sbufReadU8(src);
         }
@@ -3235,7 +3257,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_RC_CONFIG:
         rcControlsConfigMutable()->rc_center = sbufReadU16(src);
         rcControlsConfigMutable()->rc_deflection = sbufReadU16(src);
-        rcControlsConfigMutable()->rc_arm_throttle = sbufReadU16(src);
+        sbufReadU16(src); // rcControlsConfigMutable()->rc_arm_throttle
         rcControlsConfigMutable()->rc_min_throttle = sbufReadU16(src);
         rcControlsConfigMutable()->rc_max_throttle = sbufReadU16(src);
         rcControlsConfigMutable()->rc_deadband = sbufReadU8(src);
@@ -3387,6 +3409,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         pilotConfigMutable()->modelParam2Value = sbufReadU16(src);
         pilotConfigMutable()->modelParam3Type = sbufReadU8(src);
         pilotConfigMutable()->modelParam3Value = sbufReadU16(src);
+        if (sbufBytesRemaining(src) >= 4) {
+            // Introduced in MSP API 12.9
+            pilotConfigMutable()->modelFlags = sbufReadU32(src);
+        }
+        break;
+
+    case MSP_SET_FLIGHT_STATS:
+        // Introduced in MSP API 12.9
+        statsConfigMutable()->stats_total_flights = sbufReadU32(src);
+        statsConfigMutable()->stats_total_time_s = sbufReadU32(src);
+        statsConfigMutable()->stats_total_dist_m = sbufReadU32(src);
+        statsConfigMutable()->stats_min_armed_time_s = sbufReadS8(src);
         break;
 
 #ifdef USE_RTC_TIME
@@ -3475,18 +3509,27 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_spoolup_time = sbufReadU16(src);
         governorConfigMutable()->gov_tracking_time = sbufReadU16(src);
         governorConfigMutable()->gov_recovery_time = sbufReadU16(src);
-        governorConfigMutable()->gov_zero_throttle_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_lost_headspeed_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_bailout_time = sbufReadU16(src);
-        governorConfigMutable()->gov_autorotation_min_entry_time = sbufReadU16(src);
+        governorConfigMutable()->gov_throttle_hold_timeout = sbufReadU16(src);
+        sbufReadU16(src); // governorConfigMutable()->gov_lost_headspeed_timeout
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_timeout
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_bailout_time
+        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_min_entry_time
         governorConfigMutable()->gov_handover_throttle = sbufReadU8(src);
         governorConfigMutable()->gov_pwr_filter = sbufReadU8(src);
         governorConfigMutable()->gov_rpm_filter = sbufReadU8(src);
         governorConfigMutable()->gov_tta_filter = sbufReadU8(src);
         governorConfigMutable()->gov_ff_filter = sbufReadU8(src);
         if (sbufBytesRemaining(src) >= 1) {
-            governorConfigMutable()->gov_spoolup_min_throttle = sbufReadU8(src);
+            sbufReadU8(src); // governorConfigMutable()->gov_spoolup_min_throttle
+        }
+        if (sbufBytesRemaining(src) >= 8) {
+            governorConfigMutable()->gov_d_filter = sbufReadU8(src);
+            governorConfigMutable()->gov_spooldown_time = sbufReadU16(src);
+            governorConfigMutable()->gov_throttle_type = sbufReadU8(src);
+            governorConfigMutable()->gov_idle_collective = sbufReadS8(src);
+            governorConfigMutable()->gov_wot_collective = sbufReadS8(src);
+            governorConfigMutable()->gov_idle_throttle = sbufReadU8(src);
+            governorConfigMutable()->gov_auto_throttle = sbufReadU8(src);
         }
         break;
 

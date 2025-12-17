@@ -114,6 +114,11 @@ bool isBatteryVoltageConfigured(void)
     return batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
 }
 
+uint8_t getBatteryVoltageSource(void)
+{
+    return batteryConfig()->voltageMeterSource;
+}
+
 const voltageMeter_t * getBatteryVoltageMeter()
 {
     return &voltageMeter;

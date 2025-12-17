@@ -261,7 +261,6 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if (TARGET_FLASH_SIZE > 64)
-#define USE_ACRO_TRAINER
 #define USE_BLACKBOX
 #define USE_CLI_BATCH
 #define USE_RESOURCE_MGMT

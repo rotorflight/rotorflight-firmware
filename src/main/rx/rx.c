@@ -252,6 +252,25 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 }
 #endif
 
+void validateAndFixRxConfig()
+{
+#ifdef USE_SERIAL_RX
+    if (featureIsEnabled(FEATURE_RX_SERIAL)) {
+
+      switch (rxConfig()->serialrx_provider) {
+#ifdef USE_SERIALRX_SRXL2
+      case SERIALRX_SRXL2:
+          validateAndFixSrxl2Config();
+          break;
+#endif
+      default:
+          break;
+      }
+    }
+#endif
+}
+
+
 void rxInit(void)
 {
     if (featureIsEnabled(FEATURE_RX_PARALLEL_PWM)) {
@@ -282,7 +301,7 @@ void rxInit(void)
         validRxSignalTimeout[i] = millis() + MAX_INVALID_PULSE_TIME_MS;
     }
 
-    rcInput[THROTTLE] = rcControlsConfig()->rc_arm_throttle - 10;
+    rcInput[THROTTLE] = RX_PWM_PULSE_MIN;
 
     // Initialize ARM switch to OFF position when arming via switch is defined
     // TODO - move to rc_mode.c
@@ -549,9 +568,9 @@ static uint16_t getRxfailValue(uint8_t channel)
         case PITCH:
         case YAW:
         case COLLECTIVE:
-            return rcControlsConfig()->rc_center;
+            return getFailsafeCenter();
         case THROTTLE:
-            return rcControlsConfig()->rc_min_throttle - 50;
+            return getFailsafeThrottle();
         }
 
     FALLTHROUGH;
