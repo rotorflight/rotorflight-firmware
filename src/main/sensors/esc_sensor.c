@@ -3496,7 +3496,7 @@ static int8_t xdfly_accept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr xdflySensorInitCommon(uint8_t sig)
+static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig)
 {
     rrfsmCrank  = xdfly_crank_unc_setup;
     rrfsmDecode = xdfly_decode;
@@ -3505,10 +3505,6 @@ static serialReceiveCallbackPtr xdflySensorInitCommon(uint8_t sig)
     escSig = sig;
     return rrfsmDataReceive;
 }
-
-static serialReceiveCallbackPtr xdflySensorInit(void)      { return xdflySensorInitCommon(ESC_SIG_XDFLY); }
-static serialReceiveCallbackPtr ompAsXdflySensorInit(void) { return xdflySensorInitCommon(ESC_SIG_OMP); }
-static serialReceiveCallbackPtr ztwAsXdflySensorInit(void) { return xdflySensorInitCommon(ESC_SIG_ZTW); }
 
 /*
  * Raw Telemetry Data Recorder
@@ -3795,11 +3791,11 @@ bool INIT_CODE escSensorInit(void)
             options |= SERIAL_PARITY_EVEN;
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
-            callback = ompAsXdflySensorInit();
+            callback = xdflySensorInit(ESC_SIG_OMP);
             baudrate = 115200;
             break;        
          case ESC_SENSOR_PROTO_ZTW:
-            callback = ztwAsXdflySensorInit();
+            callback = xdflySensorInit(ESC_SIG_ZTW);
             baudrate = 115200;
             break;    
         case ESC_SENSOR_PROTO_APD:
@@ -3822,7 +3818,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_XDFLY:
-            callback = xdflySensorInit();
+            callback = xdflySensorInit(ESC_SIG_XDFLY);
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:
