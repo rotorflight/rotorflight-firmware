@@ -1356,6 +1356,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->mcu_temp = getCoreTemperatureCelsius();
 
+#ifdef USE_ESC_SENSOR
     escSensorData_t *escData = getEscSensorData(0);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
         blackboxCurrent->esc_voltage = escData->voltage / 10;
@@ -1397,6 +1398,7 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->esc2_temp = 0;
         blackboxCurrent->esc2_rpm = 0;
     }
+#endif
 
     blackboxCurrent->headspeed = getHeadSpeed();
     blackboxCurrent->tailspeed = getTailSpeed();
