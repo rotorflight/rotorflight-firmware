@@ -456,7 +456,9 @@ bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
     return false;
 }
 
-//  ****** ESC Telem*try frame ******
+#ifdef USE_ESC_SENSOR_TELEMETRY
+
+//  ****** ESC Telemetry frame ******
 //
 //	Uses big-endian byte order
 //
@@ -547,7 +549,7 @@ bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
     }
     return false;
 }
-
+#endif
 
 
 
@@ -765,7 +767,12 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_SCHEDULE_MANDATORY_COUNT  2 // Mandatory QOS and RPM sensors
 
 #define SRXL_FP_MAH_COUNT   1
+
+#ifdef USE_ESC_SENSOR_TELEMETRY
 #define SRXL_ESC_COUNT   1
+#else
+#define SRXL_ESC_COUNT   0
+#endif
 
 #if defined(USE_GPS)
 #define SRXL_GPS_LOC_COUNT  1
@@ -798,7 +805,9 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
     srxlFrameQos,
     srxlFrameRpm,
     srxlFrameFlightPackCurrent,
+#ifdef USE_ESC_SENSOR_TELEMETRY
     srxlFrameEsc,
+#endif
 #if defined(USE_GPS)
     srxlFrameGpsStat,
     srxlFrameGpsLoc,
