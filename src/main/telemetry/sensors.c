@@ -207,9 +207,9 @@ int telemetrySensorValue(sensor_id_e id)
             return getCurrent(CURRENT_METER_ID_MCU);
         case TELEM_MCU_TEMP:
             return getCoreTemperatureCelsius();
-#ifdef USE_ESC_SENSOR
         case TELEM_TEMP:
             return millis();
+#ifdef USE_ESC_SENSOR
         case TELEM_ESC_TEMP:
             return getEscSensorValue(ESC_SENSOR_COMBINED, 7);
         case TELEM_BEC_TEMP:
