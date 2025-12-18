@@ -3214,7 +3214,14 @@ static enum xdfly_setup_status xdfly_setup_status = XDFLY_INIT;
 
 static inline uint8_t xdfly_sync_header(void)
 {
-    return (escSig == ESC_SIG_OMP) ? OMPHOBBY_SYNC : (escSig == ESC_SIG_ZTW) ? ZTW_SYNC : XDFLY_SYNC;
+    switch (escSig) {
+        case ESC_SIG_OMP:
+            return OMPHOBBY_SYNC;
+        case ESC_SIG_ZTW:
+            return ZTW_SYNC;
+        default:
+            return XDFLY_SYNC;
+    }
 }
 
 static bool xdfly_connected = false;
