@@ -46,11 +46,11 @@ The `pid_mode` parameter can be now changed.
 
 ### MSP_GOVERNOR_PROFILE
 
-Multiple changes (#314).
+Multiple changes (#314) (#353).
 
 ### MSP_GOVERNOR_CONFIG
 
-Multiple changes (#314).
+Multiple changes (#314) (#353).
 
 
 ## CLI Changes
@@ -72,9 +72,9 @@ the PID loop rate to half too.
 `rc_min_throttle` and `rc_max_throttle` parameters default to zero, indicating that
 the actual values are calculated automatically (#332).
 
-`gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`. (#314)
+`gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`.
 
-`gov_throttle_type` is added, with possible values `NORMAL`, `OFF_ON`, `OFF_IDLE_ON`, `OFF_IDLE_AUTO_ON`. (#314)
+`gov_throttle_type` is added, with possible values `NORMAL`, `SWITCH`, `FUNCTION`.
 
 `gov_spooldown_time` is added. Value in 1/10s increments.
 
@@ -82,17 +82,15 @@ the actual values are calculated automatically (#332).
 
 `gov_auto_throttle` is added. Value in 0%..25%, with 0.1% steps.
 
-`gov_wot_collective` is added. Value in -100%..100%.
-
-`gov_idle_collective` is added. Value in -100%..100%.
+`gov_bypass_throttle` is added. Value array of 9, with values in 0..200. Step is 0.5%.
 
 `gov_use_<xyz>` flags have been added. Value is `OFF` or `ON`.
 
 `gov_fallback_drop` is added. Value in 0..50%.
 
-`gov_collective_curve` is added. Value in 5..40.
+`gov_dyn_min_throttle` is added. Value in 0..100%.
 
-`gov_autorotation_timeout` is removed.
+`gov_collective_curve` is added. Value in 5..40.
 
 `gov_autorotation_bailout_time` is removed.
 
@@ -176,7 +174,7 @@ The current PID Mode 3 will be kept as-is for backward compatibility.
 - Roll B-gain and D-gain scaled /5
 - Yaw precomp cutoff scaled by /10
 
-### Governor Refactoring (#314)
+### Governor Refactoring (#314) (#343) (#353)
 
 The Governor has been refactored to accomodate I.C./nitro and other new features.
 
