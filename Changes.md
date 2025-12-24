@@ -72,7 +72,7 @@ the PID loop rate to half too.
 `rc_min_throttle` and `rc_max_throttle` parameters default to zero, indicating that
 the actual values are calculated automatically (#332).
 
-`gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`.
+`gov_mode` now accepts values `OFF`, `LIMIT`, `DIRECT`, `ELECTRIC`, `NITRO`.
 
 `gov_throttle_type` is added, with possible values `NORMAL`, `SWITCH`, `FUNCTION`.
 

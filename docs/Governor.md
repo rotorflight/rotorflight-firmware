@@ -18,14 +18,19 @@ The governor mode controls what type of governor is used - if any.
 
 ### Governor Mode `OFF`
 
-The governor is completely disabled. The input throttle % is used as the output throttle.
+The governor is completely disabled. The input throttle is used as the output throttle.
 
-### Governor Mode `EXTERNAL`
+### Governor Mode `LIMIT`
 
-The speed governing function in Rotorflight is disabled, but other features, like
-slow spoolup and autorotation bailout, remain available. This mode is intended for
-use with ESCs that have their own built-in governor, or with traditional throttle
-curves in he transmitter.
+The governor is completely disabled. The input throttle is used as the output throttle,
+with `gov_idle_throttle`, `gov_min_throttle` and `gov_max_throttle` applied.
+
+### Governor Mode `DIRECT`
+
+The input throttle is used directly, but with limits and slow spoolup features.
+The speed governing function is disabled. This mode is intended for use with ESCs
+that have their own built-in governor but no slow spoolup, or with traditional
+throttle curves in the transmitter.
 
 This mode does not require an RPM signal.
 
@@ -328,7 +333,7 @@ Profile settings are applied only when a profile is active.
 ### Governor Mode `gov_mode`
 
 The governor mode setting chooses what type of governor is used:
-`OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`
+`OFF`, `LIMIT`, `DIRECT`, `ELECTRIC`, `NITRO`
 
 ### Throttle Channel Type `gov_throttle_type`
 
@@ -491,7 +496,7 @@ A limit for headspeed increase in % due to TTA.
 Use _battery voltage compensation_. This is useful when the battery has a high internal
 resistance. For example, when using Li-ion or LiFePo4 batteries.
 
-### Flat `gov_use_pid_spoolup`
+### Flag `gov_use_pid_spoolup`
 
 Use a PID controlled spoolup in the `SPOOLUP` state.
 
