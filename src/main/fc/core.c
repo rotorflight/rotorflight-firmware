@@ -51,6 +51,7 @@
 #include "drivers/time.h"
 #include "drivers/freq.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 
 #include "fc/rc_rates.h"
 #include "fc/rc.h"

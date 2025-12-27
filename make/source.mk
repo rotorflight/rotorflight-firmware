@@ -49,6 +49,7 @@ COMMON_SRC = \
             drivers/timer_common.c \
             drivers/timer.c \
             drivers/freq.c \
+            drivers/FXL6408.c \
             fc/board_info.c \
             fc/dispatch.c \
             fc/hardfaults.c \
@@ -78,6 +79,7 @@ COMMON_SRC = \
             drivers/castle_telemetry_decode.c \
             drivers/pwm_output.c \
             drivers/sbus_output.c \
+            drivers/fbus_master.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
