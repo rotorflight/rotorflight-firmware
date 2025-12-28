@@ -33,7 +33,7 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
         config->sourceRangeLow[i] = 1000;
         config->sourceRangeHigh[i] = 2000;
     }
-    config->frameRate = 144;
+    config->frameRate = 250;
 
     config->pinSwap = 0;
 }
