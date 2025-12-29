@@ -53,6 +53,10 @@ typedef struct fbusMasterConfig_s {
 
     uint8_t pinSwap;
 
+    // When ON, the UART output is electrically inverted (F.Bus signal uses
+    // inverted logic). When OFF, the output is non-inverted.
+    uint8_t inverted;
+
 } fbusMasterConfig_t;
 
 PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);

@@ -19,12 +19,14 @@
 #include "platform.h"
 
 #include "pg/fbus_master.h"
+#include "drivers/serial.h"
 
 #ifdef USE_FBUS_MASTER
 
 // The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
+// Version bumped due to added 'inverted' field.
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 0);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 1);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
@@ -36,6 +38,9 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 250;
 
     config->pinSwap = 0;
+
+    // Default to inverted F.Bus (normal for F.Bus receivers).
+    config->inverted = SERIAL_INVERTED;
 }
 
 #endif

@@ -301,7 +301,8 @@ void fbusMasterInit()
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
         portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL, 460800, MODE_RXTX,
-        SERIAL_STOPBITS_1 | SERIAL_PARITY_NO| SERIAL_INVERTED |
+        SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
+            (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
