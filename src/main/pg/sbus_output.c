@@ -23,8 +23,9 @@
 #ifdef USE_SBUS_OUTPUT
 
 // The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
+// Version bumped due to added 'inverted' field.
 PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
-                          PG_DRIVER_SBUS_OUT_CONFIG, 0);
+                          PG_DRIVER_SBUS_OUT_CONFIG, 1);
 
 void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
     for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
@@ -36,6 +37,10 @@ void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
     config->frameRate = 50;
 
     config->pinSwap = 0;
+
+    // Default to inverted S.Bus (normal for S.Bus receivers).
+    config->inverted = 1;    
+
 }
 
 #endif
