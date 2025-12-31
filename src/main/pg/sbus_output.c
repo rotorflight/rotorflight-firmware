@@ -38,7 +38,6 @@ void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
 
     config->pinSwap = 0;
 
-    // Default to inverted S.Bus (normal for S.Bus receivers).
     config->inverted = 1;    
 
 }

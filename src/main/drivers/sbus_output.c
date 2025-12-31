@@ -168,7 +168,7 @@ void sbusOutInit()
     sbusOutPort = openSerialPort(
         portConfig->identifier, FUNCTION_SBUS_OUT, NULL, NULL, 100000, MODE_TX,
         SERIAL_STOPBITS_2 | SERIAL_PARITY_EVEN |
-            (sbusOutConfig()->inverted ? SERIAL_INVERTED : 0) |
+            (sbusOutConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_UNIDIR |
             (sbusOutConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
