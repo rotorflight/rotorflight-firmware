@@ -85,23 +85,6 @@ typedef enum {
     BMI323_REG_IO_PDN_CTRL = 0x4F,
     BMI323_REG_IO_SPI_IF = 0x50,
     BMI323_REG_IO_PAD_STRENGTH = 0x51,
-    BMI323_REG_IO_I2C_IF = 0x52,
-    BMI323_REG_IO_ODR_DEVIATION = 0x53,
-    BMI323_REG_ACC_DP_OFF_X = 0x60,
-    BMI323_REG_ACC_DP_DGAIN_X = 0x61,
-    BMI323_REG_ACC_DP_OFF_Y = 0x62,
-    BMI323_REG_ACC_DP_DGAIN_Y = 0x63,
-    BMI323_REG_ACC_DP_OFF_Z = 0x64,
-    BMI323_REG_ACC_DP_DGAIN_Z = 0x65,
-    BMI323_REG_GYR_DP_OFF_X = 0x66,
-    BMI323_REG_GYR_DP_DGAIN_X = 0x67,
-    BMI323_REG_GYR_DP_OFF_Y = 0x68,
-    BMI323_REG_GYR_DP_DGAIN_Y = 0x69,
-    BMI323_REG_GYR_DP_OFF_Z = 0x6A,
-    BMI323_REG_GYR_DP_DGAIN_Z = 0x6B,
-    BMI323_REG_I3C_TC_SYNC_TPH = 0x70,
-    BMI323_REG_I3C_TC_SYNC_TU = 0x71,
-    BMI323_REG_I3C_TC_SYNC_ODR = 0x72,
     BMI323_REG_CMD = 0x7E,
     BMI323_REG_CFG_RES = 0x7F,
 } bmi323Register_e;
@@ -168,6 +151,20 @@ typedef enum {
 #define BMI323_MODE_CONTINUOUS    0x04
 #define BMI323_MODE_HIGH_PERF     0x07
 
+// Gyr INT1 config
+#define BMI323_INT_INT1_ACTIVE_HIGH   0x00
+#define BMI323_INT_INT1_ACTIVE_LOW    0x01
+#define BMI323_INT_INT1_PUSH_PULL     0x00
+#define BMI323_INT_INT1_OPEN_DRAIN    0x01
+#define BMI323_INT_INT1_OUTPUT_ENABLE 0x01
+#define BMI323_INT_INT1_OUTPUT_DISABLE 0x00
+#define BMI323_INT_INT1_LATCHED       0x01
+#define BMI323_INT_INT1_NON_LATCHED   0x00
+#define BMI323_INT_INT1_LEVEL_HIGH  0x00
+#define BMI323_INT_INT1_LEVEL_LOW   0x01
+#define BMI323_INT_GYR_DATA_READY_INT1 0x01
+
+
 // ACC/GYR averaging (bits 10-8 of ACC_CONF/GYR_CONF for high performance mode)
 #define BMI323_AVG_1              0x00
 #define BMI323_AVG_2              0x01
@@ -187,14 +184,27 @@ static bool bmi323GyroRead(gyroDev_t *gyro);
 static bool bmi323AccRead(accDev_t *acc);
 static void bmi323ExtiHandler(extiCallbackRec_t *cb);
 
+// DMA buffer for accelerometer reads
+static DMA_DATA uint8_t accBuf[32];
+
 // BMI323 uses 16-bit register access via SPI
 static uint16_t bmi323RegisterRead(const extDevice_t *dev, bmi323Register_e registerId)
 {
-    uint8_t txBuf[3] = {registerId, 0, 0};
     uint8_t rxBuf[3] = {0, 0, 0};
-    
-    spiReadWriteBuf(dev, txBuf, rxBuf, 3);
-    
+
+    /*
+     * BMI323 SPI read protocol:
+     * Byte 0: dummy byte (ignored)
+     * Byte 1: LSB of 16-bit register value
+     * Byte 2: MSB of 16-bit register value
+     */
+    if (!spiReadRegMskBufRB(dev, registerId, rxBuf, 3)) {
+        uint8_t txBuf[3] = {registerId | 0x80, 0, 0};
+        uint8_t fallbackRx[3] = {0, 0, 0};
+        spiReadWriteBuf(dev, txBuf, fallbackRx, 3);
+        return (fallbackRx[2] << 8) | fallbackRx[1];
+    }
+
     return (rxBuf[2] << 8) | rxBuf[1];
 }
 
@@ -215,20 +225,38 @@ static void bmi323RegisterWrite(const extDevice_t *dev, bmi323Register_e registe
 // Soft reset the BMI323
 static void bmi323SoftReset(const extDevice_t *dev)
 {
+    //give the device time to settle
     bmi323RegisterWrite(dev, BMI323_REG_CMD, BMI323_CMD_SOFTRESET, 50);
 }
 
 uint8_t bmi323Detect(const extDevice_t *dev)
 {
     spiSetClkDivisor(dev, spiCalculateDivider(BMI323_MAX_SPI_CLK_HZ));
+
+    // dummy read for switching to SPI mode
+    bmi323RegisterRead(dev, BMI323_REG_CHIP_ID);
     
     // Soft reset
-    bmi323SoftReset(dev);
-    
+    bmi323SoftReset(dev);    
+
+    // switch to SPI mode again after reset
+    bmi323RegisterRead(dev, BMI323_REG_CHIP_ID);
+
     // Read chip ID
     uint16_t chipId = bmi323RegisterRead(dev, BMI323_REG_CHIP_ID);
+
+    //MSB of the reigster is reserved
+    uint16_t chipID_LSB = chipId & 0xFF;
     
-    if ((chipId & 0xFF) == BMI323_CHIP_ID) {
+    if (chipID_LSB == BMI323_CHIP_ID) {
+        uint16_t err_reg = bmi323RegisterRead(dev, BMI323_REG_ERR_REG);
+        uint16_t status = bmi323RegisterRead(dev, BMI323_REG_STATUS);
+
+        if (err_reg != 0 || (status & 0x01) == 0) {
+            // Error register non-zero or sensor not ready
+            return MPU_NONE;
+        }
+
         return BMI_323_SPI;
     }
     
@@ -254,8 +282,14 @@ bool bmi323SpiAccDetect(accDev_t *acc)
         return false;
     }
     
+    // ACC part uses the same SPI bus as the gyro, so we can just use the gyro's spi instance
+    acc->dev.txBuf = accBuf;
+    acc->dev.rxBuf = &accBuf[32 / 2];
+    
     acc->initFn = bmi323SpiAccInit;
     acc->readFn = bmi323AccRead;
+    
+    busDeviceRegister(&acc->dev);
     
     return true;
 }
@@ -271,9 +305,6 @@ static void bmi323SpiGyroInit(gyroDev_t *gyro)
     extDevice_t *dev = &gyro->dev;
     
     spiSetClkDivisor(dev, spiCalculateDivider(BMI323_MAX_SPI_CLK_HZ));
-    
-    // Soft reset
-    bmi323SoftReset(dev);
     
     // Select ODR based on hardware LPF setting
     uint16_t gyrODR = BMI323_GYR_ODR_3200HZ; // Default: 3200Hz ODR (BW 1181Hz)
@@ -304,22 +335,19 @@ static void bmi323SpiGyroInit(gyroDev_t *gyro)
     
     // Configure gyroscope
     // Set to high performance mode, 2000dps range
-    uint16_t gyrConf = (BMI323_MODE_HIGH_PERF << 12) | (BMI323_AVG_1 << 8) | 
-                       (BMI323_BW_ODR_HALF << 4) | (BMI323_GYR_RANGE_2000DPS << 0);
-    bmi323RegisterWrite(dev, BMI323_REG_GYR_CONF, gyrConf, 1);
+    uint16_t gyrConf = (BMI323_MODE_HIGH_PERF << 12) | (BMI323_AVG_1 << 8) 
+                    | (BMI323_BW_ODR_HALF << 7) | (BMI323_GYR_RANGE_2000DPS << 4) | (gyrODR << 0);
+    bmi323RegisterWrite(dev, BMI323_REG_GYR_CONF, gyrConf, 0);
     
-    // Set gyro ODR
-    bmi323RegisterWrite(dev, BMI323_REG_GYR_CONF, (gyrConf & 0xFFF0) | gyrODR, 1);
+    // Configure interrupt in non latched mode
+    uint16_t intConf = BMI323_INT_INT1_NON_LATCHED;
+    bmi323RegisterWrite(dev, BMI323_REG_INT_CONF, intConf, 0);
     
-    // Configure interrupt for data ready on INT1
-    uint16_t intConf = 0x0002; // Enable data ready interrupt
-    bmi323RegisterWrite(dev, BMI323_REG_INT_CONF, intConf, 1);
+    uint16_t intMap2 = (BMI323_INT_GYR_DATA_READY_INT1 << 8); // Map2: gyro data ready to INT1
+    bmi323RegisterWrite(dev, BMI323_REG_INT_MAP2, intMap2, 0);
     
-    uint16_t intMap1 = 0x0004; // Map gyro data ready to INT1
-    bmi323RegisterWrite(dev, BMI323_REG_INT_MAP1, intMap1, 1);
-    
-    uint16_t ioIntCtrl = 0x000A; // INT1: active high, push-pull, output enabled
-    bmi323RegisterWrite(dev, BMI323_REG_IO_INT_CTRL, ioIntCtrl, 1);
+    uint16_t ioIntCtrl = ((BMI323_INT_INT1_OUTPUT_ENABLE << 2 )| (BMI323_INT_INT1_PUSH_PULL << 1) | BMI323_INT_INT1_ACTIVE_HIGH); // INT1: 0000 0 ENABLE:1; PUSH-PULL_EN:0, 0 ACTIVE HIGH, 1 OUTPUT ENABLED
+    bmi323RegisterWrite(dev, BMI323_REG_IO_INT_CTRL, ioIntCtrl, 0);
     
     // Setup EXTI interrupt
     if (gyro->mpuIntExtiTag != IO_TAG_NONE) {
@@ -334,21 +362,33 @@ static void bmi323SpiGyroInit(gyroDev_t *gyro)
     gyro->gyroDataReg = BMI323_REG_GYR_DATA_X;
 }
 
+extiCallbackRec_t bmi323IntCallbackRec;
+
+busStatus_e bmi323Intcallback(uint32_t arg)
+{
+    gyroDev_t *gyro = (gyroDev_t *)arg;
+    int32_t gyroDmaDuration = cmpTimeCycles(getCycleCounter(), gyro->gyroLastEXTI);
+
+    if (gyroDmaDuration > gyro->gyroDmaMaxDuration) {
+        gyro->gyroDmaMaxDuration = gyroDmaDuration;
+    }
+
+    gyro->dataReady = true;
+
+    return BUS_READY;
+}
+
 static void bmi323SpiAccInit(accDev_t *acc)
 {
-    extDevice_t *dev = &acc->dev;
+    extDevice_t *dev = &acc->gyro->dev;
     
     spiSetClkDivisor(dev, spiCalculateDivider(BMI323_MAX_SPI_CLK_HZ));
     
     // Configure accelerometer
     // Set to high performance mode, 16G range, 800Hz ODR
-    uint16_t accConf = (BMI323_MODE_HIGH_PERF << 12) | (BMI323_AVG_1 << 8) | 
-                       (BMI323_BW_ODR_HALF << 4) | (BMI323_ACC_RANGE_16G << 0);
-    bmi323RegisterWrite(dev, BMI323_REG_ACC_CONF, accConf, 1);
-    
-    // Set acc ODR to 800 Hz
-    uint16_t accODR = BMI323_ACC_ODR_800HZ;
-    bmi323RegisterWrite(dev, BMI323_REG_ACC_CONF, (accConf & 0xFFF0) | accODR, 1);
+    uint16_t accConf = (BMI323_MODE_HIGH_PERF << 12) | (BMI323_AVG_1 << 8) | (BMI323_BW_ODR_HALF << 7)
+                       | (BMI323_ACC_RANGE_16G << 4) | (BMI323_ACC_ODR_800HZ << 0) ;
+    bmi323RegisterWrite(dev, BMI323_REG_ACC_CONF, accConf, 0);
     
     // 16G range scale: 32768 / 16 = 2048 LSB/G
     acc->acc_1G = 2048;
@@ -359,22 +399,65 @@ static bool bmi323GyroRead(gyroDev_t *gyro)
     extDevice_t *dev = &gyro->dev;
     
     switch (gyro->gyroModeSPI) {
+    case GYRO_EXTI_INIT:
+    {
+        // Initialise the tx buffer to all 0x00
+        memset(dev->txBuf, 0x00, 8);
+
+        // Check that minimum number of interrupts have been detected
+        // We need some offset from the gyro interrupts to ensure sampling after the interrupt
+        gyro->gyroDmaMaxDuration = 5;
+        // Using DMA for gyro access upsets the scheduler on the F4
+        if (gyro->detectedEXTI > GYRO_EXTI_DETECT_THRESHOLD) {
+            if (spiUseDMA(dev)) {
+                dev->callbackArg = (uint32_t)gyro;
+                dev->txBuf[1] = BMI323_REG_GYR_DATA_X | 0x80;
+                gyro->segments[0].len = 8;
+                gyro->segments[0].callback = bmi323Intcallback;
+                gyro->segments[0].u.buffers.txData = dev->txBuf;
+                gyro->segments[0].u.buffers.rxData = dev->rxBuf;
+                gyro->segments[0].negateCS = true;
+                gyro->gyroModeSPI = GYRO_EXTI_INT_DMA;
+            } else {
+                // Interrupts are present, but no DMA
+                gyro->gyroModeSPI = GYRO_EXTI_INT;
+            }
+        } else {
+            gyro->gyroModeSPI = GYRO_EXTI_NO_INT;
+        }
+        break;
+    }
+
     case GYRO_EXTI_INT:
     case GYRO_EXTI_NO_INT:
     {
-        // Read gyro data registers
-        uint8_t bmi323_rx_buf[7];
-        spiReadRegMskBufRB(dev, BMI323_REG_GYR_DATA_X, bmi323_rx_buf, 7);
-        
+        dev->txBuf[0] = BMI323_REG_GYR_DATA_X | 0x80;
+
+        busSegment_t segments[] = {
+                {.u.buffers = {NULL, NULL}, 8, true, NULL},
+                {.u.link = {NULL, NULL}, 0, true, NULL},
+        };
+        segments[0].u.buffers.txData = dev->txBuf;
+        segments[0].u.buffers.rxData = dev->rxBuf;
+
+        spiSequence(dev, &segments[0]);
+
+        // Wait for completion
+        spiWait(dev);
+
+        FALLTHROUGH;
+    }
+
+    case GYRO_EXTI_INT_DMA:
+    {
         // Data is 16-bit little endian starting at byte 1 (byte 0 is dummy)
-        int16_t *gyroData = (int16_t *)&bmi323_rx_buf[1];
+        int16_t *gyroData = (int16_t *)&dev->rxBuf[2];
         gyro->gyroADCRaw[X] = gyroData[0];
         gyro->gyroADCRaw[Y] = gyroData[1];
         gyro->gyroADCRaw[Z] = gyroData[2];
-        
         break;
     }
-    
+
     default:
         break;
     }
@@ -384,18 +467,47 @@ static bool bmi323GyroRead(gyroDev_t *gyro)
 
 static bool bmi323AccRead(accDev_t *acc)
 {
-    extDevice_t *dev = &acc->dev;
-    
-    // Read acc data registers
-    uint8_t bmi323_rx_buf[7];
-    spiReadRegMskBufRB(dev, BMI323_REG_ACC_DATA_X, bmi323_rx_buf, 7);
-    
-    // Data is 16-bit little endian starting at byte 1 (byte 0 is dummy)
-    int16_t *accData = (int16_t *)&bmi323_rx_buf[1];
-    acc->ADCRaw[X] = accData[0];
-    acc->ADCRaw[Y] = accData[1];
-    acc->ADCRaw[Z] = accData[2];
-    
+    extDevice_t *dev = &acc->gyro->dev;
+
+    switch (acc->gyro->gyroModeSPI) {
+    case GYRO_EXTI_INT:
+    case GYRO_EXTI_NO_INT:
+    {
+        memset(dev->txBuf, 0x00, 8);
+
+        dev->txBuf[0] = BMI323_REG_ACC_DATA_X | 0x80;
+
+        busSegment_t segments[] = {
+                {.u.buffers = {NULL, NULL}, 8, true, NULL},
+                {.u.link = {NULL, NULL}, 0, true, NULL},
+        };
+        segments[0].u.buffers.txData = dev->txBuf;
+        segments[0].u.buffers.rxData = dev->rxBuf;
+
+        spiSequence(dev, &segments[0]);
+
+        // Wait for completion
+        spiWait(dev);
+
+        // Fall through
+        FALLTHROUGH;
+    }
+
+    case GYRO_EXTI_INT_DMA:
+    {
+        // Data is 16-bit little endian: first byte = reg addr, second byte = dummy
+        int16_t *accData = (int16_t *)&dev->rxBuf[2];
+        acc->ADCRaw[X] = accData[0];
+        acc->ADCRaw[Y] = accData[1];
+        acc->ADCRaw[Z] = accData[2];
+        break;
+    }
+
+    case GYRO_EXTI_INIT:
+    default:
+        break;
+    }
+
     return true;
 }
 
