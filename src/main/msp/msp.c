@@ -1400,6 +1400,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_ADJUSTMENT_RANGES:
+        // If you send a command, we skip this and use the call in MSP_ADJUSTMENT_RANGES mspFcProcessOutCommandWithArg()
         for (int i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
             const adjustmentRange_t *adjRange = adjustmentRanges(i);
             sbufWriteU8(dst, adjRange->function);
@@ -2090,6 +2091,46 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_ADJUSTMENT_RANGES:
+        {
+            // Backwards compatible overload:
+            // - no payload: handled by legacy mspProcessOutCommand() (full table)
+            // - 1 byte payload (idx): return only that entry
+            //
+            // Request payload: u8 idx
+            // Reply payload:   one adjustment range entry (same field order as legacy table serialization)
+
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                // If args are provided but not in the expected form, reject.
+                // Legacy callers have remWhy ar == 0 and won't hit this WithArg handler.
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+
+            if (i >= MAX_ADJUSTMENT_RANGE_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            // Serialize EXACTLY one entry using the same field order/encoding
+            // as the legacy MSP_ADJUSTMENT_RANGES response.
+            const adjustmentRange_t *adjRange = adjustmentRanges(i);
+
+            sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->enaChannel);
+            sbufWriteU8(dst, adjRange->enaRange.startStep);
+            sbufWriteU8(dst, adjRange->enaRange.endStep);
+            sbufWriteU8(dst, adjRange->adjChannel);
+            sbufWriteU8(dst, adjRange->adjRange1.startStep);
+            sbufWriteU8(dst, adjRange->adjRange1.endStep);
+            sbufWriteU8(dst, adjRange->adjRange2.startStep);
+            sbufWriteU8(dst, adjRange->adjRange2.endStep);
+            sbufWriteU16(dst, adjRange->adjMin);
+            sbufWriteU16(dst, adjRange->adjMax);
+            sbufWriteU8(dst, adjRange->adjStep);
+        }
+        break;        
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
