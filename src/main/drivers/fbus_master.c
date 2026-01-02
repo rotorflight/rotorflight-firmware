@@ -28,6 +28,7 @@
 #include "common/time.h"
 #include "flight/mixer.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_sensor.h"
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
 #include "rx/frsky_crc.h"
@@ -198,7 +199,19 @@ void processDownlinkFrame(uint8_t *data)
                 phsIdList[physIdsfound++] = downlink.phyID;
             }
         }
-    }    
+        
+        // Process sensor data
+        if (downlink.prim == FBUS_FRAME_ID_DATA) {
+            // Extract data from the downlink frame
+            uint32_t sensorData = (uint32_t)downlink.data[0] |
+                                  ((uint32_t)downlink.data[1] << 8) |
+                                  ((uint32_t)downlink.data[2] << 16) |
+                                  ((uint32_t)downlink.data[3] << 24);
+            
+            // Process the sensor data
+            fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
+        }
+    }
 }
 
 static FAST_CODE void dataReceive(uint16_t c, void *data)
@@ -264,6 +277,9 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (!fbusMasterPort)
         return;
 
+    // Update sensor processing
+    fbusSensorUpdate(currentTimeUs);
+
     // Check TX Buff is free
     if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t))
         return;
@@ -305,5 +321,8 @@ void fbusMasterInit()
             (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
+    
+    // Initialize FBUS sensor system
+    fbusSensorInit();
 }
 

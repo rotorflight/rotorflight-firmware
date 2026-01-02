@@ -23,6 +23,7 @@
 
 #include "common/time.h"
 #include "common/utils.h"
+#include "drivers/fbus_sensor.h"
 
 
 #define FMUS_MASTER_CONTROL_EXTRA_FIELDS 4
