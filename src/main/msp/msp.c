@@ -2090,6 +2090,32 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_MIXER_INPUTS:
+        {
+            // Backwards compatible overload:
+            // - no payload: handled by mspProcessOutCommand() (legacy full table)
+            // - 1 byte payload (idx): return only that entry
+            //
+            // Expected request payload: u8 idx
+            // Reply: u16 rate, u16 min, u16 max
+
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                // If someone sends args but not the expected form, reject
+                // (legacy callers should have rem == 0 and won't hit this function)
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MIXER_INPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU16(dst, mixerInputs(i)->rate);
+            sbufWriteU16(dst, mixerInputs(i)->min);
+            sbufWriteU16(dst, mixerInputs(i)->max);
+        }
+        break;
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
