@@ -49,7 +49,7 @@ typedef struct fbusMasterConfig_s {
 
     // SBus output frame rate in Hz, typically 144Hz. Your receiver may support
     // faster updates.
-    uint8_t frameRate;
+    uint16_t frameRate;
 
     uint8_t pinSwap;
 
