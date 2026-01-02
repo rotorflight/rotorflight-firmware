@@ -86,10 +86,6 @@
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_rtc6705.h"
 #include "drivers/vtx_table.h"
-#ifdef FXL6408
-#include "drivers/FXL6408.h"
-#endif
-
 #include "fc/board_info.h"
 #include "fc/dispatch.h"
 #include "fc/init.h"
@@ -700,9 +696,7 @@ void init(void)
     sbusOutInit();
 #endif
 
-#ifdef FXL6408
-    fxl6408Detect();
-#endif
+    
 
 #ifdef USE_FBUS_MASTER
     fbusMasterInit();
