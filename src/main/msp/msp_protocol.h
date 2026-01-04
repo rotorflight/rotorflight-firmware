@@ -116,6 +116,7 @@
 #define MSP_SET_RC_CONFIG                    67
 
 #define MSP_REBOOT                           68
+#define MSP_ADJUSTMENT_RANGES_INDEXED        69
 
 #define MSP_DATAFLASH_SUMMARY                70
 #define MSP_DATAFLASH_READ                   71

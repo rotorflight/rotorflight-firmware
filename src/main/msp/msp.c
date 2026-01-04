@@ -2091,19 +2091,10 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
-    case MSP_ADJUSTMENT_RANGES:
+    case MSP_ADJUSTMENT_RANGES_INDEXED:
         {
-            // Backwards compatible overload:
-            // - no payload: handled by legacy mspProcessOutCommand() (full table)
-            // - 1 byte payload (idx): return only that entry
-            //
-            // Request payload: u8 idx
-            // Reply payload:   one adjustment range entry (same field order as legacy table serialization)
-
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
-                // If args are provided but not in the expected form, reject.
-                // Legacy callers have remWhy ar == 0 and won't hit this WithArg handler.
                 return MSP_RESULT_ERROR;
             }
 
