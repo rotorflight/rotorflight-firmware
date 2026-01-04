@@ -3776,37 +3776,20 @@ mspResult_e mspFcProcessCommand(mspDescriptor_t srcDesc, mspPacket_t *cmd, mspPa
 
     if (mspCommonProcessOutCommand(cmdMSP, dst, mspPostProcessFn)) {
         ret = MSP_RESULT_ACK;
-     } else {
-        if (sbufBytesRemaining(src) > 0) {
-            sbuf_t srcCopy = *src;
-            int tmp = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, &srcCopy, dst, mspPostProcessFn);
-            if (tmp != MSP_RESULT_CMD_UNKNOWN) {
-                ret = tmp;
-                reply->result = ret;
-                return ret;
-            }
-            if (mspProcessOutCommand(cmdMSP, dst)) {
-                ret = MSP_RESULT_ACK;
-                reply->result = ret;
-                return ret;
-            }
-        }
-
-        if (mspProcessOutCommand(cmdMSP, dst)) {
-            ret = MSP_RESULT_ACK;
-        } else if ((ret = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, src, dst, mspPostProcessFn)) != MSP_RESULT_CMD_UNKNOWN) {
-            /* ret */;
-        } else if (cmdMSP == MSP_SET_PASSTHROUGH) {
-            mspFcSetPassthroughCommand(dst, src, mspPostProcessFn);
-            ret = MSP_RESULT_ACK;
+    } else if (mspProcessOutCommand(cmdMSP, dst)) {
+        ret = MSP_RESULT_ACK;
+    } else if ((ret = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, src, dst, mspPostProcessFn)) != MSP_RESULT_CMD_UNKNOWN) {
+        /* ret */;
+    } else if (cmdMSP == MSP_SET_PASSTHROUGH) {
+        mspFcSetPassthroughCommand(dst, src, mspPostProcessFn);
+        ret = MSP_RESULT_ACK;
 #ifdef USE_FLASHFS
-        } else if (cmdMSP == MSP_DATAFLASH_READ) {
-            mspFcDataFlashReadCommand(dst, src);
-            ret = MSP_RESULT_ACK;
+    } else if (cmdMSP == MSP_DATAFLASH_READ) {
+        mspFcDataFlashReadCommand(dst, src);
+        ret = MSP_RESULT_ACK;
 #endif
-        } else {
-            ret = mspCommonProcessInCommand(srcDesc, cmdMSP, src, mspPostProcessFn);
-        }     
+    } else {
+        ret = mspCommonProcessInCommand(srcDesc, cmdMSP, src, mspPostProcessFn);
     }
     reply->result = ret;
     return ret;
