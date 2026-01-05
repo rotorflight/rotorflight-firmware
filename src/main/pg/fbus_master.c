@@ -26,7 +26,7 @@
 // The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
 // Version bumped due to added 'inverted' field.
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 2);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 3);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
@@ -35,7 +35,7 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
         config->sourceRangeLow[i] = 1000;
         config->sourceRangeHigh[i] = 2000;
     }
-    config->frameRate = 250;
+    config->frameRate = 500;
 
     config->pinSwap = 0;
 
