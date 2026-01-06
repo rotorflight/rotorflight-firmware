@@ -1757,9 +1757,12 @@ const clivalue_t valueTable[] = {
     { "fbus_master_source_index",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceIndex) },
     { "fbus_master_source_range_high", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceRangeHigh) },
     { "fbus_master_source_range_low",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceRangeLow) },
-    { "fbus_master_frame_rate",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {25, 333}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, frameRate) },
+    { "fbus_master_frame_rate",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {25, 550}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, frameRate) },
+    { "fbus_master_telemetry_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {25, 550}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, telemetryRate) },
+    { "fbus_master_discovery_ms",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {100, 10000}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sensorDiscoveryTimeMs) },
     { "fbus_master_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, pinSwap) },
     { "fbus_master_inverted",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, inverted) },
+    { "fbus_master_forwarded_sensors", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_MAX_FORWARDED_SENSORS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, forwardedSensors) },
 #endif
 };
 

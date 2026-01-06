@@ -50,6 +50,11 @@
 #include "rx/sbus_channels.h"
 #include "rx/fbus.h"
 
+#ifdef USE_TELEMETRY_SMARTPORT
+#include "drivers/fbus_sensor.h"
+#include "pg/fbus_master.h"
+#endif
+
 #define FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US 500
 #define FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US 3000
 #define FBUS_OTA_MAX_RESPONSE_TIME_US_DEFAULT 200
@@ -603,15 +608,74 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             otaResponsePayload = NULL;
             clearToSend = false;
 
-        } else if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
-            if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
-                // Send null frame
-            } else if (!sendNullFrame) {
-                processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
-                mspPayload = NULL;
-            }
-
         } else {
+            // Check if we should forward sensor data from FBUS master
+            bool forwardedSensor = false;
+            
+            // First check if we need to send startup frames for forwarded sensors
+            for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+                uint8_t forwardedPhysId = fbusMasterConfig()->forwardedSensors[i];
+                if (forwardedPhysId != 0 && fbusSensorNeedsStartupFrame(forwardedPhysId)) {
+                    // Send empty frame to signal sensor presence
+                    smartPortPayload_t startupPayload = {
+                        .frameId = FBUS_FRAME_ID_DATA,
+                        .valueId = 0,
+                        .data = 0
+                    };
+                    uint8_t phyID = forwardedPhysId;
+                    // Add check bits
+                    phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 1) ^ GET_BIT(phyID, 2)) << 5;
+                    phyID |= (GET_BIT(phyID, 2) ^ GET_BIT(phyID, 3) ^ GET_BIT(phyID, 4)) << 6;
+                    phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 2) ^ GET_BIT(phyID, 4)) << 7;
+                    
+                    writeUplinkFramePhyID(phyID, &startupPayload);
+                    fbusSensorMarkStartupFrameSent(forwardedPhysId);
+                    forwardedSensor = true;
+                    clearToSend = false;
+                    break;
+                }
+            }
+            
+            // If no startup frame sent, check for buffered sensor frames
+            if (!forwardedSensor) {
+                for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+                    uint8_t forwardedPhysId = fbusMasterConfig()->forwardedSensors[i];
+                    if (forwardedPhysId != 0) {
+                        fbusSensorFrame_t sensorFrame;
+                        if (fbusSensorGetForwardedFrame(forwardedPhysId, &sensorFrame)) {
+                            if (sensorFrame.valid) {
+                                // Build and send the forwarded frame
+                                smartPortPayload_t forwardPayload = {
+                                    .frameId = FBUS_FRAME_ID_DATA,
+                                    .valueId = sensorFrame.appId,
+                                    .data = sensorFrame.data
+                                };
+                                uint8_t phyID = sensorFrame.physicalId;
+                                // Add check bits
+                                phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 1) ^ GET_BIT(phyID, 2)) << 5;
+                                phyID |= (GET_BIT(phyID, 2) ^ GET_BIT(phyID, 3) ^ GET_BIT(phyID, 4)) << 6;
+                                phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 2) ^ GET_BIT(phyID, 4)) << 7;
+                                
+                                writeUplinkFramePhyID(phyID, &forwardPayload);
+                                forwardedSensor = true;
+                                clearToSend = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If no forwarded sensor, handle FC telemetry or other sensors
+            if (!forwardedSensor) {
+                if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
+                    if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
+                        // Send null frame
+                    } else if (!sendNullFrame) {
+                        processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
+                        mspPayload = NULL;
+                    }
+                } else {
 #if defined(USE_SMARTPORT_MASTER__WARNING_DEAD_CODE__)
             int8_t smartportPhyID = smartportMasterStripPhyIDCheckBits(downlinkPhyID);
 
@@ -631,8 +695,10 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                 clearToSend = false;
             }
 #else
-            clearToSend = false;
+                    clearToSend = false;
 #endif
+                }
+            }
         }
 
         if (clearToSend) {

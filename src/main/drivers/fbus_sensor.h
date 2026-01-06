@@ -21,6 +21,9 @@
 #include <stdbool.h>
 #include "common/time.h"
 
+// Frame forwarding configuration
+#define FBUS_FORWARDED_FRAME_BUFFER_SIZE 10
+
 // FBUS Sensor Physical IDs
 typedef enum {
     FBUS_SENSOR_VARIO2      = 0x00,
@@ -82,6 +85,24 @@ typedef struct {
     bool valid;
     timeUs_t lastUpdateUs;
 } fbusSensorData_t;
+
+// Frame buffer for forwarding to receiver
+typedef struct {
+    uint8_t physicalId;
+    uint16_t appId;
+    uint32_t data;
+    bool valid;
+} fbusSensorFrame_t;
+
+// Forwarded sensor buffer structure
+typedef struct {
+    uint8_t physicalId;  // Physical ID this buffer is for
+    fbusSensorFrame_t frames[FBUS_FORWARDED_FRAME_BUFFER_SIZE];
+    uint8_t writeIndex;  // Next position to write
+    uint8_t readIndex;   // Next position to read
+    uint8_t count;       // Number of frames in buffer
+    bool startupFrameSent;  // Track if empty startup frame was sent
+} fbusSensorForwardBuffer_t;
 
 // GPS specific data structure
 typedef struct {
@@ -147,3 +168,11 @@ typedef struct {
 uint8_t fbusSensorGetObservedCount(void);
 const fbusObservedSensor_t* fbusSensorGetObserved(uint8_t index);
 void fbusSensorClearObserved(void);
+const char* fbusSensorGetName(uint8_t physicalId);
+
+// Frame forwarding functions
+void fbusSensorInitForwarding(void);
+bool fbusSensorIsForwarded(uint8_t physicalId);
+bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
+bool fbusSensorNeedsStartupFrame(uint8_t physicalId);
+void fbusSensorMarkStartupFrameSent(uint8_t physicalId);

@@ -4952,8 +4952,8 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     
     cliPrintLinefeed();
     cliPrintLine("Observed FBUS Sensors:");
-    cliPrintLine("Physical ID | App IDs                                          | Packets | Last Seen");
-    cliPrintLine("----------- | ------------------------------------------------ | ------- | ---------");
+    cliPrintLine("Physical ID | Sensor Name       | App IDs                                   | Packets");
+    cliPrintLine("----------- | ----------------- | ----------------------------------------- | -------");
     
     for (uint8_t i = 0; i < count; i++) {
         const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
@@ -4961,8 +4961,15 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
             break;
         }
         
-        // Print physical ID
-        cliPrintf("   0x%02X     | ", sensor->physicalId);
+        // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor->physicalId);
+        // For unknown sensors, display as "ID_0xXX" instead of "UNKNOWN"
+        char nameBuffer[17];
+        if (strcmp(sensorName, "UNKNOWN") == 0) {
+            tfp_sprintf(nameBuffer, "ID_0x%02X", sensor->physicalId);
+            sensorName = nameBuffer;
+        }
+        cliPrintf("   0x%02X     | %s | ", sensor->physicalId, sensorName);
         
         // Print app IDs
         for (uint8_t j = 0; j < sensor->appIdCount; j++) {
@@ -4972,28 +4979,15 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
             }
         }
         
-        // Pad to align columns
+        // Pad to align columns (41 chars for App IDs column)
         int printed = sensor->appIdCount * 8 - 2; // Each ID is "0x1234, " = 8 chars, minus 2 for last comma
         if (printed < 0) printed = 0;
-        for (int k = printed; k < 48; k++) {
+        for (int k = printed; k < 41; k++) {
             cliPrint(" ");
         }
         
         // Print packet count
-        cliPrintf("| %7u | ", sensor->packetCount);
-        
-        // Print time since last seen
-        const timeUs_t currentTime = micros();
-        const timeUs_t timeSince = currentTime - sensor->lastSeenUs;
-        const uint32_t secondsSince = timeSince / 1000000;
-        
-        if (secondsSince < 60) {
-            cliPrintf("%us ago", secondsSince);
-        } else if (secondsSince < 3600) {
-            cliPrintf("%um %us ago", secondsSince / 60, secondsSince % 60);
-        } else {
-            cliPrintf("%uh %um ago", secondsSince / 3600, (secondsSince % 3600) / 60);
-        }
+        cliPrintf("| %7u", sensor->packetCount);
         
         cliPrintLinefeed();
     }

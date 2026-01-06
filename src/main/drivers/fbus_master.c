@@ -54,8 +54,6 @@ serialPort_t *fbusMasterPort = NULL;
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
 
-#define FBUS_MASTER_SCAN_COUNTER 3
-
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
     FBUS_MASTER_QUERY_PHY_ID,
@@ -70,13 +68,18 @@ uint8_t phsIdList[FBUS_MAX_PHYS_ID] = {0};
 uint8_t physIdsfound = 0;
 uint8_t physIdCnt = 0;
 uint8_t currentPhysId = 0;
-uint8_t scanCounter = 0;
+timeUs_t scanStartTimeUs = 0;
+uint32_t scanDurationUs = 0;
 uint8_t readIngoreBytes = 0;
 uint8_t readBytes = 0;
 uint8_t buffer[FBUS_MASTER_BUFFER_SIZE] = {0};
 
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+
+// Telemetry rate control
+static uint32_t telemetryFrameCounter = 0;
+static uint32_t telemetryFrameInterval = 1;  // Will be calculated based on rates
 
 static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
 {
@@ -93,7 +96,7 @@ int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
-void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
+void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs_t currentTimeUs)
 {
     // Clear the control.c16 structure
     memset(&frame->c16, 0, sizeof(fbusMasterFrame_t));
@@ -133,35 +136,58 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
 
          memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
         frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
-        switch (fbusMasterTelemetryState)
-        {
-        case FBUS_MASTER_SCAN_PHY_ID:
-            currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
-            if(currentPhysId > FBUS_MAX_PHYS_ID)
+        
+        // Check if we should poll telemetry this frame
+        bool shouldPollTelemetry = (telemetryFrameCounter % telemetryFrameInterval) == 0;
+        telemetryFrameCounter++;
+        
+        if (!shouldPollTelemetry) {
+            // Don't poll telemetry - send NULL frame
+            frame->downlink.phyID = 0;
+            frame->downlink.prim = FBUS_FRAME_ID_NULL;
+            frame->downlink.appId = 0;
+            frame->downlink.data[0] = 0;
+            frame->downlink.data[1] = 0;
+            frame->downlink.data[2] = 0;
+            frame->downlink.data[3] = 0;
+        } else {
+            // Poll telemetry - use normal telemetry logic
+            // Sensor forwarding is now handled in the receiver (fbus.c)
+            switch (fbusMasterTelemetryState)
             {
-                currentPhysId = 0;
-                scanCounter++;
-                if(scanCounter >= FBUS_MASTER_SCAN_COUNTER)
-                {
-                    scanCounter = 0;
+        case FBUS_MASTER_SCAN_PHY_ID:
+                // Initialize scan start time on first scan
+                if (scanStartTimeUs == 0) {
+                    scanStartTimeUs = currentTimeUs;
+                }
+                
+                // Check if scan time has elapsed
+                if (cmpTimeUs(currentTimeUs, scanStartTimeUs) >= (timeDelta_t)scanDurationUs) {
+                    // Scan time complete, switch to query mode
                     fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
                     break;
                 }
-            }
+                
+                currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
+                if(currentPhysId > FBUS_MAX_PHYS_ID)
+                {
+                    currentPhysId = 0;
+                }
 
-            frame->downlink.phyID = currentPhysId;
-            frame->downlink.prim = FBUS_FRAME_ID_DATA;
-            currentPhysId++;
-            break;
-        case FBUS_MASTER_QUERY_PHY_ID:
-            currentPhysId = phsIdList[physIdCnt];
-            frame->downlink.phyID = currentPhysId;
-            frame->downlink.prim = FBUS_FRAME_ID_DATA;
-            physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
-            break;
-        
-        default:
-            break;
+                frame->downlink.phyID = currentPhysId;
+                frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                currentPhysId++;
+                break;
+            case FBUS_MASTER_QUERY_PHY_ID:
+                currentPhysId = phsIdList[physIdCnt];
+                frame->downlink.phyID = currentPhysId;
+                frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+                break;
+            
+            default:
+                break;
+            }
         }
 
         smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
@@ -273,7 +299,6 @@ uint16_t fbusMasterConvertToSbus(uint8_t channel, float pwm)
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
     if (!fbusMasterPort)
         return;
 
@@ -291,7 +316,7 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
         float value = fbusMasterGetChannelValue(ch);
         channels[ch] = fbusMasterConvertToSbus(ch, value);
     }
-    fbusMasterPrepareFrame(&frame, channels);
+    fbusMasterPrepareFrame(&frame, channels, currentTimeUs);
 
     // serial output
     serialWriteBuf(fbusMasterPort, (const uint8_t *)&frame, sizeof(frame));
@@ -321,6 +346,37 @@ void fbusMasterInit()
             (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
+    
+    // Calculate telemetry frame interval
+    // telemetryFrameInterval = frameRate / telemetryRate
+    uint16_t frameRate = fbusMasterConfig()->frameRate;
+    uint16_t telemetryRate = fbusMasterConfig()->telemetryRate;
+    
+    // Constrain telemetry rate to valid range (25-550 Hz)
+    telemetryRate = constrain(telemetryRate, 25, 550);
+    
+    // Ensure telemetry rate doesn't exceed frame rate
+    if (telemetryRate > frameRate) {
+        telemetryRate = frameRate;
+    }
+    
+    // Calculate interval (how many frames between telemetry polls)
+    if (telemetryRate > 0) {
+        telemetryFrameInterval = frameRate / telemetryRate;
+        if (telemetryFrameInterval == 0) {
+            telemetryFrameInterval = 1;  // Poll every frame if rates are equal
+        }
+    } else {
+        telemetryFrameInterval = 1;  // Default to every frame
+    }
+    
+    telemetryFrameCounter = 0;
+    
+    // Initialize sensor discovery timing
+    // scanStartTimeUs will be set to current time on first frame
+    scanStartTimeUs = 0;
+    // Convert discovery time from milliseconds to microseconds
+    scanDurationUs = (uint32_t)fbusMasterConfig()->sensorDiscoveryTimeMs * 1000;
     
     // Initialize FBUS sensor system
     fbusSensorInit();

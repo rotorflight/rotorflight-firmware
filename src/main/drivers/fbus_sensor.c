@@ -23,7 +23,32 @@
 #include "io/gps.h"
 #include "common/maths.h"
 #include "drivers/time.h"
+#include "pg/fbus_master.h"
 #include <string.h>
+
+// Sensor name lookup table
+static const char* const fbusSensorNames[] = {
+    [FBUS_SENSOR_VARIO2]        = "VARIO2",
+    [FBUS_SENSOR_FLVSS]         = "FLVSS",
+    [FBUS_SENSOR_CURRENT]       = "CURRENT",
+    [FBUS_SENSOR_GPS]           = "GPS",
+    [FBUS_SENSOR_RPM]           = "RPM",
+    [FBUS_SENSOR_SP2UART_A]     = "SP2UART_A",
+    [FBUS_SENSOR_SP2UART_B]     = "SP2UART_B",
+    [FBUS_SENSOR_FAS_150S]      = "FAS_150S",
+    [FBUS_SENSOR_SBEC]          = "SBEC",
+    [FBUS_SENSOR_AIR_SPEED]     = "AIR_SPEED",
+    [FBUS_SENSOR_ESC]           = "ESC",
+    [FBUS_SENSOR_PSD_30]        = "PSD_30",
+    [FBUS_SENSOR_XACT_SERVO]    = "XACT_SERVO",
+    [FBUS_SENSOR_SD1]           = "SD1",
+    [FBUS_SENSOR_VS600]         = "VS600",
+    [FBUS_SENSOR_GASSUIT]       = "GASSUIT",
+    [FBUS_SENSOR_FSD]           = "FSD",
+    [FBUS_SENSOR_GATEWAY]       = "GATEWAY",
+    [FBUS_SENSOR_REDUNDANCY_BUS] = "REDUNDANCY_BUS",
+    [FBUS_SENSOR_S6R]           = "S6R",
+};
 
 // Internal GPS data storage
 static fbusGpsData_t fbusGps;
@@ -40,6 +65,9 @@ static uint8_t sensorCacheIndex = 0;
 static fbusObservedSensor_t observedSensors[FBUS_MAX_OBSERVED_SENSORS];
 static uint8_t observedSensorCount = 0;
 
+// Frame forwarding buffers - one for each configured forwarded sensor
+static fbusSensorForwardBuffer_t forwardBuffers[FBUS_MASTER_MAX_FORWARDED_SENSORS];
+
 /**
  * Initialize FBUS sensor system
  */
@@ -51,6 +79,9 @@ void fbusSensorInit(void)
     sensorCacheIndex = 0;
     memset(observedSensors, 0, sizeof(observedSensors));
     observedSensorCount = 0;
+    
+    // Initialize frame forwarding
+    fbusSensorInitForwarding();
 }
 
 /**
@@ -251,6 +282,135 @@ static void trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t cur
 }
 
 /**
+ * Initialize frame forwarding buffers based on configuration
+ */
+void fbusSensorInitForwarding(void)
+{
+    memset(forwardBuffers, 0, sizeof(forwardBuffers));
+    
+    // Initialize buffer for each configured forwarded sensor
+    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+        uint8_t physicalId = fbusMasterConfig()->forwardedSensors[i];
+        forwardBuffers[i].physicalId = physicalId;
+        forwardBuffers[i].writeIndex = 0;
+        forwardBuffers[i].readIndex = 0;
+        forwardBuffers[i].count = 0;
+        forwardBuffers[i].startupFrameSent = false;
+    }
+}
+
+/**
+ * Check if a sensor is configured for forwarding
+ */
+bool fbusSensorIsForwarded(uint8_t physicalId)
+{
+    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+        if (forwardBuffers[i].physicalId == physicalId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Get forwarded sensor buffer by physical ID
+ */
+static fbusSensorForwardBuffer_t* getForwardBuffer(uint8_t physicalId)
+{
+    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+        if (forwardBuffers[i].physicalId == physicalId) {
+            return &forwardBuffers[i];
+        }
+    }
+    return NULL;
+}
+
+/**
+ * Add a frame to the forwarding buffer
+ */
+static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data)
+{
+    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+    if (!buffer) {
+        return;
+    }
+    
+    // If buffer is full, discard oldest frame
+    if (buffer->count >= FBUS_FORWARDED_FRAME_BUFFER_SIZE) {
+        buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
+        buffer->count--;
+    }
+    
+    // Add new frame at write position
+    buffer->frames[buffer->writeIndex].physicalId = physicalId;
+    buffer->frames[buffer->writeIndex].appId = appId;
+    buffer->frames[buffer->writeIndex].data = data;
+    buffer->frames[buffer->writeIndex].valid = true;
+    
+    // Update write index and count
+    buffer->writeIndex = (buffer->writeIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
+    buffer->count++;
+}
+
+/**
+ * Get a frame from the forwarding buffer
+ * Returns the most recent frame and removes it from the buffer
+ */
+bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
+{
+    if (!frame) {
+        return false;
+    }
+    
+    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+    if (!buffer) {
+        return false;
+    }
+    
+    // If buffer is empty, return frame with all zeros
+    if (buffer->count == 0) {
+        frame->physicalId = physicalId;
+        frame->appId = 0;
+        frame->data = 0;
+        frame->valid = false;
+        return true;
+    }
+    
+    // Get frame from read position
+    memcpy(frame, &buffer->frames[buffer->readIndex], sizeof(fbusSensorFrame_t));
+    
+    // Update read index and count
+    buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
+    buffer->count--;
+    
+    return true;
+}
+
+/**
+ * Check if a sensor needs a startup frame sent
+ */
+bool fbusSensorNeedsStartupFrame(uint8_t physicalId)
+{
+    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+    if (!buffer) {
+        return false;
+    }
+    
+    return !buffer->startupFrameSent;
+}
+
+/**
+ * Mark that a startup frame has been sent for a sensor
+ */
+void fbusSensorMarkStartupFrameSent(uint8_t physicalId)
+{
+    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+    if (buffer) {
+        buffer->startupFrameSent = true;
+    }
+}
+
+/**
  * Process incoming FBUS sensor data
  *
  * @param physicalId Physical ID of the sensor
@@ -272,6 +432,11 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
     sensorCache[sensorCacheIndex].valid = true;
     sensorCache[sensorCacheIndex].lastUpdateUs = currentTimeUs;
     sensorCacheIndex = (sensorCacheIndex + 1) % FBUS_SENSOR_CACHE_SIZE;
+    
+    // If this sensor is configured for forwarding, add to forward buffer
+    if (fbusSensorIsForwarded(physicalId)) {
+        addFrameToBuffer(physicalId, appId, data);
+    }
     
     // Process GPS data
     if (physicalId == FBUS_SENSOR_GPS) {
@@ -489,6 +654,20 @@ void fbusSensorClearObserved(void)
 {
     memset(observedSensors, 0, sizeof(observedSensors));
     observedSensorCount = 0;
+}
+
+/**
+ * Get sensor name by physical ID
+ *
+ * @param physicalId Physical ID of the sensor
+ * @return Sensor name string, or "UNKNOWN" if not found
+ */
+const char* fbusSensorGetName(uint8_t physicalId)
+{
+    if (physicalId < sizeof(fbusSensorNames) / sizeof(fbusSensorNames[0]) && fbusSensorNames[physicalId]) {
+        return fbusSensorNames[physicalId];
+    }
+    return "UNKNOWN";
 }
 
 #endif // USE_FBUS_MASTER

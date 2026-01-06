@@ -21,6 +21,7 @@
 #include "pg/pg.h"
 
 #define FBUS_MASTER_CHANNELS 16
+#define FBUS_MASTER_MAX_FORWARDED_SENSORS 6
 
 typedef enum {
     FBUS_MASTER_SOURCE_NONE = 0,
@@ -51,11 +52,23 @@ typedef struct fbusMasterConfig_s {
     // faster updates.
     uint16_t frameRate;
 
+    // Telemetry polling rate in Hz (25-550). Determines how often the master
+    // polls sensors for telemetry data. When not polling, PRIM = FBUS_FRAME_ID_NULL.
+    uint16_t telemetryRate;
+
+    // Sensor discovery time in milliseconds (100-10000). Time to scan for sensors
+    // before switching to normal telemetry polling mode.
+    uint16_t sensorDiscoveryTimeMs;
+
     uint8_t pinSwap;
 
     // When ON, the UART output is electrically inverted (F.Bus signal uses
     // inverted logic). When OFF, the output is non-inverted.
     uint8_t inverted;
+
+    // List of sensor physical IDs to forward to the receiver (max 6)
+    // 0 = disabled slot
+    uint8_t forwardedSensors[FBUS_MASTER_MAX_FORWARDED_SENSORS];
 
 } fbusMasterConfig_t;
 
