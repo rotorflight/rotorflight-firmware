@@ -240,6 +240,7 @@
 #define MSP_SELECT_SETTING                   210
 #define MSP_SET_HEADING                      211
 #define MSP_SET_SERVO_CONFIGURATION          212
+#define MSP_SET_SERVO_MID                    213
 
 #define MSP_SET_MOTOR                        214
 #define MSP_SET_NAV_CONFIG                   215
