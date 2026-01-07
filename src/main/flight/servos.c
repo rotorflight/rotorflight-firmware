@@ -251,6 +251,11 @@ void servoUpdate(void)
         else
             input[i] = mixerGetServoOutput(i);
 
+#ifdef USE_SERVO_GEOMETRY_CORRECTION
+        if (servo->flags & SERVO_FLAG_GEO_CORR)
+            input[i] = geometryCorrection(input[i]);
+#endif
+
         if (servo->speed && mixerIsCyclicServo(i)) {
             const float limit = 1200 * pidGetDT() / servo->speed;
             const float speed = fabsf(input[i] - servoInput[i]);
@@ -272,11 +277,6 @@ void servoUpdate(void)
         }
 
         servoInput[i] = pos;
-
-#ifdef USE_SERVO_GEOMETRY_CORRECTION
-        if (servo->flags & SERVO_FLAG_GEO_CORR)
-            pos = geometryCorrection(pos);
-#endif
 
         if (servo->flags & SERVO_FLAG_REVERSED)
             pos = -pos;

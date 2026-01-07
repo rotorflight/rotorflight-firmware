@@ -125,7 +125,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_weight = 50,
         .governor.collective_curve = 20,
         .governor.fallback_drop = 10,
-        .governor.dyn_min_level = 80,
+        .governor.dyn_min_throttle = 80,
     );
 }
 
