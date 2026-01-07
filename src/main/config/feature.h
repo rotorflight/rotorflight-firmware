@@ -21,6 +21,7 @@
 #pragma once
 
 #include "pg/feature.h"
+#include "common/utils.h"
 
 #ifndef DEFAULT_FEATURES
 #define DEFAULT_FEATURES 0

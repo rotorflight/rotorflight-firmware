@@ -6,7 +6,7 @@ single-rotor helicopters. It consists of:
 - Rotorflight Flight Controller Firmware (this repository)
 - Rotorflight Configurator, for flashing and configuring the flight controller
 - Rotorflight Blackbox Explorer, for analyzing blackbox flight logs
-- Rotorflight LUA Scripts, for configuring the flight controller using a transmitter
+- Rotorflight Lua Scripts, for configuring the flight controller using a transmitter
 
 Built on Betaflight 4.3, Rotorflight incorporates numerous advanced features specifically
 tailored for helicopters. It's important to note that Rotorflight does _not_ support multi-rotor
@@ -24,10 +24,10 @@ Tutorials, documentation, and flight videos can be found on the [Rotorflight web
 
 Rotorflight has many features:
 
-* Many receiver protocols: CRSF, S.BUS, F.Port, DSM, IBUS, XBUS, EXBUS, GHOST, CPPM
-* Support for various telemetry protocols: CSRF, S.Port, HoTT, etc.
-* ESC telemetry protocols: BLHeli32, Hobbywing, Scorpion, Kontronik, OMP Hobby, ZTW, APD, YGE
-* Advanced PID control tuned for helicopters
+* Many receiver protocols: CRSF, S.BUS, FBUS, F.Port, SRXL2, IBUS, XBUS, EXBUS, GHOST, CPPM
+* Support for various telemetry protocols: CSRF, S.Port, FBUS, HoTT, etc.
+* ESC telemetry protocols: Hobbywing, Scorpion, Kontronik, Castle, OMP, ZTW, APD, YGE, XDFly, FLYROTOR
+* Advanced PID control algorithms for helicopters
 * Stabilisation modes (6D)
 * Rotor speed governor
 * Motorised tail support with Tail Torque Assist (TTA, also known as TALY)
@@ -48,11 +48,10 @@ Plus lots of features inherited from Betaflight:
 * Configuration profiles for changing various tuning parameters
 * Rates profiles for changing the stick feel and agility
 * Multiple ESC protocols: PWM, DSHOT, Multishot, etc.
-* Configurable buzzer sounds
 * Multi-color RGB LEDs
-* GPS support
+* GPS support (telemetry & logging only)
 
-And many more...
+And much more...
 
 
 ## Hardware support
@@ -67,14 +66,9 @@ Also, the Betaflight boards are labeled for multi-rotor use - thus the user need
 these functions can be used for a different purpose with helicopters. Usually this is just about using
 the motor outputs for servos, but in some cases a more advanced remapping may be needed.
 
-Rotorflight supports STM32G4, STM32F4, STM32F7 and STM32H7 MCUs from ST.
+Rotorflight supports STM32F405, STM32F722, STM32F745 and STM32H743 MCUs from ST.
 
-It's highly recommended to use an STM32F7 based flight controller for Rotorflight.
-It's the way to go since it can take full advantage of the latest control and filtering
-algorithms, plus other cool features that really put the CPU to work.
-
-An absolute minimum is an STM32G4 based board, but it probably won't be able to run all
-the new features later on. The older STM32F411 should be avoided if possible.
+The support for lesser MCUs like STM32G474 and STM32F411 is EOL and will be removed soon.
 
 
 ## Installation

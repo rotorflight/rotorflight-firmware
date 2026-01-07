@@ -1418,4 +1418,22 @@ void setLedProfile(uint8_t profile)
         ledStripConfigMutable()->ledstrip_profile = profile;
     }
 }
+
 #endif
+
+int get_ADJUSTMENT_LED_PROFILE(void)
+{
+#ifdef USE_LED_STRIP
+    return getLedProfile() + 1;
+#else
+    return 0;
+#endif
+}
+
+void set_ADJUSTMENT_LED_PROFILE(int value)
+{
+#ifdef USE_LED_STRIP
+    setLedProfile(value - 1);
+#endif
+}
+

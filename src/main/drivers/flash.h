@@ -53,6 +53,7 @@ bool flashInit(const flashConfig_t *flashConfig);
 bool flashIsReady(void);
 bool flashWaitForReady(void);
 void flashEraseSector(uint32_t address);
+bool flashEraseCompletelySupported(void);
 void flashEraseCompletely(void);
 void flashPageProgramBegin(uint32_t address, void (*callback)(uint32_t arg));
 uint32_t flashPageProgramContinue(const uint8_t **buffers, uint32_t *bufferSizes, uint32_t bufferCount);

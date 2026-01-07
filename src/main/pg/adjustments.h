@@ -22,6 +22,9 @@
 #include "pg/pg.h"
 #include "pg/modes.h"
 
+#define ADJFUN_DECLARE(id) \
+    int get_ADJUSTMENT_##id(void); \
+    void set_ADJUSTMENT_##id(int);
 
 typedef struct {
     uint8_t function;
@@ -35,7 +38,7 @@ typedef struct {
     uint8_t adjStep;
 } adjustmentRange_t;
 
-#define MAX_ADJUSTMENT_RANGE_COUNT 32
+#define MAX_ADJUSTMENT_RANGE_COUNT 42
 
 PG_DECLARE_ARRAY(adjustmentRange_t, MAX_ADJUSTMENT_RANGE_COUNT, adjustmentRanges);
 

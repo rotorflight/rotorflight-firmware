@@ -39,7 +39,9 @@
 
 #include "common/maths.h"
 #include "common/utils.h"
+#include "common/filter.h"
 
+#include "drivers/castle_telemetry_decode.h"
 #include "drivers/timer.h"
 #include "drivers/motor.h"
 #include "drivers/dshot.h"
@@ -108,8 +110,10 @@ enum {
 #define ESC_SIG_PL5               0xFD
 #define ESC_SIG_TRIB              0x53
 #define ESC_SIG_OPENYGE           0xA5
+#define ESC_SIG_XDFLY             0xA6
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
+#define ESC_SIG_CASTLE            0xCC
 #define ESC_SIG_RESTART           0xFF
 
 static serialPort_t *escSensorPort = NULL;
@@ -156,7 +160,6 @@ static bool paramMspActive = false;
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
 
-
 static void paramEscNeedRestart(void)
 {
     escSensorData[0].age = 0;
@@ -166,12 +169,36 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
-    return escSensorPort != NULL;
+    return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 
 uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
     return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
+}
+
+static uint32_t applyVoltageCorrection(uint32_t voltage)
+{
+    if (escSensorConfig()->voltage_correction == 0)
+        return voltage;
+
+    return (voltage * (100 + escSensorConfig()->voltage_correction)) / 100;
+}
+
+static uint32_t applyCurrentCorrection(uint32_t current)
+{
+    if (escSensorConfig()->current_correction == 0)
+        return current;
+
+    return (current * (100 + escSensorConfig()->current_correction)) / 100;
+}
+
+static uint32_t applyConsumptionCorrection(uint32_t consumption)
+{
+    if (escSensorConfig()->consumption_correction == 0)
+        return consumption;
+
+    return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
 static void combinedDataUpdate(void)
@@ -202,6 +229,12 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 {
     if (getMotorCount() > 0 && featureIsEnabled(FEATURE_ESC_SENSOR)) {
         if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE) {
+#ifdef USE_TELEMETRY_CASTLE
+            if (isMotorProtocolCastlePWM()) {
+                if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED)
+                    return &escSensorData[0];
+            }
+#endif
             return NULL;
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
@@ -273,7 +306,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, totalConsumption);
 
-    escSensorData[0].consumption = totalConsumption;
+    escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
 
@@ -360,9 +393,9 @@ static uint8_t blDecodeTelemetryFrame(void)
         escSensorData[currentEsc].id = ESC_SIG_BLHELI32;
         escSensorData[currentEsc].age = 0;
         escSensorData[currentEsc].erpm = erpm * 100;
-        escSensorData[currentEsc].voltage = volt * 10;
-        escSensorData[currentEsc].current = curr * 10;
-        escSensorData[currentEsc].consumption = capa;
+        escSensorData[currentEsc].voltage = applyVoltageCorrection(volt * 10);
+        escSensorData[currentEsc].current = applyCurrentCorrection(curr * 10);
+        escSensorData[currentEsc].consumption = applyConsumptionCorrection(capa);
         escSensorData[currentEsc].temperature = temp * 10;
 
         combinedNeedsUpdate = true;
@@ -522,18 +555,6 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
  * 10-11:       Temperature constants
  *    12:       Sync 0xB9
  *
- *
- * Gain values reported by the ESCs:
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * Model        V1  V2  I1   I2  I3     Vgain Igain Ioffset
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- * 60A          8   91   0    1   0      109      0      0
- * 80A          8   91  33  150  90      109    146    409
- * 120A         8   91  33  113 110      109    110    377
- * HV130A       11  65  30  146   0      210    157      0
- * HV200A       11  65  30  146  98      210    157    477
- * FFHV160A     11  65  33   68 185      210     66    381
- *
  * Temp sensor design:
  * ―――――――――――――――――――
  *  β  = 3950
@@ -551,22 +572,47 @@ static float calcTempNTC(uint16_t adc, float gamma, float delta)
 
 #define calcTempHW(adc)  calcTempNTC(adc, HW4_NTC_GAMMA, HW4_NTC_DELTA)
 
-#define HW4_VOLTAGE_SCALE    0.00008056640625f
-#define HW4_CURRENT_SCALE    32.2265625f
-
 static float hw4VoltageScale = 0;
 static float hw4CurrentScale = 0;
 static float hw4CurrentOffset = 0;
 
-static inline float calcVoltHW(uint16_t voltADC)
+static inline float calcVoltHW4(uint16_t voltADC)
 {
     return voltADC * hw4VoltageScale;
 }
 
-static inline float calcCurrHW(uint16_t currentADC)
+static inline float calcCurrHW4(uint16_t currentADC)
 {
     return (currentADC > hw4CurrentOffset) ?
         (currentADC - hw4CurrentOffset) * hw4CurrentScale : 0;
+}
+
+static uint32_t hw4ThrottleRange = 1000;
+
+static inline uint16_t calcThrottleHW4(uint16_t throttle)
+{
+    return throttle * 1000LU / hw4ThrottleRange;
+}
+
+#define HW4_CURRENT_FILTER_FAST_HZ  10.0f
+#define HW4_CURRENT_FILTER_SLOW_HZ   1.0f
+
+static float hw4CurrentFilter = 0;
+static float hw4CurrentValue = 0;
+static float hw4CurrentFast = 0;
+static float hw4CurrentSlow = 0;
+
+static inline void updateCurrentValueHW4(float current)
+{
+    hw4CurrentValue = current;
+}
+
+static inline float updateCurrentFilterHW4(void)
+{
+    hw4CurrentFilter += (hw4CurrentValue - hw4CurrentFilter) *
+     ((hw4CurrentValue > hw4CurrentFilter || hw4CurrentValue == 0) ? hw4CurrentFast : hw4CurrentSlow);
+
+    return hw4CurrentFilter;
 }
 
 #define HW4_FRAME_NONE   0
@@ -624,26 +670,25 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
                 uint16_t Tadc = buffer[15] << 8 | buffer[16];
                 uint16_t Cadc = buffer[17] << 8 | buffer[18];
 
-                float voltage = calcVoltHW(Vadc);
-                float current = calcCurrHW(Iadc);
+                float voltage = calcVoltHW4(Vadc);
+                float current = calcCurrHW4(Iadc);
                 float tempFET = calcTempHW(Tadc);
                 float tempCAP = calcTempHW(Cadc);
 
                 // When throttle changes to zero, the last current reading is
                 // repeated until the motor has totally stopped.
-                if (pwm == 0) {
+                if (thr == 0) {
                     current = 0;
                 }
 
-                setConsumptionCurrent(current);
+                updateCurrentValueHW4(current);
 
                 escSensorData[0].id = ESC_SIG_HW4;
                 escSensorData[0].age = 0;
                 escSensorData[0].erpm = rpm;
-                escSensorData[0].throttle = thr;
-                escSensorData[0].pwm = pwm;
-                escSensorData[0].voltage = lrintf(voltage * 1000);
-                escSensorData[0].current = lrintf(current * 1000);
+                escSensorData[0].throttle = calcThrottleHW4(thr);
+                escSensorData[0].pwm = calcThrottleHW4(pwm);
+                escSensorData[0].voltage = applyVoltageCorrection(lrintf(voltage * 1000));
                 escSensorData[0].temperature = lrintf(tempFET * 10);
                 escSensorData[0].temperature2 = lrintf(tempCAP * 10);
 
@@ -669,34 +714,27 @@ static void hw4SensorProcess(timeUs_t currentTimeUs)
             }
         }
         else if (frameType == HW4_FRAME_INFO) {
-            if (escSensorConfig()->hw4_voltage_gain) {
-                hw4VoltageScale = HW4_VOLTAGE_SCALE * escSensorConfig()->hw4_voltage_gain;
+            if (buffer[2] || buffer[3]) {
+                hw4ThrottleRange = buffer[2] << 8 | buffer[3];
             }
-            else {
-                if (buffer[5] && buffer[6])
-                    hw4VoltageScale = (float)buffer[5] / (float)buffer[6] / 10;
-                else
-                    hw4VoltageScale = 0;
+            if (buffer[5] && buffer[6]) {
+                hw4VoltageScale = (float)buffer[5] / ((float)buffer[6] * 10);
             }
-
-            if (escSensorConfig()->hw4_current_gain) {
-                hw4CurrentScale = HW4_CURRENT_SCALE / escSensorConfig()->hw4_current_gain;
-                hw4CurrentOffset = escSensorConfig()->hw4_current_offset;
-            }
-            else {
-                if (buffer[7] && buffer[8]) {
-                    hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
-                    hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
-                }
-                else {
-                    hw4CurrentScale = 0;
-                    hw4CurrentOffset = 0;
-                }
+            if (buffer[7] && buffer[8]) {
+                hw4CurrentScale = (float)buffer[7] / (float)buffer[8];
+                hw4CurrentOffset = (float)buffer[9] / hw4CurrentScale;
             }
         }
     }
 
+    // Special filtering for current
+    const float current = updateCurrentFilterHW4();
+
+    // Update esc data on every cycle
+    escSensorData[0].current = applyCurrentCorrection(lrintf(current * 1000));
+
     // Update consumption on every cycle
+    setConsumptionCurrent(current);
     updateConsumption(currentTimeUs);
 
     // Maximum data frame spacing 400ms
@@ -870,9 +908,9 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = (throttle + 100) * 5;
                 escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 100);
+                escSensorData[0].consumption = applyConsumptionCorrection(capacity);
                 escSensorData[0].temperature = tempFET * 10;
                 escSensorData[0].temperature2 = tempBEC * 10;
                 escSensorData[0].bec_voltage = voltBEC;
@@ -908,243 +946,6 @@ static void kontronikSensorProcess(timeUs_t currentTimeUs)
 
 
 /*
- * OMP Hobby M4 Telemetry
- *
- *    - Serial protocol is 115200,8N1
- *    - Frame rate 20Hz
- *    - Frame length includes header and CRC
- *    - Big-Endian fields
- *    - Status Code bits:
- *         0:  Short-circuit protection
- *         1:  Motor connection error
- *         2:  Throttle signal lost
- *         3:  Throttle signal >0 on startup error
- *         4:  Low voltage protection
- *         5:  Temperature protection
- *         6:  Startup protection
- *         7:  Current protection
- *         8:  Throttle signal error
- *        12:  Battery voltage error
- *
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      Start Flag (0xdd)
- *      1:      Protocol version (0x01)
- *      2:      Frame lenght (32)
- *    3-4:      Battery voltage in 0.1V
- *    5-6:      Battery current in 0.1V
- *      7:      Throttle %
- *    8-9:      RPM in 10rpm steps
- *     10:      ESC Temperature °C
- *     11:      Motor Temperature °C
- *     12:      PWM duty cycle %
- *  13-14:      Status Code
- *  15-16:      Capacity mAh
- *  17-31:      Unused / Zeros
- *
- */
-
-static bool processOMPTelemetryStream(uint8_t dataByte)
-{
-    totalByteCount++;
-
-    buffer[readBytes++] = dataByte;
-
-    if (readBytes == 1) {
-        if (dataByte != 0xDD)
-            frameSyncError();
-        else
-            syncCount++;
-    }
-    else if (readBytes == 32) {
-        readBytes = 0;
-        if (syncCount > 2)
-            return true;
-    }
-
-    return false;
-}
-
-static void ompSensorProcess(timeUs_t currentTimeUs)
-{
-    // check for any available bytes in the rx buffer
-    while (serialRxBytesWaiting(escSensorPort)) {
-        if (processOMPTelemetryStream(serialRead(escSensorPort))) {
-            // Make sure this is OMP M4 ESC
-            if (buffer[1] == 0x01 && buffer[2] == 0x20 && buffer[11] == 0 && buffer[18] == 0 && buffer[20] == 0) {
-                uint16_t rpm = buffer[8] << 8 | buffer[9];
-                uint16_t throttle = buffer[7];
-                uint16_t pwm = buffer[12];
-                uint16_t temp = buffer[10];
-                uint16_t voltage = buffer[3] << 8 | buffer[4];
-                uint16_t current = buffer[5] << 8 | buffer[6];
-                uint16_t capacity = buffer[15] << 8 | buffer[16];
-                uint16_t status = buffer[13] << 8 | buffer[14];
-
-                escSensorData[0].id = ESC_SIG_OMP;
-                escSensorData[0].age = 0;
-                escSensorData[0].erpm = rpm * 10;
-                escSensorData[0].throttle = throttle * 10;
-                escSensorData[0].pwm = pwm * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
-                escSensorData[0].temperature = temp * 10;
-                escSensorData[0].status = status;
-
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, pwm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-                dataUpdateUs = currentTimeUs;
-
-                totalFrameCount++;
-            }
-            else {
-                totalCrcErrorCount++;
-            }
-        }
-    }
-
-    // Maximum frame spacing 50ms, sync after 3 frames
-    checkFrameTimeout(currentTimeUs, 500000);
-}
-
-
-/*
- * ZTW Telemetry
- *
- *    - Serial protocol is 115200,8N1
- *    - Frame rate 20Hz
- *    - Frame length includes header and CRC
- *    - Big-Endian fields
- *    - Checksum (unknown)
- *    - Status Code bits:
- *         0:  Short-circuit protection
- *         1:  Motor connection error
- *         2:  Throttle signal lost
- *         3:  Throttle signal >0 on startup error
- *         4:  Low voltage protection
- *         5:  Temperature protection
- *         6:  Startup protection
- *         7:  Current protection
- *         8:  Throttle signal error
- *         9:  UART throttle error
- *        10:  UART throttle lost
- *        11:  CAN throttle lost
- *        12:  Battery voltage error
- *
- * Frame Format
- * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *      0:      Start Flag (0xdd)
- *      1:      Protocol version (0x01)
- *      2:      Frame lenght (32)
- *    3-4:      Battery voltage in 0.1V
- *    5-6:      Battery current in 0.1V
- *      7:      Throttle %
- *    8-9:      RPM in 10rpm steps
- *     10:      ESC Temperature °C
- *     11:      Motor Temperature °C
- *     12:      PWM duty cycle %
- *  13-14:      Status Code
- *  15-16:      Capacity mAh
- *     17:      Serial Throttle input (unused)
- *     18:      CAN Throttle input (unused)
- *     19:      BEC Voltage
- *  20-29:      Unused
- *  30-31:      Checksum
- *
- */
-
-static bool processZTWTelemetryStream(uint8_t dataByte)
-{
-    totalByteCount++;
-
-    buffer[readBytes++] = dataByte;
-
-    if (readBytes == 1) {
-        if (dataByte != 0xDD)
-            frameSyncError();
-        else
-            syncCount++;
-    }
-    else if (readBytes == 32) {
-        readBytes = 0;
-        if (syncCount > 2)
-            return true;
-    }
-
-    return false;
-}
-
-static void ztwSensorProcess(timeUs_t currentTimeUs)
-{
-    // check for any available bytes in the rx buffer
-    while (serialRxBytesWaiting(escSensorPort)) {
-        if (processZTWTelemetryStream(serialRead(escSensorPort))) {
-            if (buffer[1] == 0x01 && buffer[2] == 0x20) {
-                uint16_t rpm = buffer[8] << 8 | buffer[9];
-                uint16_t temp = buffer[10];
-                uint16_t throttle = buffer[7];
-                uint16_t power = buffer[12];
-                uint16_t voltage = buffer[3] << 8 | buffer[4];
-                uint16_t current = buffer[5] << 8 | buffer[6];
-                uint16_t capacity = buffer[15] << 8 | buffer[16];
-                uint16_t status = buffer[13] << 8 | buffer[14];
-                uint16_t voltBEC = buffer[19];
-
-                escSensorData[0].id = ESC_SIG_ZTW;
-                escSensorData[0].age = 0;
-                escSensorData[0].erpm = rpm * 10;
-                escSensorData[0].throttle = throttle * 10;
-                escSensorData[0].pwm = power * 10;
-                escSensorData[0].voltage = voltage * 100;
-                escSensorData[0].current = current * 100;
-                escSensorData[0].consumption = capacity;
-                escSensorData[0].temperature = temp * 10;
-                escSensorData[0].bec_voltage = voltBEC * 1000;
-                escSensorData[0].status = status;
-
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
-                DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
-
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
-                DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
-
-                dataUpdateUs = currentTimeUs;
-
-                totalFrameCount++;
-            }
-            else {
-                totalCrcErrorCount++;
-            }
-        }
-    }
-
-    // Maximum frame spacing 50ms, sync after 3 frames
-    checkFrameTimeout(currentTimeUs, 500000);
-}
-
-
-/*
  * Advanced Power Drives UART Telemetry
  *
  *    - Serial protocol is 115200,8N1
@@ -1162,7 +963,7 @@ static void ztwSensorProcess(timeUs_t currentTimeUs)
  *
  * Frame Format
  * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
- *    0-1:      Sync 0xFFFF
+ *    0-1:      Sync 0xFFFF - This is actually the stop byte of previous frame, used as start byte for sync robustness
  *    2-3:      Voltage in 10mV steps
  *    4-5:      Temperature ADC
  *    6-7:      Current in 80mA steps
@@ -1237,12 +1038,15 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
             uint16_t crc = buffer[21] << 8 | buffer[20];
 
             if (calculateFletcher16(buffer + 2, 18) == crc) {
-                uint16_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
-                uint16_t tadc = buffer[3] << 8 | buffer[2];
+                uint32_t rpm = buffer[13] << 24 | buffer[12] << 16 | buffer[11] << 8 | buffer[10];
+                uint16_t tadc = buffer[5] << 8 | buffer[4];
                 uint16_t throttle = buffer[15] << 8 | buffer[14];
                 uint16_t power = buffer[17] << 8 | buffer[16];
-                uint16_t voltage = buffer[1] << 8 | buffer[0];
-                uint16_t current = buffer[5] << 8 | buffer[4];
+                uint16_t voltage = buffer[3] << 8 | buffer[2];
+                int16_t current = buffer[7] << 8 | buffer[6];
+                if (current < 0) { //ESC can output negative current, for example, during regen. Clamp the telemetry current to 0 if negative.
+                    current = 0;
+                }
                 uint16_t status = buffer[18];
 
                 float temp = calcTempAPD(tadc);
@@ -1254,8 +1058,8 @@ static void apdSensorProcess(timeUs_t currentTimeUs)
                 escSensorData[0].erpm = rpm;
                 escSensorData[0].throttle = throttle;
                 escSensorData[0].pwm = power;
-                escSensorData[0].voltage = voltage * 10;
-                escSensorData[0].current = current * 80;
+                escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+                escSensorData[0].current = applyCurrentCorrection(current * 80);
                 escSensorData[0].temperature = lrintf(temp * 10);
                 escSensorData[0].status = status;
 
@@ -1484,10 +1288,14 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_CMD_READ_ADV                    0x62                // Read ESC advanced parameters
 #define FLY_CMD_READ_ADV_RESP               0x9D                // Read ESC advanced parameters resp
 #define FLY_CMD_READ_REALTIME               0x63                // Read ESC real-time parameters
+#define FLY_CMD_READ_OTHER                  0x64                // Read ESC other parameters
+#define FLY_CMD_READ_OTHER_RESP             0x9B                // Read ESC other parameters resp
 #define FLY_CMD_WRITE_BASIC                 0x90                // Write ESC basic parameters
 #define FLY_CMD_WRITE_BASIC_RESP            0x6F                // Write ESC basic parameters resp
 #define FLY_CMD_WRITE_ADV                   0x91                // Write ESC advanced parameters
 #define FLY_CMD_WRITE_ADV_RESP              0x6E                // Write ESC advanced parameters resp
+#define FLY_CMD_WRITE_OTHER                 0x92                // Write ESC other parameters
+#define FLY_CMD_WRITE_OTHER_RESP            0x6D                // Write ESC other parameters resp
 
 #define FLY_PARAM_FRAME_PERIOD              2                   // asap
 #define FLY_PARAM_CONNECT_TIMEOUT           10
@@ -1498,13 +1306,14 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
 #define FLY_PARAM_PAGE_INFO                 0
 #define FLY_PARAM_PAGE_BASIC                1
 #define FLY_PARAM_PAGE_ADV                  2
-#define FLY_PARAM_PAGE_ALL                  7
+#define FLY_PARAM_PAGE_OTHER                3
+#define FLY_PARAM_PAGE_ALL                  0x0F
 #define FLY_PARAM_PAGE_LEN_MASK             0xFF
 
 // param pages - hi-byte=offset, low-byte=length
-static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A };
-static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV };
-static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV };
+static uint16_t flyParamPages[] = { 0x0016, 0x160C, 0x220A, 0x2C0A };
+static uint8_t flyParamReadCmds[] = { FLY_CMD_READ_INFO, FLY_CMD_READ_BASIC, FLY_CMD_READ_ADV, FLY_CMD_READ_OTHER };
+static uint8_t flyParamWriteCmds[] = { 0, FLY_CMD_WRITE_BASIC, FLY_CMD_WRITE_ADV, FLY_CMD_WRITE_OTHER };
 
 static uint8_t flyInvalidParamPages = 0;
 static uint8_t flyDirtyParamPages = 0;
@@ -1625,7 +1434,7 @@ static void flyDecodeTelemetryFrame(void)
 
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
-    const int16_t mcuTemp = buffer[hl + 10] - FLY_TEMP_OFFSET;
+    const int16_t motorTemp = buffer[hl + 11] - FLY_TEMP_OFFSET;
     const uint8_t power = buffer[hl + 8];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
@@ -1637,11 +1446,11 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 10;
     escSensorData[0].pwm = power * 10;
-    escSensorData[0].voltage = voltage * 10;
-    escSensorData[0].current = current * 10;
-    escSensorData[0].consumption = consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(consumption);
     escSensorData[0].temperature = temp * 10;
-    escSensorData[0].temperature2 = mcuTemp * 10;
+    escSensorData[0].temperature2 = motorTemp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
 
@@ -1766,10 +1575,14 @@ static bool flyDecode(timeUs_t currentTimeUs)
             return flyDecodeReadResp(FLY_PARAM_PAGE_BASIC);
         case FLY_CMD_READ_ADV_RESP:
             return flyDecodeReadResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_READ_OTHER_RESP:
+            return flyDecodeReadResp(FLY_PARAM_PAGE_OTHER);
         case FLY_CMD_WRITE_BASIC_RESP:
             return flyDecodeWriteResp(FLY_PARAM_PAGE_BASIC);
         case FLY_CMD_WRITE_ADV_RESP:
             return flyDecodeWriteResp(FLY_PARAM_PAGE_ADV);
+        case FLY_CMD_WRITE_OTHER_RESP:
+            return flyDecodeWriteResp(FLY_PARAM_PAGE_OTHER);
         default:
             return false;
     }
@@ -1790,8 +1603,10 @@ static int8_t flyAccept(uint16_t c)
             case FLY_CMD_READ_INFO_RESP:
             case FLY_CMD_READ_BASIC_RESP:
             case FLY_CMD_READ_ADV_RESP:
+            case FLY_CMD_READ_OTHER_RESP:
             case FLY_CMD_WRITE_BASIC_RESP:
             case FLY_CMD_WRITE_ADV_RESP:
+            case FLY_CMD_WRITE_OTHER_RESP:
                 break;
             default:
                 // unsupported frame type
@@ -2029,8 +1844,8 @@ static bool pl5DecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
     escSensorData[0].pwm = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = current * 100;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
     escSensorData[0].temperature = tele->temperature * 10;
     escSensorData[0].temperature2 = tele->bec_temp * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage * 100;
@@ -2546,9 +2361,9 @@ static bool tribDecodeLogRecord(uint8_t hl)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 5;
     escSensorData[0].pwm = power * 5;
-    escSensorData[0].voltage = voltage * 100;
-    escSensorData[0].current = current * 100;
-    escSensorData[0].consumption = capacity;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(capacity);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].bec_voltage = voltBEC * 100;
     escSensorData[0].status = status;
@@ -2967,9 +2782,9 @@ static void oygeDecodeTelemetryFrame(void)
     escSensorData[0].erpm = tele->rpm * 10;
     escSensorData[0].pwm = tele->pwm * 10;
     escSensorData[0].throttle = tele->throttle * 10;
-    escSensorData[0].voltage = tele->voltage * 10;
-    escSensorData[0].current = tele->current * 10;
-    escSensorData[0].consumption = tele->consumption;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 10);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 10);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->consumption);
     escSensorData[0].temperature = temp * 10;
     escSensorData[0].temperature2 = tempBEC * 10;
     escSensorData[0].bec_voltage = tele->bec_voltage;
@@ -3221,9 +3036,9 @@ static bool graupnerDecodeTeleFrame(timeUs_t currentTimeUs)
     escSensorData[0].id = ESC_SIG_GRAUPNER;
     escSensorData[0].age = 0;
     escSensorData[0].erpm = tele->rpm * 10;
-    escSensorData[0].voltage = tele->voltage * 100;
-    escSensorData[0].current = tele->current * 100;
-    escSensorData[0].consumption = tele->capacity * 10;
+    escSensorData[0].voltage = applyVoltageCorrection(tele->voltage * 100);
+    escSensorData[0].current = applyCurrentCorrection(tele->current * 100);
+    escSensorData[0].consumption = applyConsumptionCorrection(tele->capacity * 10);
     escSensorData[0].temperature = tele->temperature * 10 - 200;
     escSensorData[0].status = tele->flags;
 
@@ -3307,6 +3122,389 @@ static serialReceiveCallbackPtr graupnerSensorInit(void)
     return rrfsmDataReceive;
 }
 
+/*
+ * XDFLY
+ *
+ *     - Serial protocol is 115200,8N1
+ *     - Big-Endian byte order
+ * 
+ * Frame Format
+ * ――――――――――――――――――――――――――――――――――――――――――――――――――――――――
+ *      0:      start byte (0xA5)
+ *      1:      length in bytes (8)
+ *      2:      command 
+ *          0x03 handshake
+ *          0x34 set_par
+ *          0x33 get_par
+ *      3:      param number
+ *      4-5:    param value
+ *      6-7:      CRC16
+ * 
+ * 
+ * checking whether the param is valid for the connected ESC:
+ *      if the highest bit of the value is set, the parameter is valid for the connected ESC
+ *          bool paramValid = paramValueRaw & 0x8000 != 0 //param shall not be displayed
+ *      the actual data is in the lower 15 bits
+ *          uint16_t paramValue =  paramValueRaw & 0x7FFF
+ * 
+ * for setting a param the high bit of the value is set to 1
+ *     uint16_t paramValueRaw = paramValue | 0x8000
+ * 
+ * when setting a param and the ESC responds with 0xFFFF, setting the param was not successful
+ */
+#define XDFLY_SYNC                          0xA5                // start byte
+#define OMPHOBBY_SYNC                       0xA4
+#define ZTW_SYNC                            0xA3                
+#define XDFLY_HEADER_LENGTH                 3                   // header length
+#define XDFLY_PAYLOAD_LENGTH                3
+#define XDFLY_FOOTER_LENGTH                 2                   // CRC
+#define XDFLY_FRAME_LENGTH                  (XDFLY_HEADER_LENGTH + XDFLY_PAYLOAD_LENGTH + XDFLY_FOOTER_LENGTH)
+#define XDFLY_BOOT_DELAY                    5000
+
+#define XDFLY_SYNC_TELEM                    0xDD
+#define XDFLY_TELEM_VERSION                 0x01
+#define XDFLY_TELEM_FRAME_LENGTH            0x20
+#define XDFLY_PARAM_FRAME_PERIOD            10
+#define XDFLY_PARAM_FRAME_TIMEOUT           200
+
+#define XDFLY_CMD_HANDSHAKE                 0x03
+#define XDFLY_CMD_RESPONSE                  0xCD
+#define XDFLY_CMD_SET_PARAM                 0x34
+#define XDFLY_CMD_GET_PARAM                 0x33
+#define XDFLY_NUM_VALIDITY_FIELDS           2
+
+ enum {
+    XDFLY_PARAM_MODEL = 0,
+    XDFLY_PARAM_GOV_MODE,
+    XDFLY_PARAM_CUTOFF,
+    XDFLY_PARAM_TIMING,
+    XDFLY_PARAM_LV_BEC_VOLT,
+    XDFLY_PARAM_ROTATION_DIR,
+    XDFLY_PARAM_GOV_P,
+    XDFLY_PARAM_GOV_I,
+    XDFLY_PARAM_ACCEL,
+    XDFLY_PARAM_AUTO_RESTART_TIME,
+    XDFLY_PARAM_HV_BEC_VOLT,
+    XDFLY_PARAM_RSTARTUP_POWER,
+    XDFLY_PARAM_BRAKE_TYPE,
+    XDFLY_PARAM_RBRAKE_FORCE,
+    XDFLY_PARAM_SR_FUNC,
+    XDFLY_PARAM_CAPACITY_CORR,
+    XDFLY_PARAM_MOTOR_POLES,
+    XDFLY_PARAM_LED_COL,
+    XDFLY_PARAM_SMART_FAN,
+    XDFLY_VALID_1,
+    XDFLY_VALID_2,
+    XDFLY_PARAM_COUNT
+};
+
+uint16_t xdfly_params[XDFLY_PARAM_COUNT] = {0};
+bool xdfly_params_active[XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS] = {0};
+bool xdfly_param_cached[XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS] = {0};
+
+enum xdfly_setup_status {
+    XDFLY_INIT = 0,
+    XDFLY_CACHE_PARAMS,
+    XDFLY_PARAMS_READY,
+    XDFLY_WAIT_FOR_HANDSHAKE,
+    XDFLY_WRITE_PARAMS,
+};
+
+static enum xdfly_setup_status xdfly_setup_status = XDFLY_INIT;
+
+static inline uint8_t xdfly_sync_header(void)
+{
+    switch (escSig) {
+        case ESC_SIG_OMP:
+            return OMPHOBBY_SYNC;
+        case ESC_SIG_ZTW:
+            return ZTW_SYNC;
+        default:
+            return XDFLY_SYNC;
+    }
+}
+
+static bool xdfly_connected = false;
+static bool xdfly_send_handshake = false;
+static bool xdfly_handshake_response_pending = false;
+static timeMs_t xdfly_handshake_timestamp = 0;
+static uint8_t xdfly_param_index = 0;
+static uint8_t xdfly_write_param_index = 0;
+
+static void xdfly_sensor_process(timeUs_t current_time_us)
+{
+    if (buffer[1] == 0x01 && buffer[2] == 0x20) {
+        uint16_t rpm = buffer[8] << 8 | buffer[9];
+        uint16_t temp = buffer[10];
+        uint16_t throttle = buffer[7];
+        uint16_t power = buffer[12];
+        uint16_t voltage = buffer[3] << 8 | buffer[4];
+        uint16_t current = buffer[5] << 8 | buffer[6];
+        uint16_t capacity = buffer[15] << 8 | buffer[16];
+        uint16_t status = buffer[13] << 8 | buffer[14];
+        uint16_t volt_bec = buffer[19];
+
+        escSensorData[0].id = escSig;
+        escSensorData[0].age = 0;
+        escSensorData[0].erpm = rpm * 10;
+        escSensorData[0].throttle = throttle * 10;
+        escSensorData[0].pwm = power * 10;
+        escSensorData[0].voltage = applyVoltageCorrection(voltage * 100);
+        escSensorData[0].current = applyCurrentCorrection(current * 100);
+        escSensorData[0].consumption = applyConsumptionCorrection(capacity);
+        escSensorData[0].temperature = temp * 10;
+        escSensorData[0].bec_voltage = volt_bec * 1000;
+        escSensorData[0].status = status;
+
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temp * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage * 10);
+        DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current * 10);
+
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, rpm);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, power);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, temp);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, voltage);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, current);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, capacity);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, status);
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+        dataUpdateUs = current_time_us;
+        totalFrameCount++;
+    }
+    checkFrameTimeout(current_time_us, 500000);
+}
+
+static void xdfly_build_req(uint8_t cmd, uint8_t param_idx, uint16_t frame_period, uint16_t frame_timeout)
+{
+    uint8_t idx = 0;
+
+    reqbuffer[idx++] = xdfly_sync_header();
+    reqbuffer[idx++] = XDFLY_FRAME_LENGTH;
+    reqbuffer[idx++] = cmd;
+
+    if (cmd == XDFLY_CMD_HANDSHAKE) {
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+    } else if (cmd == XDFLY_CMD_GET_PARAM) {
+        reqbuffer[idx++] = param_idx;
+        reqbuffer[idx++] = 0;
+        reqbuffer[idx++] = 0;
+    } else if (cmd == XDFLY_CMD_SET_PARAM) {
+        reqbuffer[idx++] = param_idx;
+        reqbuffer[idx++] = paramUpdPayload[param_idx * 2 + 1] | 0x80;
+        reqbuffer[idx++] = paramUpdPayload[param_idx * 2];
+    }
+
+    uint8_t crclen = idx;
+    uint16_t crc16 = calculateCRC16_MODBUS(reqbuffer, crclen);
+    reqbuffer[idx++] = crc16 >> 8;
+    reqbuffer[idx++] = crc16 & 0xFF;
+
+    reqLength = idx;
+    rrfsmFramePeriod = frame_period;
+    rrfsmFrameTimeout = frame_timeout;
+}
+
+static void xdfly_get_next_param(void)
+{
+    if (!xdfly_param_cached[xdfly_param_index])
+        xdfly_build_req(XDFLY_CMD_GET_PARAM, xdfly_param_index, 1, 0);
+}
+
+static void xdfly_write_next_param(void)
+{
+    xdfly_build_req(XDFLY_CMD_SET_PARAM, xdfly_write_param_index, 1, 0);
+}
+
+static void xdfly_start_caching_params(void)
+{
+    xdfly_setup_status = XDFLY_CACHE_PARAMS;
+    xdfly_param_index = 0;
+
+    for (uint8_t i = 0; i < XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS; i++) {
+        xdfly_param_cached[i] = false;
+        xdfly_params_active[i] = false;
+    }
+
+    xdfly_params[XDFLY_VALID_1] = 0;
+    xdfly_params[XDFLY_VALID_2] = 0;
+    xdfly_get_next_param();
+}
+
+static bool xdfly_decode(timeUs_t current_time_us)
+{
+    if (buffer[0] == xdfly_sync_header()) {
+        if (buffer[1] != XDFLY_FRAME_LENGTH)
+            return false;
+
+        uint16_t crc16 = buffer[6] << 8 | buffer[7];
+        if (calculateCRC16_MODBUS(buffer, XDFLY_FRAME_LENGTH - XDFLY_FOOTER_LENGTH) != crc16)
+            return false;
+
+        switch (buffer[2]) {
+        case XDFLY_CMD_HANDSHAKE:
+        case XDFLY_CMD_RESPONSE:
+            if (buffer[3] == 0x00 && buffer[4] == 0x55 && buffer[5] == 0x55) {
+                rrfsmFramePeriod = 0;
+                xdfly_handshake_timestamp = current_time_us;
+                xdfly_handshake_response_pending = false;
+                xdfly_connected = true;
+                rrfsmInvalidateReq();
+                xdfly_start_caching_params();
+                return true;
+            } else if (xdfly_setup_status == XDFLY_WRITE_PARAMS) {
+                if (buffer[3] == xdfly_write_param_index) {
+                    xdfly_write_param_index++;
+                    while (xdfly_write_param_index < XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS &&
+                           !xdfly_params_active[xdfly_write_param_index]) {
+                        xdfly_write_param_index++;
+                    }
+                }
+                if (xdfly_write_param_index >= XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS) {
+                    xdfly_start_caching_params();
+                } else {
+                    xdfly_write_next_param();
+                }
+                return true;
+            } else if (buffer[3] == xdfly_param_index || xdfly_param_index == 0) {
+                xdfly_param_cached[xdfly_param_index] = true;
+                xdfly_params[xdfly_param_index] = (buffer[4] << 8 | buffer[5]) & 0x7FFF;
+                xdfly_params_active[xdfly_param_index] = buffer[4] & 0x80;
+                xdfly_param_index++;
+
+                if (xdfly_param_index >= XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS) {
+                    for (uint8_t i = 0; i < XDFLY_PARAM_COUNT - XDFLY_NUM_VALIDITY_FIELDS; i++) {
+                        if (i < 16) {
+                            xdfly_params[XDFLY_VALID_1] |= xdfly_params_active[i] << i;
+                        } else {
+                            xdfly_params[XDFLY_VALID_2] |= xdfly_params_active[i] << (i - 16);
+                        }
+                    }
+                    xdfly_setup_status = XDFLY_PARAMS_READY;
+                    paramPayloadLength = XDFLY_PARAM_COUNT * 2;
+                    memcpy(paramPayload, xdfly_params, paramPayloadLength);
+                } else {
+                    xdfly_get_next_param();
+                }
+                return true;
+            }
+            break;
+
+        default:
+            return false;
+        }
+    } else if (buffer[0] == XDFLY_SYNC_TELEM) {
+        if (buffer[1] != XDFLY_TELEM_VERSION)
+            return false;
+
+        if (buffer[2] != XDFLY_TELEM_FRAME_LENGTH)
+            return false;
+
+        xdfly_sensor_process(current_time_us);
+
+        if (xdfly_setup_status == XDFLY_CACHE_PARAMS) {
+            xdfly_get_next_param();
+        } else if (xdfly_setup_status == XDFLY_WRITE_PARAMS) {
+            xdfly_write_next_param();
+        }
+        return true;
+    }
+    return false;
+}
+
+static bool xdfly_param_commit(uint8_t cmd)
+{
+    xdfly_write_param_index = 1;
+    xdfly_setup_status = XDFLY_WRITE_PARAMS;
+    UNUSED(cmd);
+    return true;
+}
+
+static bool xdfly_crank_unc_setup(timeUs_t current_time_us)
+{
+    switch (xdfly_setup_status) {
+    case XDFLY_INIT:
+        xdfly_sensor_process(current_time_us);
+        if (!xdfly_connected) {
+            xdfly_setup_status = XDFLY_WAIT_FOR_HANDSHAKE;
+            rrfsmFrameLength = XDFLY_FRAME_LENGTH;
+            rrfsmMinFrameLength = XDFLY_FRAME_LENGTH;
+            xdfly_send_handshake = true;
+        }
+        break;
+
+    case XDFLY_WAIT_FOR_HANDSHAKE:
+        if (current_time_us > xdfly_handshake_timestamp + 10000 && xdfly_handshake_response_pending) {
+            xdfly_send_handshake = true;
+        }
+        if (xdfly_send_handshake) {
+            xdfly_send_handshake = false;
+            xdfly_handshake_response_pending = true;
+            xdfly_build_req(XDFLY_CMD_HANDSHAKE, 0, XDFLY_PARAM_FRAME_PERIOD, FLY_PARAM_CONNECT_TIMEOUT);
+            rrfsmFrameLength = XDFLY_FRAME_LENGTH;
+            rrfsmMinFrameLength = XDFLY_FRAME_LENGTH;
+        }
+        break;
+
+    case XDFLY_CACHE_PARAMS:
+        break;
+
+    case XDFLY_PARAMS_READY:
+        break;
+
+    case XDFLY_WRITE_PARAMS:
+        break;
+    }
+    return true;
+}
+
+static int8_t xdfly_accept(uint16_t c)
+{
+    static uint8_t got_telem_frame = false;
+
+    if (readBytes == 1) {
+        if (c == XDFLY_SYNC_TELEM) {
+            got_telem_frame = true;
+        } else if (c == xdfly_sync_header()) {
+            got_telem_frame = false;
+        } else {
+            return -1;
+        }
+    } else if (readBytes == 2) {
+        if (got_telem_frame) {
+            if (c != XDFLY_TELEM_VERSION)
+                return -1;
+        } else {
+            if (c != XDFLY_FRAME_LENGTH)
+                return -1;
+            rrfsmFrameLength = c;
+            return 1;
+        }
+    } else if (readBytes == 3) {
+        if (got_telem_frame) {
+            if (c != XDFLY_TELEM_FRAME_LENGTH) {
+                return -1;
+            } else {
+                rrfsmFrameLength = c;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig)
+{
+    rrfsmCrank  = xdfly_crank_unc_setup;
+    rrfsmDecode = xdfly_decode;
+    rrfsmAccept = xdfly_accept;
+    paramCommit = xdfly_param_commit;
+    escSig = sig;
+    return rrfsmDataReceive;
+}
 
 /*
  * Raw Telemetry Data Recorder
@@ -3330,6 +3528,144 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
 }
 
 
+/*
+ * Castle Live Link Telemetry Data Recorder
+ */
+
+#define CASTLE_BATTERY_VOLTAGE_SCALE 20000.0f // in mV, not volts
+#define CASTLE_RIPPLE_VOLTAGE_SCALE 4000.0f  // in mV, not volts
+#define CASTLE_BATTERY_CURRENT_SCALE 50000.0f // in mA, not amps
+#define CASTLE_THROTTLE_SCALE 1.0f // in ms.
+// Note the doc for POWER_SCALE says the unit is percent for scale 0.2502,
+// but that actually puts it in a 0..1 range, not 0..100.
+#define CASTLE_POWER_SCALE 250.2f // in per-thousands (mils)
+#define CASTLE_RPM_SCALE 20416.7f
+#define CASTLE_BEC_VOLTAGE_SCALE 4000.0f  // in mV, not volts
+#define CASTLE_BEC_CURRENT_SCALE 4000.0f  // in mA, not amps
+#define CASTLE_LIN_TEMP_SCALE 30.0f // in degrees C
+// CASTLE_NTC_TEMP_SCALE is modified from the Castle-documented value of 63.8125
+// to match the range of 1-4096 used by calcTempNTC() instead of 1-255 as assumed by Castle.
+#define CASTLE_NTC_TEMP_SCALE 1025.0039215686f
+
+// Castle Link telemetry is not digital; it's the length of time between the rising edge of the
+// output (inverted) pwm and the falling edge of the input "tick" generated by the ESC.  To
+// calibrate this time, each frame includes minimum-length (0.5ms) and 1ms calibration items.
+// The "max" below is required because a data item could be smaller than the 0.5ms calibration
+// item due to measurement error.
+#define CASTLE_DECODE_1(tele, item, scale, cal0p5) \
+    ((MAX(tele->item, cal0p5) - cal0p5) * scale / tele->oneMs)
+
+#define CASTLE_DECODE(tele, item, scale, cal0p5) \
+    CASTLE_DECODE_1(tele, item, CASTLE_##scale##_SCALE, cal0p5)
+
+/* Temp sensor design for Castle ESCs equipped with an NTC sensor:
+ * ―――――――――――――――――――
+ *  β  = 3455
+ *  Rᵣ = 10.2k
+ *  Rₙ = 10k
+ *  Tₙ = 25°C = 298.15K
+ *
+ *  γ = 1 / β = 0.0002894…
+ *
+ *  δ = γ⋅ln(Rᵣ/Rₙ) + 1/T₁ = γ⋅ln(102/100) + 1/298.15 = 0.0033597…
+ *
+ * Note Castle's official values are Tₙ = 24.85°C and Tₖ = 273K.  These are unlikely to be
+ * correct. The discrepency with the official calculation is only about 0.2 degrees at the upper end
+ * of the temperature range (and less elsewhere).
+ */
+#define CASTLE_NTC_GAMMA  0.0002894356005f
+#define CASTLE_NTC_DELTA  0.0033597480200f
+
+#ifdef USE_TELEMETRY_CASTLE
+static float castleDecodeTemperature(castleTelemetry_t* tele)
+{
+    if (tele->linTempOrHalfMs < tele->ntcTempOrHalfMs) {
+        float value = CASTLE_DECODE(tele, ntcTempOrHalfMs, NTC_TEMP, tele->linTempOrHalfMs);
+        return calcTempNTC(value, CASTLE_NTC_GAMMA, CASTLE_NTC_DELTA);
+    } else {
+        return CASTLE_DECODE(tele, linTempOrHalfMs, NTC_TEMP, tele->ntcTempOrHalfMs);
+    }
+}
+
+static void castleDecodeTeleFrame(timeUs_t currentTimeUs, castleTelemetry_t* tele)
+{
+    // The half-millisecond (minimum) calibration value is in the same
+    // field as whichever temperature sensor is not installed, so we
+    // find it by choosing the lesser of the two temperature fields.
+    uint16_t halfMs = tele->linTempOrHalfMs;
+    bool linTemp = false;
+    if (tele->ntcTempOrHalfMs < halfMs) {
+        linTemp = true;
+        halfMs = tele->ntcTempOrHalfMs;
+    }
+
+    // We might want to use the configured min/max throttle values to create the telemetry
+    // per-1000 value instead of the standard 1ms-2ms.
+    float throttleMs = constrainf(CASTLE_DECODE(tele, throttle, THROTTLE, halfMs), 1.0, 2.0);
+    uint16_t throttle = lrintf((throttleMs - 1.0) * 1000.0);
+    uint16_t pwm = lrintf(CASTLE_DECODE(tele, outputPower, POWER, halfMs));
+    uint32_t rpm = lrintf(CASTLE_DECODE(tele, rpm, RPM, halfMs));
+    uint32_t voltage = lrintf(CASTLE_DECODE(tele, battVoltage, BATTERY_VOLTAGE, halfMs));
+    uint32_t current = lrintf(CASTLE_DECODE(tele, battCurrent, BATTERY_CURRENT, halfMs));
+    uint32_t becVoltage = lrintf(CASTLE_DECODE(tele, becVoltage, BEC_VOLTAGE, halfMs));
+    uint32_t becCurrent = lrintf(CASTLE_DECODE(tele, becCurrent, BEC_CURRENT, halfMs));
+    int16_t temperature = lrintf(castleDecodeTemperature(tele) * 10.0);
+
+    escSensorData[0].id = ESC_SIG_CASTLE;
+    escSensorData[0].age = 0;
+    escSensorData[0].throttle = throttle;
+    escSensorData[0].pwm = pwm;
+    escSensorData[0].erpm = rpm;
+    escSensorData[0].voltage = applyVoltageCorrection(voltage);
+    escSensorData[0].current = applyCurrentCorrection(current);
+    escSensorData[0].bec_voltage = becVoltage;
+    escSensorData[0].bec_current = becCurrent;
+    escSensorData[0].temperature = temperature;
+
+    setConsumptionCurrent(current / 1000.0);
+
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_RPM, rpm);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_TEMP, temperature);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_VOLTAGE, voltage);
+    DEBUG(ESC_SENSOR, DEBUG_ESC_1_CURRENT, current);
+
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_RPM, tele->rpm);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_PWM, tele->outputPower);
+    if (linTemp) {
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->linTempOrHalfMs);
+    } else {
+        DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_TEMP, tele->ntcTempOrHalfMs);
+    }
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_VOLTAGE, tele->battVoltage);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CURRENT, tele->battCurrent);
+    // We don't use DEBUG_DATA_CAPACITY here, because it is not in the Castle Link telemetry.
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_EXTRA, tele->throttle);
+    DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
+
+    dataUpdateUs = currentTimeUs;
+}
+
+static void castleSensorProcess(timeUs_t currentTimeUs)
+{
+    // buffer[0..1] holds our current generation, then the next 22 bytes hold
+    // the telemetry value
+    castleTelemetry_t *rawTelemetry = (castleTelemetry_t*)&buffer[2];
+    getCastleTelemetry(rawTelemetry);
+    if (rawTelemetry->generation == *(uint16_t*)buffer) {
+        // We expect every 12 PWM frames we'll get new data.  Max frame
+        // length is 20ms for 50Hz, and we allow one frame extra.
+        checkFrameTimeout(currentTimeUs,
+                          (CASTLE_TELEM_NFRAMES + 1) *
+                          CASTLE_PWM_PERIOD_MS_MAX * 1000);
+        return;
+    }
+    dataUpdateUs = currentTimeUs;
+    *(uint16_t*)buffer = rawTelemetry->generation;
+    castleDecodeTeleFrame(currentTimeUs, rawTelemetry);
+    updateConsumption(currentTimeUs);
+}
+#endif // USE_TELEMETRY_CASTLE
+
 void escSensorProcess(timeUs_t currentTimeUs)
 {
     if (escSensorPort && motorIsEnabled()) {
@@ -3349,12 +3685,6 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_KONTRONIK:
                 kontronikSensorProcess(currentTimeUs);
                 break;
-            case ESC_SENSOR_PROTO_OMPHOBBY:
-                ompSensorProcess(currentTimeUs);
-                break;
-            case ESC_SENSOR_PROTO_ZTW:
-                ztwSensorProcess(currentTimeUs);
-                break;
             case ESC_SENSOR_PROTO_APD:
                 apdSensorProcess(currentTimeUs);
                 break;
@@ -3365,6 +3695,11 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_GRAUPNER:
+                rrfsmSensorProcess(currentTimeUs);
+                break;
+            case ESC_SENSOR_PROTO_XDFLY:
+            case ESC_SENSOR_PROTO_ZTW:
+            case ESC_SENSOR_PROTO_OMPHOBBY:            
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_RECORD:
@@ -3380,17 +3715,41 @@ void escSensorProcess(timeUs_t currentTimeUs)
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_TIMEOUTS, totalTimeoutCount);
         DEBUG(ESC_SENSOR_FRAME, DEBUG_FRAME_BUFFER, readBytes);
     }
+#ifdef USE_TELEMETRY_CASTLE
+    else if (isMotorProtocolCastlePWM()) {
+        castleSensorProcess(currentTimeUs);
+    }
+#endif
 }
 
 void INIT_CODE validateAndFixEscSensorConfig(void)
 {
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
+        case ESC_SENSOR_PROTO_XDFLY:
+        case ESC_SENSOR_PROTO_OMPHOBBY:
+        case ESC_SENSOR_PROTO_ZTW:     
             escSensorConfigMutable()->halfDuplex = true;
             break;
+#ifdef USE_TELEMETRY_CASTLE
+        case ESC_SENSOR_PROTO_NONE:
+            if (isMotorProtocolCastlePWM()) {
+                escSensorConfigMutable()->update_hz = motorConfig()->dev.motorPwmRate / CASTLE_TELEM_NFRAMES;
+            }
+            break;
+#endif
         default:
             break;
     }
+}
+
+void INIT_CODE escSensorCommonInit(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+        escSensorData[i].age = ESC_DATA_INVALID;
+    }
+
+    escSensorDataCombined.age = ESC_DATA_INVALID;
 }
 
 bool INIT_CODE escSensorInit(void)
@@ -3401,6 +3760,10 @@ bool INIT_CODE escSensorInit(void)
     portOptions_e options = 0;
     uint32_t baudrate = 0;
 
+    if (isMotorProtocolCastlePWM() && (!portConfig || escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE)) {
+        escSensorCommonInit();
+        return true;
+    }
     if (!portConfig) {
         return false;
     }
@@ -3416,6 +3779,8 @@ bool INIT_CODE escSensorInit(void)
             break;
         case ESC_SENSOR_PROTO_HW4:
             baudrate = 19200;
+            hw4CurrentFast = pt1FilterGain(HW4_CURRENT_FILTER_FAST_HZ, escSensorConfig()->update_hz);
+            hw4CurrentSlow = pt1FilterGain(HW4_CURRENT_FILTER_SLOW_HZ, escSensorConfig()->update_hz);
             break;
         case ESC_SENSOR_PROTO_SCORPION:
             callback = tribSensorInit(escHalfDuplex);
@@ -3426,7 +3791,13 @@ bool INIT_CODE escSensorInit(void)
             options |= SERIAL_PARITY_EVEN;
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
-        case ESC_SENSOR_PROTO_ZTW:
+            callback = xdflySensorInit(ESC_SIG_OMP);
+            baudrate = 115200;
+            break;        
+         case ESC_SENSOR_PROTO_ZTW:
+            callback = xdflySensorInit(ESC_SIG_ZTW);
+            baudrate = 115200;
+            break;    
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
             break;
@@ -3446,6 +3817,10 @@ bool INIT_CODE escSensorInit(void)
             callback = graupnerSensorInit();
             baudrate = 19200;
             break;
+        case ESC_SENSOR_PROTO_XDFLY:
+            callback = xdflySensorInit(ESC_SIG_XDFLY);
+            baudrate = 115200;
+            break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
             break;
@@ -3455,12 +3830,7 @@ bool INIT_CODE escSensorInit(void)
         escSensorPort = openSerialPort(portConfig->identifier, FUNCTION_ESC_SENSOR, callback, NULL, baudrate, escHalfDuplex ? MODE_RXTX : MODE_RX, options);
     }
 
-    for (int i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
-        escSensorData[i].age = ESC_DATA_INVALID;
-    }
-
-    escSensorDataCombined.age = ESC_DATA_INVALID;
-
+    escSensorCommonInit();
     return (escSensorPort != NULL);
 }
 

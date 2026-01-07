@@ -97,6 +97,76 @@ typedef struct {
 static FAST_DATA_ZERO_INIT rescueState_t rescue;
 
 
+//// Adjustment functions
+
+int get_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(void)
+{
+    return currentPidProfile->rescue.climb_collective;
+}
+
+void set_ADJUSTMENT_RESCUE_CLIMB_COLLECTIVE(int value)
+{
+    currentPidProfile->rescue.climb_collective = value;
+    rescue.climbCollective = currentPidProfile->rescue.climb_collective;
+
+}
+
+int get_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(void)
+{
+    return currentPidProfile->rescue.hover_collective;
+}
+
+void set_ADJUSTMENT_RESCUE_HOVER_COLLECTIVE(int value)
+{
+    currentPidProfile->rescue.hover_collective = value;
+    rescue.hoverCollective = currentPidProfile->rescue.hover_collective;
+}
+
+int get_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(void)
+{
+    return currentPidProfile->rescue.hover_altitude;
+}
+
+void set_ADJUSTMENT_RESCUE_HOVER_ALTITUDE(int value)
+{
+    currentPidProfile->rescue.hover_altitude = value;
+    rescue.hoverAltitude = currentPidProfile->rescue.hover_altitude / 100.0f;
+}
+
+int get_ADJUSTMENT_RESCUE_ALT_P_GAIN(void)
+{
+    return currentPidProfile->rescue.alt_p_gain;
+}
+
+void set_ADJUSTMENT_RESCUE_ALT_P_GAIN(int value)
+{
+    currentPidProfile->rescue.alt_p_gain = value;
+    rescue.alt_Kp = currentPidProfile->rescue.alt_p_gain;
+}
+
+int get_ADJUSTMENT_RESCUE_ALT_I_GAIN(void)
+{
+    return currentPidProfile->rescue.alt_i_gain;
+}
+
+void set_ADJUSTMENT_RESCUE_ALT_I_GAIN(int value)
+{
+    currentPidProfile->rescue.alt_i_gain = value;
+    rescue.alt_Ki = currentPidProfile->rescue.alt_i_gain * pidGetDT() / 10.0f;
+}
+
+int get_ADJUSTMENT_RESCUE_ALT_D_GAIN(void)
+{
+    return currentPidProfile->rescue.alt_d_gain;
+}
+
+void set_ADJUSTMENT_RESCUE_ALT_D_GAIN(int value)
+{
+    currentPidProfile->rescue.alt_d_gain = value;
+    rescue.alt_Kd = currentPidProfile->rescue.alt_d_gain * -1.0f;
+}
+
+
 //// Internal functions
 
 static inline void rescueChangeState(uint8_t newState)
@@ -158,23 +228,35 @@ static void rescueApplyLimits(void)
     }
 }
 
+static inline int wrap180(int angle)
+{
+    while (angle > 1800)
+        angle -= 3600;
+    while (angle < -1800)
+        angle += 3600;
+    return angle;
+}
+
 static void rescueApplyLeveling(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    float rollError = -(attitude.values.roll - trim->values.roll);
-    float pitchError = -(attitude.values.pitch - trim->values.pitch);
+    const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
+    const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    if (allow_inverted) {
-        if (attitude.values.roll > 900) {
-            pitchError = -pitchError;
-            rollError += 1800;
-        }
-        else if (attitude.values.roll < -900) {
-            pitchError = -pitchError;
-            rollError -= 1800;
-        }
+    int rollError, pitchError;
+
+    if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
+        pitchError = pitchAngle;
+        rollError = -rollAngle + 1800;
     }
+    else {
+        pitchError = -pitchAngle;
+        rollError = -rollAngle;
+    }
+
+    pitchError = wrap180(pitchError);
+    rollError = wrap180(rollError);
 
     // Avoid "gimbal lock"
     if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
@@ -190,21 +272,23 @@ static void rescueApplyStabilisation(bool allow_inverted)
 {
     const rollAndPitchTrims_t *trim = &accelerometerConfig()->accelerometerTrims;
 
-    float rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE  -
-        (attitude.values.roll - trim->values.roll);
-    float pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE -
-        (attitude.values.pitch - trim->values.pitch);
+    const int rollAngle = wrap180(attitude.values.roll - trim->values.roll);
+    const int pitchAngle = wrap180(attitude.values.pitch - trim->values.pitch);
 
-    if (allow_inverted) {
-        if (attitude.values.roll > 900) {
-            pitchError = -pitchError;
-            rollError += 1800;
-        }
-        else if (attitude.values.roll < -900) {
-            pitchError = -pitchError;
-            rollError -= 1800;
-        }
+    int rollError = getRcDeflection(FD_ROLL) * RESCUE_MAX_DECIANGLE;
+    int pitchError = getRcDeflection(FD_PITCH) * RESCUE_MAX_DECIANGLE;
+
+    if (allow_inverted && (rollAngle > 900 || rollAngle < -900)) {
+        pitchError += pitchAngle;
+        rollError -= rollAngle - 1800;
     }
+    else {
+        pitchError -= pitchAngle;
+        rollError -= rollAngle;
+    }
+
+    pitchError = wrap180(pitchError);
+    rollError = wrap180(rollError);
 
     // Avoid "gimbal lock"
     if (attitude.values.pitch > 800 || attitude.values.pitch < -800) {
@@ -246,38 +330,35 @@ static float rescueApplyAltitudePID(float altitude)
 static void rescueApplyClimbCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    float collective = 0;
+    const float factor = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        collective = rescue.climbCollective;
+        rescue.setpoint[FD_COLL] = rescue.climbCollective * factor;
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        collective = rescueApplyAltitudePID(rescue.hoverAltitude);
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * factor;
     }
-
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
 }
 
 static void rescueApplyHoverCollective(void)
 {
     const float tilt = getCosTiltAngle();
-    float collective = 0;
+    const float factor = tilt * fabsf(tilt);
 
     if (rescue.mode == RESCUE_MODE_CLIMB) {
-        collective = rescue.hoverCollective + 0.5f * getSetpoint(FD_COLL);
+        rescue.setpoint[FD_COLL] = rescue.hoverCollective * factor + 0.25f * getSetpoint(FD_COLL);
     }
     else if (rescue.mode == RESCUE_MODE_ALT_HOLD) {
-        collective = rescueApplyAltitudePID(rescue.hoverAltitude);
+        rescue.setpoint[FD_COLL] = rescueApplyAltitudePID(rescue.hoverAltitude) * factor;
     }
-
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
 }
 
 static void rescueApplyCollective(float collective)
 {
     const float tilt = getCosTiltAngle();
+    const float factor = tilt * fabsf(tilt);
 
-    rescue.setpoint[FD_COLL] = collective * copysignf(tilt*tilt, tilt);
+    rescue.setpoint[FD_COLL] = collective * factor;
 }
 
 static void rescuePullUp(void)
@@ -343,74 +424,68 @@ static inline bool rescueSlowExitDone(void)
 
 static void rescueUpdateState(void)
 {
-    // Handle DISARM separately
-    if (!ARMING_FLAG(ARMED)) {
-        rescueChangeState(RESCUE_STATE_OFF);
-    }
-    else {
-        switch (rescue.state)
-        {
-            case RESCUE_STATE_OFF:
-                if (rescueActive()) {
-                    rescueChangeState(RESCUE_STATE_PULLUP);
-                    rescuePullUp();
-                }
-                break;
-
-            case RESCUE_STATE_PULLUP:
+    switch (rescue.state)
+    {
+        case RESCUE_STATE_OFF:
+            if (rescueActive()) {
+                rescueChangeState(RESCUE_STATE_PULLUP);
                 rescuePullUp();
-                if (!rescueActive())
-                    rescueChangeState(RESCUE_STATE_EXIT);
-                else if (rescuePullUpDone()) {
-                    if (rescueIsLeveled()) {
-                        if (rescue.flip && rescueIsInverted())
-                            rescueChangeState(RESCUE_STATE_FLIP);
-                        else
-                            rescueChangeState(RESCUE_STATE_CLIMB);
-                    }
-                    else {
-                        rescueChangeState(RESCUE_STATE_EXIT);
-                    }
-                }
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_FLIP:
-                rescueFlipOver();
-                if (rescueFlipDone()) {
-                    if (!rescueActive())
-                        rescueChangeState(RESCUE_STATE_EXIT);
+        case RESCUE_STATE_PULLUP:
+            rescuePullUp();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            else if (rescuePullUpDone()) {
+                if (rescueIsLeveled()) {
+                    if (rescue.flip && rescueIsInverted())
+                        rescueChangeState(RESCUE_STATE_FLIP);
                     else
                         rescueChangeState(RESCUE_STATE_CLIMB);
                 }
-                else if (rescueFlipTimeout()) {
-                    if (rescueIsLeveled())
-                        rescueChangeState(RESCUE_STATE_CLIMB);
-                    else
-                        rescueChangeState(RESCUE_STATE_EXIT);
+                else {
+                    rescueChangeState(RESCUE_STATE_EXIT);
                 }
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_CLIMB:
-                rescueClimb();
+        case RESCUE_STATE_FLIP:
+            rescueFlipOver();
+            if (rescueFlipDone()) {
                 if (!rescueActive())
                     rescueChangeState(RESCUE_STATE_EXIT);
-                else if (rescueClimbDone())
-                    rescueChangeState(RESCUE_STATE_HOVER);
-                break;
-
-            case RESCUE_STATE_HOVER:
-                rescueHover();
-                if (!rescueActive())
+                else
+                    rescueChangeState(RESCUE_STATE_CLIMB);
+            }
+            else if (rescueFlipTimeout()) {
+                if (rescueIsLeveled())
+                    rescueChangeState(RESCUE_STATE_CLIMB);
+                else
                     rescueChangeState(RESCUE_STATE_EXIT);
-                break;
+            }
+            break;
 
-            case RESCUE_STATE_EXIT:
-                if (rescueActive())
-                    rescueChangeState(RESCUE_STATE_PULLUP);
-                else if (rescueSlowExitDone())
-                    rescueChangeState(RESCUE_STATE_OFF);
-                break;
-        }
+        case RESCUE_STATE_CLIMB:
+            rescueClimb();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            else if (rescueClimbDone())
+                rescueChangeState(RESCUE_STATE_HOVER);
+            break;
+
+        case RESCUE_STATE_HOVER:
+            rescueHover();
+            if (!rescueActive())
+                rescueChangeState(RESCUE_STATE_EXIT);
+            break;
+
+        case RESCUE_STATE_EXIT:
+            if (rescueActive())
+                rescueChangeState(RESCUE_STATE_PULLUP);
+            else if (rescueSlowExitDone())
+                rescueChangeState(RESCUE_STATE_OFF);
+            break;
     }
 }
 

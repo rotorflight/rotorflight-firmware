@@ -275,6 +275,14 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"Tbec",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(TBEC)},
     {"Tesc2",      -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(TESC2)},
 
+    {"govP",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govI",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govD",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govF",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govSum",     -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+    {"govTarget",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+    {"govRequest", -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+
     {"headspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(HEADSPEED)},
     {"tailspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(TAILSPEED)},
 
@@ -348,7 +356,7 @@ typedef enum BlackboxState {
     BLACKBOX_STATE_PAUSED,
     BLACKBOX_STATE_RUNNING,
     BLACKBOX_STATE_FULL,
-    BLACKBOX_STATE_GRACEFUL_PERIOD,
+    BLACKBOX_STATE_GRACE_PERIOD,
     BLACKBOX_STATE_SHUTTING_DOWN,
     BLACKBOX_STATE_START_ERASE,
     BLACKBOX_STATE_ERASING,
@@ -414,6 +422,8 @@ typedef struct blackboxMainState_s {
 
     uint16_t headspeed;
     uint16_t tailspeed;
+
+    govLogData_t governor;
 
     int16_t motor[MAX_SUPPORTED_MOTORS];
     int16_t servo[MAX_SUPPORTED_SERVOS];
@@ -581,6 +591,8 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(RPM));
     case CONDITION(TAILSPEED):
         return (getMotorCount() >= 2) && isFieldEnabled(FIELD_SELECT(RPM));
+    case CONDITION(GOVERNOR):
+        return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(GOV));
 
     case CONDITION(TMCU):
         return isFieldEnabled(FIELD_SELECT(TEMP));
@@ -818,6 +830,13 @@ static void writeIntraframe(void)
         blackboxWriteSignedVB(blackboxCurrent->esc2_temp);
     }
 
+    if (testBlackboxCondition(CONDITION(GOVERNOR))) {
+        blackboxWriteSignedVBArray(blackboxCurrent->governor.pidTerms, 4);
+        blackboxWriteSignedVB(blackboxCurrent->governor.pidSum);
+        blackboxWriteUnsignedVB(blackboxCurrent->governor.targetHS);
+        blackboxWriteUnsignedVB(blackboxCurrent->governor.requestHS);
+    }
+
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         blackboxWriteUnsignedVB(blackboxCurrent->headspeed);
     }
@@ -1024,6 +1043,14 @@ static void writeInterframe(void)
     }
     blackboxWriteTag8_8SVB(deltas, packedFieldCount);
 
+    if (testBlackboxCondition(CONDITION(GOVERNOR))) {
+        CALC_DELTAS(deltas, blackboxCurrent->governor.pidTerms, blackboxPrev->governor.pidTerms, 4);
+        blackboxWriteTag8_4S16(deltas);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.pidSum - blackboxPrev->governor.pidSum);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.targetHS- blackboxPrev->governor.targetHS);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.requestHS - blackboxPrev->governor.requestHS);
+    }
+
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         int32_t predictor = (blackboxHistory[1]->headspeed + blackboxHistory[2]->headspeed) / 2;
         blackboxWriteSignedVB(blackboxCurrent->headspeed - predictor);
@@ -1184,7 +1211,7 @@ static void blackboxStart(void)
 
 void blackboxCheckEnabler(timeUs_t currentTimeUs)
 {
-    static timeUs_t gracefulPeriodEnd = 0;
+    static timeUs_t gracePeriodEnd = 0;
     if (!blackboxIsLoggingEnabled()) {
         switch (blackboxState) {
         case BLACKBOX_STATE_DISABLED:
@@ -1199,19 +1226,19 @@ void blackboxCheckEnabler(timeUs_t currentTimeUs)
         case BLACKBOX_STATE_RUNNING:
             if (blackboxConfig()->mode == BLACKBOX_MODE_SWITCH) {
                 // `BLACKBOX_STATE_PAUSED` with logging disabled is equivalent
-                // to stopping without graceful period.
+                // to stopping without grace period.
                 blackboxSetState(BLACKBOX_STATE_PAUSED);
                 break;
             }
-            gracefulPeriodEnd =
-                currentTimeUs + blackboxConfig()->gracefulPeriod * 1000000;
-            blackboxSetState(BLACKBOX_STATE_GRACEFUL_PERIOD);
+            gracePeriodEnd =
+                currentTimeUs + blackboxConfig()->gracePeriod * 1000000;
+            blackboxSetState(BLACKBOX_STATE_GRACE_PERIOD);
             FALLTHROUGH;
-        case BLACKBOX_STATE_GRACEFUL_PERIOD:
-            if (cmpTimeUs(currentTimeUs, gracefulPeriodEnd) < 0) {
+        case BLACKBOX_STATE_GRACE_PERIOD:
+            if (cmpTimeUs(currentTimeUs, gracePeriodEnd) < 0) {
                 break;
             }
-            // if graceful period passed:
+            // if grace period passed:
             FALLTHROUGH;
         case BLACKBOX_STATE_PAUSED:
             blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
@@ -1329,6 +1356,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->mcu_temp = getCoreTemperatureCelsius();
 
+#ifdef USE_ESC_SENSOR
     escSensorData_t *escData = getEscSensorData(0);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
         blackboxCurrent->esc_voltage = escData->voltage / 10;
@@ -1370,9 +1398,12 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->esc2_temp = 0;
         blackboxCurrent->esc2_rpm = 0;
     }
+#endif
 
     blackboxCurrent->headspeed = getHeadSpeed();
     blackboxCurrent->tailspeed = getTailSpeed();
+
+    getGovernorLogData(&blackboxCurrent->governor);
 
     for (int i = 0; i < getMotorCount(); i++) {
         blackboxCurrent->motor[i] = getMotorOutput(i);
@@ -1523,6 +1554,9 @@ static char *blackboxGetStartDateTime(char *buf)
     return buf;
 }
 
+
+static char header_buffer[128];
+
 #define BLACKBOX_PRINT_HEADER_LINE(name, format, ...) \
     case __COUNTER__: { \
         blackboxPrintfHeaderLine(name, format, __VA_ARGS__); \
@@ -1531,12 +1565,12 @@ static char *blackboxGetStartDateTime(char *buf)
 
 #define BLACKBOX_PRINT_HEADER_ARRAY(name, format, count, array) \
     case __COUNTER__: { \
-        char *ptr = buf; \
+        char *ptr = header_buffer; \
         for (int i=0; i<(count); i++) { \
             if (i > 0) *ptr++ = ','; \
             ptr += tfp_sprintf(ptr, format, array[i]); \
         } \
-        blackboxPrintfHeaderLine(name, buf); \
+        blackboxPrintHeaderLine(name, header_buffer); \
         break; \
     }
 
@@ -1552,8 +1586,6 @@ static char *blackboxGetStartDateTime(char *buf)
  */
 static bool blackboxWriteSysinfo(void)
 {
-    char buf[128];
-
 #ifndef UNIT_TEST
     // Make sure we have enough room in the buffer for our longest line (as of this writing, the "Firmware date" line)
     if (blackboxDeviceReserveBufferSpace(64) != BLACKBOX_RESERVE_SUCCESS) {
@@ -1569,7 +1601,7 @@ static bool blackboxWriteSysinfo(void)
 #ifdef USE_BOARD_INFO
         BLACKBOX_PRINT_HEADER_LINE("Board information", "%s %s",            getManufacturerId(), getBoardName());
 #endif
-        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(buf));
+        BLACKBOX_PRINT_HEADER_LINE("Log start datetime", "%s",              blackboxGetStartDateTime(header_buffer));
         BLACKBOX_PRINT_HEADER_LINE("Craft name", "%s",                      pilotConfig()->name);
         BLACKBOX_PRINT_HEADER_LINE("I interval", "%d",                      blackboxIInterval);
         BLACKBOX_PRINT_HEADER_LINE("P interval", "%d",                      blackboxPInterval);
@@ -1669,7 +1701,6 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
                                                                             currentPidProfile->offset_limit[1]);
-        BLACKBOX_PRINT_HEADER_LINE("piro_compensation", "%d",               currentPidProfile->error_rotation);
         BLACKBOX_PRINT_HEADER_LINE("pitch_compensation", "%d",              currentPidProfile->pitch_collective_ff_gain);
 
 
@@ -1766,7 +1797,7 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     // Only allow events to be logged after headers have been written
     if (!(blackboxState == BLACKBOX_STATE_RUNNING ||
           blackboxState == BLACKBOX_STATE_PAUSED ||
-          blackboxState == BLACKBOX_STATE_GRACEFUL_PERIOD)) {
+          blackboxState == BLACKBOX_STATE_GRACE_PERIOD)) {
         return;
     }
 
@@ -2139,11 +2170,11 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // Keep the logging timers ticking so our log iteration continues to advance
         blackboxAdvanceIterationTimers();
         break;
-    case BLACKBOX_STATE_GRACEFUL_PERIOD:
+    case BLACKBOX_STATE_GRACE_PERIOD:
         if (blackboxIsLoggingEnabled()) {
             blackboxSetState(BLACKBOX_STATE_RUNNING);
         }
-        FALLTHROUGH;  // Keep logging during the graceful period.
+        FALLTHROUGH;  // Keep logging during the grace period.
     case BLACKBOX_STATE_RUNNING:
         // On entry to this state, blackboxIteration reset to 0
         if (blackboxIsLoggingPaused()) {

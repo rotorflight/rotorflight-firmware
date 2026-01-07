@@ -90,7 +90,9 @@
 // XBus Mode A additions
 #define XBUS_MODEA_CHANNEL_COUNT 16
 // Frame is: Frame(1 byte) + Length(1 byte) + Key and type (2 bytes - not used) + 16*channel(4 bytes) + CRC(1 byte)
-#define XBUS_MODEA_FRAME_SIZE 69
+// Some receivers may add an extra 2 bytes of information to the end of the packet, but before the CRC, therefore 
+// we need to increase the size of the packet to 71 bytes to account for this. These extra 2 bytes can be ignored.
+#define XBUS_MODEA_FRAME_SIZE 71
 #define XBUS_MODEA_OFFSET_BYTES 4
 #define XBUS_MODEA_BAUDRATE 250000
 #define XBUS_MODEA_MAX_FRAME_TIME 2700 // 2760us round up to 2800 (69/[250k/10bits]=2760)
@@ -104,6 +106,7 @@
 #define XBUS_MODEA_CONVERT_TO_USEC(V) (800 + ((V * 1400) >> 16))
 // As Mode A has a difference frame time, lets set it in a global
 static timeDelta_t xBusMaxFrameTime;
+static timeUs_t xBusTimeLast = 0;
 
 static bool xBusFrameReceived = false;
 static bool xBusDataIncoming = false;
@@ -159,16 +162,6 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
-
-    //
-    // Check we have correct length of message
-    //
-    if (xBusFrame[1] != XBUS_MODEA_FRAME_SIZE - 3)
-    {
-        // Unknown package as length is not ok
-        return;
-    }
-
     // Calculate the CRC according to JR XBus Specs
     // Using a CRC lookup table is faster than without
     if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) == xBusFrame[xBusFrame[1] + 2])
@@ -184,7 +177,8 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
             // data and update the corresponding channel. The reason for this is that the 
             // number of the channel may not always be in the same spot in the packet. Also
             // there are only 16 channels of data sent per packet
-            for (int i = 0; i <= xBusChannelCount; i++)
+            uint8_t nNumChannels = (xBusFrame[1] - 2) / 4; // Calculate the number of channels in the frame
+            for (int i = 0; i < nNumChannels; i++)
             {
                 // Channel packets are constructed as such:
                 // Byte 0 - Channel number
@@ -287,19 +281,18 @@ static void xBusDataReceive(uint16_t c, void *data)
 {
     UNUSED(data);
 
-    static timeUs_t xBusTimeLast;
-    static timeDelta_t xBusTimeInterval;
-
     // Check if we shall reset frame position due to time
     const timeUs_t now = microsISR();
-    //xBusTimeInterval = now - xBusTimeLast;
-    xBusTimeInterval = cmp32(now, xBusTimeLast);
-    xBusTimeLast = now;
 
-    if (xBusTimeInterval > xBusMaxFrameTime) {
+    if (cmpTimeUs(now, xBusTimeLast) > xBusMaxFrameTime) {
         xBusFramePosition = 0;
         xBusDataIncoming = false;
+
+        for (int i = 0; i < XBUS_MODEA_FRAME_SIZE; i++) {
+            xBusFrame[i] = 0; // Reset all channels
+        }
     }
+    xBusTimeLast = now;
 
     // Check if we shall start a frame?
     if (xBusFramePosition == 0) {
@@ -334,12 +327,13 @@ static void xBusDataReceive(uint16_t c, void *data)
         switch (xBusProvider) {
         case SERIALRX_XBUS_MODE_B:
             xBusUnpackModeBFrame(0);
-            FALLTHROUGH; //!!TODO - check this fall through is correct
+            break; // Changed to not fall through
         case SERIALRX_XBUS_MODE_B_RJ01:
             xBusUnpackRJ01Frame();
-            FALLTHROUGH; //!!TODO - check this fall through is correct
+            break; // Changed to not fall through
         case SERIALRX_XBUS_MODE_A:
             xBusUnpackModeAFrame(XBUS_MODEA_OFFSET_BYTES);
+            break;
         }
         xBusDataIncoming = false;
         xBusFramePosition = 0;
@@ -349,15 +343,26 @@ static void xBusDataReceive(uint16_t c, void *data)
 // Indicate time to read a frame from the data...
 static uint8_t xBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
 {
-    UNUSED(rxRuntimeState);
+    uint8_t frameStatus = RX_FRAME_PENDING;
 
     if (!xBusFrameReceived) {
-        return RX_FRAME_PENDING;
+        return frameStatus;
     }
 
     xBusFrameReceived = false;
+    frameStatus = RX_FRAME_COMPLETE;
 
-    return RX_FRAME_COMPLETE;
+    if (rxRuntimeState->serialrxProvider == SERIALRX_XBUS_MODE_A) {
+        if (xBusFrame[2] == 0x00 && xBusFrame[3] == 0x80) {
+            frameStatus = RX_FRAME_COMPLETE | RX_FRAME_FAILSAFE;
+        }
+    }
+    
+    if (!(frameStatus & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
+        rxRuntimeState->lastRcFrameTimeUs = xBusTimeLast; // xBuslastFrameTimeUs;
+    }
+    
+    return frameStatus;
 }
 
 static float xBusReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan)
@@ -384,6 +389,7 @@ bool xBusInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 
     rxRuntimeState->rcReadRawFn = xBusReadRawRC;
     rxRuntimeState->rcFrameStatusFn = xBusFrameStatus;
+    rxRuntimeState->rcFrameTimeUsFn = rxFrameTimeUs;
 
     switch (rxRuntimeState->serialrxProvider) {
     case SERIALRX_XBUS_MODE_A:

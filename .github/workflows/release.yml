@@ -37,7 +37,7 @@ jobs:
         cat ${GITHUB_ENV}
 
     - name: Build HEX files for unified targets
-      run: make unified FC_VER_SUFFIX="${{ env.GIT_PRE }}"
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_PRE }}" FLASH_CONFIG_ERASE=yes
 
     - name: Create Release
       run: |

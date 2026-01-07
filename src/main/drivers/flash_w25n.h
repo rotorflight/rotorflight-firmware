@@ -22,7 +22,9 @@
 
 #pragma once
 
-// JEDEC ID
 #define JEDEC_ID_WINBOND_W25N01GV    0xEFAA21
+#define JEDEC_ID_WINBOND_W25N01KV    0xEFAE21
+#define JEDEC_ID_WINBOND_W25N02KV    0xEFAA22
+#define JEDEC_ID_WINBOND_W25N04KV    0xEFAA23
 
-bool w25n01g_detect(flashDevice_t *fdevice, uint32_t chipID);
+bool w25n_detect(flashDevice_t *fdevice, uint32_t jedecID);

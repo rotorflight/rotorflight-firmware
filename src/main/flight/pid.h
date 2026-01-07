@@ -24,6 +24,7 @@
 #include "common/axis.h"
 
 #include "pg/pid.h"
+#include "pg/adjustments.h"
 
 
 #define PID_PROCESS_DENOM_DEFAULT   8
@@ -53,6 +54,10 @@
 
 #define CROSS_COUPLING_SCALE        10.0e-6f
 
+#define PID_LOOKUP_CURVE_POINTS     16
+
+#define PID_YAW_RATE_MODE_DECAY     0.2f
+
 typedef struct {
     float P;
     float I;
@@ -80,6 +85,7 @@ typedef struct {
 typedef struct {
 
     filter_t yawPrecompFilter;
+    filter_t headspeedFilter;
     difFilter_t yawInertiaFilter;
 
     float yawCollectiveFFGain;
@@ -95,19 +101,17 @@ typedef struct pid_s {
     float freq;
 
     uint8_t pidMode;
-    uint8_t dtermMode;
-    uint8_t dtermModeYaw;
 
     uint8_t itermRelaxType;
     uint8_t itermRelaxLevel[PID_AXIS_COUNT];
-
-    uint8_t errorRotation;
 
     float errorDecayRateGround;
     float errorDecayRateCyclic;
     float errorDecayLimitCyclic;
     float errorDecayRateYaw;
     float errorDecayLimitYaw;
+
+    float offsetFloodRelaxLevel;
 
     float offsetLimit[XY_AXIS_COUNT];
     float errorLimit[PID_AXIS_COUNT];
@@ -125,7 +129,6 @@ typedef struct pid_s {
     pidAxisData_t data[PID_AXIS_COUNT];
 
     filter_t gyrorFilter[PID_AXIS_COUNT];
-    filter_t errorFilter[PID_AXIS_COUNT];
 
     pt1Filter_t relaxFilter[PID_AXIS_COUNT];
 
@@ -135,7 +138,8 @@ typedef struct pid_s {
     order1Filter_t crossCouplingFilter[XY_AXIS_COUNT];
 
     pt1Filter_t offsetFloodRelaxFilter;
-} pid_t;
+
+} pidData_t;
 
 
 void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs);
@@ -146,7 +150,9 @@ void pidResetAxisErrors(void);
 void pidResetAxisError(int axis);
 
 void pidInit(const pidProfile_t *pidProfile);
-void pidInitProfile(const pidProfile_t *pidProfile);
+void pidLoadProfile(const pidProfile_t *pidProfile);
+void pidChangeProfile(const pidProfile_t *pidProfile);
+
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
 float pidGetDT();
@@ -158,4 +164,40 @@ float pidGetOutput(int axis);
 float pidGetCollective();
 
 const pidAxisData_t * pidGetAxisData(void);
+
+ADJFUN_DECLARE(PID_PROFILE)
+ADJFUN_DECLARE(PITCH_P_GAIN)
+ADJFUN_DECLARE(ROLL_P_GAIN)
+ADJFUN_DECLARE(YAW_P_GAIN)
+ADJFUN_DECLARE(PITCH_I_GAIN)
+ADJFUN_DECLARE(ROLL_I_GAIN)
+ADJFUN_DECLARE(YAW_I_GAIN)
+ADJFUN_DECLARE(PITCH_D_GAIN)
+ADJFUN_DECLARE(ROLL_D_GAIN)
+ADJFUN_DECLARE(YAW_D_GAIN)
+ADJFUN_DECLARE(PITCH_F_GAIN)
+ADJFUN_DECLARE(ROLL_F_GAIN)
+ADJFUN_DECLARE(YAW_F_GAIN)
+ADJFUN_DECLARE(YAW_CW_GAIN)
+ADJFUN_DECLARE(YAW_CCW_GAIN)
+ADJFUN_DECLARE(YAW_CYCLIC_FF)
+ADJFUN_DECLARE(YAW_COLLECTIVE_FF)
+ADJFUN_DECLARE(PITCH_COLLECTIVE_FF)
+ADJFUN_DECLARE(PITCH_GYRO_CUTOFF)
+ADJFUN_DECLARE(ROLL_GYRO_CUTOFF)
+ADJFUN_DECLARE(YAW_GYRO_CUTOFF)
+ADJFUN_DECLARE(PITCH_DTERM_CUTOFF)
+ADJFUN_DECLARE(ROLL_DTERM_CUTOFF)
+ADJFUN_DECLARE(YAW_DTERM_CUTOFF)
+ADJFUN_DECLARE(PITCH_B_GAIN)
+ADJFUN_DECLARE(ROLL_B_GAIN)
+ADJFUN_DECLARE(YAW_B_GAIN)
+ADJFUN_DECLARE(PITCH_O_GAIN)
+ADJFUN_DECLARE(ROLL_O_GAIN)
+ADJFUN_DECLARE(CROSS_COUPLING_GAIN)
+ADJFUN_DECLARE(CROSS_COUPLING_RATIO)
+ADJFUN_DECLARE(CROSS_COUPLING_CUTOFF)
+ADJFUN_DECLARE(INERTIA_PRECOMP_GAIN)
+ADJFUN_DECLARE(INERTIA_PRECOMP_CUTOFF)
+ADJFUN_DECLARE(YAW_PRECOMP_CUTOFF)
 

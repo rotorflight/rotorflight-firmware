@@ -36,6 +36,7 @@
 #include "config/config_eeprom.h"
 #include "config/feature.h"
 
+#include "drivers/castle_telemetry_decode.h"
 #include "drivers/dshot_command.h"
 #include "drivers/motor.h"
 #include "drivers/system.h"
@@ -151,7 +152,7 @@ static void activateConfig(void)
     initRcProcessing();
     adjustmentRangeInit();
 
-    pidInitProfile(currentPidProfile);
+    pidChangeProfile(currentPidProfile);
 
     rcControlsInit();
 
@@ -214,12 +215,21 @@ static void validateAndFixConfig(void)
         featureDisableImmediate(FEATURE_GPS);
     }
 
-    if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) {
+    if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD ||
+            motorConfig()->dev.motorPwmProtocol == PWM_TYPE_CASTLE_LINK) {
         if (!motorConfig()->dev.useUnsyncedPwm) {
             motorConfigMutable()->dev.useUnsyncedPwm = true;
         }
-        if (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE) {
-            motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
+        if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) {
+            if (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE) {
+                motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
+            }
+        } else {
+#ifdef USE_TELEMETRY_CASTLE
+            if (motorConfig()->dev.motorPwmRate > CASTLE_PWM_HZ_MAX) {
+                motorConfigMutable()->dev.motorPwmRate = CASTLE_PWM_HZ_MAX;
+            }
+#endif
         }
     }
 
@@ -281,11 +291,10 @@ static void validateAndFixConfig(void)
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
-    if (rcControlsConfig()->rc_arm_throttle > rcControlsConfig()->rc_min_throttle - 10) {
-        rcControlsConfigMutable()->rc_arm_throttle = rcControlsConfig()->rc_min_throttle - 10;
-    }
-    if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
-        rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+    if (rcControlsConfig()->rc_max_throttle && rcControlsConfig()->rc_min_throttle) {
+        if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
+            rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+        }
     }
 
     if (!featureIsConfigured(FEATURE_GPS)
@@ -306,7 +315,7 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR)) {
+    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
 
@@ -540,6 +549,7 @@ static void validateAndFixConfig(void)
     validateAndFixPositionConfig();
     validateAndFixServoConfig();
     validateAndFixMixerConfig();
+    validateAndFixRxConfig();
 }
 
 void validateAndFixGyroConfig(void)
@@ -563,6 +573,7 @@ void validateAndFixGyroConfig(void)
 
         switch (motorConfig()->dev.motorPwmProtocol) {
             case PWM_TYPE_STANDARD:
+            case PWM_TYPE_CASTLE_LINK:
                 motorUpdateRestriction = MOTORS_MAX_PWM_RATE;
                 break;
             case PWM_TYPE_ONESHOT125:
@@ -804,7 +815,7 @@ void changePidProfile(uint8_t pidProfileIndex)
     if (pidProfileIndex < PID_PROFILE_COUNT) {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
-        pidInitProfile(currentPidProfile);
+        pidChangeProfile(currentPidProfile);
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

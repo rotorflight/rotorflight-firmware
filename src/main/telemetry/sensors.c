@@ -73,6 +73,7 @@ static int getCurrent(currentMeterId_e id)
     return currentMeterRead(id, &current) ? current.current : 0;
 }
 
+#ifdef USE_ESC_SENSOR
 static int getEscSensorValue(uint8_t motor, uint8_t id)
 {
     escSensorData_t * data = getEscSensorData(motor);
@@ -108,6 +109,7 @@ static int getEscSensorValue(uint8_t motor, uint8_t id)
 
     return 0;
 }
+#endif
 
 static uint32_t getTupleHash(uint32_t a, uint32_t b)
 {
@@ -155,6 +157,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_THROTTLE_CONTROL:
             return lrintf(mixerGetInput(MIXER_IN_STABILIZED_THROTTLE) * 1000);
 
+#ifdef USE_ESC_SENSOR
         case TELEM_ESC1_DATA:
         case TELEM_ESC1_VOLTAGE:
         case TELEM_ESC1_CURRENT:
@@ -184,7 +187,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ESC2_STATUS:
         case TELEM_ESC2_MODEL:
             return getEscSensorValue(1, id - TELEM_ESC2_DATA);
-
+#endif
         case TELEM_ESC_VOLTAGE:
             return getVoltage(VOLTAGE_METER_ID_ESC_COMBINED);
         case TELEM_BEC_VOLTAGE:
@@ -202,14 +205,16 @@ int telemetrySensorValue(sensor_id_e id)
             return getCurrent(CURRENT_METER_ID_BUS);
         case TELEM_MCU_CURRENT:
             return getCurrent(CURRENT_METER_ID_MCU);
-
+        case TELEM_TEMP:
+            return millis();
         case TELEM_MCU_TEMP:
             return getCoreTemperatureCelsius();
-
+#ifdef USE_ESC_SENSOR
         case TELEM_ESC_TEMP:
             return getEscSensorValue(ESC_SENSOR_COMBINED, 7);
         case TELEM_BEC_TEMP:
             return getEscSensorValue(ESC_SENSOR_COMBINED, 8);
+#endif
         case TELEM_AIR_TEMP:
         case TELEM_MOTOR_TEMP:
         case TELEM_BATTERY_TEMP:
@@ -222,6 +227,9 @@ int telemetrySensorValue(sensor_id_e id)
             return getEstimatedAltitudeCm();
         case TELEM_VARIOMETER:
             return getEstimatedVarioCms();
+
+        case TELEM_RPM:
+            return millis();
 
         case TELEM_HEADSPEED:
             return getHeadSpeed();
@@ -365,6 +373,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_THROTTLE_CONTROL:
             return true;
 
+#ifdef USE_ESC_SENSOR
         case TELEM_ESC1_DATA:
         case TELEM_ESC1_VOLTAGE:
         case TELEM_ESC1_CURRENT:
@@ -394,6 +403,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_ESC2_STATUS:
         case TELEM_ESC2_MODEL:
             return true;
+#endif
 
         case TELEM_ESC_VOLTAGE:
         case TELEM_BEC_VOLTAGE:
@@ -407,6 +417,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_MCU_CURRENT:
             return true;
 
+        case TELEM_TEMP:
         case TELEM_MCU_TEMP:
         case TELEM_ESC_TEMP:
         case TELEM_BEC_TEMP:
@@ -422,6 +433,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_VARIOMETER:
             return true;
 
+        case TELEM_RPM:
         case TELEM_HEADSPEED:
         case TELEM_TAILSPEED:
             return true;

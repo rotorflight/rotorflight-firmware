@@ -56,7 +56,6 @@ PG_DECLARE(rxConfig_t, rxConfig);
 typedef struct rcControlsConfig_s {
     uint16_t rc_center;                 // Stick center. Usually 1500 or 1520, depending on the RC system
     uint16_t rc_deflection;             // Max stick declection in us, applies to RPYC
-    uint16_t rc_arm_throttle;           // Throttle channel value for arming
     uint16_t rc_min_throttle;           // Throttle channel value for 0%
     uint16_t rc_max_throttle;           // Throttle channel value for 100%
     uint8_t  rc_deadband;               // A deadband around the stick center for pitch and roll axis
