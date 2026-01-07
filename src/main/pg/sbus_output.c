@@ -23,7 +23,6 @@
 #ifdef USE_SBUS_OUTPUT
 
 // The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
-// Version bumped due to added 'inverted' field.
 PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
                           PG_DRIVER_SBUS_OUT_CONFIG, 1);
 
