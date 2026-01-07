@@ -23,8 +23,6 @@
 
 #ifdef USE_FBUS_MASTER
 
-// The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
-// Version bumped due to added 'inverted' field.
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
                           PG_DRIVER_FBUS_MASTER_CONFIG, 3);
 
