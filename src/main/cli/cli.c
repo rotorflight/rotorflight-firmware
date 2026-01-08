@@ -6842,6 +6842,232 @@ static bool cliProcessCustomDefaults(bool quiet)
 }
 #endif
 
+// -----------------------------------------------------------------------------
+// MSP generic setting access (name-based)
+// -----------------------------------------------------------------------------
+
+static const clivalue_t *cliFindValueByNameExact(const char *name)
+{
+    if (!name || !*name) {
+        return NULL;
+    }
+    for (uint32_t i = 0; i < valueTableEntryCount; i++) {
+        if (strcasecmp(valueTable[i].name, name) == 0) {
+            return &valueTable[i];
+        }
+    }
+    return NULL;
+}
+
+static bool cliMspReadValue(const clivalue_t *var, int32_t *value, int32_t *min, int32_t *max, uint8_t *mspType)
+{
+    if (!var || !value || !min || !max || !mspType) {
+        return false;
+    }
+
+    const uint32_t valueMode = (var->type & VALUE_MODE_MASK);
+    const uint32_t valueType = (var->type & VALUE_TYPE_MASK);
+
+    // Reject complex types for now (arrays, strings).
+    if (valueMode == MODE_ARRAY || valueMode == MODE_STRING) {
+        return false;
+    }
+
+    // Bitset behaves like boolean.
+    if (valueMode == MODE_BITSET) {
+        const void *ptr = cliGetValuePointer(var);
+        if (!ptr) {
+            return false;
+        }
+        uint32_t bit = (1u << var->config.bitpos);
+        uint32_t raw = 0;
+        switch (valueType) {
+        case VAR_UINT8:
+            raw = (*(const uint8_t *)ptr) & bit;
+            break;
+        case VAR_UINT16:
+            raw = (*(const uint16_t *)ptr) & bit;
+            break;
+        case VAR_UINT32:
+            raw = (*(const uint32_t *)ptr) & bit;
+            break;
+        default:
+            return false;
+        }
+        *value = raw ? 1 : 0;
+        *min = 0;
+        *max = 1;
+        *mspType = MSP_SETTING_TYPE_UINT8;
+        return true;
+    }
+
+    // Min/max
+    if (valueMode == MODE_LOOKUP) {
+        const lookupTableEntry_t *tableEntry = &lookupTables[var->config.lookup.tableIndex];
+        *min = 0;
+        *max = (int32_t)((tableEntry && tableEntry->valueCount) ? (tableEntry->valueCount - 1) : 0);
+    } else if (valueMode == MODE_DIRECT) {
+        if (valueType == VAR_UINT32) {
+            *min = 0;
+            *max = (int32_t)var->config.u32Max;
+        } else {
+            int mn = 0, mx = 0;
+            getMinMax(var, &mn, &mx);
+            *min = (int32_t)mn;
+            *max = (int32_t)mx;
+        }
+    } else {
+        int mn = 0, mx = 0;
+        getMinMax(var, &mn, &mx);
+        *min = (int32_t)mn;
+        *max = (int32_t)mx;
+    }
+
+    // Current value
+    const void *ptr = cliGetValuePointer(var);
+    if (!ptr) {
+        return false;
+    }
+
+    switch (valueType) {
+    case VAR_UINT8:
+        *value = *(const uint8_t *)ptr;
+        *mspType = MSP_SETTING_TYPE_UINT8;
+        return true;
+    case VAR_INT8:
+        *value = *(const int8_t *)ptr;
+        *mspType = MSP_SETTING_TYPE_INT8;
+        return true;
+    case VAR_UINT16:
+        *value = *(const uint16_t *)ptr;
+        *mspType = MSP_SETTING_TYPE_UINT16;
+        return true;
+    case VAR_INT16:
+        *value = *(const int16_t *)ptr;
+        *mspType = MSP_SETTING_TYPE_INT16;
+        return true;
+    case VAR_UINT32:
+        *value = (int32_t)*(const uint32_t *)ptr;
+        *mspType = MSP_SETTING_TYPE_UINT32;
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool cliMspWriteValue(const clivalue_t *var, int32_t value)
+{
+    if (!var) {
+        return false;
+    }
+
+    const uint32_t valueMode = (var->type & VALUE_MODE_MASK);
+    const uint32_t valueType = (var->type & VALUE_TYPE_MASK);
+
+    // Reject complex types for now (arrays, strings).
+    if (valueMode == MODE_ARRAY || valueMode == MODE_STRING) {
+        return false;
+    }
+
+    // Clamp to range for direct + lookup.
+    int32_t mn = INT32_MIN;
+    int32_t mx = INT32_MAX;
+    uint8_t dummyType = 0;
+    int32_t dummyVal = 0;
+    if (!cliMspReadValue(var, &dummyVal, &mn, &mx, &dummyType)) {
+        return false;
+    }
+    if (value < mn) value = mn;
+    if (value > mx) value = mx;
+
+    // Bitset behaves like boolean.
+    if (valueMode == MODE_BITSET) {
+        void *ptr = cliGetValuePointer(var);
+        if (!ptr) {
+            return false;
+        }
+        const uint32_t bit = (1u << var->config.bitpos);
+        const bool on = (value != 0);
+        switch (valueType) {
+        case VAR_UINT8: {
+            uint8_t v = *(uint8_t *)ptr;
+            v = on ? (v | (uint8_t)bit) : (v & (uint8_t)~bit);
+            *(uint8_t *)ptr = v;
+            return true;
+        }
+        case VAR_UINT16: {
+            uint16_t v = *(uint16_t *)ptr;
+            v = on ? (v | (uint16_t)bit) : (v & (uint16_t)~bit);
+            *(uint16_t *)ptr = v;
+            return true;
+        }
+        case VAR_UINT32: {
+            uint32_t v = *(uint32_t *)ptr;
+            v = on ? (v | bit) : (v & ~bit);
+            *(uint32_t *)ptr = v;
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
+
+    // Normal scalar write (mirrors cliSetVar for supported types)
+    void *ptr = cliGetValuePointer(var);
+    if (!ptr) {
+        return false;
+    }
+
+    switch (valueType) {
+    case VAR_UINT8:
+        *(uint8_t *)ptr = (uint8_t)value;
+        return true;
+    case VAR_INT8:
+        *(int8_t *)ptr = (int8_t)value;
+        return true;
+    case VAR_UINT16:
+        *(uint16_t *)ptr = (uint16_t)value;
+        return true;
+    case VAR_INT16:
+        *(int16_t *)ptr = (int16_t)value;
+        return true;
+    case VAR_UINT32:
+        *(uint32_t *)ptr = (uint32_t)value;
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool cliMspGetSettingByName(const char *name, int32_t *value, int32_t *min, int32_t *max, uint8_t *mspType, uint8_t *flags, int8_t *scalePow10)
+{
+    const clivalue_t *var = cliFindValueByNameExact(name);
+    if (!var) {
+        return false;
+    }
+
+    if (!cliMspReadValue(var, value, min, max, mspType)) {
+        return false;
+    }
+
+    if (flags) {
+        *flags = 0;
+    }
+    if (scalePow10) {
+        *scalePow10 = 0;
+    }
+    return true;
+}
+
+bool cliMspSetSettingByName(const char *name, int32_t value)
+{
+    const clivalue_t *var = cliFindValueByNameExact(name);
+    if (!var) {
+        return false;
+    }
+    return cliMspWriteValue(var, value);
+}
+
 void cliEnter(serialPort_t *serialPort)
 {
     cliMode = true;

@@ -2092,6 +2092,79 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+case MSP_CLI_SETTING:
+    {
+        // Request: u8 nameLen, u8 name[nameLen]
+        // Reply:  u8 type, u32 value, u32 min, u32 max, u8 scalePow10, u8 flags
+        enum { MSP_SETTING_NAME_MAX = 63 };
+        if (sbufBytesRemaining(src) < 1) {
+            return MSP_RESULT_ERROR;
+        }
+
+        const uint8_t nameLen = sbufReadU8(src);
+        if (nameLen == 0 || nameLen > MSP_SETTING_NAME_MAX || sbufBytesRemaining(src) < nameLen) {
+            return MSP_RESULT_ERROR;
+        }
+
+        char name[MSP_SETTING_NAME_MAX + 1];
+        for (uint8_t i = 0; i < nameLen; i++) {
+            name[i] = (char)sbufReadU8(src);
+        }
+        name[nameLen] = '\0';
+
+        int32_t value = 0, min = 0, max = 0;
+        uint8_t mspType = 0, flags = 0;
+        int8_t scalePow10 = 0;
+
+        if (!cliMspGetSettingByName(name, &value, &min, &max, &mspType, &flags, &scalePow10)) {
+            return MSP_RESULT_ERROR;
+        }
+
+        sbufWriteU8(dst, mspType);
+        sbufWriteU32(dst, (uint32_t)value);
+        sbufWriteU32(dst, (uint32_t)min);
+        sbufWriteU32(dst, (uint32_t)max);
+        sbufWriteU8(dst, (uint8_t)scalePow10);
+        sbufWriteU8(dst, flags);
+    }
+    break;
+
+case MSP_SET_CLI_SETTING:
+    {
+        // Request: u8 nameLen, u8 name[nameLen], u32 value (int32 bit pattern)
+        // Reply:  u8 success
+        enum { MSP_SETTING_NAME_MAX = 63 };
+        if (sbufBytesRemaining(src) < 1 + 4) {
+            return MSP_RESULT_ERROR;
+        }
+
+        const uint8_t nameLen = sbufReadU8(src);
+        if (nameLen == 0 || nameLen > MSP_SETTING_NAME_MAX || sbufBytesRemaining(src) < (int)(nameLen + 4)) {
+            return MSP_RESULT_ERROR;
+        }
+
+        char name[MSP_SETTING_NAME_MAX + 1];
+        for (uint8_t i = 0; i < nameLen; i++) {
+            name[i] = (char)sbufReadU8(src);
+        }
+        name[nameLen] = '\0';
+
+        const int32_t value = (int32_t)sbufReadU32(src);
+
+        // Safety: do not allow writes while armed
+        if (ARMING_FLAG(ARMED)) {
+            sbufWriteU8(dst, 0);
+            return MSP_RESULT_ERROR;
+        }
+
+        const bool ok = cliMspSetSettingByName(name, value);
+        sbufWriteU8(dst, ok ? 1 : 0);
+
+        if (!ok) {
+            return MSP_RESULT_ERROR;
+        }
+    }
+    break;
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);

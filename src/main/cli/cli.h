@@ -30,6 +30,12 @@ struct serialPort_s;
 void cliEnter(struct serialPort_s *serialPort);
 bool resetConfigToCustomDefaults(void);
 
+// MSP generic setting access (name-based)
+// Returns false if the setting is not found or unsupported (arrays/strings/etc).
+// value/min/max are returned as scaled integers; scalePow10 currently always 0 in this codebase.
+bool cliMspGetSettingByName(const char *name, int32_t *value, int32_t *min, int32_t *max, uint8_t *mspType, uint8_t *flags, int8_t *scalePow10);
+bool cliMspSetSettingByName(const char *name, int32_t value);
+
 #ifdef USE_CLI_DEBUG_PRINT
 void cliPrint(const char *str);
 void cliPrintLinefeed(void);

@@ -62,6 +62,13 @@
 #define BOARD_IDENTIFIER_LENGTH              4
 #define BOARD_HARDWARE_REVISION_LENGTH       2
 
+// MSP setting value type for MSP_CLI_SETTING/MSP_SET_CLI_SETTING
+#define MSP_SETTING_TYPE_UINT8              0
+#define MSP_SETTING_TYPE_INT8               1
+#define MSP_SETTING_TYPE_UINT16             2
+#define MSP_SETTING_TYPE_INT16              3
+#define MSP_SETTING_TYPE_UINT32             4
+
 /*
  * MSP Command IDs
  */
@@ -228,6 +235,9 @@
 #define MSP_SET_SERVO_OVERRIDE               193
 #define MSP_MOTOR_OVERRIDE                   194
 #define MSP_SET_MOTOR_OVERRIDE               195
+
+#define MSP_CLI_SETTING                      196
+#define MSP_SET_CLI_SETTING                  197
 
 #define MSP_SET_RAW_RC                       200
 #define MSP_SET_RAW_GPS                      201
