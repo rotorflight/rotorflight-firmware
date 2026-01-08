@@ -1359,6 +1359,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_ceiling_gain);
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_gain);
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_filter);
+        sbufWriteU8(dst, currentControlRateProfile->cyclic_ring);
         break;
 
     case MSP_PID_TUNING:
@@ -2534,6 +2535,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->yaw_dynamic_ceiling_gain = sbufReadU8(src);
             currentControlRateProfile->yaw_dynamic_deadband_gain = sbufReadU8(src);
             currentControlRateProfile->yaw_dynamic_deadband_filter= sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 1) {
+            currentControlRateProfile->cyclic_ring = sbufReadU8(src);
         }
         loadControlRateProfile();
         break;
