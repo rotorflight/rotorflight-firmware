@@ -832,6 +832,11 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(DEBUG_5,                 0xDB05,   100,  3000,    0,     S32),
     TLM_SENSOR(DEBUG_6,                 0xDB06,   100,  3000,    0,     S32),
     TLM_SENSOR(DEBUG_7,                 0xDB07,   100,  3000,    0,     S32),
+
+    TLM_SENSOR(STATS_TOTAL_FLIGHTS,     0x1230,   200,  3000,    0,     U32),
+    TLM_SENSOR(STATS_TOTAL_TIME_S,      0x1231,   200,  3000,    0,     U32),
+    TLM_SENSOR(STATS_TOTAL_DIST_M,      0x1232,   200,  3000,    0,     U32),
+    
 };
 
 telemetrySensor_t * crsfGetNativeSensor(sensor_id_e id)
