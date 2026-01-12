@@ -2092,6 +2092,23 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_GET_MIXER_INPUT:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MIXER_INPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU16(dst, mixerInputs(i)->rate);
+            sbufWriteU16(dst, mixerInputs(i)->min);
+            sbufWriteU16(dst, mixerInputs(i)->max);
+        }
+        break;
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
