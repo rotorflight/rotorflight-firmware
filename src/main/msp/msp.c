@@ -2090,7 +2090,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
-    case GET_ADJUSTMENT_RANGE:
+    case MSP_GET_ADJUSTMENT_RANGE:
         {
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
