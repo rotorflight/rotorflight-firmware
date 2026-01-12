@@ -213,6 +213,7 @@
 #define MSP_SET_MIXER_INPUT                  171
 #define MSP_MIXER_RULES                      172
 #define MSP_SET_MIXER_RULE                   173
+#define MSP_GET_MIXER_INPUT                  174
 
 #define MSP_OSD_VIDEO_CONFIG                 180
 #define MSP_SET_OSD_VIDEO_CONFIG             181
