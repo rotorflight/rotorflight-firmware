@@ -44,8 +44,6 @@
 #endif
 
 #if SRXL2_DEBUG
-//void cliPrintf(const char *format, ...);
-//#define DEBUG_PRINTF(format, ...) cliPrintf(format, __VA_ARGS__)
 #define DEBUG_PRINTF(...) //Temporary until a better debug printf can be included
 #else
 #define DEBUG_PRINTF(...)
@@ -113,6 +111,12 @@ static bool telemetryRequested = false;
 static uint8_t telemetryFrame[22];
 
 uint8_t globalResult = 0;
+
+static uint32_t srxl2BootEndUs = 0;
+
+char srxl2DebugMessage[64] = "Not initialized";
+char srxl2LastError[64] = "None";
+char srxl2StateString[32] = "Unknown";
 
 /* handshake protocol
     1. listen for 50ms for serial activity and go to State::Running if found, autobaud may be necessary
@@ -234,6 +238,9 @@ bool srxl2ProcessControlData(const Srxl2Header* header, rxRuntimeState_t *rxRunt
         spektrumHandleVtxControl(vtxControl);
 #endif
     } break;
+
+    default:
+        break;
     }
 
     return true;
@@ -323,6 +330,164 @@ static void srxl2Idle()
     }
 
     readBufferIdx = 0;
+}
+
+static inline void put_be16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); p[1] = (uint8_t)v; }
+static inline void put_le16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v & 0xFF); p[1] = (uint8_t)(v >> 8); }
+
+static void srxl2SendSmart(uint8_t sensorId, uint8_t secondaryId, const uint8_t data[14])
+{
+    // Frame: [A6][80][22][dest][sensorId][secondaryId][data(14)][CRC(2)]
+    uint8_t f[22];   // header + dest + 16-byte payload (sensorId + secondaryId + data[14]) + CRC(2)
+    int i = 0;
+
+    f[i++] = SRXL2_ID;               // 0xA6
+    f[i++] = TelemetrySensorData;    // 0x80
+    f[i++] = 22;                     // total length incl. CRC
+    f[i++] = busMasterDeviceId;      // destination = receiver/bus master
+
+    f[i++] = sensorId;               // SMART sensor ID we want to emulate
+    f[i++] = secondaryId;            // usually 0x00
+
+    memcpy(&f[i], data, 14);
+    i += 14;
+
+    // Append CRC via existing helper (len = payload + 2 CRC bytes)
+    srxl2RxWriteData(f, i + 2);
+
+    telemetryRequested = false;
+}
+
+#define BE16(x) (uint8_t)((x) >> 8), (uint8_t)((x) & 0xFF)
+
+#if defined(USE_SMART_ESC)
+static bool srxl2SendSmartescTelemetry(void)
+{
+    uint8_t sensorId = 0;
+    uint8_t secondaryId = 0;
+    uint8_t payload[14];
+
+    /* Prefer the latest telemetry entry when available and not filtered.
+     * If latest is filtered (e.g. sensorId == 0x0C), fall back to the
+     * most-recent non-filtered entry from the telemetry history so SRXL2
+     * keeps sending useful frames at the expected cadence. */
+    if (smartescGetLatestTelemetry(&sensorId, &secondaryId, payload, sizeof(payload))) {
+        srxl2SendSmart(sensorId, secondaryId, payload);
+        return true;
+    }
+
+    /* Latest is unavailable (possibly filtered). Search history newest->oldest. */
+    unsigned histCount = smartescGetTelemetryHistoryCount();
+    if (histCount == 0) {
+        return false;
+    }
+
+    for (int i = (int)histCount - 1; i >= 0; --i) {
+        uint8_t len = 0;
+        uint32_t ts = 0;
+        uint8_t sid = 0;
+        uint8_t secid = 0;
+        uint32_t entryCount = 0;
+        unsigned copied = smartescCopyTelemetryHistory((unsigned)i, payload, sizeof(payload), &len, &ts, &sid, &secid, &entryCount);
+        if (copied == 0) continue;
+        if (sid == 0x0C) continue; /* skip filtered sensor page */
+        srxl2SendSmart(sid, secid, payload);
+        return true;
+    }
+
+    return false;
+}
+#endif
+
+/* No SMART history available. As a fallback, export per-motor ESC telemetry
+ * (from `escSensorData_t`) using the SMART payload layout so receivers still
+ * get ESC info even when SMART ESC frames are disabled or absent. When no
+ * live ESC data exists, feed a fake block for bench testing. */
+static bool srxl2SendEscSensorTelemetry(void)
+{
+#if defined(USE_ESC_SENSOR)
+    /* If the ESC sensor subsystem isn't active, don't emit fallback frames. */
+    if (!isEscSensorActive()) {
+        return false;
+    }
+
+    const int motorCount = getMotorCount();
+    for (int m = 0; m < motorCount; ++m) {
+        const escSensorData_t *esc = getEscSensorData((uint8_t)m);
+
+        /* Treat missing or zeroed telemetry as absent and inject the shared fake struct. */
+        const bool escMissing = !esc;
+        const bool escZeroed = esc &&
+            esc->erpm == 0 && esc->voltage == 0 && esc->current == 0 &&
+            esc->temperature == 0 && esc->temperature2 == 0 &&
+            esc->bec_voltage == 0 && esc->bec_current == 0;
+
+        uint8_t payloadEsc[14];
+        if (escMissing || escZeroed) {
+            return false;
+        } else {
+            memset(payloadEsc, 0xFF, sizeof(payloadEsc));
+
+            uint16_t rawRpm = (esc->erpm == 0) ? 0xFFFF : (uint16_t)(esc->erpm / 10u);
+            put_be16(&payloadEsc[0], rawRpm == 0xFFFF ? 0xFFFF : rawRpm);
+
+            uint16_t rawVolts = (esc->voltage == 0) ? 0xFFFF : (uint16_t)(esc->voltage / 10u);
+            put_be16(&payloadEsc[2], rawVolts == 0xFFFF ? 0xFFFF : rawVolts);
+
+            put_be16(&payloadEsc[4], (uint16_t)esc->temperature);
+
+            uint16_t rawCurrent = (esc->current == 0) ? 0xFFFF : (uint16_t)(esc->current / 10u);
+            put_be16(&payloadEsc[6], rawCurrent == 0xFFFF ? 0xFFFF : rawCurrent);
+
+            put_be16(&payloadEsc[8], (uint16_t)esc->temperature2);
+
+            /* BEC current: 100 mA units (spec) */
+            payloadEsc[10] = (esc->bec_current == 0) ? 0xFF : (uint8_t)MIN(254u, (uint32_t)((esc->bec_current + 50u) / 100u));
+            payloadEsc[11] = (esc->bec_voltage == 0) ? 0xFF : (uint8_t)(esc->bec_voltage / 50u);
+
+            /* throttle in 0.1% -> SMART units (0.5%); clamp to 100% (200 counts) */
+            if (esc->throttle == 0) {
+                payloadEsc[12] = 0xFF;
+            } else {
+                uint32_t t = (uint32_t)(esc->throttle + 4u) / 5u; // round to nearest
+                if (t > 200u) t = 200u; // cap at 100%
+                payloadEsc[12] = (uint8_t)t;
+            }
+
+            /* powerOut: 0.5% units, cap to 127 per spec */
+            if (esc->pwm == 0) {
+                payloadEsc[13] = 0xFF;
+            } else {
+                uint32_t p = (uint32_t)(esc->pwm + 4u) / 5u; // 0.1% -> 0.5% (round)
+                if (p > 127u) p = 127u;
+                payloadEsc[13] = (uint8_t)p;
+            }
+        }
+
+        srxl2SendSmart(0x20, 0x00, payloadEsc);
+        return true;
+    }
+#endif
+
+    return false;
+}
+
+// Extended: rotate ESC + SMART battery pages (0x42: 0x00, 0x10, 0x80)
+static void srxl2SendTelemetryData(void)
+{
+    if (!telemetryRequested) return;
+
+#if defined(USE_SMART_ESC)
+    srxl2SendSmartescTelemetry();
+    return;
+#endif
+
+    /* If SMART ESC frames are disabled or empty, fall back to ESC sensor data */
+#if defined(USE_ESC_SENSOR)
+    if (srxl2SendEscSensorTelemetry()) {
+        return;
+    }
+#endif
 }
 
 static uint8_t srxl2FrameStatus(rxRuntimeState_t *rxRuntimeState)
@@ -416,7 +581,11 @@ static uint8_t srxl2FrameStatus(rxRuntimeState_t *rxRuntimeState)
             lastReceiveTimestamp = 0;
             lastValidPacketTimestamp = 0;
         }
-    } break;
+
+        srxl2SendTelemetryData();
+    } 
+        strcpy(srxl2StateString, "Running");
+        break;
     };
 
     if (writeBufferIdx) {
@@ -450,7 +619,7 @@ static bool srxl2ProcessFrame(const rxRuntimeState_t *rxRuntimeState)
             DEBUG_PRINTF("not enough time to send 2 characters passed yet, %d us since last receive, %d required\r\n", now - lastReceiveTimestamp, SRXL2_REPLY_QUIESCENCE);
         }
     } else {
-        DEBUG_PRINTF("still receiving a frame, %d %d\r\n", lastIdleTimestamp, lastReceiveTimestamp);
+        DEBUG_PRINTF("still receiving ...\r\n");
     }
 
     return true;
@@ -558,10 +727,10 @@ void srxl2InitializeFrame(sbuf_t *dst)
 
 void srxl2FinalizeFrame(sbuf_t *dst)
 {
-  sbufSwitchToReader(dst, telemetryFrame);
-  // Include 2 additional bytes of length since we're letting the srxl2RxWriteData function add the CRC in
-  srxl2RxWriteData(sbufPtr(dst), sbufBytesRemaining(dst) + 2);
-  telemetryRequested = false;
+    UNUSED(dst); // we don't need to switch to reader; we know the buffer & length
+    const int frameLen = telemetryFrame[2];   // SRXL2 length (includes CRC)
+    srxl2RxWriteData(telemetryFrame, frameLen);
+    telemetryRequested = false;
 }
 
 void srxl2Bind(void)
