@@ -2090,7 +2090,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
-    case MSP_MIXER_INPUTS_INDEXED:
+    case MSP_GET_MIXER_INPUT:
         {
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
