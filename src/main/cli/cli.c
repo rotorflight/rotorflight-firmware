@@ -95,6 +95,9 @@ bool cliMode = false;
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#endif
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
@@ -4929,6 +4932,70 @@ static void cliStatus(const char *cmdName, char *cmdline)
     cliPrintLinefeed();
 }
 
+#ifdef USE_FBUS_MASTER
+static void cliFbusSensors(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    
+    if (!isEmpty(cmdline) && strncasecmp(cmdline, "clear", 5) == 0) {
+        fbusSensorClearObserved();
+        cliPrintLine("Observed FBUS sensors cleared");
+        return;
+    }
+    
+    const uint8_t count = fbusSensorGetObservedCount();
+    
+    if (count == 0) {
+        cliPrintLine("No FBUS sensors observed yet");
+        return;
+    }
+    
+    cliPrintLinefeed();
+    cliPrintLine("Observed FBUS Sensors:");
+    cliPrintLine("Physical ID | Sensor Name       | App IDs                                   | Packets");
+    cliPrintLine("----------- | ----------------- | ----------------------------------------- | -------");
+    
+    for (uint8_t i = 0; i < count; i++) {
+        const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
+        if (!sensor) {
+            break;
+        }
+        
+        // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor->physicalId);
+        // For unknown sensors, display as "ID_0xXX" instead of "UNKNOWN"
+        char nameBuffer[17];
+        if (strcmp(sensorName, "UNKNOWN") == 0) {
+            tfp_sprintf(nameBuffer, "ID_0x%02X", sensor->physicalId);
+            sensorName = nameBuffer;
+        }
+        cliPrintf("   0x%02X     | %s | ", sensor->physicalId, sensorName);
+        
+        // Print app IDs
+        for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+            cliPrintf("0x%04X", sensor->appIds[j]);
+            if (j < sensor->appIdCount - 1) {
+                cliPrint(", ");
+            }
+        }
+        
+        // Pad to align columns (41 chars for App IDs column)
+        int printed = sensor->appIdCount * 8 - 2; // Each ID is "0x1234, " = 8 chars, minus 2 for last comma
+        if (printed < 0) printed = 0;
+        for (int k = printed; k < 41; k++) {
+            cliPrint(" ");
+        }
+        
+        // Print packet count
+        cliPrintf("| %7u", sensor->packetCount);
+        
+        cliPrintLinefeed();
+    }
+    
+    cliPrintLinefeed();
+}
+#endif
+
 static void cliTasks(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
@@ -6607,6 +6674,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),
 #ifdef USE_TIMER_MGMT
     CLI_COMMAND_DEF("timer", "show/set timers", "<> | <pin> list | <pin> [af<alternate function>|none|<option(deprecated)>] | list | show", cliTimer),
+#endif
+#ifdef USE_FBUS_MASTER
+    CLI_COMMAND_DEF("fbus_sensors", "show observed FBUS sensors", "[clear]", cliFbusSensors),
 #endif
     CLI_COMMAND_DEF("version", "show version", NULL, cliVersion),
 #ifdef USE_VTX_CONTROL

@@ -126,6 +126,7 @@
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
 #include "pg/sbus_output.h"
+#include "pg/fbus_master.h"
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1727,6 +1728,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
+        }
+        break;
+#endif
+
+#ifdef USE_FBUS_MASTER
+    case MSP_FBUS_MASTER_CONFIG:
+        for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceType[i]);
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceIndex[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeLow[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeHigh[i]);
         }
         break;
 #endif
@@ -3374,6 +3386,24 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
                 sbusOutConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_FBUS_MASTER
+    case MSP_SET_FBUS_MASTER_CONFIG: {
+        // Write format is customized for the size and responsiveness.
+        // The first byte will be the target output channel index (0-based).
+        // The following bytes will be the type/index/low/high for that channel.
+        if (sbufBytesRemaining(src) >= 1) {
+            uint8_t index = sbufReadU8(src);
+            if (index < FBUS_MASTER_CHANNELS && sbufBytesRemaining(src) >= 6) {
+                fbusMasterConfigMutable()->sourceType[index] = sbufReadU8(src);
+                fbusMasterConfigMutable()->sourceIndex[index] = sbufReadU8(src);
+                fbusMasterConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
+                fbusMasterConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
             }
         }
         break;
