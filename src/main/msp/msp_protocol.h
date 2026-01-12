@@ -116,7 +116,6 @@
 #define MSP_SET_RC_CONFIG                    67
 
 #define MSP_REBOOT                           68
-#define MSP_ADJUSTMENT_RANGES_INDEXED        69
 
 #define MSP_DATAFLASH_SUMMARY                70
 #define MSP_DATAFLASH_READ                   71
@@ -200,6 +199,7 @@
 #define MSP_SET_SBUS_OUTPUT_CONFIG           153
 #define MSP_RPM_FILTER_V2                    154
 #define MSP_SET_RPM_FILTER_V2                155
+#define MSP_GET_ADJUSTMENT_RANGE             156
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
