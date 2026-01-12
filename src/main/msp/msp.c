@@ -2615,6 +2615,22 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         setServoOverride(i, sbufReadU16(src));
         break;
+
+    case MSP_SET_SERVO_CENTER:
+        // payload: U8 idx + U16 mid  => 3 bytes
+        if (dataSize != 1 + 2) {
+            return MSP_RESULT_ERROR;
+        }
+
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_SERVOS) {
+            return MSP_RESULT_ERROR;
+        }
+
+        servoParamsMutable(i)->mid = sbufReadU16(src);
+        break;
+
+
 #endif
 
     case MSP_SET_RESET_CURR_PID:
