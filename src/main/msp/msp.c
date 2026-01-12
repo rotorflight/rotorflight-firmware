@@ -1542,7 +1542,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 
     case MSP_MIXER_INPUTS:
-        // If you send a command, we skip this and use the call in MSP_MIXER_INPUTS mspFcProcessOutCommandWithArg()
         for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
           sbufWriteU16(dst, mixerInputs(i)->rate);
           sbufWriteU16(dst, mixerInputs(i)->min);
