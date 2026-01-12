@@ -58,6 +58,11 @@
 
 #include "telemetry/sensors.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#include "pg/fbus_master.h"
+#endif
+
 
 /** Sensor functions **/
 
@@ -114,6 +119,35 @@ static uint32_t getTupleHash(uint32_t a, uint32_t b)
     uint32_t data[2] = { a, b };
     return fnv_update(0x42424242, data, sizeof(data));
 }
+
+#ifdef USE_FBUS_MASTER
+/**
+ * Get value from a generic FBUS forwarded sensor
+ * @param sensorIndex Index into forwardedSensors array (0-5)
+ * @return Sensor data value, or 0 if not available
+ */
+static int getFbusSensorValue(uint8_t sensorIndex)
+{
+    // Validate index
+    if (sensorIndex >= FBUS_MASTER_MAX_FORWARDED_SENSORS) {
+        return 0;
+    }
+    
+    // Get configured physical ID for this sensor slot
+    uint8_t physicalId = fbusMasterConfig()->forwardedSensors[sensorIndex];
+    if (physicalId == 0) {
+        return 0;  // Sensor slot not configured
+    }
+    
+    // Get latest sensor frame from the forwarding buffer
+    fbusSensorFrame_t frame;
+    if (fbusSensorGetForwardedFrame(physicalId, &frame) && frame.valid) {
+        return frame.data;
+    }
+    
+    return 0;
+}
+#endif
 
 
 int telemetrySensorValue(sensor_id_e id)
@@ -332,6 +366,22 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debug[7];
 
+#ifdef USE_FBUS_MASTER
+        // Generic FBUS sensor forwarding
+        case TELEM_FBUS_SENSOR_1:
+            return getFbusSensorValue(0);
+        case TELEM_FBUS_SENSOR_2:
+            return getFbusSensorValue(1);
+        case TELEM_FBUS_SENSOR_3:
+            return getFbusSensorValue(2);
+        case TELEM_FBUS_SENSOR_4:
+            return getFbusSensorValue(3);
+        case TELEM_FBUS_SENSOR_5:
+            return getFbusSensorValue(4);
+        case TELEM_FBUS_SENSOR_6:
+            return getFbusSensorValue(5);
+#endif
+
         default:
             return 0;
     }
@@ -500,12 +550,67 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debugMode;
 
+#ifdef USE_FBUS_MASTER
+        // Generic FBUS sensor forwarding - active if FBUS master is enabled
+        // and the sensor slot is configured (non-zero physical ID)
+        case TELEM_FBUS_SENSOR_1:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[0] != 0);
+        case TELEM_FBUS_SENSOR_2:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[1] != 0);
+        case TELEM_FBUS_SENSOR_3:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[2] != 0);
+        case TELEM_FBUS_SENSOR_4:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[3] != 0);
+        case TELEM_FBUS_SENSOR_5:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[4] != 0);
+        case TELEM_FBUS_SENSOR_6:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[5] != 0);
+#endif
+
         default:
             return false;
     }
 
     return false;
 }
+
+#ifdef USE_FBUS_MASTER
+/**
+ * Get the native FrSky physical ID for a generic FBUS sensor
+ * @param id Generic sensor ID (TELEM_FBUS_SENSOR_1 through TELEM_FBUS_SENSOR_6)
+ * @return Native FrSky physical ID, or 0 if not configured or invalid ID
+ */
+uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
+{
+    // Map generic sensor ID to forwardedSensors array index
+    uint8_t sensorIndex;
+    switch (id) {
+        case TELEM_FBUS_SENSOR_1:
+            sensorIndex = 0;
+            break;
+        case TELEM_FBUS_SENSOR_2:
+            sensorIndex = 1;
+            break;
+        case TELEM_FBUS_SENSOR_3:
+            sensorIndex = 2;
+            break;
+        case TELEM_FBUS_SENSOR_4:
+            sensorIndex = 3;
+            break;
+        case TELEM_FBUS_SENSOR_5:
+            sensorIndex = 4;
+            break;
+        case TELEM_FBUS_SENSOR_6:
+            sensorIndex = 5;
+            break;
+        default:
+            return 0;  // Invalid sensor ID
+    }
+    
+    // Return the configured physical ID for this sensor slot
+    return fbusMasterConfig()->forwardedSensors[sensorIndex];
+}
+#endif
 
 
 /** Legacy sensors **/
