@@ -60,6 +60,7 @@
 
 #ifdef USE_FBUS_MASTER
 #include "drivers/fbus_sensor.h"
+#include "drivers/fbus_master.h"
 #include "pg/fbus_master.h"
 #endif
 

@@ -696,8 +696,9 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                 clearToSend = false;
             }
 #else
-                clearToSend = false;
+                    clearToSend = false;
 #endif
+                }
             }
         }
 
