@@ -2092,37 +2092,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
-    case MSP_GET_ADJUSTMENT_RANGE:
-        {
-            const int rem = sbufBytesRemaining(src);
-            if (rem != 1) {
-                return MSP_RESULT_ERROR;
-            }
-
-            const uint8_t i = sbufReadU8(src);
-
-            if (i >= MAX_ADJUSTMENT_RANGE_COUNT) {
-                return MSP_RESULT_ERROR;
-            }
-
-            // Serialize EXACTLY one entry using the same field order/encoding
-            // as the legacy MSP_ADJUSTMENT_RANGES response.
-            const adjustmentRange_t *adjRange = adjustmentRanges(i);
-
-            sbufWriteU8(dst, adjRange->function);
-            sbufWriteU8(dst, adjRange->enaChannel);
-            sbufWriteU8(dst, adjRange->enaRange.startStep);
-            sbufWriteU8(dst, adjRange->enaRange.endStep);
-            sbufWriteU8(dst, adjRange->adjChannel);
-            sbufWriteU8(dst, adjRange->adjRange1.startStep);
-            sbufWriteU8(dst, adjRange->adjRange1.endStep);
-            sbufWriteU8(dst, adjRange->adjRange2.startStep);
-            sbufWriteU8(dst, adjRange->adjRange2.endStep);
-            sbufWriteU16(dst, adjRange->adjMin);
-            sbufWriteU16(dst, adjRange->adjMax);
-            sbufWriteU8(dst, adjRange->adjStep);
-        }
-        break;        
+        
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
