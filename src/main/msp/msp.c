@@ -110,6 +110,12 @@
 #include "msp/msp_protocol_v2_common.h"
 #include "msp/msp_serial.h"
 
+#ifdef USE_CMS
+#include "cms/cms.h"
+#include "cms/cms_menu_main.h"
+#include "cms/cms_types.h"
+#endif
+
 #include "osd/osd.h"
 #include "osd/osd_elements.h"
 #include "osd/osd_warnings.h"
@@ -332,6 +338,452 @@ static void mspFcSetPassthroughCommand(sbuf_t *dst, sbuf_t *src, mspPostProcessF
         sbufWriteU8(dst, 0);
     }
 }
+
+#ifdef USE_CMS
+// -------------------------------
+// CMS-over-MSP (MSPv2) helpers
+// -------------------------------
+
+// CMS element classification for radio-side renderers
+typedef enum {
+    RF_CMS_ITEM_BACK   = 0,
+    RF_CMS_ITEM_SUBMENU = 1,
+    RF_CMS_ITEM_VALUE  = 2,
+    RF_CMS_ITEM_ACTION = 3,
+} rfCmsItemType_e;
+
+typedef enum {
+    RF_CMS_VAL_NONE  = 0,
+    RF_CMS_VAL_INT   = 1,
+    RF_CMS_VAL_UINT  = 2,
+    RF_CMS_VAL_BOOL  = 3,
+    RF_CMS_VAL_ENUM  = 4,
+    RF_CMS_VAL_FLOAT = 5,
+} rfCmsValueType_e;
+
+// Session-scoped registry that maps compact menu IDs to CMS_Menu pointers.
+// (IDs are opaque to the client and are re-established on MSP2_RF_CMS_INFO.)
+#define RF_CMS_MENU_REG_MAX 128
+static const CMS_Menu *rfCmsMenuReg[RF_CMS_MENU_REG_MAX];
+static uint16_t rfCmsMenuGen;
+
+static void rfCmsRegistryReset(void)
+{
+    memset(rfCmsMenuReg, 0, sizeof(rfCmsMenuReg));
+    // Reserve 0 for "invalid".
+    rfCmsMenuReg[1] = &cmsx_menuMain;
+    rfCmsMenuGen++;
+    if (rfCmsMenuGen == 0) {
+        rfCmsMenuGen = 1;
+    }
+}
+
+static uint16_t rfCmsRegistryGetId(const CMS_Menu *menu)
+{
+    if (!menu) {
+        return 0;
+    }
+    for (uint16_t i = 1; i < RF_CMS_MENU_REG_MAX; i++) {
+        if (rfCmsMenuReg[i] == menu) {
+            return i;
+        }
+    }
+    for (uint16_t i = 1; i < RF_CMS_MENU_REG_MAX; i++) {
+        if (!rfCmsMenuReg[i]) {
+            rfCmsMenuReg[i] = menu;
+            return i;
+        }
+    }
+    return 0;
+}
+
+static const CMS_Menu *rfCmsRegistryGetMenu(uint16_t id)
+{
+    if (id == 0 || id >= RF_CMS_MENU_REG_MAX) {
+        return NULL;
+    }
+    return rfCmsMenuReg[id];
+}
+
+static bool rfCmsIsSelectableElement(uint16_t flags)
+{
+    const uint16_t t = flags & OSD_MENU_ELEMENT_MASK;
+    switch (t) {
+    case OME_Back:
+    case OME_Submenu:
+    case OME_Funcall:
+    case OME_OSD_Exit:
+    case OME_Bool:
+    case OME_UINT8:
+    case OME_INT8:
+    case OME_UINT16:
+    case OME_INT16:
+    case OME_UINT32:
+    case OME_INT32:
+    case OME_FLOAT:
+    case OME_TAB:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static const OSD_Entry *rfCmsFindEntryByIndex(const CMS_Menu *menu, uint8_t index)
+{
+    if (!menu || !menu->entries) {
+        return NULL;
+    }
+    uint8_t n = 0;
+    for (const OSD_Entry *p = menu->entries; (p->flags & OSD_MENU_ELEMENT_MASK) != OME_END; p++) {
+        // Skip labels from the remote list; use the first label (if any) as the title.
+        if ((p->flags & OSD_MENU_ELEMENT_MASK) == OME_Label) {
+            continue;
+        }
+        if (!rfCmsIsSelectableElement(p->flags)) {
+            continue;
+        }
+        if (n == index) {
+            return p;
+        }
+        n++;
+    }
+    return NULL;
+}
+
+static uint8_t rfCmsCountSelectable(const CMS_Menu *menu)
+{
+    if (!menu || !menu->entries) {
+        return 0;
+    }
+    uint8_t n = 0;
+    for (const OSD_Entry *p = menu->entries; (p->flags & OSD_MENU_ELEMENT_MASK) != OME_END; p++) {
+        if ((p->flags & OSD_MENU_ELEMENT_MASK) == OME_Label) {
+            continue;
+        }
+        if (rfCmsIsSelectableElement(p->flags)) {
+            n++;
+        }
+    }
+    return n;
+}
+
+static const char *rfCmsMenuTitle(const CMS_Menu *menu)
+{
+    if (!menu || !menu->entries) {
+        return "";
+    }
+    for (const OSD_Entry *p = menu->entries; (p->flags & OSD_MENU_ELEMENT_MASK) != OME_END; p++) {
+        if ((p->flags & OSD_MENU_ELEMENT_MASK) == OME_Label && p->text) {
+            return p->text;
+        }
+    }
+    return "";
+}
+
+static void rfCmsEntryMeta(const OSD_Entry *e, rfCmsItemType_e *outItemType, rfCmsValueType_e *outValType,
+                           int32_t *outMin, int32_t *outMax, int32_t *outStep, int32_t *outScale, uint16_t *outFlags,
+                           uint16_t *outSubmenuId)
+{
+    rfCmsItemType_e itemType = RF_CMS_ITEM_ACTION;
+    rfCmsValueType_e valType = RF_CMS_VAL_NONE;
+    int32_t min = 0, max = 0, step = 0, scale = 1000;
+    uint16_t flags = 0;
+    uint16_t submenuId = 0;
+
+    if (!e) {
+        if (outItemType) *outItemType = RF_CMS_ITEM_ACTION;
+        if (outValType) *outValType = RF_CMS_VAL_NONE;
+        if (outMin) *outMin = 0;
+        if (outMax) *outMax = 0;
+        if (outStep) *outStep = 0;
+        if (outScale) *outScale = 1000;
+        if (outFlags) *outFlags = 0;
+        if (outSubmenuId) *outSubmenuId = 0;
+        return;
+    }
+
+    const uint16_t t = e->flags & OSD_MENU_ELEMENT_MASK;
+    if (e->flags & REBOOT_REQUIRED) {
+        flags |= REBOOT_REQUIRED;
+    }
+    if (e->flags & DYNAMIC) {
+        flags |= DYNAMIC;
+    }
+
+    switch (t) {
+    case OME_Back:
+        itemType = RF_CMS_ITEM_BACK;
+        break;
+    case OME_Submenu:
+        itemType = RF_CMS_ITEM_SUBMENU;
+        submenuId = rfCmsRegistryGetId((const CMS_Menu *)e->data);
+        break;
+    case OME_OSD_Exit:
+    case OME_Funcall:
+        itemType = RF_CMS_ITEM_ACTION;
+        break;
+    case OME_Bool:
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_BOOL;
+        min = 0; max = 1; step = 1; scale = 1;
+        break;
+    case OME_UINT8: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_UINT;
+        const OSD_UINT8_t *p = (const OSD_UINT8_t *)e->data;
+        if (p) {
+            min = p->min; max = p->max; step = p->step;
+        }
+        break; }
+    case OME_INT8: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_INT;
+        const OSD_INT8_t *p = (const OSD_INT8_t *)e->data;
+        if (p) {
+            min = p->min; max = p->max; step = p->step;
+        }
+        break; }
+    case OME_UINT16: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_UINT;
+        const OSD_UINT16_t *p = (const OSD_UINT16_t *)e->data;
+        if (p) {
+            min = p->min; max = p->max; step = p->step;
+        }
+        break; }
+    case OME_INT16: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_INT;
+        const OSD_INT16_t *p = (const OSD_INT16_t *)e->data;
+        if (p) {
+            min = p->min; max = p->max; step = p->step;
+        }
+        break; }
+    case OME_UINT32: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_UINT;
+        const OSD_UINT32_t *p = (const OSD_UINT32_t *)e->data;
+        if (p) {
+            min = (int32_t)p->min; max = (int32_t)p->max; step = (int32_t)p->step;
+        }
+        break; }
+    case OME_INT32: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_INT;
+        const OSD_INT32_t *p = (const OSD_INT32_t *)e->data;
+        if (p) {
+            min = p->min; max = p->max; step = p->step;
+        }
+        break; }
+    case OME_FLOAT: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_FLOAT;
+        const OSD_FLOAT_t *p = (const OSD_FLOAT_t *)e->data;
+        if (p) {
+            min = 0; max = 255; step = 1;
+            scale = p->multipler;
+        }
+        break; }
+    case OME_TAB: {
+        itemType = RF_CMS_ITEM_VALUE;
+        valType = RF_CMS_VAL_ENUM;
+        const OSD_TAB_t *p = (const OSD_TAB_t *)e->data;
+        if (p) {
+            min = 0; max = p->max; step = 1;
+        }
+        break; }
+    default:
+        itemType = RF_CMS_ITEM_ACTION;
+        valType = RF_CMS_VAL_NONE;
+        break;
+    }
+
+    if (outItemType) *outItemType = itemType;
+    if (outValType) *outValType = valType;
+    if (outMin) *outMin = min;
+    if (outMax) *outMax = max;
+    if (outStep) *outStep = step;
+    if (outScale) *outScale = scale;
+    if (outFlags) *outFlags = flags;
+    if (outSubmenuId) *outSubmenuId = submenuId;
+}
+
+static int32_t rfCmsGetValue(const OSD_Entry *e)
+{
+    if (!e) {
+        return 0;
+    }
+    const uint16_t t = e->flags & OSD_MENU_ELEMENT_MASK;
+    switch (t) {
+    case OME_Bool:
+        return e->data ? (*(uint8_t *)e->data ? 1 : 0) : 0;
+    case OME_UINT8: {
+        const OSD_UINT8_t *p = (const OSD_UINT8_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_INT8: {
+        const OSD_INT8_t *p = (const OSD_INT8_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_UINT16: {
+        const OSD_UINT16_t *p = (const OSD_UINT16_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_INT16: {
+        const OSD_INT16_t *p = (const OSD_INT16_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_UINT32: {
+        const OSD_UINT32_t *p = (const OSD_UINT32_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_INT32: {
+        const OSD_INT32_t *p = (const OSD_INT32_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_FLOAT: {
+        const OSD_FLOAT_t *p = (const OSD_FLOAT_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    case OME_TAB: {
+        const OSD_TAB_t *p = (const OSD_TAB_t *)e->data;
+        return (p && p->val) ? (int32_t)(*p->val) : 0; }
+    default:
+        return 0;
+    }
+}
+
+static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
+{
+    // result: 0 OK, 1 CLAMPED, 2 READONLY, 3 INVALID
+    if (applied) {
+        *applied = 0;
+    }
+    if (!e) {
+        return 3;
+    }
+
+    const uint16_t t = e->flags & OSD_MENU_ELEMENT_MASK;
+
+    // Clamp according to entry type
+    int32_t min = INT32_MIN, max = INT32_MAX;
+    int32_t av = v;
+    bool canWrite = true;
+
+    switch (t) {
+    case OME_Bool:
+        min = 0; max = 1;
+        break;
+    case OME_UINT8: {
+        const OSD_UINT8_t *p = (const OSD_UINT8_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = p->min; max = p->max;
+        break; }
+    case OME_INT8: {
+        const OSD_INT8_t *p = (const OSD_INT8_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = p->min; max = p->max;
+        break; }
+    case OME_UINT16: {
+        const OSD_UINT16_t *p = (const OSD_UINT16_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = p->min; max = p->max;
+        break; }
+    case OME_INT16: {
+        const OSD_INT16_t *p = (const OSD_INT16_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = p->min; max = p->max;
+        break; }
+    case OME_UINT32: {
+        const OSD_UINT32_t *p = (const OSD_UINT32_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = (int32_t)p->min; max = (int32_t)p->max;
+        break; }
+    case OME_INT32: {
+        const OSD_INT32_t *p = (const OSD_INT32_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = p->min; max = p->max;
+        break; }
+    case OME_FLOAT: {
+        const OSD_FLOAT_t *p = (const OSD_FLOAT_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = 0; max = 255;
+        break; }
+    case OME_TAB: {
+        const OSD_TAB_t *p = (const OSD_TAB_t *)e->data;
+        if (!p || !p->val) return 3;
+        min = 0; max = p->max;
+        break; }
+    default:
+        canWrite = false;
+        break;
+    }
+
+    if (!canWrite) {
+        return 3;
+    }
+
+    uint8_t result = 0;
+    if (av < min) { av = min; result = 1; }
+    if (av > max) { av = max; result = 1; }
+
+    // Apply
+    switch (t) {
+    case OME_Bool:
+        *(uint8_t *)e->data = av ? 1 : 0;
+        break;
+    case OME_UINT8: {
+        OSD_UINT8_t *p = (OSD_UINT8_t *)e->data;
+        *p->val = (uint8_t)av;
+        break; }
+    case OME_INT8: {
+        OSD_INT8_t *p = (OSD_INT8_t *)e->data;
+        *p->val = (int8_t)av;
+        break; }
+    case OME_UINT16: {
+        OSD_UINT16_t *p = (OSD_UINT16_t *)e->data;
+        *p->val = (uint16_t)av;
+        break; }
+    case OME_INT16: {
+        OSD_INT16_t *p = (OSD_INT16_t *)e->data;
+        *p->val = (int16_t)av;
+        break; }
+    case OME_UINT32: {
+        OSD_UINT32_t *p = (OSD_UINT32_t *)e->data;
+        *p->val = (uint32_t)av;
+        break; }
+    case OME_INT32: {
+        OSD_INT32_t *p = (OSD_INT32_t *)e->data;
+        *p->val = (int32_t)av;
+        break; }
+    case OME_FLOAT: {
+        OSD_FLOAT_t *p = (OSD_FLOAT_t *)e->data;
+        *p->val = (uint8_t)av;
+        break; }
+    case OME_TAB: {
+        OSD_TAB_t *p = (OSD_TAB_t *)e->data;
+        *p->val = (uint8_t)av;
+        break; }
+    default:
+        return 3;
+    }
+
+    // Invoke existing callbacks using the same conventions as CMS editing.
+    if (e->func) {
+        switch (t) {
+        case OME_TAB:
+            e->func(pCurrentDisplay, e->data);
+            break;
+        case OME_Bool:
+            // Bool callbacks (if any) typically take entry pointer
+            e->func(pCurrentDisplay, e);
+            break;
+        default:
+            e->func(pCurrentDisplay, e);
+            break;
+        }
+    }
+
+    if (applied) {
+        *applied = av;
+    }
+    return result;
+}
+
+#endif // USE_CMS
 
 // TODO: Remove the pragma once this is called from unconditional code
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -2062,6 +2514,451 @@ void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
     switch (cmdMSP) {
+#ifdef USE_CMS
+    case MSP2_RF_CMS_INFO:
+        if (!featureIsEnabled(FEATURE_CMS)) {
+            return MSP_RESULT_ERROR;
+        }
+        // Reset session registry and return basic schema information
+        rfCmsRegistryReset();
+
+        sbufWriteU8(dst, 1);      // schema major
+        sbufWriteU8(dst, 1);      // schema minor
+        sbufWriteU16(dst, rfCmsMenuGen);
+        sbufWriteU16(dst, 1);     // root_menu_id (registry slot for cmsx_menuMain)
+        // caps: bit0 = read-only when armed, bit3 = supports actions,
+        // bit4 = supports STR_GET, bit5 = supports VALUE_META_GET,
+        // bit6 = supports SAVE+EXIT, bit7 = supports SAVE_NOEXIT
+        sbufWriteU16(dst, (1U << 0) | (1U << 3) | (1U << 4) | (1U << 5) | (1U << 6) | (1U << 7));
+        sbufWriteU8(dst, 12);     // max_page_items_hint
+        sbufWriteU16(dst, 31);    // max_label_len_hint
+        break;
+
+    case MSP2_RF_CMS_MENU_GET:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            // Request: menuId(u16), startIndex(u8), maxItems(u8), options(u8)
+            if (sbufBytesRemaining(src) < 5) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            uint8_t startIndex = sbufReadU8(src);
+            uint8_t maxItems = sbufReadU8(src);
+            const uint8_t options = sbufReadU8(src);
+ 
+
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+
+            // options bit0: invoke menu onEnter hook (client should set when entering menu)
+            if ((options & 0x01) && startIndex == 0 && menu->onEnter) {
+                menu->onEnter(pCurrentDisplay);
+            }
+
+            const uint8_t total = rfCmsCountSelectable(menu);
+            if (maxItems == 0) {
+                maxItems = 8;
+            }
+            if (startIndex > total) {
+                startIndex = total;
+            }
+
+            // Hard cap for CMS menu replies (fits narrow telemetry tunnels)
+            // 56 bytes is intentionally conservative.
+            enum { RF_CMS_MSP_REPLY_CAP = 56 };
+
+            // Track how many bytes we've written for this reply
+            uint8_t *replyStart = sbufPtr(dst);
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, startIndex);
+            sbufWriteU8(dst, maxItems);
+            sbufWriteU8(dst, total);
+            // returned_items placeholder; we will backfill after we know how many fit
+            uint8_t *returnedPtr = sbufPtr(dst);
+            sbufWriteU8(dst, 0);
+
+            // Title (length-prefixed string) — truncate aggressively to preserve room for at least 1 item.
+            const char *title = rfCmsMenuTitle(menu);
+            size_t titleLen = strlen(title);
+            if (titleLen > 12u) {
+                titleLen = 12u;
+            }
+            // Also respect remaining cap
+            {
+                const uint16_t used = (uint16_t)(sbufPtr(dst) - replyStart);
+                if (used < RF_CMS_MSP_REPLY_CAP) {
+                    uint16_t capLeft = (uint16_t)(RF_CMS_MSP_REPLY_CAP - used);
+                    // need 1 byte for length prefix
+                    if (capLeft <= 1u) {
+                        titleLen = 0u;
+                    } else {
+                        uint16_t maxTitleByCap = (uint16_t)(capLeft - 1u);
+                        if (titleLen > (size_t)maxTitleByCap) {
+                            titleLen = (size_t)maxTitleByCap;
+                        }
+                    }
+                } else {
+                    titleLen = 0u;
+                }
+            }
+            sbufWriteU8(dst, (uint8_t)titleLen);
+            if (titleLen) {
+                sbufWriteData(dst, title, (int)titleLen);
+            }
+
+            // Write items until:
+            //  - we hit requested maxItems, OR
+            //  - we hit RF_CMS_MSP_REPLY_CAP
+            uint8_t returned = 0;
+            for (uint16_t off = 0; off < maxItems; off++) {
+                const uint16_t idx16 = (uint16_t)startIndex + off;
+                if (idx16 >= total) {
+                    break;
+                }
+
+                const uint8_t itemIndex = (uint8_t)idx16;
+                const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+                if (!e) {
+                    break;
+                }
+
+                rfCmsItemType_e itemType;
+                rfCmsValueType_e valType;
+                uint16_t eflags;
+                uint16_t submenuId;
+                rfCmsEntryMeta(e, &itemType, &valType, NULL, NULL, NULL, NULL, &eflags, &submenuId);
+
+                // Slim wire format (schema minor 1):
+                //  index(1) + itemType(1) + valType(1) + flags(2) + submenuId(2)
+                //  + labelLen(1) + labelBytes(n)
+                const uint16_t fixed = (uint16_t)(1 + 1 + 1 + 2 + 2 + 1);
+
+                const uint16_t used = (uint16_t)(sbufPtr(dst) - replyStart);
+                if (used + fixed > RF_CMS_MSP_REPLY_CAP) {
+                    break;
+                }
+
+                const char *label = e->text ? e->text : "";
+                size_t labLenSz = strlen(label);
+                // keep short labels in MENU_GET; full labels via STR_GET
+                if (labLenSz > 15u) {
+                    labLenSz = 15u;
+                }
+                if (labLenSz > 255u) {
+                    labLenSz = 255u;
+                }
+                const uint8_t labLen = (uint8_t)labLenSz;
+                const uint16_t need = (uint16_t)(fixed + labLen);
+
+                // If this item doesn't fit, stop and let the client request the next page
+                if (used + need > RF_CMS_MSP_REPLY_CAP) {
+                    break;
+                }
+
+                // Also ensure real sbuf space exists (belt & braces)
+                if (sbufBytesRemaining(dst) < (int)need) {
+                    break;
+                }
+
+                sbufWriteU8(dst, itemIndex);
+                sbufWriteU8(dst, (uint8_t)itemType);
+                sbufWriteU8(dst, (uint8_t)valType);
+                sbufWriteU16(dst, eflags);
+                sbufWriteU16(dst, submenuId);
+
+                // Label (length-prefixed, but truncated to fit cap)
+                sbufWriteU8(dst, labLen);
+                if (labLen) {
+                    sbufWriteData(dst, label, (int)labLen);
+                }
+
+                returned++;
+                if (returned == 0) { // impossible, but prevents compiler weirdness
+                    break;
+                }
+            }
+            
+            
+            // Backfill returned_items
+            *returnedPtr = returned;        
+        }
+        break;
+
+    case MSP2_RF_CMS_VALUE_GET:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            if (sbufBytesRemaining(src) < 3) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const uint8_t itemIndex = sbufReadU8(src);
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+            const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+            if (!e) {
+                return MSP_RESULT_ERROR;
+            }
+            rfCmsItemType_e itemType;
+            rfCmsValueType_e valType;
+            int32_t vmin, vmax, vstep, vscale;
+            uint16_t eflags;
+            uint16_t submenuId;
+            rfCmsEntryMeta(e, &itemType, &valType, &vmin, &vmax, &vstep, &vscale, &eflags, &submenuId);
+            UNUSED(itemType);
+            UNUSED(submenuId);
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, itemIndex);
+            sbufWriteU32(dst, (uint32_t)rfCmsGetValue(e));
+            sbufWriteU16(dst, eflags);
+        }
+        break;
+
+    case MSP2_RF_CMS_VALUE_SET:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            if (sbufBytesRemaining(src) < 7) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const uint8_t itemIndex = sbufReadU8(src);
+            const int32_t requested = (int32_t)sbufReadU32(src);
+
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+            const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+            if (!e) {
+                return MSP_RESULT_ERROR;
+            }
+
+            rfCmsItemType_e itemType;
+            rfCmsValueType_e valType;
+            int32_t vmin, vmax, vstep, vscale;
+            uint16_t eflags;
+            uint16_t submenuId;
+            rfCmsEntryMeta(e, &itemType, &valType, &vmin, &vmax, &vstep, &vscale, &eflags, &submenuId);
+
+            uint8_t result = 0;
+            int32_t applied = 0;
+
+            // Respect safety: do not allow CMS writes while armed.
+            if (ARMING_FLAG(ARMED)) {
+                result = 4; // BUSY/ARMED
+                applied = rfCmsGetValue(e);
+            } else {
+                result = rfCmsSetValue(e, requested, &applied);
+            }
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, itemIndex);
+            sbufWriteU32(dst, (uint32_t)applied);
+            sbufWriteU8(dst, result);
+            sbufWriteU16(dst, eflags);
+        }
+        break;
+
+    case MSP2_RF_CMS_ACTION:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            if (sbufBytesRemaining(src) < 5) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const uint8_t itemIndex = sbufReadU8(src);
+            (void)sbufReadU16(src); // param (reserved)
+
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+            const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+            if (!e) {
+                return MSP_RESULT_ERROR;
+            }
+
+            uint8_t result = 0;
+            uint16_t flags = 0;
+            if (e->flags & REBOOT_REQUIRED) {
+                flags |= REBOOT_REQUIRED;
+            }
+
+            if (ARMING_FLAG(ARMED)) {
+                result = 4; // BUSY/ARMED
+            } else {
+                const uint16_t t = e->flags & OSD_MENU_ELEMENT_MASK;
+                if (t == OME_Funcall || t == OME_OSD_Exit) {
+                    if (e->func) {
+                        // Funcall handlers vary; follow CMS conventions by passing entry pointer.
+                        e->func(pCurrentDisplay, e);
+                    }
+                    result = 0;
+                } else if (t == OME_Submenu) {
+                    // Submenu navigation is handled by the client using submenuId from MENU_GET.
+                    result = 0;
+                } else if (t == OME_Back) {
+                    result = 0;
+                } else {
+                    result = 3; // INVALID
+                }
+            }
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, itemIndex);
+            sbufWriteU8(dst, result);
+            sbufWriteU16(dst, flags);
+        }
+        break;
+
+    case MSP2_RF_CMS_STR_GET:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            // Request: menuId(u16), itemIndex(u8)
+            // itemIndex 0xFF returns menu title.
+            if (sbufBytesRemaining(src) < 3) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const uint8_t itemIndex = sbufReadU8(src);
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const char *str = "";
+            if (itemIndex == 0xFF) {
+                str = rfCmsMenuTitle(menu);
+            } else {
+                const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+                if (!e) {
+                    return MSP_RESULT_ERROR;
+                }
+                str = e->text ? e->text : "";
+            }
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, itemIndex);
+            uint16_t len = (uint16_t)strlen(str);
+            if (len > 255u) {
+                len = 255u;
+            }
+            sbufWriteU8(dst, (uint8_t)len);
+            if (len) {
+                sbufWriteData(dst, str, (int)len);
+            }
+        }
+        break;
+
+    case MSP2_RF_CMS_VALUE_META_GET:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            // Request: menuId(u16), itemIndex(u8)
+            if (sbufBytesRemaining(src) < 3) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const uint8_t itemIndex = sbufReadU8(src);
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+            const OSD_Entry *e = rfCmsFindEntryByIndex(menu, itemIndex);
+            if (!e) {
+                return MSP_RESULT_ERROR;
+            }
+
+            rfCmsItemType_e itemType;
+            rfCmsValueType_e valType;
+            int32_t vmin, vmax, vstep, vscale;
+            uint16_t eflags;
+            uint16_t submenuId;
+            rfCmsEntryMeta(e, &itemType, &valType, &vmin, &vmax, &vstep, &vscale, &eflags, &submenuId);
+
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, menuId);
+            sbufWriteU8(dst, itemIndex);
+            sbufWriteU8(dst, (uint8_t)valType);
+            sbufWriteU32(dst, (uint32_t)vmin);
+            sbufWriteU32(dst, (uint32_t)vmax);
+            sbufWriteU32(dst, (uint32_t)vstep);
+            sbufWriteU32(dst, (uint32_t)vscale);
+            sbufWriteU16(dst, eflags);
+        }
+        break;
+
+    case MSP2_RF_CMS_SAVE:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            // Save config and exit CMS (equivalent to SAVE&EXIT)
+            uint8_t result = 0;
+            if (ARMING_FLAG(ARMED)) {
+                result = 4; // BUSY/ARMED
+            } else {
+                cmsMenuExit(pCurrentDisplay, (void *)CMS_POPUP_SAVE);
+                result = 0;
+            }
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU8(dst, result);
+        }
+        break;
+
+    case MSP2_RF_CMS_SAVE_NOEXIT:
+        {
+            if (!featureIsEnabled(FEATURE_CMS)) {
+                return MSP_RESULT_ERROR;
+            }
+            // Save config without exiting CMS.
+            // Request: menuId(u16) - menu whose onExit should be invoked for writeback.
+            if (sbufBytesRemaining(src) < 2) {
+                return MSP_RESULT_ERROR;
+            }
+            const uint16_t menuId = sbufReadU16(src);
+            const CMS_Menu *menu = rfCmsRegistryGetMenu(menuId);
+            if (!menu) {
+                return MSP_RESULT_ERROR;
+            }
+            uint8_t result = 0;
+            if (ARMING_FLAG(ARMED)) {
+                result = 4; // BUSY/ARMED
+            } else {
+                // Ensure writeback for the current menu.
+                if (menu->onExit) {
+                    menu->onExit(pCurrentDisplay, (OSD_Entry *)NULL);
+                }
+                cmsSaveConfigInMenu(pCurrentDisplay);
+                result = 0;
+            }
+            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU8(dst, result);
+        }
+        break;
+#endif
+
 #ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1) {

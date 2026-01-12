@@ -52,6 +52,7 @@ bool cmsDisplayPortSelect(displayPort_t *instance);
 void cmsMenuOpen(void);
 const void *cmsMenuChange(displayPort_t *pPort, const void *ptr);
 const void *cmsMenuExit(displayPort_t *pPort, const void *ptr);
+void cmsSaveConfigInMenu(displayPort_t *pDisplay);
 void cmsSetExternKey(cms_key_e extKey);
 void inhibitSaveMenu(void);
 void cmsAddMenuEntry(OSD_Entry *menuEntry, char *text, uint16_t flags, CMSEntryFuncPtr func, void *data);
@@ -67,4 +68,3 @@ void cmsAddMenuEntry(OSD_Entry *menuEntry, char *text, uint16_t flags, CMSEntryF
 #define CMS_POPUP_SAVE       (3)
 #define CMS_POPUP_SAVEREBOOT (4)
 #define CMS_POPUP_EXITREBOOT (5)
-

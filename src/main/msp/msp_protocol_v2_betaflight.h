@@ -24,3 +24,15 @@
 #define MSP2_SEND_DSHOT_COMMAND             0x3003
 #define MSP2_GET_VTX_DEVICE_STATUS          0x3004
 #define MSP2_GET_OSD_WARNINGS               0x3005  // returns active OSD warning message text
+
+// Rotorflight-specific (high ID range)
+// CMS-over-MSP (structured CMS menu export for radio-side renderers)
+#define MSP2_RF_CMS_INFO                    0x3100
+#define MSP2_RF_CMS_MENU_GET                0x3101
+#define MSP2_RF_CMS_VALUE_GET               0x3102
+#define MSP2_RF_CMS_VALUE_SET               0x3103
+#define MSP2_RF_CMS_ACTION                  0x3104
+#define MSP2_RF_CMS_STR_GET                 0x3105 
+#define MSP2_RF_CMS_VALUE_META_GET          0x3106 
+#define MSP2_RF_CMS_SAVE                    0x3107
+#define MSP2_RF_CMS_SAVE_NOEXIT             0x3108

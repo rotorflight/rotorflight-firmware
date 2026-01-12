@@ -956,6 +956,25 @@ static void cmsTraverseGlobalExit(const CMS_Menu *pMenu)
 
 }
 
+void cmsSaveConfigInMenu(displayPort_t *pDisplay)
+{
+    // Save current CMS state without exiting the menu.
+    cmsTraverseGlobalExit(&cmsx_menuMain);
+
+    if (currentCtx.menu && currentCtx.menu->onExit) {
+        currentCtx.menu->onExit(pDisplay, (OSD_Entry *)NULL); // Forced save/writeback
+    }
+
+    // Traverse through the menu stack and call their onExit functions
+    for (int i = menuStackIdx - 1; i >= 0; i--) {
+        if (menuStack[i].menu->onExit) {
+            menuStack[i].menu->onExit(pDisplay, (OSD_Entry *)NULL);
+        }
+    }
+
+    saveConfigAndNotify();
+}
+
 const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
 {
     int exitType = (int)ptr;
