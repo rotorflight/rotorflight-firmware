@@ -1733,7 +1733,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #endif
 
 #ifdef USE_FBUS_MASTER
-    case MSP_FBUS_MASTER_CONFIG:
+    case MSP_GET_FBUS_MASTER_CONFIG:
         for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
             sbufWriteU8(dst, fbusMasterConfigMutable()->sourceType[i]);
             sbufWriteU8(dst, fbusMasterConfigMutable()->sourceIndex[i]);
@@ -2122,7 +2122,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
         break;
 #ifdef USE_FBUS_MASTER
-    case MSP_FBUS_MASTER_CONFIG_CHANNEL:
+    case MSP_GET_FBUS_MASTER_CHANNEL:
         {
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
@@ -3477,10 +3477,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
 #ifdef USE_FBUS_MASTER
-    case MSP_SET_FBUS_MASTER_CONFIG: {
-        // Write format is customized for the size and responsiveness.
-        // The first byte will be the target output channel index (0-based).
-        // The following bytes will be the type/index/low/high for that channel.
+    case MSP_SET_FBUS_MASTER_CHANNEL: {
         if (sbufBytesRemaining(src) >= 1) {
             uint8_t index = sbufReadU8(src);
             if (index < FBUS_MASTER_CHANNELS && sbufBytesRemaining(src) >= 6) {
