@@ -52,6 +52,17 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
+### MSP_GET_MIXER_INPUT 
+
+Add msp call to allow retrieving a single mixer line at a time (#361)
+
+### MSP_GET_ADJUSTMENT_RANGE
+
+Add msp call to allow retrieving a single adjustment line at a time (#362)
+
+### MSP_SET_SERVO_CENTER 
+
+Add msp call to set just the servo center point (#366)
 
 ## CLI Changes
 
