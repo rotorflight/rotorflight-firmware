@@ -52,6 +52,10 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
+### MSP_GET_SBUS_OUTPUT_CONFIG
+
+Allow querying a single sbus servo via msp
+
 
 ## CLI Changes
 
