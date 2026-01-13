@@ -207,6 +207,7 @@
 #define MSP_UID                              160
 #define MSP_FBUS_MASTER_CONFIG               161
 #define MSP_SET_FBUS_MASTER_CONFIG           162
+#define MSP_FBUS_MASTER_CONFIG_CHANNEL       163
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166

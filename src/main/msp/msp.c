@@ -2121,6 +2121,26 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             sbufWriteU16(dst, mixerInputs(i)->max);
         }
         break;
+#ifdef USE_FBUS_MASTER
+    case MSP_FBUS_MASTER_CONFIG_CHANNEL:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t channel = sbufReadU8(src);
+            if (channel >= FBUS_MASTER_CHANNELS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU8(dst, fbusMasterConfig()->sourceType[channel]);
+            sbufWriteU8(dst, fbusMasterConfig()->sourceIndex[channel]);
+            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeLow[channel]);
+            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeHigh[channel]);
+        }
+        break;
+#endif
     case MSP_GET_ADJUSTMENT_RANGE:
         {
             const int rem = sbufBytesRemaining(src);
