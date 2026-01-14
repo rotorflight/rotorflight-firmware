@@ -53,6 +53,10 @@ typedef struct sbusOutConfig_s {
 
     uint8_t pinSwap;
 
+    // When ON, the UART output is electrically inverted (S.Bus signal uses
+    // inverted logic). When OFF, the output is non-inverted.
+    uint8_t inverted;    
+
 } sbusOutConfig_t;
 
 PG_DECLARE(sbusOutConfig_t, sbusOutConfig);

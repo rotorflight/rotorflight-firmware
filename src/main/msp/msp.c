@@ -2016,7 +2016,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, governorConfig()->gov_recovery_time);
         sbufWriteU16(dst, governorConfig()->gov_throttle_hold_timeout);
         sbufWriteU16(dst, 0); // governorConfig()->gov_lost_headspeed_timeout
-        sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_timeout
+        sbufWriteU16(dst, governorConfig()->gov_autorotation_timeout);
         sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_bailout_time
         sbufWriteU16(dst, 0); // governorConfig()->gov_autorotation_min_entry_time
         sbufWriteU8(dst, governorConfig()->gov_handover_throttle);
@@ -2028,10 +2028,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, governorConfig()->gov_d_filter);
         sbufWriteU16(dst, governorConfig()->gov_spooldown_time);
         sbufWriteU8(dst, governorConfig()->gov_throttle_type);
-        sbufWriteS8(dst, governorConfig()->gov_idle_collective);
-        sbufWriteS8(dst, governorConfig()->gov_wot_collective);
+        sbufWriteS8(dst, 0);
+        sbufWriteS8(dst, 0);
         sbufWriteU8(dst, governorConfig()->gov_idle_throttle);
         sbufWriteU8(dst, governorConfig()->gov_auto_throttle);
+        for (int i=0; i<GOV_THROTTLE_CURVE_POINTS; i++)
+            sbufWriteU8(dst, governorConfig()->gov_bypass_throttle[i]);
         break;
 
     default:
@@ -2090,6 +2092,54 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_GET_MIXER_INPUT:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MIXER_INPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU16(dst, mixerInputs(i)->rate);
+            sbufWriteU16(dst, mixerInputs(i)->min);
+            sbufWriteU16(dst, mixerInputs(i)->max);
+        }
+        break;
+    case MSP_GET_ADJUSTMENT_RANGE:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+
+            if (i >= MAX_ADJUSTMENT_RANGE_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            // Serialize EXACTLY one entry using the same field order/encoding
+            // as the legacy MSP_ADJUSTMENT_RANGES response.
+            const adjustmentRange_t *adjRange = adjustmentRanges(i);
+
+            sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->enaChannel);
+            sbufWriteU8(dst, adjRange->enaRange.startStep);
+            sbufWriteU8(dst, adjRange->enaRange.endStep);
+            sbufWriteU8(dst, adjRange->adjChannel);
+            sbufWriteU8(dst, adjRange->adjRange1.startStep);
+            sbufWriteU8(dst, adjRange->adjRange1.endStep);
+            sbufWriteU8(dst, adjRange->adjRange2.startStep);
+            sbufWriteU8(dst, adjRange->adjRange2.endStep);
+            sbufWriteU16(dst, adjRange->adjMin);
+            sbufWriteU16(dst, adjRange->adjMax);
+            sbufWriteU8(dst, adjRange->adjStep);
+        }
+        break;        
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
@@ -2565,6 +2615,22 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         setServoOverride(i, sbufReadU16(src));
         break;
+
+    case MSP_SET_SERVO_CENTER:
+        // payload: U8 idx + U16 mid  => 3 bytes
+        if (dataSize != 1 + 2) {
+            return MSP_RESULT_ERROR;
+        }
+
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_SERVOS) {
+            return MSP_RESULT_ERROR;
+        }
+
+        servoParamsMutable(i)->mid = sbufReadU16(src);
+        break;
+
+
 #endif
 
     case MSP_SET_RESET_CURR_PID:
@@ -3499,7 +3565,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         governorConfigMutable()->gov_recovery_time = sbufReadU16(src);
         governorConfigMutable()->gov_throttle_hold_timeout = sbufReadU16(src);
         sbufReadU16(src); // governorConfigMutable()->gov_lost_headspeed_timeout
-        sbufReadU16(src); // governorConfigMutable()->gov_autorotation_timeout
+        governorConfigMutable()->gov_autorotation_timeout = sbufReadU16(src);
         sbufReadU16(src); // governorConfigMutable()->gov_autorotation_bailout_time
         sbufReadU16(src); // governorConfigMutable()->gov_autorotation_min_entry_time
         governorConfigMutable()->gov_handover_throttle = sbufReadU8(src);
@@ -3514,10 +3580,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             governorConfigMutable()->gov_d_filter = sbufReadU8(src);
             governorConfigMutable()->gov_spooldown_time = sbufReadU16(src);
             governorConfigMutable()->gov_throttle_type = sbufReadU8(src);
-            governorConfigMutable()->gov_idle_collective = sbufReadS8(src);
-            governorConfigMutable()->gov_wot_collective = sbufReadS8(src);
+            sbufReadS8(src);
+            sbufReadS8(src);
             governorConfigMutable()->gov_idle_throttle = sbufReadU8(src);
             governorConfigMutable()->gov_auto_throttle = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= GOV_THROTTLE_CURVE_POINTS) {
+            for (int i=0; i<GOV_THROTTLE_CURVE_POINTS; i++)
+                governorConfigMutable()->gov_bypass_throttle[i] = sbufReadU8(src);
         }
         break;
 
