@@ -35,6 +35,7 @@
 #include "platform.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
+#define GET_BIT(value, bit) ((value >> bit) & 1)
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -126,55 +127,51 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
     uint8_t crc = frskyCheckSum((uint8_t *)&(frame->c16.type), FBUS_MASTER_CONTROL_FRAME_PAYLOAD_SIZE);
     frame->c16.crc = crc;
 
-    switch (fbusMasterPayloadState)
-    {
-    case FBUS_MASTER_TELEMETRY:
-
-         memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
-        frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
-        switch (fbusMasterTelemetryState)
-        {
-        case FBUS_MASTER_SCAN_PHY_ID:
-            currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
-            if(currentPhysId > FBUS_MAX_PHYS_ID)
-            {
-                currentPhysId = 0;
-                scanCounter++;
-                if(scanCounter >= FBUS_MASTER_SCAN_COUNTER)
-                {
-                    scanCounter = 0;
-                    fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
+    switch (fbusMasterPayloadState) {
+        case FBUS_MASTER_TELEMETRY:
+            memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
+            frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+            
+            switch (fbusMasterTelemetryState) {
+                case FBUS_MASTER_SCAN_PHY_ID:
+                    currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
+                    if (currentPhysId > FBUS_MAX_PHYS_ID) {
+                        currentPhysId = 0;
+                        scanCounter++;
+                        if (scanCounter >= FBUS_MASTER_SCAN_COUNTER) {
+                            scanCounter = 0;
+                            fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
+                            break;
+                        }
+                    }
+        
+                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                    currentPhysId++;
                     break;
-                }
+                case FBUS_MASTER_QUERY_PHY_ID:
+                    currentPhysId = phsIdList[physIdCnt];
+                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                    physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+                    break;
+                
+                default:
+                    break;
             }
-
-            frame->downlink.phyID = currentPhysId;
-            frame->downlink.prim = FBUS_FRAME_ID_DATA;
-            currentPhysId++;
+    
+            smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
+            crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+            frame->downlink.crc = crc;
+    
             break;
-        case FBUS_MASTER_QUERY_PHY_ID:
-            currentPhysId = phsIdList[physIdCnt];
-            frame->downlink.phyID = currentPhysId;
-            frame->downlink.prim = FBUS_FRAME_ID_DATA;
-            physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+    
+        case FBUS_MASTER_OTA:
+            //ToDo
             break;
         
         default:
             break;
-        }
-
-        smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
-        crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
-        frame->downlink.crc = crc;
-
-        break;
-
-    case FBUS_MASTER_OTA:
-        //ToDo
-        break;
-    
-    default:
-        break;
     }
 
 }
@@ -184,7 +181,7 @@ void processDownlinkFrame(uint8_t *data)
     fbusMasterDownlink_t downlink;
     memcpy(&downlink, data, sizeof(downlink));
     uint8_t chkSum = frskyCheckSum((uint8_t *)&downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
-    if(chkSum == downlink.crc) {
+    if (chkSum == downlink.crc) {
         downlink.phyID = smartportMasterStripPhyIDCheckBits(downlink.phyID);
         if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID) {
             bool alreadyInList = false;
@@ -215,8 +212,8 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     if (readBytes >= FBUS_MASTER_BUFFER_SIZE) {
         //sync error
         readBytes = 0;
-    }else{
-        if(readBytes >= 10 && buffer[0] == FBUS_DOWNLINK_PAYLOAD_SIZE /*&& buffer[1] <= FBUS_MAX_PHYS_ID*/){
+    } else {
+        if (readBytes >= 10 && buffer[0] == FBUS_DOWNLINK_PAYLOAD_SIZE) {
             //process frame, reset readBytes
             processDownlinkFrame(buffer);
             readBytes = 0;
@@ -230,16 +227,16 @@ float fbusMasterGetChannelValue(uint8_t channel)
         fbusMasterConfig()->sourceType[channel];
     const uint8_t source_index = fbusMasterConfig()->sourceIndex[channel];
     switch (source_type) {
-    case SBUS_OUT_SOURCE_NONE:
-        return 0;
-    case SBUS_OUT_SOURCE_RX:
-        return sbusOutGetRX(source_index);
-    case SBUS_OUT_SOURCE_MIXER:
-        return sbusOutGetValueMixer(source_index);
-    case SBUS_OUT_SOURCE_SERVO:
-        return sbusOutGetServo(source_index);
-    case SBUS_OUT_SOURCE_MOTOR:
-        return sbusOutGetMotor(source_index);
+        case SBUS_OUT_SOURCE_NONE:
+            return 0;
+        case SBUS_OUT_SOURCE_RX:
+            return sbusOutGetRX(source_index);
+        case SBUS_OUT_SOURCE_MIXER:
+            return sbusOutGetValueMixer(source_index);
+        case SBUS_OUT_SOURCE_SERVO:
+            return sbusOutGetServo(source_index);
+        case SBUS_OUT_SOURCE_MOTOR:
+            return sbusOutGetMotor(source_index);
     }
     return 0;
 }
@@ -265,8 +262,9 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
         return;
 
     // Check TX Buff is free
-    if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t))
+    if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
         return;
+    }
 
     // Start sending.
     fbusMasterFrame_t frame;
@@ -283,12 +281,12 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     readBytes = 0;
 }
 
-bool fbusMasterIsEnabled() 
+bool fbusMasterIsEnabled(void) 
 { 
     return fbusMasterPort != NULL;
 }
 
-void fbusMasterInit()
+void fbusMasterInit(void)
 {
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_FBUS_MASTER);

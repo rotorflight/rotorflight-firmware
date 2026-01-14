@@ -102,7 +102,7 @@ STATIC_ASSERT(sizeof(fbusMasterControl16_t) == FBUS_MASTER_CONTROL_FRAME_SIZE,
 // Routine function called by the scheduler or timer
 void fbusMasterUpdate(timeUs_t currentTimeUs);
 
-bool fbusMasterIsEnabled();
+bool fbusMasterIsEnabled(void);
 
 // Init function
 void fbusMasterInit(void);
