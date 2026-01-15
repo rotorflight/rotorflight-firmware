@@ -694,9 +694,7 @@ void init(void)
 
 #ifdef USE_SBUS_OUTPUT
     sbusOutInit();
-#endif
-
-    
+#endif  
 
 #ifdef USE_FBUS_MASTER
     fbusMasterInit();
