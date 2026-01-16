@@ -679,7 +679,7 @@ void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32
     // When LFN is enabled, this holds the dir_entry index of the current "file
     // entry". The value is 1-based, meaning that it starts from priv.num_entry
     // and decrements to 1.
-    uint8_t entry_idx;
+    uint8_t entry_idx = 0;
 
     dir_entry *de;
     uint32_t avail;
