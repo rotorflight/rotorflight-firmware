@@ -162,8 +162,12 @@ typedef enum
     TELEM_DEBUG_6                       = 106,
     TELEM_DEBUG_7                       = 107,
 
-    TELEM_RPM                           = 108,
-    TELEM_TEMP                          = 109,
+    TELEM_STATS_TOTAL_FLIGHTS           = 108,
+    TELEM_STATS_TOTAL_TIME_S            = 109,
+    TELEM_STATS_TOTAL_DIST_M            = 110,
+
+    TELEM_RPM                           = 111,
+    TELEM_TEMP                          = 112,
 
     TELEM_SENSOR_COUNT
 

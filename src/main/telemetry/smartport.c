@@ -250,6 +250,10 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(DEBUG_5,                 0x52F5,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(DEBUG_6,                 0x52F6,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(DEBUG_7,                 0x52F8,   100,  3000,   1,  10,   0,    INT),
+
+    TLM_SENSOR(STATS_TOTAL_FLIGHTS,     0x5140,   200,  3000,   1,   1,   0,    INT),
+    TLM_SENSOR(STATS_TOTAL_TIME_S,      0x5141,   200,  3000,   1,   1,   0,    INT),
+    TLM_SENSOR(STATS_TOTAL_DIST_M,      0x5142,   200,  3000,   1,   1,   0,    INT),
 };
 
 

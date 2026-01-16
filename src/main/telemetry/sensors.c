@@ -29,6 +29,7 @@
 #include "pg/pg_ids.h"
 #include "pg/pilot.h"
 #include "pg/telemetry.h"
+#include "pg/stats.h"
 
 #include "build/debug.h"
 
@@ -336,6 +337,13 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debug[7];
 
+        case TELEM_STATS_TOTAL_FLIGHTS:
+            return statsConfig()->stats_total_flights;
+        case TELEM_STATS_TOTAL_TIME_S:
+            return statsConfig()->stats_total_time_s;
+        case TELEM_STATS_TOTAL_DIST_M:
+            return statsConfig()->stats_total_dist_m;
+
         default:
             return 0;
     }
@@ -494,6 +502,11 @@ bool telemetrySensorActive(sensor_id_e id)
             return false;
 
         case TELEM_ADJFUNC:
+            return true;
+
+        case TELEM_STATS_TOTAL_FLIGHTS:
+        case TELEM_STATS_TOTAL_TIME_S:
+        case TELEM_STATS_TOTAL_DIST_M:
             return true;
 
         case TELEM_DEBUG_0:
