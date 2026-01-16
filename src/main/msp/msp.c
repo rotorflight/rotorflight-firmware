@@ -2104,6 +2104,24 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_GET_SBUS_OUTPUT_CONFIG:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t index = sbufReadU8(src);
+            if (index >= SBUS_OUT_CHANNELS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[index]);
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[index]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[index]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[index]);
+        }
+        break;     
     case MSP_GET_MIXER_INPUT:
         {
             const int rem = sbufBytesRemaining(src);
