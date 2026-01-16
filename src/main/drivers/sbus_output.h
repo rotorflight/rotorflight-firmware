@@ -57,3 +57,8 @@ bool sbusOutIsEnabled();
 
 // Init function
 void sbusOutInit(void);
+
+float sbusOutGetRX(uint8_t channel);
+float sbusOutGetValueMixer(uint8_t channel);
+float sbusOutGetServo(uint8_t channel);
+float sbusOutGetMotor(uint8_t channel);
