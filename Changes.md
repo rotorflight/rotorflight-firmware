@@ -52,6 +52,18 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
+### MSP_GET_FBUS_MASTER_CONFIG
+
+New MSP command (161) to retrieve the FBUS Master configuration.
+
+### MSP_SET_FBUS_MASTER_CHANNEL
+
+New MSP command (162) to configure individual FBUS Master channel settings.
+
+### MSP_GET_FBUS_MASTER_CHANNEL
+
+New MSP command (163) to retrieve individual FBUS Master channel configuration.
+
 
 ## CLI Changes
 
@@ -102,6 +114,20 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
+`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (NONE=0, RX=1, MIXER=2, SERVO=3, MOTOR=4).
+
+`fbus_master_source_index` parameter added. Array of 16 uint8 values defining the source index (channel/rule/servo/motor index) for each FBUS Master channel.
+
+`fbus_master_source_range_high` parameter added. Array of 16 int16 values defining the high end of the source value range for mapping to FBUS output.
+
+`fbus_master_source_range_low` parameter added. Array of 16 int16 values defining the low end of the source value range for mapping to FBUS output.
+
+`fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
+
+`fbus_master_pinswap` parameter added (ON/OFF). Swaps TX/RX pins on the FBUS Master serial port.
+
+`fbus_master_inverted` parameter added (ON/OFF). Controls electrical inversion of the FBUS Master UART output.
+
 
 ## Defaults
 
@@ -114,6 +140,20 @@ the actual values are calculated automatically (#332).
 `rc_min_throttle` and `rc_max_throttle` defaults are changed to 0.
 
 `motor_poles` default is changed to 0,0,0,0.
+
+`fbus_master_source_type` defaults to RX (1) for all 16 channels.
+
+`fbus_master_source_index` defaults to sequential mapping (0-15) for all 16 channels.
+
+`fbus_master_source_range_low` defaults to 1000 for all 16 channels.
+
+`fbus_master_source_range_high` defaults to 2000 for all 16 channels.
+
+`fbus_master_frame_rate` defaults to 500 Hz.
+
+`fbus_master_pinswap` defaults to OFF (0).
+
+`fbus_master_inverted` defaults to ON (SERIAL_INVERTED), which is the standard for FBUS receivers.
 
 
 ## Features
