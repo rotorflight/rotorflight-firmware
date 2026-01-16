@@ -330,7 +330,16 @@ bool bmp581Detect(const bmp581Config_t *config, baroDev_t *baro)
 
     baro->calculate = bmp581Calculate;
 
-    while (busBusy(&baro->dev, NULL));
+    // Wait for bus with timeout to prevent indefinite hang
+    const uint32_t maxRetries = 100;
+    uint32_t retries = 0;
+    while (busBusy(&baro->dev, NULL)) {
+        if (++retries >= maxRetries) {
+            // Timeout - bus remained busy, detection failed
+            return false;
+        }
+        delayMicroseconds(10);
+    }
 
     return true;
 }
