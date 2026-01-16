@@ -52,6 +52,10 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
+### MSP_GET_SBUS_OUTPUT_CONFIG
+
+Allow querying a single sbus servo via msp (#372)
+
 ### MSP_GET_MIXER_INPUT 
 
 Add msp call to allow retrieving a single mixer line at a time (#361)
