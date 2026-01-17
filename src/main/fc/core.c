@@ -303,20 +303,25 @@ void updateArmingStatus(void)
             }
         }
 
+        bool rescueModeActive = IS_RC_MODE_ACTIVE(BOXRESCUE);
+
 #ifdef USE_GPS_RESCUE
+        rescueModeActive |= IS_RC_MODE_ACTIVE(BOXGPSRESCUE);
+
         if (gpsRescueIsConfigured()) {
             if (gpsRescueConfig()->allowArmingWithoutFix || STATE(GPS_FIX) || ARMING_FLAG(WAS_EVER_ARMED)) {
                 unsetArmingDisabled(ARMING_DISABLED_GPS);
             } else {
                 setArmingDisabled(ARMING_DISABLED_GPS);
             }
-            if (IS_RC_MODE_ACTIVE(BOXGPSRESCUE)) {
-                setArmingDisabled(ARMING_DISABLED_RESC);
-            } else {
-                unsetArmingDisabled(ARMING_DISABLED_RESC);
-            }
         }
 #endif
+
+        if (rescueModeActive) {
+            setArmingDisabled(ARMING_DISABLED_RESC);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_RESC);
+        }
 
 #ifdef USE_DSHOT_BITBANG
         if (isDshotBitbangActive(&motorConfig()->dev) && dshotBitbangGetStatus() != DSHOT_BITBANG_STATUS_OK) {
