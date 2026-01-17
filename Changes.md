@@ -68,7 +68,7 @@ New MSP command (163) to retrieve individual FBUS Master channel configuration.
 
 Allow querying a single sbus servo via msp (#372)
 
-### MSP_GET_MIXER_INPUT 
+### MSP_GET_MIXER_INPUT
 
 Add msp call to allow retrieving a single mixer line at a time (#361)
 
@@ -76,9 +76,14 @@ Add msp call to allow retrieving a single mixer line at a time (#361)
 
 Add msp call to allow retrieving a single adjustment line at a time (#362)
 
-### MSP_SET_SERVO_CENTER 
+### MSP_SET_SERVO_CENTER
 
 Add msp call to set just the servo center point (#366)
+
+### MSP_RC_TUNING
+
+The `cyclic_ring` parameter is added (#345).
+
 
 ## CLI Changes
 
@@ -143,6 +148,10 @@ the actual values are calculated automatically (#332).
 
 `fbus_master_inverted` parameter added (ON/OFF). Controls electrical inversion of the FBUS Master UART output.
 
+`rates_type` accepts `ROTORFLIGHT` (#345).
+
+`cyclic_ring` meaning is changed. The value indicates % of the max rate.
+
 
 ## Defaults
 
@@ -169,6 +178,10 @@ the actual values are calculated automatically (#332).
 `fbus_master_pinswap` defaults to OFF (0).
 
 `fbus_master_inverted` defaults to ON (SERIAL_INVERTED), which is the standard for FBUS receivers.
+
+`rates_type` default is changed to `ROTORFLIGHT`.
+
+`cyclic_ring` default is changed to 150%.
 
 
 ## Features
@@ -232,6 +245,11 @@ The current PID Mode 3 will be kept as-is for backward compatibility.
 ### Governor Refactoring (#314) (#343) (#353)
 
 The Governor has been refactored to accomodate I.C./nitro and other new features.
+
+### Rotorflight Rates (#345)
+
+A new Rates systems is added for helicopter applications. `ROTORFLIGHT` rates is
+controlled by three parameters: maximum rate, expo, and shape.
 
 
 ## Bug Fixes
