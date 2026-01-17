@@ -58,6 +58,7 @@ typedef struct
     float setpoint[4];
     float deflection[4];
 
+    bool  polarCoord;
     float ringLimit[2];
 
     float limited[4];
@@ -237,6 +238,8 @@ INIT_CODE void setpointInitProfile(void)
     difFilterUpdate(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
     pt1FilterUpdate(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
+    sp.polarCoord = currentControlRateProfile->cyclic_polar;
+
     if (currentControlRateProfile->cyclic_ring) {
         const float cyclicLimit = currentControlRateProfile->cyclic_ring / 100.0f;
         sp.ringLimit[FD_ROLL]  = applyRatesCurve(FD_ROLL, 1.0f)  * cyclicLimit;
@@ -324,19 +327,47 @@ void setpointUpdate(void)
 
         SP[axis] += difFilterApply(&sp.boostFilter[axis], SP[axis]) * sp.boostGain[axis];
         DEBUG_AXIS(SETPOINT, axis, 4, SP[axis]);
-
-        SP[axis] = applyRatesCurve(axis, SP[axis]);
-        DEBUG_AXIS(SETPOINT, axis, 5, SP[axis]);
     }
 
-    const float R = SP[FD_ROLL]  / sp.ringLimit[FD_ROLL];
-    const float P = SP[FD_PITCH] / sp.ringLimit[FD_PITCH];
-    const float C = sqrtf(sq(R) + sq(P));
+    if (sp.polarCoord) {
+        const float POLAR = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
+        const float RATES = fminf(applyRatesCurve(FD_PITCH, POLAR), sp.ringLimit[FD_PITCH]);
+        const float RATIO = (POLAR > 0.001f) ? RATES / POLAR : 0;
 
-    if (C > 1.0f) {
-        SP[FD_ROLL]  /= C;
-        SP[FD_PITCH] /= C;
+        SP[FD_ROLL] = SP[FD_ROLL] * RATIO;
+        SP[FD_PITCH] = SP[FD_PITCH] * RATIO;
+
+        DEBUG(POLAR_SP, 2, RATES);
+        DEBUG(POLAR_SP, 3, RATIO);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
     }
+    else {
+        SP[FD_ROLL] = applyRatesCurve(FD_ROLL, SP[FD_ROLL]);
+        SP[FD_PITCH] = applyRatesCurve(FD_PITCH, SP[FD_PITCH]);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
+
+        const float R = SP[FD_ROLL]  / sp.ringLimit[FD_ROLL];
+        const float P = SP[FD_PITCH] / sp.ringLimit[FD_PITCH];
+        const float C = sqrtf(sq(R) + sq(P));
+
+        if (C > 1.0f) {
+            SP[FD_ROLL]  /= C;
+            SP[FD_PITCH] /= C;
+        }
+    }
+
+    DEBUG(POLAR_SP, 0, SP[FD_ROLL]);
+    DEBUG(POLAR_SP, 1, SP[FD_PITCH]);
+
+    SP[FD_YAW] = applyRatesCurve(FD_YAW, SP[FD_YAW]);
+    DEBUG_AXIS(SETPOINT, FD_YAW, 5, SP[FD_YAW]);
+
+    SP[FD_COLL] = applyRatesCurve(FD_COLL, SP[FD_COLL]);
+    DEBUG_AXIS(SETPOINT, FD_COLL, 5, SP[FD_COLL]);
 
     for (int axis = 0; axis < 4; axis++) {
         sp.setpoint[axis] = SP[axis];
