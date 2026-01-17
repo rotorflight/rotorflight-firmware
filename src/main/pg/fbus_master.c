@@ -38,7 +38,7 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->pinSwap = 0;
 
     // Default to inverted F.Bus (normal for F.Bus receivers).
-    config->inverted = SERIAL_INVERTED;
+    config->inverted = 1;
 }
 
 #endif
