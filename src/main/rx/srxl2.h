@@ -16,3 +16,12 @@ bool srxl2TelemetryRequested(void);
 void srxl2InitializeFrame(struct sbuf_s *dst);
 void srxl2FinalizeFrame(struct sbuf_s *dst);
 void srxl2Bind(void);
+
+#ifdef USE_SERIALRX_SRXL2
+typedef struct {
+	uint32_t timestampUs;
+	uint8_t sensorId;
+	uint8_t secondaryId;
+	uint8_t payload[14];
+} srxl2TelemetryLogEntry_t;
+#endif

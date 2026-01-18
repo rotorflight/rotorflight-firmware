@@ -6438,6 +6438,166 @@ typedef struct {
 
 static void cliHelp(const char *cmdName, char *cmdline);
 
+#ifdef USE_SERIALRX_SRXL2
+static void cliSrxl2Debug(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    // Support subcommands: "srxl2 rxconfig" and "srxl2 runtime"
+    extern uint8_t busMasterDeviceId __attribute__((weak));
+    extern bool telemetryRequested __attribute__((weak));
+    extern char srxl2DebugMessage[];
+    extern char srxl2LastError[];
+
+    // rxConfig access and runtime state
+    extern rxRuntimeState_t rxRuntimeState;
+
+    // Trim leading spaces from cmdline
+    char *p = cmdline;
+    if (p) {
+        while (*p == ' ') p++;
+    }
+
+    if (p && strncasecmp(p, "rxconfig", 8) == 0) {
+        // Print rxConfig fields
+        const rxConfig_t *cfg = rxConfig();
+        if (!cfg) {
+            cliPrintLine("rxConfig: <NULL>");
+            return;
+        }
+        cliPrintLinef("RX config:");
+        cliPrintLinef("  serialrx_provider: %u", cfg->serialrx_provider);
+        cliPrintLinef("  serialrx_inverted: %u", cfg->serialrx_inverted);
+        cliPrintLinef("  halfDuplex: %u", cfg->halfDuplex);
+        cliPrintLinef("  pinSwap: %u", cfg->pinSwap);
+        cliPrintLinef("  rx_pulse_min: %u", cfg->rx_pulse_min);
+        cliPrintLinef("  rx_pulse_max: %u", cfg->rx_pulse_max);
+        cliPrintLinef("  rssi_channel: %u", cfg->rssi_channel);
+        cliPrintLinef("  rssi_scale: %u", cfg->rssi_scale);
+        cliPrintLinef("  rssi_invert: %u", cfg->rssi_invert);
+        cliPrintLinef("  rssi_offset: %d", cfg->rssi_offset);
+        cliPrintLinef("  rssi_src_frame_errors: %u", cfg->rssi_src_frame_errors);
+        cliPrintLinef("  rssi_src_frame_lpf_period: %u", cfg->rssi_src_frame_lpf_period);
+        cliPrintLinef("  spektrum_bind_pin_override_ioTag: %u", cfg->spektrum_bind_pin_override_ioTag);
+        cliPrintLinef("  spektrum_bind_plug_ioTag: %u", cfg->spektrum_bind_plug_ioTag);
+        cliPrintLinef("  spektrum_sat_bind: %u", cfg->spektrum_sat_bind);
+        cliPrintLinef("  spektrum_sat_bind_autoreset: %u", cfg->spektrum_sat_bind_autoreset);
+        cliPrintLinef("  srxl2_unit_id: %u", cfg->srxl2_unit_id);
+        cliPrintLinef("  srxl2_baud_fast: %u", cfg->srxl2_baud_fast);
+        cliPrintLinef("  sbus_baud_fast: %u", cfg->sbus_baud_fast);
+        cliPrintLinef("  crsf_use_rx_snr: %u", cfg->crsf_use_rx_snr);
+        cliPrintLinef("  crsf_use_negotiated_baud: %u", cfg->crsf_use_negotiated_baud);
+        // rcmap
+        cliPrint("  rcmap: ");
+        for (int i = 0; i < RX_MAPPABLE_CHANNEL_COUNT; i++) {
+            cliPrintf("%u", (unsigned)cfg->rcmap[i]);
+            if (i + 1 < RX_MAPPABLE_CHANNEL_COUNT) cliPrint(" ");
+        }
+        cliPrintLinefeed();
+        return;
+    }
+
+    if (p && strncasecmp(p, "runtime", 7) == 0) {
+        // Print rxRuntimeState
+        cliPrintLinef("RX runtime state:");
+        cliPrintLinef("  rxProvider: %u", (unsigned)rxRuntimeState.rxProvider);
+        cliPrintLinef("  serialrxProvider: %u", (unsigned)rxRuntimeState.serialrxProvider);
+        cliPrintLinef("  channelCount: %u", (unsigned)rxRuntimeState.channelCount);
+        cliPrintLinef("  rxRefreshRate: %u", (unsigned)rxRuntimeState.rxRefreshRate);
+        cliPrintLinef("  lastRcFrameTimeUs: %u", (unsigned)rxRuntimeState.lastRcFrameTimeUs);
+        cliPrintLinef("  channelData pointer: %p", rxRuntimeState.channelData);
+        cliPrintLinef("  frameData pointer: %p", rxRuntimeState.frameData);
+        // If channelData is present, print first few values
+        if (rxRuntimeState.channelData) {
+            cliPrint("  channelData[:8]: ");
+            for (int i = 0; i < 8 && i < (int)rxRuntimeState.channelCount; i++) {
+                cliPrintf("%u ", (unsigned)rxRuntimeState.channelData[i]);
+            }
+            cliPrintLinefeed();
+        }
+        return;
+    }
+
+    cliPrintLinef("Bus Master ID: 0x%02X", busMasterDeviceId);
+    cliPrintLinef("Telemetry Requested Now: %s", telemetryRequested ? "YES" : "NO");
+    cliPrintLinef("SRXL2 Status: %s", srxl2DebugMessage);
+    cliPrintLinef("Last Error: %s", srxl2LastError);
+
+}
+#endif
+
+#ifdef USE_SMART_ESC
+static void cliSmartEsc(const char *cmdName, char *cmdline)
+{
+    extern void smartescSetThrottleRateHz(uint32_t rateHz);
+    extern uint32_t smartescGetThrottleRateHz(void);
+    extern void smartescSetTelemetryIntervalFrames(uint8_t frames);
+    extern uint8_t smartescGetTelemetryIntervalFrames(void);
+    extern bool smartescTelemetryRequested(void);
+    extern bool smartescDriverIsReady(void);
+    
+    (void)cmdName;
+
+    if (cmdline) {
+        while (*cmdline == ' ') cmdline++;
+        if (*cmdline) {
+            if (strncasecmp(cmdline, "rate", 4) == 0) {
+                char *p = cmdline + 4;
+                while (*p == ' ') p++;
+                if (*p) {
+                    uint32_t rate = (uint32_t)atoi(p);
+                    if (rate == 0) {
+                        cliPrintLine("Rate must be > 0 Hz");
+                    } else {
+                        smartescSetThrottleRateHz(rate);
+                        const uint32_t effective = smartescGetThrottleRateHz();
+                        if (effective != rate) {
+                            cliPrintLinef("Throttle refresh set to %u Hz (clamped from %u)", effective, rate);
+                        } else {
+                            cliPrintLinef("Throttle refresh set to %u Hz", effective);
+                        }
+                    }
+                } else {
+                    const uint32_t effective = smartescGetThrottleRateHz();
+                    cliPrintLinef("Current throttle refresh: %u Hz", effective);
+                }
+                return;
+            }
+
+            if (strncasecmp(cmdline, "telem", 5) == 0) {
+                char *p = cmdline + 5;
+                while (*p == ' ') p++;
+                if (*p) {
+                    int interval = atoi(p);
+                    if (interval < 0 || interval > 255) {
+                        cliPrintLine("Interval must be between 0 and 255 frames");
+                    } else {
+                        smartescSetTelemetryIntervalFrames((uint8_t)interval);
+                        if (interval == 0) {
+                            cliPrintLine("Telemetry polling disabled");
+                        } else {
+                            cliPrintLinef("Telemetry requested every %d frame(s)", interval);
+                        }
+                    }
+                } else {
+                    cliPrintLinef("Telemetry interval: %u frame(s)", smartescGetTelemetryIntervalFrames());
+                }
+                return;
+            }
+        }
+    }
+
+    /* Print concise status: throttle refresh and telemetry rates */
+    {
+        const uint32_t throttleHz = smartescGetThrottleRateHz();
+        const uint8_t telemInterval = smartescGetTelemetryIntervalFrames();
+        const uint32_t telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
+        cliPrintLinef("SMART ESC driver ready: %s", smartescDriverIsReady() ? "YES" : "NO");
+        cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
+        cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
+    }
+}
+#endif
+
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
