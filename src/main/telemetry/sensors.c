@@ -40,6 +40,7 @@
 #include "sensors/esc_sensor.h"
 #include "sensors/adcinternal.h"
 #include "sensors/acceleration.h"
+#include "sensors/gyro.h"
 
 #include "flight/position.h"
 #include "flight/governor.h"
@@ -57,6 +58,67 @@
 #include "scheduler/scheduler.h"
 
 #include "telemetry/sensors.h"
+
+
+// -----------------------------------------------------------------------------
+// Vibration metric
+//
+// We expose 4 telemetry values: overall + roll/pitch/yaw.
+//
+// The intention is a lightweight, always-available "gyro noise" indicator that
+// can be exported as real telemetry sensors (ELRS custom telemetry + FrSky).
+//
+// Implementation notes:
+//  - We use the difference between raw (scaled) gyroADC and filtered gyroADCf as
+//    a proxy for high-frequency energy removed by the filter chain.
+//  - We apply a simple EMA so the value is stable at typical telemetry rates.
+//  - Units are "(deg/s) * 10" (deci-deg/s) to keep integer telemetry encoding.
+//
+// -----------------------------------------------------------------------------
+
+static float vibeEma[XYZ_AXIS_COUNT] = { 0, 0, 0 };
+static timeUs_t vibeLastUpdateUs = 0;
+
+static void updateVibrationEma(void)
+{
+    const timeUs_t now = micros();
+    if (!vibeLastUpdateUs) {
+        vibeLastUpdateUs = now;
+        return;
+    }
+
+    const timeUs_t dtUs = now - vibeLastUpdateUs;
+    vibeLastUpdateUs = now;
+
+    // Target smoothing time constant ~0.5s (tunable).
+    // alpha = dt / (tau + dt)
+    const float dt = (float)dtUs * 1e-6f;
+    const float tau = 0.50f;
+    const float alpha = dt / (tau + dt);
+
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        // "High frequency" component proxy
+        const float inst = fabsf(gyro.gyroADC[axis] - gyro.gyroADCf[axis]);
+        vibeEma[axis] += (inst - vibeEma[axis]) * alpha;
+    }
+}
+
+static int getVibrationAxisDeciDps(int axis)
+{
+    updateVibrationEma();
+    // deci-deg/s
+    return lrintf(vibeEma[axis] * 10.0f);
+}
+
+static int getVibrationOverallDeciDps(void)
+{
+    updateVibrationEma();
+    const float x = vibeEma[0];
+    const float y = vibeEma[1];
+    const float z = vibeEma[2];
+    const float mag = sqrtf(x * x + y * y + z * z);
+    return lrintf(mag * 10.0f);
+}
 
 
 /** Sensor functions **/
@@ -336,6 +398,15 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debug[7];
 
+        case TELEM_VIBE:
+            return getVibrationOverallDeciDps();
+        case TELEM_VIBE_ROLL:
+            return getVibrationAxisDeciDps(ROLL);
+        case TELEM_VIBE_PITCH:
+            return getVibrationAxisDeciDps(PITCH);
+        case TELEM_VIBE_YAW:
+            return getVibrationAxisDeciDps(YAW);
+
         default:
             return 0;
     }
@@ -505,6 +576,12 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_DEBUG_6:
         case TELEM_DEBUG_7:
             return debugMode;
+
+        case TELEM_VIBE:
+        case TELEM_VIBE_ROLL:
+        case TELEM_VIBE_PITCH:
+        case TELEM_VIBE_YAW:
+            return true;
 
         default:
             return false;

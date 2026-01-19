@@ -242,6 +242,11 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(ADJFUNC,                 0x5110,   200,  3000,   1,   1,   0,    AdjFunc),
     TLM_SENSOR(ADJFUNC,                 0x5111,   200,  3000,   1,   1,   0,    AdjValue),
 
+    TLM_SENSOR(VIBE,                    0x5142,   200,  3000,   1,  10,   0,    INT),
+    TLM_SENSOR(VIBE_ROLL,               0x5143,   200,  3000,   1,  10,   0,    INT),
+    TLM_SENSOR(VIBE_PITCH,              0x5144,   200,  3000,   1,  10,   0,    INT),
+    TLM_SENSOR(VIBE_YAW,                0x5145,   200,  3000,   1,  10,   0,    INT),
+
     TLM_SENSOR(DEBUG_0,                 0x52F0,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(DEBUG_1,                 0x52F1,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(DEBUG_2,                 0x52F2,   100,  3000,   1,  10,   0,    INT),

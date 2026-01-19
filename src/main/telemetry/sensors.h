@@ -165,6 +165,11 @@ typedef enum
     TELEM_RPM                           = 108,
     TELEM_TEMP                          = 109,
 
+    TELEM_VIBE                          = 110,
+    TELEM_VIBE_ROLL                     = 111,
+    TELEM_VIBE_PITCH                    = 112,
+    TELEM_VIBE_YAW                      = 113,
+
     TELEM_SENSOR_COUNT
 
 } sensor_id_e;
