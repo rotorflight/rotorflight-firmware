@@ -174,15 +174,11 @@
 // are already compensated and can be converted directly:
 // - Temperature: raw_data / 2^16 = temperature in °C
 // - Pressure: raw_data / 2^6 = pressure in Pa
-typedef struct bmp581_calib_param_s {
-    // Reserved for future use if needed
-    uint8_t reserved;
-} __attribute__((packed)) bmp581_calib_param_t;
 
 // Driver state
 static uint8_t bmp581_chip_id = 0;
-static uint32_t bmp581_up = 0;  // Uncompensated pressure
-static uint32_t bmp581_ut = 0;  // Uncompensated temperature
+uint32_t bmp581_up = 0;  // Uncompensated pressure (accessible for unit tests)
+int32_t bmp581_ut = 0;  // Uncompensated temperature (accessible for unit tests)
 static DMA_DATA_ZERO_INIT uint8_t sensor_data[BMP581_DATA_FRAME_SIZE];
 
 // Forward declarations
@@ -195,7 +191,7 @@ static bool bmp581ReadUP(baroDev_t *baro);
 STATIC_UNIT_TESTED void bmp581Calculate(int32_t *pressure, int32_t *temperature);
 
 // EXTI handler for data ready interrupt
-void bmp581_extiHandler(extiCallbackRec_t* cb)
+static void bmp581_extiHandler(extiCallbackRec_t* cb)
 {
 #ifdef DEBUG_BUILD
     static uint32_t bmp581ExtiCallbackCounter = 0;
@@ -210,7 +206,7 @@ void bmp581_extiHandler(extiCallbackRec_t* cb)
 }
 
 // Bus initialization
-void bmp581BusInit(const extDevice_t *dev)
+static void bmp581BusInit(const extDevice_t *dev)
 {
 #ifdef USE_BARO_SPI_BMP581
     if (dev->bus->busType == BUS_TYPE_SPI) {
@@ -226,7 +222,7 @@ void bmp581BusInit(const extDevice_t *dev)
 }
 
 // Bus deinitialization
-void bmp581BusDeinit(const extDevice_t *dev)
+static void bmp581BusDeinit(const extDevice_t *dev)
 {
 #ifdef USE_BARO_SPI_BMP581
     if (dev->bus->busType == BUS_TYPE_SPI) {
@@ -238,7 +234,7 @@ void bmp581BusDeinit(const extDevice_t *dev)
 }
 
 // Configure sensor mode (NORMAL or FORCED)
-void bmp581SetMode(const extDevice_t *dev, uint8_t powermode)
+static void bmp581SetMode(const extDevice_t *dev, uint8_t powermode)
 {
     uint8_t reg_data;
     
@@ -257,6 +253,7 @@ void bmp581SetMode(const extDevice_t *dev, uint8_t powermode)
 // Main detect function
 bool bmp581Detect(const bmp581Config_t *config, baroDev_t *baro)
 {
+    // wait for sensor power-up
     delay(20);
 
     // Initialize EOC pin if configured
@@ -383,7 +380,6 @@ static bool bmp581ReadUP(baroDev_t *baro)
         return false;
     }
 
-    // TODO: Implement actual data read based on datasheet
     busReadRegisterBufferStart(&baro->dev, BMP581_TEMP_DATA_XLSB_REG, sensor_data, BMP581_DATA_FRAME_SIZE);
 
     return true;
@@ -396,10 +392,15 @@ static bool bmp581GetUP(baroDev_t *baro)
         return false;
     }
 
-    // TODO: Extract pressure and temperature from sensor_data
-    // This is a placeholder implementation
+    // Assemble 24-bit values from sensor data
+    // Pressure is unsigned 24-bit
     bmp581_up = (uint32_t)sensor_data[5] << 16 | (uint32_t)sensor_data[4] << 8 | sensor_data[3];
-    bmp581_ut = (uint32_t)sensor_data[2] << 16 | (uint32_t)sensor_data[1] << 8 | sensor_data[0];
+    
+    // Temperature is signed 24-bit - assemble and sign-extend to 32-bit
+    uint32_t temp_raw = (uint32_t)sensor_data[2] << 16 | (uint32_t)sensor_data[1] << 8 | sensor_data[0];
+    // Sign extend from 24-bit to 32-bit: shift left 8 bits, then arithmetic shift right 8 bits
+    int32_t signed_temp = (int32_t)(temp_raw << 8) >> 8;
+    bmp581_ut = signed_temp;
 
     return true;
 }
@@ -408,17 +409,18 @@ static bool bmp581GetUP(baroDev_t *baro)
 STATIC_UNIT_TESTED void bmp581Calculate(int32_t *pressure, int32_t *temperature)
 {
     // BMP581 provides compensated values directly from the sensor
-    // Temperature: raw_data is 24-bit signed, divide by 2^16 (65536) to get °C
-    // Pressure: raw_data is 24-bit unsigned, divide by 2^6 (64) to get Pa
-    
-    // Convert 24-bit to signed int32
-    int32_t raw_temp = (int32_t)((bmp581_ut << 8) >> 8);
+    // Temperature: raw_data is 24-bit signed (already sign-extended in bmp581GetUP), divide by 2^16 to get °C
+    // Pressure: raw_data is 24-bit unsigned, divide by 2^6 to get Pa
     
     // Temperature in 0.01°C (fixed point, 2 decimal places)
-    *temperature = (int32_t)(((int64_t)raw_temp * 100) / 65536);
+    // Divide by 2^16 = right shift by 16, then multiply by 100
+    // To avoid overflow: (bmp581_ut * 100) >> 16
+    // This is safe because bmp581_ut is 24-bit signed (max ~8M), * 100 = ~800M, well within int32 range
+    *temperature = (bmp581_ut * 100) >> 16;
     
     // Pressure in Pa (integer)
-    *pressure = (int32_t)(bmp581_up / 64);
+    // Divide by 2^6 = right shift by 6
+    *pressure = (int32_t)(bmp581_up >> 6);
 }
 
 #endif /* USE_BARO && (USE_BARO_BMP581 || USE_BARO_SPI_BMP581) */
