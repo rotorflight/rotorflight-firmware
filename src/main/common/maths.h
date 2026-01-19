@@ -111,6 +111,16 @@ static inline float tan_approx(float x)
     __typeof__ (x) _x = (x); \
     _x * _x * _x * _x; })
 
+#define POWER5(x) \
+  __extension__ ({ \
+    __typeof__ (x) _x = (x); \
+    _x * _x * _x * _x * _x; })
+
+#define POWER6(x) \
+  __extension__ ({ \
+    __typeof__ (x) _x = (x); \
+    _x * _x * _x * _x * _x * _x; })
+
 #define MIN(a,b) \
   __extension__ ({ \
     __typeof__ (a) _a = (a); \
