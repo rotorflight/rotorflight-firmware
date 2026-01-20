@@ -177,8 +177,8 @@
 
 // Driver state
 static uint8_t bmp581_chip_id = 0;
-uint32_t bmp581_up = 0;  // Uncompensated pressure (accessible for unit tests)
-int32_t bmp581_ut = 0;  // Uncompensated temperature (accessible for unit tests)
+STATIC_UNIT_TESTED uint32_t bmp581_up = 0;  // Uncompensated pressure
+STATIC_UNIT_TESTED int32_t bmp581_ut = 0;  // Uncompensated temperature
 static DMA_DATA_ZERO_INIT uint8_t sensor_data[BMP581_DATA_FRAME_SIZE];
 
 // Forward declarations
