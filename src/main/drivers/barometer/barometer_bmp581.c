@@ -177,8 +177,8 @@
 
 // Driver state
 static uint8_t bmp581_chip_id = 0;
-STATIC_UNIT_TESTED uint32_t bmp581_up = 0;  // Uncompensated pressure
-STATIC_UNIT_TESTED int32_t bmp581_ut = 0;  // Uncompensated temperature
+static uint32_t bmp581_up = 0;  // Uncompensated pressure
+static int32_t bmp581_ut = 0;  // Uncompensated temperature
 static DMA_DATA_ZERO_INIT uint8_t sensor_data[BMP581_DATA_FRAME_SIZE];
 
 // Forward declarations
@@ -188,7 +188,7 @@ static bool bmp581ReadUT(baroDev_t *baro);
 static void bmp581StartUP(baroDev_t *baro);
 static bool bmp581GetUP(baroDev_t *baro);
 static bool bmp581ReadUP(baroDev_t *baro);
-STATIC_UNIT_TESTED void bmp581Calculate(int32_t *pressure, int32_t *temperature);
+static void bmp581Calculate(int32_t *pressure, int32_t *temperature);
 
 // EXTI handler for data ready interrupt
 static void bmp581_extiHandler(extiCallbackRec_t* cb)
@@ -397,16 +397,16 @@ static bool bmp581GetUP(baroDev_t *baro)
     bmp581_up = (uint32_t)sensor_data[5] << 16 | (uint32_t)sensor_data[4] << 8 | sensor_data[3];
     
     // Temperature is signed 24-bit - assemble and sign-extend to 32-bit
-    uint32_t temp_raw = (uint32_t)sensor_data[2] << 16 | (uint32_t)sensor_data[1] << 8 | sensor_data[0];
-    // Sign extend from 24-bit to 32-bit: shift left 8 bits, then arithmetic shift right 8 bits
-    int32_t signed_temp = (int32_t)(temp_raw << 8) >> 8;
-    bmp581_ut = signed_temp;
+    // move the sign bit to bit 31 by shifting left 8
+    int32_t temp = ((uint32_t)sensor_data[2] << 24) | ((uint32_t)sensor_data[1] << 16) | ((uint32_t)sensor_data[0] << 8);
+    // then arithmetic shift right 8 to sign-extend
+    bmp581_ut = temp >> 8;
 
     return true;
 }
 
 // Calculate compensated pressure and temperature
-STATIC_UNIT_TESTED void bmp581Calculate(int32_t *pressure, int32_t *temperature)
+static void bmp581Calculate(int32_t *pressure, int32_t *temperature)
 {
     // BMP581 provides compensated values directly from the sensor
     // Temperature: raw_data is 24-bit signed (already sign-extended in bmp581GetUP), divide by 2^16 to get °C
