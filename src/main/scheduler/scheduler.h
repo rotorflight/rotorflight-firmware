@@ -177,6 +177,10 @@ typedef enum {
 #ifdef USE_SBUS_OUTPUT
     TASK_SBUS_OUTPUT,
 #endif
+
+#ifdef USE_FBUS_MASTER
+    TASK_FBUS_MASTER,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 
