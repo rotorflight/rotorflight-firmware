@@ -52,6 +52,38 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
+### MSP_GET_FBUS_MASTER_CONFIG
+
+New MSP command (161) to retrieve the FBUS Master configuration.
+
+### MSP_SET_FBUS_MASTER_CHANNEL
+
+New MSP command (162) to configure individual FBUS Master channel settings.
+
+### MSP_GET_FBUS_MASTER_CHANNEL
+
+New MSP command (163) to retrieve individual FBUS Master channel configuration.
+
+### MSP_GET_SBUS_OUTPUT_CONFIG
+
+Allow querying a single sbus servo via msp (#372)
+
+### MSP_GET_MIXER_INPUT
+
+Add msp call to allow retrieving a single mixer line at a time (#361)
+
+### MSP_GET_ADJUSTMENT_RANGE
+
+Add msp call to allow retrieving a single adjustment line at a time (#362)
+
+### MSP_SET_SERVO_CENTER
+
+Add msp call to set just the servo center point (#366)
+
+### MSP_RC_TUNING
+
+The `cyclic_ring` parameter is added (#345).
+
 
 ## CLI Changes
 
@@ -102,6 +134,24 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
+`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (NONE=0, RX=1, MIXER=2, SERVO=3, MOTOR=4).
+
+`fbus_master_source_index` parameter added. Array of 16 uint8 values defining the source index (channel/rule/servo/motor index) for each FBUS Master channel.
+
+`fbus_master_source_range_high` parameter added. Array of 16 int16 values defining the high end of the source value range for mapping to FBUS output.
+
+`fbus_master_source_range_low` parameter added. Array of 16 int16 values defining the low end of the source value range for mapping to FBUS output.
+
+`fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
+
+`fbus_master_pinswap` parameter added (ON/OFF). Swaps TX/RX pins on the FBUS Master serial port.
+
+`fbus_master_inverted` parameter added (ON/OFF). Controls electrical inversion of the FBUS Master UART output.
+
+`rates_type` accepts `ROTORFLIGHT` (#345).
+
+`cyclic_ring` meaning is changed. The value indicates % of the max rate.
+
 
 ## Defaults
 
@@ -114,6 +164,24 @@ the actual values are calculated automatically (#332).
 `rc_min_throttle` and `rc_max_throttle` defaults are changed to 0.
 
 `motor_poles` default is changed to 0,0,0,0.
+
+`fbus_master_source_type` defaults to RX (1) for all 16 channels.
+
+`fbus_master_source_index` defaults to sequential mapping (0-15) for all 16 channels.
+
+`fbus_master_source_range_low` defaults to 1000 for all 16 channels.
+
+`fbus_master_source_range_high` defaults to 2000 for all 16 channels.
+
+`fbus_master_frame_rate` defaults to 500 Hz.
+
+`fbus_master_pinswap` defaults to OFF (0).
+
+`fbus_master_inverted` defaults to ON (SERIAL_INVERTED), which is the standard for FBUS receivers.
+
+`rates_type` default is changed to `ROTORFLIGHT`.
+
+`cyclic_ring` default is changed to 150%.
 
 
 ## Features
@@ -177,6 +245,11 @@ The current PID Mode 3 will be kept as-is for backward compatibility.
 ### Governor Refactoring (#314) (#343) (#353)
 
 The Governor has been refactored to accomodate I.C./nitro and other new features.
+
+### Rotorflight Rates (#345)
+
+A new Rates systems is added for helicopter applications. `ROTORFLIGHT` rates is
+controlled by three parameters: maximum rate, expo, and shape.
 
 
 ## Bug Fixes

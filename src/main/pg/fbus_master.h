@@ -20,21 +20,21 @@
 #include "common/utils.h"
 #include "pg/pg.h"
 
-#define SBUS_OUT_CHANNELS 18
+#define FBUS_MASTER_CHANNELS 16
 
 typedef enum {
-    SBUS_OUT_SOURCE_NONE = 0,
-    SBUS_OUT_SOURCE_RX = 1,
-    SBUS_OUT_SOURCE_MIXER = 2,
-    SBUS_OUT_SOURCE_SERVO = 3,
-    SBUS_OUT_SOURCE_MOTOR = 4
-} sbusOutSourceType_e;
+    FBUS_MASTER_SOURCE_NONE = 0,
+    FBUS_MASTER_SOURCE_RX = 1,
+    FBUS_MASTER_SOURCE_MIXER = 2,
+    FBUS_MASTER_SOURCE_SERVO = 3,
+    FBUS_MASTER_SOURCE_MOTOR = 4
+} fbusMasterSourceType_e;
 
-typedef struct sbusOutConfig_s {
-    uint8_t sourceType[SBUS_OUT_CHANNELS];
+typedef struct fbusMasterConfig_s {
+    uint8_t sourceType[FBUS_MASTER_CHANNELS];
 
     // channel index, rule index or servo index.
-    uint8_t sourceIndex[SBUS_OUT_CHANNELS];
+    uint8_t sourceIndex[FBUS_MASTER_CHANNELS];
 
     // The min max define how source values map to the sbus valuex for each
     // channel. The module maps source value [min, max] to sbus value [192,
@@ -44,19 +44,19 @@ typedef struct sbusOutConfig_s {
     //   * min = 1000, max = 2000 for wideband servo, or min = 500, max = 1000
     //   * min = 0, max = 1000 for motor (treat as 0 and +1.0f)
     //   for narrowband servo.
-    int16_t sourceRangeLow[SBUS_OUT_CHANNELS];
-    int16_t sourceRangeHigh[SBUS_OUT_CHANNELS];
+    int16_t sourceRangeLow[FBUS_MASTER_CHANNELS];
+    int16_t sourceRangeHigh[FBUS_MASTER_CHANNELS];
 
-    // SBus output frame rate in Hz, typically 50Hz. Your receiver may support
+    // SBus output frame rate in Hz, typically 144Hz. Your receiver may support
     // faster updates.
-    uint8_t frameRate;
+    uint16_t frameRate;
 
     uint8_t pinSwap;
 
-    // When ON, the UART output is electrically inverted (S.Bus signal uses
+    // When ON, the UART output is electrically inverted (F.Bus signal uses
     // inverted logic). When OFF, the output is non-inverted.
-    uint8_t inverted;    
+    uint8_t inverted;
 
-} sbusOutConfig_t;
+} fbusMasterConfig_t;
 
-PG_DECLARE(sbusOutConfig_t, sbusOutConfig);
+PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);

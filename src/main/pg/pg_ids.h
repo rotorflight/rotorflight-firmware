@@ -156,12 +156,13 @@
 #define PG_BETAFLIGHT_END           556
 
 // Rotorflight configuration
-#define PG_FREQ_SENSOR_CONFIG      1000
-#define PG_GOVERNOR_CONFIG         1001
-#define PG_GENERIC_MIXER_CONFIG    1002
-#define PG_GENERIC_MIXER_RULES     1003
-#define PG_GENERIC_MIXER_INPUTS    1004
-#define PG_DRIVER_SBUS_OUT_CONFIG  1005
+#define PG_FREQ_SENSOR_CONFIG        1000
+#define PG_GOVERNOR_CONFIG           1001
+#define PG_GENERIC_MIXER_CONFIG      1002
+#define PG_GENERIC_MIXER_RULES       1003
+#define PG_GENERIC_MIXER_INPUTS      1004
+#define PG_DRIVER_SBUS_OUT_CONFIG    1005
+#define PG_DRIVER_FBUS_MASTER_CONFIG 1006
 
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047

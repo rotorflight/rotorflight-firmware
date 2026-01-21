@@ -45,6 +45,7 @@
 #include "drivers/usb_io.h"
 #include "drivers/vtx_common.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 
 #include "config/config.h"
 #include "fc/core.h"
@@ -79,6 +80,7 @@
 #include "pg/rx.h"
 #include "pg/motor.h"
 #include "pg/sbus_output.h"
+#include "pg/fbus_master.h"
 
 #include "rx/rx.h"
 
@@ -421,6 +423,11 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     // 25Hz is the initial period. The actual period will be loaded from config.
     [TASK_SBUS_OUTPUT] = DEFINE_TASK("SBUS_OUTPUT", NULL, NULL, sbusOutUpdate, TASK_PERIOD_HZ(25), TASK_PRIORITY_MEDIUM),
 #endif
+
+#ifdef USE_FBUS_MASTER
+    // 144Hz is the initial period. The actual period will be loaded from config.
+    [TASK_FBUS_MASTER] = DEFINE_TASK("FBUS_MASTER", NULL, NULL, fbusMasterUpdate, TASK_PERIOD_HZ(144), TASK_PRIORITY_MEDIUM),
+#endif
 };
 
 task_t *getTask(unsigned taskId)
@@ -578,6 +585,11 @@ void tasksInit(void)
 #ifdef USE_SBUS_OUTPUT
     rescheduleTask(TASK_SBUS_OUTPUT, TASK_PERIOD_HZ(sbusOutConfig()->frameRate));
     setTaskEnabled(TASK_SBUS_OUTPUT, sbusOutIsEnabled());
+#endif
+
+#ifdef USE_FBUS_MASTER
+    rescheduleTask(TASK_FBUS_MASTER, TASK_PERIOD_HZ(fbusMasterConfig()->frameRate));
+    setTaskEnabled(TASK_FBUS_MASTER, fbusMasterIsEnabled());
 #endif
 
 }
