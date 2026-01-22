@@ -124,7 +124,7 @@ typedef enum {
     DEBUG_HS_OFFSET,
     DEBUG_HS_BLEED,
     DEBUG_GOV_MOTOR,
-    DEBUG_POLAR_SP,
+    DEBUG_POLAR_RATE,
     DEBUG_COUNT
 } debugType_e;
 

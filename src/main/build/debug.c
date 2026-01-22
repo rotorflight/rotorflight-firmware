@@ -113,5 +113,5 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(HS_OFFSET),
     DEBUG_NAME(HS_BLEED),
     DEBUG_NAME(GOV_MOTOR),
-    DEBUG_NAME(POLAR_SP),
+    DEBUG_NAME(POLAR_RATE),
 };
