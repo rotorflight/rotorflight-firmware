@@ -1386,7 +1386,10 @@ bool smartescGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t
 void validateAndFixSmartescConfig()
 {
     // Force half duplex
-    rxConfigMutable()->halfDuplex = true;
+    escSensorConfigMutable()->halfDuplex = true;
+
+    // Force SRXL2 protocol
+    escSensorConfigMutable()->protocol = ESC_SENSOR_PROTO_SRXL2;
 
     // Clamp/repair persisted SMART ESC rate settings
     smartescConfig_t *cfg = smartescConfigMutable();
