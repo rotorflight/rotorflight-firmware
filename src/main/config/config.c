@@ -40,6 +40,7 @@
 #include "drivers/dshot_command.h"
 #include "drivers/motor.h"
 #include "drivers/system.h"
+#include "drivers/smart_esc.h"
 
 #include "fc/rc_rates.h"
 #include "fc/core.h"
@@ -315,12 +316,27 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()) {
+    /* If there is no dedicated ESC_SENSOR serial port and we're not using
+     * Castle PWM, normally disable the ESC sensor feature. However, allow
+     * the feature to remain configured when FEATURE_SMART_ESC is
+     * configured (SMART ESC provides telemetry over its own path).
+     */
+    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM() && !featureIsConfigured(FEATURE_SMART_ESC)) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
 
     if (featureIsConfigured(FEATURE_ESC_SENSOR)) {
         validateAndFixEscSensorConfig();
+    }
+#endif
+
+#if defined(USE_SMART_ESC)
+    if (!findSerialPortConfig(FUNCTION_SMART_ESC)) {
+        featureDisableImmediate(FEATURE_SMART_ESC);
+    }
+
+    if (featureIsConfigured(FEATURE_SMART_ESC)) {
+        validateAndFixSmartescConfig();
     }
 #endif
 
@@ -600,7 +616,7 @@ void validateAndFixGyroConfig(void)
         if (motorUpdateRestriction) {
             if (motorConfig()->dev.useUnsyncedPwm) {
                 if (!checkMotorProtocolDshot(&motorConfig()->dev)) {
-                    motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
+                        motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
                 }
             } else {
                 if (motorConfig()->dev.useDshotTelemetry) {

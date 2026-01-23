@@ -425,3 +425,18 @@ bool srxlRxIsActive(void)
 }
 
 #endif // SERIAL_RX
+
+#if defined(USE_TELEMETRY_SRXL)
+int spektrum_debug_telemetry_lenDM(void)
+{
+    return telemetryBufLen;
+}
+
+void spektrum_debug_force_flushDM(void)
+{
+    if (telemetryBufLen > 0 && serialPort) {
+        serialWriteBuf(serialPort, telemetryBuf, telemetryBufLen);
+        telemetryBufLen = 0;
+    }
+}
+#endif

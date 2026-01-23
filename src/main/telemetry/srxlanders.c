@@ -78,10 +78,9 @@
 #define SRXL_FRAMETYPE_TELE_FP_MAH  0x34
 #define SRXL_FRAMETYPE_VTX          0x0D   // Video Transmitter Status
 #define SRXL_FRAMETYPE_ESC          0x20   // Electronic Speed Control
+#define SRXL_FRAMETYPE_SID          0x00
 #define SRXL_FRAMETYPE_GPS_LOC      0x16   // GPS Location Data (Eagle Tree)
 #define SRXL_FRAMETYPE_GPS_STAT     0x17
-
-#define SRXL_FRAMETYPE_SID          0x00   // Secondary id. (Only 0x00 suppprted it seems, no support for multiple tlm frames/devices of the same type.)
 
 static bool srxlTelemetryEnabled;
 static bool srxl2 = false;
@@ -426,8 +425,6 @@ typedef struct
 
 bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-  if ( isBatteryCurrentConfigured() ) {
-
     uint16_t amps = getLegacyBatteryCurrent();
     uint16_t mah  = getBatteryCapacityUsed();
     static uint16_t sentAmps;
@@ -456,8 +453,7 @@ bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
         lastTimeSentFPmAh = currentTimeUs;
         return true;
     }
-  }
-  return false;
+    return false;
 }
 
 #ifdef USE_ESC_SENSOR_TELEMETRY
@@ -488,10 +484,10 @@ typedef struct
 
 bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    if ( isEscSensorActive()) {
+    static timeUs_t lastTimeSentFPmAh = 0;
+    timeUs_t keepAlive = currentTimeUs - lastTimeSentFPmAh;
 
-        static timeUs_t lastTimeSentEsc = 0;
-        timeUs_t keepAlive = currentTimeUs - lastTimeSentEsc;
+    if ( isEscSensorActive()) {
 
         uint8_t  iBec     = (uint8_t)(telemetrySensorValue(TELEM_ESC1_BEC_CURRENT) /100);
         uint16_t iMotor   = (uint16_t)(telemetrySensorValue(TELEM_ESC1_CURRENT)    / 10);
@@ -546,7 +542,7 @@ bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
             vBecSent     = vBec;
             throttleSent = throttle;
             powerOutSent = powerOut;
-            lastTimeSentEsc = currentTimeUs;
+            lastTimeSentFPmAh = currentTimeUs;
 
             return true;
         }
@@ -851,6 +847,12 @@ static void processSrxl(timeUs_t currentTimeUs)
 
     }
 
+    if (srxlFnPtr == srxlFrameFlightPackCurrent) {
+        if ( !isBatteryCurrentConfigured() ) {
+          srxlFnPtr = NULL;
+        }
+    }
+
     if (srxlFnPtr) {
         srxlInitializeFrame(dst);
         if (srxlFnPtr(dst, currentTimeUs)) {
@@ -906,21 +908,4 @@ void handleSrxlTelemetry(timeUs_t currentTimeUs)
       }
   }
 }
-#if defined(USE_TELEMETRY_SRXL)
-// Debug helpers callable from CLI (DM = delete me)
-bool srxl_debug_is_enabledDM(void)
-{
-    return srxlTelemetryEnabled;
-}
-
-bool srxl_debug_is_srxl2DM(void)
-{
-    return srxl2;
-}
-
-void srxlCollectTelemetryNowDM(void)
-{
-    processSrxl(micros());
-}
-#endif
 #endif

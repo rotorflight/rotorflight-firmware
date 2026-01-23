@@ -54,3 +54,8 @@ bool spektrumInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState);
 bool srxlTelemetryBufferEmpty();
 void srxlRxWriteTelemetryData(const void *data, int len);
 bool srxlRxIsActive(void);
+
+#if defined(USE_TELEMETRY_SRXL)
+int spektrum_debug_telemetry_len(void);
+void spektrum_debug_force_flush(void);
+#endif
