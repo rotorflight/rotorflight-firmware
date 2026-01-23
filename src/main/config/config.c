@@ -616,7 +616,7 @@ void validateAndFixGyroConfig(void)
         if (motorUpdateRestriction) {
             if (motorConfig()->dev.useUnsyncedPwm) {
                 if (!checkMotorProtocolDshot(&motorConfig()->dev)) {
-                        motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
+                    motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
                 }
             } else {
                 if (motorConfig()->dev.useDshotTelemetry) {
