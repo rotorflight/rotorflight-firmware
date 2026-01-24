@@ -34,7 +34,10 @@
 #include "drivers/sensor.h"
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/gyro_sync.h"
+#include "drivers/pwm_output.h"
+#include "drivers/io.h"
 
+#include "pg/gyrodev.h"
 
 bool gyroSyncCheckUpdate(gyroDev_t *gyro)
 {
@@ -162,3 +165,51 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     gyro->gyroSampleRateHz = gyroSampleRateHz;
     gyro->accSampleRateHz = accSampleRateHz;
 }
+
+
+#if defined(USE_GYRO_CLK)
+
+static pwmOutputPort_t pwmGyroClk = INIT_ZERO;
+
+bool gyroExternalClockInit(const extDevice_t *dev, uint32_t clockFreq)
+{
+    const int cfg = 0; // Only on 1st gyro
+
+    if (&gyro.gyroSensor1.gyroDev.dev != dev) {
+        return false;
+    }
+
+    const ioTag_t tag = gyroDeviceConfig(cfg)->clkInTag;
+    const IO_t io = IOGetByTag(tag);
+    if (pwmGyroClk.enabled) {
+       // pwm is already taken, but test for shared clkIn pin
+       return pwmGyroClk.io == io;
+    }
+
+    const timerHardware_t *timer = timerAllocate(tag, OWNER_GYRO_CLK, RESOURCE_INDEX(cfg));
+    if (!timer) {
+        return false;
+    }
+
+    pwmGyroClk.io = io;
+    pwmGyroClk.enabled = true;
+
+    IOInit(io, OWNER_GYRO_CLK, RESOURCE_INDEX(cfg));
+    IOConfigGPIOAF(io, IOCFG_AF_PP, timer->alternateFunction);
+
+    const uint32_t clock = timerClock(timer->tim);
+    const uint16_t period = clock / clockFreq;
+
+    // Calculate duty cycle value for 50%
+    const uint16_t cycle = period / 2;
+
+    // Configure PWM output
+    pwmOutConfig(&pwmGyroClk.channel, timer, clock, period - 1, cycle - 1, 0);
+
+    // Set CCR value
+    *pwmGyroClk.channel.ccr = cycle - 1;
+
+    return true;
+}
+
+#endif

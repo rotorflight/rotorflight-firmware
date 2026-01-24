@@ -336,6 +336,10 @@
 #define GYRO_1_EXTI_PIN         NONE
 #endif
 
+#if !defined(GYRO_1_CLKIN_PIN)
+#define GYRO_1_CLKIN_PIN         NONE
+#endif
+
 #if !defined(GYRO_2_SPI_INSTANCE)
 #define GYRO_2_SPI_INSTANCE     NULL
 #endif
@@ -352,6 +356,9 @@
 #define GYRO_2_EXTI_PIN         NONE
 #endif
 
+#if !defined(GYRO_2_CLKIN_PIN)
+#define GYRO_2_CLKIN_PIN         NONE
+#endif
 
 #if defined(MPU_ADDRESS)
 #define GYRO_I2C_ADDRESS MPU_ADDRESS

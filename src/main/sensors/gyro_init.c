@@ -222,6 +222,8 @@ void gyroInitSensor(gyroSensor_t *gyroSensor, const gyroDeviceConfig_t *config)
     case GYRO_MPU6500:
     case GYRO_MPU9250:
     case GYRO_LSM6DSO:
+    case GYRO_ICM42605:
+    case GYRO_ICM42688P:
         gyroSensor->gyroDev.gyroHasOverflowProtection = true;
         break;
 
