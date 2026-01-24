@@ -45,8 +45,17 @@
 
 #include "sensors/gyro.h"
 
-// 24 MHz max SPI frequency
+#include "pg/gyrodev.h"
+
+#ifndef ICM426XX_CLOCK
 #define ICM426XX_MAX_SPI_CLK_HZ 24000000
+#else
+#define ICM426XX_MAX_SPI_CLK_HZ ICM426XX_CLOCK
+#endif
+
+// Soft Reset
+#define ICM426XX_RA_DEVICE_CONFIG                   0x11
+#define DEVICE_CONFIG_SOFT_RESET_BIT                (1 << 0) // Soft reset bit
 
 #define ICM426XX_RA_REG_BANK_SEL                    0x76
 #define ICM426XX_BANK_SELECT0                       0x00
@@ -94,10 +103,10 @@
 #define ICM426XX_INT1_POLARITY_ACTIVE_HIGH          (1 << 0)
 
 #define ICM426XX_RA_INT_CONFIG0                     0x63  // User Bank 0
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR           ((0 << 5) || (0 << 4))
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_DUPLICATE ((0 << 5) || (0 << 4)) // duplicate settings in datasheet, Rev 1.2.
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_F1BR          ((1 << 5) || (0 << 4))
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_AND_F1BR  ((1 << 5) || (1 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR           ((0 << 5) | (0 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_DUPLICATE ((0 << 5) | (1 << 4)) // duplicate setting in datasheet, Rev 1.8
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_F1BR          ((1 << 5) | (0 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_AND_F1BR  ((1 << 5) | (1 << 4))
 
 #define ICM426XX_RA_INT_CONFIG1                     0x64   // User Bank 0
 #define ICM426XX_INT_ASYNC_RESET_BIT                4
@@ -159,14 +168,30 @@ static aafConfig_t aafLUT42605[AAF_CONFIG_COUNT] = {  // see table in section 5.
     [AAF_CONFIG_1962HZ] = { 63, 3968,  3 }, // 995 Hz is the max cutoff on the 42605
 };
 
+static void setUserBank(const extDevice_t *dev, const uint8_t user_bank)
+{
+    spiWriteReg(dev, ICM426XX_RA_REG_BANK_SEL, user_bank & 7);
+}
+
+static void icm426xxSoftReset(const extDevice_t *dev)
+{
+    setUserBank(dev, ICM426XX_BANK_SELECT0);
+
+    spiWriteReg(dev, ICM426XX_RA_DEVICE_CONFIG, DEVICE_CONFIG_SOFT_RESET_BIT);
+
+    delay(1);
+}
+
 uint8_t icm426xxSpiDetect(const extDevice_t *dev)
 {
+    delay(1);                          // power-on time
+    icm426xxSoftReset(dev);
     spiWriteReg(dev, ICM426XX_RA_PWR_MGMT0, 0x00);
 
     uint8_t icmDetected = MPU_NONE;
     uint8_t attemptsRemaining = 20;
     do {
-        delay(150);
+        delay(1);
         const uint8_t whoAmI = spiReadRegMsk(dev, MPU_RA_WHO_AM_I);
         switch (whoAmI) {
         case ICM42605_WHO_AM_I_CONST:
@@ -224,11 +249,6 @@ static void turnGyroAccOn(const extDevice_t *dev)
 {
     spiWriteReg(dev, ICM426XX_RA_PWR_MGMT0, ICM426XX_PWR_MGMT0_TEMP_DISABLE_OFF | ICM426XX_PWR_MGMT0_ACCEL_MODE_LN | ICM426XX_PWR_MGMT0_GYRO_MODE_LN);
     delay(1);
-}
-
-static void setUserBank(const extDevice_t *dev, const uint8_t user_bank)
-{
-    spiWriteReg(dev, ICM426XX_RA_REG_BANK_SEL, user_bank & 7);
 }
 
 void icm426xxGyroInit(gyroDev_t *gyro)
