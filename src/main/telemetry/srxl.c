@@ -76,11 +76,12 @@
 #define SRXL_FRAMETYPE_TELE_RPM     0x7E
 #define SRXL_FRAMETYPE_POWERBOX     0x0A
 #define SRXL_FRAMETYPE_TELE_FP_MAH  0x34
-#define TELE_DEVICE_VTX             0x0D   // Video Transmitter Status
-#define SRXL_FRAMETYPE_SID          0x00
+#define SRXL_FRAMETYPE_VTX          0x0D   // Video Transmitter Status
 #define SRXL_FRAMETYPE_ESC          0x20   // Electronic Speed Control
 #define SRXL_FRAMETYPE_GPS_LOC      0x16   // GPS Location Data (Eagle Tree)
 #define SRXL_FRAMETYPE_GPS_STAT     0x17
+
+#define SRXL_FRAMETYPE_SID          0x00   // Secondary id. (Only 0x00 suppprted it seems, no support for multiple tlm frames/devices of the same type.)
 
 static bool srxlTelemetryEnabled;
 static bool srxl2 = false;
@@ -425,7 +426,7 @@ typedef struct
 
 bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    if ( isBatteryCurrentConfigured() ) {
+  if ( isBatteryCurrentConfigured() ) {
 
     uint16_t amps = getLegacyBatteryCurrent();
     uint16_t mah  = getBatteryCapacityUsed();
@@ -454,9 +455,9 @@ bool srxlFrameFlightPackCurrent(sbuf_t *dst, timeUs_t currentTimeUs)
         sentMah = mah;
         lastTimeSentFPmAh = currentTimeUs;
         return true;
-        }
     }
-    return false;
+  }
+  return false;
 }
 
 #ifdef USE_ESC_SENSOR_TELEMETRY
@@ -487,33 +488,70 @@ typedef struct
 
 bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    (void)currentTimeUs;
+  //    if ( isEscSensorActive()) {
 
-    //DM: Start fake telemetry block - remove after testing //DM
-    // Force-send ESC telemetry to exercise SRXL telemetry path during debug.
-    sbufWriteU8(dst,  SRXL_FRAMETYPE_ESC);
-    sbufWriteU8(dst,  SRXL_FRAMETYPE_SID);
-    // RPM (big-endian) - value is ERPM/10 in normal code
-    sbufWriteU16BigEndian(dst, 1234);    // fake 12,340 ERPM
-    // Battery voltage (0.01V units)
-    sbufWriteU16BigEndian(dst, 1150);    // fake 11.50V
-    // tempFET (0.1C units)
-    sbufWriteU16BigEndian(dst, 250);     // fake 25.0C
-    // currentMotor (10mA units)
-    sbufWriteU16BigEndian(dst, 500);     // fake 5.00A
-    // tempBEC (0.1C units)
-    sbufWriteU16BigEndian(dst, 300);     // fake 30.0C
-    // currentBEC (100mA units)
-    sbufWriteU8(dst, 10);                 // fake 1.0A
-    // voltsBEC (0.05V units)
-    sbufWriteU8(dst, 40);                 // fake 2.0V
-    // powerOut (0.5% units)
-    sbufWriteU8(dst, 60);                 // fake 30% powerOut
-    // throttle (0.5% units)
-    sbufWriteU8(dst, 80);                 // fake 40% throttle
-    //DM: End fake telemetry block //DM
+        static timeUs_t lastTimeSentEsc = 0;
+        timeUs_t keepAlive = currentTimeUs - lastTimeSentEsc;
 
-    return true;
+        uint8_t  iBec     = (uint8_t)(telemetrySensorValue(TELEM_ESC1_BEC_CURRENT) /100);
+        uint16_t iMotor   = (uint16_t)(telemetrySensorValue(TELEM_ESC1_CURRENT)    / 10);
+        uint16_t rpm      = (uint16_t)(telemetrySensorValue(TELEM_ESC1_ERPM)       / 10);
+        uint16_t vBat     = (uint16_t)(telemetrySensorValue(TELEM_ESC1_VOLTAGE)    / 10);
+        uint16_t tempFet  = (uint16_t)(telemetrySensorValue(TELEM_ESC1_TEMP1)      /  1);
+        uint16_t tempBec  = (uint16_t)(telemetrySensorValue(TELEM_ESC1_TEMP2)      /  1);
+        uint8_t  vBec     = (uint8_t)(telemetrySensorValue(TELEM_ESC1_BEC_VOLTAGE) / 50);
+        uint8_t  throttle = (uint8_t)(telemetrySensorValue(TELEM_ESC1_THROTTLE)    /  5);
+        uint8_t  powerOut = (uint8_t)(telemetrySensorValue(TELEM_ESC1_POWER)       /  5);
+
+        static uint16_t rpmSent;
+        static uint16_t vBatSent;
+        static uint16_t tempFetSent;
+        static uint16_t iMotorSent;
+        static uint16_t tempBecSent;
+        static uint8_t  iBecSent;
+        static uint8_t  vBecSent;
+        static uint8_t  throttleSent;
+        static uint8_t  powerOutSent;
+
+        if ( keepAlive > ESC_KEEPALIVE_TIME_OUT ||
+             rpm      != rpmSent  ||
+             vBat     != vBatSent ||
+             tempFet  != tempFetSent ||
+             iMotor   != iMotorSent ||
+             tempBec  != tempBecSent ||
+             iBec     != iBecSent ||
+             vBec     != vBecSent ||
+             throttle != throttleSent ||
+             powerOut != powerOutSent ) {
+
+            sbufWriteU8(dst,  SRXL_FRAMETYPE_ESC);
+            sbufWriteU8(dst,  SRXL_FRAMETYPE_SID);
+            sbufWriteU16BigEndian(dst, rpm);
+            sbufWriteU16BigEndian(dst, vBat);
+            sbufWriteU16BigEndian(dst, tempFet);
+            sbufWriteU16BigEndian(dst, iMotor);
+            sbufWriteU16BigEndian(dst, tempBec);
+            sbufWriteU8(dst, iBec);
+            sbufWriteU8(dst, vBec);
+            // Needs swapped order to display correctly on iX20 v2.01A.14 EU
+            sbufWriteU8(dst, powerOut);
+            sbufWriteU8(dst, throttle);
+
+            rpmSent      = rpm;
+            vBatSent     = vBat;
+            tempFetSent  = tempFet;
+            iMotorSent   = iMotor;
+            tempBecSent  = tempBec;
+            iBecSent     = iBec;
+            vBecSent     = vBec;
+            throttleSent = throttle;
+            powerOutSent = powerOut;
+            lastTimeSentEsc = currentTimeUs;
+
+            return true;
+        }
+//    }
+    return false;
 }
 #endif
 
@@ -704,7 +742,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
         if ((memcmp(&vtxSent, &vtx, sizeof(spektrumVtx_t)) != 0) ||
             ((currentTimeUs - lastTimeSentVtx) > VTX_KEEPALIVE_TIME_OUT) ) {
             // Fill in the VTX tm structure
-            sbufWriteU8(dst, TELE_DEVICE_VTX);
+            sbufWriteU8(dst, SRXL_FRAMETYPE_VTX);
             sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
             sbufWriteU8(dst,  vtx.band);
             sbufWriteU8(dst,  vtx.channel);
@@ -735,7 +773,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_FP_MAH_COUNT   1
 
 #ifdef USE_ESC_SENSOR_TELEMETRY
-#define SRXL_ESC_COUNT   1
+#define SRXL_ESC_COUNT   10
 #else
 #define SRXL_ESC_COUNT   0
 #endif
@@ -760,7 +798,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_VTX_TM_COUNT        0
 #endif
 
-#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
+#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_ESC_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
 #define SRXL_SCHEDULE_COUNT_MAX  (SRXL_SCHEDULE_MANDATORY_COUNT + 1)
 #define SRXL_TOTAL_COUNT         (SRXL_SCHEDULE_MANDATORY_COUNT + SRXL_SCHEDULE_USER_COUNT)
 
@@ -770,6 +808,7 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
     /* must send srxlFrameQos, Rpm and then alternating items of our own */
     srxlFrameQos,
     srxlFrameRpm,
+    srxlFrameFlightPackCurrent,
 #ifdef USE_ESC_SENSOR_TELEMETRY
     srxlFrameEsc,
 #endif
@@ -782,9 +821,6 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
 #endif
 #if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
     srxlFrameText,
-#endif
-#if defined (USE_ESC_SENSOR)
-    srxlFrameFlightPackCurrent,
 #endif
 };
 
@@ -813,12 +849,6 @@ static void processSrxl(timeUs_t currentTimeUs)
         }
 #endif
 
-    }
-
-    if (srxlFnPtr == srxlFrameFlightPackCurrent) {
-        if ( !isBatteryCurrentConfigured() ) {
-          srxlFnPtr = NULL;
-        }
     }
 
     if (srxlFnPtr) {
