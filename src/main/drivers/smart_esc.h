@@ -27,7 +27,7 @@ typedef timeUs_t smartesc_rcGetFrameTimeUsFn(void);
 typedef struct {
 	uint8_t srxl2_unit_id; /* unit id used by SRXL2 handshake */
 	bool    pinSwap;       /* pin swap hint used when opening serial port */
-} smartesc_rxConfig_t;
+} srxl2_escConfig_t;
 
 typedef struct smartesc_rxRuntimeState_s {
 	uint16_t                    *channelData;      /* channel storage */
@@ -43,7 +43,7 @@ typedef struct smartesc_rxRuntimeState_s {
 void validateAndFixSmartescConfig();
 void smartesc_poll(void);
 void smartesc_service(void);
-bool smartescInit(const smartesc_rxConfig_t *rxConfig, smartesc_rxRuntimeState_t *smartescRs);
+bool smartescInit(const srxl2_escConfig_t *escConfig, smartesc_rxRuntimeState_t *smartescRs);
 void smartescWriteData(const void *data, int len);
 unsigned smartescGetTelemetryHistoryCount(void);
 unsigned smartescCopyTelemetryHistory(unsigned idx, uint8_t *dst, unsigned maxLen, uint8_t *outLen, uint32_t *outTimestamp, uint8_t *outSensorId, uint8_t *outSecondaryId, uint32_t *outCount);

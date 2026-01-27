@@ -1402,7 +1402,7 @@ void validateAndFixSmartescConfig()
     }
 }
 
-bool smartescInit(const smartesc_rxConfig_t *rxConfig, smartesc_rxRuntimeState_t *smartescRs)
+bool smartescInit(const srxl2_escConfig_t *escConfig, smartesc_rxRuntimeState_t *smartescRs)
 {
     (void)smartescRs; /* legacy parameter ignored; driver uses internal runtime */
 
@@ -1432,7 +1432,7 @@ bool smartescInit(const smartesc_rxConfig_t *rxConfig, smartesc_rxRuntimeState_t
 
     serialPort->idleCallback = smartescIdle; // idempotent
 
-    unitId   = rxConfig ? rxConfig->srxl2_unit_id : 0;
+    unitId   = escConfig ? escConfig->srxl2_unit_id : 0;
     baudRate = 0;
 
     state = ListenForActivity;
@@ -1526,10 +1526,10 @@ bool smartescDriverInit(void)
     smartescAttachPort(smartescDriverPort);
 
     memset(&smartescDriverRuntime, 0, sizeof(smartescDriverRuntime));
-    /* Use a default local config here to avoid referencing rxConfig()/rx types.
+    /* Use a default local config here to avoid referencing escConfig()/rx types.
      * If you want board-specific unit id or pin-swap, set them via a
      * platform-specific setter or call `smartescInit` directly with values. */
-    smartesc_rxConfig_t localCfg = { .srxl2_unit_id = 0, .pinSwap = false };
+    srxl2_escConfig_t localCfg = { .srxl2_unit_id = 0, .pinSwap = false };
     if (!smartescInit(&localCfg, &smartescDriverRuntime)) {
         closeSerialPort(smartescDriverPort);
         smartescDriverPort = NULL;

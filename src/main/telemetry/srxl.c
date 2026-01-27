@@ -773,7 +773,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_FP_MAH_COUNT   1
 
 #ifdef USE_ESC_SENSOR_TELEMETRY
-#define SRXL_ESC_COUNT   10
+#define SRXL_ESC_COUNT   1
 #else
 #define SRXL_ESC_COUNT   0
 #endif
