@@ -1391,6 +1391,9 @@ void validateAndFixSmartescConfig()
     // Force SRXL2 protocol
     escSensorConfigMutable()->protocol = ESC_SENSOR_PROTO_SRXL2;
 
+    // Force motor pwm protocol to SRXL2
+    motorConfigMutable()->dev.motorPwmProtocol = PWM_TYPE_SRXL2;
+
     // Clamp/repair persisted SMART ESC rate settings
     smartescConfig_t *cfg = smartescConfigMutable();
     if (cfg->throttle_rate_hz == 0) {
@@ -1509,7 +1512,7 @@ bool smartescDriverInit(void)
     }
 
     portOptions_e options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | SERIAL_BIDIR;
-    options |= rxConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP;
+    options |= escSensorConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP;
 
     smartescDriverPort = openSerialPort(
         portConfig->identifier,
