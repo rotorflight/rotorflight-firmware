@@ -75,6 +75,7 @@
 #include "drivers/sdcard.h"
 #include "drivers/sdio.h"
 #include "drivers/sound_beeper.h"
+#include "drivers/srxl2_esc.h"
 #include "drivers/system.h"
 #include "drivers/time.h"
 #include "drivers/timer.h"
@@ -538,6 +539,16 @@ void init(void)
     systemState |= SYSTEM_STATE_MOTORS_READY;
 #endif
 
+/* Initialize SRXL2 ESC driver immediately after serial ports are ready
+ * so it can open its port and begin handshake as early as possible
+ * (matching SRXL2 RX behavior which opens during rxInit). This ensures
+ * the FC starts communicating within the ESC's 250ms listening window. */
+#ifdef USE_SRXL2_ESC
+    if (featureIsEnabled(FEATURE_SRXL2_ESC)) {
+        srxl2escDriverInit();
+    }
+#endif
+
     if (0) {}
 #if defined(USE_PPM)
     else if (featureIsEnabled(FEATURE_RX_PPM)) {
@@ -762,6 +773,7 @@ void init(void)
         escSensorInit();
     }
 #endif
+
 
 #ifdef USE_FREQ_SENSOR
     if (featureIsEnabled(FEATURE_FREQ_SENSOR)) {

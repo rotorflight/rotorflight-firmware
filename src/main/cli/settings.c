@@ -287,7 +287,7 @@ static const char * const lookupTableCameraControlMode[] = {
 static const char * const lookupTablePwmProtocol[] = {
     "PWM", "ONESHOT125", "ONESHOT42", "MULTISHOT", "RESERVED",
     "DSHOT150", "DSHOT300", "DSHOT600", "PROSHOT1000", "CASTLE",
-    "DISABLED"
+    "SRXL2", "DISABLED"
 };
 
 static const char * const lookupTableLowpassType[] = {
@@ -482,7 +482,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "RECORD",
+  "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "SRXL2", "RECORD",
 };
 #endif
 
