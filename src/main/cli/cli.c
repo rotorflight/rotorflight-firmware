@@ -330,7 +330,7 @@ static const char * const featureNames[] = {
     [21] = "",
     [22] = "",
     [23] = "",
-    [24] = "SMART_ESC",
+    [24] = "SRXL2_ESC",
     [25] = "RX_SPI",
     [26] = "GOVERNOR",
     [27] = "ESC_SENSOR",
@@ -6596,15 +6596,15 @@ static void cliSrxl2Debug(const char *cmdName, char *cmdline)
 }
 #endif
 
-#ifdef USE_SMART_ESC
-static void cliSmartEsc(const char *cmdName, char *cmdline)
+#ifdef USE_SRXL2_ESC
+static void cliSrxl2Esc(const char *cmdName, char *cmdline)
 {
-    extern void smartescSetThrottleRateHz(uint32_t rateHz);
-    extern uint32_t smartescGetThrottleRateHz(void);
-    extern void smartescSetTelemetryIntervalFrames(uint8_t frames);
-    extern uint8_t smartescGetTelemetryIntervalFrames(void);
-    extern bool smartescTelemetryRequested(void);
-    extern bool smartescDriverIsReady(void);
+    extern void srxl2escSetThrottleRateHz(uint32_t rateHz);
+    extern uint32_t srxl2escGetThrottleRateHz(void);
+    extern void srxl2escSetTelemetryIntervalFrames(uint8_t frames);
+    extern uint8_t srxl2escGetTelemetryIntervalFrames(void);
+    extern bool srxl2escTelemetryRequested(void);
+    extern bool srxl2escDriverIsReady(void);
     
     (void)cmdName;
 
@@ -6619,8 +6619,8 @@ static void cliSmartEsc(const char *cmdName, char *cmdline)
                     if (rate == 0) {
                         cliPrintLine("Rate must be > 0 Hz");
                     } else {
-                        smartescSetThrottleRateHz(rate);
-                        const uint32_t effective = smartescGetThrottleRateHz();
+                        srxl2escSetThrottleRateHz(rate);
+                        const uint32_t effective = srxl2escGetThrottleRateHz();
                         if (effective != rate) {
                             cliPrintLinef("Throttle refresh set to %u Hz (clamped from %u)", effective, rate);
                         } else {
@@ -6628,7 +6628,7 @@ static void cliSmartEsc(const char *cmdName, char *cmdline)
                         }
                     }
                 } else {
-                    const uint32_t effective = smartescGetThrottleRateHz();
+                    const uint32_t effective = srxl2escGetThrottleRateHz();
                     cliPrintLinef("Current throttle refresh: %u Hz", effective);
                 }
                 return;
@@ -6642,7 +6642,7 @@ static void cliSmartEsc(const char *cmdName, char *cmdline)
                     if (interval < 0 || interval > 255) {
                         cliPrintLine("Interval must be between 0 and 255 frames");
                     } else {
-                        smartescSetTelemetryIntervalFrames((uint8_t)interval);
+                        srxl2escSetTelemetryIntervalFrames((uint8_t)interval);
                         if (interval == 0) {
                             cliPrintLine("Telemetry polling disabled");
                         } else {
@@ -6650,7 +6650,7 @@ static void cliSmartEsc(const char *cmdName, char *cmdline)
                         }
                     }
                 } else {
-                    cliPrintLinef("Telemetry interval: %u frame(s)", smartescGetTelemetryIntervalFrames());
+                    cliPrintLinef("Telemetry interval: %u frame(s)", srxl2escGetTelemetryIntervalFrames());
                 }
                 return;
             }
@@ -6659,10 +6659,10 @@ static void cliSmartEsc(const char *cmdName, char *cmdline)
 
     /* Print concise status: throttle refresh and telemetry rates */
     {
-        const uint32_t throttleHz = smartescGetThrottleRateHz();
-        const uint8_t telemInterval = smartescGetTelemetryIntervalFrames();
+        const uint32_t throttleHz = srxl2escGetThrottleRateHz();
+        const uint8_t telemInterval = srxl2escGetTelemetryIntervalFrames();
         const uint32_t telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
-        cliPrintLinef("SMART ESC driver ready: %s", smartescDriverIsReady() ? "YES" : "NO");
+        cliPrintLinef("SRXL2 ESC driver ready: %s", srxl2escDriverIsReady() ? "YES" : "NO");
         cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
         cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
     }
@@ -6848,8 +6848,8 @@ const clicmd_t cmdTable[] = {
 #if defined(USE_SIGNATURE)
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
 #endif
-#ifdef USE_SMART_ESC
-    CLI_COMMAND_DEF("smartesc", "show/trigger SMART ESC handshake", NULL, cliSmartEsc),
+#ifdef USE_SRXL2_ESC
+    CLI_COMMAND_DEF("srxl2esc", "show/trigger SRXL2 ESC handshake", NULL, cliSrxl2Esc),
 #endif
 #if defined(USE_TELEMETRY_SRXL)
     CLI_COMMAND_DEF("telemdebug", "telemetry debug helpers", "status | queue | flush | send | force", cliTelemDebug),

@@ -41,7 +41,7 @@
 #include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_usb_vcp.h"
-#include "drivers/smart_esc.h"
+#include "drivers/srxl2_esc.h"
 #include "drivers/stack_check.h"
 #include "drivers/usb_io.h"
 #include "drivers/vtx_common.h"
@@ -384,8 +384,8 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_ESC_SENSOR] = DEFINE_TASK("ESC_SENSOR", NULL, NULL, escSensorProcess, TASK_PERIOD_HZ(ESC_SENSOR_TASK_FREQ_HZ), TASK_PRIORITY_LOW),
 #endif
 
-#ifdef USE_SMART_ESC
-    [TASK_SMART_ESC] = DEFINE_TASK("SMART_ESC", NULL, NULL, smartescDriverTask, TASK_PERIOD_HZ(SMARTESC_DRIVER_TASK_FREQ_HZ), TASK_PRIORITY_HIGH),
+#ifdef USE_SRXL2_ESC
+    [TASK_SRXL2_ESC] = DEFINE_TASK("SRXL2_ESC", NULL, NULL, srxl2escDriverTask, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ), TASK_PRIORITY_HIGH),
 #endif
 
 #ifdef USE_CMS
@@ -551,9 +551,9 @@ void tasksInit(void)
     setTaskEnabled(TASK_ESC_SENSOR, featureIsEnabled(FEATURE_ESC_SENSOR));
 #endif
 
-#ifdef USE_SMART_ESC
-    rescheduleTask(TASK_SMART_ESC, TASK_PERIOD_HZ(SMARTESC_DRIVER_TASK_FREQ_HZ));
-    setTaskEnabled(TASK_SMART_ESC, featureIsEnabled(FEATURE_SMART_ESC));
+#ifdef USE_SRXL2_ESC
+    rescheduleTask(TASK_SRXL2_ESC, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ));
+    setTaskEnabled(TASK_SRXL2_ESC, featureIsEnabled(FEATURE_SRXL2_ESC));
 #endif
 
 #ifdef USE_ADC_INTERNAL

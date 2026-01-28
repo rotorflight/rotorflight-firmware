@@ -24,7 +24,7 @@
 
 #include "platform.h"
 
-#ifdef USE_SMART_ESC
+#ifdef USE_SRXL2_ESC
 
 #include "common/crc.h"
 #include "common/maths.h"
@@ -37,77 +37,77 @@
 
 #include "io/serial.h"
 
-#include "drivers/smart_esc.h"
+#include "drivers/srxl2_esc.h"
 #include "rx/srxl2_types.h"
 #include "io/spektrum_vtx_control.h"
 #include "rx/rx.h"
 #include "../sensors/esc_sensor.h"
 #include "config/feature.h"
-#include "pg/smart_esc.h"
+#include "pg/srxl2_esc.h"
 #if defined(USE_MOTOR)
 #include "flight/motors.h"
 #include "drivers/motor.h"
 #include "pg/motor.h"
 #endif
 
-#ifndef smartesc_DEBUG
-#define smartesc_DEBUG 0
+#ifndef SRXL2_ESC_DEBUG
+#define SRXL2_ESC_DEBUG 0
 #endif
 
-#if smartesc_DEBUG
+#if SRXL2_ESC_DEBUG
 #define DEBUG_PRINTF(...) //Temporary until a better debug printf can be included
 #else
 #define DEBUG_PRINTF(...)
 #endif
 
-#define smartesc_MAX_CHANNELS             32
-#define smartesc_FRAME_PERIOD_US          11000 // 5500 for DSMR
-#define smartesc_CHANNEL_SHIFT            2
-#define smartesc_CHANNEL_CENTER           0x8000
+#define SRXL2_ESC_MAX_CHANNELS             32
+#define SRXL2_ESC_FRAME_PERIOD_US          11000 // 5500 for DSMR
+#define SRXL2_ESC_CHANNEL_SHIFT            2
+#define SRXL2_ESC_CHANNEL_CENTER           0x8000
 
-#define smartesc_PORT_BAUDRATE_DEFAULT    SMARTESC_PORT_BAUDRATE_DEFAULT
-#define smartesc_PORT_BAUDRATE_HIGH       SMARTESC_PORT_BAUDRATE_HIGH
-#define smartesc_PORT_OPTIONS             (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
-#define smartesc_PORT_MODE                MODE_RXTX
+// #define SRXL2_ESC_PORT_BAUDRATE_DEFAULT    SRXL2_ESC_PORT_BAUDRATE_DEFAULT
+// #define SRXL2_ESC_PORT_BAUDRATE_HIGH       SRXL2_ESC_PORT_BAUDRATE_HIGH
+#define SRXL2_ESC_PORT_OPTIONS             (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
+#define SRXL2_ESC_PORT_MODE                MODE_RXTX
 
 /* Minimum quiet time between RX and TX so we flip the half-duplex line cleanly.
  * Dropping this to roughly a single byte-time (≈80us at 115200) makes handshake
  * responses fire sooner instead of waiting ~2 byte times (~174us). */
-#define smartesc_REPLY_QUIESCENCE         80
-#define smartesc_TX_TIMEOUT_US             20000
-#define smartesc_TELEMETRY_RX_TIMEOUT_US   10000
-#define smartesc_TELEMETRY_POST_HOLDOFF_US   300
+#define SRXL2_ESC_REPLY_QUIESCENCE         80
+#define SRXL2_ESC_TX_TIMEOUT_US             20000
+#define SRXL2_ESC_TELEMETRY_RX_TIMEOUT_US   10000
+#define SRXL2_ESC_TELEMETRY_POST_HOLDOFF_US   300
 
 /* Guard time after *requesting* telemetry before we consider transmitting again.
  * Needs to be long enough to cover ESC reply start latency + line turnaround,
  * otherwise FC TX can collide with the ESC reply on the half-duplex bus. */
-#define smartesc_TELEMETRY_REQUEST_HOLDOFF_US  2500
+#define SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_US  2500
 
 /* Upper bound for the request holdoff. Prevents long stalls (e.g. 10ms) when
  * throttle update rate is configured low. */
-#define smartesc_TELEMETRY_REQUEST_HOLDOFF_MAX_US  5000
-#define SMARTESC_TELEM_HISTORY             15
+#define SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_MAX_US  5000
+#define SRXL2_ESC_TELEM_HISTORY             15
 
 #define packet_HEADER                     0xA6
-#define smartesc_MAX_PACKET_LENGTH        80
-#define smartesc_DEVICE_ID_BROADCAST      0xFF
+#define SRXL2_ESC_MAX_PACKET_LENGTH        80
+#define SRXL2_ESC_DEVICE_ID_BROADCAST      0xFF
 
-#define smartesc_FRAME_TIMEOUT_US         50000
+#define SRXL2_ESC_FRAME_TIMEOUT_US         50000
 
-#define smartesc_LISTEN_FOR_ACTIVITY_TIMEOUT_US 50000
-#define smartesc_SEND_HANDSHAKE_TIMEOUT_US 50000
-#define smartesc_LISTEN_FOR_HANDSHAKE_TIMEOUT_US 200000
+#define SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US 50000
+#define SRXL2_ESC_SEND_HANDSHAKE_TIMEOUT_US 50000
+#define SRXL2_ESC_LISTEN_FOR_HANDSHAKE_TIMEOUT_US 200000
 
 #define SPEKTRUM_PULSE_OFFSET          988 // Offset value to convert digital data into RC pulse
 
 typedef union {
-        uint8_t raw[smartesc_MAX_PACKET_LENGTH];
+        uint8_t raw[SRXL2_ESC_MAX_PACKET_LENGTH];
         Srxl2Header header;
-} smartescFrame;
+} srxl2escFrame;
 
-struct rxBufse {
+struct escBufse {
     volatile unsigned len;
-    smartescFrame packet;
+    srxl2escFrame packet;
 };
 
 static uint8_t unitId = 0;
@@ -120,26 +120,26 @@ static uint32_t lastValidPacketTimestamp = 0;
 static volatile uint32_t lastReceiveTimestamp = 0;
 static volatile uint32_t lastIdleTimestamp = 0;
 
-static struct rxBufse readBufferse[2];
-static struct rxBufse* readBufferPtr = &readBufferse[0];
-static struct rxBufse* processBufferPtr = &readBufferse[1];
+static struct escBufse readBufferse[3];
+static struct escBufse* readBufferPtr = &readBufferse[0];
+static struct escBufse* processBufferPtr = &readBufferse[1];
 static volatile unsigned readBufferIdx = 0;
 /* Echo-suppression: After TX, skip exactly txBytesToSkip bytes.
  * This is a simple count-based approach - no byte matching needed. */
 static volatile unsigned txBytesToSkip = 0;
-static uint8_t writeBuffer[smartesc_MAX_PACKET_LENGTH];
+static uint8_t writeBuffer[SRXL2_ESC_MAX_PACKET_LENGTH];
 static unsigned writeBufferIdx = 0;
 
 static serialPort_t *serialPort;
-static serialPort_t *smartescDriverPort;
-static smartesc_rxRuntimeState_t smartescDriverRuntime;
-static bool smartescDriverReady;
+static serialPort_t *srxl2escDriverPort;
+static srxl2esc_runtimeState_t srxl2escDriverRuntime;
+static bool srxl2escDriverReady;
 
 static uint8_t busMasterDeviceId = 0xFF;
 static bool telemetryRequested = false;
-static bool smartescTelemetryRxPending = false;
-static uint32_t smartescTelemetryRxDeadlineUs = 0;
-static uint32_t smartescTelemetryHoldoffEndUs = 0;
+static bool srxl2escTelemetryRxPending = false;
+static uint32_t srxl2escTelemetryRxDeadlineUs = 0;
+static uint32_t srxl2escTelemetryHoldoffEndUs = 0;
 
 static uint8_t telemetryFrame[22];
 
@@ -149,75 +149,76 @@ typedef struct {
     uint8_t sensorId;
     uint8_t secondaryId;
     uint8_t data[14];
-} smartescTelemetryHistoryEntry_t;
-static smartescTelemetryHistoryEntry_t smartescTelemetryHistory[SMARTESC_TELEM_HISTORY];
-static uint8_t smartescTelemetryHistoryCount = 0;
-static uint8_t smartescTelemetryHistoryHead = 0;
-static uint8_t smartescLatestTelemetrySensorId = 0;
-static uint8_t smartescLatestTelemetrySecondaryId = 0;
+} srxl2escTelemetryHistoryEntry_t;
 
-static uint8_t smartescLatestTelemetryData[14];
-static bool smartescLatestTelemetryValid = false;
+static srxl2escTelemetryHistoryEntry_t srxl2escTelemetryHistory[SRXL2_ESC_TELEM_HISTORY];
+static uint8_t srxl2escTelemetryHistoryCount = 0;
+static uint8_t srxl2escTelemetryHistoryHead = 0;
+static uint8_t srxl2escLatestTelemetrySensorId = 0;
+static uint8_t srxl2escLatestTelemetrySecondaryId = 0;
+
+static uint8_t srxl2escLatestTelemetryData[14];
+static bool srxl2escLatestTelemetryValid = false;
 
 static uint8_t globalResult = 0;
 
 /* Internal runtime state owned by SMART ESC driver (decoupled from RX subsystem) */
-static smartesc_rxRuntimeState_t smartescInternalRs;
-static uint16_t smartescInternalChannelData[smartesc_MAX_CHANNELS];
+static srxl2esc_runtimeState_t srxl2escInternalRs;
+static uint16_t srxl2escInternalChannelData[SRXL2_ESC_MAX_CHANNELS];
 
 /* file-static pointer to runtime state so poll/service helpers can operate
- * smartescRsGlobal points to our internal runtime by default. Legacy callers
+ * srxl2escRsGlobal points to our internal runtime by default. Legacy callers
  * may pass a runtime into smartescInit, but the driver uses its internal
  * state to avoid coupling to the global RX subsystem. */
-static smartesc_rxRuntimeState_t *smartescRsGlobal = NULL;
+static srxl2esc_runtimeState_t *srxl2escRsGlobal = NULL;
 
-static uint32_t smartescBootEndUs = 0;
+static uint32_t srxl2escBootEndUs = 0;
 
 #if defined(USE_MOTOR)
-static uint16_t smartesc_lastMotorPwmRate = 0;
+static uint16_t srxl2esc_lastMotorPwmRate = 0;
 #endif
 
 /* Forward declarations */
-bool smartescIsActive(void);
+bool srxl2escIsActive(void);
 
-static volatile unsigned smartescLastTxSkipSet = 0;  // Debug: last transmitted frame size tracked for echo suppression
+static volatile unsigned srxl2escLastTxSkipSet = 0;  // Debug: last transmitted frame size tracked for echo suppression
 
 
 // /* Timing capture: record durations (microseconds) for first few executions */
-#define SMARTESC_TIMING_SLOTS 5
+#define SRXL2_ESC_TIMING_SLOTS 5
 
-static bool smartescTxInProgress = false;
-static uint32_t smartescTxActiveSinceUs = 0;
-static uint32_t smartescTxExpectedDoneUs = 0;
+static bool srxl2escTxInProgress = false;
+static uint32_t srxl2escTxActiveSinceUs = 0;
+static uint32_t srxl2escTxExpectedDoneUs = 0;
 
 /* Helper: return a spare buffer pointer that's not the current read or process buffer.
  * Returns NULL if none available (shouldn't happen with 3 buffers unless pointers overlap). */
-static struct rxBufse* smartescGetSpareBuffer(void)
+static struct escBufse* srxl2escGetSpareBuffer(void)
 {
     for (int i = 0; i < 3; ++i) {
-        struct rxBufse *b = &readBufferse[i];
+        struct escBufse *b = &readBufferse[i];
         if (b != readBufferPtr && b != processBufferPtr) return b;
     }
     return NULL;
 }
 
-static volatile unsigned smartescLastProcessedLen = 0;
-static volatile uint8_t smartescLastProcessedPacketType = 0;
+static volatile unsigned srxl2escLastProcessedLen = 0;
+static volatile uint8_t srxl2escLastProcessedPacketType = 0;
 
-#define SMARTESC_HANDSHAKE_FRAME_LIMIT 4
-#define SMARTESC_HANDSHAKE_MAX_BYTES 24
+#define SRXL2_ESC_HANDSHAKE_FRAME_LIMIT 4
+#define SRXL2_ESC_HANDSHAKE_MAX_BYTES 24
 
 typedef enum {
-    SMARTESC_HANDSHAKE_STAGE_IDLE = 0,
-    SMARTESC_HANDSHAKE_STAGE_WAITING_ESC_REPLY,
-    SMARTESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK,
-    SMARTESC_HANDSHAKE_STAGE_DONE,
-} smartescHandshakeStage_t;
+    SRXL2_ESC_HANDSHAKE_STAGE_IDLE = 0,
+    SRXL2_ESC_HANDSHAKE_STAGE_WAITING_ESC_REPLY,
+    SRXL2_ESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK,
+    SRXL2_ESC_HANDSHAKE_STAGE_DONE,
+} srxl2escHandshakeStage_t;
 
-static smartescHandshakeStage_t handshakeStage = SMARTESC_HANDSHAKE_STAGE_IDLE;
-static bool smartescHandshakeComplete = false;
-static bool smartescBroadcastConfirmPending = false;
-static Srxl2HandshakeFrame smartescBroadcastConfirmFrame;
+static srxl2escHandshakeStage_t handshakeStage = SRXL2_ESC_HANDSHAKE_STAGE_IDLE;
+static bool srxl2escHandshakeComplete = false;
+static bool srxl2escBroadcastConfirmPending = false;
+static Srxl2HandshakeFrame srxl2escBroadcastConfirmFrame;
 typedef struct __attribute__((packed)) {
     Srxl2Header header;
     Srxl2ControlDataSubHeader control;
@@ -225,34 +226,35 @@ typedef struct __attribute__((packed)) {
     uint16_t channelValue;
     uint8_t crcHigh;
     uint8_t crcLow;
-} smartescChannelDataFrame_t;
-static uint16_t smartescThrottleCommand = smartesc_CHANNEL_CENTER;
-static uint32_t smartescNextThrottleSendUs = 0;
-static uint32_t smartescThrottleIntervalUs = 1000000 / 250; /* 250 Hz default */
-static uint8_t smartescThrottleFrameCounter = 0;
-static uint8_t smartescTelemetryFrameInterval = 6; /* frames per telemetry poll (0=off) */
+} srxl2escChannelDataFrame_t;
 
-static uint32_t smartescGetActiveBaudRate(void)
+static uint16_t srxl2escThrottleCommand = SRXL2_ESC_CHANNEL_CENTER;
+static uint32_t srxl2escNextThrottleSendUs = 0;
+static uint32_t srxl2escThrottleIntervalUs = 1000000 / 250; /* 250 Hz default */
+static uint8_t srxl2escThrottleFrameCounter = 0;
+static uint8_t srxl2escTelemetryFrameInterval = 6; /* frames per telemetry poll (0=off) */
+
+static uint32_t srxl2escGetActiveBaudRate(void)
 {
     const uint32_t baud = serialPort ? serialGetBaudRate(serialPort) : 0;
-    return baud ? baud : SMARTESC_PORT_BAUDRATE_DEFAULT;
+    return baud ? baud : SRXL2_ESC_PORT_BAUDRATE_DEFAULT;
 }
 
-static uint32_t smartescComputeMinThrottleIntervalUs(void)
+static uint32_t srxl2escComputeMinThrottleIntervalUs(void)
 {
-    const uint32_t baud = smartescGetActiveBaudRate();
+    const uint32_t baud = srxl2escGetActiveBaudRate();
     const uint32_t bitsPerByte = 10; // 8N1
-    const uint32_t bytes = (uint32_t)sizeof(smartescChannelDataFrame_t);
+    const uint32_t bytes = (uint32_t)sizeof(srxl2escChannelDataFrame_t);
     const uint32_t txTimeUs = (uint32_t)((bytes * bitsPerByte * 1000000ULL + (baud - 1)) / baud);
-    return txTimeUs + smartesc_REPLY_QUIESCENCE + 200;
+    return txTimeUs + SRXL2_ESC_REPLY_QUIESCENCE + 200;
 }
 
-static uint16_t smartescChannelValueToPulseWidth(uint16_t channelValue)
+static uint16_t srxl2escChannelValueToPulseWidth(uint16_t channelValue)
 {
     return (uint16_t)(SPEKTRUM_PULSE_OFFSET + (channelValue / 64U));
 }
 
-static uint16_t smartescPulseWidthToChannelValue(uint16_t pulseWidthUs)
+static uint16_t srxl2escPulseWidthToChannelValue(uint16_t pulseWidthUs)
 {
     if (pulseWidthUs <= SPEKTRUM_PULSE_OFFSET) {
         return 0;
@@ -262,7 +264,7 @@ static uint16_t smartescPulseWidthToChannelValue(uint16_t pulseWidthUs)
     return (uint16_t)MIN(scaled, 0xFFFFu);
 }
 
-static uint16_t smartescPulseFromNormalized(float normalized)
+static uint16_t srxl2escPulseFromNormalized(float normalized)
 {
     float pulseUs;
 #if defined(USE_MOTOR)
@@ -299,7 +301,7 @@ static uint16_t smartescPulseFromNormalized(float normalized)
     return (uint16_t)lrintf(pulseUs);
 }
 
-static float smartescNormalizedFromPulse(uint16_t pulseWidthUs)
+static float srxl2escNormalizedFromPulse(uint16_t pulseWidthUs)
 {
     float normalized = 0.0f;
 #if defined(USE_MOTOR)
@@ -328,28 +330,28 @@ static float smartescNormalizedFromPulse(uint16_t pulseWidthUs)
 }
 
 #if defined(USE_MOTOR)
-static void smartescUpdateThrottleFromMotors(void)
+static void srxl2escUpdateThrottleFromMotors(void)
 {
     if (getMotorCount() == 0) {
         return;
     }
 
     const float normalized = (float)getMotorOutput(0) / 1000.0f;
-    const uint16_t pulse = smartescPulseFromNormalized(normalized);
-    smartescThrottleCommand = smartescPulseWidthToChannelValue(pulse);
+    const uint16_t pulse = srxl2escPulseFromNormalized(normalized);
+    srxl2escThrottleCommand = srxl2escPulseWidthToChannelValue(pulse);
 }
 #endif
 
-static void smartescAdvanceHandshakeStage(smartescHandshakeStage_t newStage);
-static const char *smartescHandshakeStageToString(smartescHandshakeStage_t stage);
-static void smartescScheduleBroadcastConfirm(uint8_t fcId);
-static bool smartescQueueChannelDataFrame(uint16_t channelValue);
-static void smartescRecordTelemetryFrame(const Srxl2Header *header);
-static void smartescHandleTelemetryFrame(const Srxl2Header *header);
+static void srxl2escAdvanceHandshakeStage(srxl2escHandshakeStage_t newStage);
+static const char *srxl2escHandshakeStageToString(srxl2escHandshakeStage_t stage);
+static void srxl2escScheduleBroadcastConfirm(uint8_t fcId);
+static bool srxl2escQueueChannelDataFrame(uint16_t channelValue);
+static void srxl2escRecordTelemetryFrame(const Srxl2Header *header);
+static void srxl2escHandleTelemetryFrame(const Srxl2Header *header);
 
-static void smartescScheduleBroadcastConfirm(uint8_t fcId)
+static void srxl2escScheduleBroadcastConfirm(uint8_t fcId)
 {
-    smartescBroadcastConfirmFrame = (Srxl2HandshakeFrame) {
+    srxl2escBroadcastConfirmFrame = (Srxl2HandshakeFrame) {
         .header = {
             .id = packet_HEADER,
             .packetType = Handshake,
@@ -357,52 +359,52 @@ static void smartescScheduleBroadcastConfirm(uint8_t fcId)
         },
         .payload = {
             .sourceDeviceId      = fcId,
-            .destinationDeviceId = smartesc_DEVICE_ID_BROADCAST,
+            .destinationDeviceId = SRXL2_ESC_DEVICE_ID_BROADCAST,
             .priority            = 10,
             .baudSupported       = baudRate,
             .info                = 0,
             .uniqueId            = 0,
         },
     };
-    smartescBroadcastConfirmPending = true;
+    srxl2escBroadcastConfirmPending = true;
 }
 
-static bool smartescQueueChannelDataFrame(uint16_t channelValue)
+static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
 {
-    if (busMasterDeviceId == smartesc_DEVICE_ID_BROADCAST) {
+    if (busMasterDeviceId == SRXL2_ESC_DEVICE_ID_BROADCAST) {
         return false;
     }
-    if (writeBufferIdx != 0 || smartescTxInProgress) {
+    if (writeBufferIdx != 0 || srxl2escTxInProgress) {
         return false;
     }
 
     bool requestTelemetry = false;
     const uint32_t now = micros();
-    if (smartescTelemetryFrameInterval > 0 && !smartescTelemetryRxPending) {
-        if (++smartescThrottleFrameCounter >= smartescTelemetryFrameInterval) {
-            smartescThrottleFrameCounter = 0;
+    if (srxl2escTelemetryFrameInterval > 0 && !srxl2escTelemetryRxPending) {
+        if (++srxl2escThrottleFrameCounter >= srxl2escTelemetryFrameInterval) {
+            srxl2escThrottleFrameCounter = 0;
             requestTelemetry = true;
-            smartescTelemetryRxPending = true;
-            smartescTelemetryRxDeadlineUs = now + smartesc_TELEMETRY_RX_TIMEOUT_US;
+            srxl2escTelemetryRxPending = true;
+            srxl2escTelemetryRxDeadlineUs = now + SRXL2_ESC_TELEMETRY_RX_TIMEOUT_US;
             /* Give the ESC a short window to start replying before we transmit again.
              * This avoids collisions without stalling for the full RX timeout. */
-            uint32_t holdoffUs = smartescThrottleIntervalUs;
-            if (holdoffUs < smartesc_TELEMETRY_REQUEST_HOLDOFF_US) {
-                holdoffUs = smartesc_TELEMETRY_REQUEST_HOLDOFF_US;
+            uint32_t holdoffUs = srxl2escThrottleIntervalUs;
+            if (holdoffUs < SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_US) {
+                holdoffUs = SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_US;
             }
-            if (holdoffUs > smartesc_TELEMETRY_REQUEST_HOLDOFF_MAX_US) {
-                holdoffUs = smartesc_TELEMETRY_REQUEST_HOLDOFF_MAX_US;
+            if (holdoffUs > SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_MAX_US) {
+                holdoffUs = SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_MAX_US;
             }
-            smartescTelemetryHoldoffEndUs = now + holdoffUs;
+            srxl2escTelemetryHoldoffEndUs = now + holdoffUs;
         }
     }
     const uint8_t replyId = requestTelemetry ? busMasterDeviceId : 0x00;
 
-    smartescChannelDataFrame_t frame = {
+    srxl2escChannelDataFrame_t frame = {
         .header = {
             .id = packet_HEADER,
             .packetType = ControlData,
-            .length = sizeof(smartescChannelDataFrame_t),
+            .length = sizeof(srxl2escChannelDataFrame_t),
         },
         .control = {
             .command = ChannelData,
@@ -418,11 +420,11 @@ static bool smartescQueueChannelDataFrame(uint16_t channelValue)
         .crcLow = 0,
     };
 
-    smartescWriteData(&frame, sizeof(frame));
+    srxl2escWriteData(&frame, sizeof(frame));
     return true;
 }
 
-static void smartescHandleTelemetryFrame(const Srxl2Header *header)
+static void srxl2escHandleTelemetryFrame(const Srxl2Header *header)
 {
     const uint8_t *payload = (const uint8_t *)(header + 1);
     uint8_t sensorId = 0;
@@ -431,20 +433,20 @@ static void smartescHandleTelemetryFrame(const Srxl2Header *header)
         sensorId = payload[1];
         secondaryId = payload[2];
     }
-    smartescTelemetryRxPending = false;
-    smartescTelemetryRxDeadlineUs = 0;
+    srxl2escTelemetryRxPending = false;
+    srxl2escTelemetryRxDeadlineUs = 0;
     const uint32_t rxCompleteUs = lastReceiveTimestamp ? lastReceiveTimestamp : micros();
-    smartescTelemetryHoldoffEndUs = rxCompleteUs + smartesc_TELEMETRY_POST_HOLDOFF_US;
+    srxl2escTelemetryHoldoffEndUs = rxCompleteUs + SRXL2_ESC_TELEMETRY_POST_HOLDOFF_US;
     /* Previously we filtered out sensor type 0x0C completely here which prevented
      * SRXL2 from ever having telemetry to send if those were the only frames.
      * Record all frames and keep the latest entry so other subsystems (ESC_SENSOR,
      * OSD, etc.) can use the data. Transmission filtering (so SRXL2 doesn't
      * forward 0x0C frames) is handled by smartescGetLatestTelemetry(). */
-    smartescRecordTelemetryFrame(header);
-    smartescLatestTelemetrySensorId = sensorId;
-    smartescLatestTelemetrySecondaryId = secondaryId;
-    memcpy(smartescLatestTelemetryData, payload + 3, sizeof(smartescLatestTelemetryData));
-    smartescLatestTelemetryValid = true;
+    srxl2escRecordTelemetryFrame(header);
+    srxl2escLatestTelemetrySensorId = sensorId;
+    srxl2escLatestTelemetrySecondaryId = secondaryId;
+    memcpy(srxl2escLatestTelemetryData, payload + 3, sizeof(srxl2escLatestTelemetryData));
+    srxl2escLatestTelemetryValid = true;
 
     // Attempt to map SMART ESC sensorId to a motor index and inject parsed escSensorData
     // so the rest of the system (telemetry backends) can see full ESC telemetry.
@@ -544,9 +546,9 @@ static void smartescHandleTelemetryFrame(const Srxl2Header *header)
                     inj.pwm = inj.throttle;
                 } else {
                     // Fallback: populate from current throttle command like before
-                    const uint16_t channelVal = smartescThrottleCommand;
-                    const uint16_t pulseUs = smartescChannelValueToPulseWidth(channelVal);
-                    const float normalized = smartescNormalizedFromPulse(pulseUs);
+                    const uint16_t channelVal = srxl2escThrottleCommand;
+                    const uint16_t pulseUs = srxl2escChannelValueToPulseWidth(channelVal);
+                    const float normalized = srxl2escNormalizedFromPulse(pulseUs);
                     const int throttle01 = (int)lrintf(normalized * 1000.0f); // 0.1% units
                     inj.throttle = (throttle01 < 0) ? (uint16_t)(-throttle01) : (uint16_t)throttle01;
                     inj.pwm = inj.throttle;
@@ -559,7 +561,7 @@ static void smartescHandleTelemetryFrame(const Srxl2Header *header)
     }
 }
 
-static void smartescRecordTelemetryFrame(const Srxl2Header *header)
+static void srxl2escRecordTelemetryFrame(const Srxl2Header *header)
 {
     if (!header || header->length < 6) {
         return;
@@ -569,10 +571,10 @@ static void smartescRecordTelemetryFrame(const Srxl2Header *header)
     const uint8_t secondaryId = payload[2];
     const uint8_t *data = payload + 3;
 
-    const unsigned base = (smartescTelemetryHistoryHead + SMARTESC_TELEM_HISTORY - smartescTelemetryHistoryCount) % SMARTESC_TELEM_HISTORY;
-    for (unsigned i = 0; i < smartescTelemetryHistoryCount; ++i) {
-        const unsigned slotIndex = (base + i) % SMARTESC_TELEM_HISTORY;
-        smartescTelemetryHistoryEntry_t *entry = &smartescTelemetryHistory[slotIndex];
+    const unsigned base = (srxl2escTelemetryHistoryHead + SRXL2_ESC_TELEM_HISTORY - srxl2escTelemetryHistoryCount) % SRXL2_ESC_TELEM_HISTORY;
+    for (unsigned i = 0; i < srxl2escTelemetryHistoryCount; ++i) {
+        const unsigned slotIndex = (base + i) % SRXL2_ESC_TELEM_HISTORY;
+        srxl2escTelemetryHistoryEntry_t *entry = &srxl2escTelemetryHistory[slotIndex];
         if (entry->sensorId == sensorId && entry->secondaryId == secondaryId && memcmp(entry->data, data, sizeof(entry->data)) == 0) {
             entry->count++;
             entry->timestamp = micros();
@@ -580,45 +582,45 @@ static void smartescRecordTelemetryFrame(const Srxl2Header *header)
         }
     }
 
-    smartescTelemetryHistoryEntry_t *slot = &smartescTelemetryHistory[smartescTelemetryHistoryHead];
+    srxl2escTelemetryHistoryEntry_t *slot = &srxl2escTelemetryHistory[srxl2escTelemetryHistoryHead];
     slot->timestamp = micros();
     slot->count = 1;
     slot->sensorId = sensorId;
     slot->secondaryId = secondaryId;
     memcpy(slot->data, data, sizeof(slot->data));
-    smartescTelemetryHistoryHead = (smartescTelemetryHistoryHead + 1) % SMARTESC_TELEM_HISTORY;
-    if (smartescTelemetryHistoryCount < SMARTESC_TELEM_HISTORY) {
-        smartescTelemetryHistoryCount++;
+    srxl2escTelemetryHistoryHead = (srxl2escTelemetryHistoryHead + 1) % SRXL2_ESC_TELEM_HISTORY;
+    if (srxl2escTelemetryHistoryCount < SRXL2_ESC_TELEM_HISTORY) {
+        srxl2escTelemetryHistoryCount++;
     }
 }
 
-static void smartescAdvanceHandshakeStage(smartescHandshakeStage_t newStage)
+static void srxl2escAdvanceHandshakeStage(srxl2escHandshakeStage_t newStage)
 {
     if (handshakeStage == newStage) {
         return;
     }
 
     handshakeStage = newStage;
-    smartescHandshakeComplete = (newStage == SMARTESC_HANDSHAKE_STAGE_DONE);
+    srxl2escHandshakeComplete = (newStage == SRXL2_ESC_HANDSHAKE_STAGE_DONE);
 }
 
-static const char *smartescHandshakeStageToString(smartescHandshakeStage_t stage)
+static const char *srxl2escHandshakeStageToString(srxl2escHandshakeStage_t stage)
 {
     switch (stage) {
-    case SMARTESC_HANDSHAKE_STAGE_IDLE: return "idle";
-    case SMARTESC_HANDSHAKE_STAGE_WAITING_ESC_REPLY: return "wait_ESC";
-    case SMARTESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK: return "wait_FC";
-    case SMARTESC_HANDSHAKE_STAGE_DONE: return "done";
+    case SRXL2_ESC_HANDSHAKE_STAGE_IDLE: return "idle";
+    case SRXL2_ESC_HANDSHAKE_STAGE_WAITING_ESC_REPLY: return "wait_ESC";
+    case SRXL2_ESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK: return "wait_FC";
+    case SRXL2_ESC_HANDSHAKE_STAGE_DONE: return "done";
     default: return "unknown";
     }
 }
 
-bool smartescIsHandshakeComplete(void) { return smartescHandshakeComplete; }
-const char *smartescGetHandshakeStageString(void) { return smartescHandshakeStageToString(handshakeStage); }
+bool srxl2escIsHandshakeComplete(void) { return srxl2escHandshakeComplete; }
+const char *srxl2escGetHandshakeStageString(void) { return srxl2escHandshakeStageToString(handshakeStage); }
 
 /* handshake protocol
     1. listen for 50ms for serial activity and go to State::Running if found, autobaud may be necessary
-    2. if smartesc_unitId = 0:
+    2. if srxl2esc_unitId = 0:
             send a Handshake with destinationDeviceId = 0 every 50ms for at least 200ms
         else:
             listen for Handshake for at least 200ms
@@ -628,11 +630,11 @@ const char *smartescGetHandshakeStageString(void) { return smartescHandshakeStag
 
 // if 50ms with not activity, go to default baudrate and to step 1
 
-bool smartescProcessHandshake(const Srxl2Header* header)
+bool srxl2escProcessHandshake(const Srxl2Header* header)
 {
     const Srxl2HandshakeSubHeader* handshake = (const Srxl2HandshakeSubHeader*)(header + 1);
 
-    // smartescRecordHandshakeFrame((const uint8_t *)header, header->length, false);
+    // srxl2escRecordHandshakeFrame((const uint8_t *)header, header->length, false);
 
     const uint8_t fcId = (FlightController << 4) | unitId;
 
@@ -643,7 +645,7 @@ bool smartescProcessHandshake(const Srxl2Header* header)
     if (treatsAsBroadcast) {
         busMasterDeviceId = handshake->sourceDeviceId;
         if (handshake->baudSupported == 1) {
-            serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_HIGH);
+            serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_HIGH);
         }
 
         Srxl2HandshakeFrame response = {
@@ -662,22 +664,22 @@ bool smartescProcessHandshake(const Srxl2Header* header)
             },
         };
 
-        smartescWriteData(&response, sizeof(response));
+        srxl2escWriteData(&response, sizeof(response));
         /* Defer actual transmit to service() to avoid blocking in poll()/frame processing. */
         if (isOwnId) {
-            smartescScheduleBroadcastConfirm(fcId);
-            smartescAdvanceHandshakeStage(SMARTESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK);
+            srxl2escScheduleBroadcastConfirm(fcId);
+            srxl2escAdvanceHandshakeStage(SRXL2_ESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK);
         }
 
         state = Running;
-        smartescBootEndUs = micros() + 2000000;
+        srxl2escBootEndUs = micros() + 2000000;
         return true;
     }
 
     return true;
 }
 
-void smartescProcessChannelData(const Srxl2ChannelDataHeader* channelData, smartesc_rxRuntimeState_t *rxRuntimeState) {
+void srxl2escProcessChannelData(const Srxl2ChannelDataHeader* channelData, srxl2esc_runtimeState_t *runtimeState) {
     globalResult = RX_FRAME_COMPLETE;
 
     if (channelData->rssi >= 0) {
@@ -696,17 +698,17 @@ void smartescProcessChannelData(const Srxl2ChannelDataHeader* channelData, smart
     while (channelMask) {
         unsigned idx = __builtin_ctz (channelMask);
         uint32_t mask = 1 << idx;
-        rxRuntimeState->channelData[idx] = *frameChannels++;
+        runtimeState->channelData[idx] = *frameChannels++;
         channelMask &= ~mask;
     }
 
     // Fix: channelData_header was an invalid identifier; use channelData for debug output
     DEBUG_PRINTF("channel data: %d %d %x\r\n", channelData->rssi, channelData->frameLosses, channelData->channelMask.u32);
 
-    smartescAdvanceHandshakeStage(SMARTESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK);
+    srxl2escAdvanceHandshakeStage(SRXL2_ESC_HANDSHAKE_STAGE_WAITING_FINAL_ACK);
 }
 
-bool smartescProcessControlData(const Srxl2Header* header, smartesc_rxRuntimeState_t *rxRuntimeState)
+bool srxl2escProcessControlData(const Srxl2Header* header, srxl2esc_runtimeState_t *runtimeState)
 {
     const Srxl2ControlDataSubHeader* controlData = (const Srxl2ControlDataSubHeader*)(header + 1);
     const uint8_t ownId = (FlightController << 4) | unitId;
@@ -721,7 +723,7 @@ bool smartescProcessControlData(const Srxl2Header* header, smartesc_rxRuntimeSta
     switch (controlData->command) {
     case ChannelData: {
         const Srxl2ChannelDataHeader *cdh = (const Srxl2ChannelDataHeader *)(controlData + 1);
-        smartescProcessChannelData(cdh, rxRuntimeState);
+        srxl2escProcessChannelData(cdh, runtimeState);
     } break;
 
     case FailsafeChannelData: {
@@ -731,7 +733,7 @@ bool smartescProcessControlData(const Srxl2Header* header, smartesc_rxRuntimeSta
 
     case VTXData: {
     #if defined(USE_SPEKTRUM_VTX_CONTROL) && defined(USE_VTX_COMMON)
-        smartescVtxData *vtxData = (smartescVtxData*)(controlData + 1);
+        srxl2escVtxData *vtxData = (srxl2escVtxData*)(controlData + 1);
         uint32_t vtxControl =   (0xE0u << 24) | (0xE0u << 8) |
                                 ((vtxData->band & 0x07u) << 21) |
                                 ((vtxData->channel & 0x0Fu) << 16) |
@@ -787,14 +789,14 @@ bool smartescProcessControlData(const Srxl2Header* header, smartesc_rxRuntimeSta
     return true;
 }
 
-bool smartescProcessPacket(const Srxl2Header* header, smartesc_rxRuntimeState_t *rxRuntimeState)
+bool srxl2escProcessPacket(const Srxl2Header* header, srxl2esc_runtimeState_t *runtimeState)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(runtimeState);
     switch (header->packetType) {
     case Handshake:
-        return smartescProcessHandshake(header);
+        return srxl2escProcessHandshake(header);
     case TelemetrySensorData:
-        smartescHandleTelemetryFrame(header);
+        srxl2escHandleTelemetryFrame(header);
         return true;
     default:
         DEBUG_PRINTF("Other packet type, ID: %x \r\n", header->packetType);
@@ -804,22 +806,22 @@ bool smartescProcessPacket(const Srxl2Header* header, smartesc_rxRuntimeState_t 
     return false;
 }
 
-static void smartescTrySendPendingWriteBuffer(void)
+static void srxl2escTrySendPendingWriteBuffer(void)
 {
     if (!serialPort) {
         return;
     }
 
-    if (smartescTxInProgress) {
+    if (srxl2escTxInProgress) {
         const uint32_t now = micros();
         /* On some targets/drivers, isSerialTransmitBufferEmpty() can lag well past
          * the actual on-wire completion time, which stalls subsequent frames.
          * Use a conservative time-based completion as a backstop. */
-        const bool timeDone = (smartescTxExpectedDoneUs != 0) && (cmpTimeUs(now, smartescTxExpectedDoneUs) >= 0);
-        if (isSerialTransmitBufferEmpty(serialPort) || timeDone || cmpTimeUs(now, smartescTxActiveSinceUs) > smartesc_TX_TIMEOUT_US) {
+        const bool timeDone = (srxl2escTxExpectedDoneUs != 0) && (cmpTimeUs(now, srxl2escTxExpectedDoneUs) >= 0);
+        if (isSerialTransmitBufferEmpty(serialPort) || timeDone || cmpTimeUs(now, srxl2escTxActiveSinceUs) > SRXL2_ESC_TX_TIMEOUT_US) {
             serialEndWrite(serialPort);
-            smartescTxInProgress = false;
-            smartescTxExpectedDoneUs = 0;
+            srxl2escTxInProgress = false;
+            srxl2escTxExpectedDoneUs = 0;
         }
         return;
     }
@@ -830,7 +832,7 @@ static void smartescTrySendPendingWriteBuffer(void)
 
     uint32_t now = micros();
     const bool seenIdleSinceLastRx = cmpTimeUs(lastIdleTimestamp, lastReceiveTimestamp) > 0;
-    const uint32_t deadline = lastReceiveTimestamp + smartesc_REPLY_QUIESCENCE;
+    const uint32_t deadline = lastReceiveTimestamp + SRXL2_ESC_REPLY_QUIESCENCE;
     const bool lineQuietEnough = cmpTimeUs(now, deadline) >= 0;
     if (!seenIdleSinceLastRx && !lineQuietEnough) {
         /* still receiving bytes, wait for idle or quiescence */
@@ -849,7 +851,7 @@ static void smartescTrySendPendingWriteBuffer(void)
         }
     }
 
-    smartescLastTxSkipSet = writeBufferIdx;  // Debug: record frame size
+    srxl2escLastTxSkipSet = writeBufferIdx;  // Debug: record frame size
     /* Set up echo suppression: skip exactly writeBufferIdx bytes that will
      * echo back on this half-duplex bus */
     txBytesToSkip = writeBufferIdx;
@@ -861,19 +863,19 @@ static void smartescTrySendPendingWriteBuffer(void)
     /* Record TX start timestamp into the first matching event slot (if any) */
     const uint32_t txStartUs = micros();
     serialWriteBuf(serialPort, writeBuffer, writeBufferIdx);
-    smartescTxInProgress = true;
-    smartescTxActiveSinceUs = txStartUs;
+    srxl2escTxInProgress = true;
+    srxl2escTxActiveSinceUs = txStartUs;
     /* Predict completion time from baud and bytes (10 bits per byte on 8N1).
      * Add a small margin for ISR/line turnaround. */
     {
         const uint32_t baud = serialGetBaudRate(serialPort);
-        const uint32_t bytes = smartescLastTxSkipSet;
+        const uint32_t bytes = srxl2escLastTxSkipSet;
         if (baud > 0 && bytes > 0) {
             const uint32_t bits = bytes * 10u;
             const uint32_t durUs = (uint32_t)(((uint64_t)bits * 1000000ull + (uint64_t)baud - 1ull) / (uint64_t)baud);
-            smartescTxExpectedDoneUs = txStartUs + durUs + 300u;
+            srxl2escTxExpectedDoneUs = txStartUs + durUs + 300u;
         } else {
-            smartescTxExpectedDoneUs = txStartUs + 2000u;
+            srxl2escTxExpectedDoneUs = txStartUs + 2000u;
         }
     }
     /* Don't touch echo tracking here - the ISR handles it.
@@ -885,7 +887,7 @@ static void smartescTrySendPendingWriteBuffer(void)
 /* smartescFlushWriteBufferBlocking removed: flushing is now handled from service() */
 
 // @note assumes packet is fully there
-void smartescProcess(smartesc_rxRuntimeState_t *rxRuntimeState)
+void srxl2escProcess(srxl2esc_runtimeState_t *runtimeState)
 {
     /* capture instantaneous snapshot of what we are about to parse */
     const unsigned headerLen = processBufferPtr->packet.header.length;
@@ -907,10 +909,10 @@ void smartescProcess(smartesc_rxRuntimeState_t *rxRuntimeState)
 
     //Packet is valid only after ID and CRC check out
     lastValidPacketTimestamp = micros();
-    smartescLastProcessedLen = headerLen;
-    smartescLastProcessedPacketType = packetType;
+    srxl2escLastProcessedLen = headerLen;
+    srxl2escLastProcessedPacketType = packetType;
 
-    if (smartescProcessPacket(&processBufferPtr->packet.header, rxRuntimeState)) {
+    if (srxl2escProcessPacket(&processBufferPtr->packet.header, runtimeState)) {
         return;
     }
 
@@ -918,7 +920,7 @@ void smartescProcess(smartesc_rxRuntimeState_t *rxRuntimeState)
     globalResult = RX_FRAME_DROPPED;
 }
 
-void smartescDataReceive(uint16_t character, void *data)
+void srxl2escDataReceive(uint16_t character, void *data)
 {
     UNUSED(data);
     lastReceiveTimestamp = microsISR();
@@ -941,13 +943,13 @@ void smartescDataReceive(uint16_t character, void *data)
                 if (processBufferPtr->len == 0) {
                     /* Process buffer free: hand this buffer to the processor and pick a spare for further reads */
                     lastIdleTimestamp = microsISR();
-                    struct rxBufse *spare = smartescGetSpareBuffer();
+                    struct escBufse *spare = srxl2escGetSpareBuffer();
                     /* Make current read buffer the process buffer */
                     processBufferPtr = readBufferPtr;
                     /* Select a new read buffer (spare). If no spare found, fall back to the other buffer */
                     if (spare == NULL) {
                         for (int i = 0; i < 3; ++i) {
-                            struct rxBufse *b = &readBufferse[i];
+                            struct escBufse *b = &readBufferse[i];
                             if (b != processBufferPtr) { spare = b; break; }
                         }
                     }
@@ -956,10 +958,10 @@ void smartescDataReceive(uint16_t character, void *data)
                     readBufferIdx = 0;
                 } else {
                     /* Process buffer busy: try to queue this completed frame into a spare buffer */
-                    struct rxBufse *spare = smartescGetSpareBuffer();
+                    struct escBufse *spare = srxl2escGetSpareBuffer();
                     if (spare != NULL) {
                         unsigned copyLen = readBufferIdx;
-                        if (copyLen > smartesc_MAX_PACKET_LENGTH) copyLen = smartesc_MAX_PACKET_LENGTH;
+                        if (copyLen > SRXL2_ESC_MAX_PACKET_LENGTH) copyLen = SRXL2_ESC_MAX_PACKET_LENGTH;
                         for (unsigned i = 0; i < copyLen; ++i) {
                             spare->packet.raw[i] = readBufferPtr->packet.raw[i];
                         }
@@ -985,7 +987,7 @@ void smartescDataReceive(uint16_t character, void *data)
     }
 
     //If the buffer index exceeds max length, disable reception
-    if (readBufferIdx >= smartesc_MAX_PACKET_LENGTH) {
+    if (readBufferIdx >= SRXL2_ESC_MAX_PACKET_LENGTH) {
         readBufferIdx = 0;
         globalResult = RX_FRAME_DROPPED;
     }
@@ -995,7 +997,7 @@ void smartescDataReceive(uint16_t character, void *data)
     }
 }
 
-void smartescIdle()
+void srxl2escIdle()
 {
     if (readBufferIdx == 0) { // No data received
         readBufferPtr->len = 0;
@@ -1011,7 +1013,7 @@ void smartescIdle()
 
     // Check if we have the full frame based on the length field
     const uint8_t expectedLen = readBufferPtr->packet.raw[2];  // length field
-    if (expectedLen > 0 && expectedLen <= smartesc_MAX_PACKET_LENGTH && readBufferIdx < expectedLen) {
+    if (expectedLen > 0 && expectedLen <= SRXL2_ESC_MAX_PACKET_LENGTH && readBufferIdx < expectedLen) {
         // Frame incomplete, don't swap yet - wait for remaining bytes
         return;
     }
@@ -1022,10 +1024,10 @@ void smartescIdle()
     /* Only swap if process buffer is empty - don't overwrite unprocessed frame! */
     if (processBufferPtr->len > 0) {
         /* Process buffer still has data - try to queue the current read buffer into a spare buffer */
-        struct rxBufse *spare = smartescGetSpareBuffer();
+        struct escBufse *spare = srxl2escGetSpareBuffer();
         if (spare != NULL) {
             unsigned copyLen = readBufferIdx;
-            if (copyLen > smartesc_MAX_PACKET_LENGTH) copyLen = smartesc_MAX_PACKET_LENGTH;
+            if (copyLen > SRXL2_ESC_MAX_PACKET_LENGTH) copyLen = SRXL2_ESC_MAX_PACKET_LENGTH;
             for (unsigned i = 0; i < copyLen; ++i) {
                 spare->packet.raw[i] = readBufferPtr->packet.raw[i];
             }
@@ -1058,7 +1060,7 @@ static inline void put_be16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); 
 
 #define BE16(x) (uint8_t)((x) >> 8), (uint8_t)((x) & 0xFF)
 
-static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
+static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
 {
     UNUSED(rxRuntimeState);
 
@@ -1067,7 +1069,7 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
     // len should only be set after an idle interrupt (packet reception complete)
     if (processBufferPtr != NULL && processBufferPtr->len) {
         // About to process packet
-        smartescProcess(rxRuntimeState);
+        srxl2escProcess(runtimeState);
         // Finished processing
         processBufferPtr->len = 0;
 
@@ -1078,11 +1080,11 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
         do {
             found = false;
             for (int i = 0; i < 3; ++i) {
-                struct rxBufse *b = &readBufferse[i];
+                struct escBufse *b = &readBufferse[i];
                 if (b == readBufferPtr) continue; /* skip active write buffer */
                 if (b->len > 0) {
                     processBufferPtr = b;
-                    smartescProcess(rxRuntimeState);
+                    srxl2escProcess(runtimeState);
                     processBufferPtr->len = 0;
                     found = true;
                     break; /* restart scan */
@@ -1110,25 +1112,25 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
             if (baudRate != 0) {
                 uint32_t currentBaud = serialGetBaudRate(serialPort);
 
-                if(currentBaud == smartesc_PORT_BAUDRATE_DEFAULT)
-                    serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_HIGH);
+                if(currentBaud == SRXL2_ESC_PORT_BAUDRATE_DEFAULT)
+                    serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_HIGH);
                 else
-                    serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_DEFAULT);
+                    serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             }
         } else if (cmpTimeUs(now, timeoutTimestamp) >= 0) {
             // @todo if there was activity - detect baudrate and ListenForHandshake
 
             if (unitId == 0) {
                 state = SendHandshake;
-                timeoutTimestamp = now + smartesc_SEND_HANDSHAKE_TIMEOUT_US;
-                fullTimeoutTimestamp = now + smartesc_LISTEN_FOR_HANDSHAKE_TIMEOUT_US;
+                timeoutTimestamp = now + SRXL2_ESC_SEND_HANDSHAKE_TIMEOUT_US;
+                fullTimeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_HANDSHAKE_TIMEOUT_US;
             } else {
                 state = ListenForHandshake;
-                timeoutTimestamp = now + smartesc_LISTEN_FOR_HANDSHAKE_TIMEOUT_US;
+                timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_HANDSHAKE_TIMEOUT_US;
             }
         }
     } 
-        // strcpy(smartescStateString, "ListenForActivity");
+        // strcpy(srxl2escStateString, "ListenForActivity");
         break;
 
     case SendHandshake: {
@@ -1139,23 +1141,23 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
         }
 
         if (cmpTimeUs(now, fullTimeoutTimestamp) >= 0) {
-            serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_DEFAULT);
-            DEBUG_PRINTF("case SendHandshake: switching to %d baud\r\n", smartesc_PORT_BAUDRATE_DEFAULT);
-            timeoutTimestamp = now + smartesc_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
+            serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
+            DEBUG_PRINTF("case SendHandshake: switching to %d baud\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
+            timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
             result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
             lastReceiveTimestamp = 0;
         }
     } 
-        // strcpy(smartescStateString, "SendHandshake");
+        // strcpy(srxl2escStateString, "SendHandshake");
         break;
 
     case ListenForHandshake: {
         if (cmpTimeUs(now, timeoutTimestamp) >= 0)  {
-            serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_DEFAULT);
-            DEBUG_PRINTF("case ListenForHandshake: switching to %d baud\r\n", smartesc_PORT_BAUDRATE_DEFAULT);
-            timeoutTimestamp = now + smartesc_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
+            serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
+            DEBUG_PRINTF("case ListenForHandshake: switching to %d baud\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
+            timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
             result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
@@ -1167,10 +1169,10 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
 
     case Running: {
         // frame timed out, reset state
-        if (cmpTimeUs(now, lastValidPacketTimestamp) >= smartesc_FRAME_TIMEOUT_US) {
-            serialSetBaudRate(serialPort, smartesc_PORT_BAUDRATE_DEFAULT);
-            DEBUG_PRINTF("case Running: switching to %d baud: %d %d\r\n", smartesc_PORT_BAUDRATE_DEFAULT, now, lastValidPacketTimestamp);
-            timeoutTimestamp = now + smartesc_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
+        if (cmpTimeUs(now, lastValidPacketTimestamp) >= SRXL2_ESC_FRAME_TIMEOUT_US) {
+            serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
+            DEBUG_PRINTF("case Running: switching to %d baud: %d %d\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT, now, lastValidPacketTimestamp);
+            timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
             result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
@@ -1186,68 +1188,68 @@ static uint8_t smartescFrameStatus(smartesc_rxRuntimeState_t *rxRuntimeState)
     }
 
     if (!(result & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
-        rxRuntimeState->lastRcFrameTimeUs = lastIdleTimestamp;
+        runtimeState->lastRcFrameTimeUs = lastIdleTimestamp;
     }
 
     return result;
 }
 
-static bool smartescProcessFrame(const smartesc_rxRuntimeState_t *rxRuntimeState)
+static bool srxl2escProcessFrame(const srxl2esc_runtimeState_t *runtimeState)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(runtimeState);
 
-    if (smartescBroadcastConfirmPending && writeBufferIdx == 0 && !smartescTxInProgress) {
-        smartescWriteData(&smartescBroadcastConfirmFrame, sizeof(smartescBroadcastConfirmFrame));
-        smartescBroadcastConfirmPending = false;
-        smartescAdvanceHandshakeStage(SMARTESC_HANDSHAKE_STAGE_DONE);
+    if (srxl2escBroadcastConfirmPending && writeBufferIdx == 0 && !srxl2escTxInProgress) {
+        srxl2escWriteData(&srxl2escBroadcastConfirmFrame, sizeof(srxl2escBroadcastConfirmFrame));
+        srxl2escBroadcastConfirmPending = false;
+        srxl2escAdvanceHandshakeStage(SRXL2_ESC_HANDSHAKE_STAGE_DONE);
     }
-    else if (smartescHandshakeComplete && !smartescTxInProgress && writeBufferIdx == 0) {
+    else if (srxl2escHandshakeComplete && !srxl2escTxInProgress && writeBufferIdx == 0) {
         uint32_t now = micros();
         /* Keep telemetry state progressing, but do not stall throttle/channel frames
          * for the whole telemetry RX timeout. */
-        if (smartescTelemetryRxPending) {
-            if (smartescTelemetryRxDeadlineUs == 0 || cmpTimeUs(now, smartescTelemetryRxDeadlineUs) >= 0) {
-                smartescTelemetryRxPending = false;
+        if (srxl2escTelemetryRxPending) {
+            if (srxl2escTelemetryRxDeadlineUs == 0 || cmpTimeUs(now, srxl2escTelemetryRxDeadlineUs) >= 0) {
+                srxl2escTelemetryRxPending = false;
 
-                smartescTelemetryRxDeadlineUs = 0;
+                srxl2escTelemetryRxDeadlineUs = 0;
             }
         }
         bool telemetryHoldoffActive = false;
-        if (smartescTelemetryHoldoffEndUs != 0) {
-            if (cmpTimeUs(now, smartescTelemetryHoldoffEndUs) < 0) {
+        if (srxl2escTelemetryHoldoffEndUs != 0) {
+            if (cmpTimeUs(now, srxl2escTelemetryHoldoffEndUs) < 0) {
                 telemetryHoldoffActive = true;
             } else {
-                smartescTelemetryHoldoffEndUs = 0;
+                srxl2escTelemetryHoldoffEndUs = 0;
             }
         }
-        smartescUpdateThrottleFromMotors();
-        if (!telemetryHoldoffActive && (smartescNextThrottleSendUs == 0 || cmpTimeUs(now, smartescNextThrottleSendUs) >= 0)) {
-            if (smartescQueueChannelDataFrame(smartescThrottleCommand)) {
-                smartescNextThrottleSendUs = now + smartescThrottleIntervalUs;
+        srxl2escUpdateThrottleFromMotors();
+        if (!telemetryHoldoffActive && (srxl2escNextThrottleSendUs == 0 || cmpTimeUs(now, srxl2escNextThrottleSendUs) >= 0)) {
+            if (srxl2escQueueChannelDataFrame(srxl2escThrottleCommand)) {
+                srxl2escNextThrottleSendUs = now + srxl2escThrottleIntervalUs;
             }
         }
     }
 
-    smartescTrySendPendingWriteBuffer();
+    srxl2escTrySendPendingWriteBuffer();
 
     return (writeBufferIdx == 0);
 }
 
-static float smartescReadRawRC(const smartesc_rxRuntimeState_t *rxRuntimeState, uint8_t channelIdx)
+static float srxl2escReadRawRC(const srxl2esc_runtimeState_t *runtimeState, uint8_t channelIdx)
 {
-    if (channelIdx >= rxRuntimeState->channelCount) {
+    if (channelIdx >= runtimeState->channelCount) {
         return 0;
     }
 
-    return ((float)(rxRuntimeState->channelData[channelIdx] >> smartesc_CHANNEL_SHIFT) / 16) + SPEKTRUM_PULSE_OFFSET;
+    return ((float)(runtimeState->channelData[channelIdx] >> SRXL2_ESC_CHANNEL_SHIFT) / 16) + SPEKTRUM_PULSE_OFFSET;
 }
 
 /* Provide a local frame-time helper so the SMART ESC driver does not
  * depend on the global RX subsystem. This returns the last idle
  * timestamp observed by the driver as an approximation of frame time. */
-static timeUs_t smartescLocalFrameTimeUs(void) { return lastIdleTimestamp; }
+static timeUs_t srxl2escLocalFrameTimeUs(void) { return lastIdleTimestamp; }
 
-void smartescWriteData(const void *data, int len)
+void srxl2escWriteData(const void *data, int len)
 {
     const uint16_t crc = crc16_ccitt_update(0, (uint8_t*)data, len - 2);
     ((uint8_t*)data)[len-2] = ((uint8_t *) &crc)[1] & 0xFF;
@@ -1258,13 +1260,13 @@ void smartescWriteData(const void *data, int len)
     writeBufferIdx = len;
 }
 
-void smartescSetThrottleCommand(uint16_t value)
+void srxl2escSetThrottleCommand(uint16_t value)
 {
-    smartescThrottleCommand = value;
-    smartescNextThrottleSendUs = micros();
+    srxl2escThrottleCommand = value;
+    srxl2escNextThrottleSendUs = micros();
 }
 
-void smartescSetThrottleRateHz(uint32_t rateHz)
+void srxl2escSetThrottleRateHz(uint32_t rateHz)
 {
     if (rateHz == 0) {
         return;
@@ -1278,63 +1280,62 @@ void smartescSetThrottleRateHz(uint32_t rateHz)
         return;
     }
 #endif
-    const uint32_t minIntervalUs = smartescComputeMinThrottleIntervalUs();
+    const uint32_t minIntervalUs = srxl2escComputeMinThrottleIntervalUs();
     uint32_t interval = 1000000 / rateHz;
     if (interval < minIntervalUs) {
         interval = minIntervalUs;
     }
-    smartescThrottleIntervalUs = interval;
-    smartescNextThrottleSendUs = micros();
+    srxl2escThrottleIntervalUs = interval;
+    srxl2escNextThrottleSendUs = micros();
 
     // Persist effective value
-    const uint16_t effectiveRate = (uint16_t)(1000000 / smartescThrottleIntervalUs);
-    smartescConfigMutable()->throttle_rate_hz = effectiveRate;
-
+    const uint16_t effectiveRate = (uint16_t)(1000000 / srxl2escThrottleIntervalUs);
+    srxl2escConfigMutable()->throttle_rate_hz = effectiveRate;
 }
 
-uint32_t smartescGetThrottleRateHz(void)
+uint32_t srxl2escGetThrottleRateHz(void)
 {
-    if (smartescThrottleIntervalUs == 0) {
+    if (srxl2escThrottleIntervalUs == 0) {
         return 0;
     }
-    return 1000000 / smartescThrottleIntervalUs;
+    return 1000000 / srxl2escThrottleIntervalUs;
 }
 
-void smartescSetTelemetryIntervalFrames(uint8_t frames)
+void srxl2escSetTelemetryIntervalFrames(uint8_t frames)
 {
-    smartescTelemetryFrameInterval = frames;
-    smartescThrottleFrameCounter = 0;
+    srxl2escTelemetryFrameInterval = frames;
+    srxl2escThrottleFrameCounter = 0;
 
     // Persist
-    smartescConfigMutable()->telem_interval_frames = frames;
-
+    srxl2escConfigMutable()->telem_interval_frames = frames;
+    
     /* If telemetry polling is disabled, clear any pending wait/holdoff so we don't
      * introduce a one-time timeout stall from a previous request. */
     if (frames == 0) {
-        smartescTelemetryRxPending = false;
-        smartescTelemetryRxDeadlineUs = 0;
-        smartescTelemetryHoldoffEndUs = 0;
+        srxl2escTelemetryRxPending = false;
+        srxl2escTelemetryRxDeadlineUs = 0;
+        srxl2escTelemetryHoldoffEndUs = 0;
     }
 }
 
-uint8_t smartescGetTelemetryIntervalFrames(void)
+uint8_t srxl2escGetTelemetryIntervalFrames(void)
 {
-    return smartescTelemetryFrameInterval;
+    return srxl2escTelemetryFrameInterval;
 }
 
-unsigned smartescGetTelemetryHistoryCount(void)
+unsigned srxl2escGetTelemetryHistoryCount(void)
 {
-    return smartescTelemetryHistoryCount;
+    return srxl2escTelemetryHistoryCount;
 }
 
-unsigned smartescCopyTelemetryHistory(unsigned idx, uint8_t *dst, unsigned maxLen, uint8_t *outLen, uint32_t *outTimestamp, uint8_t *outSensorId, uint8_t *outSecondaryId, uint32_t *outCount)
+unsigned srxl2escCopyTelemetryHistory(unsigned idx, uint8_t *dst, unsigned maxLen, uint8_t *outLen, uint32_t *outTimestamp, uint8_t *outSensorId, uint8_t *outSecondaryId, uint32_t *outCount)
 {
-    if (idx >= smartescTelemetryHistoryCount) {
+    if (idx >= srxl2escTelemetryHistoryCount) {
         return 0;
     }
-    const unsigned base = (smartescTelemetryHistoryHead + SMARTESC_TELEM_HISTORY - smartescTelemetryHistoryCount) % SMARTESC_TELEM_HISTORY;
-    const unsigned slotIndex = (base + idx) % SMARTESC_TELEM_HISTORY;
-    const smartescTelemetryHistoryEntry_t *slot = &smartescTelemetryHistory[slotIndex];
+    const unsigned base = (srxl2escTelemetryHistoryHead + SRXL2_ESC_TELEM_HISTORY - srxl2escTelemetryHistoryCount) % SRXL2_ESC_TELEM_HISTORY;
+    const unsigned slotIndex = (base + idx) % SRXL2_ESC_TELEM_HISTORY;
+    const srxl2escTelemetryHistoryEntry_t *slot = &srxl2escTelemetryHistory[slotIndex];
     const unsigned copyLen = MIN(sizeof(slot->data), maxLen);
     if (dst && copyLen) {
         memcpy(dst, slot->data, copyLen);
@@ -1357,33 +1358,33 @@ unsigned smartescCopyTelemetryHistory(unsigned idx, uint8_t *dst, unsigned maxLe
     return copyLen;
 }
 
-bool smartescGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t *dst, unsigned maxLen)
+bool srxl2escGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t *dst, unsigned maxLen)
 {
-    if (!smartescLatestTelemetryValid) {
+    if (!srxl2escLatestTelemetryValid) {
         return false;
     }
 
     /* Do not expose sensor type 0x0C for transmission — caller (SRXL2)
      * will skip sending these frames. Keep the data recorded for history
      * and for internal injection into escSensorData_t. */
-    if (smartescLatestTelemetrySensorId == 0x0C) {
+    if (srxl2escLatestTelemetrySensorId == 0x0C) {
         return false;
     }
 
     if (sensorId) {
-        *sensorId = smartescLatestTelemetrySensorId;
+        *sensorId = srxl2escLatestTelemetrySensorId;
     }
     if (secondaryId) {
-        *secondaryId = smartescLatestTelemetrySecondaryId;
+        *secondaryId = srxl2escLatestTelemetrySecondaryId;
     }
     if (dst && maxLen) {
-        memcpy(dst, smartescLatestTelemetryData, MIN(sizeof(smartescLatestTelemetryData), maxLen));
+        memcpy(dst, srxl2escLatestTelemetryData, MIN(sizeof(srxl2escLatestTelemetryData), maxLen));
     }
 
     return true;
 }
 
-void validateAndFixSmartescConfig()
+void validateAndFixSrxl2escConfig()
 {
     // Force half duplex
     escSensorConfigMutable()->halfDuplex = true;
@@ -1394,8 +1395,8 @@ void validateAndFixSmartescConfig()
     // Force motor pwm protocol to SRXL2
     motorConfigMutable()->dev.motorPwmProtocol = PWM_TYPE_SRXL2;
 
-    // Clamp/repair persisted SMART ESC rate settings
-    smartescConfig_t *cfg = smartescConfigMutable();
+    // Clamp/repair persisted SRXL2 ESC rate settings
+    srxl2esc_pgConfig_t *cfg = srxl2escConfigMutable();
     if (cfg->throttle_rate_hz == 0) {
         cfg->throttle_rate_hz = 250;
     }
@@ -1405,75 +1406,75 @@ void validateAndFixSmartescConfig()
     }
 }
 
-bool smartescInit(const srxl2_escConfig_t *escConfig, smartesc_rxRuntimeState_t *smartescRs)
+bool srxl2escInit(const srxl2esc_config_t *escConfig, srxl2esc_runtimeState_t *srxl2escRs)
 {
-    (void)smartescRs; /* legacy parameter ignored; driver uses internal runtime */
+    (void)srxl2escRs; /* legacy parameter ignored; driver uses internal runtime */
 
     /* Initialize internal runtime state and channel storage */
-    for (unsigned i = 0; i < smartesc_MAX_CHANNELS; i++)
-        smartescInternalChannelData[i] = smartesc_CHANNEL_CENTER;
+    for (unsigned i = 0; i < SRXL2_ESC_MAX_CHANNELS; i++)
+        srxl2escInternalChannelData[i] = SRXL2_ESC_CHANNEL_CENTER;
 
-    memset(&smartescInternalRs, 0, sizeof(smartescInternalRs));
-    smartescInternalRs.channelData      = smartescInternalChannelData;
-    smartescInternalRs.channelCount     = smartesc_MAX_CHANNELS;
-    smartescInternalRs.rxRefreshRate    = smartesc_FRAME_PERIOD_US;
-    smartescInternalRs.rcReadRawFn      = smartescReadRawRC;
-    smartescInternalRs.rcFrameStatusFn  = smartescFrameStatus;
+    memset(&srxl2escInternalRs, 0, sizeof(srxl2escInternalRs));
+    srxl2escInternalRs.channelData      = srxl2escInternalChannelData;
+    srxl2escInternalRs.channelCount     = SRXL2_ESC_MAX_CHANNELS;
+    srxl2escInternalRs.rxRefreshRate    = SRXL2_ESC_FRAME_PERIOD_US;
+    srxl2escInternalRs.rcReadRawFn      = srxl2escReadRawRC;
+    srxl2escInternalRs.rcFrameStatusFn  = srxl2escFrameStatus;
     /* Provide a local frame-time helper so the SMART ESC driver does not
      * depend on the global RX subsystem. This returns the last idle
      * timestamp observed by the driver as an approximation of frame time. */
-    smartescInternalRs.rcFrameTimeUsFn  = smartescLocalFrameTimeUs;
-    smartescInternalRs.rcProcessFrameFn = smartescProcessFrame;
+    srxl2escInternalRs.rcFrameTimeUsFn  = srxl2escLocalFrameTimeUs;
+    srxl2escInternalRs.rcProcessFrameFn = srxl2escProcessFrame;
 
     /* Point global pointer to internal runtime state */
-    smartescRsGlobal = &smartescInternalRs;
+    srxl2escRsGlobal = &srxl2escInternalRs;
 
     // Reuse already opened port (escSensorInit owns it)
     if (!serialPort) {
         return false;
     }
 
-    serialPort->idleCallback = smartescIdle; // idempotent
+    serialPort->idleCallback = srxl2escIdle; // idempotent
 
     unitId   = escConfig ? escConfig->srxl2_unit_id : 0;
     baudRate = 0;
 
     state = ListenForActivity;
-    timeoutTimestamp = micros() + smartesc_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
+    timeoutTimestamp = micros() + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
 
     // Initialize SMART ESC throttle rate from motor config when present
 #if defined(USE_MOTOR)
     /* Use motor config as authoritative source for throttle refresh. Fall
      * back to persisted SMART ESC value if motor PG is zero/unset. If the
      * SMART ESC driver is active, enforce a maximum of 250Hz. */
-    smartesc_lastMotorPwmRate = motorConfig()->dev.motorPwmRate;
-    if (smartesc_lastMotorPwmRate == 0) {
-        smartesc_lastMotorPwmRate = smartescConfig()->throttle_rate_hz;
+    srxl2esc_lastMotorPwmRate = motorConfig()->dev.motorPwmRate;
+    if (srxl2esc_lastMotorPwmRate == 0) {
+        srxl2esc_lastMotorPwmRate = srxl2escConfig()->throttle_rate_hz;
     }
-    if (smartescIsActive() && smartesc_lastMotorPwmRate > 250) {
+    if (srxl2escIsActive() && srxl2esc_lastMotorPwmRate > 250) {
         motorConfigMutable()->dev.motorPwmRate = 250;
-        smartesc_lastMotorPwmRate = 250;
+        srxl2esc_lastMotorPwmRate = 250;
     }
-    smartescSetThrottleRateHz(smartesc_lastMotorPwmRate);
+    srxl2escSetThrottleRateHz(srxl2esc_lastMotorPwmRate);
 #else
-    smartescSetThrottleRateHz(smartescConfig()->throttle_rate_hz);
+    srxl2escSetThrottleRateHz(srxl2escConfig()->throttle_rate_hz);
 #endif
-    smartescSetTelemetryIntervalFrames(smartescConfig()->telem_interval_frames);
+    srxl2escSetTelemetryIntervalFrames(srxl2escConfig()->telem_interval_frames);
 
     return true;
 }
 
-bool smartescIsActive(void)
+bool srxl2escIsActive(void)
 {
     return serialPort;
 }
 
-bool smartescTelemetryRequested(void)
+bool srxl2escTelemetryRequested(void)
 {
     return telemetryRequested;
 }
 
-void smartescInitializeFrame(sbuf_t *dst)
+void srxl2escInitializeFrame(sbuf_t *dst)
 {
     dst->ptr = telemetryFrame;
     dst->end = ARRAYEND(telemetryFrame);
@@ -1487,26 +1488,26 @@ void smartescInitializeFrame(sbuf_t *dst)
 void smartescFinalizeFrame(sbuf_t *dst)
 {
     UNUSED(dst); // we don't need to switch to reader; we know the buffer & length
-    const int frameLen = telemetryFrame[2];   // smartesc length (includes CRC)
-    smartescWriteData(telemetryFrame, frameLen);
+    const int frameLen = telemetryFrame[2];   // srxl2esc length (includes CRC)
+    srxl2escWriteData(telemetryFrame, frameLen);
     telemetryRequested = false;
 }
 
-void smartescAttachPort(serialPort_t *p)
+void srxl2escAttachPort(serialPort_t *p)
 {
     serialPort = p;
-    if (serialPort) serialPort->idleCallback = smartescIdle;  // set boundary finisher
+    if (serialPort) serialPort->idleCallback = srxl2escIdle;  // set boundary finisher
 }
 
-bool smartescDriverInit(void)
+bool srxl2escDriverInit(void)
 {
-    if (smartescDriverReady && smartescDriverPort) {
+    if (srxl2escDriverReady && srxl2escDriverPort) {
         return true;
     }
 
-    smartescDriverReady = false;
+    srxl2escDriverReady = false;
 
-    const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_SMART_ESC);
+    const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_SRXL2_ESC);
     if (!portConfig) {
         return false;
     }
@@ -1514,28 +1515,29 @@ bool smartescDriverInit(void)
     portOptions_e options = SERIAL_STOPBITS_1 | SERIAL_PARITY_NO | SERIAL_NOT_INVERTED | SERIAL_BIDIR;
     options |= escSensorConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP;
 
-    smartescDriverPort = openSerialPort(
+    srxl2escDriverPort = openSerialPort(
         portConfig->identifier,
-        FUNCTION_SMART_ESC,
-        smartescDataReceive,
+        FUNCTION_SRXL2_ESC,
+        srxl2escDataReceive,
         NULL,
-        SMARTESC_PORT_BAUDRATE_DEFAULT,
+        SRXL2_ESC_PORT_BAUDRATE_DEFAULT,
         MODE_RXTX,
         options);
-    if (!smartescDriverPort) {
+    if (!srxl2escDriverPort) {
         return false;
     }
 
-    smartescAttachPort(smartescDriverPort);
+    srxl2escAttachPort(srxl2escDriverPort);
 
-    memset(&smartescDriverRuntime, 0, sizeof(smartescDriverRuntime));
+    memset(&srxl2escDriverRuntime, 0, sizeof(srxl2escDriverRuntime));
+    
     /* Use a default local config here to avoid referencing escConfig()/rx types.
      * If you want board-specific unit id or pin-swap, set them via a
-     * platform-specific setter or call `smartescInit` directly with values. */
-    srxl2_escConfig_t localCfg = { .srxl2_unit_id = 0, .pinSwap = false };
-    if (!smartescInit(&localCfg, &smartescDriverRuntime)) {
-        closeSerialPort(smartescDriverPort);
-        smartescDriverPort = NULL;
+     * platform-specific setter or call `srxl2escInit` directly with values. */
+    srxl2esc_config_t localCfg = { .srxl2_unit_id = 0, .pinSwap = false };
+    if (!srxl2escInit(&localCfg, &srxl2escDriverRuntime)) {
+        closeSerialPort(srxl2escDriverPort);
+        srxl2escDriverPort = NULL;
         return false;
     }
 
@@ -1568,13 +1570,13 @@ bool smartescDriverInit(void)
                     },
                 };
                 
-                smartescWriteData(&handshake, sizeof(handshake));
-                smartescTrySendPendingWriteBuffer();
+                srxl2escWriteData(&handshake, sizeof(handshake));
+                srxl2escTrySendPendingWriteBuffer();
                 nextHandshakeUs = now + 50000; // next attempt in 50ms
             }
             
             /* Process any incoming handshake responses */
-            smartesc_poll();
+            srxl2esc_poll();
             
             /* If we got a valid handshake response, exit early */
             if (state == Running || busMasterDeviceId != 0xFF) {
@@ -1586,52 +1588,52 @@ bool smartescDriverInit(void)
         }
     }
 
-    smartescDriverReady = true;
+    srxl2escDriverReady = true;
     return true;
 }
 
-void smartescDriverTask(timeUs_t currentTimeUs)
+void srxl2escDriverTask(timeUs_t currentTimeUs)
 {
     static timeUs_t nextInitAttemptUs = 0;
 
-    if (!smartescDriverReady) {
+    if (!srxl2escDriverReady) {
         const timeUs_t now = currentTimeUs ? currentTimeUs : micros();
         if (nextInitAttemptUs == 0 || cmpTimeUs(now, nextInitAttemptUs) >= 0) {
             nextInitAttemptUs = now + 500000; // retry every 500ms
-            if (smartescDriverInit()) {
+            if (srxl2escDriverInit()) {
                 return;
             }
         }
         return;
     }
 
-    smartesc_poll();
-    smartesc_service();
+    srxl2esc_poll();
+    srxl2esc_service();
 }
 
-bool smartescDriverIsReady(void)
+bool srxl2escDriverIsReady(void)
 {
-    return smartescDriverReady && smartescIsActive();
+    return srxl2escDriverReady && srxl2escIsActive();
 }
 
-void smartesc_poll(void)
+void srxl2esc_poll(void)
 {
-    if (!smartescRsGlobal) {
+    if (!srxl2escRsGlobal) {
         return;
     }
 
     /* update frame status and process any complete frames */
-    (void)smartescFrameStatus(smartescRsGlobal);
+    (void)srxl2escFrameStatus(srxl2escRsGlobal);
 }
 
-void smartesc_service(void)
+void srxl2esc_service(void)
 {
-    if (!smartescRsGlobal) {
+    if (!srxl2escRsGlobal) {
         return;
     }
 
     /* handle any pending transmissions */
-    (void)smartescProcessFrame(smartescRsGlobal);
+    (void)srxl2escProcessFrame(srxl2escRsGlobal);
 
     #if defined(USE_MOTOR)
     /* If motor PWM rate changed externally (CLI/MSP/PG), adopt it as the
@@ -1639,15 +1641,15 @@ void smartesc_service(void)
      * authoritative source. When SMART ESC is active, cap the maximum rate
      * to 250Hz. */
     uint16_t current = motorConfig()->dev.motorPwmRate;
-    if (smartescIsActive() && current > 250) {
+    if (srxl2escIsActive() && current > 250) {
         motorConfigMutable()->dev.motorPwmRate = 250;
         current = 250;
     }
-    if (current != smartesc_lastMotorPwmRate && current != 0) {
-        smartesc_lastMotorPwmRate = current;
-        smartescSetThrottleRateHz((uint32_t)current);
+    if (current != srxl2esc_lastMotorPwmRate && current != 0) {
+        srxl2esc_lastMotorPwmRate = current;
+        srxl2escSetThrottleRateHz((uint32_t)current);
     }
 #endif
 }
 
-#endif // USE_SMART_ESC
+#endif // USE_SRXL2_ESC

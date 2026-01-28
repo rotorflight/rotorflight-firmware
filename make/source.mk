@@ -43,8 +43,8 @@ COMMON_SRC = \
             drivers/serial_pinconfig.c \
             drivers/serial_uart.c \
             drivers/serial_uart_pinconfig.c \
-            drivers/smart_esc.c \
             drivers/sound_beeper.c \
+            drivers/srxl2_esc.c \
             drivers/stack_check.c \
             drivers/system.c \
             drivers/timer_common.c \

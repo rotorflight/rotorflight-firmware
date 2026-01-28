@@ -39,7 +39,7 @@
 
 #include "drivers/dshot.h"
 #include "drivers/vtx_common.h"
-#include "drivers/smart_esc.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
@@ -489,7 +489,7 @@ typedef struct
 
 bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    if (isEscSensorActive() || smartescDriverIsReady()) {
+    if (isEscSensorActive()) {
 
         static timeUs_t lastTimeSentEsc = 0;
         timeUs_t keepAlive = currentTimeUs - lastTimeSentEsc;
@@ -765,11 +765,6 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 
 
 #define SRXL_SCHEDULE_MANDATORY_COUNT  2 // Mandatory QOS and RPM sensors
-// If ESC telemetry is enabled, make ESC a mandatory slot so it's sent every cycle
-#ifdef USE_ESC_SENSOR_TELEMETRY
-#undef SRXL_SCHEDULE_MANDATORY_COUNT
-#define SRXL_SCHEDULE_MANDATORY_COUNT  3 // QOS, RPM and ESC
-#endif
 
 #define SRXL_FP_MAH_COUNT   1
 
@@ -799,7 +794,7 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_VTX_TM_COUNT        0
 #endif
 
-#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
+#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_ESC_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
 #define SRXL_SCHEDULE_COUNT_MAX  (SRXL_SCHEDULE_MANDATORY_COUNT + 1)
 #define SRXL_TOTAL_COUNT         (SRXL_SCHEDULE_MANDATORY_COUNT + SRXL_SCHEDULE_USER_COUNT)
 

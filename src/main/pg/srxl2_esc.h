@@ -22,9 +22,9 @@
 
 #include "pg/pg.h"
 
-typedef struct smartescConfig_s {
+typedef struct srxl2escConfig_s {
     uint16_t throttle_rate_hz;        // SMART ESC channel/throttle refresh rate
     uint8_t  telem_interval_frames;   // Telemetry request interval in frames (0 = off)
-} smartescConfig_t;
+} srxl2esc_pgConfig_t;
 
-PG_DECLARE(smartescConfig_t, smartescConfig);
+PG_DECLARE(srxl2esc_pgConfig_t, srxl2escConfig);
