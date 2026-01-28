@@ -40,6 +40,14 @@ typedef struct srxl2esc_runtimeState_s {
 	timeUs_t                     lastRcFrameTimeUs;
 } srxl2esc_runtimeState_t;
 
+typedef struct {
+	uint8_t  sensorId;
+	uint8_t  secondaryId;
+	uint8_t  data[14];
+	uint32_t timestampUs;
+	bool     valid;
+} srxl2escTelemetrySnapshot_t;
+
 void validateAndFixSrxl2escConfig();
 void srxl2esc_poll(void);
 void srxl2esc_service(void);
@@ -48,6 +56,7 @@ void srxl2escWriteData(const void *data, int len);
 unsigned srxl2escGetTelemetryHistoryCount(void);
 unsigned srxl2escCopyTelemetryHistory(unsigned idx, uint8_t *dst, unsigned maxLen, uint8_t *outLen, uint32_t *outTimestamp, uint8_t *outSensorId, uint8_t *outSecondaryId, uint32_t *outCount);
 bool srxl2escGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t *dst, unsigned maxLen);
+bool srxl2escCopyLatestTelemetry(srxl2escTelemetrySnapshot_t *out, uint32_t *outSeq);
 
 void srxl2escDataReceive(uint16_t c, void *ctx);
 void srxl2escIdle(void);

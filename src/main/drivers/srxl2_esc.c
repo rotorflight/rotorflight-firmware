@@ -159,6 +159,8 @@ static uint8_t srxl2escLatestTelemetrySecondaryId = 0;
 
 static uint8_t srxl2escLatestTelemetryData[14];
 static bool srxl2escLatestTelemetryValid = false;
+static srxl2escTelemetrySnapshot_t srxl2escLatestTelemetrySnapshot = {0};
+static volatile uint32_t srxl2escLatestTelemetrySeq = 0;
 
 static uint8_t globalResult = 0;
 
@@ -249,11 +251,6 @@ static uint32_t srxl2escComputeMinThrottleIntervalUs(void)
     return txTimeUs + SRXL2_ESC_REPLY_QUIESCENCE + 200;
 }
 
-static uint16_t srxl2escChannelValueToPulseWidth(uint16_t channelValue)
-{
-    return (uint16_t)(SPEKTRUM_PULSE_OFFSET + (channelValue / 64U));
-}
-
 static uint16_t srxl2escPulseWidthToChannelValue(uint16_t pulseWidthUs)
 {
     if (pulseWidthUs <= SPEKTRUM_PULSE_OFFSET) {
@@ -299,34 +296,6 @@ static uint16_t srxl2escPulseFromNormalized(float normalized)
     pulseUs = 1000.0f + clamped * 1000.0f;
 #endif
     return (uint16_t)lrintf(pulseUs);
-}
-
-static float srxl2escNormalizedFromPulse(uint16_t pulseWidthUs)
-{
-    float normalized = 0.0f;
-#if defined(USE_MOTOR)
-    const motorConfig_t *config = motorConfig();
-    const motorControlMode_e mode = config->dev.motorControlMode[0];
-    const float pulse = (float)pulseWidthUs;
-    if (mode == MOTOR_CONTROL_BIDIR) {
-        normalized = scaleRangef(pulse,
-            (float)config->minthrottle,
-            (float)config->maxthrottle,
-            -1.0f,
-            1.0f);
-        normalized = constrainf(normalized, -1.0f, 1.0f);
-    } else {
-        normalized = scaleRangef(pulse,
-            (float)config->minthrottle,
-            (float)config->maxthrottle,
-            0.0f,
-            1.0f);
-        normalized = constrainf(normalized, 0.0f, 1.0f);
-    }
-#else
-    normalized = constrainf(((float)pulseWidthUs - 1000.0f) / 1000.0f, 0.0f, 1.0f);
-#endif
-    return normalized;
 }
 
 #if defined(USE_MOTOR)
@@ -447,118 +416,13 @@ static void srxl2escHandleTelemetryFrame(const Srxl2Header *header)
     srxl2escLatestTelemetrySecondaryId = secondaryId;
     memcpy(srxl2escLatestTelemetryData, payload + 3, sizeof(srxl2escLatestTelemetryData));
     srxl2escLatestTelemetryValid = true;
-
-    // Attempt to map SMART ESC sensorId to a motor index and inject parsed escSensorData
-    // so the rest of the system (telemetry backends) can see full ESC telemetry.
-    if (getMotorCount() > 0) {
-        int motorIndex = -1;
-        const int motorCount = getMotorCount();
-
-        /*
-         * Some SMART/SRXL2 ESC implementations use sensor IDs in a block
-         * (e.g. 0x20 .. 0x2F) to represent per-ESC live telemetry. Map
-         * those into motor indices by subtracting the base (0x20).
-         * Fall back to using a small numeric sensorId directly if it is
-         * already in the range [0, motorCount).
-         */
-        if (sensorId < (uint8_t)motorCount) {
-            motorIndex = (int)sensorId;
-        } else if (sensorId >= 0x20 && sensorId < (uint8_t)(0x20 + motorCount)) {
-            motorIndex = (int)(sensorId - 0x20);
-        }
-
-        if (motorIndex >= 0) {
-            if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-                // Parse SRXL2 ESC payload (big-endian) into escSensorData_t fields.
-                // SRXL2 ESC payload layout (data[14], big-endian):
-                //  [0..1] RPM (UINT16) electrical RPM units: 10 RPM (value * 10)
-                //  [2..3] voltsInput (UINT16) units: 0.01 V (value / 100) -> mV = value * 10
-                //  [4..5] tempFET (UINT16) units: 0.1 C
-                //  [6..7] currentMotor (UINT16) units: 10 mA -> mA = value * 10
-                //  [8..9] tempBEC (UINT16) units: 0.1 C
-                //  [10]   currentBEC (UINT8) units: 100 mA -> mA = value * 100
-                //  [11]   voltsBEC (UINT8) units: 0.05 V -> mV = value * 50
-                //  [12]   throttle (UINT8) units: 0.5% -> 0.1% units = value * 5
-                //  [13]   powerOut (UINT8) units: 0.5% (optional)
-
-                escSensorData_t inj;
-                memset(&inj, 0, sizeof(inj));
-                inj.id = sensorId;
-                inj.age = 0;
-
-                const uint8_t *data = payload + 3;
-
-                // RPM (big-endian)
-                uint16_t rawRpm = (uint16_t)((data[0] << 8) | data[1]);
-                if (rawRpm != 0xFFFF) {
-                    // rawRpm units = 10 RPM
-                    inj.erpm = (uint32_t)rawRpm * 10u;
-                }
-
-                // voltsInput -> mV
-                uint16_t rawVolts = (uint16_t)((data[2] << 8) | data[3]);
-                if (rawVolts != 0xFFFF) {
-                    // rawVolts units = 0.01 V -> mV = rawVolts * 10
-                    inj.voltage = (uint32_t)rawVolts * 10u;
-                }
-
-                // tempFET
-                uint16_t rawTempFET = (uint16_t)((data[4] << 8) | data[5]);
-                if (rawTempFET != 0xFFFF) {
-                    inj.temperature = (int16_t)rawTempFET; // already 0.1 C units
-                }
-
-                // currentMotor -> mA
-                uint16_t rawCurrent = (uint16_t)((data[6] << 8) | data[7]);
-                if (rawCurrent != 0xFFFF) {
-                    // rawCurrent units = 10 mA -> mA = rawCurrent * 10
-                    inj.current = (uint32_t)rawCurrent * 10u;
-                }
-
-                // tempBEC
-                uint16_t rawTempBEC = (uint16_t)((data[8] << 8) | data[9]);
-                if (rawTempBEC != 0xFFFF) {
-                    inj.temperature2 = (int16_t)rawTempBEC;
-                }
-
-                // currentBEC (UINT8) units = 100 mA
-                uint8_t rawCurBEC = data[10];
-                if (rawCurBEC != 0xFF) {
-                    inj.bec_current = (uint32_t)rawCurBEC * 100u;
-                }
-
-                // voltsBEC (UINT8) units = 0.05 V -> mV = val * 50
-                uint8_t rawVoltsBEC = data[11];
-                if (rawVoltsBEC != 0xFF) {
-                    inj.bec_voltage = (uint32_t)rawVoltsBEC * 50u;
-                }
-
-                // powerOut (UINT8) units = 0.5% and throttle (UINT8) units = 0.5%
-                // Tie powerOut to throttle: prefer powerOut when present, else use throttle byte, else fallback
-                uint8_t rawPowerOut = data[13];
-                uint8_t rawThrottle = data[12];
-                if (rawPowerOut != 0xFF) {
-                    // Use powerOut as the authoritative throttle proxy
-                    inj.throttle = (uint16_t)rawPowerOut * 5u; // 0.1% units
-                    inj.pwm = inj.throttle;
-                } else if (rawThrottle != 0xFF) {
-                    inj.throttle = (uint16_t)rawThrottle * 5u;
-                    inj.pwm = inj.throttle;
-                } else {
-                    // Fallback: populate from current throttle command like before
-                    const uint16_t channelVal = srxl2escThrottleCommand;
-                    const uint16_t pulseUs = srxl2escChannelValueToPulseWidth(channelVal);
-                    const float normalized = srxl2escNormalizedFromPulse(pulseUs);
-                    const int throttle01 = (int)lrintf(normalized * 1000.0f); // 0.1% units
-                    inj.throttle = (throttle01 < 0) ? (uint16_t)(-throttle01) : (uint16_t)throttle01;
-                    inj.pwm = inj.throttle;
-                }
-
-                // Inject parsed data
-                escSensorInject((uint8_t)motorIndex, &inj);
-            }
-        }
-    }
+    srxl2escLatestTelemetrySeq++;
+    srxl2escLatestTelemetrySnapshot.sensorId = sensorId;
+    srxl2escLatestTelemetrySnapshot.secondaryId = secondaryId;
+    memcpy(srxl2escLatestTelemetrySnapshot.data, payload + 3, sizeof(srxl2escLatestTelemetrySnapshot.data));
+    srxl2escLatestTelemetrySnapshot.timestampUs = rxCompleteUs;
+    srxl2escLatestTelemetrySnapshot.valid = true;
+    srxl2escLatestTelemetrySeq++;
 }
 
 static void srxl2escRecordTelemetryFrame(const Srxl2Header *header)
@@ -1382,6 +1246,30 @@ bool srxl2escGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t
     }
 
     return true;
+}
+
+bool srxl2escCopyLatestTelemetry(srxl2escTelemetrySnapshot_t *out, uint32_t *outSeq)
+{
+    if (!out) {
+        return false;
+    }
+
+    uint32_t seqStart;
+    uint32_t seqEnd;
+    do {
+        seqStart = srxl2escLatestTelemetrySeq;
+        if (seqStart & 1U) {
+            continue;
+        }
+        *out = srxl2escLatestTelemetrySnapshot;
+        seqEnd = srxl2escLatestTelemetrySeq;
+    } while (seqStart != seqEnd);
+
+    if (outSeq) {
+        *outSeq = seqEnd;
+    }
+
+    return out->valid;
 }
 
 void validateAndFixSrxl2escConfig()
