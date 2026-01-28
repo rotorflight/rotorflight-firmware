@@ -58,9 +58,6 @@ bool isEscSensorActive(void);
 uint32_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
 
-/* Inject ESC sensor data for a specific motor (used by SMART ESC receiver driver). */
-void escSensorInject(uint8_t motorNumber, const escSensorData_t *data);
-
 uint8_t escGetParamBufferLength(void);
 uint8_t *escGetParamBuffer(void);
 uint8_t *escGetParamUpdBuffer(void);

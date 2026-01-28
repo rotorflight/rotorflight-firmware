@@ -263,57 +263,6 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     return NULL;
 }
 
-// Inject/overwrite ESC telemetry for motor N (called by driver)
-void escSensorInject(uint8_t motorNumber, const escSensorData_t *data)
-{
-    if (!data) {
-        return;
-    }
-
-    /* Allow injection into the combined ESC sensor slot as well as per-motor slots. */
-    if (motorNumber != ESC_SENSOR_COMBINED && motorNumber >= (uint8_t)getMotorCount()) {
-        return;
-    }
-
-    escSensorData_t *dst = getEscSensorData(motorNumber);
-    if (!dst) {
-        return;
-    }
-
-    // Copy fields in a simple, safe manner. Caller should prepare fields in correct units.
-    dst->age = 0;
-    dst->pwm = data->pwm;
-    dst->throttle = data->throttle;
-    dst->erpm = data->erpm;
-    dst->voltage = applyVoltageCorrection(data->voltage);
-    dst->current = applyCurrentCorrection(data->current);
-    /* Preserve previous consumption unless the injected data contains a
-     * non-zero consumption value. Many live-telemetry frames do not provide
-     * cumulative mAh and would otherwise overwrite the last-known battery
-     * consumption with zero. */
-    if (data->consumption != 0) {
-        dst->consumption = applyConsumptionCorrection(data->consumption);
-    }
-    dst->temperature = data->temperature;
-    dst->temperature2 = data->temperature2;
-    dst->bec_voltage = data->bec_voltage;
-    dst->bec_current = data->bec_current;
-    dst->status = data->status;
-    dst->id = data->id;
-
-    // Mark combined as needing update and refresh timestamp
-    combinedNeedsUpdate = true;
-    dataUpdateUs = micros();
-
-    /* If caller injected an explicit consumption value for motor 0 (single-motor
-     * helicopter use-case), sync internal totalConsumption and timestamp so
-     * consumption integration code doesn't immediately overwrite it. */
-    if (motorNumber == 0 && data->consumption != 0) {
-        totalConsumption = (float)dst->consumption;
-        consumptionUpdateUs = micros();
-    }
-}
-
 static void checkFrameTimeout(timeUs_t currentTimeUs, timeDelta_t timeout);
 
 static void srxl2escSensorProcess(timeUs_t currentTimeUs)
@@ -393,7 +342,32 @@ static void srxl2escSensorProcess(timeUs_t currentTimeUs)
                         inj.pwm = inj.throttle;
                     }
 
-                    escSensorInject((uint8_t)motorIndex, &inj);
+                    escSensorData_t *dst = getEscSensorData((uint8_t)motorIndex);
+                    if (dst) {
+                        dst->age = 0;
+                        dst->pwm = inj.pwm;
+                        dst->throttle = inj.throttle;
+                        dst->erpm = inj.erpm;
+                        dst->voltage = applyVoltageCorrection(inj.voltage);
+                        dst->current = applyCurrentCorrection(inj.current);
+                        if (inj.consumption != 0) {
+                            dst->consumption = applyConsumptionCorrection(inj.consumption);
+                        }
+                        dst->temperature = inj.temperature;
+                        dst->temperature2 = inj.temperature2;
+                        dst->bec_voltage = inj.bec_voltage;
+                        dst->bec_current = inj.bec_current;
+                        dst->status = inj.status;
+                        dst->id = inj.id;
+
+                        combinedNeedsUpdate = true;
+                        dataUpdateUs = micros();
+
+                        if (motorIndex == 0 && inj.consumption != 0) {
+                            totalConsumption = (float)dst->consumption;
+                            consumptionUpdateUs = micros();
+                        }
+                    }
                 }
             }
         }

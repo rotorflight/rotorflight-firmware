@@ -1228,10 +1228,10 @@ bool srxl2escGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t
         return false;
     }
 
-    /* Do not expose sensor type 0x0C for transmission — caller (SRXL2)
+    /* Do not expose sensor type 0x0C or 0x42 for transmission — caller (SRXL2)
      * will skip sending these frames. Keep the data recorded for history
      * and for internal injection into escSensorData_t. */
-    if (srxl2escLatestTelemetrySensorId == 0x0C) {
+    if (srxl2escLatestTelemetrySensorId == 0x0C || 0x42) {
         return false;
     }
 
