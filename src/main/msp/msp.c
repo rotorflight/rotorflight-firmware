@@ -2189,6 +2189,28 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             sbufWriteU16(dst, servoParams(i)->flags);
         }
         break;
+    case MSP_GET_SERVO_CONFIG:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MAX_SUPPORTED_SERVOS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU16(dst, servoParams(i)->mid);
+            sbufWriteU16(dst, servoParams(i)->min);
+            sbufWriteU16(dst, servoParams(i)->max);
+            sbufWriteU16(dst, servoParams(i)->rneg);
+            sbufWriteU16(dst, servoParams(i)->rpos);
+            sbufWriteU16(dst, servoParams(i)->rate);
+            sbufWriteU16(dst, servoParams(i)->speed);
+            sbufWriteU16(dst, servoParams(i)->flags);
+        }
+        break;
 #endif
     case MSP_GET_ADJUSTMENT_RANGE:
         {

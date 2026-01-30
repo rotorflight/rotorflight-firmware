@@ -170,6 +170,8 @@
 #define MSP_NAV_STATUS                       121
 #define MSP_NAV_CONFIG                       122
 #define MSP_ESC_SENSOR_CONFIG                123
+#define MSP_SET_SERVO_CONFIG                 124
+#define MSP_GET_SERVO_CONFIG                 125
 
 #define MSP_SENSOR_ALIGNMENT                 126
 #define MSP_LED_STRIP_MODECOLOR              127
