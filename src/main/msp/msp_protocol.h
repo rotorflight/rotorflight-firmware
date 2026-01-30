@@ -195,20 +195,17 @@
 #define MSP_SET_GOVERNOR_PROFILE             149
 #define MSP_LED_STRIP_SETTINGS               150
 #define MSP_SET_LED_STRIP_SETTINGS           151
-#define MSP_SBUS_OUTPUT_CONFIG               152
-#define MSP_SET_SBUS_OUTPUT_CONFIG           153
+#define MSP_BUS_SERVO_CONFIG                 152
+#define MSP_SET_BUS_SERVO_CONFIG             153
 #define MSP_RPM_FILTER_V2                    154
 #define MSP_SET_RPM_FILTER_V2                155
 #define MSP_GET_ADJUSTMENT_RANGE             156
-#define MSP_GET_SBUS_OUTPUT_CONFIG           157
+#define MSP_GET_BUS_SERVO_CONFIG             157
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
 
 #define MSP_UID                              160
-#define MSP_GET_FBUS_MASTER_CONFIG           161
-#define MSP_SET_FBUS_MASTER_CHANNEL          162
-#define MSP_GET_FBUS_MASTER_CHANNEL          163
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166

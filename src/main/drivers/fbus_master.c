@@ -26,10 +26,14 @@
 #include "build/build_config.h"
 #include "common/maths.h"
 #include "common/time.h"
+#include "fc/runtime_config.h"
 #include "flight/mixer.h"
+#include "flight/servos.h"
 #include "drivers/sbus_output.h"
+#include "pg/bus_servo.h"
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
+#include "pg/servos.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
 #include "platform.h"
@@ -51,6 +55,11 @@ enum {
 };
 
 serialPort_t *fbusMasterPort = NULL;
+
+// S1-S8 (indices 0-7) are PWM servos
+// S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
+#define BUS_SERVO_OFFSET 8
+
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
 
@@ -223,36 +232,29 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
 
 float fbusMasterGetChannelValue(uint8_t channel)
 {
-    const sbusOutSourceType_e source_type =
-        fbusMasterConfig()->sourceType[channel];
-    const uint8_t source_index = fbusMasterConfig()->sourceIndex[channel];
+    const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
-        case SBUS_OUT_SOURCE_NONE:
-            return 0;
-        case SBUS_OUT_SOURCE_RX:
-            return sbusOutGetRX(source_index);
-        case SBUS_OUT_SOURCE_MIXER:
-            return sbusOutGetValueMixer(source_index);
-        case SBUS_OUT_SOURCE_SERVO:
-            return sbusOutGetServo(source_index);
-        case SBUS_OUT_SOURCE_MOTOR:
-            return sbusOutGetMotor(source_index);
+        case BUS_SERVO_SOURCE_RX:
+            return sbusOutGetRX(channel);
+        case BUS_SERVO_SOURCE_MIXER:
+            // Use the same servo-parameter-aware function
+            return sbusOutGetValueMixer(channel);
     }
     return 0;
 }
 
 uint16_t fbusMasterConvertToSbus(uint8_t channel, float pwm)
 {
-    const int16_t low  = fbusMasterConfig()->sourceRangeLow[channel];
-    const int16_t high = fbusMasterConfig()->sourceRangeHigh[channel];
-
-    // round and bound values
+    // For digital channels (16+), convert to 0 or 1
     if (channel >= 16) {
-        const float value = scaleRangef(pwm, low, high, 0, 1);
-        return constrain(nearbyintf(value), 0, 1);
+        // Assume threshold at 1500us
+        return (pwm >= 1500) ? 1 : 0;
     }
-    const float value = scaleRangef(pwm, low, high, 192, 1792);
-    return constrain(nearbyintf(value), 0, (1 << 11) - 1);
+
+    // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
+    // Bus servo range: (1500 + BUS_SERVO_MIN) to (1500 + BUS_SERVO_MAX) -> SBUS 192-1792
+    const float value = scaleRangef(pwm, 1500 + BUS_SERVO_MIN, 1500 + BUS_SERVO_MAX, 192, 1792);
+    return constrain(nearbyintf(value), 192, 1792);
 }
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)

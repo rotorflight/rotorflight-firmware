@@ -15,22 +15,28 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "pg/pg_ids.h"
-#include "platform.h"
+#pragma once
 
-#include "pg/fbus_master.h"
-#include "drivers/serial.h"
+#include "common/utils.h"
+#include "pg/pg.h"
 
-#ifdef USE_FBUS_MASTER
+// SBUS has 18 channels, FBUS has 16 channels
+#define BUS_SERVO_CHANNELS 18
+// Bus servo defaults (S9-S26) - constrained to BUS_SERVO_MIN/MAX range
+#define BUS_SERVO_MIN     -500
+#define BUS_SERVO_MAX      500
 
-PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 4);
+// S1-S8 (indices 0-7) are PWM servos
+// S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
+#define BUS_SERVO_OFFSET 8
 
-void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
-    config->frameRate = 500;
-    config->pinSwap = 0;
-    // Default to inverted F.Bus (normal for F.Bus receivers).
-    config->inverted = 1;
-}
+typedef enum {
+    BUS_SERVO_SOURCE_MIXER = 0,
+    BUS_SERVO_SOURCE_RX = 1
+} busServoSourceType_e;
 
-#endif
+typedef struct busServoConfig_s {
+    uint8_t sourceType[BUS_SERVO_CHANNELS];
+} busServoConfig_t;
+
+PG_DECLARE(busServoConfig_t, busServoConfig);

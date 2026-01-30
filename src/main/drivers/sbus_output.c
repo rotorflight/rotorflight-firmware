@@ -24,9 +24,13 @@
 #include "build/build_config.h"
 #include "common/maths.h"
 #include "common/time.h"
+#include "fc/runtime_config.h"
 #include "flight/mixer.h"
+#include "flight/servos.h"
 #include "io/serial.h"
+#include "pg/bus_servo.h"
 #include "pg/sbus_output.h"
+#include "pg/servos.h"
 #include "platform.h"
 #include "rx/rx.h"
 
@@ -69,61 +73,67 @@ float sbusOutGetRX(uint8_t channel)
     return 0;
 }
 
-// Note: this returns 1000x normalized value (-1000 - 1000).
+// Apply servo parameters and return value in microseconds
+// Maps SBUS channels to servos S9-S26 (BUS servos)
 float sbusOutGetValueMixer(uint8_t channel)
 {
-    if (channel < MIXER_OUTPUT_COUNT)
-        return 1000.0f * mixerGetOutput(channel);
-    return 0;
-}
+    // Map SBUS channel to bus servo index (S9 = index 8, S10 = index 9, etc.)
+    const uint8_t servoIndex = BUS_SERVO_OFFSET + channel;
+    
+    if (servoIndex >= MAX_SUPPORTED_SERVOS)
+        return 0;
 
-float sbusOutGetServo(uint8_t channel)
-{
-    if (channel < MAX_SUPPORTED_SERVOS)
-        return getServoOutput(channel);
-    return 0;
-}
+    // Get normalized mixer output (-1.0 to 1.0), or servo override when disarmed
+    float pos = 0;
+    if (!ARMING_FLAG(ARMED) && hasServoOverride(servoIndex))
+        pos = getServoOverride(servoIndex) / 1000.0f;
+    else
+        pos = mixerGetOutput(MIXER_SERVO_OFFSET + servoIndex - BUS_SERVO_OFFSET);
+    const servoParam_t *servo = servoParams(servoIndex);
 
-// Note: this returns 0 - 1000 range (or -1000 - 1000 for bidirectional
-// motor)
-float sbusOutGetMotor(uint8_t channel)
-{
-    if (channel < MAX_SUPPORTED_MOTORS)
-        return getMotorOutput(channel);
-    return 0;
+    // Apply servo reversal
+    if (servo->flags & SERVO_FLAG_REVERSED)
+        pos = -pos;
+
+    // Apply servo scale (rneg/rpos)
+    float scale = (pos > 0) ? servo->rpos : servo->rneg;
+    pos = scale * pos;
+
+    // Apply travel limits
+    pos = constrainf(pos, servo->min, servo->max);
+
+    // Add midpoint to get final microsecond value
+    float result = servo->mid + pos;
+
+    // Clamp to bus servo limits for SBUS output
+    result = constrainf(result, servo->mid + BUS_SERVO_MIN, servo->mid + BUS_SERVO_MAX);
+
+    return result;
 }
 
 STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel)
 {
-    const sbusOutSourceType_e source_type =
-        sbusOutConfig()->sourceType[channel];
-    const uint8_t source_index = sbusOutConfig()->sourceIndex[channel];
+    const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
-    case SBUS_OUT_SOURCE_NONE:
-        return 0;
-    case SBUS_OUT_SOURCE_RX:
-        return sbusOutGetRX(source_index);
-    case SBUS_OUT_SOURCE_MIXER:
-        return sbusOutGetValueMixer(source_index);
-    case SBUS_OUT_SOURCE_SERVO:
-        return sbusOutGetServo(source_index);
-    case SBUS_OUT_SOURCE_MOTOR:
-        return sbusOutGetMotor(source_index);
+    case BUS_SERVO_SOURCE_RX:
+        return sbusOutGetRX(channel);
+    case BUS_SERVO_SOURCE_MIXER:
+        return sbusOutGetValueMixer(channel);
     }
     return 0;
 }
 
 STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm)
 {
-    const int16_t low  = sbusOutConfig()->sourceRangeLow[channel];
-    const int16_t high = sbusOutConfig()->sourceRangeHigh[channel];
-
-    // round and bound values
+    // For digital channels (16-17), convert to 0 or 1
     if (channel >= 16) {
-        const float value = scaleRangef(pwm, low, high, 0, 1);
-        return constrain(nearbyintf(value), 0, 1);
+        // Assume threshold at 1500us
+        return (pwm >= 1500) ? 1 : 0;
     }
-    const float value = scaleRangef(pwm, low, high, 192, 1792);
+
+    // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
+    // Bus servo range: (1500 + BUS_SERVO_MIN) to (1500 + BUS_SERVO_MAX) -> SBUS 192-1792
+    const float value = scaleRangef(pwm, 1500 + BUS_SERVO_MIN, 1500 + BUS_SERVO_MAX, 192, 1792);
     return constrain(nearbyintf(value), 0, (1 << 11) - 1);
 }
 

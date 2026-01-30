@@ -15,22 +15,24 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "pg/pg_ids.h"
 #include "platform.h"
 
-#include "pg/fbus_master.h"
-#include "drivers/serial.h"
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
 
-#ifdef USE_FBUS_MASTER
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
-PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 4);
+#include "bus_servo.h"
 
-void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
-    config->frameRate = 500;
-    config->pinSwap = 0;
-    // Default to inverted F.Bus (normal for F.Bus receivers).
-    config->inverted = 1;
+PG_REGISTER_WITH_RESET_FN(busServoConfig_t, busServoConfig,
+                          PG_BUS_SERVO_CONFIG, 0);
+
+void pgResetFn_busServoConfig(busServoConfig_t *config)
+{
+    // Default first 8 channels to MIXER, rest to RX
+    for (int i = 0; i < BUS_SERVO_CHANNELS; i++) {
+        config->sourceType[i] = (i < 8) ? BUS_SERVO_SOURCE_MIXER : BUS_SERVO_SOURCE_RX;
+    }
 }
 
 #endif
