@@ -330,17 +330,17 @@ void setpointUpdate(void)
     }
 
     if (sp.polarCoord) {
-        const float POLAR = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
-        const float RATES = fminf(applyRatesCurve(FD_PITCH, POLAR), sp.ringLimit[FD_PITCH]);
-        const float RATIO = (POLAR > 1e-6f) ? RATES / POLAR : 0;
+        const float dist = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
+        const float rate = fminf(applyRatesCurve(FD_PITCH, dist), sp.ringLimit[FD_PITCH]);
+        const float mult = (dist > 1e-6f) ? rate / dist : 0;
 
-        SP[FD_ROLL] = SP[FD_ROLL] * RATIO;
-        SP[FD_PITCH] = SP[FD_PITCH] * RATIO;
+        SP[FD_ROLL] = SP[FD_ROLL] * mult;
+        SP[FD_PITCH] = SP[FD_PITCH] * mult;
 
         DEBUG(POLAR_RATE, 0, SP[FD_ROLL]);
         DEBUG(POLAR_RATE, 1, SP[FD_PITCH]);
-        DEBUG(POLAR_RATE, 2, RATES);
-        DEBUG(POLAR_RATE, 3, RATIO);
+        DEBUG(POLAR_RATE, 2, rate);
+        DEBUG(POLAR_RATE, 3, mult);
 
         DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
         DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
