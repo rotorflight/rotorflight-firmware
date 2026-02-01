@@ -233,6 +233,7 @@
 #define MSP_SET_SERVO_OVERRIDE               193
 #define MSP_MOTOR_OVERRIDE                   194
 #define MSP_SET_MOTOR_OVERRIDE               195
+#define MSP_SET_SERVO_OVERRIDE_ALL           196
 
 #define MSP_SET_RAW_RC                       200
 #define MSP_SET_RAW_GPS                      201

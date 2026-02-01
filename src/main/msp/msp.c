@@ -2722,6 +2722,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         setServoOverride(i, sbufReadU16(src));
         break;
 
+    case MSP_SET_SERVO_OVERRIDE_ALL: {
+        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable)
+        if (dataSize != 2) {
+            return MSP_RESULT_ERROR;
+        }
+        const uint16_t v = sbufReadU16(src);
+        for (int s = 0; s < MAX_SUPPORTED_SERVOS; s++) {
+            setServoOverride(s, v);
+        }
+        break;
+    }
+
     case MSP_SET_SERVO_CENTER:
         // payload: U8 idx + U16 mid  => 3 bytes
         if (dataSize != 1 + 2) {
@@ -3534,9 +3546,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
     case MSP_SET_BUS_SERVO_CONFIG: {
-        // Write format is customized for the size and responsiveness.
-        // The first byte will be the target output channel index (0-based).
-        // The following byte will be the type for that channel.
         if (sbufBytesRemaining(src) >= 1) {
             uint8_t index = sbufReadU8(src);
             if (index < BUS_SERVO_CHANNELS && sbufBytesRemaining(src) >= 1) {
