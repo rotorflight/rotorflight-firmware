@@ -134,13 +134,7 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
-`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (NONE=0, RX=1, MIXER=2, SERVO=3, MOTOR=4).
-
-`fbus_master_source_index` parameter added. Array of 16 uint8 values defining the source index (channel/rule/servo/motor index) for each FBUS Master channel.
-
-`fbus_master_source_range_high` parameter added. Array of 16 int16 values defining the high end of the source value range for mapping to FBUS output.
-
-`fbus_master_source_range_low` parameter added. Array of 16 int16 values defining the low end of the source value range for mapping to FBUS output.
+`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (MIXER=0, RX=1). Source index is always equal to the channel number. MIXER uses -1000 to 1000 range, RX uses 1000 to 2000 range.
 
 `fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
 
@@ -165,13 +159,7 @@ the actual values are calculated automatically (#332).
 
 `motor_poles` default is changed to 0,0,0,0.
 
-`fbus_master_source_type` defaults to RX (1) for all 16 channels.
-
-`fbus_master_source_index` defaults to sequential mapping (0-15) for all 16 channels.
-
-`fbus_master_source_range_low` defaults to 1000 for all 16 channels.
-
-`fbus_master_source_range_high` defaults to 2000 for all 16 channels.
+`fbus_master_source_type` defaults to MIXER (0) for first 8 channels, RX (1) for channels 8-15.
 
 `fbus_master_frame_rate` defaults to 500 Hz.
 
