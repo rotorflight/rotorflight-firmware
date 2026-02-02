@@ -34,6 +34,7 @@
 
 #ifndef USE_ESC_SENSOR
 #undef USE_ESC_SENSOR_TELEMETRY
+#undef USER_SRXL2_ESC
 #endif
 
 // XXX Followup implicit dependencies among DASHBOARD, display_xxx and USE_I2C.

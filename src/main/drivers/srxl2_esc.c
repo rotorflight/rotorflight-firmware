@@ -595,19 +595,6 @@ bool srxl2escProcessControlData(const Srxl2Header* header, srxl2esc_runtimeState
         setRssiDirect(0, RSSI_SOURCE_RX_PROTOCOL);
     } break;
 
-    case VTXData: {
-    #if defined(USE_SPEKTRUM_VTX_CONTROL) && defined(USE_VTX_COMMON)
-        srxl2escVtxData *vtxData = (srxl2escVtxData*)(controlData + 1);
-        uint32_t vtxControl =   (0xE0u << 24) | (0xE0u << 8) |
-                                ((vtxData->band & 0x07u) << 21) |
-                                ((vtxData->channel & 0x0Fu) << 16) |
-                                ((vtxData->pit & 0x01u) << 4) |
-                                ((vtxData->region & 0x01u) << 3) |
-                                ((vtxData->power & 0x07u));
-        spektrumHandleVtxControl(vtxControl);
-    #endif
-    } break;
-
     default:
         break;
     }

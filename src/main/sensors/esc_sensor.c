@@ -157,7 +157,9 @@ static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
 static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramVer = 0;
 static bool paramMspActive = false;
+#ifdef USE_SRXL2_ESC
 static uint32_t srxl2escLastSeq = 0;
+#endif
 
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
