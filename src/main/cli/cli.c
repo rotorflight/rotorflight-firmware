@@ -5175,6 +5175,9 @@ const cliResourceValue_t resourceTable[] = {
     DEFW( OWNER_GYRO_EXTI,     PG_GYRO_DEVICE_CONFIG, gyroDeviceConfig_t, extiTag, MAX_GYRODEV_COUNT ),
     DEFW( OWNER_GYRO_CS,       PG_GYRO_DEVICE_CONFIG, gyroDeviceConfig_t, csnTag, MAX_GYRODEV_COUNT ),
     DEFW( OWNER_ACC_CS,        PG_GYRO_DEVICE_CONFIG, gyroDeviceConfig_t, csnAccTag, MAX_GYRODEV_COUNT),
+#if defined(USE_GYRO_CLK)
+    DEFW( OWNER_GYRO_CLK,      PG_GYRO_DEVICE_CONFIG, gyroDeviceConfig_t, clkInTag, MAX_GYRODEV_COUNT),
+#endif
 #ifdef USE_USB_DETECT
     DEFS( OWNER_USB_DETECT,    PG_USB_CONFIG, usbDev_t, detectPin ),
 #endif

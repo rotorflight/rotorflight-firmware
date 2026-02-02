@@ -312,6 +312,7 @@
 #define USE_BEEPER
 
 #undef  USE_GYRO_DLPF_EXPERIMENTAL
+#define USE_GYRO_CLK
 
 #define USE_ACC
 #define USE_GYRO

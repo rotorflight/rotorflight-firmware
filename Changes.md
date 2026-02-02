@@ -152,6 +152,8 @@ the actual values are calculated automatically (#332).
 
 `cyclic_ring` meaning is changed. The value indicates % of the max rate.
 
+`resource GYRO_CLK` added. Sets the pin for the gyro synchronisation clock, if supported.
+
 
 ## Defaults
 
