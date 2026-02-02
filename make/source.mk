@@ -31,6 +31,7 @@ COMMON_SRC = \
             drivers/dma_reqmap.c \
             drivers/exti.c \
             drivers/io.c \
+            drivers/itm.c \
             drivers/light_led.c \
             drivers/mco.c \
             drivers/motor.c \
