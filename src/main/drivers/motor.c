@@ -159,6 +159,9 @@ bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig)
 #ifdef USE_TELEMETRY_CASTLE
     case PWM_TYPE_CASTLE_LINK:
 #endif
+#ifdef USE_SRXL2_ESC
+    case PWM_TYPE_SRXL2:
+#endif
         return true;
     }
     return false;
