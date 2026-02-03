@@ -1411,6 +1411,8 @@ static SD_Error_t SD_PowerON(void)
     // If ErrorState is SD_OK it is a SD card: SD card 2.0 (voltage range mismatch) or SD card 1.x
     if((ErrorState = SD_TransmitCommand((SD_CMD_APP_CMD | SD_CMD_RESPONSE_SHORT), 0, 1)) == SD_OK)
     {
+        Response = 0;
+
         // SD CARD
         // Send ACMD41 SD_APP_OP_COND with Argument 0x80100000
         while((ValidVoltage == 0) && (Count < SD_MAX_VOLT_TRIAL))
