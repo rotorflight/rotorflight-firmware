@@ -37,9 +37,6 @@ stm32.mak
 # ozone launch configurations
 /support/ozone
 
-# artefacts for Visual Studio Code
-/.vscode/
-
 # artefacts for CLion
 /cmake-build-debug/
 /CMakeLists.txt

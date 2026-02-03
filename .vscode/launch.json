@@ -1,0 +1,217 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "STM32F7X2 Debug",
+      "type": "cortex-debug",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/obj/main/rotorflight_STM32F7X2.elf",
+      "request": "attach",
+      "device": "STM32F722RE",
+      "servertype": "openocd",
+      "configFiles": [
+        "board/st_nucleo_f7.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/lib/main/STM32_SVD/STM32F722.svd",
+      "showDevDebugOutput": "none",
+      "preLaunchCommands": [
+        "source ${workspaceFolder}/lib/main/debug/gdb-swo.init"
+      ],
+      "swoConfig": {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 216000000,
+        "decoders": [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "Debug",
+            "encoding": "ascii"
+          }
+        ]
+      },
+    },
+    {
+      "name": "STM32F7X2 Build+Debug",
+      "type": "cortex-debug",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/obj/main/rotorflight_STM32F7X2.elf",
+      "request": "launch",
+      "device": "STM32F722RE",
+      "servertype": "openocd",
+      "configFiles": [
+        "board/st_nucleo_f7.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/lib/main/STM32_SVD/STM32F722.svd",
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "none",
+      "preLaunchTask": "Debug Build STM32F7X2",
+      "preLaunchCommands": [
+        "source ${workspaceFolder}/lib/main/debug/gdb-swo.init"
+      ],
+      "swoConfig": {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 216000000,
+        "decoders": [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "Debug",
+            "encoding": "ascii"
+          }
+        ]
+      },
+    },
+    {
+      "name": "STM32F7X2 Build+Debug+Graph",
+      "type": "cortex-debug",
+      "cwd": "${workspaceFolder}",
+      "executable": "${workspaceFolder}/obj/main/rotorflight_STM32F7X2.elf",
+      "request": "launch",
+      "device": "STM32F722RE",
+      "servertype": "openocd",
+      "configFiles": [
+        "board/st_nucleo_f7.cfg"
+      ],
+      "svdFile": "${workspaceFolder}/lib/main/STM32_SVD/STM32F722.svd",
+      "runToEntryPoint": "main",
+      "showDevDebugOutput": "none",
+      "preLaunchTask": "Debug Build STM32F7X2",
+      "preLaunchCommands": [
+        "source ${workspaceFolder}/lib/main/debug/gdb-swo.init"
+      ],
+      "swoConfig": {
+        "enabled": true,
+        "source": "probe",
+        "swoFrequency": 2000000,
+        "cpuFrequency": 216000000,
+        "decoders": [
+          {
+            "port": 0,
+            "type": "console",
+            "label": "Debug",
+            "encoding": "ascii"
+          },
+          // {
+          //   "type": "binary",
+          //   "port": 16,
+          //   "label": "D0",
+          //   "format": "signed",
+          //   "scale": 1,
+          // },
+          {
+            "port": 16,
+            "type": "graph",
+            "encoding": "signed",
+            "graphId": "D0",
+            "scale": 1
+          },
+          {
+            "port": 17,
+            "type": "graph",
+            "encoding": "signed",
+            "graphId": "D1",
+            "scale": 1
+          },
+          {
+            "port": 18,
+            "type": "graph",
+            "encoding": "signed",
+            "graphId": "D2",
+            "scale": 1
+          },
+          {
+            "port": 19,
+            "type": "graph",
+            "encoding": "signed",
+            "graphId": "D3",
+            "scale": 1
+          }
+          // {
+          //   "port": 20,
+          //   "type": "graph",
+          //   "encoding": "signed",
+          //   "graphId": "D4",
+          //   "scale": 1
+          // },
+          // {
+          //   "port": 21,
+          //   "type": "graph",
+          //   "encoding": "signed",
+          //   "graphId": "D5",
+          //   "scale": 1
+          // },
+          // {
+          //   "port": 22,
+          //   "type": "graph",
+          //   "encoding": "signed",
+          //   "graphId": "D6",
+          //   "scale": 1
+          // },
+          // {
+          //   "port": 23,
+          //   "type": "graph",
+          //   "encoding": "signed",
+          //   "graphId": "D7",
+          //   "scale": 1
+          // },
+        ]
+      },
+      "graphConfig": [
+        {
+          "label": "Debug variables",
+          "timespan": 5,
+          "type": "realtime",
+          "annotate": false,
+          "maximum": 255,
+          "minimum": 0,
+          "plots": [
+            {
+              "graphId": "D0",
+              "label": "0",
+              "color": "#EE6677"
+            },
+            {
+              "graphId": "D1",
+              "label": "1",
+              "color": "#4477AA"
+            },
+            {
+              "graphId": "D2",
+              "label": "2",
+              "color": "#CCBB44"
+            },
+            {
+              "graphId": "D3",
+              "label": "3",
+              "color": "#228833"
+            },
+            {
+              "graphId": "D4",
+              "label": "4",
+              "color": "#66CCEE"
+            },
+            {
+              "graphId": "D5",
+              "label": "5",
+              "color": "#00BBAA"
+            },
+            {
+              "graphId": "D6",
+              "label": "6",
+              "color": "#EE8866"
+            },
+            {
+              "graphId": "D7",
+              "label": "7",
+              "color": "#BB66AA"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

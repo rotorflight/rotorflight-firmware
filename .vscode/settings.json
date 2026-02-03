@@ -1,0 +1,5 @@
+{
+    "cortex-debug.armToolchainPath": "${workspaceRoot}/tools/gcc-arm-none-eabi-9-2020-q2-update/bin/",
+    // gdb from 2020-q2 is too old - use a newer version (from BF master)
+    "cortex-debug.gdbPath": "${workspaceRoot}/tools/arm-gnu-toolchain-13.3.rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gdb"
+}
