@@ -1738,6 +1738,14 @@ static bool pl5CachedDevInfo = false;
 static bool pl5CachedParams = false;
 static bool pl5DirtyParams = false;
 
+// MSP-facing compact payload sizes for HW5 forward programming.
+// These are intentionally smaller than the raw PL5 ESC response payloads.
+#define PL5_MSP_DEVINFO_PAYLOAD_LENGTH      10  // api_ver(1) + esc_type_id(1) + hw_id(4) + fw_packed(4)
+#define PL5_MSP_GETPARAMS_PAYLOAD_LENGTH    20  // com_packed(4) + 16 editable U8 params
+
+static uint8_t pl5DevInfoRaw[PL5_RESP_DEVINFO_PAYLOAD_LENGTH];
+static uint8_t pl5ParamsRaw[PL5_RESP_GETPARAMS_PAYLOAD_LENGTH];
+
 static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
 {
     uint16_t crc = ~0;
@@ -1751,18 +1759,64 @@ static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
     return crc;
 }
 
+static size_t pl5TrimmedLen(const uint8_t *buf, size_t maxLen)
+{
+    size_t end = maxLen;
+    while (end > 0 && (buf[end - 1] == ' ' || buf[end - 1] == '\0'))
+        end--;
+    return end;
+}
+
+static uint32_t pl5PackSemver3(const uint8_t *buf, size_t len)
+{
+    // Pack first occurrence of "X.Y.Z" into 0xXXYYZZ00 (build=0).
+    uint32_t a = 0, b = 0, c = 0;
+    bool gotA = false, gotB = false, gotC = false;
+
+    for (size_t i = 0; i < len; i++) {
+        if (buf[i] >= '0' && buf[i] <= '9') {
+            // parse A
+            a = 0;
+            while (i < len && buf[i] >= '0' && buf[i] <= '9') { a = a * 10u + (uint32_t)(buf[i] - '0'); i++; }
+            gotA = true;
+            if (i >= len || buf[i] != '.') break;
+            i++; // skip '.'
+
+            // parse B
+            b = 0;
+            if (i >= len || buf[i] < '0' || buf[i] > '9') break;
+            while (i < len && buf[i] >= '0' && buf[i] <= '9') { b = b * 10u + (uint32_t)(buf[i] - '0'); i++; }
+            gotB = true;
+            if (i >= len || buf[i] != '.') break;
+            i++; // skip '.'
+
+            // parse C
+            c = 0;
+            if (i >= len || buf[i] < '0' || buf[i] > '9') break;
+            while (i < len && buf[i] >= '0' && buf[i] <= '9') { c = c * 10u + (uint32_t)(buf[i] - '0'); i++; }
+            gotC = true;
+            break;
+        }
+    }
+
+    if (!(gotA && gotB && gotC) || a > 255u || b > 255u || c > 255u)
+        return 0;
+
+    return ((a & 0xFFu) << 24) | ((b & 0xFFu) << 16) | ((c & 0xFFu) << 8);
+}
+
 static bool pl5ParamCommit(uint8_t cmd)
 {
     if (cmd == 0) {
-        // info should never change
-        if (memcmp(paramPayload, paramUpdPayload, PL5_RESP_DEVINFO_PAYLOAD_LENGTH) != 0)
+        // info should never change (compact devinfo bytes)
+        if (memcmp(paramPayload, paramUpdPayload, PL5_MSP_DEVINFO_PAYLOAD_LENGTH) != 0)
             return false;
 
         // params dirty?
-        if (memcmp(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH,
-            paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH,
-            PL5_RESP_GETPARAMS_PAYLOAD_LENGTH) != 0) {
-            // set dirty flag, will schedule read
+        if (memcmp(paramPayload + PL5_MSP_DEVINFO_PAYLOAD_LENGTH,
+            paramUpdPayload + PL5_MSP_DEVINFO_PAYLOAD_LENGTH,
+            PL5_MSP_GETPARAMS_PAYLOAD_LENGTH) != 0) {
+            // set dirty flag, will schedule write
             pl5DirtyParams = true;
             // clear cached flag, will schedule write
             pl5CachedParams = false;
@@ -1811,7 +1865,12 @@ static void pl5BuildNextReq(void)
         memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
         const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
         memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
-        memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        // Reconstruct raw PL5 params payload for ESC write:
+        // keep cached non-editable bytes (com string etc) and patch editable U8 params.
+        uint8_t tmpParams[PL5_RESP_GETPARAMS_PAYLOAD_LENGTH];
+        memcpy(tmpParams, pl5ParamsRaw, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(tmpParams + 15, paramUpdPayload + PL5_MSP_DEVINFO_PAYLOAD_LENGTH + 4, 16);
+        memcpy(reqbuffer + hdrlen, tmpParams, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
         pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
     // ...or pending device info, schedule request...
@@ -1887,39 +1946,108 @@ static bool pl5DecodePingResp(void)
 
 static bool pl5DecodeGetDevInfoResp(void)
 {
-    // cache device info
-    memcpy(paramPayload, buffer + 7, PL5_RESP_DEVINFO_PAYLOAD_LENGTH);
+    // Cache raw device info from ESC (48 bytes: fw[16], hw[16], type[16])
+    memcpy(pl5DevInfoRaw, buffer + 7, PL5_RESP_DEVINFO_PAYLOAD_LENGTH);
     pl5CachedDevInfo = true;
+
+    // Build compact MSP-facing devinfo payload:
+    // [api_ver][esc_type_id][hw_id:u32][fw_packed:u32]
+    const uint8_t *fw = pl5DevInfoRaw;
+    const uint8_t *hw = pl5DevInfoRaw + 16;
+    const uint8_t *typ = pl5DevInfoRaw + 32;
+
+    const size_t hwLen = pl5TrimmedLen(hw, 16);
+    const size_t fwLen = pl5TrimmedLen(fw, 16);
+    const size_t typLen = pl5TrimmedLen(typ, 16);
+
+    const uint32_t hwId = calculateCRC32(hw, hwLen);
+    const uint32_t fwPacked = pl5PackSemver3(fw, fwLen);
+
+    uint8_t escTypeId = 0;
+    // Simple type detection (expand as needed)
+    for (size_t i = 0; i + 7 < typLen; i++) {
+        // "Platinum" (case sensitive, matches typical strings)
+        if (memcmp(&typ[i], "Platinum", 8) == 0) {
+            escTypeId = 1;
+            break;
+        }
+    }
+
+    paramPayload[0] = 2;           // api_ver
+    paramPayload[1] = escTypeId;   // esc_type_id
+
+    // hw_id (u32 LE)
+    paramPayload[2] = (uint8_t)(hwId & 0xFF);
+    paramPayload[3] = (uint8_t)((hwId >> 8) & 0xFF);
+    paramPayload[4] = (uint8_t)((hwId >> 16) & 0xFF);
+    paramPayload[5] = (uint8_t)((hwId >> 24) & 0xFF);
+
+    // fw_packed (u32 LE)
+    paramPayload[6] = (uint8_t)(fwPacked & 0xFF);
+    paramPayload[7] = (uint8_t)((fwPacked >> 8) & 0xFF);
+    paramPayload[8] = (uint8_t)((fwPacked >> 16) & 0xFF);
+    paramPayload[9] = (uint8_t)((fwPacked >> 24) & 0xFF);
 
     pl5BuildNextReq();
 
     return true;
 }
+
 
 static bool pl5DecodeGetParamsResp(void)
 {
-    // cache parameters, payload complete
-    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+    // Cache raw parameters from ESC (31 bytes: com[15] + 16 editable U8 params)
+    memcpy(pl5ParamsRaw, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
     pl5CachedParams = true;
 
+    // Build compact MSP-facing params payload:
+    // [com_packed:u32][16 editable params]
+    const uint8_t *com = pl5ParamsRaw;
+    const size_t comLen = pl5TrimmedLen(com, 15);
+    const uint32_t comPacked = calculateCRC32(com, comLen);
+
+    uint8_t *out = paramPayload + PL5_MSP_DEVINFO_PAYLOAD_LENGTH;
+
+    out[0] = (uint8_t)(comPacked & 0xFF);
+    out[1] = (uint8_t)((comPacked >> 8) & 0xFF);
+    out[2] = (uint8_t)((comPacked >> 16) & 0xFF);
+    out[3] = (uint8_t)((comPacked >> 24) & 0xFF);
+
+    memcpy(out + 4, pl5ParamsRaw + 15, 16);
+
     // make param payload available
-    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+    paramPayloadLength = PL5_MSP_DEVINFO_PAYLOAD_LENGTH + PL5_MSP_GETPARAMS_PAYLOAD_LENGTH;
 
     pl5BuildNextReq();
 
     return true;
 }
+
 
 static bool pl5DecodeWriteParamsResp(void)
 {
     if ((buffer[3] & PL5_ERR) == 0) {
-        // success, cache parameters
-        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        // success, cache raw parameters
+        memcpy(pl5ParamsRaw, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
         pl5CachedParams = true;
+
+        // rebuild compact params payload
+        const uint8_t *com = pl5ParamsRaw;
+        const size_t comLen = pl5TrimmedLen(com, 15);
+        const uint32_t comPacked = calculateCRC32(com, comLen);
+
+        uint8_t *out = paramPayload + PL5_MSP_DEVINFO_PAYLOAD_LENGTH;
+
+        out[0] = (uint8_t)(comPacked & 0xFF);
+        out[1] = (uint8_t)((comPacked >> 8) & 0xFF);
+        out[2] = (uint8_t)((comPacked >> 16) & 0xFF);
+        out[3] = (uint8_t)((comPacked >> 24) & 0xFF);
+
+        memcpy(out + 4, pl5ParamsRaw + 15, 16);
     }
 
     // make param payload available
-    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+    paramPayloadLength = PL5_MSP_DEVINFO_PAYLOAD_LENGTH + PL5_MSP_GETPARAMS_PAYLOAD_LENGTH;
 
     // success or failure don't repeat
     pl5DirtyParams = false;
@@ -1928,6 +2056,7 @@ static bool pl5DecodeWriteParamsResp(void)
 
     return true;
 }
+
 
 static bool pl5Decode(timeUs_t currentTimeUs)
 {
