@@ -59,7 +59,7 @@
 
 #include "printf.h"
 
-#undef REQUIRE_PRINTF_LONG_SUPPORT
+#define REQUIRE_PRINTF_LONG_SUPPORT
 
 static putc_f   stdout_putf = NULL;
 static void *   stdout_putp = NULL;
