@@ -27,7 +27,6 @@
 typedef busServoSourceType_e fbusMasterSourceType_e;
 
 typedef struct fbusMasterConfig_s {
-    // SBus output frame rate in Hz, typically 144Hz
     uint16_t frameRate;
     uint8_t pinSwap;
 

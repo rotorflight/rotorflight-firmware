@@ -2170,7 +2170,8 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
     case MSP_SET_SERVO_CONFIG:
         {
             const int rem = sbufBytesRemaining(src);
-            if (rem != 1) {
+            // Expect index (U8) + eight U16 fields = 1 + 8*2 bytes
+            if (rem != 1 + 8 * 2) {
                 return MSP_RESULT_ERROR;
             }
 
@@ -2179,14 +2180,18 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 return MSP_RESULT_ERROR;
             }
 
-            sbufWriteU16(dst, servoParams(i)->mid);
-            sbufWriteU16(dst, servoParams(i)->min);
-            sbufWriteU16(dst, servoParams(i)->max);
-            sbufWriteU16(dst, servoParams(i)->rneg);
-            sbufWriteU16(dst, servoParams(i)->rpos);
-            sbufWriteU16(dst, servoParams(i)->rate);
-            sbufWriteU16(dst, servoParams(i)->speed);
-            sbufWriteU16(dst, servoParams(i)->flags);
+            // Read and apply new servo parameters in the same order as GET
+            servoParamsMutable(i)->mid   = sbufReadU16(src);
+            servoParamsMutable(i)->min   = sbufReadU16(src);
+            servoParamsMutable(i)->max   = sbufReadU16(src);
+            servoParamsMutable(i)->rneg  = sbufReadU16(src);
+            servoParamsMutable(i)->rpos  = sbufReadU16(src);
+            servoParamsMutable(i)->rate  = sbufReadU16(src);
+            servoParamsMutable(i)->speed = sbufReadU16(src);
+            servoParamsMutable(i)->flags = sbufReadU16(src);
+
+            // If there is a helper to persist or apply servo params, call it here.
+            // (No-op if not required; other SET handlers don't always call explicit save.)
         }
         break;
     case MSP_GET_SERVO_CONFIG:
@@ -3546,12 +3551,22 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
     case MSP_SET_BUS_SERVO_CONFIG: {
-        if (sbufBytesRemaining(src) >= 1) {
-            uint8_t index = sbufReadU8(src);
-            if (index < BUS_SERVO_CHANNELS && sbufBytesRemaining(src) >= 1) {
-                busServoConfigMutable()->sourceType[index] = sbufReadU8(src);
-            }
+        // Validate payload length: need at least 2 bytes (index + sourceType)
+        if (sbufBytesRemaining(src) < 2) {
+            return MSP_RESULT_ERROR;
         }
+        
+        // Read and validate index
+        uint8_t index = sbufReadU8(src);
+        if (index >= BUS_SERVO_CHANNELS) {
+            return MSP_RESULT_ERROR;
+        }
+        
+        // Read sourceType
+        uint8_t sourceType = sbufReadU8(src);
+        
+        // Apply configuration
+        busServoConfigMutable()->sourceType[index] = sourceType;
         break;
     }
 #endif

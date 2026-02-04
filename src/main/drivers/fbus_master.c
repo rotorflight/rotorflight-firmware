@@ -56,10 +56,6 @@ enum {
 
 serialPort_t *fbusMasterPort = NULL;
 
-// S1-S8 (indices 0-7) are PWM servos
-// S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
-#define BUS_SERVO_OFFSET 8
-
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
 

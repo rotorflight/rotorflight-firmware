@@ -52,21 +52,21 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
-### MSP_GET_FBUS_MASTER_CONFIG
+### MSP_BUS_SERVO_CONFIG
 
-New MSP command (161) to retrieve the FBUS Master configuration.
+New MSP command (152) to retrieve BUS servo source configuration (18 channels).
 
-### MSP_SET_FBUS_MASTER_CHANNEL
+### MSP_SET_SERVO_CONFIG
 
-New MSP command (162) to configure individual FBUS Master channel settings.
+New MSP command (124) to configure individual servo settings (PWM and BUS servos).
 
-### MSP_GET_FBUS_MASTER_CHANNEL
+### MSP_GET_SERVO_CONFIG
 
-New MSP command (163) to retrieve individual FBUS Master channel configuration.
+New MSP command (125) to retrieve individual servo configuration.
 
-### MSP_GET_SBUS_OUTPUT_CONFIG
+### MSP_SET_SERVO_OVERRIDE_ALL
 
-Allow querying a single sbus servo via msp (#372)
+New MSP command (196) to set servo overrides for all servos in one call.
 
 ### MSP_GET_MIXER_INPUT
 
@@ -134,7 +134,7 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
-`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (MIXER=0, RX=1). Source index is always equal to the channel number. MIXER uses -1000 to 1000 range, RX uses 1000 to 2000 range.
+`bus_servo_source_type` parameter added. Array of 18 uint8 values defining the source type for each BUS servo channel (MIXER=0, RX=1). Source index is always equal to the channel number. MIXER uses BUS servo range (default -500 to 500), RX uses 1000 to 2000 range.
 
 `fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
 
@@ -159,7 +159,7 @@ the actual values are calculated automatically (#332).
 
 `motor_poles` default is changed to 0,0,0,0.
 
-`fbus_master_source_type` defaults to MIXER (0) for first 8 channels, RX (1) for channels 8-15.
+`bus_servo_source_type` defaults to MIXER (0) for first 8 channels, RX (1) for channels 8-17.
 
 `fbus_master_frame_rate` defaults to 500 Hz.
 
