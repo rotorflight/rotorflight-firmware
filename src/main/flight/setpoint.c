@@ -58,7 +58,8 @@ typedef struct
     float setpoint[4];
     float deflection[4];
 
-    float ringLimit;
+    bool  polarCoord;
+    float ringLimit[2];
 
     float limited[4];
     float responseAccel[4];
@@ -209,8 +210,6 @@ void setpointUpdateTiming(float frameTimeUs)
 
 INIT_CODE void setpointInitProfile(void)
 {
-    sp.ringLimit = 1.0f / (1.4142135623f - currentControlRateProfile->cyclic_ring * 0.004142135623f);
-
     for (int i = 0; i < 4; i++) {
         if (currentControlRateProfile->response_time[i]) {
             const float cutoff = 500.0f / currentControlRateProfile->response_time[i];
@@ -238,6 +237,19 @@ INIT_CODE void setpointInitProfile(void)
 
     difFilterUpdate(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
     pt1FilterUpdate(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
+
+    sp.polarCoord = currentControlRateProfile->cyclic_polar;
+
+    if (currentControlRateProfile->cyclic_ring) {
+        const float cyclicLimit = currentControlRateProfile->cyclic_ring / 100.0f;
+        sp.ringLimit[FD_ROLL]  = applyRatesCurve(FD_ROLL, 1.0f)  * cyclicLimit;
+        sp.ringLimit[FD_PITCH] = applyRatesCurve(FD_PITCH, 1.0f) * cyclicLimit;
+    }
+    else {
+        sp.ringLimit[FD_ROLL]  = 2000;
+        sp.ringLimit[FD_PITCH] = 2000;
+    }
+
 }
 
 INIT_CODE void setpointInit(void)
@@ -274,18 +286,8 @@ static float applyYawDynamicRange(float setpoint)
     return setpoint;
 }
 
-void setpointUpdate(void)
+static void airborneDebug(void)
 {
-    float deflection[4];
-
-    for (int axis = 0; axis < 4; axis++) {
-        deflection[axis] = getRcDeflection(axis);
-        DEBUG_AXIS(SETPOINT, axis, 0, deflection[axis] * 1000);
-
-        float delta = sq(deflection[axis])- sp.maximum[axis];
-        sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
-    }
-
     DEBUG(AIRBORNE, 0, sqrtf(sp.maximum[FD_ROLL]) * 1000);
     DEBUG(AIRBORNE, 1, sqrtf(sp.maximum[FD_PITCH]) * 1000);
     DEBUG(AIRBORNE, 2, sqrtf(sp.maximum[FD_YAW]) * 1000);
@@ -294,43 +296,84 @@ void setpointUpdate(void)
     DEBUG(AIRBORNE, 5, isSpooledUp());
     DEBUG(AIRBORNE, 6, isHandsOn());
     DEBUG(AIRBORNE, 7, isAirborne());
+}
 
-    const float R = deflection[FD_ROLL]  * sp.ringLimit;
-    const float P = deflection[FD_PITCH] * sp.ringLimit;
-    const float C = sqrtf(sq(R) + sq(P));
-
-    if (C > 1.0f) {
-        deflection[FD_ROLL]  /= C;
-        deflection[FD_PITCH] /= C;
-    }
+void setpointUpdate(void)
+{
+    float SP[4];
 
     for (int axis = 0; axis < 4; axis++) {
-        float SP = deflection[axis];
-        DEBUG_AXIS(SETPOINT, axis, 1, SP * 1000);
+        SP[axis] = getRcDeflection(axis);
+        DEBUG_AXIS(SETPOINT, axis, 0, SP[axis] * 1000);
 
-        // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
-        if (axis == FD_YAW)
-            SP = -SP;
-
-        SP = filterApply(&sp.smoothingFilter[axis], SP);
-        DEBUG_AXIS(SETPOINT, axis, 2, SP * 1000);
-
-        if (axis == FD_YAW) {
-            SP = applyYawDynamicRange(SP);
-            DEBUG_AXIS(SETPOINT, axis, 3, SP * 1000);
-        }
-
-        SP = sp.deflection[axis] = setpointResponseAccel(axis, SP);
-        DEBUG_AXIS(SETPOINT, axis, 4, SP * 1000);
-
-        SP = applyRatesCurve(axis, SP);
-        DEBUG_AXIS(SETPOINT, axis, 5, SP);
-
-        SP += difFilterApply(&sp.boostFilter[axis], SP) * sp.boostGain[axis];
-        DEBUG_AXIS(SETPOINT, axis, 6, SP);
-
-        sp.setpoint[axis] = SP;
+        float delta = sq(SP[axis])- sp.maximum[axis];
+        sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
     }
+
+    // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
+    SP[FD_YAW] = -SP[FD_YAW];
+
+    for (int axis = 0; axis < 4; axis++) {
+        SP[axis] = filterApply(&sp.smoothingFilter[axis], SP[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 1, SP[axis] * 1000);
+    }
+
+    SP[FD_YAW] = applyYawDynamicRange(SP[FD_YAW]);
+    DEBUG_AXIS(SETPOINT, FD_YAW, 2, SP[FD_YAW] * 1000);
+
+    for (int axis = 0; axis < 4; axis++) {
+        SP[axis] = sp.deflection[axis] = setpointResponseAccel(axis, SP[axis]);
+        DEBUG_AXIS(SETPOINT, axis, 3, SP[axis] * 1000);
+
+        SP[axis] += difFilterApply(&sp.boostFilter[axis], SP[axis]) * sp.boostGain[axis];
+        DEBUG_AXIS(SETPOINT, axis, 4, SP[axis]);
+    }
+
+    if (sp.polarCoord) {
+        const float dist = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
+        const float rate = fminf(applyRatesCurve(FD_PITCH, dist), sp.ringLimit[FD_PITCH]);
+        const float mult = (dist > 1e-6f) ? rate / dist : 0;
+
+        SP[FD_ROLL] = SP[FD_ROLL] * mult;
+        SP[FD_PITCH] = SP[FD_PITCH] * mult;
+
+        DEBUG(POLAR_RATE, 0, SP[FD_ROLL]);
+        DEBUG(POLAR_RATE, 1, SP[FD_PITCH]);
+        DEBUG(POLAR_RATE, 2, rate);
+        DEBUG(POLAR_RATE, 3, mult);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
+    }
+    else {
+        SP[FD_ROLL] = applyRatesCurve(FD_ROLL, SP[FD_ROLL]);
+        SP[FD_PITCH] = applyRatesCurve(FD_PITCH, SP[FD_PITCH]);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
+
+        const float R = SP[FD_ROLL]  / sp.ringLimit[FD_ROLL];
+        const float P = SP[FD_PITCH] / sp.ringLimit[FD_PITCH];
+        const float C = sqrtf(sq(R) + sq(P));
+
+        if (C > 1.0f) {
+            SP[FD_ROLL]  /= C;
+            SP[FD_PITCH] /= C;
+        }
+    }
+
+    SP[FD_YAW] = applyRatesCurve(FD_YAW, SP[FD_YAW]);
+    DEBUG_AXIS(SETPOINT, FD_YAW, 5, SP[FD_YAW]);
+
+    SP[FD_COLL] = applyRatesCurve(FD_COLL, SP[FD_COLL]);
+    DEBUG_AXIS(SETPOINT, FD_COLL, 5, SP[FD_COLL]);
+
+    for (int axis = 0; axis < 4; axis++) {
+        sp.setpoint[axis] = SP[axis];
+        DEBUG_AXIS(SETPOINT, axis, 7, SP[axis] * 1000);
+    }
+
+    airborneDebug();
 }
 
 bool isHandsOn(void)

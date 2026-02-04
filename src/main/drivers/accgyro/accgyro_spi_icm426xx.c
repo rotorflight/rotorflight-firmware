@@ -37,6 +37,7 @@
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/accgyro/accgyro_mpu.h"
 #include "drivers/accgyro/accgyro_spi_icm426xx.h"
+#include "drivers/accgyro/gyro_sync.h"
 #include "drivers/bus_spi.h"
 #include "drivers/exti.h"
 #include "drivers/io.h"
@@ -45,8 +46,19 @@
 
 #include "sensors/gyro.h"
 
-// 24 MHz max SPI frequency
+#include "pg/gyrodev.h"
+
+#ifndef ICM426XX_CLOCK
 #define ICM426XX_MAX_SPI_CLK_HZ 24000000
+#else
+#define ICM426XX_MAX_SPI_CLK_HZ ICM426XX_CLOCK
+#endif
+
+#define ICM426XX_CLKIN_FREQ                         32000
+
+// Soft Reset
+#define ICM426XX_RA_DEVICE_CONFIG                   0x11
+#define DEVICE_CONFIG_SOFT_RESET_BIT                (1 << 0) // Soft reset bit
 
 #define ICM426XX_RA_REG_BANK_SEL                    0x76
 #define ICM426XX_BANK_SELECT0                       0x00
@@ -94,10 +106,10 @@
 #define ICM426XX_INT1_POLARITY_ACTIVE_HIGH          (1 << 0)
 
 #define ICM426XX_RA_INT_CONFIG0                     0x63  // User Bank 0
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR           ((0 << 5) || (0 << 4))
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_DUPLICATE ((0 << 5) || (0 << 4)) // duplicate settings in datasheet, Rev 1.2.
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_F1BR          ((1 << 5) || (0 << 4))
-#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_AND_F1BR  ((1 << 5) || (1 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR           ((0 << 5) | (0 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_DUPLICATE ((0 << 5) | (1 << 4)) // duplicate setting in datasheet, Rev 1.8
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_F1BR          ((1 << 5) | (0 << 4))
+#define ICM426XX_UI_DRDY_INT_CLEAR_ON_SBR_AND_F1BR  ((1 << 5) | (1 << 4))
 
 #define ICM426XX_RA_INT_CONFIG1                     0x64   // User Bank 0
 #define ICM426XX_INT_ASYNC_RESET_BIT                4
@@ -111,6 +123,12 @@
 #define ICM426XX_RA_INT_SOURCE0                     0x65  // User Bank 0
 #define ICM426XX_UI_DRDY_INT1_EN_DISABLED           (0 << 3)
 #define ICM426XX_UI_DRDY_INT1_EN_ENABLED            (1 << 3)
+
+// specific to CLKIN configuration
+#define ICM426XX_INTF_CONFIG5                       0x7B  // User Bank 1
+#define ICM426XX_INTF_CONFIG1_CLKIN                 (1 << 2)
+#define ICM426XX_INTF_CONFIG5_PIN9_FUNCTION_MASK    (3 << 1)   // PIN9 mode config
+#define ICM426XX_INTF_CONFIG5_PIN9_FUNCTION_CLKIN   (2 << 1)   // PIN9 as CLKIN
 
 typedef enum {
     ODR_CONFIG_8K = 0,
@@ -159,14 +177,50 @@ static aafConfig_t aafLUT42605[AAF_CONFIG_COUNT] = {  // see table in section 5.
     [AAF_CONFIG_1962HZ] = { 63, 3968,  3 }, // 995 Hz is the max cutoff on the 42605
 };
 
+static void setUserBank(const extDevice_t *dev, const uint8_t user_bank)
+{
+    spiWriteReg(dev, ICM426XX_RA_REG_BANK_SEL, user_bank & 7);
+}
+
+#if defined(USE_GYRO_CLK)
+static void icm426xxEnableExternalClock(const extDevice_t *dev)
+{
+    if (gyroExternalClockInit(dev, ICM426XX_CLKIN_FREQ)) {
+        // Switch to Bank 1 and set bits 2:1 in INTF_CONFIG5 (0x7B) to enable CLKIN on PIN9
+        setUserBank(dev, ICM426XX_BANK_SELECT1);
+        uint8_t intf_config5 = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG5);
+        intf_config5 &= ~ICM426XX_INTF_CONFIG5_PIN9_FUNCTION_MASK;
+        intf_config5 |= ICM426XX_INTF_CONFIG5_PIN9_FUNCTION_CLKIN;  // Set bits 2:1 to 0b10 for CLKIN
+        spiWriteReg(dev, ICM426XX_INTF_CONFIG5, intf_config5);
+
+        // Switch to Bank 0 and set bit 2 in RTC_MODE (0x4D) to enable external CLK signal
+        setUserBank(dev, ICM426XX_BANK_SELECT0);
+        uint8_t rtc_mode = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG1);
+        rtc_mode |= ICM426XX_INTF_CONFIG1_CLKIN; // Enable external CLK signal
+        spiWriteReg(dev, ICM426XX_INTF_CONFIG1, rtc_mode);
+    }
+}
+#endif
+
+static void icm426xxSoftReset(const extDevice_t *dev)
+{
+    setUserBank(dev, ICM426XX_BANK_SELECT0);
+
+    spiWriteReg(dev, ICM426XX_RA_DEVICE_CONFIG, DEVICE_CONFIG_SOFT_RESET_BIT);
+
+    delay(1);
+}
+
 uint8_t icm426xxSpiDetect(const extDevice_t *dev)
 {
+    delay(1);                          // power-on time
+    icm426xxSoftReset(dev);
     spiWriteReg(dev, ICM426XX_RA_PWR_MGMT0, 0x00);
 
     uint8_t icmDetected = MPU_NONE;
     uint8_t attemptsRemaining = 20;
     do {
-        delay(150);
+        delay(1);
         const uint8_t whoAmI = spiReadRegMsk(dev, MPU_RA_WHO_AM_I);
         switch (whoAmI) {
         case ICM42605_WHO_AM_I_CONST:
@@ -226,11 +280,6 @@ static void turnGyroAccOn(const extDevice_t *dev)
     delay(1);
 }
 
-static void setUserBank(const extDevice_t *dev, const uint8_t user_bank)
-{
-    spiWriteReg(dev, ICM426XX_RA_REG_BANK_SEL, user_bank & 7);
-}
-
 void icm426xxGyroInit(gyroDev_t *gyro)
 {
     const extDevice_t *dev = &gyro->dev;
@@ -245,6 +294,10 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     // See section 12.9 in ICM-42688-P datasheet v1.7
     setUserBank(dev, ICM426XX_BANK_SELECT0);
     turnGyroAccOff(dev);
+
+#if defined(USE_GYRO_CLK)
+    icm426xxEnableExternalClock(dev);
+#endif
 
     // Configure gyro Anti-Alias Filter (see section 5.3 "ANTI-ALIAS FILTER")
     const mpuSensor_e gyroModel = gyro->mpuDetectionResult.sensor;

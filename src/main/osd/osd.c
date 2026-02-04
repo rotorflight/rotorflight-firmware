@@ -677,7 +677,7 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
 #ifdef USE_GPS
     case OSD_STAT_MAX_SPEED:
         if (featureIsEnabled(FEATURE_GPS)) {
-            tfp_sprintf(buff, "%d%c", osdGetSpeedToSelectedUnit(stats.max_speed), osdGetSpeedToSelectedUnitSymbol());
+            tfp_sprintf(buff, "%d%c", (int)osdGetSpeedToSelectedUnit(stats.max_speed), osdGetSpeedToSelectedUnitSymbol());
             osdDisplayStatisticLabel(displayRow, "MAX SPEED", buff);
             return true;
         }
@@ -736,7 +736,7 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
 
     case OSD_STAT_USED_MAH:
         if (batteryConfig()->currentMeterSource != CURRENT_METER_NONE) {
-            tfp_sprintf(buff, "%d%c", getBatteryCapacityUsed(), SYM_MAH);
+            tfp_sprintf(buff, "%u%c", (uint)getBatteryCapacityUsed(), SYM_MAH);
             osdDisplayStatisticLabel(displayRow, "USED MAH", buff);
             return true;
         }
@@ -834,9 +834,9 @@ static bool osdDisplayStat(int statistic, uint8_t displayRow)
         #define METERS_PER_KILOMETER 1000
         #define METERS_PER_MILE      1609
         if (osdConfig()->units == UNIT_IMPERIAL) {
-            tfp_sprintf(buff, "%d%c", statsConfig()->stats_total_dist_m / METERS_PER_MILE, SYM_MILES);
+            tfp_sprintf(buff, "%u%c", (uint)statsConfig()->stats_total_dist_m / METERS_PER_MILE, SYM_MILES);
         } else {
-            tfp_sprintf(buff, "%d%c", statsConfig()->stats_total_dist_m / METERS_PER_KILOMETER, SYM_KM);
+            tfp_sprintf(buff, "%u%c", (uint)statsConfig()->stats_total_dist_m / METERS_PER_KILOMETER, SYM_KM);
         }
         osdDisplayStatisticLabel(displayRow, "TOTAL DISTANCE", buff);
         return true;

@@ -51,6 +51,7 @@
 #include "drivers/time.h"
 #include "drivers/freq.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 
 #include "fc/rc_rates.h"
 #include "fc/rc.h"
@@ -316,6 +317,12 @@ void updateArmingStatus(void)
             }
         }
 #endif
+
+        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+            setArmingDisabled(ARMING_DISABLED_RESC);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_RESC);
+        }
 
 #ifdef USE_DSHOT_BITBANG
         if (isDshotBitbangActive(&motorConfig()->dev) && dshotBitbangGetStatus() != DSHOT_BITBANG_STATUS_OK) {

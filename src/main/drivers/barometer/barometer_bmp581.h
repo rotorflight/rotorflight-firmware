@@ -13,27 +13,17 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * BMP581 Driver
+ *
+ * References:
+ * BMP581 datasheet - https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/bmp581/
  */
 
 #pragma once
 
-#include "platform.h"
+typedef struct bmp581Config_s {
+    ioTag_t eocTag;
+} bmp581Config_t;
 
-#include "io/serial.h"
-#include "common/printf.h"
-
-/*
- * When debugging code, define this here, or on the command line.
- *
- * The dprintfs should be used only in debugging, and must _NOT_
- * be left in the final code!
- */
-//#define USE_SERIAL_DPRINTF
-
-#ifdef USE_SERIAL_DPRINTF
-
-void initDebugSerial(serialPortIdentifier_e port, uint32_t baudRate);
-
-int dprintf(const char *fmt, ...);
-
-#endif /* USE_SERIAL_DPRINTF */
+bool bmp581Detect(const bmp581Config_t *config, baroDev_t *baro);

@@ -119,7 +119,7 @@
 #define W25N_TIMEOUT_PAGE_READ_MS        2   // tREmax = 60us (ECC enabled)
 #define W25N_TIMEOUT_PAGE_PROGRAM_MS     2   // tPPmax = 700us
 #define W25N_TIMEOUT_BLOCK_ERASE_MS      15  // tBEmax = 10ms
-#define W25N_TIMEOUT_RESET_MS            500 // tRSTmax = 500ms
+#define W25N_TIMEOUT_RESET_MS            2   // tRSTmax = 500us
 
 // Sizes (in bits)
 #define W25N_STATUS_REGISTER_SIZE        8
@@ -509,7 +509,7 @@ If pageProgramContinue observes the page boundary, then do nothing(?).
 
 static uint32_t programStartAddress;
 static uint32_t programLoadAddress;
-bool bufferDirty = false;
+static bool bufferDirty = false;
 
 // Called in ISR context
 // Check if the status was busy and if so repeat the poll
@@ -532,7 +532,7 @@ busStatus_e w25n_callbackReady(uint32_t arg)
 
 #ifndef W25N_NONBLOCKING_WRITE
 
-bool isProgramming = false;
+static bool isProgramming = false;
 
 void w25n_pageProgramBegin(flashDevice_t *fdevice, uint32_t address, void (*callback)(uint32_t length))
 {
@@ -821,9 +821,14 @@ int w25n_readBytes(flashDevice_t *fdevice, uint32_t address, uint8_t *buffer, ui
     uint32_t targetPage = W25N_LINEAR_TO_PAGE(address);
 
     // As data is buffered before being written a flush must be performed before attempting a read
+    bool was_dirty = bufferDirty;
     w25n_flush(fdevice);
 
-    if (currentPage != targetPage) {
+    bool page_change = (currentPage != targetPage);
+
+    if (was_dirty || page_change) {
+        // if the buffer was dirty, we re-read the freshly written data, including the results of any write failures
+
         if (!w25n_waitForReady(fdevice)) {
             return 0;
         }
@@ -864,7 +869,7 @@ int w25n_readBytes(flashDevice_t *fdevice, uint32_t address, uint8_t *buffer, ui
         busSegment_t segments[] = {
                 {.u.buffers = {readStatus, readyStatus}, sizeof(readStatus), true, w25n_callbackReady},
                 {.u.buffers = {cmd, NULL}, sizeof(cmd), false, NULL},
-                {.u.buffers = {NULL, buffer}, length, true, NULL},
+                {.u.buffers = {NULL, buffer}, transferLength, true, NULL},
                 {.u.link = {NULL, NULL}, 0, true, NULL},
         };
 
@@ -877,8 +882,8 @@ int w25n_readBytes(flashDevice_t *fdevice, uint32_t address, uint8_t *buffer, ui
     else if (fdevice->io.mode == FLASHIO_QUADSPI) {
         QUADSPI_TypeDef *quadSpi = fdevice->io.handle.quadSpi;
 
-        //quadSpiReceiveWithAddress1LINE(quadSpi, W25N_INSTRUCTION_READ_DATA, 8, column, W25N_STATUS_COLUMN_ADDRESS_SIZE, buffer, length);
-        quadSpiReceiveWithAddress4LINES(quadSpi, W25N_INSTRUCTION_FAST_READ_QUAD_OUTPUT, 8, column, W25N_STATUS_COLUMN_ADDRESS_SIZE, buffer, length);
+        //quadSpiReceiveWithAddress1LINE(quadSpi, W25N_INSTRUCTION_READ_DATA, 8, column, W25N_STATUS_COLUMN_ADDRESS_SIZE, buffer, transferLength);
+        quadSpiReceiveWithAddress4LINES(quadSpi, W25N_INSTRUCTION_FAST_READ_QUAD_OUTPUT, 8, column, W25N_STATUS_COLUMN_ADDRESS_SIZE, buffer, transferLength);
     }
 #endif
 
@@ -897,6 +902,8 @@ int w25n_readBytes(flashDevice_t *fdevice, uint32_t address, uint8_t *buffer, ui
     case 0: // Successful read, no ECC correction
         break;
     case 1: // Successful read with ECC correction
+        w25n_addError(address, eccCode);
+        break;
     case 2: // Uncorrectable ECC in a single page
     case 3: // Uncorrectable ECC in multiple pages
         w25n_addError(address, eccCode);
@@ -916,7 +923,7 @@ int w25n_readExtensionBytes(flashDevice_t *fdevice, uint32_t address, uint8_t *b
 
     w25n_performCommandWithPageAddress(&fdevice->io, W25N_INSTRUCTION_PAGE_DATA_READ, W25N_LINEAR_TO_PAGE(address));
 
-    uint32_t column = 2048;
+    uint32_t column = W25N_PAGE_SIZE;
 
     if (fdevice->io.mode == FLASHIO_SPI) {
         extDevice_t *dev = fdevice->io.handle.dev;
