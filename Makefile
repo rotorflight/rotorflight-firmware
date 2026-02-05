@@ -115,7 +115,7 @@ FEATURE_CUT_LEVEL_SUPPLIED := $(FEATURE_CUT_LEVEL)
 FEATURE_CUT_LEVEL =
 
 # The list of targets to build for 'pre-push'
-PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) STM32F4DISCOVERY_DEBUG test-representative
+PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) test-representative
 
 include $(ROOT)/make/targets.mk
 
