@@ -18,6 +18,7 @@
 #pragma once
 
 #include "drivers/bus.h"
+#include "drivers/accgyro/accgyro.h"
 
 uint8_t bmi323Detect(const extDevice_t *dev);
 bool bmi323SpiAccDetect(accDev_t *acc);

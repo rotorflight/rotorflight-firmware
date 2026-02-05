@@ -297,7 +297,17 @@ bool bmi323SpiAccDetect(accDev_t *acc)
 static void bmi323ExtiHandler(extiCallbackRec_t *cb)
 {
     gyroDev_t *gyro = container_of(cb, gyroDev_t, exti);
-    gyro->dataReady = true;
+    extDevice_t *dev = &gyro->dev;
+
+    uint32_t nowCycles = getCycleCounter();
+    gyro->gyroSyncEXTI = gyro->gyroLastEXTI + gyro->gyroDmaMaxDuration;
+    gyro->gyroLastEXTI = nowCycles;
+
+    if (gyro->gyroModeSPI == GYRO_EXTI_INT_DMA) {
+        spiSequence(dev, gyro->segments);
+    }
+
+    gyro->detectedEXTI++;
 }
 
 static void bmi323SpiGyroInit(gyroDev_t *gyro)
@@ -411,8 +421,8 @@ static bool bmi323GyroRead(gyroDev_t *gyro)
         if (gyro->detectedEXTI > GYRO_EXTI_DETECT_THRESHOLD) {
             if (spiUseDMA(dev)) {
                 dev->callbackArg = (uint32_t)gyro;
-                dev->txBuf[1] = BMI323_REG_GYR_DATA_X | 0x80;
-                gyro->segments[0].len = 8;
+                dev->txBuf[0] = BMI323_REG_ACC_DATA_X | 0x80;
+                gyro->segments[0].len = 14;
                 gyro->segments[0].callback = bmi323Intcallback;
                 gyro->segments[0].u.buffers.txData = dev->txBuf;
                 gyro->segments[0].u.buffers.rxData = dev->rxBuf;
@@ -438,7 +448,7 @@ static bool bmi323GyroRead(gyroDev_t *gyro)
                 {.u.link = {NULL, NULL}, 0, true, NULL},
         };
         segments[0].u.buffers.txData = dev->txBuf;
-        segments[0].u.buffers.rxData = dev->rxBuf;
+        segments[0].u.buffers.rxData = &dev->rxBuf[6];
 
         spiSequence(dev, &segments[0]);
 
@@ -451,10 +461,10 @@ static bool bmi323GyroRead(gyroDev_t *gyro)
     case GYRO_EXTI_INT_DMA:
     {
         // Data is 16-bit little endian starting at byte 1 (byte 0 is dummy)
-        int16_t *gyroData = (int16_t *)&dev->rxBuf[2];
-        gyro->gyroADCRaw[X] = gyroData[0];
-        gyro->gyroADCRaw[Y] = gyroData[1];
-        gyro->gyroADCRaw[Z] = gyroData[2];
+        int16_t *gyroData = (int16_t *)dev->rxBuf;
+        gyro->gyroADCRaw[X] = gyroData[4];
+        gyro->gyroADCRaw[Y] = gyroData[5];
+        gyro->gyroADCRaw[Z] = gyroData[6];
         break;
     }
 
@@ -496,10 +506,10 @@ static bool bmi323AccRead(accDev_t *acc)
     case GYRO_EXTI_INT_DMA:
     {
         // Data is 16-bit little endian: first byte = reg addr, second byte = dummy
-        int16_t *accData = (int16_t *)&dev->rxBuf[2];
-        acc->ADCRaw[X] = accData[0];
-        acc->ADCRaw[Y] = accData[1];
-        acc->ADCRaw[Z] = accData[2];
+        int16_t *accData = (int16_t *)dev->rxBuf;
+        acc->ADCRaw[X] = accData[1];
+        acc->ADCRaw[Y] = accData[2];
+        acc->ADCRaw[Z] = accData[3];
         break;
     }
 
