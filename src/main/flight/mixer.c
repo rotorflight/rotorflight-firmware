@@ -372,12 +372,10 @@ static void mixerUpdateMotorizedTail(void)
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
 
-        // Slow spoolup
+        // Start tail motor asap
         if (!isSpooledUp()) {
-            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.05f)
+            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.001f)
                 throttle = 0;
-            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.10f)
-                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.10f;
         }
 
         // Yaw is now tail motor throttle

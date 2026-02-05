@@ -407,3 +407,28 @@ extern uint8_t __config_end;
 #ifndef USE_GPS
 #undef USE_GPS_PLUS_CODES
 #endif
+
+#ifdef USE_SERIAL_PRINTF
+#ifndef PRINTF_SERIAL_PORT
+#define PRINTF_SERIAL_PORT SERIAL_PORT_USART3
+#endif
+#ifndef PRINTF_SERIAL_SPEED
+#define PRINTF_SERIAL_SPEED 921600
+#endif
+#ifndef PRINTF_SERIAL_OPTIONS
+#define PRINTF_SERIAL_OPTIONS 0
+#endif
+#endif
+
+#if !defined(UNIT_TEST) && !defined(SIMULATOR_BUILD)
+#if defined(USE_NULL_PRINTF)
+#define printf(...)     null_printf(__VA_ARGS__)
+#define sprintf(...)    null_sprintf(__VA_ARGS__)
+#elif defined(USE_ITM_PRINTF) || defined(USE_SERIAL_PRINTF)
+#define printf(...)     tfp_printf(__VA_ARGS__)
+#define sprintf(...)    tfp_sprintf(__VA_ARGS__)
+#else
+#define printf(...)     STATIC_ASSERT(false, printf_not_implemented)
+#define sprintf(...)    STATIC_ASSERT(false, sprintf_not_implemented)
+#endif
+#endif
