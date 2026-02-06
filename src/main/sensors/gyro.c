@@ -35,6 +35,7 @@
 #include "config/config.h"
 #include "config/feature.h"
 
+#include "pg/gyro.h"
 #include "pg/gyrodev.h"
 
 #include "fc/runtime_config.h"
@@ -65,31 +66,29 @@ static FAST_DATA_ZERO_INIT int16_t gyroSensorTemperature;
 FAST_DATA uint8_t activePidLoopDenom = 1;
 FAST_DATA uint8_t activeFilterLoopDenom = 1;
 
-
-#define DEBUG_GYRO_CALIBRATION 3
-
 #define GYRO_OVERFLOW_TRIGGER_THRESHOLD 31980  // 97.5% full scale (1950dps for 2000dps gyro)
 #define GYRO_OVERFLOW_RESET_THRESHOLD 30340    // 92.5% full scale (1850dps for 2000dps gyro)
 
+#define GYRO_CALIB_NOISE_HZ     25.0f
+
+static bool firstArmingCalibrationWasStarted = false;
 
 static inline bool isGyroSensorCalibrationRunning(const gyroSensor_t *gyroSensor)
 {
-    UNUSED(gyroSensor);
-    return true; // TODO
+    return gyroSensor->calibration.running;
 }
 
 static inline bool isGyroSensorCalibrationComplete(const gyroSensor_t *gyroSensor)
 {
-    UNUSED(gyroSensor);
-    return true; // TODO
+    return !gyroSensor->calibration.running && gyroSensor->calibration.cycles > 0;
 }
 
 bool isFirstArmingGyroCalibrationRunning(void)
 {
-    return false; // TODO for core.c to delay arming and beeping
+    return firstArmingCalibrationWasStarted && !gyroIsCalibrationComplete();
 }
 
-bool gyroIsCalibrationComplete(void)  // for core.c to wait and CMS
+bool gyroIsCalibrationComplete(void)
 {
     switch (gyro.gyroToUse) {
         case GYRO_CONFIG_USE_GYRO_1:
@@ -105,16 +104,99 @@ bool gyroIsCalibrationComplete(void)  // for core.c to wait and CMS
     }
 }
 
-void gyroStartCalibration(bool isFirstArmingCalibration)  // for init.c core.c rc_controlcs.c CMS
+static INIT_CODE void initGyroCalibration(gyroSensor_t *gyroSensor)
 {
-    UNUSED(isFirstArmingCalibration);
-    // TODO
+    gyroCalibration_t *cal = &gyroSensor->calibration;
+
+    const float cutoff = 200.0f / gyroConfig()->gyroCalibrationDuration;
+
+    cal->running = true;
+    cal->cycles = 0;
+
+    cal->beta = pt1FilterGain(cutoff, gyro.sampleRateHz);
+    cal->alpha = cal->beta * 10.0f;
+
+    cal->threshold = gyroConfig()->gyroMovementCalibrationThreshold / 10.0f;
+
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        lowpassFilterInit(&cal->noiseFilter[axis], LPF_BESSEL, GYRO_CALIB_NOISE_HZ, gyro.sampleRateHz, 0);
+        lowpassFilterInit(&cal->offsetFilter[axis], LPF_PT3, cutoff * 2.0f, gyro.sampleRateHz, 0);
+        cal->peak[axis] = 0;
+    }
 }
 
-static void performGyroCalibration(gyroSensor_t *gyroSensor)
+void gyroStartCalibration(bool isFirstArmingCalibration)  // for init.c core.c rc_controlcs.c CMS
 {
-    UNUSED(gyroSensor);
-    // TODO
+    if (isFirstArmingCalibration && firstArmingCalibrationWasStarted) {
+        return;
+    }
+
+    if (gyro.sampleRateHz > 0) {
+        initGyroCalibration(&gyro.gyroSensor1);
+#ifdef USE_MULTI_GYRO
+        initGyroCalibration(&gyro.gyroSensor2);
+#endif
+    }
+
+#if defined(USE_FAKE_GYRO) && !defined(UNIT_TEST)
+    if (gyro.gyroSensor1.gyroDev.gyroHardware == GYRO_FAKE) {
+        gyro.gyroSensor1.calibration.running = false;
+    }
+#ifdef USE_MULTI_GYRO
+    if (gyro.gyroSensor2.gyroDev.gyroHardware == GYRO_FAKE) {
+        gyro.gyroSensor2.calibration.running = false;
+    }
+#endif
+#endif
+
+    if (isFirstArmingCalibration) {
+        firstArmingCalibrationWasStarted = true;
+    }
+}
+
+STATIC_UNIT_TESTED void performGyroCalibration(gyroSensor_t *gyroSensor)
+{
+    gyroCalibration_t *cal = &gyroSensor->calibration;
+
+    if (cal->running) {
+
+        float offset[XYZ_AXIS_COUNT];
+
+        cal->cycles++;
+
+        const uint32_t min_cycles = (uint32_t)gyro.sampleRateHz * (uint32_t)gyroConfig()->gyroCalibrationDuration / 100U;
+        bool calibDone = (cal->cycles > min_cycles);
+
+        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            const float gyro = gyroSensor->gyroDev.gyroADCRaw[axis];
+            const float drift = filterApply(&cal->noiseFilter[axis], gyro);
+
+            offset[axis] = filterApply(&cal->offsetFilter[axis], drift);
+
+            const float error = drift - offset[axis];
+            const float delta = fabsf(error) - cal->peak[axis];
+            cal->peak[axis] += (delta > 0) ? delta * cal->alpha : delta * cal->beta;
+
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 0, gyro);
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 1, drift * 10);
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 2, offset[axis] * 10);
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 3, cal->peak[axis] * 10);
+
+            calibDone &= (cal->peak[axis] < cal->threshold);
+        }
+
+        if (calibDone) {
+            for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                gyroSensor->gyroDev.gyroZero[axis] = offset[axis];
+            }
+            cal->running = false;
+
+            schedulerResetTaskStatistics(TASK_SELF);
+            if (!firstArmingCalibrationWasStarted || (getArmingDisableFlags() & ~ARMING_DISABLED_CALIBRATING) == 0) {
+                beeper(BEEPER_GYRO_CALIBRATED);
+            }
+        }
+    }
 }
 
 
