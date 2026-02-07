@@ -367,6 +367,7 @@ typedef enum {
 #define RF_CMS_MENU_REG_MAX 128
 static const CMS_Menu *rfCmsMenuReg[RF_CMS_MENU_REG_MAX];
 static uint16_t rfCmsMenuGen;
+static bool rfCmsRebootRequiredPending;
 
 static void rfCmsRegistryReset(void)
 {
@@ -377,6 +378,7 @@ static void rfCmsRegistryReset(void)
     if (rfCmsMenuGen == 0) {
         rfCmsMenuGen = 1;
     }
+    rfCmsRebootRequiredPending = false;
 }
 
 static uint16_t rfCmsRegistryGetId(const CMS_Menu *menu)
@@ -663,6 +665,7 @@ static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
     int32_t min = INT32_MIN, max = INT32_MAX;
     int32_t av = v;
     bool canWrite = true;
+    const int32_t previousValue = rfCmsGetValue(e);
 
     switch (t) {
     case OME_Bool:
@@ -720,6 +723,10 @@ static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
     uint8_t result = 0;
     if (av < min) { av = min; result = 1; }
     if (av > max) { av = max; result = 1; }
+
+    if ((e->flags & REBOOT_REQUIRED) && (av != previousValue)) {
+        rfCmsRebootRequiredPending = true;
+    }
 
     // Apply
     switch (t) {
@@ -2933,6 +2940,10 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 result = 4; // BUSY/ARMED
             } else {
                 cmsMenuExit(pCurrentDisplay, (void *)CMS_POPUP_SAVE);
+                if (rfCmsRebootRequiredPending) {
+                    setRebootRequired();
+                    rfCmsRebootRequiredPending = false;
+                }
                 result = 0;
             }
             sbufWriteU16(dst, rfCmsMenuGen);
@@ -2964,6 +2975,10 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                     menu->onExit(pCurrentDisplay, (OSD_Entry *)NULL);
                 }
                 cmsSaveConfigInMenu(pCurrentDisplay);
+                if (rfCmsRebootRequiredPending) {
+                    setRebootRequired();
+                    rfCmsRebootRequiredPending = false;
+                }
                 result = 0;
             }
             sbufWriteU16(dst, rfCmsMenuGen);
