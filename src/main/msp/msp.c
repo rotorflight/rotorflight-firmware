@@ -365,20 +365,20 @@ typedef enum {
 // Session-scoped registry that maps compact menu IDs to CMS_Menu pointers.
 // (IDs are opaque to the client and are re-established on MSP2_RF_CMS_INFO.)
 #define RF_CMS_MENU_REG_MAX 128
-static const CMS_Menu *rfCmsMenuReg[RF_CMS_MENU_REG_MAX];
-static uint16_t rfCmsMenuGen;
-static bool rfCmsRebootRequiredPending;
+static const CMS_Menu *rf_cms_menu_reg[RF_CMS_MENU_REG_MAX];
+static uint16_t rf_cms_menu_gen;
+static bool rf_cms_reboot_required_pending;
 
 static void rfCmsRegistryReset(void)
 {
-    memset(rfCmsMenuReg, 0, sizeof(rfCmsMenuReg));
+    memset(rf_cms_menu_reg, 0, sizeof(rf_cms_menu_reg));
     // Reserve 0 for "invalid".
-    rfCmsMenuReg[1] = &cmsx_menuMain;
-    rfCmsMenuGen++;
-    if (rfCmsMenuGen == 0) {
-        rfCmsMenuGen = 1;
+    rf_cms_menu_reg[1] = &cmsx_menuMain;
+    rf_cms_menu_gen++;
+    if (rf_cms_menu_gen == 0) {
+        rf_cms_menu_gen = 1;
     }
-    rfCmsRebootRequiredPending = false;
+    rf_cms_reboot_required_pending = false;
 }
 
 static uint16_t rfCmsRegistryGetId(const CMS_Menu *menu)
@@ -387,13 +387,13 @@ static uint16_t rfCmsRegistryGetId(const CMS_Menu *menu)
         return 0;
     }
     for (uint16_t i = 1; i < RF_CMS_MENU_REG_MAX; i++) {
-        if (rfCmsMenuReg[i] == menu) {
+        if (rf_cms_menu_reg[i] == menu) {
             return i;
         }
     }
     for (uint16_t i = 1; i < RF_CMS_MENU_REG_MAX; i++) {
-        if (!rfCmsMenuReg[i]) {
-            rfCmsMenuReg[i] = menu;
+        if (!rf_cms_menu_reg[i]) {
+            rf_cms_menu_reg[i] = menu;
             return i;
         }
     }
@@ -405,7 +405,7 @@ static const CMS_Menu *rfCmsRegistryGetMenu(uint16_t id)
     if (id == 0 || id >= RF_CMS_MENU_REG_MAX) {
         return NULL;
     }
-    return rfCmsMenuReg[id];
+    return rf_cms_menu_reg[id];
 }
 
 static bool rfCmsIsSelectableElement(uint16_t flags)
@@ -725,7 +725,7 @@ static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
     if (av > max) { av = max; result = 1; }
 
     if ((e->flags & REBOOT_REQUIRED) && (av != previousValue)) {
-        rfCmsRebootRequiredPending = true;
+        rf_cms_reboot_required_pending = true;
     }
 
     // Apply
@@ -2544,7 +2544,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 
         sbufWriteU8(dst, 1);      // schema major
         sbufWriteU8(dst, 1);      // schema minor
-        sbufWriteU16(dst, rfCmsMenuGen);
+        sbufWriteU16(dst, rf_cms_menu_gen);
         sbufWriteU16(dst, 1);     // root_menu_id (registry slot for cmsx_menuMain)
         // caps: bit0 = read-only when armed, bit3 = supports actions,
         // bit4 = supports STR_GET, bit5 = supports VALUE_META_GET,
@@ -2594,7 +2594,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             // Track how many bytes we've written for this reply
             uint8_t *replyStart = sbufPtr(dst);
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, startIndex);
             sbufWriteU8(dst, maxItems);
@@ -2737,7 +2737,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             UNUSED(itemType);
             UNUSED(submenuId);
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, itemIndex);
             sbufWriteU32(dst, (uint32_t)rfCmsGetValue(e));
@@ -2784,7 +2784,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 result = rfCmsSetValue(e, requested, &applied);
             }
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, itemIndex);
             sbufWriteU32(dst, (uint32_t)applied);
@@ -2840,7 +2840,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 }
             }
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, itemIndex);
             sbufWriteU8(dst, result);
@@ -2876,7 +2876,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 str = e->text ? e->text : "";
             }
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, itemIndex);
             uint16_t len = (uint16_t)strlen(str);
@@ -2917,7 +2917,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             uint16_t submenuId;
             rfCmsEntryMeta(e, &itemType, &valType, &vmin, &vmax, &vstep, &vscale, &eflags, &submenuId);
 
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU16(dst, menuId);
             sbufWriteU8(dst, itemIndex);
             sbufWriteU8(dst, (uint8_t)valType);
@@ -2940,13 +2940,13 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 result = 4; // BUSY/ARMED
             } else {
                 cmsMenuExit(pCurrentDisplay, (void *)CMS_POPUP_SAVE);
-                if (rfCmsRebootRequiredPending) {
+                if (rf_cms_reboot_required_pending) {
                     setRebootRequired();
-                    rfCmsRebootRequiredPending = false;
+                    rf_cms_reboot_required_pending = false;
                 }
                 result = 0;
             }
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU8(dst, result);
         }
         break;
@@ -2975,13 +2975,13 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                     menu->onExit(pCurrentDisplay, (OSD_Entry *)NULL);
                 }
                 cmsSaveConfigInMenu(pCurrentDisplay);
-                if (rfCmsRebootRequiredPending) {
+                if (rf_cms_reboot_required_pending) {
                     setRebootRequired();
-                    rfCmsRebootRequiredPending = false;
+                    rf_cms_reboot_required_pending = false;
                 }
                 result = 0;
             }
-            sbufWriteU16(dst, rfCmsMenuGen);
+            sbufWriteU16(dst, rf_cms_menu_gen);
             sbufWriteU8(dst, result);
         }
         break;
