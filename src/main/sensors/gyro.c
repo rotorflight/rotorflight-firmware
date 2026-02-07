@@ -168,8 +168,8 @@ STATIC_UNIT_TESTED void performGyroCalibration(gyroSensor_t *gyroSensor)
         bool calibDone = (cal->cycles > min_cycles);
 
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-            const float gyro = gyroSensor->gyroDev.gyroADCRaw[axis];
-            const float drift = filterApply(&cal->noiseFilter[axis], gyro);
+            const float rate = gyroSensor->gyroDev.gyroADCRaw[axis];
+            const float drift = filterApply(&cal->noiseFilter[axis], rate);
 
             offset[axis] = filterApply(&cal->offsetFilter[axis], drift);
 
@@ -177,7 +177,7 @@ STATIC_UNIT_TESTED void performGyroCalibration(gyroSensor_t *gyroSensor)
             const float delta = fabsf(error) - cal->peak[axis];
             cal->peak[axis] += (delta > 0) ? delta * cal->alpha : delta * cal->beta;
 
-            DEBUG_AXIS(GYRO_CALIBRATION, axis, 0, gyro);
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 0, rate);
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 1, drift * 10);
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 2, offset[axis] * 10);
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 3, cal->peak[axis] * 10);
