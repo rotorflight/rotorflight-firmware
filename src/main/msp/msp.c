@@ -2549,8 +2549,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         // caps: bit0 = read-only when armed, bit3 = supports actions,
         // bit4 = supports STR_GET, bit5 = supports VALUE_META_GET,
         // bit6 = supports SAVE+EXIT, bit7 = supports SAVE_NOEXIT
-        const uint16_t caps = (1U << 0) | (1U << 3) | (1U << 4) | (1U << 5) | (1U << 6) | (1U << 7);
-        sbufWriteU16(dst, caps);
+        sbufWriteU16(dst, (1U << 0) | (1U << 3) | (1U << 4) | (1U << 5) | (1U << 6) | (1U << 7));
         sbufWriteU8(dst, 12);     // max_page_items_hint
         sbufWriteU16(dst, 31);    // max_label_len_hint
         break;
@@ -2577,9 +2576,6 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 
             // options bit0: invoke menu onEnter hook (client should set when entering menu)
             if ((options & 0x01) && startIndex == 0 && menu->onEnter) {
-                if (!pCurrentDisplay) {
-                    return MSP_RESULT_ERROR;
-                }
                 menu->onEnter(pCurrentDisplay);
             }
 
@@ -2831,9 +2827,6 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 if (t == OME_Funcall || t == OME_OSD_Exit) {
                     if (e->func) {
                         // Funcall handlers vary; follow CMS conventions by passing entry pointer.
-                        if (!pCurrentDisplay) {
-                            return MSP_RESULT_ERROR;
-                        }
                         e->func(pCurrentDisplay, e);
                     }
                     result = 0;
@@ -2945,8 +2938,6 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             uint8_t result = 0;
             if (ARMING_FLAG(ARMED)) {
                 result = 4; // BUSY/ARMED
-            } else if (!pCurrentDisplay || !cmsInMenu) {
-                return MSP_RESULT_ERROR;
             } else {
                 cmsMenuExit(pCurrentDisplay, (void *)CMS_POPUP_SAVE);
                 if (rfCmsRebootRequiredPending) {
@@ -2978,8 +2969,6 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             uint8_t result = 0;
             if (ARMING_FLAG(ARMED)) {
                 result = 4; // BUSY/ARMED
-            } else if (!pCurrentDisplay || !cmsInMenu) {
-                return MSP_RESULT_ERROR;
             } else {
                 // Ensure writeback for the current menu.
                 if (menu->onExit) {
