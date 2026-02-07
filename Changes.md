@@ -84,6 +84,19 @@ Add msp call to set just the servo center point (#366)
 
 The `cyclic_ring` parameter is added (#345).
 
+### MSP2_RF_CMS_*
+
+Added Rotorflight CMS-over-MSP commands for structured CMS menu export:
+`MSP2_RF_CMS_INFO` (0x3100),
+`MSP2_RF_CMS_MENU_GET` (0x3101),
+`MSP2_RF_CMS_VALUE_GET` (0x3102),
+`MSP2_RF_CMS_VALUE_SET` (0x3103),
+`MSP2_RF_CMS_ACTION` (0x3104),
+`MSP2_RF_CMS_STR_GET` (0x3105),
+`MSP2_RF_CMS_VALUE_META_GET` (0x3106),
+`MSP2_RF_CMS_SAVE` (0x3107),
+`MSP2_RF_CMS_SAVE_NOEXIT` (0x3108).
+
 
 ## CLI Changes
 
