@@ -32,7 +32,7 @@
 #define MSP2_RF_CMS_VALUE_GET               0x3102
 #define MSP2_RF_CMS_VALUE_SET               0x3103
 #define MSP2_RF_CMS_ACTION                  0x3104
-#define MSP2_RF_CMS_STR_GET                 0x3105 
-#define MSP2_RF_CMS_VALUE_META_GET          0x3106 
+#define MSP2_RF_CMS_STR_GET                 0x3105
+#define MSP2_RF_CMS_VALUE_META_GET          0x3106
 #define MSP2_RF_CMS_SAVE                    0x3107
 #define MSP2_RF_CMS_SAVE_NOEXIT             0x3108
