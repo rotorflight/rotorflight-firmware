@@ -583,7 +583,7 @@ static void rfCmsEntryMeta(const OSD_Entry *e, rfCmsItemType_e *outItemType, rfC
         valType = RF_CMS_VAL_FLOAT;
         const OSD_FLOAT_t *p = (const OSD_FLOAT_t *)e->data;
         if (p) {
-            min = 0; max = 255; step = 1;
+            min = p->min; max = p->max; step = p->step;
             scale = p->multipler;
         }
         break; }
@@ -704,7 +704,7 @@ static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
     case OME_FLOAT: {
         const OSD_FLOAT_t *p = (const OSD_FLOAT_t *)e->data;
         if (!p || !p->val) return 3;
-        min = 0; max = 255;
+        min = p->min; max = p->max;
         break; }
     case OME_TAB: {
         const OSD_TAB_t *p = (const OSD_TAB_t *)e->data;
