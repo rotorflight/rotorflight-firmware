@@ -132,6 +132,7 @@
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
 #include "pg/sbus_output.h"
+#include "pg/fbus_master.h"
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1799,7 +1800,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < 4; i++) {
             sbufWriteU8(dst, currentControlRateProfile->rcRates[i]);
             sbufWriteU8(dst, currentControlRateProfile->rcExpo[i]);
-            sbufWriteU8(dst, currentControlRateProfile->rates[i]);
+            sbufWriteU8(dst, currentControlRateProfile->sRates[i]);
             sbufWriteU8(dst, currentControlRateProfile->response_time[i]);
             sbufWriteU16(dst, currentControlRateProfile->accel_limit[i]);
         }
@@ -1810,6 +1811,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_ceiling_gain);
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_gain);
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_filter);
+        sbufWriteU8(dst, currentControlRateProfile->cyclic_ring);
         break;
 
     case MSP_PID_TUNING:
@@ -2179,6 +2181,17 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
             sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
+        }
+        break;
+#endif
+
+#ifdef USE_FBUS_MASTER
+    case MSP_GET_FBUS_MASTER_CONFIG:
+        for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceType[i]);
+            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceIndex[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeLow[i]);
+            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeHigh[i]);
         }
         break;
 #endif
@@ -2989,6 +3002,92 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
+    case MSP_GET_SBUS_OUTPUT_CONFIG:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t index = sbufReadU8(src);
+            if (index >= SBUS_OUT_CHANNELS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[index]);
+            sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[index]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[index]);
+            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[index]);
+        }
+        break;     
+    case MSP_GET_MIXER_INPUT:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MIXER_INPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU16(dst, mixerInputs(i)->rate);
+            sbufWriteU16(dst, mixerInputs(i)->min);
+            sbufWriteU16(dst, mixerInputs(i)->max);
+        }
+        break;
+#ifdef USE_FBUS_MASTER
+    case MSP_GET_FBUS_MASTER_CHANNEL:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t channel = sbufReadU8(src);
+            if (channel >= FBUS_MASTER_CHANNELS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            sbufWriteU8(dst, fbusMasterConfig()->sourceType[channel]);
+            sbufWriteU8(dst, fbusMasterConfig()->sourceIndex[channel]);
+            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeLow[channel]);
+            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeHigh[channel]);
+        }
+        break;
+#endif
+    case MSP_GET_ADJUSTMENT_RANGE:
+        {
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+
+            if (i >= MAX_ADJUSTMENT_RANGE_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            // Serialize EXACTLY one entry using the same field order/encoding
+            // as the legacy MSP_ADJUSTMENT_RANGES response.
+            const adjustmentRange_t *adjRange = adjustmentRanges(i);
+
+            sbufWriteU8(dst, adjRange->function);
+            sbufWriteU8(dst, adjRange->enaChannel);
+            sbufWriteU8(dst, adjRange->enaRange.startStep);
+            sbufWriteU8(dst, adjRange->enaRange.endStep);
+            sbufWriteU8(dst, adjRange->adjChannel);
+            sbufWriteU8(dst, adjRange->adjRange1.startStep);
+            sbufWriteU8(dst, adjRange->adjRange1.endStep);
+            sbufWriteU8(dst, adjRange->adjRange2.startStep);
+            sbufWriteU8(dst, adjRange->adjRange2.endStep);
+            sbufWriteU16(dst, adjRange->adjMin);
+            sbufWriteU16(dst, adjRange->adjMax);
+            sbufWriteU8(dst, adjRange->adjStep);
+        }
+        break;        
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
@@ -3317,7 +3416,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         for (int i = 0; i < 4; i++) {
             currentControlRateProfile->rcRates[i] = sbufReadU8(src);
             currentControlRateProfile->rcExpo[i] = sbufReadU8(src);
-            currentControlRateProfile->rates[i] = sbufReadU8(src);
+            currentControlRateProfile->sRates[i] = sbufReadU8(src);
             currentControlRateProfile->response_time[i] = sbufReadU8(src);
             currentControlRateProfile->accel_limit[i] = sbufReadU16(src);
         }
@@ -3333,6 +3432,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->yaw_dynamic_ceiling_gain = sbufReadU8(src);
             currentControlRateProfile->yaw_dynamic_deadband_gain = sbufReadU8(src);
             currentControlRateProfile->yaw_dynamic_deadband_filter= sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 1) {
+            currentControlRateProfile->cyclic_ring = sbufReadU8(src);
         }
         loadControlRateProfile();
         break;
@@ -3464,6 +3566,22 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         setServoOverride(i, sbufReadU16(src));
         break;
+
+    case MSP_SET_SERVO_CENTER:
+        // payload: U8 idx + U16 mid  => 3 bytes
+        if (dataSize != 1 + 2) {
+            return MSP_RESULT_ERROR;
+        }
+
+        i = sbufReadU8(src);
+        if (i >= MAX_SUPPORTED_SERVOS) {
+            return MSP_RESULT_ERROR;
+        }
+
+        servoParamsMutable(i)->mid = sbufReadU16(src);
+        break;
+
+
 #endif
 
     case MSP_SET_RESET_CURR_PID:
@@ -4271,6 +4389,21 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
                 sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
                 sbusOutConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
+            }
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_FBUS_MASTER
+    case MSP_SET_FBUS_MASTER_CHANNEL: {
+        if (sbufBytesRemaining(src) >= 1) {
+            uint8_t index = sbufReadU8(src);
+            if (index < FBUS_MASTER_CHANNELS && sbufBytesRemaining(src) >= 6) {
+                fbusMasterConfigMutable()->sourceType[index] = sbufReadU8(src);
+                fbusMasterConfigMutable()->sourceIndex[index] = sbufReadU8(src);
+                fbusMasterConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
+                fbusMasterConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
             }
         }
         break;

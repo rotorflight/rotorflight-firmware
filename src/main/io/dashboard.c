@@ -348,9 +348,9 @@ static void showRateProfilePage(void)
     i2c_OLED_send_string(dev, lineBuffer);
 
     tfp_sprintf(lineBuffer, "Super  %3d %3d %3d",
-        controlRateConfig->rates[FD_ROLL],
-        controlRateConfig->rates[FD_PITCH],
-        controlRateConfig->rates[FD_YAW]
+        controlRateConfig->sRates[FD_ROLL],
+        controlRateConfig->sRates[FD_PITCH],
+        controlRateConfig->sRates[FD_YAW]
     );
     padLineBuffer();
     i2c_OLED_set_line(dev, rowIndex++);
@@ -406,7 +406,7 @@ static void showGpsPage(void)
     i2c_OLED_set_line(dev, rowIndex++);
     i2c_OLED_send_string(dev, lineBuffer);
 
-    tfp_sprintf(lineBuffer, "La/Lo: %d/%d", gpsSol.llh.lat / GPS_DEGREES_DIVIDER, gpsSol.llh.lon / GPS_DEGREES_DIVIDER);
+    tfp_sprintf(lineBuffer, "La/Lo: %d/%d", (int)(gpsSol.llh.lat / GPS_DEGREES_DIVIDER), (int)(gpsSol.llh.lon / GPS_DEGREES_DIVIDER));
     padLineBuffer();
     i2c_OLED_set_line(dev, rowIndex++);
     i2c_OLED_send_string(dev, lineBuffer);
@@ -421,22 +421,22 @@ static void showGpsPage(void)
     i2c_OLED_set_xy(dev, HALF_SCREEN_CHARACTER_COLUMN_COUNT, rowIndex++);
     i2c_OLED_send_string(dev, lineBuffer);
 
-    tfp_sprintf(lineBuffer, "RX: %d", GPS_packetCount);
+    tfp_sprintf(lineBuffer, "RX: %u", (uint)GPS_packetCount);
     padHalfLineBuffer();
     i2c_OLED_set_line(dev, rowIndex);
     i2c_OLED_send_string(dev, lineBuffer);
 
-    tfp_sprintf(lineBuffer, "ERRs: %d", gpsData.errors);
+    tfp_sprintf(lineBuffer, "ERRs: %u", (uint)gpsData.errors);
     padHalfLineBuffer();
     i2c_OLED_set_xy(dev, HALF_SCREEN_CHARACTER_COLUMN_COUNT, rowIndex++);
     i2c_OLED_send_string(dev, lineBuffer);
 
-    tfp_sprintf(lineBuffer, "Dt: %d", gpsData.lastMessage - gpsData.lastLastMessage);
+    tfp_sprintf(lineBuffer, "Dt: %u", (uint)(gpsData.lastMessage - gpsData.lastLastMessage));
     padHalfLineBuffer();
     i2c_OLED_set_line(dev, rowIndex);
     i2c_OLED_send_string(dev, lineBuffer);
 
-    tfp_sprintf(lineBuffer, "TOs: %d", gpsData.timeouts);
+    tfp_sprintf(lineBuffer, "TOs: %u", (uint)gpsData.timeouts);
     padHalfLineBuffer();
     i2c_OLED_set_xy(dev, HALF_SCREEN_CHARACTER_COLUMN_COUNT, rowIndex++);
     i2c_OLED_send_string(dev, lineBuffer);
@@ -468,7 +468,7 @@ static void showBatteryPage(void)
         int32_t amperage = getBatteryCurrent();
         // 123456789012345678901
         // Amp: DDD.D mAh: DDDDD
-        tfp_sprintf(lineBuffer, "Amp: %d.%d mAh: %d", amperage / 100, (amperage % 100) / 10, getBatteryCapacityUsed());
+        tfp_sprintf(lineBuffer, "Amp: %d.%d mAh: %u", (int)amperage / 100, ((int)amperage % 100) / 10, (uint)getBatteryCapacityUsed());
         padLineBuffer();
         i2c_OLED_set_line(dev, rowIndex++);
         i2c_OLED_send_string(dev, lineBuffer);
@@ -604,7 +604,7 @@ static void showBBPage(void)
 static void showDebugPage(void)
 {
     for (int rowIndex = 0; rowIndex < 4; rowIndex++) {
-        tfp_sprintf(lineBuffer, "%d = %5d", rowIndex, debug[rowIndex]);
+        tfp_sprintf(lineBuffer, "%d = %5d", rowIndex, (int)debug[rowIndex]);
         padLineBuffer();
         i2c_OLED_set_line(dev, rowIndex + PAGE_TITLE_LINE_COUNT);
         i2c_OLED_send_string(dev, lineBuffer);

@@ -22,10 +22,6 @@
 
 #define NOINLINE __attribute__((noinline))
 
-#if !defined(UNIT_TEST) && !defined(SIMULATOR_BUILD) && !(USBD_DEBUG_LEVEL > 0)
-#pragma GCC poison sprintf snprintf
-#endif
-
 #if defined(STM32G474xx)
 #include "stm32g4xx.h"
 #include "stm32g4xx_hal.h"

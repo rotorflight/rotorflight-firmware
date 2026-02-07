@@ -199,11 +199,16 @@
 #define MSP_SET_SBUS_OUTPUT_CONFIG           153
 #define MSP_RPM_FILTER_V2                    154
 #define MSP_SET_RPM_FILTER_V2                155
+#define MSP_GET_ADJUSTMENT_RANGE             156
+#define MSP_GET_SBUS_OUTPUT_CONFIG           157
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
 
 #define MSP_UID                              160
+#define MSP_GET_FBUS_MASTER_CONFIG           161
+#define MSP_SET_FBUS_MASTER_CHANNEL          162
+#define MSP_GET_FBUS_MASTER_CHANNEL          163
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166
@@ -212,6 +217,7 @@
 #define MSP_SET_MIXER_INPUT                  171
 #define MSP_MIXER_RULES                      172
 #define MSP_SET_MIXER_RULE                   173
+#define MSP_GET_MIXER_INPUT                  174
 
 #define MSP_OSD_VIDEO_CONFIG                 180
 #define MSP_SET_OSD_VIDEO_CONFIG             181
@@ -240,6 +246,7 @@
 #define MSP_SELECT_SETTING                   210
 #define MSP_SET_HEADING                      211
 #define MSP_SET_SERVO_CONFIGURATION          212
+#define MSP_SET_SERVO_CENTER                 213
 
 #define MSP_SET_MOTOR                        214
 #define MSP_SET_NAV_CONFIG                   215
@@ -275,3 +282,4 @@
 #define MSP_DEBUGMSG                         253
 #define MSP_DEBUG                            254
 #define MSP_V2_FRAME                         255
+

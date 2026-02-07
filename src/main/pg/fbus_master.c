@@ -18,27 +18,27 @@
 #include "pg/pg_ids.h"
 #include "platform.h"
 
-#include "pg/sbus_output.h"
+#include "pg/fbus_master.h"
+#include "drivers/serial.h"
 
-#ifdef USE_SBUS_OUTPUT
+#ifdef USE_FBUS_MASTER
 
-// The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
-PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
-                          PG_DRIVER_SBUS_OUT_CONFIG, 1);
+PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 3);
 
-void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
-    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-        config->sourceType[i] = SBUS_OUT_SOURCE_RX;
+void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
+    for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
+        config->sourceType[i] = FBUS_MASTER_SOURCE_RX;
         config->sourceIndex[i] = i;
         config->sourceRangeLow[i] = 1000;
         config->sourceRangeHigh[i] = 2000;
     }
-    config->frameRate = 50;
+    config->frameRate = 500;
 
     config->pinSwap = 0;
 
-    config->inverted = 1;    
-
+    // Default to inverted F.Bus (normal for F.Bus receivers).
+    config->inverted = 1;
 }
 
 #endif

@@ -13,32 +13,17 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * BMP581 Driver
+ *
+ * References:
+ * BMP581 datasheet - https://www.bosch-sensortec.com/products/environmental-sensors/pressure-sensors/bmp581/
  */
 
-#include "pg/pg_ids.h"
-#include "platform.h"
+#pragma once
 
-#include "pg/sbus_output.h"
+typedef struct bmp581Config_s {
+    ioTag_t eocTag;
+} bmp581Config_t;
 
-#ifdef USE_SBUS_OUTPUT
-
-// The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
-PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
-                          PG_DRIVER_SBUS_OUT_CONFIG, 1);
-
-void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
-    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-        config->sourceType[i] = SBUS_OUT_SOURCE_RX;
-        config->sourceIndex[i] = i;
-        config->sourceRangeLow[i] = 1000;
-        config->sourceRangeHigh[i] = 2000;
-    }
-    config->frameRate = 50;
-
-    config->pinSwap = 0;
-
-    config->inverted = 1;    
-
-}
-
-#endif
+bool bmp581Detect(const bmp581Config_t *config, baroDev_t *baro);
