@@ -2825,8 +2825,8 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                 const uint16_t t = e->flags & OSD_MENU_ELEMENT_MASK;
                 if (t == OME_Funcall || t == OME_OSD_Exit) {
                     if (e->func) {
-                        // Funcall handlers vary; follow CMS conventions by passing entry pointer.
-                        e->func(pCurrentDisplay, e);
+                        // Follow CMS conventions by passing the entry's data pointer.
+                        e->func(pCurrentDisplay, e->data);
                     }
                     result = 0;
                 } else if (t == OME_Submenu) {
