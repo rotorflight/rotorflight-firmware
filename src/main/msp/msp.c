@@ -776,8 +776,7 @@ static uint8_t rfCmsSetValue(const OSD_Entry *e, int32_t v, int32_t *applied)
             e->func(pCurrentDisplay, e->data);
             break;
         case OME_Bool:
-            // Bool callbacks (if any) typically take entry pointer
-            e->func(pCurrentDisplay, e);
+            e->func(pCurrentDisplay, e->data);
             break;
         default:
             e->func(pCurrentDisplay, e);
