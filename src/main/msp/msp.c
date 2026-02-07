@@ -2970,8 +2970,8 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             if (ARMING_FLAG(ARMED)) {
                 result = 4; // BUSY/ARMED
             } else {
-                // Ensure writeback for the current menu.
-                if (menu->onExit) {
+                // Ensure writeback for the requested menu if it's not already active/stacked.
+                if (menu->onExit && !cmsMenuIsActive(menu)) {
                     menu->onExit(pCurrentDisplay, (OSD_Entry *)NULL);
                 }
                 cmsSaveConfigInMenu(pCurrentDisplay);

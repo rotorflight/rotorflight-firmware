@@ -53,6 +53,7 @@ void cmsMenuOpen(void);
 const void *cmsMenuChange(displayPort_t *pPort, const void *ptr);
 const void *cmsMenuExit(displayPort_t *pPort, const void *ptr);
 void cmsSaveConfigInMenu(displayPort_t *pDisplay);
+bool cmsMenuIsActive(const CMS_Menu *menu);
 void cmsSetExternKey(cms_key_e extKey);
 void inhibitSaveMenu(void);
 void cmsAddMenuEntry(OSD_Entry *menuEntry, char *text, uint16_t flags, CMSEntryFuncPtr func, void *data);

@@ -975,6 +975,22 @@ void cmsSaveConfigInMenu(displayPort_t *pDisplay)
     saveConfigAndNotify();
 }
 
+bool cmsMenuIsActive(const CMS_Menu *menu)
+{
+    if (!menu) {
+        return false;
+    }
+    if (currentCtx.menu == menu) {
+        return true;
+    }
+    for (int i = menuStackIdx - 1; i >= 0; i--) {
+        if (menuStack[i].menu == menu) {
+            return true;
+        }
+    }
+    return false;
+}
+
 const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
 {
     int exitType = (int)ptr;
