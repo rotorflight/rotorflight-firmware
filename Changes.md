@@ -154,6 +154,8 @@ the actual values are calculated automatically (#332).
 
 `resource GYRO_CLK` added. Sets the pin for the gyro synchronisation clock, if supported.
 
+`gyro_offset_yaw` is removed (#391).
+
 
 ## Defaults
 
@@ -252,6 +254,16 @@ The Governor has been refactored to accomodate I.C./nitro and other new features
 
 A new Rates systems is added for helicopter applications. `ROTORFLIGHT` rates is
 controlled by three parameters: maximum rate, expo, and shape.
+
+### Gyro calibration (#391)
+
+The previous gyro calibration (sum/variance and sample counting) is replaced
+with a filter-based flow: raw data is passed through a Bessel noise filter,
+then split into DC (bias) and high-frequency components via PT filters.
+When the minimum sample count (from `gyro_calib_duration`) is reached and
+the smoothed high-frequency envelope is below `gyro_calib_noise_limit` on
+all axes, the DC estimate is stored as the gyro zero and calibration
+completes. The existing CLI parameters are unchanged.
 
 
 ## Bug Fixes
