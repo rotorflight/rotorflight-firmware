@@ -39,6 +39,7 @@
 
 #include "drivers/dshot.h"
 #include "drivers/vtx_common.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
@@ -488,7 +489,7 @@ typedef struct
 
 bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    if ( isEscSensorActive()) {
+    if (isEscSensorActive()) {
 
         static timeUs_t lastTimeSentEsc = 0;
         timeUs_t keepAlive = currentTimeUs - lastTimeSentEsc;
@@ -763,11 +764,6 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #endif // USE_SPEKTRUM_VTX_TELEMETRY && USE_SPEKTRUM_VTX_CONTROL && USE_VTX_COMMON
 
 
-// Schedule array to decide how often each type of frame is sent
-// The frames are scheduled in sets of 3 frames, 2 mandatory and 1 user frame.
-// The user frame type is cycled for each set.
-// Example. QOS, RPM,.CURRENT, QOS, RPM, TEXT. QOS, RPM, CURRENT, etc etc
-
 #define SRXL_SCHEDULE_MANDATORY_COUNT  2 // Mandatory QOS and RPM sensors
 
 #define SRXL_FP_MAH_COUNT   1
@@ -808,9 +804,12 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
     /* must send srxlFrameQos, Rpm and then alternating items of our own */
     srxlFrameQos,
     srxlFrameRpm,
-    srxlFrameFlightPackCurrent,
 #ifdef USE_ESC_SENSOR_TELEMETRY
+    /* make ESC mandatory when ESC telemetry is enabled */
     srxlFrameEsc,
+    srxlFrameFlightPackCurrent,
+#else
+    srxlFrameFlightPackCurrent,
 #endif
 #if defined(USE_GPS)
     srxlFrameGpsStat,
@@ -906,4 +905,21 @@ void handleSrxlTelemetry(timeUs_t currentTimeUs)
       }
   }
 }
+#if defined(USE_TELEMETRY_SRXL)
+// Debug helpers callable from CLI (DM = delete me)
+bool srxl_debug_is_enabledDM(void)
+{
+    return srxlTelemetryEnabled;
+}
+
+bool srxl_debug_is_srxl2DM(void)
+{
+    return srxl2;
+}
+
+void srxlCollectTelemetryNowDM(void)
+{
+    processSrxl(micros());
+}
+#endif
 #endif
