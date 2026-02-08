@@ -39,7 +39,6 @@
 
 #include "drivers/srxl2_esc.h"
 #include "rx/srxl2_types.h"
-#include "io/spektrum_vtx_control.h"
 #include "rx/rx.h"
 #include "../sensors/esc_sensor.h"
 #include "config/feature.h"
@@ -623,11 +622,6 @@ bool srxl2escProcessControlData(const Srxl2Header* header, srxl2esc_runtimeState
     case FailsafeChannelData: {
         // failsafe control block typically ends at frameLosses/channelMask (no channel words)
         consumed = 1 /*command*/ + 1 /*replyId*/ + 1 /*rssi*/ + 1 /*frameLosses*/ + 4 /*channelMask*/;
-    } break;
-    case VTXData: {
-        // We don’t know the exact size here; if you want a tail view after VTX, set consumed accordingly.
-        // For now, assume no extra tail beyond the VTX payload we already used.
-        consumed = payloadLen; // nothing left to consider a "tail"
     } break;
     default:
         consumed = MIN(payloadLen, 2); // at least command+replyId, be conservative
