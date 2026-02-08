@@ -236,6 +236,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_mpu3050.c \
             drivers/accgyro/accgyro_spi_bmi160.c \
             drivers/accgyro/accgyro_spi_bmi270.c \
+            drivers/accgyro/accgyro_spi_bmi323.c \
             drivers/accgyro/accgyro_spi_bmi088.c \
             drivers/accgyro/accgyro_spi_lsm6dso.c \
             drivers/accgyro_legacy/accgyro_adxl345.c \
