@@ -52,6 +52,7 @@ typedef struct controlRateConfig_s {
     uint16_t accel_limit[4];
 
     uint8_t cyclic_ring;
+    uint8_t cyclic_polar;
 
     uint8_t setpoint_boost_gain[4];
     uint8_t setpoint_boost_cutoff[4];
