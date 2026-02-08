@@ -19,21 +19,24 @@
 
 #include "common/utils.h"
 #include "pg/pg.h"
-#include "pg/bus_servo.h"
 
-#define FBUS_MASTER_CHANNELS 16
+// SBUS has 18 channels, FBUS has 16 channels
+#define BUS_SERVO_CHANNELS 18
+// Bus servo defaults (S9-S26) - constrained to BUS_SERVO_MIN/MAX range
+#define BUS_SERVO_MIN     -500
+#define BUS_SERVO_MAX      500
 
-// Backward compatibility aliases
-typedef busServoSourceType_e fbusMasterSourceType_e;
+// S1-S8 (indices 0-7) are PWM servos
+// S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
+#define BUS_SERVO_OFFSET 8
 
-typedef struct fbusMasterConfig_s {
-    uint16_t frameRate;
-    uint8_t pinSwap;
+typedef enum {
+    BUS_SERVO_SOURCE_MIXER = 0,
+    BUS_SERVO_SOURCE_RX = 1
+} busServoSourceType_e;
 
-    // When ON, the UART output is electrically inverted (F.Bus signal uses
-    // inverted logic). When OFF, the output is non-inverted.
-    uint8_t inverted;
+typedef struct busServoConfig_s {
+    uint8_t sourceType[BUS_SERVO_CHANNELS];
+} busServoConfig_t;
 
-} fbusMasterConfig_t;
-
-PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);
+PG_DECLARE(busServoConfig_t, busServoConfig);

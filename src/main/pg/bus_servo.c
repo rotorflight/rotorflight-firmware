@@ -15,25 +15,24 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "platform.h"
 
-#include "common/utils.h"
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+
 #include "pg/pg.h"
-#include "pg/bus_servo.h"
+#include "pg/pg_ids.h"
 
-#define FBUS_MASTER_CHANNELS 16
+#include "bus_servo.h"
 
-// Backward compatibility aliases
-typedef busServoSourceType_e fbusMasterSourceType_e;
+PG_REGISTER_WITH_RESET_FN(busServoConfig_t, busServoConfig,
+                          PG_BUS_SERVO_CONFIG, 0);
 
-typedef struct fbusMasterConfig_s {
-    uint16_t frameRate;
-    uint8_t pinSwap;
+void pgResetFn_busServoConfig(busServoConfig_t *config)
+{
+    // Default first 8 channels to MIXER, rest to RX
+    for (int i = 0; i < BUS_SERVO_CHANNELS; i++) {
+        config->sourceType[i] = (i < 8) ? BUS_SERVO_SOURCE_MIXER : BUS_SERVO_SOURCE_RX;
+    }
+}
 
-    // When ON, the UART output is electrically inverted (F.Bus signal uses
-    // inverted logic). When OFF, the output is non-inverted.
-    uint8_t inverted;
-
-} fbusMasterConfig_t;
-
-PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);
+#endif
