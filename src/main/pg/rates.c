@@ -65,8 +65,8 @@ void pgResetFn_controlRateProfiles(controlRateConfig_t *controlRateConfig)
             .setpoint_boost_cutoff[FD_PITCH] = 15,
             .setpoint_boost_cutoff[FD_YAW] = 90,
             .setpoint_boost_cutoff[FD_COLL] = 15,
-            .yaw_dynamic_ceiling_gain = 30,
-            .yaw_dynamic_deadband_gain = 30,
+            .yaw_dynamic_ceiling_gain = 0,
+            .yaw_dynamic_deadband_gain = 10,
             .yaw_dynamic_deadband_cutoff = 50,
             .yaw_dynamic_deadband_filter = 60,
         );
