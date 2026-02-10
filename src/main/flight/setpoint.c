@@ -226,7 +226,7 @@ INIT_CODE void setpointInitProfile(void)
             sp.responseAccel[i] = 1;
         }
 
-        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
+        sp.movementThreshold[i] = rcControlsConfig()->rc_threshold[i] / 1000.0f;
 
         sp.boostGain[i] = currentControlRateProfile->setpoint_boost_gain[i] * SP_BOOST_SCALE;
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
@@ -286,16 +286,48 @@ static float applyYawDynamicRange(float setpoint)
     return setpoint;
 }
 
-static void airborneDebug(void)
+static void airborneUpdate(float SP[4])
 {
-    DEBUG(AIRBORNE, 0, sqrtf(sp.maximum[FD_ROLL]) * 1000);
-    DEBUG(AIRBORNE, 1, sqrtf(sp.maximum[FD_PITCH]) * 1000);
-    DEBUG(AIRBORNE, 2, sqrtf(sp.maximum[FD_YAW]) * 1000);
-    DEBUG(AIRBORNE, 3, sqrtf(sp.maximum[FD_COLL]) * 1000);
+    for (int axis = 0; axis < 3; axis++) {
+        const float delta = fabsf(SP[axis]) - sp.maximum[axis];
+        sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
+    }
+
+    float delta = fmaxf(SP[FD_COLL], 0) - sp.maximum[FD_COLL];
+    sp.maximum[FD_COLL] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
+
+    DEBUG(AIRBORNE, 0, sp.maximum[FD_ROLL] * 1000);
+    DEBUG(AIRBORNE, 1, sp.maximum[FD_PITCH] * 1000);
+    DEBUG(AIRBORNE, 2, sp.maximum[FD_YAW] * 1000);
+    DEBUG(AIRBORNE, 3, sp.maximum[FD_COLL] * 1000);
     DEBUG(AIRBORNE, 4, getCosTiltAngle() * 1000);
     DEBUG(AIRBORNE, 5, isSpooledUp());
     DEBUG(AIRBORNE, 6, isHandsOn());
     DEBUG(AIRBORNE, 7, isAirborne());
+}
+
+bool isHandsOn(void)
+{
+    return (
+        sp.maximum[FD_ROLL] > sp.movementThreshold[FD_ROLL] ||
+        sp.maximum[FD_PITCH] > sp.movementThreshold[FD_PITCH] ||
+        sp.maximum[FD_YAW] > sp.movementThreshold[FD_YAW] ||
+        sp.maximum[FD_COLL] > sp.movementThreshold[FD_COLL]
+    );
+}
+
+bool isAirborne(void)
+{
+    return (
+        ARMING_FLAG(ARMED) &&
+        isSpooledUp() &&
+        (
+            isHandsOn() ||
+            //getAltitude() > 2.0f ||
+            getCosTiltAngle() < 0.9f ||
+            FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
+        )
+    );
 }
 
 void setpointUpdate(void)
@@ -305,10 +337,9 @@ void setpointUpdate(void)
     for (int axis = 0; axis < 4; axis++) {
         SP[axis] = getRcDeflection(axis);
         DEBUG_AXIS(SETPOINT, axis, 0, SP[axis] * 1000);
-
-        float delta = sq(SP[axis])- sp.maximum[axis];
-        sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
     }
+
+    airborneUpdate(SP);
 
     // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
     SP[FD_YAW] = -SP[FD_YAW];
@@ -372,30 +403,4 @@ void setpointUpdate(void)
         sp.setpoint[axis] = SP[axis];
         DEBUG_AXIS(SETPOINT, axis, 7, SP[axis] * 1000);
     }
-
-    airborneDebug();
-}
-
-bool isHandsOn(void)
-{
-    return (
-        sp.maximum[FD_ROLL] > sp.movementThreshold[FD_ROLL] ||
-        sp.maximum[FD_PITCH] > sp.movementThreshold[FD_PITCH] ||
-        sp.maximum[FD_YAW] > sp.movementThreshold[FD_YAW] ||
-        sp.maximum[FD_COLL] > sp.movementThreshold[FD_COLL]
-    );
-}
-
-bool isAirborne(void)
-{
-    return (
-        ARMING_FLAG(ARMED) &&
-        isSpooledUp() &&
-        (
-            isHandsOn() ||
-            //getAltitude() > 2.0f ||
-            getCosTiltAngle() < 0.9f ||
-            FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
-        )
-    );
 }
