@@ -77,7 +77,7 @@ PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .rc_deadband = 5,
     .rc_yaw_deadband = 5,
     .rc_smoothness = 50,
-    .rc_threshold = { 25, 25, 25, 200 },
+    .rc_threshold = { 25, 25, 25, 100 },
 );
 
 extern void pgResetFn_rxFailsafeChannelConfigs(rxFailsafeChannelConfig_t *rxFailsafeChannelConfigs);
