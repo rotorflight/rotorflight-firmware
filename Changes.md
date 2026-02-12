@@ -56,17 +56,29 @@ Multiple changes (#314) (#353).
 
 New MSP command (152) to retrieve BUS servo source configuration (18 channels).
 
+### MSP_SET_BUS_SERVO_CONFIG
+
+New MSP command (153) to configure individual BUS servo source settings. Payload: U8 index (0-17) + U8 sourceType (0=MIXER, 1=RX).
+
+### MSP_GET_BUS_SERVO_CONFIG
+
+New MSP command (157) to retrieve individual BUS servo source configuration. Payload: U8 index (0-17). Returns: U8 sourceType.
+
 ### MSP_SET_SERVO_CONFIG
 
-New MSP command (124) to configure individual servo settings (PWM and BUS servos).
+New MSP command (124) to configure individual servo settings (PWM and BUS servos). Payload: U8 index + 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
 
 ### MSP_GET_SERVO_CONFIG
 
-New MSP command (125) to retrieve individual servo configuration.
+New MSP command (125) to retrieve individual servo configuration. Payload: U8 index. Returns: 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
 
 ### MSP_SET_SERVO_OVERRIDE_ALL
 
-New MSP command (196) to set servo overrides for all servos in one call.
+New MSP command (196) to set servo overrides for all servos in one call. Payload: U16 value (0=enable/center, 2001=disable).
+
+### MSP_SET_SERVO_CENTER
+
+New MSP command (213) to set just the servo center point. Payload: U8 index + U16 mid.
 
 ### MSP_GET_MIXER_INPUT
 
@@ -76,9 +88,17 @@ Add msp call to allow retrieving a single mixer line at a time (#361)
 
 Add msp call to allow retrieving a single adjustment line at a time (#362)
 
-### MSP_SET_SERVO_CENTER
+### MSP_SERVO
 
-Add msp call to set just the servo center point (#366)
+Modified to support bus servos. When bus servos are configured (SBUS_OUT or FBUS_MASTER serial function enabled), the command returns configured PWM servo outputs (S1-Sn) followed by all bus servo outputs (S9-S26). Unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET are skipped.
+
+### MSP_SERVO_CONFIGURATIONS
+
+Modified to support bus servos. When bus servos are configured, returns count and configuration for configured PWM servos (S1-Sn) followed by all bus servos (S9-S26). Unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET are skipped.
+
+### MSP_SET_SERVO_CONFIGURATION
+
+Modified to support bus servos. When bus servos are configured, the index parameter is mapped: indices 0 to (getServoCount()-1) map to PWM servos S1-Sn, indices getServoCount() to (getServoCount()+17) map to bus servos S9-S26.
 
 ### MSP_RC_TUNING
 
