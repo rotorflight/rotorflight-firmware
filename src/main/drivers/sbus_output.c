@@ -178,7 +178,7 @@ float sbusOutGetValueMixer(uint8_t channel)
     if (!ARMING_FLAG(ARMED) && hasServoOverride(servoIndex))
         input = getServoOverride(servoIndex) / 1000.0f;
     else
-        input = mixerGetServoOutput(servoIndex);
+        input = mixerGetServoOutput(servoIndex - BUS_SERVO_OFFSET);
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
     // Apply geometry correction if enabled for this servo
