@@ -67,6 +67,7 @@ typedef struct motorConfig_s {
 
     uint16_t mainRotorGearRatio[2];         // Main motor to main rotor gear ratio [N,D]
     uint16_t tailRotorGearRatio[2];         // Main rotor to tail rotor gear ratio [N,D]
+    uint8_t motorType;                      // 0 = electric, 1 = nitro
 
 } motorConfig_t;
 

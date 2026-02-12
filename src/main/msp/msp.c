@@ -1445,6 +1445,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU16(dst, motorConfig()->mainRotorGearRatio[1]);
         sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[0]);
         sbufWriteU16(dst, motorConfig()->tailRotorGearRatio[1]);
+        sbufWriteU8(dst, motorConfig()->motorType);
         break;
 
 #ifdef USE_GPS
@@ -2592,6 +2593,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         motorConfigMutable()->mainRotorGearRatio[1] = sbufReadU16(src);
         motorConfigMutable()->tailRotorGearRatio[0] = sbufReadU16(src);
         motorConfigMutable()->tailRotorGearRatio[1] = sbufReadU16(src);
+        if (sbufBytesRemaining(src) >= 1) {
+            motorConfigMutable()->motorType = constrain(sbufReadU8(src), 0, 1);
+        }
         break;
 
 #ifdef USE_GPS
