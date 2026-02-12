@@ -39,7 +39,7 @@
 #define SBUS_MIN 192
 #define SBUS_MAX 1792
 
-STATIC_UNIT_TESTED serialPort_t *sbusOutPort = NULL;
+static serialPort_t *sbusOutPort = NULL;
 
 // Storage for speed limiting (similar to servoInput in servos.c)
 static FAST_DATA_ZERO_INIT float sbusServoInput[SBUS_OUT_CHANNELS];
@@ -48,8 +48,8 @@ static FAST_DATA_ZERO_INIT float sbusServoInput[SBUS_OUT_CHANNELS];
 static FAST_DATA_ZERO_INIT float sbusCyclicRatio = 1.0f;
 static FAST_DATA_ZERO_INIT bool sbusCyclicRatioValid = false;
 
-STATIC_UNIT_TESTED void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
-                                                uint16_t *channels)
+static void sbusOutPrepareSbusFrame(sbusOutFrame_t *frame,
+                                    uint16_t *channels)
 {
     frame->syncByte = 0x0F;
 
@@ -237,7 +237,7 @@ void sbusOutProcessMixerChannels(float output[SBUS_OUT_CHANNELS])
 }
 
 // Get channel value based on source type (RX passthrough or processed mixer output)
-STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel, const float *mixerOutputs)
+static float sbusOutGetChannelValue(uint8_t channel, const float *mixerOutputs)
 {
     const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
@@ -249,7 +249,7 @@ STATIC_UNIT_TESTED float sbusOutGetChannelValue(uint8_t channel, const float *mi
     return 0;
 }
 
-STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm)
+static uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm)
 {
     // For digital channels (16-17), convert to 0 or 1
     if (channel >= 16) {

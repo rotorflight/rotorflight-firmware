@@ -244,7 +244,7 @@ static uint16_t fbusMasterConvertToSbus(float value)
     // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
     // Bus servo range: (1000 -> BUS_SERVO_MIN_SIGNAL) to (2000 -> BUS_SERVO_MAX_SIGNAL) -> SBUS 192-1792
     const float scaledValue = scaleRangef(value, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL, 192, 1792);
-    return constrain(nearbyintf(scaledValue), 192, 1792);
+    return constrain(nearbyintf(scaledValue), FBUS_MIN, FBUS_MAX);
 }
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)

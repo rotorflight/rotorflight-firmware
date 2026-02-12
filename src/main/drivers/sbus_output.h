@@ -23,8 +23,7 @@
 #include "common/utils.h"
 #include "pg/sbus_output.h"
 
-// Define the sbus frame struct. Let's not reuse the one in the rx/ so we
-// don't have to link them together in the unit test.
+// Define the sbus frame struct
 typedef struct {
     uint8_t syncByte;
     // 176 bits of data (11 bits per channel * 16 channels) = 22 bytes.

@@ -23,6 +23,9 @@
 
 #define FBUS_MASTER_CHANNELS 16
 
+#define FBUS_MIN 192
+#define FBUS_MAX 1792
+
 // Backward compatibility aliases
 typedef busServoSourceType_e fbusMasterSourceType_e;
 
