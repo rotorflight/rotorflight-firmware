@@ -37,6 +37,12 @@ typedef enum {
     DSHOT_DMAR_AUTO
 } dshotDmar_e;
 
+typedef enum {
+    MOTOR_TYPE_ELECTRIC = 0,
+    MOTOR_TYPE_NITRO,
+    MOTOR_TYPE_COUNT
+} motorType_e;
+
 typedef struct motorDevConfig_s {
     uint16_t motorPwmRate;                  // The update rate of motor outputs (50-498Hz)
     uint8_t  motorPwmProtocol;
@@ -67,7 +73,7 @@ typedef struct motorConfig_s {
 
     uint16_t mainRotorGearRatio[2];         // Main motor to main rotor gear ratio [N,D]
     uint16_t tailRotorGearRatio[2];         // Main rotor to tail rotor gear ratio [N,D]
-    uint8_t motorType;                      // 0 = electric, 1 = nitro
+    uint8_t motorType;                      // motorType_e
 
 } motorConfig_t;
 
