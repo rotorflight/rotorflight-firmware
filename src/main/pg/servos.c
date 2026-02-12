@@ -61,8 +61,8 @@ void pgResetFn_servoParams(servoParam_t *instance)
         if (i > 7) {
             instance[i].min = DEFAULT_BUS_SERVO_MIN;
             instance[i].max = DEFAULT_BUS_SERVO_MAX;
-            instance[i].rneg = DEFUALT_BUS_SERVO_SCALE;
-            instance[i].rpos = DEFUALT_BUS_SERVO_SCALE;
+            instance[i].rneg = DEFAULT_BUS_SERVO_SCALE;
+            instance[i].rpos = DEFAULT_BUS_SERVO_SCALE;
         }
     }
 }
