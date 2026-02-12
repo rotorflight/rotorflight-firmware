@@ -15,14 +15,17 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <math.h>
+
 #include "platform.h"
 
-#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER) || defined(USE_BUS_SERVO)
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
-
-#include "bus_servo.h"
+#include "pg/bus_servo.h"
 
 PG_REGISTER_WITH_RESET_FN(busServoConfig_t, busServoConfig,
                           PG_BUS_SERVO_CONFIG, 0);
@@ -33,6 +36,24 @@ void pgResetFn_busServoConfig(busServoConfig_t *config)
     for (int i = 0; i < BUS_SERVO_CHANNELS; i++) {
         config->sourceType[i] = (i < 8) ? BUS_SERVO_SOURCE_MIXER : BUS_SERVO_SOURCE_RX;
     }
+}
+
+// Storage for bus servo outputs (SBUS/FBUS)
+static float busServoOutput[BUS_SERVO_CHANNELS];
+
+void setBusServoOutput(uint8_t channel, float value)
+{
+    if (channel < BUS_SERVO_CHANNELS) {
+        busServoOutput[channel] = value;
+    }
+}
+
+uint16_t getBusServoOutput(uint8_t channel)
+{
+    if (channel < BUS_SERVO_CHANNELS) {
+        return lrintf(busServoOutput[channel]);
+    }
+    return 0;
 }
 
 #endif

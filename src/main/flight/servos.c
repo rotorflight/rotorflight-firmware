@@ -43,6 +43,9 @@
 #include "flight/mixer.h"
 
 #include "pg/servos.h"
+#include "pg/bus_servo.h"
+
+#include "rx/rx.h"
 
 
 static FAST_DATA_ZERO_INIT uint8_t      servoCount;
@@ -63,6 +66,14 @@ uint8_t getServoCount(void)
 
 uint16_t getServoOutput(uint8_t servo)
 {
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    // Check if this is a bus servo (SBUS/FBUS)
+    if (servo >= BUS_SERVO_OFFSET && servo < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
+        const uint8_t busServoIndex = servo - BUS_SERVO_OFFSET;
+        return getBusServoOutput(busServoIndex);
+    }
+#endif
+    // PWM servo
     return lrintf(servoOutput[servo]);
 }
 
@@ -84,9 +95,45 @@ int16_t setServoOverride(uint8_t servo, int16_t val)
 void validateAndFixServoConfig(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        servoParam_t *servo = servoParamsMutable(i);
+        
 #ifndef USE_SERVO_GEOMETRY_CORRECTION
-        servoParamsMutable(i)->flags &= ~SERVO_FLAG_GEO_CORR;
+        servo->flags &= ~SERVO_FLAG_GEO_CORR;
 #endif
+
+        // Validate and fix mid value based on servo type
+        if (i >= BUS_SERVO_OFFSET && i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
+            // Bus servo (S9-S26): constrain to BUS_SERVO range
+            servo->mid = constrain(servo->mid, BUS_SERVO_MIN, BUS_SERVO_MAX);
+        } else {
+            // PWM servo (S1-S8): constrain to PWM_SERVO range
+            servo->mid = constrain(servo->mid, PWM_SERVO_PULSE_MIN, PWM_SERVO_PULSE_MAX);
+        }
+
+        // Validate and fix min/max offsets
+        // min should be negative (or zero), max should be positive (or zero)
+        // Ensure min <= 0 <= max for proper offset behavior
+        servo->min = constrain(servo->min, SERVO_LIMIT_MIN, 0);
+        servo->max = constrain(servo->max, 0, SERVO_LIMIT_MAX);
+
+        // Ensure the actual pulse values (mid + min) and (mid + max) are within valid ranges
+        if (i >= BUS_SERVO_OFFSET && i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
+            // Bus servo: ensure mid + min >= BUS_SERVO_MIN and mid + max <= BUS_SERVO_MAX
+            if (servo->mid + servo->min < BUS_SERVO_MIN) {
+                servo->min = BUS_SERVO_MIN - servo->mid;
+            }
+            if (servo->mid + servo->max > BUS_SERVO_MAX) {
+                servo->max = BUS_SERVO_MAX - servo->mid;
+            }
+        } else {
+            // PWM servo: ensure mid + min >= PWM_SERVO_PULSE_MIN and mid + max <= PWM_SERVO_PULSE_MAX
+            if (servo->mid + servo->min < PWM_SERVO_PULSE_MIN) {
+                servo->min = PWM_SERVO_PULSE_MIN - servo->mid;
+            }
+            if (servo->mid + servo->max > PWM_SERVO_PULSE_MAX) {
+                servo->max = PWM_SERVO_PULSE_MAX - servo->mid;
+            }
+        }
     }
 }
 
@@ -225,7 +272,7 @@ static inline float limitSpeed(float old, float new, float speed)
  }
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
-static float geometryCorrection(float pos)
+float geometryCorrection(float pos)
 {
     // 1.0 == 50° without correction
     float height = constrainf(pos * 0.7660444431f, -1, 1);

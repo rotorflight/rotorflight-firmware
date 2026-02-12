@@ -1152,8 +1152,27 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
 #ifdef USE_SERVOS
     case MSP_SERVO:
-        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-            sbufWriteU16(dst, getServoOutput(i));
+        // Check if bus servos are actually configured
+        if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+            // When bus servos are configured, send configured PWM servo outputs + all bus servo outputs
+            // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
+            const uint8_t pwmServoCount = getServoCount();
+            
+            // Send configured PWM servo outputs (S1-Sn where n = getServoCount())
+            for (int i = 0; i < pwmServoCount; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
+            
+            // Send all bus servo outputs (S9-S26)
+            // Note: Unconfigured PWM servo outputs between pwmServoCount and BUS_SERVO_OFFSET are skipped
+            for (int i = BUS_SERVO_OFFSET; i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
+        } else {
+            // When bus servos are not configured, send all servo outputs
+            for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
         }
         break;
 
@@ -1162,11 +1181,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
             // When bus servos are configured, send configured PWM servos + all bus servos
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
-            const uint8_t totalCount = getServoCount() + BUS_SERVO_CHANNELS;
+            const uint8_t pwmServoCount = getServoCount();
+            const uint8_t totalCount = pwmServoCount + BUS_SERVO_CHANNELS;
             sbufWriteU8(dst, totalCount);
 
             // Send configured PWM servos (S1-Sn where n = getServoCount())
-            for (int i = 0; i < getServoCount(); i++) {
+            for (int i = 0; i < pwmServoCount; i++) {
                 sbufWriteU16(dst, servoParams(i)->mid);
                 sbufWriteU16(dst, servoParams(i)->min);
                 sbufWriteU16(dst, servoParams(i)->max);
@@ -1178,6 +1198,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             }
 
             // Send all bus servos (S9-S26)
+            // Note: Unconfigured PWM servos between pwmServoCount and BUS_SERVO_OFFSET are skipped
             for (int i = BUS_SERVO_OFFSET; i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS; i++) {
                 sbufWriteU16(dst, servoParams(i)->mid);
                 sbufWriteU16(dst, servoParams(i)->min);
@@ -2190,8 +2211,8 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             servoParamsMutable(i)->speed = sbufReadU16(src);
             servoParamsMutable(i)->flags = sbufReadU16(src);
 
-            // If there is a helper to persist or apply servo params, call it here.
-            // (No-op if not required; other SET handlers don't always call explicit save.)
+            // Validate and fix the servo configuration
+            validateAndFixServoConfig();
         }
         break;
     case MSP_GET_SERVO_CONFIG:
@@ -2706,9 +2727,38 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
+        
+        // Check if bus servos are actually configured
+        if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+            // When bus servos are configured, map the received index to actual servo index
+            // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
+            const uint8_t pwmServoCount = getServoCount();
+            const uint8_t totalCount = pwmServoCount + BUS_SERVO_CHANNELS;
+            
+            if (i >= totalCount) {
+                return MSP_RESULT_ERROR;
+            }
+            
+            // Map received index to actual servo index
+            if (i < pwmServoCount) {
+                // Configured PWM servo (S1-Sn where n = getServoCount())
+                // Index stays the same (0 to pwmServoCount-1)
+            } else {
+                // Bus servo (S9-S26)
+                // Map from sequential index to bus servo index
+                i = BUS_SERVO_OFFSET + (i - pwmServoCount);
+            }
+        } else {
+            // When bus servos are not configured, only accept PWM servo indices
+            if (i >= getServoCount()) {
+                return MSP_RESULT_ERROR;
+            }
+        }
+        
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
+        
         servoParamsMutable(i)->mid = sbufReadU16(src);
         servoParamsMutable(i)->min = sbufReadU16(src);
         servoParamsMutable(i)->max = sbufReadU16(src);
@@ -2717,6 +2767,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->speed = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
+        
+        // Validate and fix the servo configuration
+        validateAndFixServoConfig();
         break;
 
     case MSP_SET_SERVO_OVERRIDE:
@@ -2751,6 +2804,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
 
         servoParamsMutable(i)->mid = sbufReadU16(src);
+        
+        // Validate and fix the servo configuration
+        validateAndFixServoConfig();
         break;
 
 

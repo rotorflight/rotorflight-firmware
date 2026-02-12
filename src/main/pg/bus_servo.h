@@ -21,10 +21,11 @@
 #include "pg/pg.h"
 
 // SBUS has 18 channels, FBUS has 16 channels
-#define BUS_SERVO_CHANNELS 18
+
 // Bus servo defaults (S9-S26) - constrained to BUS_SERVO_MIN/MAX range
 #define BUS_SERVO_MIN     -500
 #define BUS_SERVO_MAX      500
+#define BUS_SERVO_SCALE    500
 
 // S1-S8 (indices 0-7) are PWM servos
 // S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
@@ -40,3 +41,7 @@ typedef struct busServoConfig_s {
 } busServoConfig_t;
 
 PG_DECLARE(busServoConfig_t, busServoConfig);
+
+// Bus servo output functions
+void setBusServoOutput(uint8_t channel, float value);
+uint16_t getBusServoOutput(uint8_t channel);

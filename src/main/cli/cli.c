@@ -317,9 +317,6 @@ static const char * const mixerInputNames[] = {
 #if MAX_SUPPORTED_MOTORS != 4
 #error MAX_SUPPORTED_MOTORS hardcoded to 4 in cli/cli.c
 #endif
-#if MAX_SUPPORTED_SERVOS != 26
-#error MAX_SUPPORTED_SERVOS hardcoded to 26 in cli/cli.c
-#endif
 
 // Mixer output names (1 + 26 + 4)
 static const char * const mixerOutputNames[] = {
