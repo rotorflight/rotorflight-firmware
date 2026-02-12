@@ -2594,7 +2594,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         motorConfigMutable()->tailRotorGearRatio[0] = sbufReadU16(src);
         motorConfigMutable()->tailRotorGearRatio[1] = sbufReadU16(src);
         if (sbufBytesRemaining(src) >= 1) {
-            motorConfigMutable()->motorType = constrain(sbufReadU8(src), MOTOR_TYPE_ELECTRIC, MOTOR_TYPE_NITRO);
+            motorConfigMutable()->motorType = (uint8_t)constrain(sbufReadU8(src), MOTOR_TYPE_ELECTRIC, MOTOR_TYPE_NITRO);
         }
         break;
 
