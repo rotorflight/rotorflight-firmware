@@ -218,7 +218,7 @@ float sbusOutGetValueMixer(uint8_t channel)
     pos = servo->mid + pos;
 
     // Clamp to bus servo limits for SBUS output
-    return constrainf(pos, servo->mid + BUS_SERVO_MIN, servo->mid + BUS_SERVO_MAX);
+    return constrainf(pos, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL);
 }
 
 // Process all SBUS mixer channels (batch version for sbusOutUpdate)
@@ -258,8 +258,8 @@ STATIC_UNIT_TESTED uint16_t sbusOutConvertToSbus(uint8_t channel, float pwm)
     }
 
     // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
-    // Bus servo range: (1500 + BUS_SERVO_MIN) to (1500 + BUS_SERVO_MAX) -> SBUS 192-1792
-    const float value = scaleRangef(pwm, 1500 + BUS_SERVO_MIN, 1500 + BUS_SERVO_MAX, SBUS_MIN, SBUS_MAX);
+    // Bus servo range: (1000 -> BUS_SERVO_MIN_SIGNAL) to (2000 -> BUS_SERVO_MAX_SIGNAL) -> SBUS 192-1792
+    const float value = scaleRangef(pwm, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL, SBUS_MIN, SBUS_MAX);
     return constrain(nearbyintf(value), SBUS_MIN, SBUS_MAX);
 }
 

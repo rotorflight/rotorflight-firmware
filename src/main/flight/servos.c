@@ -95,44 +95,31 @@ int16_t setServoOverride(uint8_t servo, int16_t val)
 void validateAndFixServoConfig(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        servoParam_t *servo = servoParamsMutable(i);
+        volatile servoParam_t *servo = servoParamsMutable(i);
+        const bool isBusServo = (i >= BUS_SERVO_OFFSET);
+        const uint16_t minSignal = isBusServo ? BUS_SERVO_MIN_SIGNAL : PWM_SERVO_PULSE_MIN;
+        const uint16_t maxSignal = isBusServo ? BUS_SERVO_MAX_SIGNAL : PWM_SERVO_PULSE_MAX;
         
 #ifndef USE_SERVO_GEOMETRY_CORRECTION
         servo->flags &= ~SERVO_FLAG_GEO_CORR;
 #endif
 
-        // Validate and fix mid value based on servo type
-        if (i >= BUS_SERVO_OFFSET && i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
-            // Bus servo (S9-S26): constrain to BUS_SERVO range
-            servo->mid = constrain(servo->mid, BUS_SERVO_MIN, BUS_SERVO_MAX);
-        } else {
-            // PWM servo (S1-S8): constrain to PWM_SERVO range
-            servo->mid = constrain(servo->mid, PWM_SERVO_PULSE_MIN, PWM_SERVO_PULSE_MAX);
-        }
+        // Constrain midpoint to the valid signal range.
+        servo->mid = constrain(servo->mid, minSignal, maxSignal);
 
-        // Validate and fix min/max offsets
-        // min should be negative (or zero), max should be positive (or zero)
-        // Ensure min <= 0 <= max for proper offset behavior
+        // Constrain travel to valid offset limits first.
         servo->min = constrain(servo->min, SERVO_LIMIT_MIN, 0);
         servo->max = constrain(servo->max, 0, SERVO_LIMIT_MAX);
 
-        // Ensure the actual pulse values (mid + min) and (mid + max) are within valid ranges
-        if (i >= BUS_SERVO_OFFSET && i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
-            // Bus servo: ensure mid + min >= BUS_SERVO_MIN and mid + max <= BUS_SERVO_MAX
-            if (servo->mid + servo->min < BUS_SERVO_MIN) {
-                servo->min = BUS_SERVO_MIN - servo->mid;
-            }
-            if (servo->mid + servo->max > BUS_SERVO_MAX) {
-                servo->max = BUS_SERVO_MAX - servo->mid;
-            }
-        } else {
-            // PWM servo: ensure mid + min >= PWM_SERVO_PULSE_MIN and mid + max <= PWM_SERVO_PULSE_MAX
-            if (servo->mid + servo->min < PWM_SERVO_PULSE_MIN) {
-                servo->min = PWM_SERVO_PULSE_MIN - servo->mid;
-            }
-            if (servo->mid + servo->max > PWM_SERVO_PULSE_MAX) {
-                servo->max = PWM_SERVO_PULSE_MAX - servo->mid;
-            }
+        // Ensure the resulting absolute signal stays within allowed range.
+        const int16_t minAllowed = (int16_t)minSignal - (int16_t)servo->mid;
+        const int16_t maxAllowed = (int16_t)maxSignal - (int16_t)servo->mid;
+
+        if (servo->min < minAllowed) {
+            servo->min = minAllowed;
+        }
+        if (servo->max > maxAllowed) {
+            servo->max = maxAllowed;
         }
     }
 }

@@ -23,9 +23,11 @@
 // SBUS has 18 channels, FBUS has 16 channels
 
 // Bus servo defaults (S9-S26) - constrained to BUS_SERVO_MIN/MAX range
-#define BUS_SERVO_MIN     -500
-#define BUS_SERVO_MAX      500
-#define BUS_SERVO_SCALE    500
+#define DEFAULT_BUS_SERVO_MIN     -500
+#define DEFAULT_BUS_SERVO_MAX      500
+#define DEFUALT_BUS_SERVO_SCALE    500
+#define BUS_SERVO_MAX_SIGNAL       2000
+#define BUS_SERVO_MIN_SIGNAL       1000
 
 // S1-S8 (indices 0-7) are PWM servos
 // S9-S26 (indices 8-25) are BUS servos for SBUS/FBUS
