@@ -28,6 +28,8 @@
 #define VBAT_CELL_VOLTAGE_DEFAULT_WARN      350
 #define VBAT_CELL_VOLTAGE_DEFAULT_ABSENT    300
 
+#define BATTERY_TYPES 6
+
 #ifndef VOLTAGE_TASK_FREQ_HZ
 #define VOLTAGE_TASK_FREQ_HZ    50
 #endif
@@ -53,8 +55,10 @@ typedef enum {
 
 typedef struct {
 
+    uint8_t     batteryType;                // type of battery
+
     // battery size
-    uint16_t    batteryCapacity;            // mAh
+    uint16_t    batteryCapacity[BATTERY_TYPES];    // mAh for the 6 battery types
     uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
 
     // sources

@@ -210,7 +210,7 @@ const char * getBatteryStateString(void)
 uint8_t calculateBatteryPercentageRemaining(void)
 {
     int batteryPercentage = 0;
-    int batteryCapacity = batteryConfig()->batteryCapacity;
+    int batteryCapacity = batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
 
     if (batteryCapacity > 0) {
         batteryPercentage = 100 * (batteryCapacity - (int)currentMeter.capacity) / batteryCapacity;
@@ -371,7 +371,7 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && batteryConfig()->batteryCapacity > 0 && batteryCellCount > 0) {
+    if (batteryConfig()->useConsumptionAlerts && batteryConfig()->batteryCapacity[batteryConfig()->batteryType] > 0 && batteryCellCount > 0) {
         uint8_t batteryPercentageRemaining = calculateBatteryPercentageRemaining();
 
         if (batteryPercentageRemaining == 0) {
@@ -513,4 +513,3 @@ void batteryInit(void)
     // current
     consumptionState = BATTERY_OK;
 }
-
