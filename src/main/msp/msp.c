@@ -1419,6 +1419,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_GET_ADJUSTMENT_FUNCTIONS:
+        for (int i = 0; i < MAX_ADJUSTMENT_RANGE_COUNT; i++) {
+            const adjustmentRange_t *adjRange = adjustmentRanges(i);
+            sbufWriteU8(dst, adjRange->function);
+        }
+        break;
+
     case MSP_MOTOR_CONFIG:
         sbufWriteU16(dst, motorConfig()->minthrottle);
         sbufWriteU16(dst, motorConfig()->maxthrottle);

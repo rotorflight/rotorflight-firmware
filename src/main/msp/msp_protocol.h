@@ -201,6 +201,7 @@
 #define MSP_SET_RPM_FILTER_V2                155
 #define MSP_GET_ADJUSTMENT_RANGE             156
 #define MSP_GET_SBUS_OUTPUT_CONFIG           157
+#define MSP_GET_ADJUSTMENT_FUNCTIONS         167
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
