@@ -185,7 +185,7 @@ the actual values are calculated automatically (#332).
 
 `cyclic_ring` default is changed to 150%.
 
-`rc_threshold` default for collective (4th element) is changed from 50 to 200 (5% to 20% stick) for airborne/hands-on detection.
+`rc_threshold` default for collective (4th element) is changed from 50 to 100 (5% to 10% stick) for airborne/hands-on detection.
 
 
 ## Features
