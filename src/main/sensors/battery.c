@@ -222,6 +222,23 @@ uint8_t calculateBatteryPercentageRemaining(void)
     return constrain(batteryPercentage, 0, 100);
 }
 
+void changeBatteryType(uint8_t typeIndex)
+{
+    if (typeIndex < BATTERY_TYPES) {
+        batteryConfigMutable()->batteryType = typeIndex;
+    }
+}
+
+int get_ADJUSTMENT_BATTERY_TYPE(void)
+{
+    return batteryConfig()->batteryType;
+}
+
+void set_ADJUSTMENT_BATTERY_TYPE(int value)
+{
+    changeBatteryType(value);
+}
+
 
 /** Internal functions **/
 

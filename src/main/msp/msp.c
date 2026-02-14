@@ -902,8 +902,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
         break;
 
-    
-
     case MSP_OSD_CONFIG: {
 #define OSD_FLAGS_OSD_FEATURE           (1 << 0)
 //#define OSD_FLAGS_OSD_SLAVE             (1 << 1)
@@ -3736,7 +3734,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         break;
 
     case MSP_SET_BATTERY_TYPE:
-        batteryConfigMutable()->batteryType = sbufReadU8(src);
+        changeBatteryType(sbufReadU8(src));
         break;
 
 #if defined(USE_OSD)

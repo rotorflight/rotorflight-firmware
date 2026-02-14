@@ -59,6 +59,7 @@
 #include "rx/rx.h"
 
 #include "sensors/acceleration.h"
+#include "sensors/battery.h"
 
 #include "rc_adjustments.h"
 
@@ -139,6 +140,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(RATE_PROFILE,                 1, 6),
     ADJ_ENTRY(PID_PROFILE,                  1, 6),
     ADJ_ENTRY(LED_PROFILE,                  1, 4),
+    ADJ_ENTRY(BATTERY_TYPE,                 0, BATTERY_TYPES - 1),
 
     ADJ_ENTRY(PITCH_SRATE,                  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
     ADJ_ENTRY(ROLL_SRATE,                   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
@@ -261,7 +263,7 @@ static void updateAdjustmentData(int adjFunc, int value)
         adjFunc != ADJUSTMENT_PID_PROFILE &&
         adjFunc != ADJUSTMENT_RATE_PROFILE &&
         adjFunc != ADJUSTMENT_LED_PROFILE &&
-        adjFunc != ADJUSTMENT_BATTERY_PROFILE)
+        adjFunc != ADJUSTMENT_BATTERY_TYPE)
     {
         adjustmentTime   = now;
         adjustmentName   = adjustmentConfigs[adjFunc].cfgName;
