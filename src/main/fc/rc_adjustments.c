@@ -140,7 +140,7 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(RATE_PROFILE,                 1, 6),
     ADJ_ENTRY(PID_PROFILE,                  1, 6),
     ADJ_ENTRY(LED_PROFILE,                  1, 4),
-    ADJ_ENTRY(BATTERY_TYPE,                 0, BATTERY_TYPES - 1),
+    ADJ_ENTRY(BATTERY_TYPE,                 0, BATTERY_TYPE_MAX - 1),
 
     ADJ_ENTRY(PITCH_SRATE,                  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
     ADJ_ENTRY(ROLL_SRATE,                   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),

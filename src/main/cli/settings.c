@@ -856,8 +856,8 @@ const clivalue_t valueTable[] = {
 
 // PG_BATTERY_CONFIG
 
-    { "bat_capacity",               VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_TYPES, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
-    { "bat_type",                   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, BATTERY_TYPES - 1 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryType) },
+    { "bat_capacity",               VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_TYPE_MAX, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
+    { "bat_type",                   VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, BATTERY_TYPE_MAX - 1 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryType) },
     { "vbat_max_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmaxcellvoltage) },
     { "vbat_full_cell_voltage",     VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatfullcellvoltage) },
     { "vbat_min_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmincellvoltage) },

@@ -224,7 +224,7 @@ uint8_t calculateBatteryPercentageRemaining(void)
 
 void changeBatteryType(uint8_t typeIndex)
 {
-    if (typeIndex < BATTERY_TYPES) {
+    if (typeIndex < BATTERY_TYPE_MAX) {
         batteryConfigMutable()->batteryType = typeIndex;
     }
 }
