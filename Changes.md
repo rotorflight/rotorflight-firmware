@@ -86,7 +86,7 @@ The `cyclic_ring` parameter is added (#345).
 
 ### MSP_GET_ADJUSTMENT_FUNCTIONS 
 
-Added a call to deliver the function id in use per slot (#)
+Added a call to deliver the function id in use per slot (#398)
 
 
 ## CLI Changes
