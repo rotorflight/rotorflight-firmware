@@ -1117,25 +1117,25 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
 
     const int usedCapacity = getBatteryCapacityUsed();
     int displayBasis = usedCapacity;
-    const uint16_t batteryCapacity = batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
+    const uint16_t battery_capacity = batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
 
     switch (element->type) {
     case OSD_ELEMENT_TYPE_3:  // mAh remaining percentage (counts down as battery is used)
-        displayBasis = constrain(batteryCapacity - usedCapacity, 0, batteryCapacity);
+        displayBasis = constrain(battery_capacity - usedCapacity, 0, battery_capacity);
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_4:  // mAh used percentage (counts up as battery is used)
         {
             int displayPercent = 0;
-            if (batteryCapacity) {
-                displayPercent = constrain(lrintf(100.0f * displayBasis / batteryCapacity), 0, 100);
+            if (battery_capacity) {
+                displayPercent = constrain(lrintf(100.0f * displayBasis / battery_capacity), 0, 100);
             }
             tfp_sprintf(element->buff, "%c%d%%", SYM_MAH, displayPercent);
             break;
         }
 
     case OSD_ELEMENT_TYPE_2:  // mAh used graphical progress bar (grows as battery is used)
-        displayBasis = constrain(batteryCapacity - usedCapacity, 0, batteryCapacity);
+        displayBasis = constrain(battery_capacity - usedCapacity, 0, battery_capacity);
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_1:  // mAh remaining graphical progress bar (shrinks as battery is used)
@@ -1143,9 +1143,9 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
         {
             uint8_t remainingCapacityBars = 0;
 
-            if (batteryCapacity) {
-                const float batteryRemaining = constrain(batteryCapacity - displayBasis, 0, batteryCapacity);
-                remainingCapacityBars = ceilf((batteryRemaining / (batteryCapacity / MAIN_BATT_USAGE_STEPS)));
+            if (battery_capacity) {
+                const float batteryRemaining = constrain(battery_capacity - displayBasis, 0, battery_capacity);
+                remainingCapacityBars = ceilf((batteryRemaining / (battery_capacity / MAIN_BATT_USAGE_STEPS)));
             }
 
             // Create empty battery indicator bar
