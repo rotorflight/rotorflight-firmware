@@ -26,10 +26,14 @@
 #include "build/build_config.h"
 #include "common/maths.h"
 #include "common/time.h"
+#include "fc/runtime_config.h"
 #include "flight/mixer.h"
+#include "flight/servos.h"
 #include "drivers/sbus_output.h"
+#include "pg/bus_servo.h"
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
+#include "pg/servos.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
 #include "platform.h"
@@ -51,6 +55,7 @@ enum {
 };
 
 serialPort_t *fbusMasterPort = NULL;
+
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
 
@@ -85,7 +90,7 @@ static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
     *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 4)) << 7;
 }
 
-int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
+static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
 {
     uint8_t smartportPhyID = phyID & 0x1F;
     uint8_t phyIDCheck = smartportPhyID;
@@ -93,7 +98,7 @@ int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
-void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
+static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
 {
     // Clear the control.c16 structure
     memset(&frame->c16, 0, sizeof(fbusMasterFrame_t));
@@ -176,7 +181,7 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
 
 }
 
-void processDownlinkFrame(uint8_t *data)
+static void processDownlinkFrame(uint8_t *data)
 {
     fbusMasterDownlink_t downlink;
     memcpy(&downlink, data, sizeof(downlink));
@@ -221,38 +226,25 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     }
 }
 
-float fbusMasterGetChannelValue(uint8_t channel)
+static float fbusMasterGetChannelValue(uint8_t channel)
 {
-    const sbusOutSourceType_e source_type =
-        fbusMasterConfig()->sourceType[channel];
-    const uint8_t source_index = fbusMasterConfig()->sourceIndex[channel];
+    const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
-        case SBUS_OUT_SOURCE_NONE:
-            return 0;
-        case SBUS_OUT_SOURCE_RX:
-            return sbusOutGetRX(source_index);
-        case SBUS_OUT_SOURCE_MIXER:
-            return sbusOutGetValueMixer(source_index);
-        case SBUS_OUT_SOURCE_SERVO:
-            return sbusOutGetServo(source_index);
-        case SBUS_OUT_SOURCE_MOTOR:
-            return sbusOutGetMotor(source_index);
+        case BUS_SERVO_SOURCE_RX:
+            return sbusOutGetRX(channel);
+        case BUS_SERVO_SOURCE_MIXER:
+            // Use the same servo-parameter-aware function
+            return sbusOutGetValueMixer(channel);
     }
     return 0;
 }
 
-uint16_t fbusMasterConvertToSbus(uint8_t channel, float pwm)
+static uint16_t fbusMasterConvertToSbus(float value)
 {
-    const int16_t low  = fbusMasterConfig()->sourceRangeLow[channel];
-    const int16_t high = fbusMasterConfig()->sourceRangeHigh[channel];
-
-    // round and bound values
-    if (channel >= 16) {
-        const float value = scaleRangef(pwm, low, high, 0, 1);
-        return constrain(nearbyintf(value), 0, 1);
-    }
-    const float value = scaleRangef(pwm, low, high, 192, 1792);
-    return constrain(nearbyintf(value), 0, (1 << 11) - 1);
+    // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
+    // Bus servo range: (1000 -> BUS_SERVO_MIN_SIGNAL) to (2000 -> BUS_SERVO_MAX_SIGNAL) -> SBUS 192-1792
+    const float scaledValue = scaleRangef(value, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL, 192, 1792);
+    return constrain(nearbyintf(scaledValue), FBUS_MIN, FBUS_MAX);
 }
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)
@@ -271,7 +263,10 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     uint16_t channels[FBUS_MASTER_CHANNELS];
     for (int ch = 0; ch < FBUS_MASTER_CHANNELS; ch++) {
         float value = fbusMasterGetChannelValue(ch);
-        channels[ch] = fbusMasterConvertToSbus(ch, value);
+        channels[ch] = fbusMasterConvertToSbus(value);
+        
+        // Store the output value for getServoOutput() to retrieve
+        setBusServoOutput(ch, value);
     }
     fbusMasterPrepareFrame(&frame, channels);
 

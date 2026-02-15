@@ -19,38 +19,18 @@
 
 #include "common/utils.h"
 #include "pg/pg.h"
+#include "pg/bus_servo.h"
 
 #define FBUS_MASTER_CHANNELS 16
 
-typedef enum {
-    FBUS_MASTER_SOURCE_NONE = 0,
-    FBUS_MASTER_SOURCE_RX = 1,
-    FBUS_MASTER_SOURCE_MIXER = 2,
-    FBUS_MASTER_SOURCE_SERVO = 3,
-    FBUS_MASTER_SOURCE_MOTOR = 4
-} fbusMasterSourceType_e;
+#define FBUS_MIN 192
+#define FBUS_MAX 1792
+
+// Backward compatibility aliases
+typedef busServoSourceType_e fbusMasterSourceType_e;
 
 typedef struct fbusMasterConfig_s {
-    uint8_t sourceType[FBUS_MASTER_CHANNELS];
-
-    // channel index, rule index or servo index.
-    uint8_t sourceIndex[FBUS_MASTER_CHANNELS];
-
-    // The min max define how source values map to the sbus valuex for each
-    // channel. The module maps source value [min, max] to sbus value [192,
-    // 1792] (full-scale channels) or [0, 1] (on-off channels). Typically:
-    //   * min = 1000, max = 2000 or min = 988, max = 2012 for receiver channels.
-    //   * min = -1000, max = +1000 for mixer rule (treat as -1.0f and +1.0f).
-    //   * min = 1000, max = 2000 for wideband servo, or min = 500, max = 1000
-    //   * min = 0, max = 1000 for motor (treat as 0 and +1.0f)
-    //   for narrowband servo.
-    int16_t sourceRangeLow[FBUS_MASTER_CHANNELS];
-    int16_t sourceRangeHigh[FBUS_MASTER_CHANNELS];
-
-    // SBus output frame rate in Hz, typically 144Hz. Your receiver may support
-    // faster updates.
     uint16_t frameRate;
-
     uint8_t pinSwap;
 
     // When ON, the UART output is electrically inverted (F.Bus signal uses
