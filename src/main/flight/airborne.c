@@ -80,13 +80,13 @@ INIT_CODE void airborneInit(void)
     }
 }
 
-static bool isOverThreshold(const peakFilter_t *filter, const float *threshold)
+static bool isOverThreshold(const float *threshold)
 {
     return (
-        filter[FD_ROLL].y1 > threshold[FD_ROLL] ||
-        filter[FD_PITCH].y1 > threshold[FD_PITCH] ||
-        filter[FD_YAW].y1 > threshold[FD_YAW] ||
-        filter[FD_COLL].y1 > threshold[FD_COLL]
+        peakFilterOutput(&airborne.stickDeflection[FD_ROLL]) > threshold[FD_ROLL] ||
+        peakFilterOutput(&airborne.stickDeflection[FD_PITCH]) > threshold[FD_PITCH] ||
+        peakFilterOutput(&airborne.stickDeflection[FD_YAW]) > threshold[FD_YAW] ||
+        peakFilterOutput(&airborne.stickDeflection[FD_COLL]) > threshold[FD_COLL]
     );
 }
 
@@ -96,7 +96,7 @@ static bool liftoff(void)
         ARMING_FLAG(ARMED) &&
         isSpooledUp() &&
         (
-            isOverThreshold(airborne.stickDeflection, airborne.liftoffThreshold) ||
+            isOverThreshold(airborne.liftoffThreshold) ||
             getCosTiltAngle() < LIFTOFF_COS_ANGLE_THRESHOLD ||
             FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
         )
@@ -109,7 +109,7 @@ static bool touchdown(void)
         ARMING_FLAG(ARMED) &&
         isSpooledUp() &&
         (
-            isOverThreshold(airborne.stickDeflection, airborne.landingThreshold) ||
+            isOverThreshold(airborne.landingThreshold) ||
             getCosTiltAngle() < LANDING_COS_ANGLE_THRESHOLD ||
             FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
         )
@@ -145,10 +145,10 @@ void airborneUpdate(const float SP[4])
             break;
     }
 
-    DEBUG(AIRBORNE, 0, airborne.stickDeflection[FD_ROLL].y1 * 1000);
-    DEBUG(AIRBORNE, 1, airborne.stickDeflection[FD_PITCH].y1 * 1000);
-    DEBUG(AIRBORNE, 2, airborne.stickDeflection[FD_YAW].y1 * 1000);
-    DEBUG(AIRBORNE, 3, airborne.stickDeflection[FD_COLL].y1 * 1000);
+    DEBUG(AIRBORNE, 0, peakFilterOutput(&airborne.stickDeflection[FD_ROLL]) * 1000);
+    DEBUG(AIRBORNE, 1, peakFilterOutput(&airborne.stickDeflection[FD_PITCH]) * 1000);
+    DEBUG(AIRBORNE, 2, peakFilterOutput(&airborne.stickDeflection[FD_YAW]) * 1000);
+    DEBUG(AIRBORNE, 3, peakFilterOutput(&airborne.stickDeflection[FD_COLL]) * 1000);
     DEBUG(AIRBORNE, 4, getCosTiltAngle() * 1000);
     DEBUG(AIRBORNE, 5, liftoff());
     DEBUG(AIRBORNE, 6, touchdown());
@@ -162,5 +162,5 @@ bool isAirborne(void)
 
 bool isHandsOn(void)
 {
-    return isOverThreshold(airborne.stickDeflection, airborne.liftoffThreshold);
+    return isOverThreshold(airborne.liftoffThreshold);
 }
