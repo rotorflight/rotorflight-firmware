@@ -24,5 +24,5 @@ bool isHandsOn(void);
 bool isAirborne(void);
 
 void airborneInit(void);
-void airborneUpdate(const float SP[4]);
+void airborneUpdate(const float rc[4]);
 

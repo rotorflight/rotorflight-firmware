@@ -61,7 +61,7 @@ typedef struct
     float landingThreshold[4];
 
     pt1Filter_t filter[4];
-    peakFilter_t stickDeflection[4];
+    peakFilter_t peakDeflection[4];
 
 } airborneData_t;
 
@@ -74,7 +74,7 @@ INIT_CODE void airborneInit(void)
 
     for (int axis = 0; axis < 4; axis++) {
         pt1FilterInit(&airborne.filter[axis], FILTER_CUTOFF, pidGetPidFrequency());
-        peakFilterInit(&airborne.stickDeflection[axis], PEAK_UP_CUTOFF, PEAK_DN_CUTOFF, pidGetPidFrequency());
+        peakFilterInit(&airborne.peakDeflection[axis], PEAK_UP_CUTOFF, PEAK_DN_CUTOFF, pidGetPidFrequency());
         airborne.liftoffThreshold[axis] = rcControlsConfig()->rc_threshold[axis] / 1000.0f;
         airborne.landingThreshold[axis] = rcControlsConfig()->rc_threshold[axis] / 1500.0f;
     }
@@ -83,10 +83,10 @@ INIT_CODE void airborneInit(void)
 static bool isOverThreshold(const float *threshold)
 {
     return (
-        peakFilterOutput(&airborne.stickDeflection[FD_ROLL]) > threshold[FD_ROLL] ||
-        peakFilterOutput(&airborne.stickDeflection[FD_PITCH]) > threshold[FD_PITCH] ||
-        peakFilterOutput(&airborne.stickDeflection[FD_YAW]) > threshold[FD_YAW] ||
-        peakFilterOutput(&airborne.stickDeflection[FD_COLL]) > threshold[FD_COLL]
+        peakFilterOutput(&airborne.peakDeflection[FD_ROLL]) > threshold[FD_ROLL] ||
+        peakFilterOutput(&airborne.peakDeflection[FD_PITCH]) > threshold[FD_PITCH] ||
+        peakFilterOutput(&airborne.peakDeflection[FD_YAW]) > threshold[FD_YAW] ||
+        peakFilterOutput(&airborne.peakDeflection[FD_COLL]) > threshold[FD_COLL]
     );
 }
 
@@ -116,19 +116,19 @@ static bool touchdown(void)
     );
 }
 
-static void updateStickDeflection(const float SP[4])
+static void updateStickDeflection(const float rc[4])
 {
     for (int axis = 0; axis < 4; axis++) {
-        float stick = pt1FilterApply(&airborne.filter[axis], SP[axis]);
+        float stick = pt1FilterApply(&airborne.filter[axis], rc[axis]);
         if (axis == FD_COLL)
             stick = fmaxf(stick, 0);
-        peakFilterApply(&airborne.stickDeflection[axis], fabsf(stick));
+        peakFilterApply(&airborne.peakDeflection[axis], fabsf(stick));
     }
 }
 
-void airborneUpdate(const float SP[4])
+void airborneUpdate(const float rc[4])
 {
-    updateStickDeflection(SP);
+    updateStickDeflection(rc);
 
     switch (airborne.state) {
         case AIRBORNE_STATE_INIT:
@@ -145,13 +145,13 @@ void airborneUpdate(const float SP[4])
             break;
     }
 
-    DEBUG(AIRBORNE, 0, peakFilterOutput(&airborne.stickDeflection[FD_ROLL]) * 1000);
-    DEBUG(AIRBORNE, 1, peakFilterOutput(&airborne.stickDeflection[FD_PITCH]) * 1000);
-    DEBUG(AIRBORNE, 2, peakFilterOutput(&airborne.stickDeflection[FD_YAW]) * 1000);
-    DEBUG(AIRBORNE, 3, peakFilterOutput(&airborne.stickDeflection[FD_COLL]) * 1000);
+    DEBUG(AIRBORNE, 0, peakFilterOutput(&airborne.peakDeflection[FD_ROLL]) * 1000);
+    DEBUG(AIRBORNE, 1, peakFilterOutput(&airborne.peakDeflection[FD_PITCH]) * 1000);
+    DEBUG(AIRBORNE, 2, peakFilterOutput(&airborne.peakDeflection[FD_YAW]) * 1000);
+    DEBUG(AIRBORNE, 3, peakFilterOutput(&airborne.peakDeflection[FD_COLL]) * 1000);
     DEBUG(AIRBORNE, 4, getCosTiltAngle() * 1000);
-    DEBUG(AIRBORNE, 5, liftoff());
-    DEBUG(AIRBORNE, 6, touchdown());
+    DEBUG(AIRBORNE, 5, isSpooledUp());
+    DEBUG(AIRBORNE, 6, (liftoff() ? 1 : 0) | (touchdown() ? 2 : 0));
     DEBUG(AIRBORNE, 7, airborne.state);
 }
 
