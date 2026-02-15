@@ -84,7 +84,7 @@ Add msp call to set just the servo center point (#366)
 
 The `cyclic_ring` parameter is added (#345).
 
-### MSP_GET_ADJUSTMENT_FUNCTIONS 
+### GET_ADJUSTMENT_FUNCTION_IDS 
 
 Added a call to deliver the function id in use per slot (#398)
 
