@@ -40,7 +40,7 @@ typedef enum {
     ADJUSTMENT_RATE_PROFILE             = 1,
     ADJUSTMENT_PID_PROFILE              = 2,
     ADJUSTMENT_LED_PROFILE              = 3,
-    ADJUSTMENT_BATTERY_PROFILE          = 4,
+    ADJUSTMENT_BATTERY_TYPE             = 4,
 
     // Rates
     ADJUSTMENT_PITCH_SRATE              = 5,

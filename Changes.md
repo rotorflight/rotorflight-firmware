@@ -84,6 +84,19 @@ Add msp call to set just the servo center point (#366)
 
 The `cyclic_ring` parameter is added (#345).
 
+### MSP_BATTERY_STATE
+
+The `batteryCapacity` field is changed to an array of values (one for each profile). (#315)
+The `batteryType` field is added to the end of the payload. (#315)
+
+### MSP_BATTERY_CONFIG
+
+The `batteryCapacity` field is changed to an array of values (one for each profile). (#315)
+
+### MSP_SET_BATTERY_TYPE
+
+New MSP command to set the active battery profile. (#315)
+
 
 ## CLI Changes
 

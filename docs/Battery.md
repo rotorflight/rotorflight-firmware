@@ -101,7 +101,8 @@ Configure the current meter type using the `amperage_meter_type` settings here:
 | ADC     | ADC/hardware sensor    |
 | VIRTUAL | Virtual sensor         |
 
-Configure capacity using the `bat_capacity` setting, in mAh units.
+Configure capacity using the `bat_capacity` setting, in mAh units. This is an array of values for different battery profiles.
+Use `bat_type` to select the active battery profile.
 
 If you're using an OSD that expects the multiwii current meter output value, then set `multiwii_amperage_meter_output` to `ON` (this multiplies amperage sent to MSP by 10 and truncates negative values)).
 
@@ -219,8 +220,3 @@ amperage_meter_scale = old_amperage_meter_scale * (mAh_recharged / cleanflight_r
                      = 400 * (1500 / 2000)
                      = 300
 ```
-
-
-
-
-

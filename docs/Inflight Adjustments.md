@@ -104,36 +104,87 @@ The adjustment is made when the adjustment channel is in the high or low positio
 | Value | Adjustment | Notes |
 | ----- | ---------- |------ |
 | 0     | None | |
-| 1     | RC RATE | Step / absolute setting |
-| 2     | RC\_EXPO | Step / absolute setting |
-| 3     | THROTTLE\_EXPO | Step / absolute setting |
-| 4     | PITCH\_ROLL\_RATE | Step / absolute setting |
-| 5     | YAW\_RATE | Step / absolute setting |
-| 6     | PITCH\_ROLL\_P | Step / absolute setting |
-| 7     | PITCH\_ROLL\_I | Step / absolute setting |
-| 8     | PITCH\_ROLL\_D | Step / absolute setting |
-| 9     | YAW\_P | Step / absolute setting |
-| 10    | YAW\_I | Step / absolute setting |
-| 11    | YAW\_D | Step / absolute setting |
-| 12    | RATE\_PROFILE | Switch between 3 or 6 rate profiles (uses `rate_6pos_switch` setting) |
-| 13    | PITCH\_RATE | Step / absolute setting |
-| 14    | ROLL\_RATE | Step / absolute setting |
-| 15    | PITCH\_P | Step / absolute setting |
-| 16    | PITCH\_I | Step / absolute setting |
-| 17    | PITCH\_D | Step / absolute setting |
-| 18    | ROLL\_P | Step / absolute setting |
-| 19    | ROLL\_I | Step / absolute setting |
-| 20    | ROLL\_D | Step / absolute setting |
-| 21    | RC\_RATE\_YAW | Step / absolute setting |
-| 22    | PITCH\_ROLL\_F | Step / absolute setting |
-| 23    | FEEDFORWARD\_TRANSITION | Step / absolute setting |
-| 24    | HORIZON\_STRENGTH | Select the horizon strength |
-| 25    | PID\_AUDIO | Select the PID value to be turned into tones |
-| 26    | PITCH\_F | Step / absolute setting |
-| 27    | ROLL\_F | Step / absolute setting |
-| 28    | YAW\_F | Step / absolute setting |
-| 29    | OSD\_PROFILE | Switch between 3 OSD profiles |
-| 30    | LED\_PROFILE | Switch between the RACE / BEACON / STATUS LED strip profiles |
+| 1     | RATE\_PROFILE | Switch between 3 or 6 rate profiles |
+| 2     | PID\_PROFILE | Switch between 3 or 6 PID profiles |
+| 3     | LED\_PROFILE | Switch between the RACE / BEACON / STATUS LED strip profiles |
+| 4     | BATTERY\_TYPE | Switch between battery profiles |
+| 5     | PITCH\_SRATE | Step / absolute setting |
+| 6     | ROLL\_SRATE | Step / absolute setting |
+| 7     | YAW\_SRATE | Step / absolute setting |
+| 8     | PITCH\_RC\_RATE | Step / absolute setting |
+| 9     | ROLL\_RC\_RATE | Step / absolute setting |
+| 10    | YAW\_RC\_RATE | Step / absolute setting |
+| 11    | PITCH\_RC\_EXPO | Step / absolute setting |
+| 12    | ROLL\_RC\_EXPO | Step / absolute setting |
+| 13    | YAW\_RC\_EXPO | Step / absolute setting |
+| 14    | PITCH\_P\_GAIN | Step / absolute setting |
+| 15    | PITCH\_I\_GAIN | Step / absolute setting |
+| 16    | PITCH\_D\_GAIN | Step / absolute setting |
+| 17    | PITCH\_F\_GAIN | Step / absolute setting |
+| 18    | ROLL\_P\_GAIN | Step / absolute setting |
+| 19    | ROLL\_I\_GAIN | Step / absolute setting |
+| 20    | ROLL\_D\_GAIN | Step / absolute setting |
+| 21    | ROLL\_F\_GAIN | Step / absolute setting |
+| 22    | YAW\_P\_GAIN | Step / absolute setting |
+| 23    | YAW\_I\_GAIN | Step / absolute setting |
+| 24    | YAW\_D\_GAIN | Step / absolute setting |
+| 25    | YAW\_F\_GAIN | Step / absolute setting |
+| 26    | YAW\_CW\_GAIN | Step / absolute setting |
+| 27    | YAW\_CCW\_GAIN | Step / absolute setting |
+| 28    | YAW\_CYCLIC\_FF | Step / absolute setting |
+| 29    | YAW\_COLLECTIVE\_FF | Step / absolute setting |
+| 30    | YAW\_COLLECTIVE\_DYN | Step / absolute setting |
+| 31    | YAW\_COLLECTIVE\_DECAY | Step / absolute setting |
+| 32    | PITCH\_COLLECTIVE\_FF | Step / absolute setting |
+| 33    | PITCH\_GYRO\_CUTOFF | Step / absolute setting |
+| 34    | ROLL\_GYRO\_CUTOFF | Step / absolute setting |
+| 35    | YAW\_GYRO\_CUTOFF | Step / absolute setting |
+| 36    | PITCH\_DTERM\_CUTOFF | Step / absolute setting |
+| 37    | ROLL\_DTERM\_CUTOFF | Step / absolute setting |
+| 38    | YAW\_DTERM\_CUTOFF | Step / absolute setting |
+| 39    | RESCUE\_CLIMB\_COLLECTIVE | Step / absolute setting |
+| 40    | RESCUE\_HOVER\_COLLECTIVE | Step / absolute setting |
+| 41    | RESCUE\_HOVER\_ALTITUDE | Step / absolute setting |
+| 42    | RESCUE\_ALT\_P\_GAIN | Step / absolute setting |
+| 43    | RESCUE\_ALT\_I\_GAIN | Step / absolute setting |
+| 44    | RESCUE\_ALT\_D\_GAIN | Step / absolute setting |
+| 45    | ANGLE\_LEVEL\_GAIN | Step / absolute setting |
+| 46    | HORIZON\_LEVEL\_GAIN | Step / absolute setting |
+| 47    | ACRO\_TRAINER\_GAIN | Step / absolute setting |
+| 48    | GOV\_GAIN | Step / absolute setting |
+| 49    | GOV\_P\_GAIN | Step / absolute setting |
+| 50    | GOV\_I\_GAIN | Step / absolute setting |
+| 51    | GOV\_D\_GAIN | Step / absolute setting |
+| 52    | GOV\_F\_GAIN | Step / absolute setting |
+| 53    | GOV\_TTA\_GAIN | Step / absolute setting |
+| 54    | GOV\_CYCLIC\_FF | Step / absolute setting |
+| 55    | GOV\_COLLECTIVE\_FF | Step / absolute setting |
+| 56    | PITCH\_B\_GAIN | Step / absolute setting |
+| 57    | ROLL\_B\_GAIN | Step / absolute setting |
+| 58    | YAW\_B\_GAIN | Step / absolute setting |
+| 59    | PITCH\_O\_GAIN | Step / absolute setting |
+| 60    | ROLL\_O\_GAIN | Step / absolute setting |
+| 61    | CROSS\_COUPLING\_GAIN | Step / absolute setting |
+| 62    | CROSS\_COUPLING\_RATIO | Step / absolute setting |
+| 63    | CROSS\_COUPLING\_CUTOFF | Step / absolute setting |
+| 64    | ACC\_TRIM\_PITCH | Step / absolute setting |
+| 65    | ACC\_TRIM\_ROLL | Step / absolute setting |
+| 66    | INERTIA\_PRECOMP\_GAIN | Step / absolute setting |
+| 67    | INERTIA\_PRECOMP\_CUTOFF | Step / absolute setting |
+| 68    | PITCH\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 69    | ROLL\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 70    | YAW\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 71    | COLL\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 72    | YAW\_DYN\_CEILING\_GAIN | Step / absolute setting |
+| 73    | YAW\_DYN\_DEADBAND\_GAIN | Step / absolute setting |
+| 74    | YAW\_DYN\_DEADBAND\_FILTER | Step / absolute setting |
+| 75    | YAW\_PRECOMP\_CUTOFF | Step / absolute setting |
+| 76    | GOV\_IDLE\_THROTTLE | Step / absolute setting |
+| 77    | GOV\_AUTO\_THROTTLE | Step / absolute setting |
+| 78    | GOV\_MAX\_THROTTLE | Step / absolute setting |
+| 79    | GOV\_MIN\_THROTTLE | Step / absolute setting |
+| 80    | GOV\_HEADSPEED | Step / absolute setting |
+| 81    | GOV\_YAW\_FF | Step / absolute setting |
 
 ## Examples
 
