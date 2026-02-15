@@ -108,20 +108,18 @@ static INIT_CODE void initGyroCalibration(gyroSensor_t *gyroSensor)
 {
     gyroCalibration_t *cal = &gyroSensor->calibration;
 
-    const float cutoff = 200.0f / gyroConfig()->gyroCalibrationDuration;
-
     cal->running = true;
     cal->cycles = 0;
 
-    cal->beta = pt1FilterGain(cutoff, gyro.sampleRateHz);
-    cal->alpha = cal->beta * 10.0f;
-
     cal->threshold = gyroConfig()->gyroMovementCalibrationThreshold / 10.0f;
+    cal->minCycles = (uint32_t)gyro.sampleRateHz * (uint32_t)gyroConfig()->gyroCalibrationDuration / 100U;
+
+    const float cutoff = 200.0f / gyroConfig()->gyroCalibrationDuration;
 
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         lowpassFilterInit(&cal->noiseFilter[axis], LPF_BESSEL, GYRO_CALIB_NOISE_HZ, gyro.sampleRateHz, 0);
         lowpassFilterInit(&cal->offsetFilter[axis], LPF_PT3, cutoff * 2.0f, gyro.sampleRateHz, 0);
-        cal->peak[axis] = 0;
+        peakFilterInit(&cal->peakFilter[axis], cutoff * 10.0f, cutoff, gyro.sampleRateHz);
     }
 }
 
@@ -164,8 +162,7 @@ STATIC_UNIT_TESTED void performGyroCalibration(gyroSensor_t *gyroSensor)
 
         cal->cycles++;
 
-        const uint32_t min_cycles = (uint32_t)gyro.sampleRateHz * (uint32_t)gyroConfig()->gyroCalibrationDuration / 100U;
-        bool calibDone = (cal->cycles > min_cycles);
+        bool calibDone = (cal->cycles > cal->minCycles);
 
         for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
             const float rate = gyroSensor->gyroDev.gyroADCRaw[axis];
@@ -173,16 +170,15 @@ STATIC_UNIT_TESTED void performGyroCalibration(gyroSensor_t *gyroSensor)
 
             offset[axis] = filterApply(&cal->offsetFilter[axis], drift);
 
-            const float error = drift - offset[axis];
-            const float delta = fabsf(error) - cal->peak[axis];
-            cal->peak[axis] += (delta > 0) ? delta * cal->alpha : delta * cal->beta;
+            const float error = fabsf(drift - offset[axis]);
+            const float peak = peakFilterApply(&cal->peakFilter[axis], error);
 
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 0, rate);
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 1, drift * 10);
             DEBUG_AXIS(GYRO_CALIBRATION, axis, 2, offset[axis] * 10);
-            DEBUG_AXIS(GYRO_CALIBRATION, axis, 3, cal->peak[axis] * 10);
+            DEBUG_AXIS(GYRO_CALIBRATION, axis, 3, peak * 10);
 
-            calibDone &= (cal->peak[axis] < cal->threshold);
+            calibDone &= (peak < cal->threshold);
         }
 
         if (calibDone) {
