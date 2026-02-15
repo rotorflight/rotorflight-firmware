@@ -53,9 +53,13 @@ typedef enum gyroDetectionFlags_e {
 } gyroDetectionFlags_t;
 
 typedef struct gyroCalibration_s {
-    float sum[XYZ_AXIS_COUNT];
-    stdev_t var[XYZ_AXIS_COUNT];
-    int32_t cyclesRemaining;
+    filter_t noiseFilter[XYZ_AXIS_COUNT];
+    filter_t offsetFilter[XYZ_AXIS_COUNT];
+    peakFilter_t peakFilter[XYZ_AXIS_COUNT];
+    float threshold;
+    uint32_t cycles;
+    uint32_t minCycles;
+    bool running;
 } gyroCalibration_t;
 
 typedef struct gyroSensor_s {
