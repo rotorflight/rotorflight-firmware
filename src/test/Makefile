@@ -310,20 +310,23 @@ rx_sumd_unittest_SRC := \
 #scheduler_unittest_DEFINES := \
 #		USE_OSD=
 
-# This test is disabled due to build errors.
-#sensor_gyro_unittest_SRC := \
-#		$(USER_DIR)/sensors/gyro.c \
-#		$(USER_DIR)/sensors/gyro_init.c \
-#		$(USER_DIR)/sensors/boardalignment.c \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/sensor_alignment.c \
-#		$(USER_DIR)/drivers/accgyro/accgyro_fake.c \
-#		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/pg/gyrodev.c
+sensor_gyro_unittest_SRC := \
+		$(USER_DIR)/sensors/gyro.c \
+		$(USER_DIR)/sensors/gyro_init.c \
+		$(USER_DIR)/sensors/boardalignment.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/sensor_alignment.c \
+		$(USER_DIR)/drivers/accgyro/accgyro_fake.c \
+		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/pg/gyro.c \
+		$(USER_DIR)/pg/gyrodev.c \
+		$(USER_DIR)/build/debug.c
+
+sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_LPF=
 #
 #telemetry_crsf_unittest_SRC := \
 #		$(USER_DIR)/rx/crsf.c \
