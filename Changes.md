@@ -97,10 +97,12 @@ The `batteryType` field is added to the end of the payload. (#315)
 ### MSP_SET_BATTERY_TYPE
 
 New MSP command to set the active battery profile. (#315)
+`batteryType` parameter added (0-5) to select the active battery profile
 
 ### MSP_BATTERY_TYPE
 
 New MSP command to get the active battery profile. (#315)
+`batteryType` parameter added (0-5) to get the active battery profile
 
 ## CLI Changes
 
