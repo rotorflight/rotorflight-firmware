@@ -201,7 +201,7 @@
 #define MSP_SET_RPM_FILTER_V2                155
 #define MSP_GET_ADJUSTMENT_RANGE             156
 #define MSP_GET_SBUS_OUTPUT_CONFIG           157
-#define GET_ADJUSTMENT_FUNCTION_IDS          167
+
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
@@ -213,6 +213,7 @@
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166
+#define GET_ADJUSTMENT_FUNCTION_IDS          167
 
 #define MSP_MIXER_INPUTS                     170
 #define MSP_SET_MIXER_INPUT                  171
