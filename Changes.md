@@ -173,6 +173,9 @@ the actual values are calculated automatically (#332).
 
 `resource GYRO_CLK` added. Sets the pin for the gyro synchronisation clock, if supported.
 
+`bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
+
+`bat_type` parameter added. Value in 0-5, selects the active battery profile.
 
 ## Defaults
 
