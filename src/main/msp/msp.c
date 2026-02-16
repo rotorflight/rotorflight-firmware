@@ -3731,7 +3731,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
-        // Check payload size: 6 * U16 (Capacity) = 12 bytes, if present setcapacity 1-6
+        // Check payload size: 6 * U16 (Capacity) = 12 bytes, if present setcapacity 0-5
         if (sbufBytesRemaining(src) >= 12) {
             for (int i = 0; i < BATTERY_TYPE_MAX; i++)
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
