@@ -173,6 +173,8 @@ the actual values are calculated automatically (#332).
 
 `resource GYRO_CLK` added. Sets the pin for the gyro synchronisation clock, if supported.
 
+`gyro_offset_yaw` is removed (#391).
+
 `bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
 
 `bat_type` parameter added. Value in 0-5, selects the active battery profile.
@@ -206,6 +208,8 @@ the actual values are calculated automatically (#332).
 `rates_type` default is changed to `ROTORFLIGHT`.
 
 `cyclic_ring` default is changed to 150%.
+
+`rc_threshold` default for collective (4th element) is changed from 50 to 100 (5% to 10% stick) for airborne/hands-on detection.
 
 
 ## Features
@@ -274,6 +278,16 @@ The Governor has been refactored to accomodate I.C./nitro and other new features
 
 A new Rates systems is added for helicopter applications. `ROTORFLIGHT` rates is
 controlled by three parameters: maximum rate, expo, and shape.
+
+### Gyro calibration (#391)
+
+The previous gyro calibration (sum/variance and sample counting) is replaced
+with a filter-based flow: raw data is passed through a Bessel noise filter,
+then split into DC (bias) and high-frequency components via PT filters.
+When the minimum sample count (from `gyro_calib_duration`) is reached and
+the smoothed high-frequency envelope is below `gyro_calib_noise_limit` on
+all axes, the DC estimate is stored as the gyro zero and calibration
+completes. The existing CLI parameters are unchanged.
 
 
 ## Bug Fixes
