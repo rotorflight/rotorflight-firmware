@@ -79,7 +79,6 @@
 #define MSP_FLIGHT_STATS                     14
 #define MSP_SET_FLIGHT_STATS                 15
 
-#define MSP_SET_BATTERY_TYPE                 31
 #define MSP_BATTERY_CONFIG                   32
 #define MSP_SET_BATTERY_CONFIG               33
 #define MSP_MODE_RANGES                      34
@@ -219,6 +218,8 @@
 #define MSP_MIXER_RULES                      172
 #define MSP_SET_MIXER_RULE                   173
 #define MSP_GET_MIXER_INPUT                  174
+#define MSP_BATTERY_TYPE                     175
+#define MSP_SET_BATTERY_TYPE                 176
 
 #define MSP_OSD_VIDEO_CONFIG                 180
 #define MSP_SET_OSD_VIDEO_CONFIG             181
