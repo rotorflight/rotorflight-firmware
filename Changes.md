@@ -90,11 +90,21 @@ Add msp call to allow retrieving a single adjustment line at a time (#362)
 
 ### MSP_SERVO
 
-Modified to support bus servos. When bus servos are configured (SBUS_OUT or FBUS_MASTER serial function enabled), the command returns configured PWM servo outputs (S1-Sn) followed by all bus servo outputs (S9-S26). Unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET are skipped.
+Modified to support bus servos:
+
+- Condition: when bus servos are configured — e.g. the `SBUS_OUT` or `FBUS_MASTER` serial function is enabled.
+- Returns: configured PWM servo outputs `S1–Sn` (up to `getServoCount()`), followed by all bus servo outputs `S9–S26` (starting at `BUS_SERVO_OFFSET`).
+- Skipping behavior: any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped.
 
 ### MSP_SERVO_CONFIGURATIONS
 
-Modified to support bus servos. When bus servos are configured, returns count and configuration for configured PWM servos (S1-Sn) followed by all bus servos (S9-S26). Unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET are skipped.
+Modified to support bus servos. When bus servos are configured:
+
+- Mapping (indices → servo outputs):
+	- indices `0` to `getServoCount()-1` → PWM servos `S1–S{getServoCount()}`
+	- indices `getServoCount()` to `getServoCount()+17` → bus servos `S9–S26`
+
+- Note: `getServoCount()` is used to determine how many PWM servos are present; any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped when assembling the returned list.
 
 ### MSP_SET_SERVO_CONFIGURATION
 
@@ -154,7 +164,7 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
-`bus_servo_source_type` parameter added. Array of 18 uint8 values defining the source type for each BUS servo channel (MIXER=0, RX=1). Source index is always equal to the channel number. MIXER uses BUS servo range (default -500 to 500), RX uses 1000 to 2000 range.
+`bus_servo_source_type` parameter added. Array of 18 uint8 values where element `bus_servo_source_type[i]` selects the source type for BUS servo channel `i` (array indices 0–17 map to channel numbers 0–17). Value selects the source type: `MIXER` = 0, `RX` = 1. The "source index" is equal to the channel number — i.e. when `RX` is selected the RX input index equals the channel number, and when `MIXER` is selected the mixer channel index equals the channel number.
 
 `fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
 

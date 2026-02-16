@@ -74,6 +74,9 @@ uint16_t getServoOutput(uint8_t servo)
     }
 #endif
     // PWM servo
+    if (servo >= MAX_SUPPORTED_SERVOS) {
+        return 0;
+    }
     return lrintf(servoOutput[servo]);
 }
 

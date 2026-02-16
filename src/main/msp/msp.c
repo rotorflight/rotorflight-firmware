@@ -1067,7 +1067,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, getMotorCount());
 #ifdef USE_SERVOS
             // Check if bus servos are actually configured
-            if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+            if (hasBusServosConfigured()) {
                 // When bus servos are configured, report configured PWM servos + all bus servos
                 sbufWriteU8(dst, getServoCount() + BUS_SERVO_CHANNELS);
             } else {
@@ -1153,7 +1153,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #ifdef USE_SERVOS
     case MSP_SERVO:
         // Check if bus servos are actually configured
-        if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+        if (hasBusServosConfigured()) {
             // When bus servos are configured, send configured PWM servo outputs + all bus servo outputs
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
             const uint8_t pwmServoCount = getServoCount();
@@ -1178,7 +1178,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_SERVO_CONFIGURATIONS:
         // Check if bus servos are actually configured
-        if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+        if (hasBusServosConfigured()) {
             // When bus servos are configured, send configured PWM servos + all bus servos
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
             const uint8_t pwmServoCount = getServoCount();
@@ -2729,7 +2729,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         i = sbufReadU8(src);
         
         // Check if bus servos are actually configured
-        if (findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER)) {
+        if (hasBusServosConfigured()) {
             // When bus servos are configured, map the received index to actual servo index
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
             const uint8_t pwmServoCount = getServoCount();

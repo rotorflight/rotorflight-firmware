@@ -47,3 +47,6 @@ PG_DECLARE(busServoConfig_t, busServoConfig);
 // Bus servo output functions
 void setBusServoOutput(uint8_t channel, float value);
 uint16_t getBusServoOutput(uint8_t channel);
+
+// Bus servo configuration helpers
+bool hasBusServosConfigured(void);

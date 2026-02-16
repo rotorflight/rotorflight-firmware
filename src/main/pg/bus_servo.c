@@ -23,6 +23,7 @@
 
 #if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER) || defined(USE_BUS_SERVO)
 
+#include "io/serial.h"
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
 #include "pg/bus_servo.h"
@@ -38,6 +39,11 @@ void pgResetFn_busServoConfig(busServoConfig_t *config)
     }
 }
 
+bool hasBusServosConfigured(void)
+{
+    return findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER);
+}
+
 // Storage for bus servo outputs (SBUS/FBUS)
 static float busServoOutput[BUS_SERVO_CHANNELS];
 
@@ -51,9 +57,11 @@ void setBusServoOutput(uint8_t channel, float value)
 uint16_t getBusServoOutput(uint8_t channel)
 {
     if (channel < BUS_SERVO_CHANNELS) {
-        return lrintf(busServoOutput[channel]);
+        long value = lrintf(busServoOutput[channel]);
+        if (value < 0) return 0;
+        if (value > UINT16_MAX) return UINT16_MAX;
+        return (uint16_t)value;
     }
     return 0;
 }
-
 #endif

@@ -1969,7 +1969,7 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t pwmServoCount = getServoCount();
-    const bool hasBusServos = findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    const bool hasBusServos = hasBusServosConfigured();
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
 
@@ -2048,12 +2048,12 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
 
 static void printServoStatus(uint8_t index)
 {
-    const bool hasBusServos = findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER);
-    const bool isBusServo = hasBusServos && index >= 8;
+    const bool hasBusServos = hasBusServosConfigured();
+    const bool isBusServo = hasBusServos && index >= BUS_SERVO_OFFSET;
     
     if (isBusServo) {
         // Bus servos: S9-S26 (indices 8-25) displayed as S1-S18
-        const int busServoNum = index - 8 + 1;
+        const int busServoNum = index - BUS_SERVO_OFFSET + 1;
         if (hasServoOverride(index))
             cliPrintLinef("servo %d (S%d): %4dus %3d OVERRIDE", index+1, busServoNum,
                 getServoOutput(index),
@@ -2077,12 +2077,12 @@ static void printServoStatus(uint8_t index)
 
 static void printServoOverride(uint8_t index)
 {
-    const bool hasBusServos = findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER);
-    const bool isBusServo = hasBusServos && index >= 8;
+    const bool hasBusServos = hasBusServosConfigured();
+    const bool isBusServo = hasBusServos && index >= BUS_SERVO_OFFSET;
     
     if (isBusServo) {
         // Bus servos: S9-S26 (indices 8-25) displayed as S1-S18
-        const int busServoNum = index - 8 + 1;
+        const int busServoNum = index - BUS_SERVO_OFFSET + 1;
         if (hasServoOverride(index))
             cliPrintLinef("servo override %d (S%d) %d", index+1, busServoNum, getServoOverride(index));
         else
@@ -2105,7 +2105,7 @@ static void cliServo(const char *cmdName, char *cmdline)
 
     // Show PWM servos + bus servos if SBUS/FBUS is enabled
     const int pwmServoCount = getServoCount();
-    const bool hasBusServos = findSerialPortConfig(FUNCTION_SBUS_OUT) || findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    const bool hasBusServos = hasBusServosConfigured();
     const int servoCount = hasBusServos ? MAX_SUPPORTED_SERVOS : pwmServoCount;
 
     ptr = strtok_r(cmdline, " ", &saveptr);
