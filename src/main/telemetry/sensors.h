@@ -148,7 +148,7 @@ typedef enum
 
     TELEM_PID_PROFILE                   = 95,
     TELEM_RATES_PROFILE                 = 96,
-    TELEM_BATTERY_PROFILE               = 97,
+    TELEM_BATTERY_TYPE                  = 97,
     TELEM_LED_PROFILE                   = 98,
 
     TELEM_ADJFUNC                       = 99,
