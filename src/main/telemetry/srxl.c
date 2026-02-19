@@ -612,12 +612,14 @@ bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
         lineCount++;
     }
 
-    // On timeout, force redraw of all rowss
-    if (keepAlive > TEXT_KEEPALIVE_TIME_OUT) {
-      for (int i = 0; i < SPEKTRUM_SRXL_TEXTGEN_ROWS; i++) lineSent[i] = false;
-    }
+    if ( !(cmsInMenu && (pCurrentDisplay == &srxlDisplayPort)) ) {
+      // On timeout, force redraw of all rowss
+      if (keepAlive > TEXT_KEEPALIVE_TIME_OUT) {
+        for (int i = 0; i < SPEKTRUM_SRXL_TEXTGEN_ROWS; i++) lineSent[i] = false;
+      }
 
-    if (lineSent[lineNo]) return false;
+      if (lineSent[lineNo]) return false;
+    }
 
     sbufWriteU8(dst, SPEKTRUM_SRXL_DEVICE_TEXTGEN);
     sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
