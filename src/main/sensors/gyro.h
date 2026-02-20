@@ -106,6 +106,7 @@ typedef struct gyro_s {
 
     bool gyroHasOverflowProtection;
     bool useDualGyroDebugging;
+    bool useDecimation;
 
 #ifdef USE_DYN_LPF
     bool dynLpfFilter;
