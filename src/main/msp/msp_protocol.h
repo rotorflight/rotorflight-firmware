@@ -213,7 +213,7 @@
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166
-#define GET_ADJUSTMENT_FUNCTION_IDS          167
+#define MSP_GET_ADJUSTMENT_FUNCTION_IDS      167
 
 #define MSP_MIXER_INPUTS                     170
 #define MSP_SET_MIXER_INPUT                  171
