@@ -127,6 +127,7 @@
 #include "pg/vtx_table.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
+#include "pg/bus_servo.h"
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1065,7 +1066,14 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
             sbufWriteU8(dst, getMotorCount());
 #ifdef USE_SERVOS
-            sbufWriteU8(dst, getServoCount());
+            // Check if bus servos are actually configured
+            if (hasBusServosConfigured()) {
+                // When bus servos are configured, report configured PWM servos + all bus servos
+                sbufWriteU8(dst, getServoCount() + BUS_SERVO_CHANNELS);
+            } else {
+                // When bus servos are not configured, only report PWM servos
+                sbufWriteU8(dst, getServoCount());
+            }
 #else
             sbufWriteU8(dst, 0);
 #endif
@@ -1144,23 +1152,77 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
 #ifdef USE_SERVOS
     case MSP_SERVO:
-        for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-            sbufWriteU16(dst, getServoOutput(i));
+        // Check if bus servos are actually configured
+        if (hasBusServosConfigured()) {
+            // When bus servos are configured, send configured PWM servo outputs + all bus servo outputs
+            // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
+            const uint8_t pwmServoCount = getServoCount();
+            
+            // Send configured PWM servo outputs (S1-Sn where n = getServoCount())
+            for (int i = 0; i < pwmServoCount; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
+            
+            // Send all bus servo outputs (S9-S26)
+            // Note: Unconfigured PWM servo outputs between pwmServoCount and BUS_SERVO_OFFSET are skipped
+            for (int i = BUS_SERVO_OFFSET; i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
+        } else {
+            // When bus servos are not configured, send all servo outputs
+            for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+                sbufWriteU16(dst, getServoOutput(i));
+            }
         }
         break;
 
     case MSP_SERVO_CONFIGURATIONS:
-        sbufWriteU8(dst, getServoCount());
+        // Check if bus servos are actually configured
+        if (hasBusServosConfigured()) {
+            // When bus servos are configured, send configured PWM servos + all bus servos
+            // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
+            const uint8_t pwmServoCount = getServoCount();
+            const uint8_t totalCount = pwmServoCount + BUS_SERVO_CHANNELS;
+            sbufWriteU8(dst, totalCount);
 
-        for (int i = 0; i < getServoCount(); i++) {
-            sbufWriteU16(dst, servoParams(i)->mid);
-            sbufWriteU16(dst, servoParams(i)->min);
-            sbufWriteU16(dst, servoParams(i)->max);
-            sbufWriteU16(dst, servoParams(i)->rneg);
-            sbufWriteU16(dst, servoParams(i)->rpos);
-            sbufWriteU16(dst, servoParams(i)->rate);
-            sbufWriteU16(dst, servoParams(i)->speed);
-            sbufWriteU16(dst, servoParams(i)->flags);
+            // Send configured PWM servos (S1-Sn where n = getServoCount())
+            for (int i = 0; i < pwmServoCount; i++) {
+                sbufWriteU16(dst, servoParams(i)->mid);
+                sbufWriteU16(dst, servoParams(i)->min);
+                sbufWriteU16(dst, servoParams(i)->max);
+                sbufWriteU16(dst, servoParams(i)->rneg);
+                sbufWriteU16(dst, servoParams(i)->rpos);
+                sbufWriteU16(dst, servoParams(i)->rate);
+                sbufWriteU16(dst, servoParams(i)->speed);
+                sbufWriteU16(dst, servoParams(i)->flags);
+            }
+
+            // Send all bus servos (S9-S26)
+            // Note: Unconfigured PWM servos between pwmServoCount and BUS_SERVO_OFFSET are skipped
+            for (int i = BUS_SERVO_OFFSET; i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS; i++) {
+                sbufWriteU16(dst, servoParams(i)->mid);
+                sbufWriteU16(dst, servoParams(i)->min);
+                sbufWriteU16(dst, servoParams(i)->max);
+                sbufWriteU16(dst, servoParams(i)->rneg);
+                sbufWriteU16(dst, servoParams(i)->rpos);
+                sbufWriteU16(dst, servoParams(i)->rate);
+                sbufWriteU16(dst, servoParams(i)->speed);
+                sbufWriteU16(dst, servoParams(i)->flags);
+            }
+        } else {
+            // When bus servos are not configured, only send PWM servo configs
+            sbufWriteU8(dst, getServoCount());
+
+            for (int i = 0; i < getServoCount(); i++) {
+                sbufWriteU16(dst, servoParams(i)->mid);
+                sbufWriteU16(dst, servoParams(i)->min);
+                sbufWriteU16(dst, servoParams(i)->max);
+                sbufWriteU16(dst, servoParams(i)->rneg);
+                sbufWriteU16(dst, servoParams(i)->rpos);
+                sbufWriteU16(dst, servoParams(i)->rate);
+                sbufWriteU16(dst, servoParams(i)->speed);
+                sbufWriteU16(dst, servoParams(i)->flags);
+            }
         }
         break;
 
@@ -1729,24 +1791,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
 #endif
 
-#ifdef USE_SBUS_OUTPUT
-    case MSP_SBUS_OUTPUT_CONFIG:
-        for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-            sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[i]);
-            sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[i]);
-            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[i]);
-            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[i]);
-        }
-        break;
-#endif
-
-#ifdef USE_FBUS_MASTER
-    case MSP_GET_FBUS_MASTER_CONFIG:
-        for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
-            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceType[i]);
-            sbufWriteU8(dst, fbusMasterConfigMutable()->sourceIndex[i]);
-            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeLow[i]);
-            sbufWriteS16(dst, fbusMasterConfigMutable()->sourceRangeHigh[i]);
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    case MSP_BUS_SERVO_CONFIG:
+        for (int i = 0; i < BUS_SERVO_CHANNELS; i++) {
+            sbufWriteU8(dst, busServoConfigMutable()->sourceType[i]);
         }
         break;
 #endif
@@ -2112,7 +2160,8 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             serializeBoxReply(dst, page, &serializeBoxPermanentIdFn);
         }
         break;
-    case MSP_GET_SBUS_OUTPUT_CONFIG:
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    case MSP_GET_BUS_SERVO_CONFIG:
         {
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
@@ -2120,16 +2169,14 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             }
 
             const uint8_t index = sbufReadU8(src);
-            if (index >= SBUS_OUT_CHANNELS) {
+            if (index >= BUS_SERVO_CHANNELS) {
                 return MSP_RESULT_ERROR;
             }
 
-            sbufWriteU8(dst, sbusOutConfigMutable()->sourceType[index]);
-            sbufWriteU8(dst, sbusOutConfigMutable()->sourceIndex[index]);
-            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeLow[index]);
-            sbufWriteS16(dst, sbusOutConfigMutable()->sourceRangeHigh[index]);
+            sbufWriteU8(dst, busServoConfigMutable()->sourceType[index]);
         }
-        break;     
+        break;
+#endif
     case MSP_GET_MIXER_INPUT:
         {
             const int rem = sbufBytesRemaining(src);
@@ -2147,23 +2194,54 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             sbufWriteU16(dst, mixerInputs(i)->max);
         }
         break;
-#ifdef USE_FBUS_MASTER
-    case MSP_GET_FBUS_MASTER_CHANNEL:
+#ifdef USE_SERVOS
+    case MSP_SET_SERVO_CONFIG:
+        {
+            const int rem = sbufBytesRemaining(src);
+            // Expect index (U8) + eight U16 fields = 1 + 8*2 bytes
+            if (rem != 1 + 8 * 2) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MAX_SUPPORTED_SERVOS) {
+                return MSP_RESULT_ERROR;
+            }
+
+            // Read and apply new servo parameters in the same order as GET
+            servoParamsMutable(i)->mid   = sbufReadU16(src);
+            servoParamsMutable(i)->min   = sbufReadU16(src);
+            servoParamsMutable(i)->max   = sbufReadU16(src);
+            servoParamsMutable(i)->rneg  = sbufReadU16(src);
+            servoParamsMutable(i)->rpos  = sbufReadU16(src);
+            servoParamsMutable(i)->rate  = sbufReadU16(src);
+            servoParamsMutable(i)->speed = sbufReadU16(src);
+            servoParamsMutable(i)->flags = sbufReadU16(src);
+
+            // Validate and fix the servo configuration
+            validateAndFixServoConfig();
+        }
+        break;
+    case MSP_GET_SERVO_CONFIG:
         {
             const int rem = sbufBytesRemaining(src);
             if (rem != 1) {
                 return MSP_RESULT_ERROR;
             }
 
-            const uint8_t channel = sbufReadU8(src);
-            if (channel >= FBUS_MASTER_CHANNELS) {
+            const uint8_t i = sbufReadU8(src);
+            if (i >= MAX_SUPPORTED_SERVOS) {
                 return MSP_RESULT_ERROR;
             }
 
-            sbufWriteU8(dst, fbusMasterConfig()->sourceType[channel]);
-            sbufWriteU8(dst, fbusMasterConfig()->sourceIndex[channel]);
-            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeLow[channel]);
-            sbufWriteS16(dst, fbusMasterConfig()->sourceRangeHigh[channel]);
+            sbufWriteU16(dst, servoParams(i)->mid);
+            sbufWriteU16(dst, servoParams(i)->min);
+            sbufWriteU16(dst, servoParams(i)->max);
+            sbufWriteU16(dst, servoParams(i)->rneg);
+            sbufWriteU16(dst, servoParams(i)->rpos);
+            sbufWriteU16(dst, servoParams(i)->rate);
+            sbufWriteU16(dst, servoParams(i)->speed);
+            sbufWriteU16(dst, servoParams(i)->flags);
         }
         break;
 #endif
@@ -2656,9 +2734,38 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
+        
+        // Check if bus servos are actually configured
+        if (hasBusServosConfigured()) {
+            // When bus servos are configured, map the received index to actual servo index
+            // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
+            const uint8_t pwmServoCount = getServoCount();
+            const uint8_t totalCount = pwmServoCount + BUS_SERVO_CHANNELS;
+            
+            if (i >= totalCount) {
+                return MSP_RESULT_ERROR;
+            }
+            
+            // Map received index to actual servo index
+            if (i < pwmServoCount) {
+                // Configured PWM servo (S1-Sn where n = getServoCount())
+                // Index stays the same (0 to pwmServoCount-1)
+            } else {
+                // Bus servo (S9-S26)
+                // Map from sequential index to bus servo index
+                i = BUS_SERVO_OFFSET + (i - pwmServoCount);
+            }
+        } else {
+            // When bus servos are not configured, only accept PWM servo indices
+            if (i >= getServoCount()) {
+                return MSP_RESULT_ERROR;
+            }
+        }
+        
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
+        
         servoParamsMutable(i)->mid = sbufReadU16(src);
         servoParamsMutable(i)->min = sbufReadU16(src);
         servoParamsMutable(i)->max = sbufReadU16(src);
@@ -2667,6 +2774,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->speed = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
+        
+        // Validate and fix the servo configuration
+        validateAndFixServoConfig();
         break;
 
     case MSP_SET_SERVO_OVERRIDE:
@@ -2676,6 +2786,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         setServoOverride(i, sbufReadU16(src));
         break;
+
+    case MSP_SET_SERVO_OVERRIDE_ALL: {
+        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable)
+        if (dataSize != 2) {
+            return MSP_RESULT_ERROR;
+        }
+        const uint16_t v = sbufReadU16(src);
+        for (int s = 0; s < MAX_SUPPORTED_SERVOS; s++) {
+            setServoOverride(s, v);
+        }
+        break;
+    }
 
     case MSP_SET_SERVO_CENTER:
         // payload: U8 idx + U16 mid  => 3 bytes
@@ -2689,6 +2811,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
 
         servoParamsMutable(i)->mid = sbufReadU16(src);
+        
+        // Validate and fix the servo configuration
+        validateAndFixServoConfig();
         break;
 
 
@@ -3487,35 +3612,24 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 #endif
 
-#ifdef USE_SBUS_OUTPUT
-    case MSP_SET_SBUS_OUTPUT_CONFIG: {
-        // Write format is customized for the size and responsiveness.
-        // The first byte will be the target output channel index (0-based).
-        // The following bytes will be the type/index/low/high for that channel.
-        if (sbufBytesRemaining(src) >= 1) {
-            uint8_t index = sbufReadU8(src);
-            if (index < SBUS_OUT_CHANNELS && sbufBytesRemaining(src) >= 6) {
-                sbusOutConfigMutable()->sourceType[index] = sbufReadU8(src);
-                sbusOutConfigMutable()->sourceIndex[index] = sbufReadU8(src);
-                sbusOutConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
-                sbusOutConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
-            }
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    case MSP_SET_BUS_SERVO_CONFIG: {
+        // Validate payload length: need at least 2 bytes (index + sourceType)
+        if (sbufBytesRemaining(src) < 2) {
+            return MSP_RESULT_ERROR;
         }
-        break;
-    }
-#endif
-
-#ifdef USE_FBUS_MASTER
-    case MSP_SET_FBUS_MASTER_CHANNEL: {
-        if (sbufBytesRemaining(src) >= 1) {
-            uint8_t index = sbufReadU8(src);
-            if (index < FBUS_MASTER_CHANNELS && sbufBytesRemaining(src) >= 6) {
-                fbusMasterConfigMutable()->sourceType[index] = sbufReadU8(src);
-                fbusMasterConfigMutable()->sourceIndex[index] = sbufReadU8(src);
-                fbusMasterConfigMutable()->sourceRangeLow[index] = sbufReadS16(src);
-                fbusMasterConfigMutable()->sourceRangeHigh[index] = sbufReadS16(src);
-            }
+        
+        // Read and validate index
+        uint8_t index = sbufReadU8(src);
+        if (index >= BUS_SERVO_CHANNELS) {
+            return MSP_RESULT_ERROR;
         }
+        
+        // Read sourceType
+        uint8_t sourceType = sbufReadU8(src);
+        
+        // Apply configuration
+        busServoConfigMutable()->sourceType[index] = sourceType;
         break;
     }
 #endif

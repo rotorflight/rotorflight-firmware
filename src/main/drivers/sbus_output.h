@@ -21,9 +21,9 @@
 
 #include "common/time.h"
 #include "common/utils.h"
+#include "pg/sbus_output.h"
 
-// Define the sbus frame struct. Let's not reuse the one in the rx/ so we
-// don't have to link them together in the unit test.
+// Define the sbus frame struct
 typedef struct {
     uint8_t syncByte;
     // 176 bits of data (11 bits per channel * 16 channels) = 22 bytes.
@@ -58,7 +58,9 @@ bool sbusOutIsEnabled();
 // Init function
 void sbusOutInit(void);
 
+// Channel value getters
 float sbusOutGetRX(uint8_t channel);
 float sbusOutGetValueMixer(uint8_t channel);
-float sbusOutGetServo(uint8_t channel);
-float sbusOutGetMotor(uint8_t channel);
+
+// Process all mixer channels (called internally by sbusOutUpdate, but can be called externally)
+void sbusOutProcessMixerChannels(float output[SBUS_OUT_CHANNELS]);

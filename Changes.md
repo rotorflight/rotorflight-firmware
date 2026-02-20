@@ -52,21 +52,33 @@ Multiple changes (#314) (#353).
 
 Multiple changes (#314) (#353).
 
-### MSP_GET_FBUS_MASTER_CONFIG
+### MSP_BUS_SERVO_CONFIG
 
-New MSP command (161) to retrieve the FBUS Master configuration.
+New MSP command (152) to retrieve BUS servo source configuration (18 channels).
 
-### MSP_SET_FBUS_MASTER_CHANNEL
+### MSP_SET_BUS_SERVO_CONFIG
 
-New MSP command (162) to configure individual FBUS Master channel settings.
+New MSP command (153) to configure individual BUS servo source settings. Payload: U8 index (0-17) + U8 sourceType (0=MIXER, 1=RX).
 
-### MSP_GET_FBUS_MASTER_CHANNEL
+### MSP_GET_BUS_SERVO_CONFIG
 
-New MSP command (163) to retrieve individual FBUS Master channel configuration.
+New MSP command (157) to retrieve individual BUS servo source configuration. Payload: U8 index (0-17). Returns: U8 sourceType.
 
-### MSP_GET_SBUS_OUTPUT_CONFIG
+### MSP_SET_SERVO_CONFIG
 
-Allow querying a single sbus servo via msp (#372)
+New MSP command (124) to configure individual servo settings (PWM and BUS servos). Payload: U8 index + 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
+
+### MSP_GET_SERVO_CONFIG
+
+New MSP command (125) to retrieve individual servo configuration. Payload: U8 index. Returns: 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
+
+### MSP_SET_SERVO_OVERRIDE_ALL
+
+New MSP command (196) to set servo overrides for all servos in one call. Payload: U16 value (0=enable/center, 2001=disable).
+
+### MSP_SET_SERVO_CENTER
+
+New MSP command (213) to set just the servo center point. Payload: U8 index + U16 mid.
 
 ### MSP_GET_MIXER_INPUT
 
@@ -76,9 +88,27 @@ Add msp call to allow retrieving a single mixer line at a time (#361)
 
 Add msp call to allow retrieving a single adjustment line at a time (#362)
 
-### MSP_SET_SERVO_CENTER
+### MSP_SERVO
 
-Add msp call to set just the servo center point (#366)
+Modified to support bus servos:
+
+- Condition: when bus servos are configured — e.g. the `SBUS_OUT` or `FBUS_MASTER` serial function is enabled.
+- Returns: configured PWM servo outputs `S1–Sn` (up to `getServoCount()`), followed by all bus servo outputs `S9–S26` (starting at `BUS_SERVO_OFFSET`).
+- Skipping behavior: any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped.
+
+### MSP_SERVO_CONFIGURATIONS
+
+Modified to support bus servos. When bus servos are configured:
+
+- Mapping (indices → servo outputs):
+	- indices `0` to `getServoCount()-1` → PWM servos `S1–S{getServoCount()}`
+	- indices `getServoCount()` to `getServoCount()+17` → bus servos `S9–S26`
+
+- Note: `getServoCount()` is used to determine how many PWM servos are present; any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped when assembling the returned list.
+
+### MSP_SET_SERVO_CONFIGURATION
+
+Modified to support bus servos. When bus servos are configured, the index parameter is mapped: indices 0 to (getServoCount()-1) map to PWM servos S1-Sn, indices getServoCount() to (getServoCount()+17) map to bus servos S9-S26.
 
 ### MSP_RC_TUNING
 
@@ -138,13 +168,7 @@ the actual values are calculated automatically (#332).
 
 `blackbox_log_governor` flag is added.
 
-`fbus_master_source_type` parameter added. Array of 16 uint8 values defining the source type for each FBUS Master channel (NONE=0, RX=1, MIXER=2, SERVO=3, MOTOR=4).
-
-`fbus_master_source_index` parameter added. Array of 16 uint8 values defining the source index (channel/rule/servo/motor index) for each FBUS Master channel.
-
-`fbus_master_source_range_high` parameter added. Array of 16 int16 values defining the high end of the source value range for mapping to FBUS output.
-
-`fbus_master_source_range_low` parameter added. Array of 16 int16 values defining the low end of the source value range for mapping to FBUS output.
+`bus_servo_source_type` parameter added. Array of 18 uint8 values where element `bus_servo_source_type[i]` selects the source type for BUS servo channel `i` (array indices 0–17 map to channel numbers 0–17). Value selects the source type: `MIXER` = 0, `RX` = 1. The "source index" is equal to the channel number — i.e. when `RX` is selected the RX input index equals the channel number, and when `MIXER` is selected the mixer channel index equals the channel number.
 
 `fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
 
@@ -173,13 +197,7 @@ the actual values are calculated automatically (#332).
 
 `motor_poles` default is changed to 0,0,0,0.
 
-`fbus_master_source_type` defaults to RX (1) for all 16 channels.
-
-`fbus_master_source_index` defaults to sequential mapping (0-15) for all 16 channels.
-
-`fbus_master_source_range_low` defaults to 1000 for all 16 channels.
-
-`fbus_master_source_range_high` defaults to 2000 for all 16 channels.
+`bus_servo_source_type` defaults to MIXER (0) for first 8 channels, RX (1) for channels 8-17.
 
 `fbus_master_frame_rate` defaults to 500 Hz.
 
