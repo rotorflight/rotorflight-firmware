@@ -90,23 +90,23 @@ Added a call to deliver the function id in use per slot (#398)
 
 ### MSP_BATTERY_STATE
 
-The `batteryCapacity` field is changed to an array of values (one for each profile). (#315)
+The `batteryCapacity` field is added to the end of the payload. (#315)
 The `batteryType` field is added to the end of the payload. (#315)
 
 ### MSP_BATTERY_CONFIG
 
-The `batteryCapacity` field is changed to an array of values (one for each profile). (#315)
+The `batteryCapacity` field is added to the end of payload. (#315)
 The `batteryType` field is added to the end of the payload. (#315)
 
 ### MSP_SET_BATTERY_TYPE
 
 New MSP command to set the active battery profile. (#315)
-`batteryType` parameter added (0-5) to select the active battery profile
+`batteryType` parameter added (0-5) to select the active battery profile.
 
 ### MSP_BATTERY_TYPE
 
 New MSP command to get the active battery profile. (#315)
-`batteryType` parameter added (0-5) to get the active battery profile
+`batteryType` parameter added (0-5) to get the active battery profile.
 
 ## CLI Changes
 
