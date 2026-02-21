@@ -997,4 +997,3 @@ Lots of things have changed in the two years of development. A full changelog ca
 - Change default governor master gain
 - Change default rates response time to 0 (no limit)
 - Change default dynamic notch count to 4
-

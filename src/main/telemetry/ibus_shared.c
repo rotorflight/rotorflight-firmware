@@ -229,7 +229,7 @@ static uint16_t getTemperature()
 static uint16_t getFuel()
 {
     uint16_t fuel = 0;
-    if (batteryConfig()->batteryCapacity > 0) {
+    if (batteryConfig()->batteryCapacity[batteryConfig()->batteryType] > 0) {
         fuel = (uint16_t)calculateBatteryPercentageRemaining();
     } else {
         fuel = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);

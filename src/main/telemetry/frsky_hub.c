@@ -401,7 +401,7 @@ static void sendAmperage(void)
 static void sendFuelLevel(void)
 {
     int16_t data;
-    if (batteryConfig()->batteryCapacity > 0) {
+    if (batteryConfig()->batteryCapacity[batteryConfig()->batteryType] > 0) {
         data = (uint16_t)calculateBatteryPercentageRemaining();
     } else {
         data = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
