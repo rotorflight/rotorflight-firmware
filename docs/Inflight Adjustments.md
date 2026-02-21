@@ -104,8 +104,8 @@ The adjustment is made when the adjustment channel is in the high or low positio
 | Value | Adjustment | Notes |
 | ----- | ---------- |------ |
 | 0     | None | |
-| 1     | RATE\_PROFILE | Switch between 3 or 6 rate profiles |
-| 2     | PID\_PROFILE | Switch between 3 or 6 PID profiles |
+| 1     | RATE\_PROFILE | Switch between profiles |
+| 2     | PID\_PROFILE | Switch between PID profiles |
 | 3     | LED\_PROFILE | Switch between the RACE / BEACON / STATUS LED strip profiles |
 | 4     | BATTERY\_TYPE | Switch between battery profiles |
 | 5     | PITCH\_SRATE | Step / absolute setting |
