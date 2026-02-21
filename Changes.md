@@ -271,6 +271,11 @@ the smoothed high-frequency envelope is below `gyro_calib_noise_limit` on
 all axes, the DC estimate is stored as the gyro zero and calibration
 completes. The existing CLI parameters are unchanged.
 
+### RPM Filter Presets (#406)
+
+Minor changes introduced to all three presets for better match to common
+use cases.
+
 
 ## Bug Fixes
 

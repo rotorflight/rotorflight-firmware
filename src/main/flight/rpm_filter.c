@@ -45,9 +45,13 @@
 // Number of predefined presets
 #define RPM_FILTER_PRESET_COUNT     3
 
-// Notch side-bands: 10000 * 2% / Q(x10)
-#define LNC(Q)    (-2000 / (Q))
-#define RNC(Q)    ( 2000 / (Q))
+// Double Notch side-bands: 10000 * 1% / Q(x10)
+#define LNC2(Q)    (-1000 / (Q))
+#define RNC2(Q)    ( 1000 / (Q))
+
+// Triple Notch side-bands: 10000 * 2% / Q(x10)
+#define LNC3(Q)    (-2000 / (Q))
+#define RNC3(Q)    ( 2000 / (Q))
 
 // RPM Filter Preset
 static const rpmNotchConfig_t rpmFilterPreset[RPM_FILTER_PRESET_COUNT] =
@@ -55,8 +59,8 @@ static const rpmNotchConfig_t rpmFilterPreset[RPM_FILTER_PRESET_COUNT] =
     // Low vibration preset
     {
         .notch_source = {
-            { 11, 12, 21, },
-            { 11, 12, 21, },
+            { 11, 12, 14, 21, },
+            { 11, 12, 14, 21, },
             { 11, 12, 21, },
         },
         .notch_center = {
@@ -65,17 +69,17 @@ static const rpmNotchConfig_t rpmFilterPreset[RPM_FILTER_PRESET_COUNT] =
             { 0, },
         },
         .notch_q = {
-            { 80, 40, 50, },
-            { 80, 40, 50, },
+            { 80, 40, 60, 50, },
+            { 80, 40, 60, 50, },
             { 80, 40, 50, },
         },
     },
     // Typical vibration preset
     {
         .notch_source = {
-            { 11, 12, 13, 14, 21, 22, },
-            { 11, 12, 13, 14, 21, 22, },
-            { 11, 12, 13, 14, 21, 22, },
+            { 11, 12, 13, 14, 21, 22, 10, },
+            { 11, 12, 13, 14, 21, 22, 10, },
+            { 11, 12, 13, 14, 21, 22, 10, },
         },
         .notch_center = {
             { 0, },
@@ -83,27 +87,27 @@ static const rpmNotchConfig_t rpmFilterPreset[RPM_FILTER_PRESET_COUNT] =
             { 0, },
         },
         .notch_q = {
-            { 80, 30, 80, 60, 60, 50, },
-            { 80, 30, 80, 60, 60, 50, },
-            { 80, 40, 80, 80, 60, 50, },
+            { 80, 30, 80, 60, 60, 50, 80, },
+            { 80, 30, 80, 60, 60, 50, 80, },
+            { 80, 40, 80, 80, 60, 50, 80, },
         },
     },
     // High vibration preset
     {
         .notch_source = {
-            { 11, 12, 12, 12, 13, 14, 15, 16, 21, 22, 10, },
-            { 11, 12, 12, 12, 13, 14, 15, 16, 21, 10, },
+            { 11, 12, 12, 13, 14, 15, 16, 21, 22, 10, },
+            { 11, 12, 12, 13, 14, 15, 16, 21, 22, 10, },
             { 11, 12, 13, 14, 21, 22, 10, },
         },
         .notch_center = {
-            { 0, 0, LNC(30), RNC(30), 0, },
-            { 0, 0, LNC(30), RNC(30), 0, },
+            { 0, LNC2(30), RNC2(30), 0, },
+            { 0, LNC2(30), RNC2(30), 0, },
             { 0, },
         },
         .notch_q = {
-            { 60, 30, 30, 30, 80, 60, 80, 80, 60, 50, 80 },
-            { 60, 30, 30, 30, 80, 60, 80, 80, 60, 80 },
-            { 80, 40, 80, 80, 60, 40, 80 },
+            { 50, 30, 30, 80, 50, 80, 80, 60, 50, 80 },
+            { 50, 30, 30, 80, 50, 80, 80, 60, 50, 80 },
+            { 80, 40, 80, 80, 50, 40, 80 },
         },
     },
 };
