@@ -904,7 +904,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
             sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the 6 battery types
         sbufWriteU8(dst, batteryConfig()->batteryType);   // The active battery type
         break;
-    
+
     case MSP_BATTERY_TYPE:
         sbufWriteU8(dst, batteryConfig()->batteryType); // The active battery type
         break;
@@ -3946,4 +3946,8 @@ void mspFcProcessReply(mspPacket_t *reply)
 void mspInit(void)
 {
     initActiveBoxIds();
+
+    if (batteryConfig()->batteryType >= BATTERY_TYPE_MAX) {
+        batteryConfigMutable()->batteryType = 0;
+    }
 }
