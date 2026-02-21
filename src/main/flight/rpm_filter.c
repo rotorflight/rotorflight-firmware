@@ -49,7 +49,7 @@
 #define LNC2(Q)    (-1000 / (Q))
 #define RNC2(Q)    ( 1000 / (Q))
 
-// Tripple Notch side-bands: 10000 * 2% / Q(x10)
+// Triple Notch side-bands: 10000 * 2% / Q(x10)
 #define LNC3(Q)    (-2000 / (Q))
 #define RNC3(Q)    ( 2000 / (Q))
 
