@@ -152,7 +152,7 @@ static void activateConfig(void)
     initRcProcessing();
     adjustmentRangeInit();
 
-    pidInitProfile(currentPidProfile);
+    pidChangeProfile(currentPidProfile);
 
     rcControlsInit();
 
@@ -184,7 +184,7 @@ static void validateAndFixRatesSettings(void)
         const ratesType_e ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
         for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++) {
             controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, ratesSettingLimits[ratesType].rc_rate_limit);
-            controlRateProfilesMutable(profileIndex)->rates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
+            controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
             controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, ratesSettingLimits[ratesType].expo_limit);
         }
     }
@@ -291,11 +291,10 @@ static void validateAndFixConfig(void)
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
-    if (rcControlsConfig()->rc_arm_throttle > rcControlsConfig()->rc_min_throttle - 10) {
-        rcControlsConfigMutable()->rc_arm_throttle = rcControlsConfig()->rc_min_throttle - 10;
-    }
-    if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
-        rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+    if (rcControlsConfig()->rc_max_throttle && rcControlsConfig()->rc_min_throttle) {
+        if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
+            rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
+        }
     }
 
     if (!featureIsConfigured(FEATURE_GPS)
@@ -550,6 +549,7 @@ static void validateAndFixConfig(void)
     validateAndFixPositionConfig();
     validateAndFixServoConfig();
     validateAndFixMixerConfig();
+    validateAndFixRxConfig();
 }
 
 void validateAndFixGyroConfig(void)
@@ -815,7 +815,7 @@ void changePidProfile(uint8_t pidProfileIndex)
     if (pidProfileIndex < PID_PROFILE_COUNT) {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
-        pidInitProfile(currentPidProfile);
+        pidChangeProfile(currentPidProfile);
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

@@ -246,6 +246,8 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 #define USE_SBUS_OUTPUT         // SBus Output feature
+#define USE_FBUS_MASTER         // FBUS Master feature
+
 
 #if (TARGET_FLASH_SIZE > 256)
 #define PID_PROFILE_COUNT 6
@@ -259,7 +261,6 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if (TARGET_FLASH_SIZE > 64)
-#define USE_ACRO_TRAINER
 #define USE_BLACKBOX
 #define USE_CLI_BATCH
 #define USE_RESOURCE_MGMT

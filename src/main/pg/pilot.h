@@ -25,6 +25,12 @@
 
 #define MAX_NAME_LENGTH 16U
 
+enum {
+    // Model flags indicate what features on the radio should be enabled for this model.
+    MODEL_SET_NAME = 0,     // Set the name of the model on the radio
+    MODEL_TELL_CAPACITY     // Annouce the model battery capacity left on the radio
+};
+
 typedef struct {
     char    name[MAX_NAME_LENGTH + 1];
     char    displayName[MAX_NAME_LENGTH + 1];
@@ -35,6 +41,7 @@ typedef struct {
     int16_t modelParam2Value;
     uint8_t modelParam3Type;
     int16_t modelParam3Value;
+    uint32_t  modelFlags;
 } pilotConfig_t;
 
 PG_DECLARE(pilotConfig_t, pilotConfig);

@@ -111,6 +111,16 @@ static inline float tan_approx(float x)
     __typeof__ (x) _x = (x); \
     _x * _x * _x * _x; })
 
+#define POWER5(x) \
+  __extension__ ({ \
+    __typeof__ (x) _x = (x); \
+    _x * _x * _x * _x * _x; })
+
+#define POWER6(x) \
+  __extension__ ({ \
+    __typeof__ (x) _x = (x); \
+    _x * _x * _x * _x * _x * _x; })
+
 #define MIN(a,b) \
   __extension__ ({ \
     __typeof__ (a) _a = (a); \
@@ -215,6 +225,17 @@ static inline float slewDownLimit(float current, float target, float rate)
     if (rate > 0) {
         if (target < current - rate)
             return current - rate;
+    }
+    return target;
+}
+
+static inline float slewUpDownLimit(float current, float target, float uprate, float downrate)
+{
+    if (uprate > 0 && target > current + uprate) {
+        return current + uprate;
+    }
+    if (downrate > 0 && target < current - downrate) {
+        return current - downrate;
     }
     return target;
 }

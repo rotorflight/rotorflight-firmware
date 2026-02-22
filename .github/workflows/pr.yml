@@ -33,7 +33,7 @@ jobs:
         cat ${GITHUB_ENV}
 
     - name: Build HEX files for multiple targets
-      run: make unified FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
+      run: make ${{ env.TARGETS }} FC_VER_SUFFIX="${{ env.GIT_VER }}" FLASH_CONFIG_ERASE=yes
 
     - name: Move HEX
       run: mv -v obj/*STM32*.hex .

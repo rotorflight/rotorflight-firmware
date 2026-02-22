@@ -83,6 +83,8 @@
 #define CRSF_HEARTBEAT_RATE                 10
 #define CRSF_HEARTBEAT_PERIOD               (1000000 / CRSF_HEARTBEAT_RATE)
 
+#define CRSF_CUSTOM_TELEMETRY_MIN_SPACE     32
+
 enum {
     TELEMETRY_STATE_OFF = 0,
     TELEMETRY_STATE_NATIVE,
@@ -402,6 +404,34 @@ static void crsfFrameHeartbeat(sbuf_t *dst)
 }
 
 /*
+ * 0x0C RPM
+ * Payload:
+ * uint8_t    Source ID
+ * int24_t[]  RPM array
+*/
+static void crsfFrameRPM(sbuf_t *dst)
+{
+    sbufWriteU8(dst, CRSF_FRAMETYPE_RPM);
+    sbufWriteU8(dst, 0);
+    sbufWriteS24BE(dst, telemetrySensorValue(TELEM_HEADSPEED));
+    sbufWriteS24BE(dst, telemetrySensorValue(TELEM_TAILSPEED));
+}
+
+/*
+ * 0x0C TEMP
+ * Payload:
+ * uint8_t    Source ID
+ * int16_t[]  Temperature array
+*/
+static void crsfFrameTemp(sbuf_t *dst)
+{
+    sbufWriteU8(dst, CRSF_FRAMETYPE_TEMP);
+    sbufWriteU8(dst, 0);
+    sbufWriteS16BE(dst, telemetrySensorValue(TELEM_MCU_TEMP) * 10);
+    sbufWriteS16BE(dst, telemetrySensorValue(TELEM_ESC_TEMP));
+}
+
+/*
  * 0x1E Attitude
  * Payload:
  * int16_t     Pitch angle (rad / 10000)
@@ -690,6 +720,8 @@ static telemetrySensor_t crsfNativeTelemetrySensors[] =
     TLM_SENSOR(ATTITUDE,            0,  100,  100,  0,  Nil),
     TLM_SENSOR(ALTITUDE,            0,  100,  100,  0,  Nil),
     TLM_SENSOR(GPS,                 0,  100,  100,  0,  Nil),
+    TLM_SENSOR(RPM,                 0,  100,  100,  0,  Nil),
+    TLM_SENSOR(TEMP,                0,  100,  100,  0,  Nil),
 };
 
 static telemetrySensor_t crsfCustomTelemetrySensors[] =
@@ -1091,6 +1123,12 @@ int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType)
             crsfFrameGps(dst);
             break;
 #endif
+        case CRSF_FRAMETYPE_RPM:
+            crsfFrameRPM(dst);
+            break;
+        case CRSF_FRAMETYPE_TEMP:
+            crsfFrameTemp(dst);
+            break;
         case CRSF_FRAMETYPE_DEVICE_INFO:
             crsfFrameDeviceInfo(dst);
             break;
@@ -1174,6 +1212,12 @@ static bool crsfSendTelemetry(void)
                     crsfFrameGps(dst);
                     break;
     #endif
+                case TELEM_RPM:
+                    crsfFrameRPM(dst);
+                    break;
+                case TELEM_TEMP:
+                    crsfFrameTemp(dst);
+                    break;
                 default:
                     crsfFrameHeartbeat(dst);
                     break;
@@ -1196,7 +1240,7 @@ static bool crsfSendCustomTelemetry(void)
 
         crsfFrameCustomTelemetryHeader(dst);
 
-        while (sbufBytesRemaining(dst) > 6) {
+        while (sbufBytesRemaining(dst) > CRSF_CUSTOM_TELEMETRY_MIN_SPACE) {
             telemetrySensor_t *sensor = telemetryScheduleNext();
             if (sensor) {
                 uint8_t *ptr = sbufPtr(dst);

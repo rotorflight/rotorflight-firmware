@@ -37,7 +37,7 @@
 #include "common/axis.h"
 #include "common/color.h"
 #include "common/maths.h"
-#include "common/printf_serial.h"
+#include "common/printf.h"
 
 #include "config/config.h"
 #include "config/config_eeprom.h"
@@ -67,6 +67,7 @@
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 #include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
@@ -85,7 +86,6 @@
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_rtc6705.h"
 #include "drivers/vtx_table.h"
-
 #include "fc/board_info.h"
 #include "fc/dispatch.h"
 #include "fc/init.h"
@@ -261,8 +261,8 @@ static void swdPinsInit(void)
 
 void init(void)
 {
-#ifdef SERIAL_PORT_COUNT
-    printfSerialInit();
+#ifdef USE_ITM_PRINTF
+    printfITMInit();
 #endif
 
     systemInit();
@@ -531,6 +531,10 @@ void init(void)
     serialInit(featureIsEnabled(FEATURE_SOFTSERIAL), SERIAL_PORT_NONE);
 #endif
 
+#ifdef USE_SERIAL_PRINTF
+    printfSerialInit(PRINTF_SERIAL_PORT, PRINTF_SERIAL_SPEED, PRINTF_SERIAL_OPTIONS);
+#endif
+
     mixerInit();
 
 #ifdef USE_MOTOR
@@ -694,6 +698,10 @@ void init(void)
 
 #ifdef USE_SBUS_OUTPUT
     sbusOutInit();
+#endif
+
+#ifdef USE_FBUS_MASTER
+    fbusMasterInit();
 #endif
 
 #ifdef USE_PINIO

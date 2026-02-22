@@ -55,7 +55,7 @@
 #define MSP_PROTOCOL_VERSION                 0
 
 #define API_VERSION_MAJOR                    12
-#define API_VERSION_MINOR                    8
+#define API_VERSION_MINOR                    9
 #define API_VERSION_LENGTH                   2
 
 #define FLIGHT_CONTROLLER_IDENTIFIER_LENGTH  4
@@ -76,6 +76,8 @@
 #define MSP_SET_NAME                         11
 #define MSP_PILOT_CONFIG                     12
 #define MSP_SET_PILOT_CONFIG                 13
+#define MSP_FLIGHT_STATS                     14
+#define MSP_SET_FLIGHT_STATS                 15
 
 #define MSP_BATTERY_CONFIG                   32
 #define MSP_SET_BATTERY_CONFIG               33
@@ -197,19 +199,27 @@
 #define MSP_SET_SBUS_OUTPUT_CONFIG           153
 #define MSP_RPM_FILTER_V2                    154
 #define MSP_SET_RPM_FILTER_V2                155
+#define MSP_GET_ADJUSTMENT_RANGE             156
+#define MSP_GET_SBUS_OUTPUT_CONFIG           157
+
 
 #define MSP_EXPERIMENTAL                     158
 #define MSP_SET_EXPERIMENTAL                 159
 
 #define MSP_UID                              160
+#define MSP_GET_FBUS_MASTER_CONFIG           161
+#define MSP_SET_FBUS_MASTER_CHANNEL          162
+#define MSP_GET_FBUS_MASTER_CHANNEL          163
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166
+#define MSP_GET_ADJUSTMENT_FUNCTION_IDS      167
 
 #define MSP_MIXER_INPUTS                     170
 #define MSP_SET_MIXER_INPUT                  171
 #define MSP_MIXER_RULES                      172
 #define MSP_SET_MIXER_RULE                   173
+#define MSP_GET_MIXER_INPUT                  174
 
 #define MSP_OSD_VIDEO_CONFIG                 180
 #define MSP_SET_OSD_VIDEO_CONFIG             181
@@ -238,6 +248,7 @@
 #define MSP_SELECT_SETTING                   210
 #define MSP_SET_HEADING                      211
 #define MSP_SET_SERVO_CONFIGURATION          212
+#define MSP_SET_SERVO_CENTER                 213
 
 #define MSP_SET_MOTOR                        214
 #define MSP_SET_NAV_CONFIG                   215

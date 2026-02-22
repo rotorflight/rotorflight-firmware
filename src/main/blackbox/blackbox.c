@@ -275,6 +275,14 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] =
     {"Tbec",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(TBEC)},
     {"Tesc2",      -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_8SVB),  CONDITION(TESC2)},
 
+    {"govP",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govI",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govD",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govF",       -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(TAG8_4S16),  CONDITION(GOVERNOR)},
+    {"govSum",     -1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),    .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+    {"govTarget",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+    {"govRequest", -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(PREVIOUS),      .Pencode = ENCODING(SIGNED_VB),  CONDITION(GOVERNOR)},
+
     {"headspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(HEADSPEED)},
     {"tailspeed",  -1, UNSIGNED, .Ipredict = PREDICT(0),       .Iencode = ENCODING(UNSIGNED_VB),  .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB),  CONDITION(TAILSPEED)},
 
@@ -414,6 +422,8 @@ typedef struct blackboxMainState_s {
 
     uint16_t headspeed;
     uint16_t tailspeed;
+
+    govLogData_t governor;
 
     int16_t motor[MAX_SUPPORTED_MOTORS];
     int16_t servo[MAX_SUPPORTED_SERVOS];
@@ -581,6 +591,8 @@ static bool testBlackboxConditionUncached(FlightLogFieldCondition condition)
         return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(RPM));
     case CONDITION(TAILSPEED):
         return (getMotorCount() >= 2) && isFieldEnabled(FIELD_SELECT(RPM));
+    case CONDITION(GOVERNOR):
+        return (getMotorCount() >= 1) && isFieldEnabled(FIELD_SELECT(GOV));
 
     case CONDITION(TMCU):
         return isFieldEnabled(FIELD_SELECT(TEMP));
@@ -818,6 +830,13 @@ static void writeIntraframe(void)
         blackboxWriteSignedVB(blackboxCurrent->esc2_temp);
     }
 
+    if (testBlackboxCondition(CONDITION(GOVERNOR))) {
+        blackboxWriteSignedVBArray(blackboxCurrent->governor.pidTerms, 4);
+        blackboxWriteSignedVB(blackboxCurrent->governor.pidSum);
+        blackboxWriteUnsignedVB(blackboxCurrent->governor.targetHS);
+        blackboxWriteUnsignedVB(blackboxCurrent->governor.requestHS);
+    }
+
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         blackboxWriteUnsignedVB(blackboxCurrent->headspeed);
     }
@@ -1023,6 +1042,14 @@ static void writeInterframe(void)
         deltas[packedFieldCount++] = blackboxCurrent->esc2_temp - blackboxPrev->esc2_temp;
     }
     blackboxWriteTag8_8SVB(deltas, packedFieldCount);
+
+    if (testBlackboxCondition(CONDITION(GOVERNOR))) {
+        CALC_DELTAS(deltas, blackboxCurrent->governor.pidTerms, blackboxPrev->governor.pidTerms, 4);
+        blackboxWriteTag8_4S16(deltas);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.pidSum - blackboxPrev->governor.pidSum);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.targetHS- blackboxPrev->governor.targetHS);
+        blackboxWriteSignedVB((int32_t) blackboxCurrent->governor.requestHS - blackboxPrev->governor.requestHS);
+    }
 
     if (testBlackboxCondition(CONDITION(HEADSPEED))) {
         int32_t predictor = (blackboxHistory[1]->headspeed + blackboxHistory[2]->headspeed) / 2;
@@ -1329,6 +1356,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->mcu_temp = getCoreTemperatureCelsius();
 
+#ifdef USE_ESC_SENSOR
     escSensorData_t *escData = getEscSensorData(0);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
         blackboxCurrent->esc_voltage = escData->voltage / 10;
@@ -1370,9 +1398,12 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->esc2_temp = 0;
         blackboxCurrent->esc2_rpm = 0;
     }
+#endif
 
     blackboxCurrent->headspeed = getHeadSpeed();
     blackboxCurrent->tailspeed = getTailSpeed();
+
+    getGovernorLogData(&blackboxCurrent->governor);
 
     for (int i = 0; i < getMotorCount(); i++) {
         blackboxCurrent->motor[i] = getMotorOutput(i);
@@ -1611,7 +1642,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RATES_TYPE, "%d",             currentControlRateProfile->rates_type);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_rates", "%d", 3,                    currentControlRateProfile->rcRates);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_expo", "%d", 3,                     currentControlRateProfile->rcExpo);
-        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->rates);
+        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->sRates);
         BLACKBOX_PRINT_HEADER_ARRAY("response_time", "%d", 3,               currentControlRateProfile->response_time);
         BLACKBOX_PRINT_HEADER_ARRAY("accel_limit", "%d", 3,                 currentControlRateProfile->accel_limit);
 

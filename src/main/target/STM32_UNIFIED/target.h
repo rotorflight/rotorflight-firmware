@@ -312,6 +312,7 @@
 #define USE_BEEPER
 
 #undef  USE_GYRO_DLPF_EXPERIMENTAL
+#define USE_GYRO_CLK
 
 #define USE_ACC
 #define USE_GYRO
@@ -360,6 +361,8 @@
 #define USE_BARO_SPI_QMP6988
 #define USE_BARO_DPS310
 #define USE_BARO_SPI_DPS310
+#define USE_BARO_BMP581
+#define USE_BARO_SPI_BMP581
 
 #define USE_SDCARD
 #define USE_SDCARD_SPI

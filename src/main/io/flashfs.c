@@ -151,7 +151,11 @@ void flashfsEraseCompletely(void)
 {
     if (flashGeometry->sectors > 0 && flashPartitionCount() > 0) {
         // if there's a single FLASHFS partition and it uses the entire flash then do a full erase
-        const bool doFullErase = (flashPartitionCount() == 1) && (FLASH_PARTITION_SECTOR_COUNT(flashPartition) == flashGeometry->sectors);
+        const bool doFullErase =
+            (flashPartitionCount() == 1) &&
+            (FLASH_PARTITION_SECTOR_COUNT(flashPartition) == flashGeometry->sectors) &&
+            flashEraseCompletelySupported();
+
         if (doFullErase) {
             flashEraseCompletely();
         } else {
@@ -854,7 +858,7 @@ void flashfsFillEntireFlash(void)
     const uint32_t testLimit = flashfsGetSize();
 
     for (address = 0; address < testLimit; address += bufferSize) {
-        tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", address);
+        tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", (uint)address);
         flashfsWrite((uint8_t*)buffer, strlen(buffer));
         flashfsFlushSync();
     }
@@ -879,7 +883,7 @@ bool flashfsVerifyEntireFlash(void)
 
     int verificationFailures = 0;
     for (address = 0; address < testLimit; address += bufferSize) {
-        tfp_sprintf(expectedBuffer, "%08x >> **0123456789ABCDEF**", address);
+        tfp_sprintf(expectedBuffer, "%08x >> **0123456789ABCDEF**", (uint)address);
 
         memset(buffer, 0, sizeof(buffer));
         int bytesRead = flashfsReadPhysical(address, (uint8_t *)buffer, bufferSize);
