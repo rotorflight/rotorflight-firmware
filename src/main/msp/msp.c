@@ -2955,6 +2955,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 return MSP_RESULT_ERROR;
         }
         break;
+    
+    case MSP_SET_4WIF_ESC_FWD_PROG:
+        {
+            uint8_t id = sbufReadS8(src); 
+            escSet4WIfESC(id);
+        }
+        break;
 #endif
 
     case MSP_EEPROM_WRITE:
