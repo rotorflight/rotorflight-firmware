@@ -610,9 +610,13 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 
     // Adjust for PID Mode4
     if (pid.pidMode == 4) {
-      pid.coef[PID_PITCH].Kb *= 10;
-      pid.coef[PID_ROLL].Kd /= 5;
-      pid.coef[PID_ROLL].Kb /= 5;
+        pid.coef[PID_ROLL].Ki = pid.coef[PID_PITCH].Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
+        pid.coef[PID_ROLL].Ko = pid.coef[PID_PITCH].Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
+        pid.coef[PID_ROLL].Kf = pid.coef[PID_PITCH].Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
+
+        pid.coef[PID_PITCH].Kb *= 10;
+        pid.coef[PID_ROLL].Kd /= 5;
+        pid.coef[PID_ROLL].Kb /= 5;
     }
 
     // Bleed conversion for pitch
@@ -628,10 +632,20 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
       pid.coef[PID_ROLL].Kc = 0;
 
     // Accumulated error limit
-    for (int i = 0; i < XYZ_AXIS_COUNT; i++)
-        pid.errorLimit[i] = pidProfile->error_limit[i];
-    for (int i = 0; i < XY_AXIS_COUNT; i++)
-        pid.offsetLimit[i] = pidProfile->offset_limit[i];
+    if (pid.pidMode == 4) {
+        pid.errorLimit[PID_ROLL]   = pidProfile->error_limit[PID_ROLL] * pid.coef[PID_ROLL].Ki;
+        pid.errorLimit[PID_PITCH]  = pidProfile->error_limit[PID_PITCH] * pid.coef[PID_PITCH].Ki;
+        pid.errorLimit[PID_YAW]    = pidProfile->error_limit[PID_YAW] * pid.coef[PID_YAW].Ki;
+        pid.offsetLimit[PID_ROLL]  = pidProfile->offset_limit[PID_ROLL] * pid.coef[PID_ROLL].Ko;
+        pid.offsetLimit[PID_PITCH] = pidProfile->offset_limit[PID_PITCH] * pid.coef[PID_PITCH].Ko;
+    }
+    else {
+        pid.errorLimit[PID_ROLL]   = pidProfile->error_limit[PID_ROLL];
+        pid.errorLimit[PID_PITCH]  = pidProfile->error_limit[PID_PITCH];
+        pid.errorLimit[PID_YAW]    = pidProfile->error_limit[PID_YAW];
+        pid.offsetLimit[PID_ROLL]  = pidProfile->offset_limit[PID_ROLL];
+        pid.offsetLimit[PID_PITCH] = pidProfile->offset_limit[PID_PITCH];
+    }
 
     // Exponential error decay rates
     pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
@@ -1434,7 +1448,7 @@ static void pidApplyOffsetFloodMode4(void)
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
 
         // 1. Check offsetLimit
-        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis] * pid.coef[axis].Ko) - axisOffset;
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) - axisOffset;
 
         // 2. calculate equivalent output delta and errorDelta
         // errorDelta = value to be substract from axisError.
@@ -1467,11 +1481,6 @@ static void pidApplyCyclicMode4(uint8_t axis)
     // Calculate error rate
     const float errorRate = setpoint - gyroRate;
 
-    // Gains must be equal for both axis
-    const float Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
-    const float Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
-    const float Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
-
 
   //// P-term
 
@@ -1497,10 +1506,10 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * Ki;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki;
 
     // Calculate I-component (axisError and I are the same in Mode 4)
-    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * Ki);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.data[axis].axisError;
 
     // Get actual collective from the mixer
@@ -1523,7 +1532,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit * Ki);
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit * pid.coef[axis].Ki);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 
@@ -1540,10 +1549,10 @@ static void pidApplyCyclicMode4(uint8_t axis)
 
     // Offset change modulated by collective
     const float offMod = copysignf(pidTableLookup(curve, offset_charge_curve, PID_LOOKUP_CURVE_POINTS), collective) / 100.0f;
-    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * Ko;
+    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko;
 
     // Calculate Offset component
-    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * Ko);
+    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis]);
     pid.data[axis].O = pid.data[axis].axisOffset * collective;
 
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
@@ -1567,7 +1576,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
       offsetDecayLimit = 3600;
     }
 
-    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit * Ko);
+    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit * pid.coef[axis].Ko);
 
     pid.data[axis].axisOffset -= offsetDecay * pid.dT;
 
@@ -1580,7 +1589,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = Kf * setpoint;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
   //// Feedforward Boost (FF Derivative)
@@ -1644,7 +1653,7 @@ static void pidApplyYawMode4(void)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * stopGain;
 
     // Calculate I-component
-    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
     pid.data[axis].I = pid.data[axis].axisError;
 
     // Apply error decay
