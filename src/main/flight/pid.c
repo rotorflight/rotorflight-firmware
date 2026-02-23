@@ -1538,7 +1538,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, errorDecayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, errorDecayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 10000);
     DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 1000);
 
 
@@ -1558,9 +1558,9 @@ static void pidApplyCyclicMode4(uint8_t axis)
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 1, itermErrorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 2, offMod * 1000);
-    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1000000);
-    DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 10);
-    DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 100000000);
+    DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 1000);
+    DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 1000);
     DEBUG_AXIS(HS_OFFSET, axis, 6, pid.data[axis].O * 1000);
     DEBUG_AXIS(HS_OFFSET, axis, 7, pid.data[axis].I * 1000);
 
@@ -1582,8 +1582,8 @@ static void pidApplyCyclicMode4(uint8_t axis)
 
     DEBUG_AXIS(ERROR_DECAY, axis, 4, offsetDecayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 5, offsetDecayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 10);
+    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 10000);
+    DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 1000);
 
 
   //// Feedforward
@@ -1674,8 +1674,8 @@ static void pidApplyYawMode4(void)
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 10000);
+    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 1000);
 
 
   //// Feedforward
