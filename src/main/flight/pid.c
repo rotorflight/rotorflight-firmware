@@ -1423,7 +1423,7 @@ static void pidApplyOffsetFloodMode4(void)
 
         // 0. calculate bleed rate
         float bleedRate = pidTableLookup(curve, offset_flood_curve, PID_LOOKUP_CURVE_POINTS) * 0.08f;
-        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor;
+        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor * pid.coef[axis].Ko;
 
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
