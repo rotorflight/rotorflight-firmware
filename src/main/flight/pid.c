@@ -1542,7 +1542,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko;
 
     // Calculate Offset component
-    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * pid.coef[axis]Ko);
+    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * pid.coef[axis].Ko);
     pid.data[axis].O = pid.data[axis].axisOffset * collective;
 
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
