@@ -632,20 +632,10 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
       pid.coef[PID_ROLL].Kc = 0;
 
     // Accumulated error limit
-    if (pid.pidMode == 4) {
-        pid.errorLimit[PID_ROLL]   = pidProfile->error_limit[PID_ROLL] * pid.coef[PID_ROLL].Ki;
-        pid.errorLimit[PID_PITCH]  = pidProfile->error_limit[PID_PITCH] * pid.coef[PID_PITCH].Ki;
-        pid.errorLimit[PID_YAW]    = pidProfile->error_limit[PID_YAW] * pid.coef[PID_YAW].Ki;
-        pid.offsetLimit[PID_ROLL]  = pidProfile->offset_limit[PID_ROLL] * pid.coef[PID_ROLL].Ko;
-        pid.offsetLimit[PID_PITCH] = pidProfile->offset_limit[PID_PITCH] * pid.coef[PID_PITCH].Ko;
-    }
-    else {
-        pid.errorLimit[PID_ROLL]   = pidProfile->error_limit[PID_ROLL];
-        pid.errorLimit[PID_PITCH]  = pidProfile->error_limit[PID_PITCH];
-        pid.errorLimit[PID_YAW]    = pidProfile->error_limit[PID_YAW];
-        pid.offsetLimit[PID_ROLL]  = pidProfile->offset_limit[PID_ROLL];
-        pid.offsetLimit[PID_PITCH] = pidProfile->offset_limit[PID_PITCH];
-    }
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++)
+        pid.errorLimit[i] = pidProfile->error_limit[i];
+    for (int i = 0; i < XY_AXIS_COUNT; i++)
+        pid.offsetLimit[i] = pidProfile->offset_limit[i];
 
     // Exponential error decay rates
     pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
@@ -1448,7 +1438,7 @@ static void pidApplyOffsetFloodMode4(void)
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
 
         // 1. Check offsetLimit
-        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis]) - axisOffset;
+        offsetDelta = limitf(axisOffset + offsetDelta, pid.offsetLimit[axis] * pid.coef[axis].Ko) - axisOffset;
 
         // 2. calculate equivalent output delta and errorDelta
         // errorDelta = value to be substract from axisError.
@@ -1509,7 +1499,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki;
 
     // Calculate I-component (axisError and I are the same in Mode 4)
-    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
     pid.data[axis].I = pid.data[axis].axisError;
 
     // Get actual collective from the mixer
@@ -1552,7 +1542,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko;
 
     // Calculate Offset component
-    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis]);
+    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * pid.coef[axis]Ko);
     pid.data[axis].O = pid.data[axis].axisOffset * collective;
 
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
@@ -1653,7 +1643,7 @@ static void pidApplyYawMode4(void)
     const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * stopGain;
 
     // Calculate I-component
-    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
     pid.data[axis].I = pid.data[axis].axisError;
 
     // Apply error decay
