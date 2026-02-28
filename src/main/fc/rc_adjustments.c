@@ -139,6 +139,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(RATE_PROFILE,                 1, 6),
     ADJ_ENTRY(PID_PROFILE,                  1, 6),
     ADJ_ENTRY(LED_PROFILE,                  1, 4),
+#ifdef USE_OSD_PROFILES
+    ADJ_ENTRY(OSD_PROFILE,                  1, 3),
+#endif
 
     ADJ_ENTRY(PITCH_SRATE,                  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
     ADJ_ENTRY(ROLL_SRATE,                   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
@@ -261,7 +264,7 @@ static void updateAdjustmentData(int adjFunc, int value)
         adjFunc != ADJUSTMENT_PID_PROFILE &&
         adjFunc != ADJUSTMENT_RATE_PROFILE &&
         adjFunc != ADJUSTMENT_LED_PROFILE &&
-        adjFunc != ADJUSTMENT_BATTERY_PROFILE)
+        adjFunc != ADJUSTMENT_OSD_PROFILE)
     {
         adjustmentTime   = now;
         adjustmentName   = adjustmentConfigs[adjFunc].cfgName;
