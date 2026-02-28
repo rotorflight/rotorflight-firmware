@@ -96,6 +96,9 @@ typedef struct {
     // Headspeed PID spoolup active
     bool            pidSpoolupActive;
 
+    // Bypass athrottle level reached
+    bool            bypassActive;
+
     // Output throttle
     float           throttleOutput;
 
@@ -394,6 +397,7 @@ static void govChangeState(govState_e newState)
         gov.state = newState;
         gov.stateResetReq = true;
         gov.stateEntryTime = millis();
+        gov.bypassActive = false;
     }
 }
 
@@ -1015,10 +1019,22 @@ static void govThrottleBypass(const float *throttleCurve, float minThrottle, flo
         gov.targetHeadSpeed = 0;
         gov.throttleOutput = 0;
         gov.throttleSlew = 0;
+        gov.bypassActive = false;
     }
     else {
-        // Limit value range
-        gov.throttleOutput = gov.throttleSlew = govGetMappedThrottle(throttleCurve, minThrottle, maxThrottle);
+        const float throttle = govGetMappedThrottle(throttleCurve, minThrottle, maxThrottle);
+
+        if (!gov.bypassActive) {
+            // Limit change speed
+            gov.throttleOutput = gov.throttleSlew = slewLimit(gov.throttleSlew, throttle, gov.throttleTrackingRate);
+
+            // Bypass level reached
+            if (gov.throttleOutput == throttle)
+                gov.bypassActive = true;
+        }
+        else {
+            gov.throttleOutput = gov.throttleSlew = throttle;
+        }
 
         // Update headspeed target
         gov.targetHeadSpeed = gov.currentHeadSpeed;
