@@ -395,8 +395,9 @@ static void govChangeState(govState_e newState)
 {
     if (gov.state != newState) {
         gov.state = newState;
-        gov.stateResetReq = true;
         gov.stateEntryTime = millis();
+        gov.stateResetReq = true;
+        gov.pidSpoolupActive = false;
         gov.bypassActive = false;
     }
 }
@@ -871,11 +872,6 @@ static void govUpdateDirectState(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void govSpoolupInit(void)
-{
-    gov.pidSpoolupActive = false;
-}
-
 static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRate)
 {
     if (gov.pidSpoolupActive)
@@ -1077,12 +1073,6 @@ static void govUpdateGovernedThrottle(void)
     }
 }
 
-static void govEnterSpoolupState(void)
-{
-    govChangeState(GOV_STATE_SPOOLUP);
-    govSpoolupInit();
-}
-
 static void govEnterRecoveryState(void)
 {
     govChangeState(GOV_STATE_RECOVERY);
@@ -1121,7 +1111,7 @@ static void govUpdateGovernedState(void)
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle && gov.motorRPMGood)
-                    govEnterSpoolupState();
+                    govChangeState(GOV_STATE_SPOOLUP);
                 break;
 
             // Throttle is moved from high to off. If it is a mistake, give a chance to recover
