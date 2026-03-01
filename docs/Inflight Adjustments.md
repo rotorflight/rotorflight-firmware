@@ -190,7 +190,7 @@ The adjustment is made when the adjustment channel is in the high or low positio
 
 ### Example 1 - 3 Position switch used to adjust Pitch RC Rate
 
-```
+```shell
 adjrange 0 0 3 900 2100 8 3 0 0
 ```
 
@@ -204,7 +204,7 @@ is in the appropriate position.
 
 ### Example 2 - 2 Position switch used to enable adjustment of Pitch RC Rate via a 3 position switch
 
-```
+```shell
 adjrange 1 0 0 900 1700 0 2 0 0
 adjrange 2 0 0 1700 2100 8 2 0 0
 ```
@@ -224,7 +224,7 @@ range.
 
 ### Example 3 - 6 Position switch used to select PID tuning adjustments via a 3 position switch
 
-```
+```shell
 adjrange 3 0 1 900 1150 14 3 0 0
 adjrange 4 0 1 1150 1300 15 3 0 0
 adjrange 5 0 1 1300 1500 16 3 0 0
@@ -257,7 +257,7 @@ explained:
 
 ### Example 4 - Use a single 3 position switch to change between 3 different rate profiles
 
-```
+```shell
 adjrange 11 0 3 900 2100 1 3 0 0
 ```
 
@@ -274,7 +274,7 @@ When the switch is high, rate profile 2 is selected.
 
 ### Example 5 - Use a single switch to enable absolute setting of Roll/Pitch P terms from two pots
 
-```
+```shell
 adjrange 0 0 4 1450 1550 18 0 40 10
 adjrange 1 0 4 1450 1550 14 1 58 20
 ```
@@ -287,7 +287,7 @@ explained:
 
 ### Example 6 - Use a single switch to enable absolute setting of Roll/Pitch P/I/D terms from three pots, selected using a single switch
 
-```
+```shell
 adjrange 0 0 4 950 1050 18 0 40 20
 adjrange 1 0 4 950 1050 19 1 107 53
 adjrange 2 0 4 950 1050 20 2 76 38
