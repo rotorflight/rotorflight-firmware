@@ -213,6 +213,12 @@ the actual values are calculated automatically (#332).
 
 `gyro_decimation_hz` default is changed to 500Hz (#405).
 
+`blackbox_mode` default is changed to ARMED (#412).
+
+`blackbox_log_governor` default is changed to ON (#412).
+
+`blackbox_rolling_erase` default is changed to ON (#412).
+
 
 ## Features
 
