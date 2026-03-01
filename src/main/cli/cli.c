@@ -6532,12 +6532,29 @@ typedef struct {
 }
 #endif
 
+static void cliBatteryType(const char *cmdName, char *cmdline)
+{
+    if (isEmpty(cmdline)) {
+        cliPrintLinef("Battery Profile: %d", batteryConfig()->batteryType + 1);
+        return;
+    }
+
+    const int i = atoi(cmdline);
+    if (i > 0 && i <= BATTERY_TYPE_MAX) {
+        changeBatteryType(i - 1);
+        cliPrintLinef("Battery Profile set to %d", i);
+    } else {
+        cliShowArgumentRangeError(cmdName, "INDEX", 1, BATTERY_TYPE_MAX);
+    }
+}
+
 static void cliHelp(const char *cmdName, char *cmdline);
 
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
     CLI_COMMAND_DEF("aux", "configure modes", "<index> <mode> <aux> <start> <end> <logic>", cliAux),
+    CLI_COMMAND_DEF("bat_type", "configure battery type", "<index>", cliBatteryType),
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
 #endif
@@ -6667,7 +6684,6 @@ const clicmd_t cmdTable[] = {
 #endif
     CLI_COMMAND_DEF("profile", "change profile", "[<index>]", cliProfile),
     CLI_COMMAND_DEF("rateprofile", "change rate profile", "[<index>]", cliRateProfile),
-    CLI_COMMAND_DEF("setpoint_info", "show setpoint smoothing operational settings", NULL,cliSetpointInfo),
 #ifdef USE_RESOURCE_MGMT
     CLI_COMMAND_DEF("resource", "show/set resources", "<> | <resource name> <index> [<pin>|none] | show [all]", cliResource),
 #endif
@@ -6696,6 +6712,7 @@ const clicmd_t cmdTable[] = {
                     cliServo),
 #endif
     CLI_COMMAND_DEF("set", "change setting", "[<name>=<value>]", cliSet),
+    CLI_COMMAND_DEF("setpoint_info", "show setpoint smoothing operational settings", NULL,cliSetpointInfo),
 #if defined(USE_SIGNATURE)
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
 #endif
