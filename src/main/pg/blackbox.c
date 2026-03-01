@@ -57,7 +57,6 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_SERVO) |
               BIT(FLIGHT_LOG_FIELD_SELECT_VBEC) |
               BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
               BIT(FLIGHT_LOG_FIELD_SELECT_TEMP) |
               BIT(FLIGHT_LOG_FIELD_SELECT_GOV) |
               0,
