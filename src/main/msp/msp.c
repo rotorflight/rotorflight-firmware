@@ -825,7 +825,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_BATTERY_STATE:
         sbufWriteU8(dst, getBatteryState());
         sbufWriteU8(dst, getBatteryCellCount());
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity[batteryConfig()->batteryType]);  // mAh
+        sbufWriteU16(dst, getBatteryCapacity());  // mAh
         sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh
         sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
         sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
@@ -891,7 +891,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity[batteryConfig()->batteryType]); // Return the active battery capacity
+        sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
         sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
@@ -3842,7 +3842,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->batteryCapacity[0] = sbufReadU16(src);
+        batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryType] = sbufReadU16(src);
         batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
@@ -3860,7 +3860,14 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         break;
 
     case MSP_SET_BATTERY_TYPE:
-        changeBatteryType(sbufReadU8(src));
+        {
+            uint8_t batteryType = sbufReadU8(src);
+            if (batteryType < BATTERY_TYPE_MAX) {
+                changeBatteryType(batteryType);
+            } else {
+                return MSP_RESULT_ERROR;
+            }
+        }
         break;
 
 #if defined(USE_OSD)
@@ -4060,8 +4067,4 @@ void mspFcProcessReply(mspPacket_t *reply)
 void mspInit(void)
 {
     initActiveBoxIds();
-
-    if (batteryConfig()->batteryType >= BATTERY_TYPE_MAX) {
-        batteryConfigMutable()->batteryType = 0;
-    }
 }

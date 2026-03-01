@@ -1117,7 +1117,7 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
 
     const int usedCapacity = getBatteryCapacityUsed();
     int displayBasis = usedCapacity;
-    const uint16_t battery_capacity = batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
+    const uint16_t battery_capacity = getBatteryCapacity();
 
     switch (element->type) {
     case OSD_ELEMENT_TYPE_3:  // mAh remaining percentage (counts down as battery is used)

@@ -179,6 +179,11 @@ uint16_t getBatteryCurrentSample(void)
     return currentMeter.sample / 10;
 }
 
+uint16_t getBatteryCapacity(void)
+{
+    return batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
+}
+
 uint32_t getBatteryCapacityUsed(void)
 {
     return currentMeter.capacity;
@@ -210,7 +215,7 @@ const char * getBatteryStateString(void)
 uint8_t calculateBatteryPercentageRemaining(void)
 {
     int batteryPercentage = 0;
-    int batteryCapacity = batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
+    int batteryCapacity = getBatteryCapacity();
 
     if (batteryCapacity > 0) {
         batteryPercentage = 100 * (batteryCapacity - (int)currentMeter.capacity) / batteryCapacity;
@@ -224,19 +229,19 @@ uint8_t calculateBatteryPercentageRemaining(void)
 
 void changeBatteryType(uint8_t typeIndex)
 {
-    if (typeIndex < BATTERY_TYPE_MAX) {
+    if ((typeIndex > 0) && (typeIndex < BATTERY_TYPE_MAX + 1)) {
         batteryConfigMutable()->batteryType = typeIndex;
     }
 }
 
 int get_ADJUSTMENT_BATTERY_TYPE(void)
 {
-    return batteryConfig()->batteryType;
+    return batteryConfig()->batteryType + 1;
 }
 
 void set_ADJUSTMENT_BATTERY_TYPE(int value)
 {
-    changeBatteryType(value);
+    changeBatteryType(value - 1);
 }
 
 
@@ -388,7 +393,7 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && batteryConfig()->batteryCapacity[batteryConfig()->batteryType] > 0 && batteryCellCount > 0) {
+    if (batteryConfig()->useConsumptionAlerts && getBatteryCapacity() > 0 && batteryCellCount > 0) {
         uint8_t batteryPercentageRemaining = calculateBatteryPercentageRemaining();
 
         if (batteryPercentageRemaining == 0) {
@@ -494,6 +499,10 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 
 void batteryInit(void)
 {
+    if (batteryConfig()->batteryType >= BATTERY_TYPE_MAX) {
+        batteryConfigMutable()->batteryType = 0;
+    }
+
     voltageMeterReset(&voltageMeter);
     currentMeterReset(&currentMeter);
 
