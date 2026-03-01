@@ -235,7 +235,7 @@ static FAST_DATA_ZERO_INIT govData_t gov;
 //// Prototypes
 
 static void govInitTTA(const pidProfile_t *pidProfile);
-static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle);
+static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle, float maxRate);
 
 
 //// Access functions
@@ -718,7 +718,7 @@ static void govUpdateDirectThrottle(void)
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
         case GOV_STATE_BYPASS:
-            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle);
+            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle, gov.throttleRecoveryRate);
             break;
         default:
             break;
@@ -1009,7 +1009,7 @@ static void govRecoveryInit(void)
     }
 }
 
-static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle)
+static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle, float maxRate)
 {
     if (gov.throttleInputOff) {
         gov.targetHeadSpeed = 0;
@@ -1022,7 +1022,7 @@ static void govThrottleBypass(const float *throttleCurve, float minThrottle, flo
 
         if (!gov.bypassActive) {
             // Limit change speed
-            gov.throttleOutput = gov.throttleSlew = slewLimit(gov.throttleSlew, throttle, gov.throttleTrackingRate);
+            gov.throttleOutput = gov.throttleSlew = slewLimit(gov.throttleSlew, throttle, maxRate);
 
             // Bypass level reached
             if (gov.throttleOutput == throttle)
@@ -1066,7 +1066,7 @@ static void govUpdateGovernedThrottle(void)
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
         case GOV_STATE_BYPASS:
-            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle);
+            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle, gov.throttleRecoveryRate);
             break;
         default:
             break;
