@@ -17,26 +17,12 @@
 
 #pragma once
 
-#include "common/utils.h"
-#include "pg/pg.h"
-#include "pg/bus_servo.h"
+#include <stdbool.h>
+#include <stdint.h>
 
-#define FBUS_MASTER_CHANNELS 16
+bool isHandsOn(void);
+bool isAirborne(void);
 
-#define FBUS_MIN 192
-#define FBUS_MAX 1792
+void airborneInit(void);
+void airborneUpdate(const float rc[4]);
 
-// Backward compatibility aliases
-typedef busServoSourceType_e fbusMasterSourceType_e;
-
-typedef struct fbusMasterConfig_s {
-    uint16_t frameRate;
-    uint8_t pinSwap;
-
-    // When ON, the UART output is electrically inverted (F.Bus signal uses
-    // inverted logic). When OFF, the output is non-inverted.
-    uint8_t inverted;
-
-} fbusMasterConfig_t;
-
-PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);

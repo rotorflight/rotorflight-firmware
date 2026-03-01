@@ -17,26 +17,10 @@
 
 #pragma once
 
-#include "common/utils.h"
-#include "pg/pg.h"
-#include "pg/bus_servo.h"
+#include "drivers/bus.h"
+#include "drivers/accgyro/accgyro.h"
 
-#define FBUS_MASTER_CHANNELS 16
-
-#define FBUS_MIN 192
-#define FBUS_MAX 1792
-
-// Backward compatibility aliases
-typedef busServoSourceType_e fbusMasterSourceType_e;
-
-typedef struct fbusMasterConfig_s {
-    uint16_t frameRate;
-    uint8_t pinSwap;
-
-    // When ON, the UART output is electrically inverted (F.Bus signal uses
-    // inverted logic). When OFF, the output is non-inverted.
-    uint8_t inverted;
-
-} fbusMasterConfig_t;
-
-PG_DECLARE(fbusMasterConfig_t, fbusMasterConfig);
+uint8_t bmi323Detect(const extDevice_t *dev);
+bool bmi323SpiAccDetect(accDev_t *acc);
+bool bmi323SpiGyroDetect(gyroDev_t *gyro);
+uint8_t bmi323InterruptStatus(gyroDev_t *gyro);

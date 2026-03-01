@@ -108,6 +108,7 @@
 #include "pg/freq.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
+#include "pg/bus_servo.h"
 
 #include "rx/a7105_flysky.h"
 #include "rx/cc2500_frsky_common.h"
@@ -138,14 +139,14 @@
 const char * const lookupTableAccHardware[] = {
     "AUTO", "NONE", "ADXL345", "MPU6050", "MMA8452", "BMA280", "LSM303DLHC",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6DSO", "BMI088", "FAKE"
+    "BMI160", "BMI270", "LSM6DSO", "BMI088", "BMI323", "FAKE"
 };
 
 // sync with gyroHardware_e
 const char * const lookupTableGyroHardware[] = {
     "AUTO", "NONE", "MPU6050", "L3G4200D", "MPU3050", "L3GD20",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6SDO", "BMI088", "FAKE"
+    "BMI160", "BMI270", "LSM6SDO", "BMI088", "BMI323", "FAKE"
 };
 
 #if defined(USE_SENSOR_NAMES) || defined(USE_BARO)
@@ -644,9 +645,8 @@ const clivalue_t valueTable[] = {
     { "gyro_rate_sync",                 VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_rate_sync) },
     { "gyro_calib_duration",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 50,  3000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroCalibrationDuration) },
     { "gyro_calib_noise_limit",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0,  200 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroMovementCalibrationThreshold) },
-    { "gyro_offset_yaw",                VAR_INT16  | MASTER_VALUE, .config.minmax = { -1000, 1000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_offset_yaw) },
 
-    { PARAM_NAME_GYRO_DECIMATION_HZ,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 100, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_decimation_hz) },
+    { PARAM_NAME_GYRO_DECIMATION_HZ,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_decimation_hz) },
 
     { PARAM_NAME_GYRO_LPF1_TYPE,        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_lpf1_type) },
     { PARAM_NAME_GYRO_LPF1_STATIC_HZ,   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_lpf1_static_hz) },
@@ -1737,21 +1737,17 @@ const clivalue_t valueTable[] = {
     { "box_user_4_name", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, MAX_BOX_USER_NAME_LENGTH, STRING_FLAGS_NONE }, PG_MODE_ACTIVATION_CONFIG, offsetof(modeActivationConfig_t, box_user_4_name) },
 #endif
 
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    { "bus_servo_source_type",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BUS_SERVO_CHANNELS, PG_BUS_SERVO_CONFIG, offsetof(busServoConfig_t, sourceType) },
+#endif
+
 #ifdef USE_SBUS_OUTPUT
-    { "sbus_out_source_type",       VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceType) },
-    { "sbus_out_source_index",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceIndex) },
-    { "sbus_out_source_range_low",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeLow) },
-    { "sbus_out_source_range_high", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SBUS_OUT_CHANNELS, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, sourceRangeHigh) },
     { "sbus_out_frame_rate",        VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = {25, 250}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, frameRate) },
     { "sbus_out_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, pinSwap) },
     { "sbus_out_inverted",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SBUS_OUT_CONFIG, offsetof(sbusOutConfig_t, inverted) },
 #endif
 
 #ifdef USE_FBUS_MASTER
-    { "fbus_master_source_type",       VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceType) },
-    { "fbus_master_source_index",      VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceIndex) },
-    { "fbus_master_source_range_high", VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceRangeHigh) },
-    { "fbus_master_source_range_low",  VAR_INT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_CHANNELS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sourceRangeLow) },
     { "fbus_master_frame_rate",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {25, 550}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, frameRate) },
     { "fbus_master_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, pinSwap) },
     { "fbus_master_inverted",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, inverted) },

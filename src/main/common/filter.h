@@ -141,6 +141,12 @@ typedef struct {
     float a2;
 } biquadFilter_t;
 
+typedef struct {
+    float y1;
+    float alpha;
+    float beta;
+} peakFilter_t;
+
 typedef union {
     nilFilter_t     nil;
     pt1Filter_t     pt1;
@@ -207,6 +213,7 @@ void pt1FilterInitGain(pt1Filter_t *filter, float gain);
 void pt1FilterUpdateGain(pt1Filter_t *filter, float gain);
 float pt1FilterGain(float cutoff, float sampleRate);
 float pt1FilterApply(pt1Filter_t *filter, float input);
+static inline float pt1FilterOutput(pt1Filter_t *filter) { return filter->y1; }
 
 void pt2FilterInit(pt2Filter_t *filter, float cutoff, float sampleRate);
 void pt2FilterUpdate(pt2Filter_t *filter, float cutoff, float sampleRate);
@@ -214,6 +221,7 @@ void pt2FilterInitGain(pt2Filter_t *filter, float gain);
 void pt2FilterUpdateGain(pt2Filter_t *filter, float gain);
 float pt2FilterGain(float cutoff, float sampleRate);
 float pt2FilterApply(pt2Filter_t *filter, float input);
+static inline float pt2FilterOutput(pt2Filter_t *filter) { return filter->y1; }
 
 void pt3FilterInit(pt3Filter_t *filter, float cutoff, float sampleRate);
 void pt3FilterUpdate(pt3Filter_t *filter, float cutoff, float sampleRate);
@@ -221,6 +229,7 @@ void pt3FilterInitGain(pt3Filter_t *filter, float gain);
 void pt3FilterUpdateGain(pt3Filter_t *filter, float gain);
 float pt3FilterGain(float cutoff, float sampleRate);
 float pt3FilterApply(pt3Filter_t *filter, float input);
+static inline float pt3FilterOutput(pt3Filter_t *filter) { return filter->y1; }
 
 void ewma1FilterInit(ewma1Filter_t *filter, float cutoff, float sampleRate);
 void ewma1FilterUpdate(ewma1Filter_t *filter, float cutoff, float sampleRate);
@@ -228,6 +237,7 @@ void ewma1FilterInitWeight(ewma1Filter_t *filter, float weight);
 void ewma1FilterUpdateWeight(ewma1Filter_t *filter, float weight);
 float ewma1FilterWeight(float cutoff, float sampleRate);
 float ewma1FilterApply(ewma1Filter_t *filter, float input);
+static inline float ewma1FilterOutput(ewma1Filter_t *filter) { return filter->y1; }
 
 void ewma2FilterInit(ewma2Filter_t *filter, float cutoff, float sampleRate);
 void ewma2FilterUpdate(ewma2Filter_t *filter, float cutoff, float sampleRate);
@@ -235,6 +245,7 @@ void ewma2FilterInitWeight(ewma2Filter_t *filter, float weight);
 void ewma2FilterUpdateWeight(ewma2Filter_t *filter, float weight);
 float ewma2FilterWeight(float cutoff, float sampleRate);
 float ewma2FilterApply(ewma2Filter_t *filter, float input);
+static inline float ewma2FilterOutput(ewma2Filter_t *filter) { return filter->y1; }
 
 void ewma3FilterInit(ewma3Filter_t *filter, float cutoff, float sampleRate);
 void ewma3FilterUpdate(ewma3Filter_t *filter, float cutoff, float sampleRate);
@@ -242,15 +253,18 @@ void ewma3FilterInitWeight(ewma3Filter_t *filter, float weight);
 void ewma3FilterUpdateWeight(ewma3Filter_t *filter, float weight);
 float ewma3FilterWeight(float cutoff, float sampleRate);
 float ewma3FilterApply(ewma3Filter_t *filter, float input);
+static inline float ewma3FilterOutput(ewma3Filter_t *filter) { return filter->y1; }
 
 void difFilterInit(difFilter_t *filter, float cutoff, float sampleRate);
 void difFilterUpdate(difFilter_t *filter, float cutoff, float sampleRate);
 float difFilterApply(difFilter_t *filter, float input);
+static inline float difFilterOutput(difFilter_t *filter) { return filter->y1; }
 
 void intFilterInit(intFilter_t *filter, float sampleRate, float min, float max);
 void intFilterReset(intFilter_t *filter);
 void intFilterUpdate(intFilter_t *filter, float sampleRate, float min, float max);
 float intFilterApply(intFilter_t *filter, float input);
+static inline float intFilterOutput(intFilter_t *filter) { return filter->y1; }
 
 void biquadBesselInit(biquadFilter_t *filter, float cutoff, float sampleRate);
 void biquadBesselUpdate(biquadFilter_t *filter, float cutoff, float sampleRate);
@@ -268,11 +282,14 @@ float biquadFilterApply(biquadFilter_t *filter, float input);
 float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
 float biquadFilterApplyDF2(biquadFilter_t *filter, float input);
 
+static inline float biquadFilterOutput(biquadFilter_t *filter) { return filter->y1; }
+
 void firstOrderLPFInit(order1Filter_t *filter, float cutoff, float sampleRate);
 void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate);
 void firstOrderHPFInit(order1Filter_t *filter, float cutoff, float sampleRate);
 void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate);
 float firstOrderFilterApply(order1Filter_t *filter, float input);
+static inline float firstOrderFilterOutput(order1Filter_t *filter) { return filter->y1; }
 
 float filterStackApply(biquadFilter_t *filter, float input, int count);
 
@@ -282,6 +299,9 @@ void notchFilterInit(filter_t *filter, float cutoff, float Q, float sampleRate, 
 void notchFilterUpdate(filter_t *filter, float cutoff, float Q, float sampleRate);
 float notchFilterGetQ(float centerFreq, float cutoffFreq);
 
+void peakFilterInit(peakFilter_t *filter, float cutoff_up, float cutoff_down, float sampleRate);
+float peakFilterApply(peakFilter_t *filter, float input);
+static inline float peakFilterOutput(peakFilter_t *filter) { return filter->y1; }
 
 typedef struct simpleLowpassFilter_s {
     int32_t fp;
