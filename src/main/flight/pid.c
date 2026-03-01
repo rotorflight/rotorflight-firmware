@@ -1092,7 +1092,7 @@ static void pidApplyOffsetFloodMode3(void)
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
 
-        // 1. determin sign of offsetDelta
+        // 1. Determine sign of offsetDelta
         // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
         // && collective<0
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
