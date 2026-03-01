@@ -96,7 +96,7 @@ typedef struct {
     // Headspeed PID spoolup active
     bool            pidSpoolupActive;
 
-    // Bypass athrottle level reached
+    // Bypass throttle level reached
     bool            bypassActive;
 
     // Output throttle
