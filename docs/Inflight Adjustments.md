@@ -191,7 +191,7 @@ The adjustment is made when the adjustment channel is in the high or low positio
 ### Example 1 - 3 Position switch used to adjust Pitch RC Rate
 
 ```
-adjrange 0 0 3 900 2100 4 3 0 0
+adjrange 0 0 3 900 2100 8 3 0 0
 ```
 
 explained:
@@ -206,7 +206,7 @@ is in the appropriate position.
 
 ```
 adjrange 1 0 0 900 1700 0 2 0 0
-adjrange 2 0 0 1700 2100 1 2 0 0
+adjrange 2 0 0 1700 2100 8 2 0 0
 ```
 explained:
 
@@ -225,12 +225,12 @@ range.
 ### Example 3 - 6 Position switch used to select PID tuning adjustments via a 3 position switch
 
 ```
-adjrange 3 0 1 900 1150 6 3 0 0
-adjrange 4 0 1 1150 1300 7 3 0 0
-adjrange 5 0 1 1300 1500 8 3 0 0
-adjrange 6 0 1 1500 1700 9 3 0 0
-adjrange 7 0 1 1700 1850 10 3 0 0
-adjrange 8 0 1 1850 2100 11 3 0 0
+adjrange 3 0 1 900 1150 14 3 0 0
+adjrange 4 0 1 1150 1300 15 3 0 0
+adjrange 5 0 1 1300 1500 16 3 0 0
+adjrange 6 0 1 1500 1700 22 3 0 0
+adjrange 7 0 1 1700 1850 23 3 0 0
+adjrange 8 0 1 1850 2100 24 3 0 0
 ```
 
 explained:
@@ -258,7 +258,7 @@ explained:
 ### Example 4 - Use a single 3 position switch to change between 3 different rate profiles
 
 ```
-adjrange 11 0 3 900 2100 12 3 0 0
+adjrange 11 0 3 900 2100 1 3 0 0
 ```
 
 explained:
@@ -276,7 +276,7 @@ When the switch is high, rate profile 2 is selected.
 
 ```
 adjrange 0 0 4 1450 1550 18 0 40 10
-adjrange 1 0 4 1450 1550 15 1 58 20
+adjrange 1 0 4 1450 1550 14 1 58 20
 ```
 
 explained:
@@ -291,9 +291,9 @@ explained:
 adjrange 0 0 4 950 1050 18 0 40 20
 adjrange 1 0 4 950 1050 19 1 107 53
 adjrange 2 0 4 950 1050 20 2 76 38
-adjrange 3 0 4 1950 2050 15 0 63 16
-adjrange 4 0 4 1950 2050 16 1 138 69
-adjrange 5 0 4 1950 2050 17 2 66 33
+adjrange 3 0 4 1950 2050 14 0 63 16
+adjrange 4 0 4 1950 2050 15 1 138 69
+adjrange 5 0 4 1950 2050 16 2 66 33
 ```
 explained:
 
