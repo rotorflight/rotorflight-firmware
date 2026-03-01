@@ -119,9 +119,13 @@ static void gyroInitLowpassFilter(filter_t *lowpassFilter, int type, float cutof
 
 static void gyroInitDecimationFilter(float cutoff, float sampleRate)
 {
-    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-        biquadFilterInit(&gyro.decimator[axis][0], BESSEL_4A_C * cutoff, sampleRate, BESSEL_4A_Q, BIQUAD_LPF);
-        biquadFilterInit(&gyro.decimator[axis][1], BESSEL_4B_C * cutoff, sampleRate, BESSEL_4B_Q, BIQUAD_LPF);
+    gyro.useDecimation = (cutoff > 0);
+
+    if (gyro.useDecimation) {
+        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            biquadFilterInit(&gyro.decimator[axis][0], BESSEL_4A_C * cutoff, sampleRate, BESSEL_4A_Q, BIQUAD_LPF);
+            biquadFilterInit(&gyro.decimator[axis][1], BESSEL_4B_C * cutoff, sampleRate, BESSEL_4B_Q, BIQUAD_LPF);
+        }
     }
 }
 
