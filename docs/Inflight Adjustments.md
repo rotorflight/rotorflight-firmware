@@ -282,8 +282,8 @@ adjrange 1 0 4 1450 1550 14 1 58 20
 explained:
 
 * note that Center value is non-zero, so this range will use absolute mode.
-* configure adjrange 0 so that when aux5 (3) in the range 1450-1550 then use aux 1 (0) to adjust Roll P Adjustment (18) such that the value will be 40 with the pot centered and 30/50 at min/max.
-* configure adjrange 1 so that when aux5 (3) in the range 1450-1550 then use aux 2 (0) to adjust Pitch P Adjustment (14) such that the value will be 58 with the pot centered and 38/78 at min/max.
+* configure adjrange 0 so that when aux5 (4) in the range 1450-1550 then use aux 1 (0) to adjust Roll P Adjustment (18) such that the value will be 40 with the pot centered and 30/50 at min/max.
+* configure adjrange 1 so that when aux5 (4) in the range 1450-1550 then use aux 2 (1) to adjust Pitch P Adjustment (14) such that the value will be 58 with the pot centered and 38/78 at min/max.
 
 ### Example 6 - Use a single switch to enable absolute setting of Roll/Pitch P/I/D terms from three pots, selected using a single switch
 
