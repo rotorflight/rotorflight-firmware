@@ -120,7 +120,6 @@ Added a call to deliver the function id in use per slot (#398)
 
 ### MSP_BATTERY_STATE
 
-The `batteryCapacity` field is added to the end of the payload. (#315)
 The `batteryProfile` field is added to the end of the payload. (#315)
 
 ### MSP_BATTERY_CONFIG
