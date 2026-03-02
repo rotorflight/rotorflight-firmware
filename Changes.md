@@ -184,6 +184,8 @@ the actual values are calculated automatically (#332).
 
 `gyro_offset_yaw` is removed (#391).
 
+`pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
+
 
 ## Defaults
 

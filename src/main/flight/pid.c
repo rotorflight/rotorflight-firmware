@@ -561,19 +561,27 @@ static void INIT_CODE pidSetLooptime(uint32_t pidLooptime)
 
 static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
 {
-    // PID Derivative Filters
+    // PID Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
+        lowpassFilterInit(&pid.gyrorFilter[i], LPF_1ST_ORDER, pidProfile->gyro_cutoff[i], pid.freq, LPF_UPDATE);
         difFilterInit(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
         difFilterInit(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
+        pt1FilterInit(&pid.relaxFilter[i], 1, pid.freq);
     }
 
     // RPM change filter
     lowpassFilterInit(&pid.precomp.headspeedFilter, LPF_PT2, 20, pid.freq, 0);
     difFilterInit(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
 
+    // Collective/cyclic deflection lowpass filters
+    lowpassFilterInit(&pid.precomp.yawPrecompFilter, LPF_1ST_ORDER, 10, pid.freq, LPF_UPDATE);
+
     // Cross-coupling filters
     firstOrderHPFInit(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
     firstOrderHPFInit(&pid.crossCouplingFilter[FD_ROLL], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
+
+    // Offset flood filter
+    pt1FilterInit(&pid.offsetFloodRelaxFilter, 1, pid.freq);
 }
 
 void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
@@ -653,7 +661,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 
     // Filters
     for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
-        lowpassFilterInit(&pid.gyrorFilter[i], pidProfile->gyro_filter_type, pidProfile->gyro_cutoff[i], pid.freq, 0);
+        filterUpdate(&pid.gyrorFilter[i], pidProfile->gyro_cutoff[i], pid.freq);
         difFilterUpdate(&pid.dtermFilter[i], pidProfile->dterm_cutoff[i], pid.freq);
         difFilterUpdate(&pid.btermFilter[i], pidProfile->bterm_cutoff[i], pid.freq);
     }
@@ -663,7 +671,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     if (pid.itermRelaxType) {
         for (int i = 0; i < XYZ_AXIS_COUNT; i++) {
             uint8_t freq = constrain(pidProfile->iterm_relax_cutoff[i], 1, 100);
-            pt1FilterInit(&pid.relaxFilter[i], freq, pid.freq);
+            pt1FilterUpdate(&pid.relaxFilter[i], freq, pid.freq);
             pid.itermRelaxLevel[i] = constrain(pidProfile->iterm_relax_level[i], 10, 250);
         }
     }
@@ -673,10 +681,9 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
 
     // Collective/cyclic deflection lowpass filters
-    lowpassFilterInit(&pid.precomp.yawPrecompFilter,
-      pidProfile->yaw_precomp_filter_type,
+    filterUpdate(&pid.precomp.yawPrecompFilter,
       pidProfile->yaw_precomp_cutoff * (pid.pidMode == 4 ? 0.1f : 1.0f),
-      pid.freq, 0);
+      pid.freq);
 
     // RPM change filter
     difFilterUpdate(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
@@ -700,7 +707,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Offset flood
     pid.offsetFloodRelaxLevel = 1.0f / constrain(pidProfile->offset_flood_relax_level, 10, 250);
     const uint8_t offset_flood_relax_freq = constrain(pidProfile->offset_flood_relax_cutoff, 1, 100);
-    pt1FilterInit(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
+    pt1FilterUpdate(&pid.offsetFloodRelaxFilter, offset_flood_relax_freq, pid.freq);
 
     // Initialise sub-profiles
     governorInitProfile(pidProfile);
