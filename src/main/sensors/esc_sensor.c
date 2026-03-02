@@ -337,6 +337,8 @@ static void updateConsumption(timeUs_t currentTimeUs)
 static uint32_t fwif_eepromAddr = 0;
 static bool am32paramCached[MAX_SUPPORTED_MOTORS] = {false};
 static bool am32paramWritten[MAX_SUPPORTED_MOTORS] = {false};
+static uint8_t am32ParamBuffers[MAX_SUPPORTED_MOTORS][AM32_NUM_EEPROM_BYTES];
+static uint8_t paramBufferEscID = 0xFF;  // Track which ESC's data is in paramBuffer
 static bool am32WritePending = false;
 static bool am32WriteTaskEnabledByUs = false;
 static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
@@ -390,7 +392,10 @@ static bool fourwayIfFetchData(uint8_t escID)
     }
 
     if (am32paramCached[escID]) {
+        // Copy cached data to shared buffer
+        memcpy(paramPayload, am32ParamBuffers[escID], AM32_NUM_EEPROM_BYTES);
         paramPayloadLength = AM32_NUM_EEPROM_BYTES;
+        paramBufferEscID = escID;
         return true; // params fetched already, so just return the data
     }
 
@@ -429,9 +434,13 @@ static bool fourwayIfFetchData(uint8_t escID)
                     if (status) { /* return upon success */
                         retVal = true;
                         escSig = ESC_SIG_AM32;
+                        
+                        // Cache data for this ESC
+                        memcpy(am32ParamBuffers[escID], paramPayload, AM32_NUM_EEPROM_BYTES);
                         am32paramCached[escID] = true;
                         am32paramWritten[escID] = false;
                         paramPayloadLength = AM32_NUM_EEPROM_BYTES;
+                        paramBufferEscID = escID;
                         /* remember the eeprom addr for future writes */
                         fwif_eepromAddr = matchedEepromAddr;
                     }
@@ -4113,7 +4122,7 @@ uint8_t *escGetParamUpdBuffer()
     return paramUpdBuffer;
 }
 
-bool escCommitParameters()
+bool escCommitParameters(void)
 {
     if(escID < MAX_SUPPORTED_MOTORS) {
         // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
@@ -4121,6 +4130,8 @@ bool escCommitParameters()
         if (ARMING_FLAG(ARMED)) {
             return false;
         }
+        // invalidate cache to check next what was actually written
+        am32paramCached[escID] = false;
         scheduleAm32Write(escID);
         return true;
     }
