@@ -188,7 +188,7 @@ The adjustment is made when the adjustment channel is in the high or low positio
 
 ## Examples
 
-### Example 1 - 3 Position switch used to adjust Pitch RC Rate
+### Example 1 - 3-position switch used to adjust Pitch RC Rate
 
 ```shell
 adjrange 0 0 3 900 2100 8 3 0 0
@@ -202,7 +202,7 @@ is in the appropriate position.
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
 
-### Example 2 - 2 Position switch used to enable adjustment of Pitch RC Rate via a 3 position switch
+### Example 2 - 2-position switch used to enable adjustment of Pitch RC Rate via a 3-position switch
 
 ```shell
 adjrange 1 0 0 900 1700 0 2 0 0
@@ -222,7 +222,7 @@ Without the entire range of aux1 being defined there is nothing that
 would stop aux 3 adjusting the Pitch RC Rate once aux 1 wasn't in the higher
 range.
 
-### Example 3 - 6 Position switch used to select PID tuning adjustments via a 3 position switch
+### Example 3 - 6-position switch used to select PID tuning adjustments via a 3-position switch
 
 ```shell
 adjrange 3 0 1 900 1150 14 3 0 0
@@ -255,7 +255,7 @@ explained:
 (3) is in the appropriate position.
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
-### Example 4 - Use a single 3 position switch to change between 3 different rate profiles
+### Example 4 - Use a single 3-position switch to change between 3 different rate profiles
 
 ```shell
 adjrange 11 0 3 900 2100 1 3 0 0
