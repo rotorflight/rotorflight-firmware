@@ -830,8 +830,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
         sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
         sbufWriteU8(dst, calculateBatteryPercentageRemaining());                    // %
-        for (int i = 0; i < BATTERY_PROFILE_MAX; i++)
-            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]);  // mAh for the 6 battery profiles
         sbufWriteU8(dst, batteryConfig()->batteryProfile); // The battery profile
         break;
 
