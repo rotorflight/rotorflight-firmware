@@ -139,6 +139,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(RATE_PROFILE,                 1, 6),
     ADJ_ENTRY(PID_PROFILE,                  1, 6),
     ADJ_ENTRY(LED_PROFILE,                  1, 4),
+#ifdef USE_OSD_PROFILES
+    ADJ_ENTRY(OSD_PROFILE,                  1, 3),
+#endif
 
     ADJ_ENTRY(PITCH_SRATE,                  0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
     ADJ_ENTRY(ROLL_SRATE,                   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX),
@@ -261,7 +264,7 @@ static void updateAdjustmentData(int adjFunc, int value)
         adjFunc != ADJUSTMENT_PID_PROFILE &&
         adjFunc != ADJUSTMENT_RATE_PROFILE &&
         adjFunc != ADJUSTMENT_LED_PROFILE &&
-        adjFunc != ADJUSTMENT_BATTERY_PROFILE)
+        adjFunc != ADJUSTMENT_OSD_PROFILE)
     {
         adjustmentTime   = now;
         adjustmentName   = adjustmentConfigs[adjFunc].cfgName;
@@ -285,9 +288,18 @@ void processRcAdjustments(void)
             const adjustmentRange_t * adjRange = adjustmentRanges(index);
             const uint8_t adjFunc = adjRange->function;
 
+            // Entry is out of range
+            if (adjFunc >= ADJUSTMENT_FUNCTION_COUNT)
+                continue;
+
+            const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
+
+            // Entry is uninitialised
+            if (adjConfig->cfgName == NULL)
+                continue;
+
             if (adjRange->enaChannel == 0xff || isRangeActive(adjRange->enaChannel, &adjRange->enaRange))
             {
-                const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
                 adjustmentState_t * adjState = &adjustmentState[index];
                 const timeMs_t now = millis();
 
@@ -391,11 +403,17 @@ INIT_CODE void adjustmentRangeInit(void)
 
 INIT_CODE void adjustmentRangeReset(int index)
 {
-    const int adjFunc = adjustmentRanges(index)->function;
-    const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
-
-    adjustmentState[index].adjValue = adjConfig->cfgGet();
+    adjustmentState[index].adjValue = 0;
     adjustmentState[index].deadTime = 0;
     adjustmentState[index].trigTime = 0;
     adjustmentState[index].chValue  = 0;
+
+    const uint8_t adjFunc = adjustmentRanges(index)->function;
+
+    if (adjFunc < ADJUSTMENT_FUNCTION_COUNT) {
+        const adjustmentConfig_t * adjConfig = &adjustmentConfigs[adjFunc];
+
+        if (adjConfig->cfgGet)
+            adjustmentState[index].adjValue = adjConfig->cfgGet();
+    }
 }

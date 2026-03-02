@@ -296,6 +296,16 @@ void changeOsdProfileIndex(uint8_t profileIndex)
         osdAnalyzeActiveElements();
     }
 }
+
+int get_ADJUSTMENT_OSD_PROFILE(void)
+{
+    return getCurrentOsdProfileIndex();
+}
+
+void set_ADJUSTMENT_OSD_PROFILE(int value)
+{
+    changeOsdProfileIndex(value);
+}
 #endif
 
 void osdAnalyzeActiveElements(void)

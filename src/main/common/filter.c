@@ -15,9 +15,7 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
 #include <stdint.h>
-#include <string.h>
 #include <math.h>
 
 #include "platform.h"
@@ -50,9 +48,10 @@ void nilFilterUpdate(nilFilter_t *filter, float cutoff, float sampleRate)
 
 void nilFilterInit(nilFilter_t *filter, float cutoff, float sampleRate)
 {
-    UNUSED(filter);
     UNUSED(cutoff);
     UNUSED(sampleRate);
+
+    filter->y1 = 0;
 }
 
 
@@ -518,7 +517,13 @@ void biquadFilterInit(biquadFilter_t *filter, float cutoff, float sampleRate, fl
     filter->x1 = filter->x2 = 0;
     filter->y1 = filter->y2 = 0;
 
-    biquadFilterUpdate(filter, cutoff, sampleRate, Q, filterType);
+    filter->b1 = filter->b2 = 0;
+    filter->a1 = filter->a2 = 0;
+
+    filter->b0 = 1.0f;
+
+    if (filterType)
+        biquadFilterUpdate(filter, cutoff, sampleRate, Q, filterType);
 }
 
 FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType)
@@ -834,6 +839,24 @@ void notchFilterUpdate(filter_t *filter, float cutoff, float Q, float sampleRate
 float notchFilterGetQ(float centerFreq, float cutoffFreq)
 {
     return centerFreq * cutoffFreq / (centerFreq * centerFreq - cutoffFreq * cutoffFreq);
+}
+
+
+// Peak filter (not LTI but used often)
+
+void peakFilterInit(peakFilter_t *filter, float cutoff_up, float cutoff_down, float sampleRate)
+{
+    filter->y1 = 0;
+
+    filter->alpha = pt1FilterGain(cutoff_up, sampleRate);
+    filter->beta = pt1FilterGain(cutoff_down, sampleRate);
+}
+
+FAST_CODE float peakFilterApply(peakFilter_t *filter, float input)
+{
+    const float delta = input - filter->y1;
+    filter->y1 += (delta > 0) ? delta * filter->alpha : delta * filter->beta;
+    return filter->y1;
 }
 
 

@@ -610,9 +610,13 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 
     // Adjust for PID Mode4
     if (pid.pidMode == 4) {
-      pid.coef[PID_PITCH].Kb *= 10;
-      pid.coef[PID_ROLL].Kd /= 5;
-      pid.coef[PID_ROLL].Kb /= 5;
+        pid.coef[PID_ROLL].Ki = pid.coef[PID_PITCH].Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
+        pid.coef[PID_ROLL].Ko = pid.coef[PID_PITCH].Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
+        pid.coef[PID_ROLL].Kf = pid.coef[PID_PITCH].Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
+
+        pid.coef[PID_PITCH].Kb *= 10;
+        pid.coef[PID_ROLL].Kd /= 5;
+        pid.coef[PID_ROLL].Kb /= 5;
     }
 
     // Bleed conversion for pitch
@@ -1088,7 +1092,7 @@ static void pidApplyOffsetFloodMode3(void)
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
 
-        // 1. determin sign of offsetDelta
+        // 1. Determine sign of offsetDelta
         // offsetDelta is positive if bleedRate>0 && collective>0 || bleedRate<0
         // && collective<0
         offsetDelta = copysignf(offsetDelta, bleedRate * collective);
@@ -1202,7 +1206,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 1, itermErrorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 2, offMod * 1000);
-    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1000000);
+    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1e6f);
     DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 6, pid.data[axis].O * 1000);
@@ -1423,7 +1427,7 @@ static void pidApplyOffsetFloodMode4(void)
 
         // 0. calculate bleed rate
         float bleedRate = pidTableLookup(curve, offset_flood_curve, PID_LOOKUP_CURVE_POINTS) * 0.08f;
-        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor;
+        bleedRate = copysignf(bleedRate, axisError) * offsetFloodRelaxFactor * pid.coef[axis].Ko;
 
         // 1. offsetDelta = value to be added to axisOffset
         float offsetDelta = bleedRate * pid.dT;
@@ -1467,11 +1471,6 @@ static void pidApplyCyclicMode4(uint8_t axis)
     // Calculate error rate
     const float errorRate = setpoint - gyroRate;
 
-    // Gains must be equal for both axis
-    const float Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
-    const float Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
-    const float Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
-
 
   //// P-term
 
@@ -1497,10 +1496,10 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * Ki;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki;
 
     // Calculate I-component (axisError and I are the same in Mode 4)
-    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * Ki);
+    pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
     pid.data[axis].I = pid.data[axis].axisError;
 
     // Get actual collective from the mixer
@@ -1523,13 +1522,13 @@ static void pidApplyCyclicMode4(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit * Ki);
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit * pid.coef[axis].Ki);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, errorDecayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, errorDecayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 10000);
     DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 1000);
 
 
@@ -1540,18 +1539,18 @@ static void pidApplyCyclicMode4(uint8_t axis)
 
     // Offset change modulated by collective
     const float offMod = copysignf(pidTableLookup(curve, offset_charge_curve, PID_LOOKUP_CURVE_POINTS), collective) / 100.0f;
-    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * Ko;
+    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko;
 
     // Calculate Offset component
-    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * Ko);
+    pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * pid.coef[axis].Ko);
     pid.data[axis].O = pid.data[axis].axisOffset * collective;
 
     DEBUG_AXIS(HS_OFFSET, axis, 0, errorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 1, itermErrorRate * 10);
     DEBUG_AXIS(HS_OFFSET, axis, 2, offMod * 1000);
-    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1000000);
-    DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 10);
-    DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 10);
+    DEBUG_AXIS(HS_OFFSET, axis, 3, offDelta * 1e8f);
+    DEBUG_AXIS(HS_OFFSET, axis, 4, pid.data[axis].axisError * 1000);
+    DEBUG_AXIS(HS_OFFSET, axis, 5, pid.data[axis].axisOffset * 1000);
     DEBUG_AXIS(HS_OFFSET, axis, 6, pid.data[axis].O * 1000);
     DEBUG_AXIS(HS_OFFSET, axis, 7, pid.data[axis].I * 1000);
 
@@ -1567,20 +1566,20 @@ static void pidApplyCyclicMode4(uint8_t axis)
       offsetDecayLimit = 3600;
     }
 
-    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit * Ko);
+    const float offsetDecay = limitf(pid.data[axis].axisOffset * offsetDecayRate, offsetDecayLimit * pid.coef[axis].Ko);
 
     pid.data[axis].axisOffset -= offsetDecay * pid.dT;
 
     DEBUG_AXIS(ERROR_DECAY, axis, 4, offsetDecayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 5, offsetDecayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 10);
+    DEBUG_AXIS(ERROR_DECAY, axis, 6, offsetDecay * 10000);
+    DEBUG_AXIS(ERROR_DECAY, axis, 7, pid.data[axis].axisOffset * 1000);
 
 
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = Kf * setpoint;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
 
 
   //// Feedforward Boost (FF Derivative)
@@ -1665,8 +1664,8 @@ static void pidApplyYawMode4(void)
 
     DEBUG_AXIS(ERROR_DECAY, axis, 0, decayRate * 100);
     DEBUG_AXIS(ERROR_DECAY, axis, 1, decayLimit);
-    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 100);
-    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 10);
+    DEBUG_AXIS(ERROR_DECAY, axis, 2, errorDecay * 10000);
+    DEBUG_AXIS(ERROR_DECAY, axis, 3, pid.data[axis].axisError * 1000);
 
 
   //// Feedforward
