@@ -6532,19 +6532,19 @@ typedef struct {
 }
 #endif
 
-static void cliBatteryType(const char *cmdName, char *cmdline)
+static void cliBatteryProfile(const char *cmdName, char *cmdline)
 {
     if (isEmpty(cmdline)) {
-        cliPrintLinef("Battery Profile: %d", batteryConfig()->batteryType + 1);
+        cliPrintLinef("Battery Profile: %d", batteryConfig()->batteryProfile + 1);
         return;
     }
 
     const int i = atoi(cmdline);
-    if (i > 0 && i <= BATTERY_TYPE_MAX) {
+    if (i > 0 && i <= BATTERY_PROFILE_MAX) {
         changeBatteryType(i - 1);
         cliPrintLinef("Battery Profile set to %d", i);
     } else {
-        cliShowArgumentRangeError(cmdName, "INDEX", 1, BATTERY_TYPE_MAX);
+        cliShowArgumentRangeError(cmdName, "INDEX", 1, BATTERY_PROFILE_MAX);
     }
 }
 
@@ -6554,7 +6554,7 @@ static void cliHelp(const char *cmdName, char *cmdline);
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
     CLI_COMMAND_DEF("aux", "configure modes", "<index> <mode> <aux> <start> <end> <logic>", cliAux),
-    CLI_COMMAND_DEF("bat_type", "configure battery type", "<index>", cliBatteryType),
+    CLI_COMMAND_DEF("bat_profile", "configure battery type", "<index>", cliBatteryProfile),
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
 #endif

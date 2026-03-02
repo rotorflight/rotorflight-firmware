@@ -181,7 +181,7 @@ uint16_t getBatteryCurrentSample(void)
 
 uint16_t getBatteryCapacity(void)
 {
-    return batteryConfig()->batteryCapacity[batteryConfig()->batteryType];
+    return batteryConfig()->batteryCapacity[batteryConfig()->batteryProfile];
 }
 
 uint32_t getBatteryCapacityUsed(void)
@@ -229,17 +229,17 @@ uint8_t calculateBatteryPercentageRemaining(void)
 
 void changeBatteryType(uint8_t typeIndex)
 {
-    if (typeIndex < BATTERY_TYPE_MAX) {
-        batteryConfigMutable()->batteryType = typeIndex;
+    if (typeIndex < BATTERY_PROFILE_MAX) {
+        batteryConfigMutable()->batteryProfile = typeIndex;
     }
 }
 
-int get_ADJUSTMENT_BATTERY_TYPE(void)
+int get_ADJUSTMENT_BATTERY_PROFILE(void)
 {
-    return batteryConfig()->batteryType + 1;
+    return batteryConfig()->batteryProfile + 1;
 }
 
-void set_ADJUSTMENT_BATTERY_TYPE(int value)
+void set_ADJUSTMENT_BATTERY_PROFILE(int value)
 {
     changeBatteryType(value - 1);
 }
@@ -499,8 +499,8 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 
 void batteryInit(void)
 {
-    if (batteryConfig()->batteryType >= BATTERY_TYPE_MAX) {
-        batteryConfigMutable()->batteryType = 0;
+    if (batteryConfig()->batteryProfile >= BATTERY_PROFILE_MAX) {
+        batteryConfigMutable()->batteryProfile = 0;
     }
 
     voltageMeterReset(&voltageMeter);
