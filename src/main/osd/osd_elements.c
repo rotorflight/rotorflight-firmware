@@ -1143,7 +1143,7 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
         {
             uint8_t remainingCapacityBars = 0;
 
-            if (battery_capacity) {
+            if (battery_capacity >= MAIN_BATT_USAGE_STEPS) {
                 const float batteryRemaining = constrain(battery_capacity - displayBasis, 0, battery_capacity);
                 remainingCapacityBars = ceilf((batteryRemaining / (battery_capacity / MAIN_BATT_USAGE_STEPS)));
             }
