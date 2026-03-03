@@ -151,6 +151,7 @@ typedef enum {
     ADJUSTMENT_GOV_MIN_THROTTLE         = 79,
     ADJUSTMENT_GOV_HEADSPEED            = 80,
     ADJUSTMENT_GOV_YAW_FF               = 81,
+    ADJUSTMENT_BATTERY_PROFILE          = 82,
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;

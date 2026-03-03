@@ -825,11 +825,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_BATTERY_STATE:
         sbufWriteU8(dst, getBatteryState());
         sbufWriteU8(dst, getBatteryCellCount());
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity);                        // mAh
+        sbufWriteU16(dst, getBatteryCapacity());  // mAh
         sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh
         sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
         sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
         sbufWriteU8(dst, calculateBatteryPercentageRemaining());                    // %
+        sbufWriteU8(dst, batteryConfig()->batteryProfile); // The battery profile
         break;
 
     case MSP_VOLTAGE_METERS:
@@ -888,7 +889,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity);
+        sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
         sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
@@ -898,6 +899,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
         sbufWriteU8(dst, batteryConfig()->lvcPercentage);
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
+        break;
+
+    case MSP_BATTERY_PROFILE:
+        sbufWriteU8(dst, batteryConfig()->batteryProfile); // The active battery profile
         break;
 
     case MSP_OSD_CONFIG: {
@@ -3832,7 +3839,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->batteryCapacity = sbufReadU16(src);
+        batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
         batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
@@ -3842,6 +3849,21 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
+        if (sbufBytesRemaining(src) >= 2 * BATTERY_PROFILE_COUNT) {
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
+        }
+        break;
+
+    case MSP_SET_BATTERY_PROFILE:
+        {
+            uint8_t index = sbufReadU8(src);
+            if (index < BATTERY_PROFILE_COUNT) {
+                changeBatteryProfile(index);
+            } else {
+                return MSP_RESULT_ERROR;
+            }
+        }
         break;
 
 #if defined(USE_OSD)
