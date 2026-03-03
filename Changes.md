@@ -120,23 +120,23 @@ Added a call to deliver the function id in use per slot (#398)
 
 ### MSP_BATTERY_STATE
 
-The `batteryProfile` field is added. (#315)
+The `batteryProfile` field is added. (#415)
 
 ### MSP_BATTERY_CONFIG
 
-The `batteryCapacity` array is added. (#315)
+The `batteryCapacity` array is added. (#415)
 
 ### MSP_SET_BATTERY_CONFIG
 
-The `batteryCapacity` array is added. (#315)
+The `batteryCapacity` array is added. (#415)
 
 ### MSP_BATTERY_PROFILE
 
-New MSP command to get the active battery profile. (#315)
+New MSP command to get the active battery profile. (#415)
 
 ### MSP_SET_BATTERY_PROFILE
 
-New MSP command to set the active battery profile. (#315)
+New MSP command to set the active battery profile. (#415)
 
 
 ## CLI Changes
