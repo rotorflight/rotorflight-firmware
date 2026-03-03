@@ -825,11 +825,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     case MSP_BATTERY_STATE:
         sbufWriteU8(dst, getBatteryState());
         sbufWriteU8(dst, getBatteryCellCount());
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity);                        // mAh
+        sbufWriteU16(dst, getBatteryCapacity());  // mAh
         sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh
         sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
         sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
         sbufWriteU8(dst, calculateBatteryPercentageRemaining());                    // %
+        sbufWriteU8(dst, batteryConfig()->batteryProfile); // The battery profile
         break;
 
     case MSP_VOLTAGE_METERS:
@@ -888,7 +889,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, batteryConfig()->batteryCapacity);
+        sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
         sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
@@ -898,6 +899,12 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
         sbufWriteU8(dst, batteryConfig()->lvcPercentage);
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
+        break;
+
+    case MSP_BATTERY_PROFILE:
+        sbufWriteU8(dst, batteryConfig()->batteryProfile); // The active battery profile
         break;
 
     case MSP_OSD_CONFIG: {
@@ -1157,12 +1164,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             // When bus servos are configured, send configured PWM servo outputs + all bus servo outputs
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
             const uint8_t pwmServoCount = getServoCount();
-            
+
             // Send configured PWM servo outputs (S1-Sn where n = getServoCount())
             for (int i = 0; i < pwmServoCount; i++) {
                 sbufWriteU16(dst, getServoOutput(i));
             }
-            
+
             // Send all bus servo outputs (S9-S26)
             // Note: Unconfigured PWM servo outputs between pwmServoCount and BUS_SERVO_OFFSET are skipped
             for (int i = BUS_SERVO_OFFSET; i < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS; i++) {
@@ -2275,7 +2282,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             sbufWriteU16(dst, adjRange->adjMax);
             sbufWriteU8(dst, adjRange->adjStep);
         }
-        break;        
+        break;
     case MSP_REBOOT:
         if (sbufBytesRemaining(src)) {
             rebootMode = sbufReadU8(src);
@@ -2734,18 +2741,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             return MSP_RESULT_ERROR;
         }
         i = sbufReadU8(src);
-        
+
         // Check if bus servos are actually configured
         if (hasBusServosConfigured()) {
             // When bus servos are configured, map the received index to actual servo index
             // Skip unconfigured PWM servos between getServoCount() and BUS_SERVO_OFFSET
             const uint8_t pwmServoCount = getServoCount();
             const uint8_t totalCount = pwmServoCount + BUS_SERVO_CHANNELS;
-            
+
             if (i >= totalCount) {
                 return MSP_RESULT_ERROR;
             }
-            
+
             // Map received index to actual servo index
             if (i < pwmServoCount) {
                 // Configured PWM servo (S1-Sn where n = getServoCount())
@@ -2761,11 +2768,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 return MSP_RESULT_ERROR;
             }
         }
-        
+
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
-        
+
         servoParamsMutable(i)->mid = sbufReadU16(src);
         servoParamsMutable(i)->min = sbufReadU16(src);
         servoParamsMutable(i)->max = sbufReadU16(src);
@@ -2774,7 +2781,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         servoParamsMutable(i)->rate = sbufReadU16(src);
         servoParamsMutable(i)->speed = sbufReadU16(src);
         servoParamsMutable(i)->flags = sbufReadU16(src);
-        
+
         // Validate and fix the servo configuration
         validateAndFixServoConfig();
         break;
@@ -2811,7 +2818,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
 
         servoParamsMutable(i)->mid = sbufReadU16(src);
-        
+
         // Validate and fix the servo configuration
         validateAndFixServoConfig();
         break;
@@ -3618,16 +3625,16 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) < 2) {
             return MSP_RESULT_ERROR;
         }
-        
+
         // Read and validate index
         uint8_t index = sbufReadU8(src);
         if (index >= BUS_SERVO_CHANNELS) {
             return MSP_RESULT_ERROR;
         }
-        
+
         // Read sourceType
         uint8_t sourceType = sbufReadU8(src);
-        
+
         // Apply configuration
         busServoConfigMutable()->sourceType[index] = sourceType;
         break;
@@ -3832,7 +3839,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->batteryCapacity = sbufReadU16(src);
+        batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
         batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
@@ -3842,6 +3849,21 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
+        if (sbufBytesRemaining(src) >= 2 * BATTERY_PROFILE_COUNT) {
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
+        }
+        break;
+
+    case MSP_SET_BATTERY_PROFILE:
+        {
+            uint8_t index = sbufReadU8(src);
+            if (index < BATTERY_PROFILE_COUNT) {
+                changeBatteryProfile(index);
+            } else {
+                return MSP_RESULT_ERROR;
+            }
+        }
         break;
 
 #if defined(USE_OSD)
