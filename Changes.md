@@ -243,6 +243,14 @@ the actual values are calculated automatically (#332).
 
 `blackbox_rolling_erase` default is changed to ON (#412).
 
+`roll_srate` default is changed to 12 (#413).
+
+`pitch_srate` default is changed to 12 (#413).
+
+`yaw_srate` default is changed to 12 (#413).
+
+`collective_srate` default is changed to 12 (#413).
+
 
 ## CRSF Custom Telemetry
 
