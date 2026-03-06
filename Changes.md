@@ -208,6 +208,8 @@ the actual values are calculated automatically (#332).
 
 `bat_profile` parameter added. Value in 0-5, selects the active battery profile.
 
+`pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
+
 
 ## Defaults
 

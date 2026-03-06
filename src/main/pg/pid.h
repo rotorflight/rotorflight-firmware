@@ -129,13 +129,10 @@ typedef struct pidProfile_s {
     uint8_t             bterm_cutoff[PID_AXIS_COUNT];
     uint8_t             gyro_cutoff[PID_AXIS_COUNT];
 
-    uint8_t             gyro_filter_type;
-
     uint8_t             yaw_cw_stop_gain;
     uint8_t             yaw_ccw_stop_gain;
 
     uint8_t             yaw_precomp_cutoff;
-    uint8_t             yaw_precomp_filter_type;
 
     uint8_t             yaw_cyclic_ff_gain;
     uint8_t             yaw_collective_ff_gain;
