@@ -373,7 +373,7 @@ static void govDebugUpdate(void)
 
 static inline bool isGovBypass(void)
 {
-    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS);
+    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) && gov.throttleInput > gov.handoverThrottle;
 }
 
 static inline bool isGovSuspend(void)
@@ -1018,6 +1018,8 @@ static void govThrottleBypass(const float *throttleCurve, float minThrottle, flo
         gov.bypassActive = false;
     }
     else {
+        minThrottle = fmaxf(minThrottle, 1e-6f); // Prevent throttle from going down to 0
+
         const float throttle = govGetMappedThrottle(throttleCurve, minThrottle, maxThrottle);
 
         if (!gov.bypassActive) {
