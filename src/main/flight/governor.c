@@ -373,7 +373,7 @@ static void govDebugUpdate(void)
 
 static inline bool isGovBypass(void)
 {
-    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) && gov.throttleInput >= gov.handoverThrottle;
+    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) && gov.throttleInput > gov.handoverThrottle;
 }
 
 static inline bool isGovSuspend(void)
