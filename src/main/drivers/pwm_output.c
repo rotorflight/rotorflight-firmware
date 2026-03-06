@@ -169,7 +169,18 @@ static motorVTable_t motorPwmVTable;
 bool pwmEnableMotors(void)
 {
     /* check motors can be enabled */
-    return (motorPwmVTable.write != &pwmWriteUnused);
+    if (motorPwmVTable.write == &pwmWriteUnused) {
+        return false;
+    }
+
+    /* Reconfigure GPIO pins with proper alternate function after 4way mode or other reset */
+    for (int i = 0; i < motorPwmDevice.count; i++) {
+        if (motors[i].enabled && motors[i].io != IO_NONE && motors[i].timerHardware) {
+            IOConfigGPIOAF(motors[i].io, IOCFG_AF_PP, motors[i].timerHardware->alternateFunction);
+        }
+    }
+
+    return true;
 }
 
 bool pwmIsMotorEnabled(uint8_t index)
@@ -251,6 +262,7 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t moto
 
         motors[motorIndex].io = IOGetByTag(tag);
         IOInit(motors[motorIndex].io, OWNER_MOTOR, RESOURCE_INDEX(motorIndex));
+        motors[motorIndex].timerHardware = timerHardware;
 
         IOConfigGPIOAF(motors[motorIndex].io, IOCFG_AF_PP, timerHardware->alternateFunction);
 

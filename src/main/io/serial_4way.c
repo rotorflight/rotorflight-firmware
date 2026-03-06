@@ -45,9 +45,7 @@
 #ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
 #include "io/serial_4way_avrootloader.h"
 #endif
-#if defined(USE_SERIAL_4WAY_SK_BOOTLOADER)
 #include "io/serial_4way_stk500v2.h"
-#endif
 
 #if defined(USE_HAL_DRIVER)
 #define Bit_RESET GPIO_PIN_RESET
@@ -156,13 +154,18 @@ uint8_t esc4wayInit(void)
     return escCount;
 }
 
+void esc4wayDeinit(void)
+{
+    uint8_t cnt = escCount;
+    while (cnt > 0) {
+        cnt--;
+        IOConfigGPIO(escHardware[cnt].io, IOCFG_AF_PP);
+        setEscLo(cnt);
+    }
+}
+
 void esc4wayRelease(void)
 {
-    while (escCount > 0) {
-        escCount--;
-        IOConfigGPIO(escHardware[escCount].io, IOCFG_AF_PP);
-        setEscLo(escCount);
-    }
     motorEnable();
 }
 
@@ -348,6 +351,9 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
             CurrentInterfaceMode = imSK;
             return 1;
         } else {
+            uint32_t startTime = micros();
+            while(micros() < startTime + 10000) {
+            }
             if (BL_ConnectEx(pDeviceInfo)) {
                 if  SILABS_DEVICE_MATCH {
                     CurrentInterfaceMode = imSIL_BLB;
@@ -412,6 +418,150 @@ static void WriteByteCrc(uint8_t b)
     WriteByte(b);
     CRCout.word = _crc_xmodem_update(CRCout.word, b);
 }
+
+uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx)
+{
+    CurrentInterfaceMode = 0;
+    SET_DISCONNECTED;
+    if (esc_idx < escCount) {
+        //Channel may change here
+        //ESC_LO or ESC_HI; Halt state for prev channel
+        selected_esc = esc_idx;
+    } else {
+        return NULL;
+    }
+    if (Connect(&DeviceInfo)) {
+        DeviceInfo.bytes[INTF_MODE_IDX] = CurrentInterfaceMode;
+    } else {
+        SET_DISCONNECTED;
+        return NULL;
+    }
+    return &DeviceInfo;
+}
+
+bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr)
+{
+    ioMem_t ioMem;
+    ioMem.D_NUM_BYTES = num_bytes;
+    ioMem.D_PTR_I = data_buffer;
+    ioMem.D_FLASH_ADDR_H = (uint8_t) ((addr >> 8) & 0xFF);
+    ioMem.D_FLASH_ADDR_L = (uint8_t) (addr & 0xFF);
+    switch (CurrentInterfaceMode)
+    {
+        case imSIL_BLB:
+        case imATM_BLB:
+        case imARM_BLB:
+        {
+            if (!BL_ReadFlash(CurrentInterfaceMode, &ioMem))
+            {
+                return false;
+            }
+            break;
+        }
+        case imSK:
+        {
+#ifdef USE_SERIAL_4WAY_SK_BOOTLOADER
+            if (!Stk_ReadFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+#else
+            return false;
+#endif
+        }
+        default:
+        return false;
+    }
+    return true;
+}
+
+bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t addr)
+{
+    ioMem_t ioMem;
+    ioMem.D_NUM_BYTES = num_bytes;
+    /* Cast away const for ioMem compatibility; write functions don't modify the buffer */
+    union {
+        const uint8_t *const_ptr;
+        uint8_t *ptr;
+    } ptr_cast;
+    ptr_cast.const_ptr = data_buffer;
+    ioMem.D_PTR_I = ptr_cast.ptr;
+    /* Address must fit in 16 bits for the ioMem flash address fields. */
+    if (addr > 0xFFFFu) {
+        return false;
+    }
+    ioMem.D_FLASH_ADDR_H = (uint8_t) ((addr >> 8) & 0xFF);
+    ioMem.D_FLASH_ADDR_L = (uint8_t) (addr & 0xFF);
+    switch (CurrentInterfaceMode)
+    {
+        case imSIL_BLB:
+        case imATM_BLB:
+        case imARM_BLB:
+        {
+#ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
+            if (!BL_WriteFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+#else
+            return false;
+#endif
+        }
+        case imSK:
+        {
+#ifdef USE_SERIAL_4WAY_SK_BOOTLOADER
+            if (!Stk_WriteFlash(&ioMem))
+            {
+                return false;
+            }
+            break;
+#else
+            return false;
+#endif
+        }
+        default:
+        return false;
+    }
+    return true;
+}
+
+bool fwif_receiveMessage(uint8_t *dataBuffer, uint8_t *CMD)
+{
+    uint8_t ESC;
+    uint8_t I_PARAM_LEN;
+    uint8_t *InBuff;
+    uint8_16_u CRC_check;
+
+    do {
+        CRC_in.word = 0;
+        ESC = ReadByteCrc();
+    } while (ESC != cmd_Local_Escape);
+
+    RX_LED_ON;
+
+    *CMD = ReadByteCrc();
+    ioMem.D_FLASH_ADDR_H = ReadByteCrc();
+    ioMem.D_FLASH_ADDR_L = ReadByteCrc();
+    I_PARAM_LEN = ReadByteCrc();
+
+    InBuff = dataBuffer;
+    for (uint8_t k = 0; k < I_PARAM_LEN; ++k) {
+        *InBuff = ReadByteCrc();
+        InBuff++;
+    }
+
+    CRC_check.bytes[1] = ReadByte();
+    CRC_check.bytes[0] = ReadByte();
+
+    if (CRC_check.word == CRC_in.word) {
+        return true;
+    }
+
+    return false;
+}
+
 
 void esc4wayProcess(serialPort_t *mspPort)
 {
