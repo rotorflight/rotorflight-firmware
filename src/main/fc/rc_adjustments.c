@@ -59,6 +59,7 @@
 #include "rx/rx.h"
 
 #include "sensors/acceleration.h"
+#include "sensors/battery.h"
 
 #include "rc_adjustments.h"
 
@@ -233,6 +234,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
 
     ADJ_ENTRY(ACC_TRIM_PITCH,               -300, 300),
     ADJ_ENTRY(ACC_TRIM_ROLL,                -300, 300),
+
+    ADJ_ENTRY(BATTERY_PROFILE,              1, BATTERY_PROFILE_COUNT),
 
 #ifdef USE_ACRO_TRAINER
     ADJ_ENTRY(ACRO_TRAINER_GAIN,            25, 255),

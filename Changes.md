@@ -118,6 +118,26 @@ The `cyclic_ring` parameter is added (#345).
 
 Added a call to deliver the function id in use per slot (#398)
 
+### MSP_BATTERY_STATE
+
+The `batteryProfile` field is added. (#415)
+
+### MSP_BATTERY_CONFIG
+
+The `batteryCapacity` array is added. (#415)
+
+### MSP_SET_BATTERY_CONFIG
+
+The `batteryCapacity` array is added. (#415)
+
+### MSP_BATTERY_PROFILE
+
+New MSP command to get the active battery profile. (#415)
+
+### MSP_SET_BATTERY_PROFILE
+
+New MSP command to set the active battery profile. (#415)
+
 
 ## CLI Changes
 
@@ -184,6 +204,10 @@ the actual values are calculated automatically (#332).
 
 `gyro_offset_yaw` is removed (#391).
 
+`bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
+
+`bat_profile` parameter added. Value in 0-5, selects the active battery profile.
+
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
 
@@ -220,6 +244,19 @@ the actual values are calculated automatically (#332).
 `blackbox_log_governor` default is changed to ON (#412).
 
 `blackbox_rolling_erase` default is changed to ON (#412).
+
+`roll_srate` default is changed to 12 (#413).
+
+`pitch_srate` default is changed to 12 (#413).
+
+`yaw_srate` default is changed to 12 (#413).
+
+`collective_srate` default is changed to 12 (#413).
+
+
+## CRSF Custom Telemetry
+
+`BATTERY_PROFILE` sensor 0x1214 type U8 is added.
 
 
 ## Features

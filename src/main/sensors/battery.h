@@ -24,6 +24,7 @@
 #include "sensors/voltage.h"
 
 #include "pg/battery.h"
+#include "pg/adjustments.h"
 
 
 #define VBAT_CELL_VOTAGE_RANGE_MIN          100
@@ -75,11 +76,17 @@ bool isBatteryCurrentConfigured(void);
 uint16_t getBatteryCurrent(void);
 uint16_t getBatteryCurrentSample(void);
 uint16_t getLegacyBatteryCurrent(void);
+uint16_t getBatteryCapacity(void);
 uint32_t getBatteryCapacityUsed(void);
 
 uint8_t calculateBatteryPercentageRemaining(void);
+
+void changeBatteryProfile(uint8_t profileIndex);
+uint8_t getCurrentBatteryProfileIndex(void);
 
 const lowVoltageCutoff_t *getLowVoltageCutoff(void);
 
 extern const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT];
 extern const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT];
+
+ADJFUN_DECLARE(BATTERY_PROFILE)
