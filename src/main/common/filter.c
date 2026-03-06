@@ -544,7 +544,7 @@ void biquadFilterInit(biquadFilter_t *filter, float cutoff, float sampleRate, fl
 
 FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType)
 {
-    if (cutoff > 0 && sampleRate > 0 && Q > 0 && filterType) {
+    if (cutoff > 0 && sampleRate > 0 && Q > 0 && filterType > BIQUAD_NULL && filterType < BIQUAD_COUNT) {
         cutoff = limitCutoff(cutoff, sampleRate);
 
         const float omega = M_2PIf * cutoff / sampleRate;
