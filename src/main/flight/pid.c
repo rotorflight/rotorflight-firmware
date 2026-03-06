@@ -217,10 +217,6 @@ void set_ADJUSTMENT_YAW_I_GAIN(int value)
 {
     currentPidProfile->pid[PID_YAW].I = value;
     pid.coef[PID_YAW].Ki = YAW_I_TERM_SCALE * value;
-
-    if (pid.pidMode == 4 && value == 0) {
-      pid.errorDecayRateYaw = PID_YAW_RATE_MODE_DECAY;
-    }
 }
 
 int get_ADJUSTMENT_PITCH_D_GAIN(void)
@@ -655,8 +651,8 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.errorDecayLimitYaw    = (pidProfile->error_decay_limit_yaw)    ? pidProfile->error_decay_limit_yaw : 3600;
 
     // If in rate-mode (I-gain == 0), decay remaining I-term
-    if (pid.pidMode == 4 && pidProfile->pid[PID_YAW].I == 0) {
-      pid.errorDecayRateYaw = PID_YAW_RATE_MODE_DECAY;
+    if (pidProfile->pid[PID_YAW].I == 0) {
+      pid.errorDecayRateYaw = fmaxf(PID_YAW_RATE_MODE_DECAY, pid.errorDecayRateYaw);
     }
 
     // Filters
@@ -723,7 +719,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 void INIT_CODE pidChangeProfile(const pidProfile_t *pidProfile)
 {
     pidLoadProfile(pidProfile);
-    pidResetAxisErrors();
+    //pidResetAxisErrors();
 }
 
 void INIT_CODE pidInit(const pidProfile_t *pidProfile)
