@@ -57,7 +57,6 @@ typedef struct {
     float       Gain;
     float       AngleLimit;
     float       LookaheadTime;
-    sign_t      AxisState[2];
 } acroTrainer_t;
 
 static FAST_DATA_ZERO_INIT acroTrainer_t acroTrainer;
@@ -80,18 +79,9 @@ INIT_CODE void acroTrainerInit(const pidProfile_t *pidProfile)
     acroTrainer.LookaheadTime = pidProfile->trainer.lookahead_ms / 1000.0f;
 }
 
-void acroTrainerReset(void)
-{
-    acroTrainer.AxisState[FD_ROLL] = 0;
-    acroTrainer.AxisState[FD_PITCH] = 0;
-}
-
 void acroTrainerSetState(bool state)
 {
-    if (acroTrainer.Active != state) {
-        acroTrainerReset();
-        acroTrainer.Active = state;
-    }
+    acroTrainer.Active = state;
 }
 
 static inline sign_t Sign(float x)
@@ -117,47 +107,41 @@ float acroTrainerApply(int axis, float setPoint)
     {
         const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
         const float currentAngle = (attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f;
-        const sign_t angleSign = Sign(currentAngle);
-        const sign_t setpointSign = Sign(setPoint);
+        const float angleExcess = fabsf(currentAngle) - acroTrainer.AngleLimit;
         float projectedAngle = 0;
-        bool resetAxis = false;
+        bool limitActive = false;
 
-        // stick has reversed - stop limiting
-        if ((acroTrainer.AxisState[axis] != 0) && (acroTrainer.AxisState[axis] != setpointSign)) {  // stick has reversed - stop limiting
-            acroTrainer.AxisState[axis] = 0;
-        }
+        if (angleExcess > 0) {
+            // Angle exceeds the limit: apply correction proportional to excess angle.
+            // The correction is always directed back toward the limit (stateless).
+            const sign_t angleSign = Sign(currentAngle);
+            const float correction = limitf((acroTrainer.AngleLimit * angleSign - currentAngle) * acroTrainer.Gain, ACRO_TRAINER_SETPOINT_LIMIT);
 
-        // Limit and correct the angle when it exceeds the limit
-        if ((fabsf(currentAngle) > acroTrainer.AngleLimit) && (acroTrainer.AxisState[axis] == 0)) {
-            if (angleSign == setpointSign) {
-                acroTrainer.AxisState[axis] = angleSign;
-                resetAxis = true;
+            // Allow pilot input that helps return, block input that drives further out
+            if (angleSign > 0) {
+                setPoint = MIN(setPoint, correction);
+            } else {
+                setPoint = MAX(setPoint, correction);
             }
-        }
 
-        if (acroTrainer.AxisState[axis] != 0) {
-            setPoint = limitf((acroTrainer.AngleLimit * angleSign - currentAngle) * acroTrainer.Gain, ACRO_TRAINER_SETPOINT_LIMIT);
+            limitActive = true;
+            pidResetAxisError(axis);
         }
         else {
-            // Not currently over the limit so project the angle based on current angle and
-            // gyro angular rate using a sliding window based on gyro rate (faster rotation means larger window.
+            // Within limits: project the angle based on current angle and gyro rate.
             // If the projected angle exceeds the limit then apply limiting to minimize overshoot.
-            // Calculate the lookahead window by scaling proportionally with gyro rate from 0-500dps
-            float checkInterval = constrainf(fabsf(gyro.gyroADCf[axis]) / ACRO_TRAINER_LOOKAHEAD_RATE_LIMIT, 0.0f, 1.0f) * acroTrainer.LookaheadTime;
+            const float checkInterval = constrainf(fabsf(gyro.gyroADCf[axis]) / ACRO_TRAINER_LOOKAHEAD_RATE_LIMIT, 0.0f, 1.0f) * acroTrainer.LookaheadTime;
             projectedAngle = (gyro.gyroADCf[axis] * checkInterval) + currentAngle;
 
             const sign_t projectedAngleSign = Sign(projectedAngle);
-            if ((fabsf(projectedAngle) > acroTrainer.AngleLimit) && (projectedAngleSign == setpointSign)) {
+            if ((fabsf(projectedAngle) > acroTrainer.AngleLimit) && (projectedAngleSign == Sign(setPoint))) {
                 setPoint = ((acroTrainer.AngleLimit * projectedAngleSign) - projectedAngle) * acroTrainer.Gain;
-                resetAxis = true;
+                pidResetAxisError(axis);
             }
         }
 
-        if (resetAxis)
-            pidResetAxisError(axis);
-
         DEBUG_AXIS(ACRO_TRAINER, axis, 0, currentAngle * 10);
-        DEBUG_AXIS(ACRO_TRAINER, axis, 1, acroTrainer.AxisState[axis]);
+        DEBUG_AXIS(ACRO_TRAINER, axis, 1, limitActive);
         DEBUG_AXIS(ACRO_TRAINER, axis, 2, setPoint);
         DEBUG_AXIS(ACRO_TRAINER, axis, 3, projectedAngle * 10);
     }
