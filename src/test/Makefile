@@ -425,6 +425,19 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/pg/mixer.c \
 		$(USER_DIR)/pg/rates.c
 
+trainer_unittest_SRC := \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/flight/trainer.c \
+		$(USER_DIR)/pg/accel.c \
+		$(USER_DIR)/pg/pid.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+trainer_unittest_DEFINES := \
+		USE_ACRO_TRAINER=
+
 #vtx_unittest_SRC := \
 #		$(USER_DIR)/fc/core.c \
 #		$(USER_DIR)/fc/dispatch.c \
