@@ -104,58 +104,109 @@ The adjustment is made when the adjustment channel is in the high or low positio
 | Value | Adjustment | Notes |
 | ----- | ---------- |------ |
 | 0     | None | |
-| 1     | RC RATE | Step / absolute setting |
-| 2     | RC\_EXPO | Step / absolute setting |
-| 3     | THROTTLE\_EXPO | Step / absolute setting |
-| 4     | PITCH\_ROLL\_RATE | Step / absolute setting |
-| 5     | YAW\_RATE | Step / absolute setting |
-| 6     | PITCH\_ROLL\_P | Step / absolute setting |
-| 7     | PITCH\_ROLL\_I | Step / absolute setting |
-| 8     | PITCH\_ROLL\_D | Step / absolute setting |
-| 9     | YAW\_P | Step / absolute setting |
-| 10    | YAW\_I | Step / absolute setting |
-| 11    | YAW\_D | Step / absolute setting |
-| 12    | RATE\_PROFILE | Switch between 3 or 6 rate profiles (uses `rate_6pos_switch` setting) |
-| 13    | PITCH\_RATE | Step / absolute setting |
-| 14    | ROLL\_RATE | Step / absolute setting |
-| 15    | PITCH\_P | Step / absolute setting |
-| 16    | PITCH\_I | Step / absolute setting |
-| 17    | PITCH\_D | Step / absolute setting |
-| 18    | ROLL\_P | Step / absolute setting |
-| 19    | ROLL\_I | Step / absolute setting |
-| 20    | ROLL\_D | Step / absolute setting |
-| 21    | RC\_RATE\_YAW | Step / absolute setting |
-| 22    | PITCH\_ROLL\_F | Step / absolute setting |
-| 23    | FEEDFORWARD\_TRANSITION | Step / absolute setting |
-| 24    | HORIZON\_STRENGTH | Select the horizon strength |
-| 25    | PID\_AUDIO | Select the PID value to be turned into tones |
-| 26    | PITCH\_F | Step / absolute setting |
-| 27    | ROLL\_F | Step / absolute setting |
-| 28    | YAW\_F | Step / absolute setting |
-| 29    | OSD\_PROFILE | Switch between 3 OSD profiles |
-| 30    | LED\_PROFILE | Switch between the RACE / BEACON / STATUS LED strip profiles |
+| 1     | RATE\_PROFILE | Switch between profiles |
+| 2     | PID\_PROFILE | Switch between PID profiles |
+| 3     | LED\_PROFILE | Switch between the RACE / BEACON / STATUS LED strip profiles |
+| 4     | OSD\_PROFILE | Switch between OSD profiles |
+| 5     | PITCH\_SRATE | Step / absolute setting |
+| 6     | ROLL\_SRATE | Step / absolute setting |
+| 7     | YAW\_SRATE | Step / absolute setting |
+| 8     | PITCH\_RC\_RATE | Step / absolute setting |
+| 9     | ROLL\_RC\_RATE | Step / absolute setting |
+| 10    | YAW\_RC\_RATE | Step / absolute setting |
+| 11    | PITCH\_RC\_EXPO | Step / absolute setting |
+| 12    | ROLL\_RC\_EXPO | Step / absolute setting |
+| 13    | YAW\_RC\_EXPO | Step / absolute setting |
+| 14    | PITCH\_P\_GAIN | Step / absolute setting |
+| 15    | PITCH\_I\_GAIN | Step / absolute setting |
+| 16    | PITCH\_D\_GAIN | Step / absolute setting |
+| 17    | PITCH\_F\_GAIN | Step / absolute setting |
+| 18    | ROLL\_P\_GAIN | Step / absolute setting |
+| 19    | ROLL\_I\_GAIN | Step / absolute setting |
+| 20    | ROLL\_D\_GAIN | Step / absolute setting |
+| 21    | ROLL\_F\_GAIN | Step / absolute setting |
+| 22    | YAW\_P\_GAIN | Step / absolute setting |
+| 23    | YAW\_I\_GAIN | Step / absolute setting |
+| 24    | YAW\_D\_GAIN | Step / absolute setting |
+| 25    | YAW\_F\_GAIN | Step / absolute setting |
+| 26    | YAW\_CW\_GAIN | Step / absolute setting |
+| 27    | YAW\_CCW\_GAIN | Step / absolute setting |
+| 28    | YAW\_CYCLIC\_FF | Step / absolute setting |
+| 29    | YAW\_COLLECTIVE\_FF | Step / absolute setting |
+| 30    | YAW\_COLLECTIVE\_DYN | Step / absolute setting |
+| 31    | YAW\_COLLECTIVE\_DECAY | Step / absolute setting |
+| 32    | PITCH\_COLLECTIVE\_FF | Step / absolute setting |
+| 33    | PITCH\_GYRO\_CUTOFF | Step / absolute setting |
+| 34    | ROLL\_GYRO\_CUTOFF | Step / absolute setting |
+| 35    | YAW\_GYRO\_CUTOFF | Step / absolute setting |
+| 36    | PITCH\_DTERM\_CUTOFF | Step / absolute setting |
+| 37    | ROLL\_DTERM\_CUTOFF | Step / absolute setting |
+| 38    | YAW\_DTERM\_CUTOFF | Step / absolute setting |
+| 39    | RESCUE\_CLIMB\_COLLECTIVE | Step / absolute setting |
+| 40    | RESCUE\_HOVER\_COLLECTIVE | Step / absolute setting |
+| 41    | RESCUE\_HOVER\_ALTITUDE | Step / absolute setting |
+| 42    | RESCUE\_ALT\_P\_GAIN | Step / absolute setting |
+| 43    | RESCUE\_ALT\_I\_GAIN | Step / absolute setting |
+| 44    | RESCUE\_ALT\_D\_GAIN | Step / absolute setting |
+| 45    | ANGLE\_LEVEL\_GAIN | Step / absolute setting |
+| 46    | HORIZON\_LEVEL\_GAIN | Step / absolute setting |
+| 47    | ACRO\_TRAINER\_GAIN | Step / absolute setting |
+| 48    | GOV\_GAIN | Step / absolute setting |
+| 49    | GOV\_P\_GAIN | Step / absolute setting |
+| 50    | GOV\_I\_GAIN | Step / absolute setting |
+| 51    | GOV\_D\_GAIN | Step / absolute setting |
+| 52    | GOV\_F\_GAIN | Step / absolute setting |
+| 53    | GOV\_TTA\_GAIN | Step / absolute setting |
+| 54    | GOV\_CYCLIC\_FF | Step / absolute setting |
+| 55    | GOV\_COLLECTIVE\_FF | Step / absolute setting |
+| 56    | PITCH\_B\_GAIN | Step / absolute setting |
+| 57    | ROLL\_B\_GAIN | Step / absolute setting |
+| 58    | YAW\_B\_GAIN | Step / absolute setting |
+| 59    | PITCH\_O\_GAIN | Step / absolute setting |
+| 60    | ROLL\_O\_GAIN | Step / absolute setting |
+| 61    | CROSS\_COUPLING\_GAIN | Step / absolute setting |
+| 62    | CROSS\_COUPLING\_RATIO | Step / absolute setting |
+| 63    | CROSS\_COUPLING\_CUTOFF | Step / absolute setting |
+| 64    | ACC\_TRIM\_PITCH | Step / absolute setting |
+| 65    | ACC\_TRIM\_ROLL | Step / absolute setting |
+| 66    | INERTIA\_PRECOMP\_GAIN | Step / absolute setting |
+| 67    | INERTIA\_PRECOMP\_CUTOFF | Step / absolute setting |
+| 68    | PITCH\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 69    | ROLL\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 70    | YAW\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 71    | COLL\_SP\_BOOST\_GAIN | Step / absolute setting |
+| 72    | YAW\_DYN\_CEILING\_GAIN | Step / absolute setting |
+| 73    | YAW\_DYN\_DEADBAND\_GAIN | Step / absolute setting |
+| 74    | YAW\_DYN\_DEADBAND\_FILTER | Step / absolute setting |
+| 75    | YAW\_PRECOMP\_CUTOFF | Step / absolute setting |
+| 76    | GOV\_IDLE\_THROTTLE | Step / absolute setting |
+| 77    | GOV\_AUTO\_THROTTLE | Step / absolute setting |
+| 78    | GOV\_MAX\_THROTTLE | Step / absolute setting |
+| 79    | GOV\_MIN\_THROTTLE | Step / absolute setting |
+| 80    | GOV\_HEADSPEED | Step / absolute setting |
+| 81    | GOV\_YAW\_FF | Step / absolute setting |
 
 ## Examples
 
-### Example 1 - 3 Position switch used to adjust pitch/roll rate
+### Example 1 - 3-position switch used to adjust Pitch RC Rate
 
-```
-adjrange 0 0 3 900 2100 4 3 0 0
+```shell
+adjrange 0 0 3 900 2100 8 3 0 0
 ```
 
 explained:
 
 * configure adjrange 0 so that when aux4
-(3) in the range 900-2100 then use adjustment 4 (pitch/roll rate) when aux 4 (3)
+(3) in the range 900-2100 then use adjustment 8 (Pitch RC Rate) when aux 4 (3)
 is in the appropriate position. 
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
 
-### Example 2 - 2 Position switch used to enable adjustment of RC rate via a 3 position switch
+### Example 2 - 2-position switch used to enable adjustment of Pitch RC Rate via a 3-position switch
 
-```
+```shell
 adjrange 1 0 0 900 1700 0 2 0 0
-adjrange 2 0 0 1700 2100 1 2 0 0
+adjrange 2 0 0 1700 2100 8 2 0 0
 ```
 explained:
 
@@ -163,57 +214,57 @@ explained:
 (0) in the range 900-1700 then do nothing (0) when aux 3 (2) is in any
 position.
 * configure adjrange 2 so that when aux1
-(0) in the range 1700-2100 then use adjustment rc rate (1) when aux 3
-(2) is in the appropriate position.
+(0) in the range 1700-2100 then use adjustment Pitch RC Rate (8) when aux 3
+(2) is in the appropriate position..
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
 Without the entire range of aux1 being defined there is nothing that
-would stop aux 3 adjusting the pitch/roll rate once aux 1 wasn't in the higher
+would stop aux 3 adjusting the Pitch RC Rate once aux 1 wasn't in the higher
 range.
 
-### Example 3 - 6 Position switch used to select PID tuning adjustments via a 3 position switch
+### Example 3 - 6-position switch used to select PID tuning adjustments via a 3-position switch
 
-```
-adjrange 3 0 1 900 1150 6 3 0 0
-adjrange 4 0 1 1150 1300 7 3 0 0
-adjrange 5 0 1 1300 1500 8 3 0 0
-adjrange 6 0 1 1500 1700 9 3 0 0
-adjrange 7 0 1 1700 1850 10 3 0 0
-adjrange 8 0 1 1850 2100 11 3 0 0
+```shell
+adjrange 3 0 1 900 1150 14 3 0 0
+adjrange 4 0 1 1150 1300 15 3 0 0
+adjrange 5 0 1 1300 1500 16 3 0 0
+adjrange 6 0 1 1500 1700 22 3 0 0
+adjrange 7 0 1 1700 1850 23 3 0 0
+adjrange 8 0 1 1850 2100 24 3 0 0
 ```
 
 explained:
 
 * configure adjrange 3 so that when aux2
-(1) in the range 900-1150 then use adjustment Pitch/Roll P (6) when aux 4
+(1) in the range 900-1150 then use adjustment Pitch P (14) when aux 4
 (3) is in the appropriate position.
 * configure adjrange 4 so that when aux2
-(1) in the range 1150-1300 then use adjustment Pitch/Roll I (7) when aux 4
+(1) in the range 1150-1300 then use adjustment Pitch I (15) when aux 4
 (3) is in the appropriate position.
 * configure adjrange 5 so that when aux2
-(1) in the range 1300-1500 then use adjustment Pitch/Roll D (8) when aux 4
+(1) in the range 1300-1500 then use adjustment Pitch D (16) when aux 4
 (3) is in the appropriate position.
 * configure adjrange 6 so that when aux2
-(1) in the range 1500-1700 then use adjustment Yaw P (9) when aux 4
+(1) in the range 1500-1700 then use adjustment Yaw P (22) when aux 4
 (3) is in the appropriate position.
 * configure adjrange 7 so that when aux2
-(1) in the range 1700-1850 then use adjustment Yaw I (10) when aux 4
+(1) in the range 1700-1850 then use adjustment Yaw I (23) when aux 4
 (3) is in the appropriate position.
 * configure adjrange 8 so that when aux2
-(1) in the range 1850-2100 then use adjustment Yaw D (11) when aux 4
+(1) in the range 1850-2100 then use adjustment Yaw D (24) when aux 4
 (3) is in the appropriate position.
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
-### Example 4 - Use a single 3 position switch to change between 3 different rate profiles
+### Example 4 - Use a single 3-position switch to change between 3 different rate profiles
 
-```
-adjrange 11 0 3 900 2100 12 3 0 0
+```shell
+adjrange 11 0 3 900 2100 1 3 0 0
 ```
 
 explained:
 
 * configure adjrange 11 so that when aux4
-(3) in the range 900-2100 then use adjustment Rate Profile (12) when aux 4
+(3) in the range 900-2100 then use adjustment Rate Profile (1) when aux 4
 (3) is in the appropriate position.
 * note that Center/Scale values are both zero, so this range will use increment/decrement mode.
 
@@ -223,26 +274,26 @@ When the switch is high, rate profile 2 is selected.
 
 ### Example 5 - Use a single switch to enable absolute setting of Roll/Pitch P terms from two pots
 
-```
+```shell
 adjrange 0 0 4 1450 1550 18 0 40 10
-adjrange 1 0 4 1450 1550 15 1 58 20
+adjrange 1 0 4 1450 1550 14 1 58 20
 ```
 
 explained:
 
 * note that Center value is non-zero, so this range will use absolute mode.
-* configure adjrange 0 so that when aux5 (3) in the range 1450-1550 then use aux 1 (0) to adjust Roll P Adjustment (18) such that the value will be 40 with the pot centered and 30/50 at min/max.
-* configure adjrange 1 so that when aux5 (3) in the range 1450-1550 then use aux 2 (0) to adjust Pitch P Adjustment (15) such that the value will be 58 with the pot centered and 38/78 at min/max.
+* configure adjrange 0 so that when aux5 (4) in the range 1450-1550 then use aux 1 (0) to adjust Roll P Adjustment (18) such that the value will be 40 with the pot centered and 30/50 at min/max.
+* configure adjrange 1 so that when aux5 (4) in the range 1450-1550 then use aux 2 (1) to adjust Pitch P Adjustment (14) such that the value will be 58 with the pot centered and 38/78 at min/max.
 
 ### Example 6 - Use a single switch to enable absolute setting of Roll/Pitch P/I/D terms from three pots, selected using a single switch
 
-```
+```shell
 adjrange 0 0 4 950 1050 18 0 40 20
 adjrange 1 0 4 950 1050 19 1 107 53
 adjrange 2 0 4 950 1050 20 2 76 38
-adjrange 3 0 4 1950 2050 15 0 63 16
-adjrange 4 0 4 1950 2050 16 1 138 69
-adjrange 5 0 4 1950 2050 17 2 66 33
+adjrange 3 0 4 1950 2050 14 0 63 16
+adjrange 4 0 4 1950 2050 15 1 138 69
+adjrange 5 0 4 1950 2050 16 2 66 33
 ```
 explained:
 
