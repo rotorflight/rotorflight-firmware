@@ -32,7 +32,7 @@ typedef struct accelerationRuntime_s {
     int accumulatedMeasurementCount;
     float accumulatedMeasurements[XYZ_AXIS_COUNT];
     uint16_t calibratingA;
-    uint16_t calibrationKey;
+    int16_t calibrationKey;
 } accelerationRuntime_t;
 
 extern accelerationRuntime_t accelerationRuntime;
