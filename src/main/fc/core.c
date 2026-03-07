@@ -504,10 +504,6 @@ void tryArm(void)
 
         resetMotorOverride();
 
-#ifdef USE_ACRO_TRAINER
-        acroTrainerReset();
-#endif
-
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
         }
