@@ -203,6 +203,14 @@ static bool commandBatchActive = false;
 static bool commandBatchError = false;
 #endif
 
+// RL
+/* Forward declarations to avoid implicit-declaration when this helper is placed
+ * before the main CLI print function definitions. These match prototypes
+ * in cli.h. */
+extern void cliPrintLine(const char *str);
+extern void cliPrintLinef(const char *format, ...);
+//RLE
+
 #if defined(USE_BOARD_INFO)
 static bool boardInformationUpdated = false;
 #if defined(USE_SIGNATURE)
@@ -262,7 +270,7 @@ static const char * const featureNames[] = {
     [21] = "",
     [22] = "",
     [23] = "",
-    [24] = "",
+    [24] = "SRXL2_ESC",
     [25] = "RX_SPI",
     [26] = "GOVERNOR",
     [27] = "ESC_SENSOR",
@@ -6534,6 +6542,70 @@ typedef struct {
 
 static void cliHelp(const char *cmdName, char *cmdline);
 
+#ifdef USE_SRXL2_ESC
+static void cliSrxl2Esc(const char *cmdName, char *cmdline)
+{
+    extern void srxl2escSetThrottleRateHz(uint32_t rateHz);
+    extern uint32_t srxl2escGetThrottleRateHz(void);
+    extern void srxl2escSetTelemetryIntervalFrames(uint8_t frames);
+    extern uint8_t srxl2escGetTelemetryIntervalFrames(void);
+    extern bool srxl2escTelemetryRequested(void);
+    extern bool srxl2escDriverIsReady(void);
+
+    (void)cmdName;
+
+    if (cmdline) {
+        while (*cmdline == ' ') cmdline++;
+        if (*cmdline) {
+            if (strncasecmp(cmdline, "telem", 5) == 0) {
+                char *p = cmdline + 5;
+                while (*p == ' ') p++;
+                if (*p) {
+                    int interval = atoi(p);
+                    if (interval < 0 || interval > 255) {
+                        cliPrintLine("Interval must be between 0 and 255 frames");
+                    } else {
+                        srxl2escSetTelemetryIntervalFrames((uint8_t)interval);
+                        if (interval == 0) {
+                            cliPrintLine("Telemetry polling disabled");
+                        } else {
+                            cliPrintLinef("Telemetry requested every %d frame(s)", interval);
+                        }
+                    }
+                } else {
+                    cliPrintLinef("Telemetry interval: %u frame(s)", srxl2escGetTelemetryIntervalFrames());
+                }
+                return;
+            }
+        }
+    }
+
+    /* Print concise status: throttle refresh and telemetry rates */
+    {
+        const uint32_t throttleHz = srxl2escGetThrottleRateHz();
+        const uint8_t telemInterval = srxl2escGetTelemetryIntervalFrames();
+        const uint32_t telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
+        cliPrintLinef("SRXL2 ESC driver ready: %s", srxl2escDriverIsReady() ? "YES" : "NO");
+        cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
+        cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
+    }
+}
+#endif
+
+#ifdef USE_SERIALRX_SRXL2
+/* Weak stubs so CLI links when SRXL2 runtime isn't linked in. Real
+ * implementations (if compiled) will override these. */
+__attribute__((weak)) const char *srxl2_debug_messageDM(void)
+{
+    return "SRXL2 not present";
+}
+
+__attribute__((weak)) const char *srxl2_debug_lastErrorDM(void)
+{
+    return "None";
+}
+#endif
+
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
@@ -6698,6 +6770,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("set", "change setting", "[<name>=<value>]", cliSet),
 #if defined(USE_SIGNATURE)
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
+#endif
+#ifdef USE_SRXL2_ESC
+    CLI_COMMAND_DEF("srxl2esc", "show/trigger SRXL2 ESC handshake", NULL, cliSrxl2Esc),
 #endif
     CLI_COMMAND_DEF("status", "show status", NULL, cliStatus),
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),
