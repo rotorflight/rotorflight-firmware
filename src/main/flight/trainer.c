@@ -92,13 +92,13 @@ static inline sign_t Sign(float x)
 //
 // Acro Trainer - Manipulate the setPoint to limit axis angle while in acro mode
 //
-// There are three states:
-//
 // 1. Current angle has exceeded limit
-//    Apply correction to return to limit (similar to pidLevel)
-// 2. Future overflow has been projected based on current angle and gyro rate
-//    Manage the setPoint to control the gyro rate as the actual angle  approaches the limit (try to prevent overshoot)
-// 3. If no potential overflow is detected, then return the original setPoint
+//    Apply proportional correction to return to limit, while allowing
+//    pilot input that helps return (stateless, no latch)
+// 2. Current angle is within limits but projected angle exceeds limit
+//    Limit the setPoint to control the gyro rate as the angle
+//    approaches the limit (try to prevent overshoot)
+// 3. No correction needed, return the original setPoint
 //
 
 float acroTrainerApply(int axis, float setPoint)
