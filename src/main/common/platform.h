@@ -96,9 +96,10 @@
 #include "stm32f4xx.h"
 
 // Chip Unique ID on F405
-#define U_ID_0 (*(uint32_t*)0x1fff7a10)
-#define U_ID_1 (*(uint32_t*)0x1fff7a14)
-#define U_ID_2 (*(uint32_t*)0x1fff7a18)
+#define UID_BASE (0x1fff7a10)
+#define U_ID_0 (*(uint32_t*)UID_BASE)
+#define U_ID_1 (*(uint32_t*)(UID_BASE + 4))
+#define U_ID_2 (*(uint32_t*)(UID_BASE + 8))
 
 #ifndef STM32F4
 #define STM32F4
