@@ -30,6 +30,7 @@
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/crc.h"
 #include "common/filter.h"
 #include "common/utils.h"
 
@@ -96,12 +97,12 @@ FAST_DATA_ZERO_INIT accelerationRuntime_t accelerationRuntime;
 
 static void setConfigCalibrationCompleted(void)
 {
-    accelerometerConfigMutable()->accZero.values.calibrationCompleted = 1;
+    accelerometerConfigMutable()->accZero.values.calibrationCompleted = accelerationRuntime.calibrationKey;
 }
 
 bool accHasBeenCalibrated(void)
 {
-    return accelerometerConfig()->accZero.values.calibrationCompleted;
+    return accelerometerConfig()->accZero.values.calibrationCompleted == accelerationRuntime.calibrationKey;
 }
 
 void accResetRollAndPitchTrims(void)
@@ -377,7 +378,12 @@ bool accInit(uint16_t accSampleRateHz)
     acc.dev.acc_1G_rec = 1.0f / acc.dev.acc_1G;
 
     acc.sampleRateHz = accSampleRateHz;
+
+    // Valid key can't be 0 or 1
+    accelerationRuntime.calibrationKey = (crc16_ccitt_update(0, (void *)UID_BASE, 12) % 65521) + 2;
+
     accInitFilters();
+
     return true;
 }
 
