@@ -6552,18 +6552,18 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
     extern bool srxl2escTelemetryRequested(void);
     extern bool srxl2escDriverIsReady(void);
 
-    (void)cmdName;
-
     if (cmdline) {
         while (*cmdline == ' ') cmdline++;
         if (*cmdline) {
-            if (strncasecmp(cmdline, "telem", 5) == 0) {
+            if (strncasecmp(cmdline, "telem", 5) == 0 &&
+                (cmdline[5] == '\0' || isspace((unsigned char)cmdline[5]))) {
                 char *p = cmdline + 5;
                 while (*p == ' ') p++;
                 if (*p) {
-                    int interval = atoi(p);
-                    if (interval < 0 || interval > 255) {
-                        cliPrintLine("Interval must be between 0 and 255 frames");
+                    char *end = NULL;
+                    long interval = strtol(p, &end, 10);
+                    if (*end != '\0' || interval < 0 || interval > UINT8_MAX) {
+                        cliPrintErrorLinef(cmdName, "INTERVAL MUST BE BETWEEN 0 AND 255 FRAMES");
                     } else {
                         srxl2escSetTelemetryIntervalFrames((uint8_t)interval);
                         if (interval == 0) {
@@ -6577,7 +6577,10 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
                 }
                 return;
             }
+            cliShowParseError(cmdName);
+            return;
         }
+    }
     }
 
     /* Print concise status: throttle refresh and telemetry rates */
