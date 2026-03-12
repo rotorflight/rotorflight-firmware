@@ -62,26 +62,6 @@ static bool ibus2LastPackedSyncLost = false;
 static bool ibus2LastPackedFailsafe = false;
 static timeUs_t ibus2LastPackedTimeUs = 0;
 
-uint32_t ibus2RxDbgBytes = 0;
-uint32_t ibus2RxDbgFirstFramesSeen = 0;
-uint32_t ibus2RxDbgFirstFramesCrcOk = 0;
-uint32_t ibus2RxDbgFirstFramesCrcFail = 0;
-uint32_t ibus2RxDbgHeaderMatch = 0;
-uint32_t ibus2RxDbgLengthMismatch = 0;
-uint32_t ibus2RxDbgAddressMismatch = 0;
-uint32_t ibus2RxDbgSecondFramesSkipped = 0;
-uint32_t ibus2RxDbgSubtype0Seen = 0;
-uint32_t ibus2RxDbgSubtype1Seen = 0;
-uint32_t ibus2RxDbgSubtype2Seen = 0;
-uint32_t ibus2RxDbgDecodeOk = 0;
-uint32_t ibus2RxDbgDecodeFail = 0;
-uint8_t ibus2RxDbgLastHeader = 0;
-uint8_t ibus2RxDbgLastLength = 0;
-uint8_t ibus2RxDbgLastSubtype = 0;
-uint8_t ibus2RxDbgLastFirstFrame[IBUS2_FIRST_FRAME_MAX_LEN] = { 0 };
-uint8_t ibus2RxDbgLastFailedCandidate[IBUS2_FIRST_FRAME_MAX_LEN] = { 0 };
-uint16_t ibus2RxDbgLastChannels[4] = { 0 };
-
 typedef struct {
     uint8_t buf[IBUS2_FIRST_FRAME_MAX_LEN];
     uint8_t idx;
@@ -155,27 +135,7 @@ static void ibus2ResetState(void)
     memset(ibus2ChannelTypes, 0, sizeof(ibus2ChannelTypes));
     memset(ibus2PackedChannels, 0, sizeof(ibus2PackedChannels));
     memset(ibus2PackedFailsafe, 0, sizeof(ibus2PackedFailsafe));
-    memset(ibus2RxDbgLastFirstFrame, 0, sizeof(ibus2RxDbgLastFirstFrame));
-    memset(ibus2RxDbgLastFailedCandidate, 0, sizeof(ibus2RxDbgLastFailedCandidate));
-    memset(ibus2RxDbgLastChannels, 0, sizeof(ibus2RxDbgLastChannels));
     ibus2ResetFrameParser();
-
-    ibus2RxDbgBytes = 0;
-    ibus2RxDbgFirstFramesSeen = 0;
-    ibus2RxDbgFirstFramesCrcOk = 0;
-    ibus2RxDbgFirstFramesCrcFail = 0;
-    ibus2RxDbgHeaderMatch = 0;
-    ibus2RxDbgLengthMismatch = 0;
-    ibus2RxDbgAddressMismatch = 0;
-    ibus2RxDbgSecondFramesSkipped = 0;
-    ibus2RxDbgSubtype0Seen = 0;
-    ibus2RxDbgSubtype1Seen = 0;
-    ibus2RxDbgSubtype2Seen = 0;
-    ibus2RxDbgDecodeOk = 0;
-    ibus2RxDbgDecodeFail = 0;
-    ibus2RxDbgLastHeader = 0;
-    ibus2RxDbgLastLength = 0;
-    ibus2RxDbgLastSubtype = 0;
 }
 
 static void SES_UnpackChannels(const uint8_t *packedChannels, int16_t *channelsOut, uint8_t channelCount, const uint8_t *channelsType)
@@ -270,7 +230,6 @@ static uint16_t ibus2ConvertChannelToUs(int16_t channelValue, uint16_t currentVa
 static bool ibus2DecodePacked12Fallback(const uint8_t *payload, size_t payloadLen, timeUs_t nowUs, bool syncLost, bool failsafe)
 {
     const size_t channelCount = payloadLen >= 27 ? IBUS2_BASE_CHANNEL_COUNT : (payloadLen * 8U) / 12U;
-    uint8_t plausible = 0;
 
     if (channelCount < 4) {
         return false;
@@ -288,23 +247,12 @@ static bool ibus2DecodePacked12Fallback(const uint8_t *payload, size_t payloadLe
         }
 
         ibus2ChannelData[i] = channelValue;
-        if (i < 4) {
-            ibus2RxDbgLastChannels[i] = (uint16_t)channelValue;
-            if (channelValue >= 900 && channelValue <= 2100) {
-                plausible++;
-            }
-        }
-    }
-
-    if (plausible < 3) {
-        return false;
     }
 
     ibus2FrameDone = true;
     ibus2FrameFailsafe = failsafe;
     ibus2FrameSyncLost = syncLost;
     ibus2LastFrameTimeUs = nowUs;
-    ibus2RxDbgDecodeOk++;
 
     return true;
 }
@@ -322,56 +270,29 @@ static bool ibus2DecodeStoredChannels(timeUs_t nowUs, bool syncLost, bool failsa
     const uint8_t channelCount = MAX_SUPPORTED_RC_CHANNEL_COUNT < IBUS2_CHANNEL_COUNT ? MAX_SUPPORTED_RC_CHANNEL_COUNT : IBUS2_CHANNEL_COUNT;
     for (uint8_t i = 0; i < channelCount; i++) {
         ibus2ChannelData[i] = ibus2ConvertChannelToUs(unpackedChannels[i], (uint16_t)ibus2ChannelData[i]);
-        if (i < 4) {
-            ibus2RxDbgLastChannels[i] = (uint16_t)ibus2ChannelData[i];
-        }
     }
 
     ibus2FrameDone = true;
     ibus2FrameFailsafe = failsafe;
     ibus2FrameSyncLost = syncLost;
     ibus2LastFrameTimeUs = nowUs;
-    ibus2RxDbgDecodeOk++;
 
     return true;
 }
 
-static void ibus2StoreFailedFrame(const uint8_t *frame, size_t frameLen)
-{
-    memset(ibus2RxDbgLastFailedCandidate, 0, sizeof(ibus2RxDbgLastFailedCandidate));
-    memcpy(ibus2RxDbgLastFailedCandidate, frame, frameLen < sizeof(ibus2RxDbgLastFailedCandidate) ? frameLen : sizeof(ibus2RxDbgLastFailedCandidate));
-}
-
 static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs_t nowUs)
 {
-    ibus2RxDbgFirstFramesSeen++;
-    ibus2RxDbgLastHeader = frame[0];
-    ibus2RxDbgLastLength = frameLen > 1 ? frame[1] : 0;
-    ibus2RxDbgLastSubtype = (frame[0] & IBUS2_HEADER_SUBTYPE_MASK) >> 2;
-    memset(ibus2RxDbgLastFirstFrame, 0, sizeof(ibus2RxDbgLastFirstFrame));
-    memcpy(ibus2RxDbgLastFirstFrame, frame, frameLen < sizeof(ibus2RxDbgLastFirstFrame) ? frameLen : sizeof(ibus2RxDbgLastFirstFrame));
-
     if (frameLen < IBUS2_FIRST_FRAME_MIN_LEN || frame[1] != frameLen) {
-        ibus2RxDbgLengthMismatch++;
-        ibus2RxDbgFirstFramesCrcFail++;
-        ibus2StoreFailedFrame(frame, frameLen);
         return;
     }
 
     if ((frame[0] & IBUS2_HEADER_PACKET_TYPE_MASK) != 0 || (frame[2] & IBUS2_ADDRESS_RESERVED_MASK) != 0) {
-        ibus2RxDbgAddressMismatch++;
-        ibus2RxDbgFirstFramesCrcFail++;
-        ibus2StoreFailedFrame(frame, frameLen);
         return;
     }
 
     if (!ibus2CrcOk(frame, frameLen)) {
-        ibus2RxDbgFirstFramesCrcFail++;
-        ibus2StoreFailedFrame(frame, frameLen);
         return;
     }
-
-    ibus2RxDbgFirstFramesCrcOk++;
 
     const uint8_t packetSubtype = (frame[0] & IBUS2_HEADER_SUBTYPE_MASK) >> 2;
     const bool syncLost = (frame[0] & IBUS2_HEADER_SYNC_LOST_MASK) != 0;
@@ -381,7 +302,6 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
 
     switch (packetSubtype) {
     case 0:
-        ibus2RxDbgSubtype0Seen++;
         memset(ibus2PackedChannels, 0, sizeof(ibus2PackedChannels));
         memcpy(ibus2PackedChannels, payload, payloadLen < sizeof(ibus2PackedChannels) ? payloadLen : sizeof(ibus2PackedChannels));
         ibus2HavePackedChannels = true;
@@ -389,18 +309,14 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
         ibus2LastPackedFailsafe = failsafe;
         ibus2LastPackedTimeUs = nowUs;
         if (ibus2HaveChannelTypes) {
-            if (!ibus2DecodeStoredChannels(nowUs, syncLost, failsafe)) {
-                ibus2RxDbgDecodeFail++;
-            }
-        } else if (!ibus2DecodePacked12Fallback(payload, payloadLen, nowUs, syncLost, failsafe)) {
-            ibus2RxDbgDecodeFail++;
+            ibus2DecodeStoredChannels(nowUs, syncLost, failsafe);
+        } else {
+            ibus2DecodePacked12Fallback(payload, payloadLen, nowUs, syncLost, failsafe);
         }
         break;
 
     case 1:
-        ibus2RxDbgSubtype1Seen++;
         if (payloadLen < IBUS2_CHANNEL_TYPES_LENGTH) {
-            ibus2RxDbgDecodeFail++;
             break;
         }
         memcpy(ibus2ChannelTypes, payload, IBUS2_CHANNEL_TYPES_LENGTH);
@@ -412,14 +328,12 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
         break;
 
     case 2:
-        ibus2RxDbgSubtype2Seen++;
         memset(ibus2PackedFailsafe, 0, sizeof(ibus2PackedFailsafe));
         memcpy(ibus2PackedFailsafe, payload, payloadLen < sizeof(ibus2PackedFailsafe) ? payloadLen : sizeof(ibus2PackedFailsafe));
         ibus2RequiredResources &= (uint8_t)~IBUS2_REQUIRED_RESOURCE_FAILSAFE;
         break;
 
     default:
-        ibus2RxDbgDecodeFail++;
         break;
     }
 }
@@ -430,8 +344,6 @@ static void ibus2FinalizePendingFrame(timeUs_t nowUs)
         return;
     }
 
-    ibus2RxDbgFirstFramesCrcFail++;
-    ibus2StoreFailedFrame(ibus2FrameParser.buf, ibus2FrameParser.idx);
     ibus2FrameParser.idx = 0;
     ibus2FrameParser.expectedLen = 0;
     ibus2FrameParser.allowStart = true;
@@ -441,8 +353,6 @@ static void ibus2FinalizePendingFrame(timeUs_t nowUs)
 static void ibus2ProcessByte(uint8_t byte)
 {
     const timeUs_t nowUs = microsISR();
-
-    ibus2RxDbgBytes++;
 
     if (ibus2FrameParser.lastByteTimeUs &&
         cmpTimeUs(nowUs, ibus2FrameParser.lastByteTimeUs) > IBUS2_INTERFRAME_GAP_MIN_US) {
@@ -456,11 +366,9 @@ static void ibus2ProcessByte(uint8_t byte)
             return;
         }
         if ((byte & IBUS2_HEADER_PACKET_TYPE_MASK) != 0) {
-            ibus2RxDbgSecondFramesSkipped++;
             ibus2FrameParser.allowStart = false;
             return;
         }
-        ibus2RxDbgHeaderMatch++;
         ibus2FrameParser.buf[ibus2FrameParser.idx++] = byte;
         return;
     }
@@ -475,7 +383,6 @@ static void ibus2ProcessByte(uint8_t byte)
     if (ibus2FrameParser.idx == 2) {
         ibus2FrameParser.expectedLen = byte;
         if (byte < IBUS2_FIRST_FRAME_MIN_LEN || byte > IBUS2_FIRST_FRAME_MAX_LEN) {
-            ibus2RxDbgLengthMismatch++;
             ibus2FinalizePendingFrame(nowUs);
             ibus2FrameParser.allowStart = false;
         }
