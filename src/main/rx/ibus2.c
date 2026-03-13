@@ -14,11 +14,13 @@
 #include "pg/serial.h"
 
 #include "rx/ibus2.h"
+#include "rx/ibus2_telemetry.h"
 #include "rx/rx.h"
 
 #define IBUS2_BAUDRATE 1500000
 #define IBUS2_FIRST_FRAME_MIN_LEN 4
 #define IBUS2_FIRST_FRAME_MAX_LEN 37
+#define IBUS2_COMMAND_FRAME_LEN 21
 #define IBUS2_BASE_CHANNEL_COUNT 18
 #define IBUS2_CHANNEL_COUNT 32
 #define IBUS2_CHANNEL_TYPES_LENGTH 20
@@ -32,6 +34,7 @@
 #define IBUS2_HEADER_FAILSAFE_MASK 0x80
 #define IBUS2_ADDRESS_RESERVED_MASK 0xC0
 #define IBUS2_INTERFRAME_GAP_MIN_US 70
+#define IBUS2_DEBUG_PRINT_INTERVAL_US 1000000
 #define IBUS2_CHANNEL_TYPE_BITS 5
 #define IBUS2_CHANNEL_TYPE_BITS_MASK 0x0F
 #define IBUS2_KEEP_FAILSAFE_CHANNEL (-32768)
@@ -61,6 +64,13 @@ static bool ibus2HavePackedChannels = false;
 static bool ibus2LastPackedSyncLost = false;
 static bool ibus2LastPackedFailsafe = false;
 static timeUs_t ibus2LastPackedTimeUs = 0;
+static timeUs_t ibus2NextDebugPrintUs = 0;
+static uint32_t ibus2Subtype0FrameCount = 0;
+static uint32_t ibus2Subtype1FrameCount = 0;
+static uint32_t ibus2Subtype2FrameCount = 0;
+static uint32_t ibus2FirstFrameCrcErrorCount = 0;
+static uint32_t ibus2CommandFrameCount = 0;
+static uint32_t ibus2CommandFrameCrcErrorCount = 0;
 
 typedef struct {
     uint8_t buf[IBUS2_FIRST_FRAME_MAX_LEN];
@@ -125,17 +135,29 @@ static void ibus2ResetState(void)
     ibus2FrameSyncLost = false;
     ibus2LastFrameTimeUs = 0;
     ibus2RxSerialPort = NULL;
-    ibus2RequiredResources = IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES;
+    ibus2RequiredResources = 0;
     ibus2HaveChannelTypes = false;
     ibus2HavePackedChannels = false;
     ibus2LastPackedSyncLost = false;
     ibus2LastPackedFailsafe = false;
     ibus2LastPackedTimeUs = 0;
+    ibus2NextDebugPrintUs = 0;
+    ibus2Subtype0FrameCount = 0;
+    ibus2Subtype1FrameCount = 0;
+    ibus2Subtype2FrameCount = 0;
+    ibus2FirstFrameCrcErrorCount = 0;
+    ibus2CommandFrameCount = 0;
+    ibus2CommandFrameCrcErrorCount = 0;
 
     memset(ibus2ChannelTypes, 0, sizeof(ibus2ChannelTypes));
     memset(ibus2PackedChannels, 0, sizeof(ibus2PackedChannels));
     memset(ibus2PackedFailsafe, 0, sizeof(ibus2PackedFailsafe));
     ibus2ResetFrameParser();
+}
+
+static void ibus2DebugPrintHeartbeat(timeUs_t nowUs)
+{
+    UNUSED(nowUs);
 }
 
 static void SES_UnpackChannels(const uint8_t *packedChannels, int16_t *channelsOut, uint8_t channelCount, const uint8_t *channelsType)
@@ -291,8 +313,11 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
     }
 
     if (!ibus2CrcOk(frame, frameLen)) {
+        ibus2FirstFrameCrcErrorCount++;
         return;
     }
+
+    ibus2TelemetryUpdateAddress(frame, frameLen);
 
     const uint8_t packetSubtype = (frame[0] & IBUS2_HEADER_SUBTYPE_MASK) >> 2;
     const bool syncLost = (frame[0] & IBUS2_HEADER_SYNC_LOST_MASK) != 0;
@@ -302,6 +327,7 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
 
     switch (packetSubtype) {
     case 0:
+        ibus2Subtype0FrameCount++;
         memset(ibus2PackedChannels, 0, sizeof(ibus2PackedChannels));
         memcpy(ibus2PackedChannels, payload, payloadLen < sizeof(ibus2PackedChannels) ? payloadLen : sizeof(ibus2PackedChannels));
         ibus2HavePackedChannels = true;
@@ -316,26 +342,49 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
         break;
 
     case 1:
+        ibus2Subtype1FrameCount++;
         if (payloadLen < IBUS2_CHANNEL_TYPES_LENGTH) {
             break;
         }
         memcpy(ibus2ChannelTypes, payload, IBUS2_CHANNEL_TYPES_LENGTH);
         ibus2HaveChannelTypes = true;
         ibus2RequiredResources &= (uint8_t)~IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES;
+        ibus2TelemetrySetRequiredResources(ibus2RequiredResources);
         if (ibus2HavePackedChannels) {
             ibus2DecodeStoredChannels(ibus2LastPackedTimeUs, ibus2LastPackedSyncLost, ibus2LastPackedFailsafe);
         }
         break;
 
     case 2:
+        ibus2Subtype2FrameCount++;
         memset(ibus2PackedFailsafe, 0, sizeof(ibus2PackedFailsafe));
         memcpy(ibus2PackedFailsafe, payload, payloadLen < sizeof(ibus2PackedFailsafe) ? payloadLen : sizeof(ibus2PackedFailsafe));
         ibus2RequiredResources &= (uint8_t)~IBUS2_REQUIRED_RESOURCE_FAILSAFE;
+        ibus2TelemetrySetRequiredResources(ibus2RequiredResources);
         break;
 
     default:
         break;
     }
+}
+
+static void ibus2ProcessCommandFrame(const uint8_t *frame, size_t frameLen)
+{
+    if (frameLen != IBUS2_COMMAND_FRAME_LEN) {
+        return;
+    }
+
+    if ((frame[0] & IBUS2_HEADER_PACKET_TYPE_MASK) != 1) {
+        return;
+    }
+
+    if (!ibus2CrcOk(frame, frameLen)) {
+        ibus2CommandFrameCrcErrorCount++;
+        return;
+    }
+
+    ibus2CommandFrameCount++;
+    ibus2TelemetryQueueCommand(frame, frameLen, microsISR());
 }
 
 static void ibus2FinalizePendingFrame(timeUs_t nowUs)
@@ -365,11 +414,13 @@ static void ibus2ProcessByte(uint8_t byte)
         if (!ibus2FrameParser.allowStart) {
             return;
         }
-        if ((byte & IBUS2_HEADER_PACKET_TYPE_MASK) != 0) {
+        const uint8_t packetType = byte & IBUS2_HEADER_PACKET_TYPE_MASK;
+        if (packetType > 1) {
             ibus2FrameParser.allowStart = false;
             return;
         }
         ibus2FrameParser.buf[ibus2FrameParser.idx++] = byte;
+        ibus2FrameParser.expectedLen = packetType == 1 ? IBUS2_COMMAND_FRAME_LEN : 0;
         return;
     }
 
@@ -379,6 +430,16 @@ static void ibus2ProcessByte(uint8_t byte)
     }
 
     ibus2FrameParser.buf[ibus2FrameParser.idx++] = byte;
+
+    if (ibus2FrameParser.expectedLen == IBUS2_COMMAND_FRAME_LEN) {
+        if (ibus2FrameParser.idx == ibus2FrameParser.expectedLen) {
+            ibus2ProcessCommandFrame(ibus2FrameParser.buf, ibus2FrameParser.expectedLen);
+            ibus2FrameParser.idx = 0;
+            ibus2FrameParser.expectedLen = 0;
+            ibus2FrameParser.allowStart = false;
+        }
+        return;
+    }
 
     if (ibus2FrameParser.idx == 2) {
         ibus2FrameParser.expectedLen = byte;
@@ -408,6 +469,9 @@ static uint8_t ibus2FrameStatus(rxRuntimeState_t *rxRuntimeState)
     uint8_t frameStatus = RX_FRAME_PENDING;
 
     if (!ibus2FrameDone) {
+        if (ibus2TelemetryPending()) {
+            return RX_FRAME_PROCESSING_REQUIRED;
+        }
         return frameStatus;
     }
 
@@ -422,6 +486,10 @@ static uint8_t ibus2FrameStatus(rxRuntimeState_t *rxRuntimeState)
     }
 
     rxRuntimeState->lastRcFrameTimeUs = ibus2LastFrameTimeUs;
+    ibus2DebugPrintHeartbeat(ibus2LastFrameTimeUs);
+    if (ibus2TelemetryPending()) {
+        frameStatus |= RX_FRAME_PROCESSING_REQUIRED;
+    }
     return frameStatus;
 }
 
@@ -431,12 +499,19 @@ static float ibus2ReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan
     return ibus2ChannelData[chan];
 }
 
+static bool ibus2ProcessFrame(const rxRuntimeState_t *rxRuntimeState)
+{
+    UNUSED(rxRuntimeState);
+    return ibus2TelemetryProcess(micros());
+}
+
 bool ibus2Init(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
     rxRuntimeState->channelCount = IBUS2_BASE_CHANNEL_COUNT;
     rxRuntimeState->rxRefreshRate = 20000;
     rxRuntimeState->rcReadRawFn = ibus2ReadRawRC;
     rxRuntimeState->rcFrameStatusFn = ibus2FrameStatus;
+    rxRuntimeState->rcProcessFrameFn = ibus2ProcessFrame;
     rxRuntimeState->rcFrameTimeUsFn = rxFrameTimeUs;
 
     ibus2ResetState();
@@ -456,14 +531,19 @@ bool ibus2Init(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
         ibus2DataReceive,
         NULL,
         IBUS2_BAUDRATE,
-        rxConfig->halfDuplex ? MODE_RXTX : MODE_RX,
+        MODE_RXTX,
         SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
             (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
-            (rxConfig->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR) |
+            SERIAL_BIDIR | SERIAL_BIDIR_PP |
             (rxConfig->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP)
     );
 
     ibus2RxSerialPort = ibusPort;
+
+    if (ibusPort) {
+        ibus2TelemetryInit(ibusPort);
+        ibus2TelemetrySetRequiredResources(ibus2RequiredResources);
+    }
 
     return ibusPort != NULL;
 }

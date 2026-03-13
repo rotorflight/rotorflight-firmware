@@ -110,6 +110,7 @@ COMMON_SRC = \
             io/serial_4way_stk500v2.c \
             rx/ibus.c \
             rx/ibus2.c \
+            rx/ibus2_telemetry.c \
             rx/jetiexbus.c \
             rx/msp.c \
             rx/pwm.c \
