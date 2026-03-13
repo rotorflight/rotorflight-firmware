@@ -36,7 +36,10 @@
 
 #define IBUS2_BAUDRATE 1500000
 #define IBUS2_FIRST_FRAME_MIN_LEN 4
-#define IBUS2_FIRST_FRAME_MAX_LEN 37
+#define IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN 33
+#define IBUS2_UNPACK_TAIL_READ_BYTES 4
+#define IBUS2_FIRST_FRAME_MAX_LEN (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + 4)
+#define IBUS2_PACKED_BUFFER_LEN (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + IBUS2_UNPACK_TAIL_READ_BYTES)
 #define IBUS2_COMMAND_FRAME_LEN 21
 #define IBUS2_BASE_CHANNEL_COUNT 18
 #define IBUS2_CHANNEL_COUNT 32
@@ -67,16 +70,16 @@ static const uint32_t ibus2UnpackChannelFactors[] = {
 };
 
 static uint32_t ibus2ChannelData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
-static bool ibus2FrameDone = false;
-static bool ibus2FrameFailsafe = false;
-static bool ibus2FrameSyncLost = false;
-static timeUs_t ibus2LastFrameTimeUs = 0;
+static volatile bool ibus2FrameDone = false;
+static volatile bool ibus2FrameFailsafe = false;
+static volatile bool ibus2FrameSyncLost = false;
+static volatile timeUs_t ibus2LastFrameTimeUs = 0;
 static serialPort_t *ibus2RxSerialPort = NULL;
 static uint8_t ibus2RequiredResources = IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES;
 static uint8_t ibus2ChannelTypes[IBUS2_CHANNEL_TYPES_LENGTH + 1];
 static bool ibus2HaveChannelTypes = false;
-static uint8_t ibus2PackedChannels[IBUS2_CHANNEL_COUNT + 3];
-static uint8_t ibus2PackedFailsafe[IBUS2_CHANNEL_COUNT + 3];
+static uint8_t ibus2PackedChannels[IBUS2_PACKED_BUFFER_LEN];
+static uint8_t ibus2PackedFailsafe[IBUS2_PACKED_BUFFER_LEN];
 static bool ibus2HavePackedChannels = false;
 static bool ibus2LastPackedSyncLost = false;
 static bool ibus2LastPackedFailsafe = false;

@@ -83,6 +83,7 @@ static uint8_t ibus2DeviceCount = 0;
 static bool ibus2PendingCommand = false;
 static bool ibus2TelemetryTransmitting = false;
 static uint8_t ibus2PendingCommandCode = 0;
+static uint8_t ibus2PendingAddress = IBUS2_BROADCAST_ADDRESS;
 static uint8_t ibus2PendingFrame[IBUS2_COMMAND_FRAME_LEN];
 static timeUs_t ibus2PendingCommandReceivedAtUs = 0;
 static ibus2TelemetryDebug_t ibus2TelemetryDebug = { 0 };
@@ -570,6 +571,7 @@ static void ibus2SendSetParamResponse(const uint8_t *frame)
 static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
 {
     const uint8_t commandCode = ibus2PendingCommandCode;
+    const uint8_t address = ibus2PendingAddress;
     const timeDelta_t sendDelayUs = cmpTimeUs(micros(), receivedAtUs);
     ibus2TelemetryDebug.lastSendDelayUs = (uint16_t)constrain(sendDelayUs, 0, UINT16_MAX);
     if (ibus2TelemetryDebug.lastSendDelayUs > ibus2TelemetryDebug.maxSendDelayUs) {
@@ -582,7 +584,7 @@ static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
     return;
 #endif
 
-    if (ibus2LastAddress == IBUS2_BROADCAST_ADDRESS) {
+    if (address == IBUS2_BROADCAST_ADDRESS) {
         ibus2TelemetryDebug.broadcastCount++;
         if (commandCode == IBUS2_CMD_RESET) {
             ibus2TelemetryReset();
@@ -590,18 +592,18 @@ static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
         return;
     }
 
-    if (ibus2LastAddress != IBUS2_HUB_ADDRESS && ibus2GetDeviceIndexForAddress(ibus2LastAddress) < 0) {
+    if (address != IBUS2_HUB_ADDRESS && ibus2GetDeviceIndexForAddress(address) < 0) {
         ibus2TelemetryDebug.addressDropCount++;
         return;
     }
 
     switch ((ibus2Command_e)commandCode) {
     case IBUS2_CMD_GET_TYPE:
-        ibus2SendGetTypeResponse(ibus2LastAddress);
+        ibus2SendGetTypeResponse(address);
         break;
 
     case IBUS2_CMD_GET_VALUE:
-        ibus2SendGetValueResponse(ibus2LastAddress);
+        ibus2SendGetValueResponse(address);
         break;
 
     case IBUS2_CMD_GET_PARAM:
@@ -630,6 +632,7 @@ void ibus2TelemetryReset(void)
     ibus2LastAddress = IBUS2_BROADCAST_ADDRESS;
     ibus2PendingCommand = false;
     ibus2PendingCommandCode = 0;
+    ibus2PendingAddress = IBUS2_BROADCAST_ADDRESS;
     ibus2PendingCommandReceivedAtUs = 0;
     ibus2TelemetryTransmitting = false;
     ibus2RefreshDevices();
@@ -656,8 +659,13 @@ void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t 
         return;
     }
 
+    if (ibus2PendingCommand) {
+        return;
+    }
+
     ibus2PendingCommand = true;
     ibus2PendingCommandCode = ibus2GetCommandCode(frame);
+    ibus2PendingAddress = ibus2LastAddress;
     ibus2TelemetryDebug.queueCount++;
     ibus2TelemetryDebug.lastAddress = ibus2LastAddress;
     ibus2TelemetryDebug.lastCommandCode = ibus2PendingCommandCode;
