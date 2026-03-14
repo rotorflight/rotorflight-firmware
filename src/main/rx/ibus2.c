@@ -82,6 +82,19 @@ typedef struct {
 } ibus2FrameParser_t;
 
 typedef struct {
+    uint8_t buf[IBUS2_FIRST_FRAME_MAX_LEN];
+    volatile uint8_t len;
+    volatile timeUs_t receivedAtUs;
+    volatile bool pending;
+} ibus2PendingFirstFrame_t;
+
+typedef struct {
+    uint8_t buf[IBUS2_COMMAND_FRAME_LEN];
+    volatile timeUs_t receivedAtUs;
+    volatile bool pending;
+} ibus2PendingCommandFrame_t;
+
+typedef struct {
     uint32_t channelData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
     volatile bool frameDone;
     volatile bool frameFailsafe;
@@ -105,6 +118,8 @@ typedef struct {
     uint32_t commandFrameCount;
     uint32_t commandFrameCrcErrorCount;
     ibus2FrameParser_t frameParser;
+    ibus2PendingFirstFrame_t pendingFirstFrame;
+    ibus2PendingCommandFrame_t pendingCommandFrame;
 } ibus2State_t;
 
 static ibus2State_t ibus2State = {
@@ -345,7 +360,7 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
     }
 }
 
-static void ibus2ProcessCommandFrame(const uint8_t *frame, size_t frameLen)
+static void ibus2ProcessCommandFrame(const uint8_t *frame, size_t frameLen, timeUs_t receivedAtUs)
 {
     if (frameLen != IBUS2_COMMAND_FRAME_LEN) {
         return;
@@ -361,7 +376,51 @@ static void ibus2ProcessCommandFrame(const uint8_t *frame, size_t frameLen)
     }
 
     ibus2State.commandFrameCount++;
-    ibus2TelemetryQueueCommand(frame, frameLen, microsISR());
+    ibus2TelemetryQueueCommand(frame, frameLen, receivedAtUs);
+}
+
+static void ibus2QueueFirstFrameFromIsr(const uint8_t *frame, uint8_t frameLen, timeUs_t receivedAtUs)
+{
+    if (ibus2State.pendingFirstFrame.pending) {
+        return;
+    }
+
+    memcpy(ibus2State.pendingFirstFrame.buf, frame, frameLen);
+    ibus2State.pendingFirstFrame.len = frameLen;
+    ibus2State.pendingFirstFrame.receivedAtUs = receivedAtUs;
+    ibus2State.pendingFirstFrame.pending = true;
+}
+
+static void ibus2QueueCommandFrameFromIsr(const uint8_t *frame, timeUs_t receivedAtUs)
+{
+    if (ibus2State.pendingCommandFrame.pending) {
+        return;
+    }
+
+    memcpy(ibus2State.pendingCommandFrame.buf, frame, IBUS2_COMMAND_FRAME_LEN);
+    ibus2State.pendingCommandFrame.receivedAtUs = receivedAtUs;
+    ibus2State.pendingCommandFrame.pending = true;
+}
+
+static bool ibus2PendingFrameProcessingRequired(void)
+{
+    return ibus2State.pendingFirstFrame.pending || ibus2State.pendingCommandFrame.pending;
+}
+
+static void ibus2ProcessPendingFrames(void)
+{
+    if (ibus2State.pendingCommandFrame.pending) {
+        const timeUs_t receivedAtUs = ibus2State.pendingCommandFrame.receivedAtUs;
+        ibus2State.pendingCommandFrame.pending = false;
+        ibus2ProcessCommandFrame(ibus2State.pendingCommandFrame.buf, IBUS2_COMMAND_FRAME_LEN, receivedAtUs);
+    }
+
+    if (ibus2State.pendingFirstFrame.pending) {
+        const uint8_t frameLen = ibus2State.pendingFirstFrame.len;
+        const timeUs_t receivedAtUs = ibus2State.pendingFirstFrame.receivedAtUs;
+        ibus2State.pendingFirstFrame.pending = false;
+        ibus2ProcessFirstFrame(ibus2State.pendingFirstFrame.buf, frameLen, receivedAtUs);
+    }
 }
 
 static void ibus2FinalizePendingFrame(timeUs_t nowUs)
@@ -410,7 +469,7 @@ static void ibus2ProcessByte(uint8_t byte)
 
     if (ibus2State.frameParser.expectedLen == IBUS2_COMMAND_FRAME_LEN) {
         if (ibus2State.frameParser.idx == ibus2State.frameParser.expectedLen) {
-            ibus2ProcessCommandFrame(ibus2State.frameParser.buf, ibus2State.frameParser.expectedLen);
+            ibus2QueueCommandFrameFromIsr(ibus2State.frameParser.buf, nowUs);
             ibus2State.frameParser.idx = 0;
             ibus2State.frameParser.expectedLen = 0;
             ibus2State.frameParser.allowStart = false;
@@ -428,7 +487,7 @@ static void ibus2ProcessByte(uint8_t byte)
     }
 
     if (ibus2State.frameParser.expectedLen && ibus2State.frameParser.idx == ibus2State.frameParser.expectedLen) {
-        ibus2ProcessFirstFrame(ibus2State.frameParser.buf, ibus2State.frameParser.expectedLen, nowUs);
+        ibus2QueueFirstFrameFromIsr(ibus2State.frameParser.buf, ibus2State.frameParser.expectedLen, nowUs);
         ibus2State.frameParser.idx = 0;
         ibus2State.frameParser.expectedLen = 0;
         ibus2State.frameParser.allowStart = false;
@@ -446,7 +505,7 @@ static uint8_t ibus2FrameStatus(rxRuntimeState_t *rxRuntimeState)
     uint8_t frameStatus = RX_FRAME_PENDING;
 
     if (!ibus2State.frameDone) {
-        if (ibus2TelemetryPending()) {
+        if (ibus2PendingFrameProcessingRequired() || ibus2TelemetryPending()) {
             return RX_FRAME_PROCESSING_REQUIRED;
         }
         return frameStatus;
@@ -464,7 +523,7 @@ static uint8_t ibus2FrameStatus(rxRuntimeState_t *rxRuntimeState)
 
     rxRuntimeState->lastRcFrameTimeUs = ibus2State.lastFrameTimeUs;
     ibus2DebugPrintHeartbeat(ibus2State.lastFrameTimeUs);
-    if (ibus2TelemetryPending()) {
+    if (ibus2PendingFrameProcessingRequired() || ibus2TelemetryPending()) {
         frameStatus |= RX_FRAME_PROCESSING_REQUIRED;
     }
     return frameStatus;
@@ -479,6 +538,7 @@ static float ibus2ReadRawRC(const rxRuntimeState_t *rxRuntimeState, uint8_t chan
 static bool ibus2ProcessFrame(const rxRuntimeState_t *rxRuntimeState)
 {
     UNUSED(rxRuntimeState);
+    ibus2ProcessPendingFrames();
     return ibus2TelemetryProcess(micros());
 }
 
