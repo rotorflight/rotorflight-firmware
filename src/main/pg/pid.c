@@ -65,11 +65,9 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .dterm_cutoff = { 15, 15, 20 },
         .bterm_cutoff = { 15, 15, 20 },
         .gyro_cutoff = { 50, 50, 100 },
-        .gyro_filter_type = LPF_1ST_ORDER,
         .yaw_cw_stop_gain = 120,
         .yaw_ccw_stop_gain = 80,
         .yaw_precomp_cutoff = 5,
-        .yaw_precomp_filter_type = LPF_1ST_ORDER,
         .yaw_cyclic_ff_gain = 10,
         .yaw_collective_ff_gain = 60,
         .yaw_inertia_precomp_gain = 0,
@@ -125,7 +123,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.collective_weight = 50,
         .governor.collective_curve = 20,
         .governor.fallback_drop = 10,
-        .governor.dyn_min_level = 80,
+        .governor.dyn_min_throttle = 80,
     );
 }
 

@@ -336,6 +336,10 @@
 #define GYRO_1_EXTI_PIN         NONE
 #endif
 
+#if !defined(GYRO_1_CLKIN_PIN)
+#define GYRO_1_CLKIN_PIN         NONE
+#endif
+
 #if !defined(GYRO_2_SPI_INSTANCE)
 #define GYRO_2_SPI_INSTANCE     NULL
 #endif
@@ -352,6 +356,9 @@
 #define GYRO_2_EXTI_PIN         NONE
 #endif
 
+#if !defined(GYRO_2_CLKIN_PIN)
+#define GYRO_2_CLKIN_PIN         NONE
+#endif
 
 #if defined(MPU_ADDRESS)
 #define GYRO_I2C_ADDRESS MPU_ADDRESS
@@ -690,8 +697,19 @@
 #ifndef MAX_SUPPORTED_MOTORS
 #define MAX_SUPPORTED_MOTORS 4
 #endif
-#ifndef MAX_SUPPORTED_SERVOS
-#define MAX_SUPPORTED_SERVOS 8
+
+#ifndef MAX_SUPPORTED_PWM_SERVOS
+#define MAX_SUPPORTED_PWM_SERVOS 8
+#endif
+
+#ifndef BUS_SERVO_CHANNELS
+#define BUS_SERVO_CHANNELS 18
+#endif
+
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+#define MAX_SUPPORTED_SERVOS (MAX_SUPPORTED_PWM_SERVOS + BUS_SERVO_CHANNELS)
+#else
+#define MAX_SUPPORTED_SERVOS MAX_SUPPORTED_PWM_SERVOS
 #endif
 
 #if defined(USE_DSHOT_BITBANG)

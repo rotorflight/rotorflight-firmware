@@ -425,7 +425,7 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #endif
 
 #ifdef USE_FBUS_MASTER
-    // 25Hz is the initial period. The actual period will be loaded from config.
+    // 144Hz is the initial period. The actual period will be loaded from config.
     [TASK_FBUS_MASTER] = DEFINE_TASK("FBUS_MASTER", NULL, NULL, fbusMasterUpdate, TASK_PERIOD_HZ(144), TASK_PRIORITY_MEDIUM),
 #endif
 };

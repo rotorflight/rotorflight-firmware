@@ -28,6 +28,8 @@
 #define VBAT_CELL_VOLTAGE_DEFAULT_WARN      350
 #define VBAT_CELL_VOLTAGE_DEFAULT_ABSENT    300
 
+#define BATTERY_PROFILE_COUNT 6
+
 #ifndef VOLTAGE_TASK_FREQ_HZ
 #define VOLTAGE_TASK_FREQ_HZ    50
 #endif
@@ -53,9 +55,11 @@ typedef enum {
 
 typedef struct {
 
+    uint8_t     batteryProfile;             // battery profile index
+
     // battery size
-    uint16_t    batteryCapacity;            // mAh
     uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
+    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT];    // mAh for the 6 battery profiles
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used

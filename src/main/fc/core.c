@@ -318,6 +318,12 @@ void updateArmingStatus(void)
         }
 #endif
 
+        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+            setArmingDisabled(ARMING_DISABLED_RESC);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_RESC);
+        }
+
 #ifdef USE_DSHOT_BITBANG
         if (isDshotBitbangActive(&motorConfig()->dev) && dshotBitbangGetStatus() != DSHOT_BITBANG_STATUS_OK) {
             setArmingDisabled(ARMING_DISABLED_DSHOT_BITBANG);

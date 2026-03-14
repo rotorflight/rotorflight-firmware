@@ -50,7 +50,7 @@ typedef enum {
     FUNCTION_RCDEVICE            = (1 << 14), // 16384
     FUNCTION_LIDAR_TF            = (1 << 15), // 32768
     FUNCTION_FRSKY_OSD           = (1 << 16), // 65536
-    FUNCTION_DPRINTF             = (1 << 17), // 131072
+    FUNCTION_PRINTF              = (1 << 17), // 131072
     FUNCTION_SBUS_OUT            = (1 << 18), // 262144
     FUNCTION_FBUS_MASTER         = (1 << 19), // 524288
 } serialPortFunction_e;

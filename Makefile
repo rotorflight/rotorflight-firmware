@@ -43,6 +43,13 @@ DEBUG     ?=
 # releases should not be built with this flag as it does not disable pwm output
 DEBUG_HARDFAULTS ?=
 
+# Use printf for debugging:
+#    empty  - no printf support
+#    NULL   - printf supported, but optimised out
+#    ITM    - use ITM SWO channel 0 for printf
+#    SERIAL - use a serial port for printf
+USE_PRINTF ?=
+
 # Serial port/Device for flashing
 SERIAL_DEVICE   ?= $(firstword $(wildcard /dev/ttyACM*) $(firstword $(wildcard /dev/ttyUSB*) no-port-found))
 
@@ -108,7 +115,7 @@ FEATURE_CUT_LEVEL_SUPPLIED := $(FEATURE_CUT_LEVEL)
 FEATURE_CUT_LEVEL =
 
 # The list of targets to build for 'pre-push'
-PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) STM32F4DISCOVERY_DEBUG test-representative
+PRE_PUSH_TARGET_LIST ?= $(UNIFIED_TARGETS) test-representative
 
 include $(ROOT)/make/targets.mk
 
@@ -155,6 +162,10 @@ OPTIMISE_SPEED        := -Ofast
 OPTIMISE_SIZE         := -Os
 
 LTO_FLAGS             := $(OPTIMISATION_BASE) $(OPTIMISE_SPEED)
+endif
+
+ifneq ($(USE_PRINTF),)
+DEBUG_FLAGS           += -DUSE_$(USE_PRINTF)_PRINTF
 endif
 
 VPATH 			:= $(VPATH):$(ROOT)/make/mcu

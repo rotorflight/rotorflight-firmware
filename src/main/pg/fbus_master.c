@@ -23,31 +23,14 @@
 
 #ifdef USE_FBUS_MASTER
 
-// The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
-// Version bumped due to added 'forwardedSensors', 'telemetryRate', and 'sensorDiscoveryTimeMs' fields.
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 5);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 4);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
-    for (int i = 0; i < FBUS_MASTER_CHANNELS; i++) {
-        config->sourceType[i] = FBUS_MASTER_SOURCE_RX;
-        config->sourceIndex[i] = i;
-        config->sourceRangeLow[i] = 1000;
-        config->sourceRangeHigh[i] = 2000;
-    }
     config->frameRate = 500;
-    config->telemetryRate = 250;  // Default 250Hz telemetry polling
-    config->sensorDiscoveryTimeMs = 800;  // Default 0.8 seconds for sensor discovery
-
     config->pinSwap = 0;
-
     // Default to inverted F.Bus (normal for F.Bus receivers).
-    config->inverted = SERIAL_INVERTED;
-
-    // Initialize forwarded sensors list (all disabled by default)
-    for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
-        config->forwardedSensors[i] = 0;
-    }
+    config->inverted = 1;
 }
 
 #endif

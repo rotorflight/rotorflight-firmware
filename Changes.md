@@ -46,11 +46,97 @@ The `pid_mode` parameter can be now changed.
 
 ### MSP_GOVERNOR_PROFILE
 
-Multiple changes (#314).
+Multiple changes (#314) (#353).
 
 ### MSP_GOVERNOR_CONFIG
 
-Multiple changes (#314).
+Multiple changes (#314) (#353).
+
+### MSP_BUS_SERVO_CONFIG
+
+New MSP command (152) to retrieve BUS servo source configuration (18 channels).
+
+### MSP_SET_BUS_SERVO_CONFIG
+
+New MSP command (153) to configure individual BUS servo source settings. Payload: U8 index (0-17) + U8 sourceType (0=MIXER, 1=RX).
+
+### MSP_GET_BUS_SERVO_CONFIG
+
+New MSP command (157) to retrieve individual BUS servo source configuration. Payload: U8 index (0-17). Returns: U8 sourceType.
+
+### MSP_SET_SERVO_CONFIG
+
+New MSP command (124) to configure individual servo settings (PWM and BUS servos). Payload: U8 index + 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
+
+### MSP_GET_SERVO_CONFIG
+
+New MSP command (125) to retrieve individual servo configuration. Payload: U8 index. Returns: 8x U16 fields (mid, min, max, rneg, rpos, rate, speed, flags).
+
+### MSP_SET_SERVO_OVERRIDE_ALL
+
+New MSP command (196) to set servo overrides for all servos in one call. Payload: U16 value (0=enable/center, 2001=disable).
+
+### MSP_SET_SERVO_CENTER
+
+New MSP command (213) to set just the servo center point. Payload: U8 index + U16 mid.
+
+### MSP_GET_MIXER_INPUT
+
+Add msp call to allow retrieving a single mixer line at a time (#361)
+
+### MSP_GET_ADJUSTMENT_RANGE
+
+Add msp call to allow retrieving a single adjustment line at a time (#362)
+
+### MSP_SERVO
+
+Modified to support bus servos:
+
+- Condition: when bus servos are configured — e.g. the `SBUS_OUT` or `FBUS_MASTER` serial function is enabled.
+- Returns: configured PWM servo outputs `S1–Sn` (up to `getServoCount()`), followed by all bus servo outputs `S9–S26` (starting at `BUS_SERVO_OFFSET`).
+- Skipping behavior: any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped.
+
+### MSP_SERVO_CONFIGURATIONS
+
+Modified to support bus servos. When bus servos are configured:
+
+- Mapping (indices → servo outputs):
+	- indices `0` to `getServoCount()-1` → PWM servos `S1–S{getServoCount()}`
+	- indices `getServoCount()` to `getServoCount()+17` → bus servos `S9–S26`
+
+- Note: `getServoCount()` is used to determine how many PWM servos are present; any unconfigured PWM servos between `getServoCount()` and `BUS_SERVO_OFFSET` are skipped when assembling the returned list.
+
+### MSP_SET_SERVO_CONFIGURATION
+
+Modified to support bus servos. When bus servos are configured, the index parameter is mapped: indices 0 to (getServoCount()-1) map to PWM servos S1-Sn, indices getServoCount() to (getServoCount()+17) map to bus servos S9-S26.
+
+### MSP_RC_TUNING
+
+The `cyclic_ring` parameter is added (#345).
+
+### MSP_GET_ADJUSTMENT_FUNCTION_IDS
+
+Added a call to deliver the function id in use per slot (#398)
+
+### MSP_BATTERY_STATE
+
+The `batteryProfile` field is added. (#415)
+
+### MSP_BATTERY_CONFIG
+
+The `batteryCapacity` array is added. (#415)
+
+### MSP_SET_BATTERY_CONFIG
+
+The `batteryCapacity` array is added. (#415)
+
+### MSP_BATTERY_PROFILE
+
+New MSP command to get the active battery profile. (#415)
+
+### MSP_SET_BATTERY_PROFILE
+
+New MSP command to set the active battery profile. (#415)
 
 
 ## CLI Changes
@@ -72,9 +158,9 @@ the PID loop rate to half too.
 `rc_min_throttle` and `rc_max_throttle` parameters default to zero, indicating that
 the actual values are calculated automatically (#332).
 
-`gov_mode` now accepts values `OFF`, `EXTERNAL`, `ELECTRIC`, `NITRO`. (#314)
+`gov_mode` now accepts values `OFF`, `LIMIT`, `DIRECT`, `ELECTRIC`, `NITRO`.
 
-`gov_throttle_type` is added, with possible values `NORMAL`, `OFF_ON`, `OFF_IDLE_ON`, `OFF_IDLE_AUTO_ON`. (#314)
+`gov_throttle_type` is added, with possible values `NORMAL`, `SWITCH`, `FUNCTION`.
 
 `gov_spooldown_time` is added. Value in 1/10s increments.
 
@@ -82,17 +168,15 @@ the actual values are calculated automatically (#332).
 
 `gov_auto_throttle` is added. Value in 0%..25%, with 0.1% steps.
 
-`gov_wot_collective` is added. Value in -100%..100%.
-
-`gov_idle_collective` is added. Value in -100%..100%.
+`gov_bypass_throttle` is added. Value array of 9, with values in 0..200. Step is 0.5%.
 
 `gov_use_<xyz>` flags have been added. Value is `OFF` or `ON`.
 
 `gov_fallback_drop` is added. Value in 0..50%.
 
-`gov_collective_curve` is added. Value in 5..40.
+`gov_dyn_min_throttle` is added. Value in 0..100%.
 
-`gov_autorotation_timeout` is removed.
+`gov_collective_curve` is added. Value in 5..40.
 
 `gov_autorotation_bailout_time` is removed.
 
@@ -103,6 +187,28 @@ the actual values are calculated automatically (#332).
 `gov_spoolup_min_throttle` is removed.
 
 `blackbox_log_governor` flag is added.
+
+`bus_servo_source_type` parameter added. Array of 18 uint8 values where element `bus_servo_source_type[i]` selects the source type for BUS servo channel `i` (array indices 0–17 map to channel numbers 0–17). Value selects the source type: `MIXER` = 0, `RX` = 1. The "source index" is equal to the channel number — i.e. when `RX` is selected the RX input index equals the channel number, and when `MIXER` is selected the mixer channel index equals the channel number.
+
+`fbus_master_frame_rate` parameter added. Value in 25..550 Hz, controls the FBUS Master output frame rate.
+
+`fbus_master_pinswap` parameter added (ON/OFF). Swaps TX/RX pins on the FBUS Master serial port.
+
+`fbus_master_inverted` parameter added (ON/OFF). Controls electrical inversion of the FBUS Master UART output.
+
+`rates_type` accepts `ROTORFLIGHT` (#345).
+
+`cyclic_ring` meaning is changed. The value indicates % of the max rate.
+
+`resource GYRO_CLK` added. Sets the pin for the gyro synchronisation clock, if supported.
+
+`gyro_offset_yaw` is removed (#391).
+
+`bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
+
+`bat_profile` parameter added. Value in 0-5, selects the active battery profile.
+
+`pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
 
 ## Defaults
@@ -116,6 +222,41 @@ the actual values are calculated automatically (#332).
 `rc_min_throttle` and `rc_max_throttle` defaults are changed to 0.
 
 `motor_poles` default is changed to 0,0,0,0.
+
+`bus_servo_source_type` defaults to MIXER (0) for first 8 channels, RX (1) for channels 8-17.
+
+`fbus_master_frame_rate` defaults to 500 Hz.
+
+`fbus_master_pinswap` defaults to OFF (0).
+
+`fbus_master_inverted` defaults to ON (SERIAL_INVERTED), which is the standard for FBUS receivers.
+
+`rates_type` default is changed to `ROTORFLIGHT`.
+
+`cyclic_ring` default is changed to 150%.
+
+`rc_threshold` default for collective (4th element) is changed from 50 to 100 (5% to 10% stick) for airborne/hands-on detection.
+
+`gyro_decimation_hz` default is changed to 500Hz (#405).
+
+`blackbox_mode` default is changed to ARMED (#412).
+
+`blackbox_log_governor` default is changed to ON (#412).
+
+`blackbox_rolling_erase` default is changed to ON (#412).
+
+`roll_srate` default is changed to 12 (#413).
+
+`pitch_srate` default is changed to 12 (#413).
+
+`yaw_srate` default is changed to 12 (#413).
+
+`collective_srate` default is changed to 12 (#413).
+
+
+## CRSF Custom Telemetry
+
+`BATTERY_PROFILE` sensor 0x1214 type U8 is added.
 
 
 ## Features
@@ -176,9 +317,29 @@ The current PID Mode 3 will be kept as-is for backward compatibility.
 - Roll B-gain and D-gain scaled /5
 - Yaw precomp cutoff scaled by /10
 
-### Governor Refactoring (#314)
+### Governor Refactoring (#314) (#343) (#353)
 
 The Governor has been refactored to accomodate I.C./nitro and other new features.
+
+### Rotorflight Rates (#345)
+
+A new Rates systems is added for helicopter applications. `ROTORFLIGHT` rates is
+controlled by three parameters: maximum rate, expo, and shape.
+
+### Gyro calibration (#391)
+
+The previous gyro calibration (sum/variance and sample counting) is replaced
+with a filter-based flow: raw data is passed through a Bessel noise filter,
+then split into DC (bias) and high-frequency components via PT filters.
+When the minimum sample count (from `gyro_calib_duration`) is reached and
+the smoothed high-frequency envelope is below `gyro_calib_noise_limit` on
+all axes, the DC estimate is stored as the gyro zero and calibration
+completes. The existing CLI parameters are unchanged.
+
+### RPM Filter Presets (#406)
+
+Minor changes introduced to all three presets for better match to common
+use cases.
 
 
 ## Bug Fixes

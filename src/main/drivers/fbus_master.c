@@ -26,16 +26,20 @@
 #include "build/build_config.h"
 #include "common/maths.h"
 #include "common/time.h"
+#include "fc/runtime_config.h"
 #include "flight/mixer.h"
+#include "flight/servos.h"
 #include "drivers/sbus_output.h"
-#include "drivers/fbus_sensor.h"
+#include "pg/bus_servo.h"
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
+#include "pg/servos.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
 #include "platform.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
+#define GET_BIT(value, bit) ((value >> bit) & 1)
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -51,8 +55,11 @@ enum {
 };
 
 serialPort_t *fbusMasterPort = NULL;
+
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
+
+#define FBUS_MASTER_SCAN_COUNTER 3
 
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
@@ -68,18 +75,13 @@ uint8_t phsIdList[FBUS_MAX_PHYS_ID] = {0};
 uint8_t physIdsfound = 0;
 uint8_t physIdCnt = 0;
 uint8_t currentPhysId = 0;
-timeUs_t scanStartTimeUs = 0;
-uint32_t scanDurationUs = 0;
+uint8_t scanCounter = 0;
 uint8_t readIngoreBytes = 0;
 uint8_t readBytes = 0;
 uint8_t buffer[FBUS_MASTER_BUFFER_SIZE] = {0};
 
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
-
-// Telemetry rate control
-static uint32_t telemetryFrameCounter = 0;
-static uint32_t telemetryFrameInterval = 1;  // Will be calculated based on rates
 
 static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
 {
@@ -88,7 +90,7 @@ static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
     *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 4)) << 7;
 }
 
-int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
+static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
 {
     uint8_t smartportPhyID = phyID & 0x1F;
     uint8_t phyIDCheck = smartportPhyID;
@@ -96,7 +98,7 @@ int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
-void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs_t currentTimeUs)
+static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
 {
     // Clear the control.c16 structure
     memset(&frame->c16, 0, sizeof(fbusMasterFrame_t));
@@ -130,88 +132,61 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs
     uint8_t crc = frskyCheckSum((uint8_t *)&(frame->c16.type), FBUS_MASTER_CONTROL_FRAME_PAYLOAD_SIZE);
     frame->c16.crc = crc;
 
-    switch (fbusMasterPayloadState)
-    {
-    case FBUS_MASTER_TELEMETRY:
-
-         memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
-        frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
-        
-        // Check if we should poll telemetry this frame
-        bool shouldPollTelemetry = (telemetryFrameCounter % telemetryFrameInterval) == 0;
-        telemetryFrameCounter++;
-        
-        if (!shouldPollTelemetry) {
-            // Don't poll telemetry - send NULL frame
-            frame->downlink.phyID = 0;
-            frame->downlink.prim = FBUS_FRAME_ID_NULL;
-            frame->downlink.appId = 0;
-            frame->downlink.data[0] = 0;
-            frame->downlink.data[1] = 0;
-            frame->downlink.data[2] = 0;
-            frame->downlink.data[3] = 0;
-        } else {
-            // Poll telemetry - use normal telemetry logic
-            // Sensor forwarding is now handled in the receiver (fbus.c)
-            switch (fbusMasterTelemetryState)
-            {
-        case FBUS_MASTER_SCAN_PHY_ID:
-                // Initialize scan start time on first scan
-                if (scanStartTimeUs == 0) {
-                    scanStartTimeUs = currentTimeUs;
-                }
-                
-                // Check if scan time has elapsed
-                if (cmpTimeUs(currentTimeUs, scanStartTimeUs) >= (timeDelta_t)scanDurationUs) {
-                    // Scan time complete, switch to query mode
-                    fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
-                    break;
-                }
-                
-                currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
-                if(currentPhysId > FBUS_MAX_PHYS_ID)
-                {
-                    currentPhysId = 0;
-                }
-
-                frame->downlink.phyID = currentPhysId;
-                frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                currentPhysId++;
-                break;
-            case FBUS_MASTER_QUERY_PHY_ID:
-                currentPhysId = phsIdList[physIdCnt];
-                frame->downlink.phyID = currentPhysId;
-                frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
-                break;
+    switch (fbusMasterPayloadState) {
+        case FBUS_MASTER_TELEMETRY:
+            memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
+            frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
             
-            default:
-                break;
+            switch (fbusMasterTelemetryState) {
+                case FBUS_MASTER_SCAN_PHY_ID:
+                    currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
+                    if (currentPhysId > FBUS_MAX_PHYS_ID) {
+                        currentPhysId = 0;
+                        scanCounter++;
+                        if (scanCounter >= FBUS_MASTER_SCAN_COUNTER) {
+                            scanCounter = 0;
+                            fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
+                            break;
+                        }
+                    }
+        
+                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                    currentPhysId++;
+                    break;
+                case FBUS_MASTER_QUERY_PHY_ID:
+                    currentPhysId = phsIdList[physIdCnt];
+                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.prim = FBUS_FRAME_ID_DATA;
+                    physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+                    break;
+                
+                default:
+                    break;
             }
-        }
-
-        smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
-        crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
-        frame->downlink.crc = crc;
-
-        break;
-
-    case FBUS_MASTER_OTA:
-        //ToDo
-        break;
     
-    default:
-        break;
+            smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
+            crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+            frame->downlink.crc = crc;
+    
+            break;
+    
+        case FBUS_MASTER_OTA:
+            //ToDo
+            break;
+        
+        default:
+            break;
     }
 
 }
 
-void processDownlinkFrame(uint8_t *data)
+static void processDownlinkFrame(uint8_t *data)
 {
     fbusMasterDownlink_t downlink;
     memcpy(&downlink, data, sizeof(downlink));
     uint8_t chkSum = frskyCheckSum((uint8_t *)&downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
-    if(chkSum == downlink.crc) {
+    if (chkSum == downlink.crc) {
         downlink.phyID = smartportMasterStripPhyIDCheckBits(downlink.phyID);
         if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID) {
             bool alreadyInList = false;
@@ -225,19 +200,7 @@ void processDownlinkFrame(uint8_t *data)
                 phsIdList[physIdsfound++] = downlink.phyID;
             }
         }
-        
-        // Process sensor data
-        if (downlink.prim == FBUS_FRAME_ID_DATA) {
-            // Extract data from the downlink frame
-            uint32_t sensorData = (uint32_t)downlink.data[0] |
-                                  ((uint32_t)downlink.data[1] << 8) |
-                                  ((uint32_t)downlink.data[2] << 16) |
-                                  ((uint32_t)downlink.data[3] << 24);
-            
-            // Process the sensor data
-            fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
-        }
-    }
+    }    
 }
 
 static FAST_CODE void dataReceive(uint16_t c, void *data)
@@ -254,8 +217,8 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     if (readBytes >= FBUS_MASTER_BUFFER_SIZE) {
         //sync error
         readBytes = 0;
-    }else{
-        if(readBytes >= 10 && buffer[0] == FBUS_DOWNLINK_PAYLOAD_SIZE /*&& buffer[1] <= FBUS_MAX_PHYS_ID*/){
+    } else {
+        if (readBytes >= 10 && buffer[0] == FBUS_DOWNLINK_PAYLOAD_SIZE) {
             //process frame, reset readBytes
             processDownlinkFrame(buffer);
             readBytes = 0;
@@ -263,60 +226,49 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     }
 }
 
-float fbusMasterGetChannelValue(uint8_t channel)
+static float fbusMasterGetChannelValue(uint8_t channel)
 {
-    const sbusOutSourceType_e source_type =
-        fbusMasterConfig()->sourceType[channel];
-    const uint8_t source_index = fbusMasterConfig()->sourceIndex[channel];
+    const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
-    case SBUS_OUT_SOURCE_NONE:
-        return 0;
-    case SBUS_OUT_SOURCE_RX:
-        return sbusOutGetRX(source_index);
-    case SBUS_OUT_SOURCE_MIXER:
-        return sbusOutGetValueMixer(source_index);
-    case SBUS_OUT_SOURCE_SERVO:
-        return sbusOutGetServo(source_index);
-    case SBUS_OUT_SOURCE_MOTOR:
-        return sbusOutGetMotor(source_index);
+        case BUS_SERVO_SOURCE_RX:
+            return sbusOutGetRX(channel);
+        case BUS_SERVO_SOURCE_MIXER:
+            // Use the same servo-parameter-aware function
+            return sbusOutGetValueMixer(channel);
     }
     return 0;
 }
 
-uint16_t fbusMasterConvertToSbus(uint8_t channel, float pwm)
+static uint16_t fbusMasterConvertToSbus(float value)
 {
-    const int16_t low  = fbusMasterConfig()->sourceRangeLow[channel];
-    const int16_t high = fbusMasterConfig()->sourceRangeHigh[channel];
-
-    // round and bound values
-    if (channel >= 16) {
-        const float value = scaleRangef(pwm, low, high, 0, 1);
-        return constrain(nearbyintf(value), 0, 1);
-    }
-    const float value = scaleRangef(pwm, low, high, 192, 1792);
-    return constrain(nearbyintf(value), 0, (1 << 11) - 1);
+    // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
+    // Bus servo range: (1000 -> BUS_SERVO_MIN_SIGNAL) to (2000 -> BUS_SERVO_MAX_SIGNAL) -> SBUS 192-1792
+    const float scaledValue = scaleRangef(value, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL, 192, 1792);
+    return constrain(nearbyintf(scaledValue), FBUS_MIN, FBUS_MAX);
 }
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)
 {
+    UNUSED(currentTimeUs);
     if (!fbusMasterPort)
         return;
 
-    // Update sensor processing
-    fbusSensorUpdate(currentTimeUs);
-
     // Check TX Buff is free
-    if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t))
+    if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
         return;
+    }
 
     // Start sending.
     fbusMasterFrame_t frame;
     uint16_t channels[FBUS_MASTER_CHANNELS];
     for (int ch = 0; ch < FBUS_MASTER_CHANNELS; ch++) {
         float value = fbusMasterGetChannelValue(ch);
-        channels[ch] = fbusMasterConvertToSbus(ch, value);
+        channels[ch] = fbusMasterConvertToSbus(value);
+        
+        // Store the output value for getServoOutput() to retrieve
+        setBusServoOutput(ch, value);
     }
-    fbusMasterPrepareFrame(&frame, channels, currentTimeUs);
+    fbusMasterPrepareFrame(&frame, channels);
 
     // serial output
     serialWriteBuf(fbusMasterPort, (const uint8_t *)&frame, sizeof(frame));
@@ -324,12 +276,12 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     readBytes = 0;
 }
 
-bool fbusMasterIsEnabled() 
+bool fbusMasterIsEnabled(void) 
 { 
     return fbusMasterPort != NULL;
 }
 
-void fbusMasterInit()
+void fbusMasterInit(void)
 {
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_FBUS_MASTER);
@@ -346,39 +298,5 @@ void fbusMasterInit()
             (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
-    
-    // Calculate telemetry frame interval
-    // telemetryFrameInterval = frameRate / telemetryRate
-    uint16_t frameRate = fbusMasterConfig()->frameRate;
-    uint16_t telemetryRate = fbusMasterConfig()->telemetryRate;
-    
-    // Constrain telemetry rate to valid range (25-550 Hz)
-    telemetryRate = constrain(telemetryRate, 25, 550);
-    
-    // Ensure telemetry rate doesn't exceed frame rate
-    if (telemetryRate > frameRate) {
-        telemetryRate = frameRate;
-    }
-    
-    // Calculate interval (how many frames between telemetry polls)
-    if (telemetryRate > 0) {
-        telemetryFrameInterval = frameRate / telemetryRate;
-        if (telemetryFrameInterval == 0) {
-            telemetryFrameInterval = 1;  // Poll every frame if rates are equal
-        }
-    } else {
-        telemetryFrameInterval = 1;  // Default to every frame
-    }
-    
-    telemetryFrameCounter = 0;
-    
-    // Initialize sensor discovery timing
-    // scanStartTimeUs will be set to current time on first frame
-    scanStartTimeUs = 0;
-    // Convert discovery time from milliseconds to microseconds
-    scanDurationUs = (uint32_t)fbusMasterConfig()->sensorDiscoveryTimeMs * 1000;
-    
-    // Initialize FBUS sensor system
-    fbusSensorInit();
 }
 

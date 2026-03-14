@@ -170,6 +170,8 @@
 #define MSP_NAV_STATUS                       121
 #define MSP_NAV_CONFIG                       122
 #define MSP_ESC_SENSOR_CONFIG                123
+#define MSP_SET_SERVO_CONFIG                 124
+#define MSP_GET_SERVO_CONFIG                 125
 
 #define MSP_SENSOR_ALIGNMENT                 126
 #define MSP_LED_STRIP_MODECOLOR              127
@@ -195,12 +197,12 @@
 #define MSP_SET_GOVERNOR_PROFILE             149
 #define MSP_LED_STRIP_SETTINGS               150
 #define MSP_SET_LED_STRIP_SETTINGS           151
-#define MSP_SBUS_OUTPUT_CONFIG               152
-#define MSP_SET_SBUS_OUTPUT_CONFIG           153
+#define MSP_BUS_SERVO_CONFIG                 152
+#define MSP_SET_BUS_SERVO_CONFIG             153
 #define MSP_RPM_FILTER_V2                    154
 #define MSP_SET_RPM_FILTER_V2                155
-#define MSP_FBUS_MASTER_CONFIG               156
-#define MSP_SET_FBUS_MASTER_CONFIG           157
+#define MSP_GET_ADJUSTMENT_RANGE             156
+#define MSP_GET_BUS_SERVO_CONFIG             157
 
 
 #define MSP_EXPERIMENTAL                     158
@@ -210,11 +212,15 @@
 
 #define MSP_GPSSVINFO                        164
 #define MSP_GPSSTATISTICS                    166
+#define MSP_GET_ADJUSTMENT_FUNCTION_IDS      167
 
 #define MSP_MIXER_INPUTS                     170
 #define MSP_SET_MIXER_INPUT                  171
 #define MSP_MIXER_RULES                      172
 #define MSP_SET_MIXER_RULE                   173
+#define MSP_GET_MIXER_INPUT                  174
+#define MSP_BATTERY_PROFILE                  175
+#define MSP_SET_BATTERY_PROFILE              176
 
 #define MSP_OSD_VIDEO_CONFIG                 180
 #define MSP_SET_OSD_VIDEO_CONFIG             181
@@ -231,6 +237,7 @@
 #define MSP_SET_SERVO_OVERRIDE               193
 #define MSP_MOTOR_OVERRIDE                   194
 #define MSP_SET_MOTOR_OVERRIDE               195
+#define MSP_SET_SERVO_OVERRIDE_ALL           196
 
 #define MSP_SET_RAW_RC                       200
 #define MSP_SET_RAW_GPS                      201
@@ -243,6 +250,7 @@
 #define MSP_SELECT_SETTING                   210
 #define MSP_SET_HEADING                      211
 #define MSP_SET_SERVO_CONFIGURATION          212
+#define MSP_SET_SERVO_CENTER                 213
 
 #define MSP_SET_MOTOR                        214
 #define MSP_SET_NAV_CONFIG                   215

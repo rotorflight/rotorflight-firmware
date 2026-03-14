@@ -184,7 +184,7 @@ static void validateAndFixRatesSettings(void)
         const ratesType_e ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
         for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++) {
             controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, ratesSettingLimits[ratesType].rc_rate_limit);
-            controlRateProfilesMutable(profileIndex)->rates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
+            controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
             controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, ratesSettingLimits[ratesType].expo_limit);
         }
     }
@@ -242,14 +242,6 @@ static void validateAndFixConfig(void)
 #if defined(USE_MULTI_GYRO)
     buildAlignmentFromStandardAlignment(&gyroDeviceConfigMutable(1)->customAlignment, gyroDeviceConfig(1)->alignment);
 #endif
-
-#ifdef USE_ACC
-    if (accelerometerConfig()->accZero.values.roll != 0 ||
-        accelerometerConfig()->accZero.values.pitch != 0 ||
-        accelerometerConfig()->accZero.values.yaw != 0) {
-        accelerometerConfigMutable()->accZero.values.calibrationCompleted = 1;
-    }
-#endif // USE_ACC
 
     if (!(featureIsConfigured(FEATURE_RX_PARALLEL_PWM) || featureIsConfigured(FEATURE_RX_PPM) || featureIsConfigured(FEATURE_RX_SERIAL) || featureIsConfigured(FEATURE_RX_MSP) || featureIsConfigured(FEATURE_RX_SPI))) {
         featureEnableImmediate(DEFAULT_RX_FEATURE);
@@ -638,10 +630,19 @@ void validateAndFixGyroConfig(void)
         }
 
         // Fix gyro filter limits
-        uint16_t decimation_limit = lrintf(0.5f * gyro.sampleRateHz / pidDenom);
+        if (gyroConfig()->gyro_decimation_hz) {
+            // 4th order Bessel uses 1.6 * cutoff on the first SOS
+            // Make sure the resulting cutoff is below Nyquist
+            const uint16_t decimation_max = lrintf(0.3f * gyro.sampleRateHz);
+            const uint16_t decimation_min = 100;
+
+            gyroConfigMutable()->gyro_decimation_hz = constrain(
+                gyroConfigMutable()->gyro_decimation_hz,
+                decimation_min, decimation_max);
+        }
+
         uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / filtDenom);
 
-        adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf2_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_1, cutoff_limit, cutoff_limit);

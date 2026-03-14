@@ -3,7 +3,6 @@ COMMON_SRC = \
             build/build_config.c \
             build/debug.c \
             build/debug_pin.c \
-            build/dprintf.c \
             build/version.c \
             $(TARGET_DIR_SRC) \
             $(addprefix pg/, $(notdir $(wildcard $(SRC_DIR)/pg/*.c))) \
@@ -106,6 +105,7 @@ COMMON_SRC = \
             flight/rescue.c \
             flight/setpoint.c \
             flight/wiggle.c \
+            flight/airborne.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \
@@ -232,11 +232,13 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             common/filter.c \
             common/maths.c \
             common/sdft.c \
+            common/printf.c \
             common/typeconversion.c \
             drivers/accgyro/accgyro_mpu.c \
             drivers/accgyro/accgyro_mpu3050.c \
             drivers/accgyro/accgyro_spi_bmi160.c \
             drivers/accgyro/accgyro_spi_bmi270.c \
+            drivers/accgyro/accgyro_spi_bmi323.c \
             drivers/accgyro/accgyro_spi_bmi088.c \
             drivers/accgyro/accgyro_spi_lsm6dso.c \
             drivers/accgyro_legacy/accgyro_adxl345.c \
@@ -296,6 +298,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_fake.c \
             drivers/barometer/barometer_bmp085.c \
             drivers/barometer/barometer_bmp280.c \
+            drivers/barometer/barometer_bmp581.c \
             drivers/barometer/barometer_fake.c \
             drivers/barometer/barometer_ms5611.c \
             drivers/barometer/barometer_lps.c \
