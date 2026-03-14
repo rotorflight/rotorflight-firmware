@@ -28,6 +28,7 @@
 #include "common/crc.h"
 #include "common/maths.h"
 
+#include "drivers/nvic.h"
 #include "drivers/serial.h"
 #include "drivers/time.h"
 
