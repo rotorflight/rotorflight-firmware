@@ -203,13 +203,11 @@ static bool commandBatchActive = false;
 static bool commandBatchError = false;
 #endif
 
-// RL
 /* Forward declarations to avoid implicit-declaration when this helper is placed
  * before the main CLI print function definitions. These match prototypes
  * in cli.h. */
 extern void cliPrintLine(const char *str);
 extern void cliPrintLinef(const char *format, ...);
-//RLE
 
 #if defined(USE_BOARD_INFO)
 static bool boardInformationUpdated = false;
@@ -6573,14 +6571,14 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
                         }
                     }
                 } else {
-                    cliPrintLinef("Telemetry interval: %u frame(s)", srxl2escGetTelemetryIntervalFrames());
+                    cliPrintLinef("Telemetry interval: %u frame(s)", 
+                        (unsigned)srxl2escGetTelemetryIntervalFrames());
                 }
                 return;
             }
             cliShowParseError(cmdName);
             return;
         }
-    }
     }
 
     /* Print concise status: throttle refresh and telemetry rates */
@@ -6775,7 +6773,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
 #endif
 #ifdef USE_SRXL2_ESC
-    CLI_COMMAND_DEF("srxl2esc", "show/trigger SRXL2 ESC handshake", NULL, cliSrxl2Esc),
+    CLI_COMMAND_DEF("srxl2esc", "show SRXL2 ESC status / telemetry interval", "[telem [interval_frames]]", cliSrxl2Esc),
 #endif
     CLI_COMMAND_DEF("status", "show status", NULL, cliStatus),
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),

@@ -1,21 +1,18 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight (rotorflight.org)
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this software.
- *
- * If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <string.h>
@@ -392,15 +389,22 @@ static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
     return true;
 }
 
+static bool srxl2escHasFullTelemetryPayload(const Srxl2Header *header)
+{
+    return header && header->length >= sizeof(telemetryFrame);
+}
+
 static void srxl2escHandleTelemetryFrame(const Srxl2Header *header)
 {
-    const uint8_t *payload = (const uint8_t *)(header + 1);
-    uint8_t sensorId = 0;
-    uint8_t secondaryId = 0;
-    if (header->length >= 6) { /* header (3) + dest + sensor + secondary */
-        sensorId = payload[1];
-        secondaryId = payload[2];
+    if (!srxl2escHasFullTelemetryPayload(header)) {
+        return;
     }
+
+    const uint8_t *payload = (const uint8_t *)(header + 1);
+
+    uint8_t sensorId = payload[1];
+    uint8_t secondaryId = payload[2];
+
     srxl2escTelemetryRxPending = false;
     srxl2escTelemetryRxDeadlineUs = 0;
     const uint32_t rxCompleteUs = lastReceiveTimestamp ? lastReceiveTimestamp : micros();
@@ -426,7 +430,7 @@ static void srxl2escHandleTelemetryFrame(const Srxl2Header *header)
 
 static void srxl2escRecordTelemetryFrame(const Srxl2Header *header)
 {
-    if (!header || header->length < 6) {
+    if (!srxl2escHasFullTelemetryPayload(header)) {
         return;
     }
     const uint8_t *payload = (const uint8_t *)(header + 1);
@@ -795,15 +799,17 @@ void srxl2escIdle()
         return;
     }
 
-    /* Swap read and process buffer pointers */
-    if (processBufferPtr == &readBufferse[0]) {
-        processBufferPtr = &readBufferse[1];
-        readBufferPtr = &readBufferse[0];
-    } else {
-        processBufferPtr = &readBufferse[0];
-        readBufferPtr = &readBufferse[1];
+    struct escBufse *completed = readBufferPtr;
+    struct escBufse *spare = srxl2escGetSpareBuffer();
+    if (spare == NULL) {
+        completed->len = 0;
+        readBufferIdx = 0;
+        return;
     }
+
+    processBufferPtr = completed;
     processBufferPtr->len = readBufferIdx;
+    readBufferPtr = spare;
 
     readBufferPtr->len = 0;
     readBufferIdx = 0;
@@ -1120,7 +1126,8 @@ bool srxl2escGetLatestTelemetry(uint8_t *sensorId, uint8_t *secondaryId, uint8_t
     /* Do not expose sensor type 0x0C or 0x42 for transmission — caller (SRXL2)
      * will skip sending these frames. Keep the data recorded for history
      * and for internal injection into escSensorData_t. */
-    if (srxl2escLatestTelemetrySensorId == 0x0C || 0x42) {
+    if (srxl2escLatestTelemetrySensorId == 0x0C || 
+        srxl2escLatestTelemetrySensorId == 0x42) {
         return false;
     }
 
@@ -1183,10 +1190,8 @@ void validateAndFixSrxl2escConfig()
     }
 }
 
-bool srxl2escInit(const srxl2esc_config_t *escConfig, srxl2esc_runtimeState_t *srxl2escRs)
+bool srxl2escInit(const srxl2esc_config_t *escConfig)
 {
-    (void)srxl2escRs; /* legacy parameter ignored; driver uses internal runtime */
-
     /* Initialize internal runtime state and channel storage */
     for (unsigned i = 0; i < SRXL2_ESC_MAX_CHANNELS; i++)
         srxl2escInternalChannelData[i] = SRXL2_ESC_CHANNEL_CENTER;
@@ -1312,7 +1317,7 @@ bool srxl2escDriverInit(void)
      * If you want board-specific unit id or pin-swap, set them via a
      * platform-specific setter or call `srxl2escInit` directly with values. */
     srxl2esc_config_t localCfg = { .srxl2_unit_id = 0, .pinSwap = false };
-    if (!srxl2escInit(&localCfg, &srxl2escDriverRuntime)) {
+    if (!srxl2escInit(&localCfg)) {
         closeSerialPort(srxl2escDriverPort);
         srxl2escDriverPort = NULL;
         return false;

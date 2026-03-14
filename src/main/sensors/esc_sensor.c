@@ -334,14 +334,13 @@ static void srxl2escSensorProcess(timeUs_t currentTimeUs)
                         inj.bec_voltage = (uint32_t)rawVoltsBEC * 50u;
                     }
 
-                    uint8_t rawPowerOut = data[13];
-                    uint8_t rawThrottle = data[12];
-                    if (rawPowerOut != 0xFF) {
-                        inj.throttle = (uint16_t)rawPowerOut * 5u;
-                        inj.pwm = inj.throttle;
-                    } else if (rawThrottle != 0xFF) {
-                        inj.throttle = (uint16_t)rawThrottle * 5u;
-                        inj.pwm = inj.throttle;
+                    const uint8_t raw_throttle = data[12];
+                    const uint8_t raw_power_out = data[13];
+                    if (raw_throttle != 0xFF) {
+                        inj.throttle = (uint16_t)raw_throttle * 5u;
+                    }
+                    if (raw_power_out != 0xFF) {
+                        inj.pwm = (uint16_t)raw_power_out * 5u;
                     }
 
                     escSensorData_t *dst = getEscSensorData((uint8_t)motorIndex);

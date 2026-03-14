@@ -143,6 +143,15 @@ bool isMotorProtocolCastlePWM(void)
 #endif
 }
 
+bool isMotorProtocolSrxl2(void)
+{
+#ifdef USE_SRXL2_ESC
+    return motorConfig()->dev.motorPwmProtocol == PWM_TYPE_SRXL2;
+#else
+  return false;
+#endif
+}
+
 bool checkMotorProtocolEnabled(const motorDevConfig_t *motorDevConfig)
 {
     switch (motorDevConfig->motorPwmProtocol) {
