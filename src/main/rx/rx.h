@@ -85,7 +85,7 @@ typedef enum {
     SERIALRX_FPORT2 = 16,
     SERIALRX_FBUS = 17,
     SERIALRX_XBUS_MODE_A = 18,
-    SERIALRX_IBUS2 = 19
+    SERIALRX_IBUS2 = 19,
 } SerialRXType;
 
 #define MAX_SUPPORTED_RC_PPM_CHANNEL_COUNT          12

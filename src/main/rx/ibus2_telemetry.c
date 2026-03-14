@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "common/crc.h"
 #include "common/maths.h"
 #include "common/utils.h"
 
@@ -104,33 +105,23 @@ static const uint8_t ibus2SensorPriority[] = {
     IBUS_SENSOR_TYPE_GPS_ALT,
 };
 
-static uint8_t ibus2Crc8(const uint8_t *data, size_t len)
-{
-    uint8_t crc = 0xFF;
-
-    for (size_t i = 0; i < len; i++) {
-        crc ^= data[i];
-        for (uint8_t bit = 0; bit < 8; bit++) {
-            if (crc & 0x80) {
-                crc = (uint8_t)((crc << 1) ^ 0x25);
-            } else {
-                crc <<= 1;
-            }
-        }
-    }
-
-    return crc;
-}
-
-static uint16_t readU16Unaligned(const uint8_t *data)
+static inline uint16_t readU16Unaligned(const uint8_t *data)
 {
     return (uint16_t)data[0] | ((uint16_t)data[1] << 8);
 }
 
-static void writeU16Unaligned(uint8_t *data, uint16_t value)
+static inline void writeU16Unaligned(uint8_t *data, uint16_t value)
 {
     data[0] = (uint8_t)(value & 0xFF);
     data[1] = (uint8_t)(value >> 8);
+}
+
+static inline void writeU32Unaligned(uint8_t *data, uint32_t value)
+{
+    data[0] = (uint8_t)(value & 0xFF);
+    data[1] = (uint8_t)((value >> 8) & 0xFF);
+    data[2] = (uint8_t)((value >> 16) & 0xFF);
+    data[3] = (uint8_t)((value >> 24) & 0xFF);
 }
 
 static uint8_t ibus2GetCommandCode(const uint8_t *frame)
@@ -304,14 +295,11 @@ static uint16_t ibus2GetMode(void)
 
     if (FLIGHT_MODE(ANGLE_MODE)) {
         flightMode = 0;
-    }
-    if (FLIGHT_MODE(HORIZON_MODE)) {
+    } else if (FLIGHT_MODE(HORIZON_MODE)) {
         flightMode = 7;
-    }
-    if (FLIGHT_MODE(RESCUE_MODE)) {
+    } else if (FLIGHT_MODE(RESCUE_MODE)) {
         flightMode = 4;
-    }
-    if (FLIGHT_MODE(FAILSAFE_MODE)) {
+    } else if (FLIGHT_MODE(FAILSAFE_MODE)) {
         flightMode = 9;
     }
 
@@ -341,31 +329,21 @@ static bool ibus2SetGpsValue(uint8_t sensorType, uint8_t *valueBuffer, uint8_t l
 
     case IBUS_SENSOR_TYPE_GPS_LAT:
         if (length >= 4) {
-            valueBuffer[0] = (uint8_t)(gpsSol.llh.lat & 0xFF);
-            valueBuffer[1] = (uint8_t)((gpsSol.llh.lat >> 8) & 0xFF);
-            valueBuffer[2] = (uint8_t)((gpsSol.llh.lat >> 16) & 0xFF);
-            valueBuffer[3] = (uint8_t)((gpsSol.llh.lat >> 24) & 0xFF);
+            writeU32Unaligned(valueBuffer, (uint32_t)gpsSol.llh.lat);
             return true;
         }
         return false;
 
     case IBUS_SENSOR_TYPE_GPS_LON:
         if (length >= 4) {
-            valueBuffer[0] = (uint8_t)(gpsSol.llh.lon & 0xFF);
-            valueBuffer[1] = (uint8_t)((gpsSol.llh.lon >> 8) & 0xFF);
-            valueBuffer[2] = (uint8_t)((gpsSol.llh.lon >> 16) & 0xFF);
-            valueBuffer[3] = (uint8_t)((gpsSol.llh.lon >> 24) & 0xFF);
+            writeU32Unaligned(valueBuffer, (uint32_t)gpsSol.llh.lon);
             return true;
         }
         return false;
 
     case IBUS_SENSOR_TYPE_GPS_ALT:
         if (length >= 4) {
-            const int32_t altCm = gpsSol.llh.altCm;
-            valueBuffer[0] = (uint8_t)(altCm & 0xFF);
-            valueBuffer[1] = (uint8_t)((altCm >> 8) & 0xFF);
-            valueBuffer[2] = (uint8_t)((altCm >> 16) & 0xFF);
-            valueBuffer[3] = (uint8_t)((altCm >> 24) & 0xFF);
+            writeU32Unaligned(valueBuffer, (uint32_t)gpsSol.llh.altCm);
             return true;
         }
         return false;
@@ -425,11 +403,7 @@ static bool ibus2GetSensorValue(uint8_t sensorType, uint8_t *valueBuffer, uint8_
 
     case IBUS_SENSOR_TYPE_ALT:
         if (*valueLength >= 4) {
-            const int32_t altitudeCm = getEstimatedAltitudeCm();
-            valueBuffer[0] = (uint8_t)(altitudeCm & 0xFF);
-            valueBuffer[1] = (uint8_t)((altitudeCm >> 8) & 0xFF);
-            valueBuffer[2] = (uint8_t)((altitudeCm >> 16) & 0xFF);
-            valueBuffer[3] = (uint8_t)((altitudeCm >> 24) & 0xFF);
+            writeU32Unaligned(valueBuffer, (uint32_t)getEstimatedAltitudeCm());
             return true;
         }
         return false;
@@ -482,7 +456,7 @@ static void ibus2SendResponse(uint8_t commandCode, const uint8_t *payload, size_
     }
 
     memcpy(&frame[1], payload, payloadLen);
-    frame[IBUS2_RESPONSE_FRAME_LEN - 1] = ibus2Crc8(frame, IBUS2_RESPONSE_FRAME_LEN - 1);
+    frame[IBUS2_RESPONSE_FRAME_LEN - 1] = crc8_update(0xFF, frame, IBUS2_RESPONSE_FRAME_LEN - 1, 0x25);
 
     ibus2TelemetryDebug.sendCount++;
     ibus2TelemetryDebug.lastResponseCode = commandCode;
