@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "build/atomic.h"
+
 #include "common/crc.h"
 #include "common/maths.h"
 
@@ -409,17 +411,38 @@ static bool ibus2PendingFrameProcessingRequired(void)
 
 static void ibus2ProcessPendingFrames(void)
 {
-    if (ibus2State.pendingCommandFrame.pending) {
-        const timeUs_t receivedAtUs = ibus2State.pendingCommandFrame.receivedAtUs;
-        ibus2State.pendingCommandFrame.pending = false;
-        ibus2ProcessCommandFrame(ibus2State.pendingCommandFrame.buf, IBUS2_COMMAND_FRAME_LEN, receivedAtUs);
+    uint8_t commandFrame[IBUS2_COMMAND_FRAME_LEN];
+    timeUs_t commandReceivedAtUs = 0;
+    bool haveCommandFrame = false;
+
+    uint8_t firstFrame[IBUS2_FIRST_FRAME_MAX_LEN];
+    uint8_t firstFrameLen = 0;
+    timeUs_t firstFrameReceivedAtUs = 0;
+    bool haveFirstFrame = false;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        if (ibus2State.pendingCommandFrame.pending) {
+            memcpy(commandFrame, ibus2State.pendingCommandFrame.buf, sizeof(commandFrame));
+            commandReceivedAtUs = ibus2State.pendingCommandFrame.receivedAtUs;
+            ibus2State.pendingCommandFrame.pending = false;
+            haveCommandFrame = true;
+        }
+
+        if (ibus2State.pendingFirstFrame.pending) {
+            firstFrameLen = ibus2State.pendingFirstFrame.len;
+            memcpy(firstFrame, ibus2State.pendingFirstFrame.buf, firstFrameLen);
+            firstFrameReceivedAtUs = ibus2State.pendingFirstFrame.receivedAtUs;
+            ibus2State.pendingFirstFrame.pending = false;
+            haveFirstFrame = true;
+        }
     }
 
-    if (ibus2State.pendingFirstFrame.pending) {
-        const uint8_t frameLen = ibus2State.pendingFirstFrame.len;
-        const timeUs_t receivedAtUs = ibus2State.pendingFirstFrame.receivedAtUs;
-        ibus2State.pendingFirstFrame.pending = false;
-        ibus2ProcessFirstFrame(ibus2State.pendingFirstFrame.buf, frameLen, receivedAtUs);
+    if (haveCommandFrame) {
+        ibus2ProcessCommandFrame(commandFrame, sizeof(commandFrame), commandReceivedAtUs);
+    }
+
+    if (haveFirstFrame) {
+        ibus2ProcessFirstFrame(firstFrame, firstFrameLen, firstFrameReceivedAtUs);
     }
 }
 
