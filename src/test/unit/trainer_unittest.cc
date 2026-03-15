@@ -25,7 +25,6 @@ extern "C" {
 #include "flight/imu.h"
 #include "pg/accel.h"
 #include "sensors/gyro.h"
-#include "flight/pid.h"
 }
 
 extern "C" {
@@ -40,9 +39,6 @@ uint8_t debugAxis;
 int32_t debug[DEBUG_VALUE_COUNT];
 uint32_t __timing[DEBUG_VALUE_COUNT];
 
-// Track pidResetAxisError calls
-static int pidResetCallCount[3] = {0};
-void pidResetAxisError(int axis) { pidResetCallCount[axis]++; }
 }
 
 class AcroTrainerTest : public ::testing::Test {
@@ -61,7 +57,6 @@ class AcroTrainerTest : public ::testing::Test {
 
         memset(&attitude, 0, sizeof(attitude));
         memset(&gyro, 0, sizeof(gyro));
-        memset(pidResetCallCount, 0, sizeof(pidResetCallCount));
     }
 
     void setAngle(int axis, float degrees) {
@@ -187,24 +182,6 @@ TEST_F(AcroTrainerTest, ExactBoundaryNoCorrection) {
     EXPECT_FLOAT_EQ(result, 100.0f);
 }
 
-TEST_F(AcroTrainerTest, PidResetCalledDuringOvershoot) {
-    setAngle(FD_ROLL, 25.0f);
-
-    acroTrainerApply(FD_ROLL, 0.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-    EXPECT_EQ(pidResetCallCount[FD_PITCH], 0);
-}
-
-TEST_F(AcroTrainerTest, PidResetNotCalledWithinLimits) {
-    setAngle(FD_ROLL, 10.0f);
-    gyro.gyroADCf[FD_ROLL] = 0.0f;
-
-    acroTrainerApply(FD_ROLL, 50.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 0);
-}
-
 TEST_F(AcroTrainerTest, LookaheadTriggers) {
     setAngle(FD_ROLL, 18.0f);
     gyro.gyroADCf[FD_ROLL] = 400.0f;
@@ -227,79 +204,6 @@ TEST_F(AcroTrainerTest, LookaheadIgnoresOpposingStick) {
     EXPECT_FLOAT_EQ(result, -100.0f);
 }
 
-TEST_F(AcroTrainerTest, PidResetOnlyOnTransition) {
-    setAngle(FD_ROLL, 25.0f);
-
-    // 3 consecutive overshoot frames -> reset should fire only on the first
-    acroTrainerApply(FD_ROLL, 100.0f);
-    acroTrainerApply(FD_ROLL, 100.0f);
-    acroTrainerApply(FD_ROLL, 100.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-}
-
-TEST_F(AcroTrainerTest, PidResetResetsAfterRecovery) {
-    // First overshoot episode
-    setAngle(FD_ROLL, 25.0f);
-    acroTrainerApply(FD_ROLL, 100.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-
-    // Recovery: back within limits, no gyro
-    setAngle(FD_ROLL, 10.0f);
-    gyro.gyroADCf[FD_ROLL] = 0.0f;
-    acroTrainerApply(FD_ROLL, 50.0f);
-
-    // Second overshoot episode -> should fire reset again
-    setAngle(FD_ROLL, 25.0f);
-    acroTrainerApply(FD_ROLL, 100.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 2);
-}
-
-TEST_F(AcroTrainerTest, PidResetSharedAcrossLookaheadAndExcess) {
-    // Lookahead triggers first (within limits but projecting past)
-    setAngle(FD_ROLL, 18.0f);
-    gyro.gyroADCf[FD_ROLL] = 400.0f;
-    acroTrainerApply(FD_ROLL, 400.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-
-    // Angle now exceeds limit (continuous episode)
-    setAngle(FD_ROLL, 25.0f);
-    gyro.gyroADCf[FD_ROLL] = 0.0f;
-    acroTrainerApply(FD_ROLL, 100.0f);
-
-    // Still same episode -> no additional reset
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-}
-
-TEST_F(AcroTrainerTest, PidResetClearedOnDeactivation) {
-    // First overshoot
-    setAngle(FD_ROLL, 25.0f);
-    acroTrainerApply(FD_ROLL, 100.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-
-    // Deactivate and reactivate
-    acroTrainerSetState(false);
-    acroTrainerSetState(true);
-
-    // Same overshoot -> should fire reset again because deactivation cleared flag
-    acroTrainerApply(FD_ROLL, 100.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 2);
-}
-
-TEST_F(AcroTrainerTest, PidResetIndependentPerAxis) {
-    // Roll overshoots
-    setAngle(FD_ROLL, 25.0f);
-    setAngle(FD_PITCH, 10.0f);
-    gyro.gyroADCf[FD_PITCH] = 0.0f;
-
-    acroTrainerApply(FD_ROLL, 100.0f);
-    acroTrainerApply(FD_PITCH, 50.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 1);
-    EXPECT_EQ(pidResetCallCount[FD_PITCH], 0);
-}
-
 TEST_F(AcroTrainerTest, LookaheadZeroStickNotLimited) {
     // When stick is centered (setPoint=0), Sign(0) returns -1.
     // projectedAngleSign is +1 for positive projected angle.
@@ -311,7 +215,6 @@ TEST_F(AcroTrainerTest, LookaheadZeroStickNotLimited) {
     float result = acroTrainerApply(FD_ROLL, 0.0f);
 
     EXPECT_FLOAT_EQ(result, 0.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 0);
 }
 
 TEST_F(AcroTrainerTest, ZeroLookaheadDisablesLookahead) {
@@ -327,14 +230,4 @@ TEST_F(AcroTrainerTest, ZeroLookaheadDisablesLookahead) {
     float result = acroTrainerApply(FD_ROLL, 400.0f);
 
     EXPECT_FLOAT_EQ(result, 400.0f);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 0);
-}
-
-TEST_F(AcroTrainerTest, PidResetOnPitchOvershoot) {
-    setAngle(FD_PITCH, 25.0f);
-
-    acroTrainerApply(FD_PITCH, 100.0f);
-
-    EXPECT_EQ(pidResetCallCount[FD_PITCH], 1);
-    EXPECT_EQ(pidResetCallCount[FD_ROLL], 0);
 }

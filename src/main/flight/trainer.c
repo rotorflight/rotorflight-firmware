@@ -43,7 +43,6 @@
 #include "sensors/gyro.h"
 
 #include "flight/imu.h"
-#include "flight/pid.h"
 #include "flight/trainer.h"
 
 
@@ -57,7 +56,6 @@ typedef struct {
     float       Gain;
     float       AngleLimit;
     float       LookaheadTime;
-    bool        PidReset[XY_AXIS_COUNT];
 } acroTrainer_t;
 
 static FAST_DATA_ZERO_INIT acroTrainer_t acroTrainer;
@@ -78,17 +76,10 @@ INIT_CODE void acroTrainerInit(const pidProfile_t *pidProfile)
     acroTrainer.Gain = pidProfile->trainer.gain / 10.0f;
     acroTrainer.AngleLimit = pidProfile->trainer.angle_limit;
     acroTrainer.LookaheadTime = pidProfile->trainer.lookahead_ms / 1000.0f;
-    acroTrainer.PidReset[0] = false;
-    acroTrainer.PidReset[1] = false;
 }
 
 void acroTrainerSetState(bool state)
 {
-    if (!state && acroTrainer.Active) {
-        acroTrainer.PidReset[0] = false;
-        acroTrainer.PidReset[1] = false;
-    }
-
     acroTrainer.Active = state;
 }
 
@@ -107,8 +98,6 @@ static inline sign_t Sign(float x)
 //    Limit the setPoint to control the gyro rate as the angle
 //    approaches the limit (try to prevent overshoot)
 // 3. No correction needed, return the original setPoint
-// 4. PID I-term is reset once when limiting first activates on an axis,
-//    then allowed to accumulate naturally during correction
 //
 
 float acroTrainerApply(int axis, float setPoint)
@@ -148,16 +137,6 @@ float acroTrainerApply(int axis, float setPoint)
                 setPoint = limitf(((acroTrainer.AngleLimit * projectedAngleSign) - projectedAngle) * acroTrainer.Gain, ACRO_TRAINER_SETPOINT_LIMIT);
                 limiting = true;
             }
-        }
-
-        // One-shot PID I-term reset: fires once when limiting begins, clears when limiting ends
-        if (limiting) {
-            if (!acroTrainer.PidReset[axis]) {
-                pidResetAxisError(axis);
-                acroTrainer.PidReset[axis] = true;
-            }
-        } else {
-            acroTrainer.PidReset[axis] = false;
         }
 
         DEBUG_AXIS(ACRO_TRAINER, axis, 0, currentAngle * 10);
