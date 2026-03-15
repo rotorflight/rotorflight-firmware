@@ -153,6 +153,10 @@ the PID loop rate to half too.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
 
+`board_name`, `board_design`, and `manufacturer_id` now display a detailed
+incompatible-configuration warning and halt the system when an attempt is made
+to change them after they have been set. Previously only an error was shown.
+
 `deadband` parameter maximum value is changed from 32 to 100 (#327).
 
 `rc_arm_throttle` parameter is removed (#332).
