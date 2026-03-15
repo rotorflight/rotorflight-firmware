@@ -30,7 +30,6 @@
 
 
 void acroTrainerInit(const pidProfile_t *pidProfile);
-void acroTrainerReset(void);
 void acroTrainerSetState(bool state);
 
 float acroTrainerApply(int axis, float setPoint);
