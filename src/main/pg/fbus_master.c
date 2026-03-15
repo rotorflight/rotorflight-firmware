@@ -24,13 +24,17 @@
 #ifdef USE_FBUS_MASTER
 
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 4);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 5);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 500;
     config->pinSwap = 0;
     // Default to inverted F.Bus (normal for F.Bus receivers).
     config->inverted = 1;
+
+    config->telemetryRate = 200;
+    config->sensorDiscoveryTimeMs = 3000;
+    memset(config->forwardedSensors, 0, sizeof(config->forwardedSensors));
 }
 
 #endif

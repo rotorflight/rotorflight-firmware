@@ -5066,7 +5066,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         
         // Print app IDs
         for (uint8_t j = 0; j < sensor->appIdCount; j++) {
-            cliPrintf("0x%04X", sensor->appIds[j]);
+            cliPrintf("%u", sensor->appIds[j]);
             if (j < sensor->appIdCount - 1) {
                 cliPrint(", ");
             }
