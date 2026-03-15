@@ -114,6 +114,8 @@ Modified to support bus servos. When bus servos are configured, the index parame
 
 The `cyclic_ring` parameter is added (#345).
 
+The `cyclic_polar` parameter is added (#426).
+
 ### MSP_GET_ADJUSTMENT_FUNCTION_IDS
 
 Added a call to deliver the function id in use per slot (#398)
