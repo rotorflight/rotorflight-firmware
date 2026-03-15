@@ -109,6 +109,12 @@ typedef struct
 
     int8_t    collective_tilt_correction_pos;
     int8_t    collective_tilt_correction_neg;
+
+    uint8_t   trim_flight_gain;            // accumulation speed (0=off, 1-200)
+    uint8_t   trim_flight_stick_threshold; // stick center band (5-150, in 0.1%)
+    int16_t   trim_flight_max_trim;        // max trim per axis (0-100, in 0.001 swash units)
+
+    int16_t   trim_flight_trim[2];        // trim flight captured trims (roll/pitch, in 0.001 swash units)
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);

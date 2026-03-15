@@ -24,7 +24,7 @@
 #include "config/config_reset.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 1);
 
 PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .main_rotor_dir = DIR_CW,
@@ -40,6 +40,10 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .swash_geo_correction = 0,
     .collective_tilt_correction_pos = 0,
     .collective_tilt_correction_neg = 10,
+    .trim_flight_gain = 50,
+    .trim_flight_stick_threshold = 10,
+    .trim_flight_max_trim = 50,
+    .trim_flight_trim = { 0, 0 },
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);

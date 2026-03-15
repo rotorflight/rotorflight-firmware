@@ -1617,6 +1617,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->swash_geo_correction);
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_pos);
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_neg);
+        sbufWriteU8(dst, mixerConfig()->trim_flight_gain);
+        sbufWriteU8(dst, mixerConfig()->trim_flight_stick_threshold);
+        sbufWriteS16(dst, mixerConfig()->trim_flight_max_trim);
+        sbufWriteS16(dst, mixerConfig()->trim_flight_trim[0]);
+        sbufWriteS16(dst, mixerConfig()->trim_flight_trim[1]);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -3409,6 +3414,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 2) {
             mixerConfigMutable()->collective_tilt_correction_pos = sbufReadS8(src);
             mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
+        }
+        if (sbufBytesRemaining(src) >= 4) {
+            mixerConfigMutable()->trim_flight_gain = sbufReadU8(src);
+            mixerConfigMutable()->trim_flight_stick_threshold = sbufReadU8(src);
+            mixerConfigMutable()->trim_flight_max_trim = sbufReadS16(src);
+        }
+        if (sbufBytesRemaining(src) >= 4) {
+            mixerConfigMutable()->trim_flight_trim[0] = sbufReadS16(src);
+            mixerConfigMutable()->trim_flight_trim[1] = sbufReadS16(src);
         }
         mixerInitConfig();
         break;

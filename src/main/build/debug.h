@@ -126,6 +126,7 @@ typedef enum {
     DEBUG_GOV_MOTOR,
     DEBUG_POLAR_RATE,
     DEBUG_GYRO_CALIBRATION,
+    DEBUG_TRIM_FLIGHT,
     DEBUG_COUNT
 } debugType_e;
 

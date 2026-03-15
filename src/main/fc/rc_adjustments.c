@@ -45,6 +45,7 @@
 #include "flight/trainer.h"
 #include "flight/governor.h"
 #include "flight/leveling.h"
+#include "flight/trim_flight.h"
 
 #include "io/beeper.h"
 #include "io/ledstrip.h"
@@ -236,6 +237,8 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(ACC_TRIM_ROLL,                -300, 300),
 
     ADJ_ENTRY(BATTERY_PROFILE,              1, BATTERY_PROFILE_COUNT),
+
+    ADJ_ENTRY(TRIM_FLIGHT_RESET,            0, 1),
 
 #ifdef USE_ACRO_TRAINER
     ADJ_ENTRY(ACRO_TRAINER_GAIN,            25, 255),

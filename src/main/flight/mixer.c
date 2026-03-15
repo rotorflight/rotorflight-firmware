@@ -42,6 +42,7 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 #include "flight/governor.h"
+#include "flight/trim_flight.h"
 #include "flight/wiggle.h"
 
 #include "rx/rx.h"
@@ -432,6 +433,9 @@ static void mixerUpdateSwash(void)
         SP += mixer.swashTrim[1];
         SC += mixer.swashTrim[2];
 
+        SR += trimFlightGetTrim(0);
+        SP += trimFlightGetTrim(1);
+
         switch (mixerConfig()->swash_type) {
             case SWASH_TYPE_120:
                 setServoOutput(0, 0.5f * SC - SP);
@@ -562,6 +566,9 @@ void mixerUpdate(timeUs_t currentTimeUs)
 
     // Fetch input values
     mixerUpdateInputs();
+
+    // Update trim flight
+    trimFlightUpdate();
 
     // Evaluate hard-coded mixer
     mixerUpdateSwash();
