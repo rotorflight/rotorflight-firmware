@@ -255,6 +255,10 @@ the actual values are calculated automatically (#332).
 
 `collective_srate` default is changed to 12 (#413).
 
+`error_limit` default is changed to 45,45,60 (#425).
+
+`offset_limit` default is changed to 90,90 (#425).
+
 
 ## CRSF Custom Telemetry
 
