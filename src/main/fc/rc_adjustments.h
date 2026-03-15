@@ -153,6 +153,9 @@ typedef enum {
     ADJUSTMENT_GOV_YAW_FF               = 81,
     ADJUSTMENT_BATTERY_PROFILE          = 82,
 
+    // Trim flight
+    ADJUSTMENT_TRIM_FLIGHT_RESET        = 83,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;
 

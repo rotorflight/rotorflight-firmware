@@ -13,6 +13,34 @@ PID Mode 4 is introduced for testing new features (#293). The current default
 PID Mode 3 is maintained for backward compatibility.
 
 
+## Trim Flight (#111)
+
+A new "Trim Flight" mode is added for automatic swashplate trim capture.
+When the TRIM FLIGHT mode switch is active during stable hover, the firmware
+captures the steady-state PID I-term correction on roll and pitch and
+accumulates it as persistent swashplate trim. When the switch is deactivated,
+the accumulated trim is saved to dedicated `trim_flight_trim` fields and written to EEPROM.
+
+### New CLI Parameters
+
+- `trim_flight_gain` (0-200, default 50): Accumulation speed. 0 disables the feature.
+- `trim_flight_stick_threshold` (5-150, default 10): Stick center dead-band in 0.1% units.
+- `trim_flight_max_trim` (0-100, default 50): Maximum trim per axis in 0.001 swash units.
+- `trim_flight_roll_trim` (-1000..1000, default 0): Captured roll trim in 0.001 swash units.
+- `trim_flight_pitch_trim` (-1000..1000, default 0): Captured pitch trim in 0.001 swash units.
+
+### New Mode
+
+- `TRIM FLIGHT` (permanent ID 58): Activates trim flight accumulation.
+
+### New Adjustment Function
+
+- `TRIM_FLIGHT_RESET` (ID 83): Resets `trim_flight_roll_trim` and `trim_flight_pitch_trim` to zero.
+
+### New Debug Mode
+
+- `TRIM_FLIGHT`: Channels 0-1 accumulator, 2-3 filtered I-term, 4 active, 5-6 total trim.
+
 ## MSP Changes
 
 ### MSP_PID_PROFILE
@@ -138,6 +166,16 @@ New MSP command to get the active battery profile. (#415)
 
 New MSP command to set the active battery profile. (#415)
 
+
+### MSP_MIXER_CONFIG
+
+- added `trim_flight_gain`, `trim_flight_stick_threshold`, `trim_flight_max_trim`,
+  `trim_flight_roll_trim`, `trim_flight_pitch_trim` parameters (#111)
+
+### MSP_SET_MIXER_CONFIG
+
+- added `trim_flight_gain`, `trim_flight_stick_threshold`, `trim_flight_max_trim`,
+  `trim_flight_roll_trim`, `trim_flight_pitch_trim` parameters (#111)
 
 ## CLI Changes
 

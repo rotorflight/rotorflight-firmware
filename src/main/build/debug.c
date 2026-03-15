@@ -115,4 +115,5 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(GOV_MOTOR),
     DEBUG_NAME(POLAR_RATE),
     DEBUG_NAME(GYRO_CALIBRATION),
+    DEBUG_NAME(TRIM_FLIGHT),
 };
