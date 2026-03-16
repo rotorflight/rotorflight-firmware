@@ -139,14 +139,14 @@
 const char * const lookupTableAccHardware[] = {
     "AUTO", "NONE", "ADXL345", "MPU6050", "MMA8452", "BMA280", "LSM303DLHC",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6DSO", "BMI088", "FAKE"
+    "BMI160", "BMI270", "LSM6DSO", "BMI088", "BMI323", "FAKE"
 };
 
 // sync with gyroHardware_e
 const char * const lookupTableGyroHardware[] = {
     "AUTO", "NONE", "MPU6050", "L3G4200D", "MPU3050", "L3GD20",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6SDO", "BMI088", "FAKE"
+    "BMI160", "BMI270", "LSM6SDO", "BMI088", "BMI323", "FAKE"
 };
 
 #if defined(USE_SENSOR_NAMES) || defined(USE_BARO)
@@ -646,7 +646,7 @@ const clivalue_t valueTable[] = {
     { "gyro_calib_duration",            VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 50,  3000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroCalibrationDuration) },
     { "gyro_calib_noise_limit",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0,  200 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyroMovementCalibrationThreshold) },
 
-    { PARAM_NAME_GYRO_DECIMATION_HZ,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 100, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_decimation_hz) },
+    { PARAM_NAME_GYRO_DECIMATION_HZ,    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_decimation_hz) },
 
     { PARAM_NAME_GYRO_LPF1_TYPE,        VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_lpf1_type) },
     { PARAM_NAME_GYRO_LPF1_STATIC_HZ,   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, LPF_MAX_HZ }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_lpf1_static_hz) },
@@ -855,7 +855,9 @@ const clivalue_t valueTable[] = {
     { "align_board_yaw",            VAR_INT16  | MASTER_VALUE, .config.minmax = { -180, 360 }, PG_BOARD_ALIGNMENT, offsetof(boardAlignment_t, yawDegrees) },
 
 // PG_BATTERY_CONFIG
-    { "bat_capacity",               VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 20000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
+
+    { "bat_profile",                VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, BATTERY_PROFILE_COUNT - 1 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryProfile) },
+    { "bat_capacity",               VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
     { "vbat_max_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmaxcellvoltage) },
     { "vbat_full_cell_voltage",     VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatfullcellvoltage) },
     { "vbat_min_cell_voltage",      VAR_UINT16  | MASTER_VALUE, .config.minmaxUnsigned = { VBAT_CELL_VOTAGE_RANGE_MIN, VBAT_CELL_VOTAGE_RANGE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmincellvoltage) },
@@ -1083,8 +1085,6 @@ const clivalue_t valueTable[] = {
 
     { "pid_mode",                   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 9 }, PG_PID_PROFILE, offsetof(pidProfile_t, pid_mode) },
 
-    { "pid_gyro_filter_type",       VAR_UINT8  | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, gyro_filter_type) },
-
     { "pitch_p_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].P) },
     { "pitch_i_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].I) },
     { "pitch_d_gain",               VAR_UINT16 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, PID_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, pid[PID_PITCH].D) },
@@ -1119,7 +1119,6 @@ const clivalue_t valueTable[] = {
     { "yaw_ccw_stop_gain",          VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 25, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_ccw_stop_gain) },
 
     { "yaw_precomp_cutoff",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_cutoff) },
-    { "yaw_precomp_filter_type",    VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_LPF_TYPE }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_precomp_filter_type) },
 
     { "yaw_cyclic_ff_gain",           VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_cyclic_ff_gain) },
     { "yaw_collective_ff_gain",       VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_collective_ff_gain) },

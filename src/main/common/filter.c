@@ -121,12 +121,17 @@ void nilFilterInit(nilFilter_t *filter, float cutoff, float sampleRate)
 
 float pt1FilterGain(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    if (cutoff > 0 && sampleRate > 0) {
+        cutoff = limitCutoff(cutoff, sampleRate);
 
-    float gamma = M_1_2PIf * sampleRate;
-    float alpha = cutoff / (cutoff + gamma);
+        float gamma = M_1_2PIf * sampleRate;
+        float alpha = cutoff / (cutoff + gamma);
 
-    return fminf(alpha, 1.0f);
+        return fminf(alpha, 1.0f);
+    }
+    else {
+        return 1.0f;
+    }
 }
 
 void pt1FilterInit(pt1Filter_t *filter, float cutoff, float sampleRate)
@@ -245,12 +250,17 @@ FAST_CODE float pt3FilterApply(pt3Filter_t *filter, float input)
 
 float ewma1FilterWeight(float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    if (cutoff > 0 && sampleRate > 0) {
+        cutoff = limitCutoff(cutoff, sampleRate);
 
-    float gamma = M_1_2PIf * sampleRate;
-    float weight = (cutoff + gamma) / cutoff;
+        float gamma = M_1_2PIf * sampleRate;
+        float weight = (cutoff + gamma) / cutoff;
 
-    return fmaxf(weight, 1.0f);
+        return fmaxf(weight, 1.0f);
+    }
+    else {
+        return 1.0f;
+    }
 }
 
 void ewma1FilterInit(ewma1Filter_t *filter, float cutoff, float sampleRate)
@@ -438,12 +448,18 @@ void difFilterInit(difFilter_t *filter, float cutoff, float sampleRate)
 
 void difFilterUpdate(difFilter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate / 2);
+    if (cutoff > 0 && sampleRate > 0) {
+        cutoff = limitCutoff(cutoff, sampleRate / 2);
 
-    const float W = tan_approx(M_PIf * cutoff / sampleRate);
+        const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
-    filter->a = (W - 1) / (W + 1);
-    filter->b = 2 * sampleRate * W / (W + 1);
+        filter->a = (W - 1) / (W + 1);
+        filter->b = 2 * sampleRate * W / (W + 1);
+    }
+    else {
+        filter->a = 0;
+        filter->b = 0;
+    }
 }
 
 FAST_CODE float difFilterApply(difFilter_t *filter, float input)
@@ -494,7 +510,13 @@ void intFilterUpdate(intFilter_t *filter, float sampleRate, float min, float max
 {
     filter->min = min;
     filter->max = max;
-    filter->gain = 1.0f / (2 * sampleRate);
+
+    if (sampleRate > 0) {
+        filter->gain = 1.0f / (2 * sampleRate);
+    }
+    else {
+        filter->gain = 0;
+    }
 }
 
 FAST_CODE float intFilterApply(intFilter_t *filter, float input)
@@ -517,65 +539,68 @@ void biquadFilterInit(biquadFilter_t *filter, float cutoff, float sampleRate, fl
     filter->x1 = filter->x2 = 0;
     filter->y1 = filter->y2 = 0;
 
-    filter->b1 = filter->b2 = 0;
-    filter->a1 = filter->a2 = 0;
-
-    filter->b0 = 1.0f;
-
-    if (filterType)
-        biquadFilterUpdate(filter, cutoff, sampleRate, Q, filterType);
+    biquadFilterUpdate(filter, cutoff, sampleRate, Q, filterType);
 }
 
 FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    if (cutoff > 0 && sampleRate > 0 && Q > 0 && filterType > BIQUAD_NULL && filterType < BIQUAD_COUNT) {
+        cutoff = limitCutoff(cutoff, sampleRate);
 
-    const float omega = M_2PIf * cutoff / sampleRate;
-    const float sinom = sin_approx(omega);
-    const float cosom = cos_approx(omega);
-    const float alpha = sinom / (2 * Q);
+        const float omega = M_2PIf * cutoff / sampleRate;
+        const float sinom = sin_approx(omega);
+        const float cosom = cos_approx(omega);
+        const float alpha = sinom / (2 * Q);
 
-    switch (filterType) {
-        case BIQUAD_LPF:
-            filter->b1 = 1 - cosom;
-            filter->b0 = filter->b1 / 2;
-            filter->b2 = filter->b0;
-            filter->a1 = -2 * cosom;
-            filter->a2 = 1 - alpha;
-            break;
+        switch (filterType) {
+            case BIQUAD_LPF:
+                filter->b1 = 1 - cosom;
+                filter->b0 = filter->b1 / 2;
+                filter->b2 = filter->b0;
+                filter->a1 = -2 * cosom;
+                filter->a2 = 1 - alpha;
+                break;
 
-        case BIQUAD_HPF:
-            filter->b0 = (1 + cosom) / 2;
-            filter->b1 = -1 - cosom;
-            filter->b2 = filter->b0;
-            filter->a1 = -2 * cosom;
-            filter->a2 = 1 - alpha;
-            break;
+            case BIQUAD_HPF:
+                filter->b0 = (1 + cosom) / 2;
+                filter->b1 = -1 - cosom;
+                filter->b2 = filter->b0;
+                filter->a1 = -2 * cosom;
+                filter->a2 = 1 - alpha;
+                break;
 
-        case BIQUAD_BPF:
-            filter->b0 = alpha;
-            filter->b1 = 0;
-            filter->b2 = -alpha;
-            filter->a1 = -2 * cosom;
-            filter->a2 = 1 - alpha;
-            break;
+            case BIQUAD_BPF:
+                filter->b0 = alpha;
+                filter->b1 = 0;
+                filter->b2 = -alpha;
+                filter->a1 = -2 * cosom;
+                filter->a2 = 1 - alpha;
+                break;
 
-        case BIQUAD_NOTCH:
-            filter->b0 = 1;
-            filter->b1 = -2 * cosom;
-            filter->b2 = 1;
-            filter->a1 = filter->b1;
-            filter->a2 = 1 - alpha;
-            break;
+            case BIQUAD_NOTCH:
+                filter->b0 = 1;
+                filter->b1 = -2 * cosom;
+                filter->b2 = 1;
+                filter->a1 = filter->b1;
+                filter->a2 = 1 - alpha;
+                break;
+        }
+
+        const float a0 = 1 + alpha;
+
+        filter->b0 /= a0;
+        filter->b1 /= a0;
+        filter->b2 /= a0;
+        filter->a1 /= a0;
+        filter->a2 /= a0;
     }
-
-    const float a0 = 1 + alpha;
-
-    filter->b0 /= a0;
-    filter->b1 /= a0;
-    filter->b2 /= a0;
-    filter->a1 /= a0;
-    filter->a2 /= a0;
+    else {
+        filter->b0 = 1;
+        filter->b1 = 0;
+        filter->b2 = 0;
+        filter->a1 = 0;
+        filter->a2 = 0;
+    }
 }
 
 
@@ -643,24 +668,38 @@ void firstOrderHPFInit(order1Filter_t *filter, float cutoff, float sampleRate)
 
 FAST_CODE void firstOrderLPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate);
+    if (cutoff > 0 && sampleRate > 0) {
+        cutoff = limitCutoff(cutoff, sampleRate);
 
-    const float W = tan_approx(M_PIf * cutoff / sampleRate);
+        const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
-    filter->a1 = (W - 1) / (W + 1);
-    filter->b0 = W / (W + 1);
-    filter->b1 = filter->b0;
+        filter->a1 = (W - 1) / (W + 1);
+        filter->b0 = W / (W + 1);
+        filter->b1 = filter->b0;
+    }
+    else {
+        filter->b0 = 1;
+        filter->b1 = 0;
+        filter->a1 = 0;
+    }
 }
 
 FAST_CODE void firstOrderHPFUpdate(order1Filter_t *filter, float cutoff, float sampleRate)
 {
-    cutoff = limitCutoff(cutoff, sampleRate / 2);
+    if (cutoff > 0 && sampleRate > 0) {
+        cutoff = limitCutoff(cutoff, sampleRate / 2);
 
-    const float W = tan_approx(M_PIf * cutoff / sampleRate);
+        const float W = tan_approx(M_PIf * cutoff / sampleRate);
 
-    filter->a1 = (W - 1) / (W + 1);
-    filter->b0 = 1 / (W + 1);
-    filter->b1 = -filter->b0;
+        filter->a1 = (W - 1) / (W + 1);
+        filter->b0 = 1 / (W + 1);
+        filter->b1 = -filter->b0;
+    }
+    else {
+        filter->b0 = 1;
+        filter->b1 = 0;
+        filter->a1 = 0;
+    }
 }
 
 FAST_CODE float firstOrderFilterApply(order1Filter_t *filter, float input)
@@ -711,9 +750,6 @@ static void biquadDampedLPFUpdate(biquadFilter_t *filter, float cutoff, float sa
 
 void lowpassFilterInit(filter_t *filter, uint8_t type, float cutoff, float sampleRate, uint32_t flags)
 {
-    if (cutoff == 0 || sampleRate == 0)
-        type = LPF_NONE;
-
     switch (type) {
         case LPF_PT1:
             if (flags & LPF_EWMA) {
@@ -818,27 +854,27 @@ void notchFilterInit(filter_t *filter, float cutoff, float Q, float sampleRate, 
     filter->update = (filterUpdateFn)nilFilterUpdate;
     filter->apply  = (filterApplyFn)nilFilterApply;
 
-    if (cutoff > 0 && Q > 0) {
-        if (flags & LPF_UPDATE)
-            filter->apply = (filterApplyFn)biquadFilterApplyDF1;
-        else
-            filter->apply = (filterApplyFn)biquadFilterApplyTF2;
+    if (flags & LPF_UPDATE)
+        filter->apply = (filterApplyFn)biquadFilterApplyDF1;
+    else
+        filter->apply = (filterApplyFn)biquadFilterApplyTF2;
 
-        biquadFilterInit(&filter->data.sos, cutoff, sampleRate, Q, BIQUAD_NOTCH);
-    }
+    biquadFilterInit(&filter->data.sos, cutoff, sampleRate, Q, BIQUAD_NOTCH);
 }
 
 void notchFilterUpdate(filter_t *filter, float cutoff, float Q, float sampleRate)
 {
-    if (cutoff > 0 && Q > 0)
-        biquadFilterUpdate(&filter->data.sos, cutoff, sampleRate, Q, BIQUAD_NOTCH);
+    biquadFilterUpdate(&filter->data.sos, cutoff, sampleRate, Q, BIQUAD_NOTCH);
 }
 
 // Get notch filter Q given center frequency (f0) and lower cutoff frequency (f1)
 // Q = f0 / (f2 - f1) ; f2 = f0^2 / f1
 float notchFilterGetQ(float centerFreq, float cutoffFreq)
 {
-    return centerFreq * cutoffFreq / (centerFreq * centerFreq - cutoffFreq * cutoffFreq);
+    if (centerFreq > 0 && cutoffFreq > 0 && cutoffFreq < centerFreq)
+        return centerFreq * cutoffFreq / (centerFreq * centerFreq - cutoffFreq * cutoffFreq);
+    else
+        return 0;
 }
 
 

@@ -53,6 +53,7 @@ enum {
     LPF_BUTTER,
     LPF_BESSEL,
     LPF_DAMPED,
+    LPF_COUNT
 };
 
 enum {
@@ -61,6 +62,7 @@ enum {
     BIQUAD_HPF,
     BIQUAD_BPF,
     BIQUAD_NOTCH,
+    BIQUAD_COUNT
 };
 
 typedef struct {

@@ -591,9 +591,13 @@ int spektrumTmTextGenPutChar(uint8_t col, uint8_t row, char c)
 }
 //**************************************************************************
 
+#define TEXT_KEEPALIVE_TIME_OUT 2000000 // 2s
+
 bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
+    static timeUs_t lastTimeSentText = 0;
+    timeUs_t keepAlive = currentTimeUs - lastTimeSentText;
+
     static uint8_t lineNo = 0;
     int lineCount = 0;
 
@@ -608,11 +612,21 @@ bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
         lineCount++;
     }
 
+    if ( !(cmsInMenu && (pCurrentDisplay == &srxlDisplayPort)) ) {
+      // On timeout, force redraw of all rowss
+      if (keepAlive > TEXT_KEEPALIVE_TIME_OUT) {
+        for (int i = 0; i < SPEKTRUM_SRXL_TEXTGEN_ROWS; i++) lineSent[i] = false;
+      }
+
+      if (lineSent[lineNo]) return false;
+    }
+
     sbufWriteU8(dst, SPEKTRUM_SRXL_DEVICE_TEXTGEN);
     sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
     sbufWriteU8(dst, lineNo);
     sbufWriteData(dst, srxlTextBuff[lineNo], SPEKTRUM_SRXL_TEXTGEN_COLS);
 
+    lastTimeSentText = currentTimeUs;
     lineSent[lineNo] = true;
     lineNo = (lineNo + 1) % SPEKTRUM_SRXL_TEXTGEN_ROWS;
 
@@ -834,6 +848,10 @@ static void processSrxl(timeUs_t currentTimeUs)
     sbuf_t *dst = &srxlPayloadBuf;
     srxlScheduleFnPtr srxlFnPtr;
 
+    bool tryNextUserFrame = true;
+    uint8_t tryNextUserCount = 0;
+
+  do {
     if (srxlScheduleIndex < SRXL_SCHEDULE_MANDATORY_COUNT) {
         srxlFnPtr = srxlScheduleFuncs[srxlScheduleIndex];
     } else {
@@ -855,9 +873,14 @@ static void processSrxl(timeUs_t currentTimeUs)
         srxlInitializeFrame(dst);
         if (srxlFnPtr(dst, currentTimeUs)) {
             srxlFinalize(dst);
+            tryNextUserFrame = false;
+            srxlScheduleIndex = (srxlScheduleIndex + 1) % SRXL_SCHEDULE_COUNT_MAX;
+        } else {
+            tryNextUserFrame = true;
+            tryNextUserCount++;
         }
     }
-    srxlScheduleIndex = (srxlScheduleIndex + 1) % SRXL_SCHEDULE_COUNT_MAX;
+  } while (tryNextUserFrame && tryNextUserCount < SRXL_SCHEDULE_USER_COUNT);
 }
 
 void initSrxlTelemetry(void)
