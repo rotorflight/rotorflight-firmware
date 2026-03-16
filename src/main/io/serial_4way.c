@@ -1052,6 +1052,7 @@ void esc4wayProcess(serialPort_t *mspPort)
 
         TX_LED_OFF;
         if (isExitScheduled) {
+            esc4wayDeinit();
             esc4wayRelease();
             return;
         }
