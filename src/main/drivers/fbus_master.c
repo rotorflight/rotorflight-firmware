@@ -37,6 +37,7 @@
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
 #include "platform.h"
+#include "drivers/fbus_sensor.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
 #define GET_BIT(value, bit) ((value >> bit) & 1)
@@ -200,7 +201,15 @@ static void processDownlinkFrame(uint8_t *data)
                 phsIdList[physIdsfound++] = downlink.phyID;
             }
         }
-    }    
+        // Process sensor data for observation tracking and forwarding
+        // Only process if it's a data frame (not null/poll frames)
+        if (downlink.prim == FBUS_FRAME_ID_DATA && downlink.phyID != FC_COMMON_ID) {
+            // Convert 4-byte array to uint32_t (little-endian)
+            uint32_t sensorData = downlink.data[0] | (downlink.data[1] << 8) |
+                                  (downlink.data[2] << 16) | (downlink.data[3] << 24);
+            fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
+        }
+    }
 }
 
 static FAST_CODE void dataReceive(uint16_t c, void *data)

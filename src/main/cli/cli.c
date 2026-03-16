@@ -5062,25 +5062,45 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
             tfp_sprintf(nameBuffer, "ID_0x%02X", sensor->physicalId);
             sensorName = nameBuffer;
         }
-        cliPrintf("   0x%02X     | %s | ", sensor->physicalId, sensorName);
-        
-        // Print app IDs
-        for (uint8_t j = 0; j < sensor->appIdCount; j++) {
-            cliPrintf("%u", sensor->appIds[j]);
-            if (j < sensor->appIdCount - 1) {
-                cliPrint(", ");
-            }
-        }
-        
-        // Pad to align columns (41 chars for App IDs column)
-        int printed = sensor->appIdCount * 8 - 2; // Each ID is "0x1234, " = 8 chars, minus 2 for last comma
-        if (printed < 0) printed = 0;
-        for (int k = printed; k < 41; k++) {
+        // Print physical ID in a fixed-width column
+        cliPrintf("    0x%02X    | ", sensor->physicalId);
+
+        // Print sensor name in a fixed-width column
+        cliPrintf("%s", sensorName);
+        const int sensorNameLen = (int)strlen(sensorName);
+        for (int k = sensorNameLen; k < 17; k++) {
             cliPrint(" ");
         }
-        
+        cliPrint(" | ");
+
+        // Build app ID list and align to a fixed-width column
+        char appIdList[96];
+        int appIdPos = 0;
+        appIdList[0] = '\0';
+        for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+            const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor->appIds[j]);
+            if (written <= 0 || (appIdPos + written) >= (int)sizeof(appIdList)) {
+                break;
+            }
+            appIdPos += written;
+            if (j < sensor->appIdCount - 1) {
+                if ((appIdPos + 2) >= (int)sizeof(appIdList)) {
+                    break;
+                }
+                appIdList[appIdPos++] = ',';
+                appIdList[appIdPos++] = ' ';
+                appIdList[appIdPos] = '\0';
+            }
+        }
+
+        cliPrintf("%s", appIdList);
+        const int appIdLen = (int)strlen(appIdList);
+        for (int k = appIdLen; k < 41; k++) {
+            cliPrint(" ");
+        }
+
         // Print packet count
-        cliPrintf("| %7u", sensor->packetCount);
+        cliPrintf(" | %7u", sensor->packetCount);
         
         cliPrintLinefeed();
     }
