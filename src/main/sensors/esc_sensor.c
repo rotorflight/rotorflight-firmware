@@ -333,7 +333,10 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
 #define ESC_INIT_DELAY 2500
 #define ESC_DEINIT_DELAY 100
-#define ESC_INIT_FLASH_DELAY 50
+#define AM32_RETRY_DELAY 5
+#define AM32_INIT_FLASH_TIMEOUT 100
+#define AM32_READ_DELAY 50
+#define AM32_WRITE_TIMEOUT 100
 
 
 static uint32_t fwif_eepromAddr = 0;
@@ -346,6 +349,29 @@ static bool am32WriteTaskEnabledByUs = false;
 static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
 static bool am32ProgrammingActive = false;
 static uint8_t am32EscCount = 0;
+
+static void am32DelayMs(uint32_t delayMs)
+{
+    uint32_t start = millis();
+    while (millis() - start < delayMs);
+}
+
+static uint8_32_u *am32WaitForDeviceInitFlash(uint8_t escID)
+{
+    uint32_t start = millis();
+    uint8_32_u *devInfo = NULL;
+
+    do {
+        devInfo = fwifCmdDeviceInitFlash(escID);
+        if (devInfo != NULL) {
+            return devInfo;
+        }
+
+        am32DelayMs(AM32_RETRY_DELAY);
+    } while (millis() - start < AM32_INIT_FLASH_TIMEOUT);
+
+    return NULL;
+}
 
 static void am32EnterProgrammingMode(void)
 {
@@ -407,17 +433,7 @@ static bool fourwayIfFetchData(uint8_t escID)
 
     if (pwmMotors[escID].enabled && escID < am32EscCount) {
         if (pwmMotors[escID].io != IO_NONE) {
-            uint8_32_u *devInfo;
-            int j = 0;
-            do{
-                uint32_t iterationStart = millis();
-                devInfo = fwifCmdDeviceInitFlash(escID);
-                if (devInfo != NULL) {
-                    // wait for 50ms to allow the ESC to process the command
-                    while (millis() < iterationStart + ESC_INIT_FLASH_DELAY);
-                }
-            }while(devInfo == NULL && j++ < 20); // allow several retries
-
+            uint8_32_u *devInfo = am32WaitForDeviceInitFlash(escID);
 
             if (devInfo != NULL) {
                 /* Determine EEPROM address only for known AM32 signatures. */
@@ -431,12 +447,11 @@ static bool fourwayIfFetchData(uint8_t escID)
                 }
 
                 if (matchedEepromAddr != 0) {
-                    /* Only attempt to read when a known signature matched. */
-                    bool status = fwifCmdDeviceRead(AM32_NUM_EEPROM_BYTES, paramPayload, matchedEepromAddr);
-                    if (status) { /* return upon success */
+                    am32DelayMs(AM32_READ_DELAY);
+                    if (fwifCmdDeviceRead(AM32_NUM_EEPROM_BYTES, paramPayload, matchedEepromAddr)) {
                         retVal = true;
                         escSig = ESC_SIG_AM32;
-                        
+
                         // Cache data for this ESC
                         memcpy(am32ParamBuffers[escID], paramPayload, AM32_NUM_EEPROM_BYTES);
                         am32paramCached[escID] = true;
@@ -476,12 +491,7 @@ static bool fourwayIfWriteData(uint8_t escID)
 
     if (pwmMotors[escID].enabled && escID < am32EscCount) {
         if (pwmMotors[escID].io != IO_NONE) {
-            uint8_32_u *devInfo;
-            int j = 0;
-            do{
-                devInfo = fwifCmdDeviceInitFlash(escID);
-            }while(devInfo == NULL && j++ < 5); // allow several retries
-
+            uint8_32_u *devInfo = am32WaitForDeviceInitFlash(escID);
 
             if (devInfo != NULL) {
                 /* Determine EEPROM address only for known AM32 signatures. */
@@ -495,15 +505,20 @@ static bool fourwayIfWriteData(uint8_t escID)
                 }
 
                 if (matchedEepromAddr != 0) {
-                    bool status = fwifCmdDeviceWrite(AM32_NUM_EEPROM_BYTES, paramUpdPayload , matchedEepromAddr);
-                    if (status) { /* return upon success */
-                        retVal = true;
-                        /* invalidate cache */
-                        am32paramCached[escID] = false;
-                        am32paramWritten[escID] = true;
-                        /* remember eeprom addr for future reads */
-                        fwif_eepromAddr = matchedEepromAddr;
-                    }
+                    uint32_t writeStart = millis();
+                    do {
+                        if (fwifCmdDeviceWrite(AM32_NUM_EEPROM_BYTES, paramUpdPayload , matchedEepromAddr)) {
+                            retVal = true;
+                            /* invalidate cache */
+                            am32paramCached[escID] = false;
+                            am32paramWritten[escID] = true;
+                            /* remember eeprom addr for future reads */
+                            fwif_eepromAddr = matchedEepromAddr;
+                            break;
+                        }
+
+                        am32DelayMs(AM32_RETRY_DELAY);
+                    } while (millis() - writeStart < AM32_WRITE_TIMEOUT);
                 }
                 /* Unknown signature: do not touch fwif_eepromAddr or flags */
             }
