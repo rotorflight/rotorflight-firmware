@@ -29,7 +29,7 @@
 // Backward compatibility aliases
 typedef busServoSourceType_e fbusMasterSourceType_e;
 
-#define FBUS_MASTER_MAX_FORWARDED_SENSORS 6
+#define FBUS_MASTER_MAX_FORWARDED_SENSORS 8
 
 #define FBUS_MASTER_TELEMETRY_RATE_MIN_HZ 25
 #define FBUS_MASTER_TELEMETRY_RATE_MAX_HZ 550

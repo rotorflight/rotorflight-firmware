@@ -59,6 +59,9 @@ static fbusServoData_t fbusServo;
 // Internal Current sensor data storage
 static fbusCurrentData_t fbusCurrent;
 
+// Internal ESC sensor data storage
+static fbusEscData_t fbusEsc;
+
 // Sensor data cache
 #define FBUS_SENSOR_CACHE_SIZE 32
 static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
@@ -79,6 +82,7 @@ void fbusSensorInit(void)
     memset(&fbusGps, 0, sizeof(fbusGpsData_t));
     memset(&fbusServo, 0, sizeof(fbusServoData_t));
     memset(&fbusCurrent, 0, sizeof(fbusCurrentData_t));
+    memset(&fbusEsc, 0, sizeof(fbusEscData_t));
     memset(sensorCache, 0, sizeof(sensorCache));
     sensorCacheIndex = 0;
     memset(observedSensors, 0, sizeof(observedSensors));
@@ -268,9 +272,9 @@ static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
 
     // ESC signature blocks from FrSky S.Port v3.5.8 table:
     // 0x0B50~0x0B5F (ESC_V/ESC_C), 0x0B60~0x0B6F (RPM/Consumption), 0x0B70~0x0B7F (Temp)
-    if ((appId >= 0x0B50 && appId <= 0x0B5F) ||
-        (appId >= 0x0B60 && appId <= 0x0B6F) ||
-        (appId >= 0x0B70 && appId <= 0x0B7F)) {
+    if ((appId >= FBUS_ESC_POWER_BASE && appId <= (FBUS_ESC_POWER_BASE + 0x0F)) ||
+        (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) ||
+        (appId >= FBUS_ESC_TEMP_BASE && appId <= (FBUS_ESC_TEMP_BASE + 0x0F))) {
         return FBUS_DETECTED_SENSOR_ESC;
     }
 
@@ -593,6 +597,40 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
 
         return false;
     }
+
+    // Process ESC data (App-ID-based detection, independent of physical ID)
+    if (detectedType == FBUS_DETECTED_SENSOR_ESC) {
+        // ESC_POWER 0x0B50~0x0B5F:
+        // bits 0..15 voltage (V/100), bits 16..31 current (A/100)
+        if (appId >= FBUS_ESC_POWER_BASE && appId <= (FBUS_ESC_POWER_BASE + 0x0F)) {
+            fbusEsc.voltageCentiVolts = (uint16_t)(data & 0xFFFFU);
+            fbusEsc.currentCentiAmps = (uint16_t)((data >> 16) & 0xFFFFU);
+            fbusEsc.hasPower = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        // ESC_R&C 0x0B60~0x0B6F:
+        // bits 0..15 ERPM, bits 16..31 consumption (mAh)
+        if (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) {
+            fbusEsc.erpm = (uint16_t)(data & 0xFFFFU);
+            fbusEsc.consumptionMah = (uint16_t)((data >> 16) & 0xFFFFU);
+            fbusEsc.hasRpmConsumption = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        // ESC_TEMP 0x0B70~0x0B7F:
+        // bits 0..7 temperature (C)
+        if (appId >= FBUS_ESC_TEMP_BASE && appId <= (FBUS_ESC_TEMP_BASE + 0x0F)) {
+            fbusEsc.temperatureDegC = (uint8_t)(data & 0xFFU);
+            fbusEsc.hasTemperature = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        return false;
+    }
     
     // Add processing for other sensor types here in the future
     
@@ -628,6 +666,13 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusCurrent.hasCurrent = false;
         fbusCurrent.hasVoltage = false;
         fbusCurrent.hasHighPrecisionCurrent = false;
+    }
+
+    // Check for ESC data timeout (1 second)
+    if (fbusEsc.lastUpdateUs > 0 && (currentTimeUs - fbusEsc.lastUpdateUs) > 1000000) {
+        fbusEsc.hasPower = false;
+        fbusEsc.hasRpmConsumption = false;
+        fbusEsc.hasTemperature = false;
     }
     
     // Update Rotorflight GPS data if we have valid FBUS GPS data
@@ -747,6 +792,38 @@ bool fbusSensorHasCurrentData(void)
     if ((fbusCurrent.hasCurrent || fbusCurrent.hasVoltage || fbusCurrent.hasHighPrecisionCurrent)
         && fbusCurrent.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Get current ESC data from FBUS sensors
+ *
+ * @param escData Output ESC data structure
+ */
+void fbusSensorGetEscData(fbusEscData_t *escData)
+{
+    if (escData) {
+        memcpy(escData, &fbusEsc, sizeof(fbusEscData_t));
+    }
+}
+
+/**
+ * Check if ESC data is available from FBUS sensors
+ *
+ * @return true if ESC sensor data is valid and recent
+ */
+bool fbusSensorHasEscData(void)
+{
+    timeUs_t currentTimeUs = micros();
+
+    // Any ESC channel counts as valid data.
+    if ((fbusEsc.hasPower || fbusEsc.hasRpmConsumption || fbusEsc.hasTemperature)
+        && fbusEsc.lastUpdateUs > 0) {
+        if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
             return true;
         }
     }

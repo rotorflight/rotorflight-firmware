@@ -79,6 +79,13 @@ typedef enum {
     FBUS_HIGH_PREC_CURRENT_BASE = 0x0220,  // 0x0220~0x022F, Current (A/1000)
 } fbusCurrentDataId_e;
 
+// FBUS ESC Data IDs
+typedef enum {
+    FBUS_ESC_POWER_BASE         = 0x0B50,  // 0x0B50~0x0B5F, ESC V/C
+    FBUS_ESC_RPM_CONS_BASE      = 0x0B60,  // 0x0B60~0x0B6F, ESC RPM/Consumption
+    FBUS_ESC_TEMP_BASE          = 0x0B70,  // 0x0B70~0x0B7F, ESC Temperature
+} fbusEscDataId_e;
+
 // Servo data byte definitions
 #define FBUS_SERVO_CURRENT_MASK     0x000000FF  // Bits 0-7: Current (0.1A, 0~25.5A)
 #define FBUS_SERVO_VOLTAGE_MASK     0x0000FF00  // Bits 8-15: Voltage (0.1V, 0~25.5V)
@@ -153,6 +160,19 @@ typedef struct {
     timeUs_t lastUpdateUs;
 } fbusCurrentData_t;
 
+// ESC sensor specific data structure (ESC)
+typedef struct {
+    uint16_t voltageCentiVolts;      // Voltage in 0.01V from 0x0B50~0x0B5F (bits 0..15)
+    uint16_t currentCentiAmps;       // Current in 0.01A from 0x0B50~0x0B5F (bits 16..31)
+    uint16_t erpm;                   // ERPM from 0x0B60~0x0B6F (bits 0..15)
+    uint16_t consumptionMah;         // Consumption in mAh from 0x0B60~0x0B6F (bits 16..31)
+    uint8_t temperatureDegC;         // Temperature in C from 0x0B70~0x0B7F (bits 0..7)
+    bool hasPower;
+    bool hasRpmConsumption;
+    bool hasTemperature;
+    timeUs_t lastUpdateUs;
+} fbusEscData_t;
+
 // Function prototypes
 void fbusSensorInit(void);
 void fbusSensorUpdate(timeUs_t currentTimeUs);
@@ -163,6 +183,8 @@ void fbusSensorGetServoData(fbusServoData_t *servoData);
 bool fbusSensorHasServoData(void);
 void fbusSensorGetCurrentData(fbusCurrentData_t *currentData);
 bool fbusSensorHasCurrentData(void);
+void fbusSensorGetEscData(fbusEscData_t *escData);
+bool fbusSensorHasEscData(void);
 
 // GPS data conversion functions
 int32_t fbusGpsConvertLatLon(uint32_t fbusData);

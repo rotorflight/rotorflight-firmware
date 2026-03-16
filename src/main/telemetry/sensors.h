@@ -176,6 +176,10 @@ typedef enum
     TELEM_FBUS_VOLTAGE                  = 116,
     TELEM_FBUS_CURRENT                  = 117,
     TELEM_FBUS_RPM                      = 118,
+    TELEM_FBUS_BEC_CURRENT              = 119,
+    TELEM_FBUS_BEC_VOLTAGE              = 120,
+    TELEM_FBUS_ESC_TEMP                 = 121,
+    TELEM_FBUS_ESC_CONSUMPTION          = 122,
 
     TELEM_SENSOR_COUNT
 
