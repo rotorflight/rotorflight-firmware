@@ -332,6 +332,8 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define AM32_ESC_NAME_LENGTH 32
 
 #define ESC_INIT_DELAY 2500
+#define ESC_DEINIT_DELAY 100
+#define ESC_INIT_FLASH_DELAY 50
 
 
 static uint32_t fwif_eepromAddr = 0;
@@ -367,7 +369,7 @@ static void am32ExitProgrammingMode(void)
     esc4wayDeinit();
 
     uint32_t start = millis();
-    while (millis() < start + 100);
+    while (millis() < start + ESC_DEINIT_DELAY);
 
     esc4wayRelease();
 
@@ -412,7 +414,7 @@ static bool fourwayIfFetchData(uint8_t escID)
                 devInfo = fwifCmdDeviceInitFlash(escID);
                 if (devInfo != NULL) {
                     // wait for 50ms to allow the ESC to process the command
-                    while (millis() < iterationStart + 50);
+                    while (millis() < iterationStart + ESC_INIT_FLASH_DELAY);
                 }
             }while(devInfo == NULL && j++ < 20); // allow several retries
 
