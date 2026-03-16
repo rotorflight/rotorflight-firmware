@@ -3472,6 +3472,19 @@ static void printName(dumpFlags_t dumpMask, const pilotConfig_t *pilotConfig)
 
 #define ERROR_MESSAGE "%s CANNOT BE CHANGED. CURRENT VALUE: '%s'"
 
+static void incompatibleConfigError(const char *cmdName, const char *fieldName,
+    const char *currentValue, const char *newValue)
+{
+    cliPrintErrorLinef(cmdName, "INCOMPATIBLE CONFIGURATION");
+    cliPrintErrorLinef(cmdName, "%s cannot be changed from '%s' to '%s' after it has been set.",
+        fieldName, currentValue, newValue);
+    cliPrintErrorLinef(cmdName, "This is probably from loading a dump file from an incompatible flight controller.");
+    cliPrintErrorLinef(cmdName, "The configuration is bound to the hardware type, and cannot be changed.");
+    cliPrintErrorLinef(cmdName, "System halted.");
+
+    failureMode(FAILURE_INCOMPATIBLE_CONFIG);
+}
+
 static void printBoardName(dumpFlags_t dumpMask)
 {
     if (!(dumpMask & DO_DIFF) || strlen(getBoardName())) {
@@ -3484,7 +3497,7 @@ static void cliBoardName(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *boardName = getBoardName();
     if (len > 0 && strlen(boardName) != 0 && boardInformationIsSet() && (len != strlen(boardName) || strncmp(boardName, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_NAME", boardName);
+        incompatibleConfigError(cmdName, "board_name", boardName, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setBoardName(cmdline)) {
             boardInformationUpdated = true;
@@ -3507,7 +3520,7 @@ static void cliBoardDesign(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *boardDesign = getBoardDesign();
     if (len > 0 && strlen(boardDesign) != 0 && boardInformationIsSet() && (len != strlen(boardDesign) || strncmp(boardDesign, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_DESIGN", boardDesign);
+        incompatibleConfigError(cmdName, "board_design", boardDesign, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setBoardDesign(cmdline)) {
             boardInformationUpdated = true;
@@ -3530,7 +3543,7 @@ static void cliManufacturerId(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *manufacturerId = getManufacturerId();
     if (len > 0 && boardInformationIsSet() && strlen(manufacturerId) != 0 && (len != strlen(manufacturerId) || strncmp(manufacturerId, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "MANUFACTURER_ID", manufacturerId);
+        incompatibleConfigError(cmdName, "manufacturer_id", manufacturerId, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setManufacturerId(cmdline)) {
             boardInformationUpdated = true;
