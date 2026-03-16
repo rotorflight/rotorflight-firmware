@@ -48,6 +48,10 @@
 #include "drivers/dshot_dpwm.h"
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#include "drivers/fbus_master.h"
+#endif
 
 #include "flight/mixer.h"
 
@@ -169,12 +173,19 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
+#ifdef USE_FBUS_MASTER
+    if (fbusMasterIsEnabled() && fbusSensorHasEscData()) {
+        return true;
+    }
+#endif
+
     return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 
 uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
-    return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
+    escSensorData_t *data = getEscSensorData(motorNumber);
+    return data ? data->erpm : 0;
 }
 
 static uint32_t applyVoltageCorrection(uint32_t voltage)
@@ -245,6 +256,43 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
                 combinedDataUpdate();
                 return &escSensorDataCombined;
             }
+        }
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+#ifdef USE_FBUS_MASTER
+            // FBUS-backed ESC telemetry is mapped from fbusSensorGetEscData().
+            if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
+                if (fbusMasterIsEnabled() && fbusSensorHasEscData()) {
+                    static escSensorData_t fbusEscSensorData;
+                    fbusEscData_t fbusEscData;
+
+                    fbusSensorGetEscData(&fbusEscData);
+                    memset(&fbusEscSensorData, 0, sizeof(fbusEscSensorData));
+
+                    fbusEscSensorData.age = 0;
+                    fbusEscSensorData.id = FBUS_SENSOR_ESC;
+
+                    if (fbusEscData.hasPower) {
+                        // FBUS ESC voltage/current are V/100 and A/100. escSensorData expects mV/mA.
+                        fbusEscSensorData.voltage = applyVoltageCorrection((uint32_t)fbusEscData.voltageCentiVolts * 10U);
+                        fbusEscSensorData.current = applyCurrentCorrection((uint32_t)fbusEscData.currentCentiAmps * 10U);
+                        fbusEscSensorData.bec_voltage = fbusEscSensorData.voltage;
+                        fbusEscSensorData.bec_current = fbusEscSensorData.current;
+                    }
+
+                    if (fbusEscData.hasRpmConsumption) {
+                        fbusEscSensorData.erpm = fbusEscData.erpm;
+                        fbusEscSensorData.consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
+                    }
+
+                    if (fbusEscData.hasTemperature) {
+                        // FBUS temperature is in C, escSensorData uses 0.1C.
+                        fbusEscSensorData.temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+                    }
+
+                    return &fbusEscSensorData;
+                }
+            }
+#endif
         }
         else {
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED)
@@ -3702,6 +3750,8 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_OMPHOBBY:            
                 rrfsmSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_FBUS:
+                break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
@@ -3729,6 +3779,9 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
         case ESC_SENSOR_PROTO_XDFLY:
         case ESC_SENSOR_PROTO_OMPHOBBY:
         case ESC_SENSOR_PROTO_ZTW:     
+            escSensorConfigMutable()->halfDuplex = true;
+            break;
+        case ESC_SENSOR_PROTO_FBUS:
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE
@@ -3761,6 +3814,10 @@ bool INIT_CODE escSensorInit(void)
     uint32_t baudrate = 0;
 
     if (isMotorProtocolCastlePWM() && (!portConfig || escSensorConfig()->protocol == ESC_SENSOR_PROTO_NONE)) {
+        escSensorCommonInit();
+        return true;
+    }
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
         escSensorCommonInit();
         return true;
     }
@@ -3820,6 +3877,8 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_XDFLY:
             callback = xdflySensorInit(ESC_SIG_XDFLY);
             baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_FBUS:
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];

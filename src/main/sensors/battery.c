@@ -473,18 +473,11 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 #ifdef USE_FBUS_MASTER
             {
                 fbusCurrentData_t fbusCurrent;
-                fbusEscData_t fbusEsc;
                 fbusSensorGetCurrentData(&fbusCurrent);
-                fbusSensorGetEscData(&fbusEsc);
 
                 if (fbusCurrent.hasVoltage && fbusSensorHasCurrentData()) {
                     // FBUS voltage is V/100; convert to mV.
                     voltageMeter.sample = fbusCurrent.voltageCentiVolts * 10;
-                    voltageMeter.voltage = voltageMeter.sample;
-                    batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
-                } else if (fbusEsc.hasPower && fbusSensorHasEscData()) {
-                    // Fallback to ESC power voltage: FBUS voltage is V/100; convert to mV.
-                    voltageMeter.sample = fbusEsc.voltageCentiVolts * 10;
                     voltageMeter.voltage = voltageMeter.sample;
                     batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
                 } else {
@@ -540,20 +533,13 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 #ifdef USE_FBUS_MASTER
             {
                 fbusCurrentData_t fbusCurrent;
-                fbusEscData_t fbusEsc;
                 fbusSensorGetCurrentData(&fbusCurrent);
-                fbusSensorGetEscData(&fbusEsc);
 
                 if (fbusSensorHasCurrentData() && (fbusCurrent.hasHighPrecisionCurrent || fbusCurrent.hasCurrent)) {
                     // Prefer high-precision current (A/1000 -> mA), fallback to A/10 -> mA.
                     currentMeter.sample = fbusCurrent.hasHighPrecisionCurrent
                         ? fbusCurrent.currentMilliAmps
                         : (fbusCurrent.currentDeciAmps * 100);
-                    currentMeter.current = currentMeter.sample;
-                    batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
-                } else if (fbusEsc.hasPower && fbusSensorHasEscData()) {
-                    // Fallback to ESC power current: A/100 -> mA.
-                    currentMeter.sample = fbusEsc.currentCentiAmps * 10;
                     currentMeter.current = currentMeter.sample;
                     batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
                 } else {

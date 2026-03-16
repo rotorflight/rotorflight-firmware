@@ -150,103 +150,6 @@ static int getFbusSensorValue(uint8_t sensorIndex)
     
     return 0;
 }
-
-static bool isFbusEscForwarded(void)
-{
-    return fbusSensorIsForwarded(FBUS_SENSOR_ESC);
-}
-
-static int getFbusEscRpmValue(void)
-{
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    return escData.hasRpmConsumption ? (int)escData.erpm : 0;
-}
-
-static int getFbusEscBecCurrent(void)
-{
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    if (!escData.hasPower) {
-        return 0;
-    }
-
-    // FBUS ESC current is A/100; telemetry current uses A/10.
-    return (int)(escData.currentCentiAmps / 10U);
-}
-
-static int getFbusEscBecVoltage(void)
-{
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    if (!escData.hasPower) {
-        return 0;
-    }
-
-    // FBUS ESC voltage is V/100; telemetry voltage uses V/10.
-    return (int)(escData.voltageCentiVolts / 10U);
-}
-
-static int getFbusEscTemp(void)
-{
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    return escData.hasTemperature ? (int)escData.temperatureDegC : 0;
-}
-
-static int getFbusEscConsumption(void)
-{
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    return escData.hasRpmConsumption ? (int)escData.consumptionMah : 0;
-}
-
-static int getFbusBatteryVoltage(void)
-{
-    // Prefer dedicated FAS/current-sensor voltage if available.
-    fbusCurrentData_t currentData;
-    fbusSensorGetCurrentData(&currentData);
-    if (currentData.hasVoltage) {
-        // FBUS voltage is V/100; telemetry battery voltage uses V/10.
-        return (int)(currentData.voltageCentiVolts / 10U);
-    }
-
-    // Fallback: use ESC power voltage when no FAS/current voltage is present.
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    if (escData.hasPower) {
-        // FBUS ESC voltage is V/100; telemetry battery voltage uses V/10.
-        return (int)(escData.voltageCentiVolts / 10U);
-    }
-
-    return 0;
-}
-
-static int getFbusBatteryCurrent(void)
-{
-    // Prefer dedicated FAS/current-sensor current if available.
-    fbusCurrentData_t currentData;
-    fbusSensorGetCurrentData(&currentData);
-    if (currentData.hasCurrent) {
-        // FBUS current is A/10, same as telemetry battery current units.
-        return (int)currentData.currentDeciAmps;
-    }
-
-    if (currentData.hasHighPrecisionCurrent) {
-        // High-precision FBUS current is A/1000; convert to A/10.
-        return (int)(currentData.currentMilliAmps / 100U);
-    }
-
-    // Fallback: use ESC power current when no FAS/current current is present.
-    fbusEscData_t escData;
-    fbusSensorGetEscData(&escData);
-    if (escData.hasPower) {
-        // FBUS ESC current is A/100; telemetry current uses A/10.
-        return (int)(escData.currentCentiAmps / 10U);
-    }
-
-    return 0;
-}
 #endif
 
 
@@ -274,60 +177,6 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_CELL_VOLTAGE:
             return getBatteryAverageCellVoltage();
         case TELEM_BATTERY_CELL_VOLTAGES:
-            return 0;
-
-        case TELEM_FBUS_VOLTAGE:
-#ifdef USE_FBUS_MASTER
-            return getFbusBatteryVoltage();
-#else
-            return 0;
-#endif
-
-        case TELEM_FBUS_CURRENT:
-#ifdef USE_FBUS_MASTER
-            return getFbusBatteryCurrent();
-#else
-            return 0;
-#endif
-
-        case TELEM_FBUS_RPM:
-#ifdef USE_FBUS_MASTER
-            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
-                return getFbusEscRpmValue();
-            }
-#endif
-            return 0;
-
-        case TELEM_FBUS_BEC_CURRENT:
-#ifdef USE_FBUS_MASTER
-            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
-                return getFbusEscBecCurrent();
-            }
-#endif
-            return 0;
-
-        case TELEM_FBUS_BEC_VOLTAGE:
-#ifdef USE_FBUS_MASTER
-            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
-                return getFbusEscBecVoltage();
-            }
-#endif
-            return 0;
-
-        case TELEM_FBUS_ESC_TEMP:
-#ifdef USE_FBUS_MASTER
-            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
-                return getFbusEscTemp();
-            }
-#endif
-            return 0;
-
-        case TELEM_FBUS_ESC_CONSUMPTION:
-#ifdef USE_FBUS_MASTER
-            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
-                return getFbusEscConsumption();
-            }
-#endif
             return 0;
 
         case TELEM_CONTROL:
@@ -569,32 +418,6 @@ bool telemetrySensorActive(sensor_id_e id)
 
         case TELEM_BATTERY_CELL_VOLTAGES:
             return false;
-
-        case TELEM_FBUS_VOLTAGE:
-        case TELEM_FBUS_CURRENT:
-#ifdef USE_FBUS_MASTER
-            // Prefer FAS/current sensor data, fallback to ESC power data.
-            return fbusMasterIsEnabled() && (fbusSensorHasCurrentData() || fbusSensorHasEscData());
-#else
-            return false;
-#endif
-
-        case TELEM_FBUS_RPM:
-    #ifdef USE_FBUS_MASTER
-            return fbusMasterIsEnabled() && isFbusEscForwarded();
-    #else
-            return false;
-    #endif
-
-        case TELEM_FBUS_BEC_CURRENT:
-        case TELEM_FBUS_BEC_VOLTAGE:
-        case TELEM_FBUS_ESC_TEMP:
-        case TELEM_FBUS_ESC_CONSUMPTION:
-        #ifdef USE_FBUS_MASTER
-            return fbusMasterIsEnabled() && isFbusEscForwarded();
-        #else
-            return false;
-        #endif
 
         case TELEM_CONTROL:
         case TELEM_ROLL_CONTROL:
