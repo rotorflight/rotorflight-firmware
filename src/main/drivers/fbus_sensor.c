@@ -56,6 +56,9 @@ static fbusGpsData_t fbusGps;
 // Internal Servo data storage
 static fbusServoData_t fbusServo;
 
+// Internal Current sensor data storage
+static fbusCurrentData_t fbusCurrent;
+
 // Sensor data cache
 #define FBUS_SENSOR_CACHE_SIZE 32
 static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
@@ -75,6 +78,7 @@ void fbusSensorInit(void)
 {
     memset(&fbusGps, 0, sizeof(fbusGpsData_t));
     memset(&fbusServo, 0, sizeof(fbusServoData_t));
+    memset(&fbusCurrent, 0, sizeof(fbusCurrentData_t));
     memset(sensorCache, 0, sizeof(sensorCache));
     sensorCacheIndex = 0;
     memset(observedSensors, 0, sizeof(observedSensors));
@@ -242,30 +246,77 @@ void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltag
 /**
  * Track observed sensor
  */
-static void trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs)
+static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
 {
-    // Find existing sensor or add new one
-    fbusObservedSensor_t *sensor = NULL;
+    // FrSky S.Port protocol: Application ID and physical ID are independent.
+    // Classify by App ID signatures/ranges so sensors remain detectable even
+    // when physical IDs are reconfigured.
+
+    // GPS signature block: 0x0800, 0x0820, 0x0830, 0x0840, 0x0850 (+ low nibble group)
+    if ((appId >= FBUS_GPS_LATITUDE_BASE && appId <= (FBUS_GPS_LATITUDE_BASE + 0x0F)) ||
+        (appId >= FBUS_GPS_ALTITUDE_BASE && appId <= (FBUS_GPS_ALTITUDE_BASE + 0x0F)) ||
+        (appId >= FBUS_GPS_SPEED_BASE && appId <= (FBUS_GPS_SPEED_BASE + 0x0F)) ||
+        (appId >= FBUS_GPS_COURSE_BASE && appId <= (FBUS_GPS_COURSE_BASE + 0x0F)) ||
+        (appId >= FBUS_GPS_TIME_BASE && appId <= (FBUS_GPS_TIME_BASE + 0x0F))) {
+        return FBUS_DETECTED_SENSOR_GPS;
+    }
+
+    // XACT Servo signature block: 0x6800~0x680F
+    if (appId >= FBUS_SERVO_DATA_BASE && appId <= (FBUS_SERVO_DATA_BASE + 0x0F)) {
+        return FBUS_DETECTED_SENSOR_XACT_SERVO;
+    }
+
+    // ESC signature blocks from FrSky S.Port v3.5.8 table:
+    // 0x0B50~0x0B5F (ESC_V/ESC_C), 0x0B60~0x0B6F (RPM/Consumption), 0x0B70~0x0B7F (Temp)
+    if ((appId >= 0x0B50 && appId <= 0x0B5F) ||
+        (appId >= 0x0B60 && appId <= 0x0B6F) ||
+        (appId >= 0x0B70 && appId <= 0x0B7F)) {
+        return FBUS_DETECTED_SENSOR_ESC;
+    }
+
+    // FAS current/voltage sensor signatures seen in field captures and FrSky IDs:
+    // current 0x0200~0x020F, voltage 0x0210~0x021F, high-precision current 0x0220~0x022F
+    if ((appId >= 0x0200 && appId <= 0x020F) ||
+        (appId >= 0x0210 && appId <= 0x021F) ||
+        (appId >= 0x0220 && appId <= 0x022F)) {
+        return FBUS_DETECTED_SENSOR_FAS_150S;
+    }
+
+    return FBUS_DETECTED_SENSOR_UNKNOWN;
+}
+
+static fbusObservedSensor_t* getObservedSensorByPhysicalId(uint8_t physicalId)
+{
     for (uint8_t i = 0; i < observedSensorCount; i++) {
         if (observedSensors[i].physicalId == physicalId) {
-            sensor = &observedSensors[i];
-            break;
+            return &observedSensors[i];
         }
     }
-    
+    return NULL;
+}
+
+/**
+ * Track observed sensor
+ */
+static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs)
+{
+    // Find existing sensor or add new one
+    fbusObservedSensor_t *sensor = getObservedSensorByPhysicalId(physicalId);
+
     // Add new sensor if not found and space available
     if (!sensor && observedSensorCount < FBUS_MAX_OBSERVED_SENSORS) {
         sensor = &observedSensors[observedSensorCount++];
         sensor->physicalId = physicalId;
         sensor->appIdCount = 0;
         sensor->packetCount = 0;
+        sensor->detectedType = FBUS_DETECTED_SENSOR_UNKNOWN;
     }
-    
+
     if (sensor) {
         // Update last seen time and packet count
         sensor->lastSeenUs = currentTimeUs;
         sensor->packetCount++;
-        
+
         // Track app ID if not already tracked
         bool appIdExists = false;
         for (uint8_t i = 0; i < sensor->appIdCount; i++) {
@@ -274,11 +325,22 @@ static void trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t cur
                 break;
             }
         }
-        
+
         if (!appIdExists && sensor->appIdCount < 16) {
             sensor->appIds[sensor->appIdCount++] = appId;
         }
+
+        // App-ID-first type detection. Keep the first valid type to avoid
+        // oscillation from occasional unrelated frames.
+        if (sensor->detectedType == FBUS_DETECTED_SENSOR_UNKNOWN) {
+            const fbusDetectedSensorType_e detected = classifySensorTypeByAppId(appId);
+            if (detected != FBUS_DETECTED_SENSOR_UNKNOWN) {
+                sensor->detectedType = detected;
+            }
+        }
     }
+
+    return sensor;
 }
 
 /**
@@ -422,8 +484,9 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
 {
     timeUs_t currentTimeUs = micros();
     
-    // Track this sensor observation
-    trackObservedSensor(physicalId, appId, currentTimeUs);
+    // Track this sensor observation and determine type by App ID signatures
+    fbusObservedSensor_t *observed = trackObservedSensor(physicalId, appId, currentTimeUs);
+    const fbusDetectedSensorType_e detectedType = observed ? observed->detectedType : FBUS_DETECTED_SENSOR_UNKNOWN;
     
     // Store in cache
     sensorCache[sensorCacheIndex].physicalId = physicalId;
@@ -438,8 +501,8 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         addFrameToBuffer(physicalId, appId, data);
     }
     
-    // Process GPS data
-    if (physicalId == FBUS_SENSOR_GPS) {
+    // Process GPS data (App-ID-based detection, independent of physical ID)
+    if (detectedType == FBUS_DETECTED_SENSOR_GPS) {
         // Check which GPS data type this is
         if (appId >= FBUS_GPS_LATITUDE_BASE && appId <= (FBUS_GPS_LATITUDE_BASE + 0x0F)) {
             // Latitude or Longitude (differentiated by bit 31)
@@ -487,8 +550,8 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return true;
     }
     
-    // Process Servo data (XACT Servo sensor)
-    if (physicalId == FBUS_SENSOR_XACT_SERVO) {
+    // Process Servo data (App-ID-based detection, independent of physical ID)
+    if (detectedType == FBUS_DETECTED_SENSOR_XACT_SERVO) {
         // Check if this is servo data
         if (appId >= FBUS_SERVO_DATA_BASE && appId <= (FBUS_SERVO_DATA_BASE + 0x0F)) {
             // Convert servo data
@@ -500,6 +563,35 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         }
         
         return true;
+    }
+
+    // Process Current/FAS data (App-ID-based detection, independent of physical ID)
+    if (detectedType == FBUS_DETECTED_SENSOR_FAS_150S) {
+        // Current 0x0200~0x020F, unit A/10, U32
+        if (appId >= FBUS_CURRENT_BASE && appId <= (FBUS_CURRENT_BASE + 0x0F)) {
+            fbusCurrent.currentDeciAmps = data;
+            fbusCurrent.hasCurrent = true;
+            fbusCurrent.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        // Voltage 0x0210~0x021F, unit V/100, U32
+        if (appId >= FBUS_VOLTAGE_BASE && appId <= (FBUS_VOLTAGE_BASE + 0x0F)) {
+            fbusCurrent.voltageCentiVolts = data;
+            fbusCurrent.hasVoltage = true;
+            fbusCurrent.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        // High-precision current 0x0220~0x022F, unit A/1000, U16 (packed in DATA)
+        if (appId >= FBUS_HIGH_PREC_CURRENT_BASE && appId <= (FBUS_HIGH_PREC_CURRENT_BASE + 0x0F)) {
+            fbusCurrent.currentMilliAmps = (uint16_t)(data & 0xFFFF);
+            fbusCurrent.hasHighPrecisionCurrent = true;
+            fbusCurrent.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+
+        return false;
     }
     
     // Add processing for other sensor types here in the future
@@ -529,6 +621,13 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
     if (fbusServo.lastUpdateUs > 0 && (currentTimeUs - fbusServo.lastUpdateUs) > 1000000) {
         // Clear Servo data validity flag on timeout
         fbusServo.hasData = false;
+    }
+
+    // Check for Current data timeout (1 second)
+    if (fbusCurrent.lastUpdateUs > 0 && (currentTimeUs - fbusCurrent.lastUpdateUs) > 1000000) {
+        fbusCurrent.hasCurrent = false;
+        fbusCurrent.hasVoltage = false;
+        fbusCurrent.hasHighPrecisionCurrent = false;
     }
     
     // Update Rotorflight GPS data if we have valid FBUS GPS data
@@ -624,6 +723,38 @@ bool fbusSensorHasServoData(void)
 }
 
 /**
+ * Get current Current/FAS data from FBUS sensors
+ *
+ * @param currentData Output current sensor data structure
+ */
+void fbusSensorGetCurrentData(fbusCurrentData_t *currentData)
+{
+    if (currentData) {
+        memcpy(currentData, &fbusCurrent, sizeof(fbusCurrentData_t));
+    }
+}
+
+/**
+ * Check if Current/FAS data is available from FBUS sensors
+ *
+ * @return true if current sensor data is valid and recent
+ */
+bool fbusSensorHasCurrentData(void)
+{
+    timeUs_t currentTimeUs = micros();
+
+    // Any current-sensor channel counts as valid data.
+    if ((fbusCurrent.hasCurrent || fbusCurrent.hasVoltage || fbusCurrent.hasHighPrecisionCurrent)
+        && fbusCurrent.lastUpdateUs > 0) {
+        if ((currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Get count of observed sensors
  *
  * @return Number of unique physical IDs observed
@@ -664,6 +795,25 @@ void fbusSensorClearObserved(void)
  */
 const char* fbusSensorGetName(uint8_t physicalId)
 {
+    // Prefer runtime App-ID-based classification for observed sensors
+    fbusObservedSensor_t *observed = getObservedSensorByPhysicalId(physicalId);
+    if (observed) {
+        switch (observed->detectedType) {
+            case FBUS_DETECTED_SENSOR_GPS:
+                return "GPS";
+            case FBUS_DETECTED_SENSOR_ESC:
+                return "ESC";
+            case FBUS_DETECTED_SENSOR_FAS_150S:
+                return "FAS_150S";
+            case FBUS_DETECTED_SENSOR_XACT_SERVO:
+                return "XACT_SERVO";
+            case FBUS_DETECTED_SENSOR_UNKNOWN:
+            default:
+                break;
+        }
+    }
+
+    // Fallback to static default physical-ID naming
     if (physicalId < sizeof(fbusSensorNames) / sizeof(fbusSensorNames[0]) && fbusSensorNames[physicalId]) {
         return fbusSensorNames[physicalId];
     }

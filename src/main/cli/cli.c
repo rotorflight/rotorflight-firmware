@@ -5069,14 +5069,14 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         
         // Print physical ID and sensor name
         const char *sensorName = fbusSensorGetName(sensor->physicalId);
-        // For unknown sensors, display as "ID_0xXX" instead of "UNKNOWN"
+        // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
         char nameBuffer[17];
         if (strcmp(sensorName, "UNKNOWN") == 0) {
-            tfp_sprintf(nameBuffer, "ID_0x%02X", sensor->physicalId);
+            tfp_sprintf(nameBuffer, "ID_%u", sensor->physicalId);
             sensorName = nameBuffer;
         }
         // Print physical ID in a fixed-width column
-        cliPrintf("    0x%02X    | ", sensor->physicalId);
+        cliPrintf("    %3u     | ", sensor->physicalId);
 
         // Print sensor name in a fixed-width column
         cliPrintf("%s", sensorName);

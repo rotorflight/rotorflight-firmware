@@ -32,6 +32,10 @@
 
 #include "drivers/adc.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#endif
+
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 
@@ -68,12 +72,14 @@ const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
     [VOLTAGE_METER_NONE]    = "NONE",
     [VOLTAGE_METER_ADC]     = "ADC",
     [VOLTAGE_METER_ESC]     = "ESC",
+    [VOLTAGE_METER_FBUS]    = "FBUS",
 };
 
 const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
     [CURRENT_METER_NONE]    = "NONE",
     [CURRENT_METER_ADC]     = "ADC",
     [CURRENT_METER_ESC]     = "ESC",
+    [CURRENT_METER_FBUS]    = "FBUS",
 };
 
 
@@ -462,6 +468,32 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
             }
 #endif
             break;
+
+        case VOLTAGE_METER_FBUS:
+#ifdef USE_FBUS_MASTER
+            {
+                fbusCurrentData_t fbusCurrent;
+                fbusSensorGetCurrentData(&fbusCurrent);
+                if (fbusCurrent.hasVoltage && fbusSensorHasCurrentData()) {
+                    // FBUS voltage is V/100; convert to mV.
+                    voltageMeter.sample = fbusCurrent.voltageCentiVolts * 10;
+                    voltageMeter.voltage = voltageMeter.sample;
+                    batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+                } else {
+                    voltageMeterReset(&voltageMeter);
+                    batteryVoltage = 0;
+                }
+            }
+#else
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+#endif
+            break;
+
+        default:
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+            break;
     }
 
     DEBUG(BATTERY, 0, voltageMeter.sample);
@@ -494,6 +526,34 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
                 batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
             }
 #endif
+            break;
+
+        case CURRENT_METER_FBUS:
+#ifdef USE_FBUS_MASTER
+            {
+                fbusCurrentData_t fbusCurrent;
+                fbusSensorGetCurrentData(&fbusCurrent);
+                if (fbusSensorHasCurrentData() && (fbusCurrent.hasHighPrecisionCurrent || fbusCurrent.hasCurrent)) {
+                    // Prefer high-precision current (A/1000 -> mA), fallback to A/10 -> mA.
+                    currentMeter.sample = fbusCurrent.hasHighPrecisionCurrent
+                        ? fbusCurrent.currentMilliAmps
+                        : (fbusCurrent.currentDeciAmps * 100);
+                    currentMeter.current = currentMeter.sample;
+                    batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+                } else {
+                    currentMeterReset(&currentMeter);
+                    batteryCurrent = 0;
+                }
+            }
+#else
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
+#endif
+            break;
+
+        default:
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
             break;
     }
 

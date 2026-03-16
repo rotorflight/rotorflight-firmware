@@ -72,6 +72,13 @@ typedef enum {
     FBUS_SERVO_DATA_BASE        = 0x6800,  // 0x6800~0x680F
 } fbusServoDataId_e;
 
+// FBUS FAS/Current sensor Data IDs
+typedef enum {
+    FBUS_CURRENT_BASE           = 0x0200,  // 0x0200~0x020F, Current (A/10)
+    FBUS_VOLTAGE_BASE           = 0x0210,  // 0x0210~0x021F, Voltage (V/100)
+    FBUS_HIGH_PREC_CURRENT_BASE = 0x0220,  // 0x0220~0x022F, Current (A/1000)
+} fbusCurrentDataId_e;
+
 // Servo data byte definitions
 #define FBUS_SERVO_CURRENT_MASK     0x000000FF  // Bits 0-7: Current (0.1A, 0~25.5A)
 #define FBUS_SERVO_VOLTAGE_MASK     0x0000FF00  // Bits 8-15: Voltage (0.1V, 0~25.5V)
@@ -135,6 +142,17 @@ typedef struct {
     timeUs_t lastUpdateUs;
 } fbusServoData_t;
 
+// Current sensor specific data structure (CURRENT/FAS-150S)
+typedef struct {
+    uint32_t currentDeciAmps;        // Current in 0.1A from 0x0200~0x020F
+    uint32_t voltageCentiVolts;      // Voltage in 0.01V from 0x0210~0x021F
+    uint16_t currentMilliAmps;       // Current in 0.001A from 0x0220~0x022F
+    bool hasCurrent;
+    bool hasVoltage;
+    bool hasHighPrecisionCurrent;
+    timeUs_t lastUpdateUs;
+} fbusCurrentData_t;
+
 // Function prototypes
 void fbusSensorInit(void);
 void fbusSensorUpdate(timeUs_t currentTimeUs);
@@ -143,6 +161,8 @@ void fbusSensorGetGpsData(fbusGpsData_t *gpsData);
 bool fbusSensorHasGpsData(void);
 void fbusSensorGetServoData(fbusServoData_t *servoData);
 bool fbusSensorHasServoData(void);
+void fbusSensorGetCurrentData(fbusCurrentData_t *currentData);
+bool fbusSensorHasCurrentData(void);
 
 // GPS data conversion functions
 int32_t fbusGpsConvertLatLon(uint32_t fbusData);
@@ -157,12 +177,21 @@ void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltag
 
 // Observed sensor tracking
 #define FBUS_MAX_OBSERVED_SENSORS 32
+typedef enum {
+    FBUS_DETECTED_SENSOR_UNKNOWN = 0,
+    FBUS_DETECTED_SENSOR_GPS,
+    FBUS_DETECTED_SENSOR_ESC,
+    FBUS_DETECTED_SENSOR_FAS_150S,
+    FBUS_DETECTED_SENSOR_XACT_SERVO,
+} fbusDetectedSensorType_e;
+
 typedef struct {
     uint8_t physicalId;
     uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
     uint8_t appIdCount;
     uint32_t lastSeenUs;
     uint32_t packetCount;
+    fbusDetectedSensorType_e detectedType;
 } fbusObservedSensor_t;
 
 uint8_t fbusSensorGetObservedCount(void);

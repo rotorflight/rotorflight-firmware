@@ -350,6 +350,15 @@ static void writeUplinkFrame(const smartPortPayload_t *payload)
 {
     writeUplinkFramePhyID(FBUS_FC_COMMON_ID, payload);
 }
+
+static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
+{
+    uint8_t checkedPhyID = phyID;
+    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 1) ^ GET_BIT(checkedPhyID, 2)) << 5;
+    checkedPhyID |= (GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 3) ^ GET_BIT(checkedPhyID, 4)) << 6;
+    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 4)) << 7;
+    return checkedPhyID;
+}
 #endif
 
 static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
@@ -614,7 +623,8 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
             
-            // Iterate through generic FBUS sensor slots
+            // First pass: advertise configured forwarded sensors on startup.
+            // Keep startup frames prioritized so all configured sensors are discovered.
             for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
                 // Check if this sensor is active (configured and FBUS master enabled)
                 if (telemetrySensorActive(sensorId)) {
@@ -630,39 +640,41 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                                 .valueId = 0,
                                 .data = 0
                             };
-                            uint8_t phyID = physicalId;
-                            // Add check bits
-                            phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 1) ^ GET_BIT(phyID, 2)) << 5;
-                            phyID |= (GET_BIT(phyID, 2) ^ GET_BIT(phyID, 3) ^ GET_BIT(phyID, 4)) << 6;
-                            phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 2) ^ GET_BIT(phyID, 4)) << 7;
-                            
-                            writeUplinkFramePhyID(phyID, &startupPayload);
+
+                            writeUplinkFramePhyID(fbusPhyIdWithCheckBits(physicalId), &startupPayload);
                             fbusSensorMarkStartupFrameSent(physicalId);
                             forwardedSensor = true;
                             clearToSend = false;
                             break;
                         }
-                        
-                        // Try to get buffered sensor frame
-                        fbusSensorFrame_t sensorFrame;
-                        if (fbusSensorGetForwardedFrame(physicalId, &sensorFrame) && sensorFrame.valid) {
-                            // Build and send the forwarded frame
-                            smartPortPayload_t forwardPayload = {
-                                .frameId = FBUS_FRAME_ID_DATA,
-                                .valueId = sensorFrame.appId,
-                                .data = sensorFrame.data
-                            };
-                            uint8_t phyID = sensorFrame.physicalId;
-                            // Add check bits
-                            phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 1) ^ GET_BIT(phyID, 2)) << 5;
-                            phyID |= (GET_BIT(phyID, 2) ^ GET_BIT(phyID, 3) ^ GET_BIT(phyID, 4)) << 6;
-                            phyID |= (GET_BIT(phyID, 0) ^ GET_BIT(phyID, 2) ^ GET_BIT(phyID, 4)) << 7;
-                            
-                            writeUplinkFramePhyID(phyID, &forwardPayload);
-                            forwardedSensor = true;
-                            clearToSend = false;
-                            break;
-                        }
+                    }
+                }
+            }
+
+            // Second pass: forward buffered sensor data once startup advertising is complete.
+            if (!forwardedSensor) {
+                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
+                    if (!telemetrySensorActive(sensorId)) {
+                        continue;
+                    }
+
+                    uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
+                    if (physicalId == 0) {
+                        continue;
+                    }
+
+                    fbusSensorFrame_t sensorFrame;
+                    if (fbusSensorGetForwardedFrame(physicalId, &sensorFrame) && sensorFrame.valid) {
+                        smartPortPayload_t forwardPayload = {
+                            .frameId = FBUS_FRAME_ID_DATA,
+                            .valueId = sensorFrame.appId,
+                            .data = sensorFrame.data
+                        };
+
+                        writeUplinkFramePhyID(fbusPhyIdWithCheckBits(sensorFrame.physicalId), &forwardPayload);
+                        forwardedSensor = true;
+                        clearToSend = false;
+                        break;
                     }
                 }
             }

@@ -321,6 +321,9 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (!fbusMasterPort)
         return;
 
+    // Keep derived FBUS sensor states (timeouts/GPS mirrors) updated.
+    fbusSensorUpdate(currentTimeUs);
+
     // Check TX Buff is free
     if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
         return;
@@ -365,6 +368,9 @@ void fbusMasterInit(void)
     fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
     nextTelemetryPollTimeUs = 0;
     fbusMasterStartDiscoveryWindow(micros());
+
+    // Initialize FBUS sensor caches and forwarding buffers from current config.
+    fbusSensorInit();
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(

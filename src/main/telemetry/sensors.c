@@ -150,6 +150,66 @@ static int getFbusSensorValue(uint8_t sensorIndex)
     
     return 0;
 }
+
+#define FBUS_ESC_RPM_APP_ID_BASE 0x0B60U
+#define FBUS_ESC_RPM_APP_ID_END  0x0B6FU
+
+static bool isFbusEscForwarded(void)
+{
+    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+        if (fbusMasterConfig()->forwardedSensors[i] == FBUS_SENSOR_ESC) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static int getFbusEscRpmValue(void)
+{
+    static uint16_t lastEscErpm = 0;
+    fbusSensorFrame_t frame;
+
+    if (fbusSensorGetForwardedFrame(FBUS_SENSOR_ESC, &frame) && frame.valid) {
+        if (frame.appId >= FBUS_ESC_RPM_APP_ID_BASE && frame.appId <= FBUS_ESC_RPM_APP_ID_END) {
+            // ESC_R&C frame: bits 0..15 are ERpm, bits 16..31 are consumption.
+            lastEscErpm = (uint16_t)(frame.data & 0xFFFFU);
+        }
+    }
+
+    return (int)lastEscErpm;
+}
+
+    static int getFbusBatteryVoltage(void)
+    {
+        fbusCurrentData_t currentData;
+        fbusSensorGetCurrentData(&currentData);
+
+        if (currentData.hasVoltage) {
+            // FBUS voltage is V/100; telemetry battery voltage uses V/10.
+            return (int)(currentData.voltageCentiVolts / 10U);
+        }
+
+        return 0;
+    }
+
+    static int getFbusBatteryCurrent(void)
+    {
+        fbusCurrentData_t currentData;
+        fbusSensorGetCurrentData(&currentData);
+
+        if (currentData.hasCurrent) {
+            // FBUS current is A/10, same as telemetry battery current units.
+            return (int)currentData.currentDeciAmps;
+        }
+
+        if (currentData.hasHighPrecisionCurrent) {
+            // High-precision FBUS current is A/1000; convert to A/10.
+            return (int)(currentData.currentMilliAmps / 100U);
+        }
+
+        return 0;
+    }
 #endif
 
 
@@ -177,6 +237,28 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_CELL_VOLTAGE:
             return getBatteryAverageCellVoltage();
         case TELEM_BATTERY_CELL_VOLTAGES:
+            return 0;
+
+        case TELEM_FBUS_VOLTAGE:
+#ifdef USE_FBUS_MASTER
+            return getFbusBatteryVoltage();
+#else
+            return 0;
+#endif
+
+        case TELEM_FBUS_CURRENT:
+#ifdef USE_FBUS_MASTER
+            return getFbusBatteryCurrent();
+#else
+            return 0;
+#endif
+
+        case TELEM_FBUS_RPM:
+#ifdef USE_FBUS_MASTER
+            if (fbusMasterIsEnabled() && isFbusEscForwarded()) {
+                return getFbusEscRpmValue();
+            }
+#endif
             return 0;
 
         case TELEM_CONTROL:
@@ -272,6 +354,8 @@ int telemetrySensorValue(sensor_id_e id)
             return getTailSpeed();
 
         case TELEM_MOTOR_RPM:
+            return 0;
+
         case TELEM_TRANS_RPM:
             return 0;
 
@@ -417,6 +501,21 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_BATTERY_CELL_VOLTAGES:
             return false;
 
+        case TELEM_FBUS_VOLTAGE:
+        case TELEM_FBUS_CURRENT:
+#ifdef USE_FBUS_MASTER
+            return fbusMasterIsEnabled() && fbusSensorHasCurrentData();
+#else
+            return false;
+#endif
+
+        case TELEM_FBUS_RPM:
+    #ifdef USE_FBUS_MASTER
+            return fbusMasterIsEnabled() && isFbusEscForwarded();
+    #else
+            return false;
+    #endif
+
         case TELEM_CONTROL:
         case TELEM_ROLL_CONTROL:
         case TELEM_PITCH_CONTROL:
@@ -491,6 +590,8 @@ bool telemetrySensorActive(sensor_id_e id)
             return true;
 
         case TELEM_MOTOR_RPM:
+            return false;
+
         case TELEM_TRANS_RPM:
             return false;
 
