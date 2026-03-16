@@ -330,6 +330,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define AM32_F3_2KB_EEPROM_ADDR 0xF800
 #define AM32_NUM_EEPROM_BYTES 48
 #define AM32_ESC_NAME_LENGTH 32
+#define AM32_PARAM_PROTOCOL_VERSION 0
 
 #define ESC_INIT_DELAY 2500
 #define ESC_DEINIT_DELAY 100
@@ -4094,6 +4095,20 @@ uint8_t escGetParamBufferLength()
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
+static bool is4wayAm32Selected(void)
+{
+    return escID < MAX_SUPPORTED_MOTORS;
+}
+
+static bool escParametersWritable(void)
+{
+    if (is4wayAm32Selected()) {
+        return !ARMING_FLAG(ARMED);
+    }
+
+    return paramCommit != NULL;
+}
+
 uint8_t escSelect4WIfById(uint8_t id)
 {
     /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
@@ -4129,8 +4144,16 @@ uint8_t escSelect4WIfById(uint8_t id)
 
 uint8_t *escGetParamBuffer(void)
 {
+    if (is4wayAm32Selected()) {
+        paramBuffer[PARAM_HEADER_SIG] = ESC_SIG_AM32;
+        paramBuffer[PARAM_HEADER_VER] = (AM32_PARAM_PROTOCOL_VERSION & PARAM_HEADER_VER_MASK) |
+            (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
+        return paramBuffer;
+    }
+
     paramBuffer[PARAM_HEADER_SIG] = escSig;
-    paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
+    paramBuffer[PARAM_HEADER_VER] = (paramVer & (PARAM_HEADER_VER_MASK | PARAM_HEADER_USER)) |
+        (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
     return paramBuffer;
 }
 
@@ -4141,10 +4164,10 @@ uint8_t *escGetParamUpdBuffer()
 
 bool escCommitParameters(void)
 {
-    if(escID < MAX_SUPPORTED_MOTORS) {
+    if (is4wayAm32Selected()) {
         // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
         // Avoid performing 4WIF write ops while armed which would disable motors
-        if (ARMING_FLAG(ARMED)) {
+        if (!escParametersWritable()) {
             return false;
         }
         // invalidate cache to check next what was actually written
@@ -4154,7 +4177,7 @@ bool escCommitParameters(void)
     }
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
-        paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
+        escParametersWritable() && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
 }
 
 #endif
