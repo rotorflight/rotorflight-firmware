@@ -31,6 +31,11 @@ typedef busServoSourceType_e fbusMasterSourceType_e;
 
 #define FBUS_MASTER_MAX_FORWARDED_SENSORS 6
 
+#define FBUS_MASTER_TELEMETRY_RATE_MIN_HZ 25
+#define FBUS_MASTER_TELEMETRY_RATE_MAX_HZ 550
+#define FBUS_MASTER_DISCOVERY_TIME_MIN_MS 100
+#define FBUS_MASTER_DISCOVERY_TIME_MAX_MS 10000
+
 typedef struct fbusMasterConfig_s {
     uint16_t frameRate;
     uint8_t pinSwap;

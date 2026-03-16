@@ -17,7 +17,7 @@
 
  //this uses SBUS out and SPORT/FBUS_in
 
-#include "fbus_master.h"
+#include "drivers/fbus_master.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -60,8 +60,6 @@ serialPort_t *fbusMasterPort = NULL;
 #define FC_COMMON_ID 0x1B
 #define FBUS_MAX_PHYS_ID 0x1B
 
-#define FBUS_MASTER_SCAN_COUNTER 3
-
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
     FBUS_MASTER_QUERY_PHY_ID,
@@ -76,13 +74,53 @@ uint8_t phsIdList[FBUS_MAX_PHYS_ID] = {0};
 uint8_t physIdsfound = 0;
 uint8_t physIdCnt = 0;
 uint8_t currentPhysId = 0;
-uint8_t scanCounter = 0;
 uint8_t readIngoreBytes = 0;
 uint8_t readBytes = 0;
 uint8_t buffer[FBUS_MASTER_BUFFER_SIZE] = {0};
 
+static timeUs_t nextTelemetryPollTimeUs = 0;
+static timeUs_t sensorDiscoveryEndTimeUs = 0;
+
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+
+static uint16_t fbusMasterTelemetryRateHz(void)
+{
+    return constrain(fbusMasterConfig()->telemetryRate, FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ);
+}
+
+static uint16_t fbusMasterDiscoveryTimeMs(void)
+{
+    return constrain(fbusMasterConfig()->sensorDiscoveryTimeMs, FBUS_MASTER_DISCOVERY_TIME_MIN_MS, FBUS_MASTER_DISCOVERY_TIME_MAX_MS);
+}
+
+static timeDelta_t fbusMasterTelemetryPeriodUs(void)
+{
+    return 1000000 / fbusMasterTelemetryRateHz();
+}
+
+static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
+{
+    sensorDiscoveryEndTimeUs = currentTimeUs + ((timeUs_t)fbusMasterDiscoveryTimeMs() * 1000);
+}
+
+static uint8_t fbusMasterTakeNextScanPhysId(void)
+{
+    if (currentPhysId > FBUS_MAX_PHYS_ID) {
+        currentPhysId = 0;
+    }
+
+    if (currentPhysId == FC_COMMON_ID) {
+        currentPhysId++;
+        if (currentPhysId > FBUS_MAX_PHYS_ID) {
+            currentPhysId = 0;
+        }
+    }
+
+    const uint8_t phyId = currentPhysId;
+    currentPhysId++;
+    return phyId;
+}
 
 static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
 {
@@ -99,7 +137,7 @@ static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
-static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
+static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs_t currentTimeUs)
 {
     // Clear the control.c16 structure
     memset(&frame->c16, 0, sizeof(fbusMasterFrame_t));
@@ -137,29 +175,45 @@ static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
         case FBUS_MASTER_TELEMETRY:
             memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
             frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+
+            if (cmpTimeUs(currentTimeUs, nextTelemetryPollTimeUs) < 0) {
+                frame->downlink.phyID = 0;
+                frame->downlink.prim = FBUS_FRAME_ID_NULL;
+                crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+                frame->downlink.crc = crc;
+                break;
+            }
+
+            nextTelemetryPollTimeUs = currentTimeUs + fbusMasterTelemetryPeriodUs();
+
+            if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID && cmpTimeUs(currentTimeUs, sensorDiscoveryEndTimeUs) >= 0) {
+                fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
+                physIdCnt = 0;
+            }
             
             switch (fbusMasterTelemetryState) {
                 case FBUS_MASTER_SCAN_PHY_ID:
-                    currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
-                    if (currentPhysId > FBUS_MAX_PHYS_ID) {
-                        currentPhysId = 0;
-                        scanCounter++;
-                        if (scanCounter >= FBUS_MASTER_SCAN_COUNTER) {
-                            scanCounter = 0;
-                            fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
-                            break;
-                        }
-                    }
-        
-                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.phyID = fbusMasterTakeNextScanPhysId();
                     frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                    currentPhysId++;
                     break;
                 case FBUS_MASTER_QUERY_PHY_ID:
+                    if (physIdsfound == 0) {
+                        fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+                        currentPhysId = 0;
+                        fbusMasterStartDiscoveryWindow(currentTimeUs);
+                        frame->downlink.phyID = 0;
+                        frame->downlink.prim = FBUS_FRAME_ID_NULL;
+                        break;
+                    }
+
+                    if (physIdCnt >= physIdsfound) {
+                        physIdCnt = 0;
+                    }
+
                     currentPhysId = phsIdList[physIdCnt];
                     frame->downlink.phyID = currentPhysId;
                     frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                    physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+                    physIdCnt++;
                     break;
                 
                 default:
@@ -188,7 +242,12 @@ static void processDownlinkFrame(uint8_t *data)
     memcpy(&downlink, data, sizeof(downlink));
     uint8_t chkSum = frskyCheckSum((uint8_t *)&downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
     if (chkSum == downlink.crc) {
-        downlink.phyID = smartportMasterStripPhyIDCheckBits(downlink.phyID);
+        const int8_t decodedPhyId = smartportMasterStripPhyIDCheckBits(downlink.phyID);
+        if (decodedPhyId < 0) {
+            return;
+        }
+
+        downlink.phyID = decodedPhyId;
         if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID) {
             bool alreadyInList = false;
             for (uint8_t i = 0; i < physIdsfound; i++) {
@@ -197,7 +256,7 @@ static void processDownlinkFrame(uint8_t *data)
                     break;
                 }
             }
-            if (!alreadyInList) {
+            if (!alreadyInList && physIdsfound < ARRAYLEN(phsIdList)) {
                 phsIdList[physIdsfound++] = downlink.phyID;
             }
         }
@@ -258,7 +317,6 @@ static uint16_t fbusMasterConvertToSbus(float value)
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
     if (!fbusMasterPort)
         return;
 
@@ -277,7 +335,7 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
         // Store the output value for getServoOutput() to retrieve
         setBusServoOutput(ch, value);
     }
-    fbusMasterPrepareFrame(&frame, channels);
+    fbusMasterPrepareFrame(&frame, channels, currentTimeUs);
 
     // serial output
     serialWriteBuf(fbusMasterPort, (const uint8_t *)&frame, sizeof(frame));
@@ -299,6 +357,13 @@ void fbusMasterInit(void)
         fbusMasterPort = NULL;
         return;
     }
+
+    physIdsfound = 0;
+    physIdCnt = 0;
+    currentPhysId = 0;
+    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+    nextTelemetryPollTimeUs = 0;
+    fbusMasterStartDiscoveryWindow(micros());
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
