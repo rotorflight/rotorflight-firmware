@@ -4109,6 +4109,26 @@ static bool escParametersWritable(void)
     return paramCommit != NULL;
 }
 
+static bool isAm32ParamBufferValid(uint8_t id)
+{
+    if (paramBufferEscID != id || paramPayloadLength != AM32_NUM_EEPROM_BYTES) {
+        return false;
+    }
+
+    if (paramBuffer[PARAM_HEADER_SIG] != ESC_SIG_AM32 ||
+        paramUpdBuffer[PARAM_HEADER_SIG] != ESC_SIG_AM32) {
+        return false;
+    }
+
+    if ((paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) != AM32_PARAM_PROTOCOL_VERSION ||
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) != AM32_PARAM_PROTOCOL_VERSION) {
+        return false;
+    }
+
+    return (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) == 0 &&
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) == 0;
+}
+
 uint8_t escSelect4WIfById(uint8_t id)
 {
     /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
@@ -4165,9 +4185,15 @@ uint8_t *escGetParamUpdBuffer()
 bool escCommitParameters(void)
 {
     if (is4wayAm32Selected()) {
+        am32paramWritten[escID] = false;
+
+        if (!isAm32ParamBufferValid(escID)) {
+            return false;
+        }
+
         // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
         // Avoid performing 4WIF write ops while armed which would disable motors
-        if (!escParametersWritable()) {
+        if (ARMING_FLAG(ARMED)) {
             return false;
         }
         // invalidate cache to check next what was actually written
