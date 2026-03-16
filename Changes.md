@@ -114,6 +114,8 @@ Modified to support bus servos. When bus servos are configured, the index parame
 
 The `cyclic_ring` parameter is added (#345).
 
+The `cyclic_polar` parameter is added (#426).
+
 ### MSP_GET_ADJUSTMENT_FUNCTION_IDS
 
 Added a call to deliver the function id in use per slot (#398)
@@ -150,6 +152,10 @@ the PID loop rate to half too.
 `model_set_name` parameter added (ON/OFF). Corresponds with bit 0 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should set the name of the model on the radio.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
+
+`board_name`, `board_design`, and `manufacturer_id` now display a detailed
+incompatible-configuration warning and halt the system when an attempt is made
+to change them after they have been set. Previously only an error was shown.
 
 `deadband` parameter maximum value is changed from 32 to 100 (#327).
 
@@ -252,6 +258,10 @@ the actual values are calculated automatically (#332).
 `yaw_srate` default is changed to 12 (#413).
 
 `collective_srate` default is changed to 12 (#413).
+
+`error_limit` default is changed to 45,45,60 (#425).
+
+`offset_limit` default is changed to 90,90 (#425).
 
 
 ## CRSF Custom Telemetry
