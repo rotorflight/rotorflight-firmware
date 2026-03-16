@@ -341,6 +341,12 @@ completes. The existing CLI parameters are unchanged.
 Minor changes introduced to all three presets for better match to common
 use cases.
 
+## Receiver Protocols
+
+### IBUS 2 Support (#424)
+
+Support for the IBUS2 protocol for control link and basic telemetry using the ibus hub protocol.
+Future work will expand telemetry and msp support once edge tx officially supports the ibus2.
 
 ## Bug Fixes
 
