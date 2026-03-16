@@ -42,7 +42,7 @@ This legacy MSP call is disabled, as it does not have a timeout (#304).
 
 ### MSP_SET_4WIF_ESC_FWD_PROG
 
-New MSP command (244) to select an ESC for AM32 forward programming over the 4-way interface. Payload: U8 ESC id (0..MAX_SUPPORTED_MOTORS-1) or 0xFF for broadcast. Returns error if armed, payload length is not exactly 1 byte, the id is out of range, or the 4-way selection fails.
+New MSP command (244) to select an ESC for AM32 forward programming over the 4-way interface. Payload: U8 ESC id; values in `0..MAX_SUPPORTED_MOTORS-1` select that ESC, while values `>= MAX_SUPPORTED_MOTORS` (for example `0xFF`) are treated as deselect/exit and return success. The only error conditions for command `244` are: the system is armed, the payload length is not exactly 1 byte, or the 4-way selection fails.
 
 ### MSP_SET_PID_PROFILE
 
