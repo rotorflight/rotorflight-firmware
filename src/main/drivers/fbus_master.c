@@ -26,6 +26,7 @@
 #include "build/build_config.h"
 #include "common/maths.h"
 #include "common/time.h"
+#include "drivers/time.h"
 #include "fc/runtime_config.h"
 #include "flight/mixer.h"
 #include "flight/servos.h"
