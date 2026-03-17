@@ -64,6 +64,7 @@ void esc4wayRelease(void);
  * functions explicit for readers and maintainers.
  */
 uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx);
+bool fwifCmdDevicePageErase(uint8_t page);
 bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr);
 bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t addr);
 void esc4wayDeinit(void);
