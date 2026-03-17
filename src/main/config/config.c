@@ -205,13 +205,20 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
+#ifdef USE_FBUS_MASTER
+    const serialPortConfig_t *fbusMasterSerial = findSerialPortConfig(FUNCTION_FBUS_MASTER);
+#endif
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
 #endif
     if (
 #if defined(USE_GPS)
-        gpsConfig()->provider != GPS_MSP && !gpsSerial &&
+        gpsConfig()->provider != GPS_MSP && !gpsSerial
+#ifdef USE_FBUS_MASTER
+        && !fbusMasterSerial
+#endif
+        &&
 #endif
         true) {
         featureDisableImmediate(FEATURE_GPS);

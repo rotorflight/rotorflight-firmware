@@ -20,10 +20,12 @@
 #ifdef USE_FBUS_MASTER
 
 #include "fbus_sensor.h"
+#include "config/feature.h"
 #include "io/gps.h"
 #include "common/maths.h"
 #include "drivers/time.h"
 #include "pg/fbus_master.h"
+#include "scheduler/scheduler.h"
 #include <string.h>
 
 // Sensor name lookup table
@@ -507,6 +509,14 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
     
     // Process GPS data (App-ID-based detection, independent of physical ID)
     if (detectedType == FBUS_DETECTED_SENSOR_GPS) {
+#ifdef USE_GPS
+        if (!featureIsEnabled(FEATURE_GPS)) {
+            featureEnableImmediate(FEATURE_GPS);
+            gpsInit();
+            setTaskEnabled(TASK_GPS, true);
+        }
+#endif
+
         // Check which GPS data type this is
         if (appId >= FBUS_GPS_LATITUDE_BASE && appId <= (FBUS_GPS_LATITUDE_BASE + 0x0F)) {
             // Latitude or Longitude (differentiated by bit 31)
