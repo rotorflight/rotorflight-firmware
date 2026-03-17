@@ -165,6 +165,9 @@ static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramVer = 0;
 static bool paramMspActive = false;
 
+static bool is4wayEscSelected(void);
+static uint8_t escGetParamFullBufferLength(void);
+
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
@@ -343,6 +346,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define BLHELI_S_PAGE_MULTIPLIER_SMALL 1
 #define BLHELI_S_PAGE_MULTIPLIER_LARGE 4
 #define BLHELI_S_NUM_EEPROM_BYTES      0x70
+#define BLHELI_S_MSP_NUM_EEPROM_BYTES  0x40
 #define BLHELI_S_PARAM_PROTOCOL_VERSION 0
 
 #define ESC_INIT_DELAY 2500
@@ -4257,7 +4261,7 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength()
+static uint8_t escGetParamFullBufferLength(void)
 {
     paramMspActive = true;
     if(escID < MAX_SUPPORTED_MOTORS) {
@@ -4266,6 +4270,23 @@ uint8_t escGetParamBufferLength()
         fourwayIfFetchData(escID);
     }
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+}
+
+uint8_t escGetParamBufferLength(void)
+{
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength == 0) {
+        return 0;
+    }
+
+    if (is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        return PARAM_HEADER_SIZE + BLHELI_S_MSP_NUM_EEPROM_BYTES;
+    }
+
+    return fullLength;
 }
 
 static bool is4wayEscSelected(void)
@@ -4395,6 +4416,15 @@ uint8_t *escGetParamBuffer(void)
 
 uint8_t *escGetParamUpdBuffer()
 {
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength != 0 &&
+        is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        memcpy(paramUpdBuffer, paramBuffer, fullLength);
+    }
+
     return paramUpdBuffer;
 }
 
