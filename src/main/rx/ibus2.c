@@ -53,8 +53,6 @@
 #define IBUS2_CHANNEL_TYPES_LENGTH 20
 #define IBUS2_CHANNEL_RANGE_100 16384
 #define IBUS2_CHANNEL_RANGE_150 ((IBUS2_CHANNEL_RANGE_100 * 150) / 100)
-#define IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES (1U << 0)
-#define IBUS2_REQUIRED_RESOURCE_FAILSAFE      (1U << 1)
 #define IBUS2_HEADER_PACKET_TYPE_MASK 0x03
 #define IBUS2_HEADER_SUBTYPE_MASK 0x3C
 #define IBUS2_HEADER_SYNC_LOST_MASK 0x40
@@ -104,7 +102,6 @@ typedef struct {
     volatile bool frameSyncLost;
     volatile timeUs_t lastFrameTimeUs;
     serialPort_t *rxSerialPort;
-    uint8_t requiredResources;
     uint8_t channelTypes[IBUS2_CHANNEL_TYPES_LENGTH + 1];
     bool haveChannelTypes;
     uint8_t packedChannels[IBUS2_PACKED_BUFFER_LEN];
@@ -126,7 +123,6 @@ typedef struct {
 } ibus2State_t;
 
 static ibus2State_t ibus2State = {
-    .requiredResources = IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES,
     .frameParser = {
         .allowStart = true,
     },
@@ -153,7 +149,6 @@ static inline uint32_t readU32Unaligned(const uint8_t *data)
 static void ibus2ResetState(void)
 {
     memset(&ibus2State, 0, sizeof(ibus2State));
-    ibus2State.requiredResources = IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES;
     ibus2State.frameParser.allowStart = true;
 }
 
@@ -343,8 +338,6 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
         }
         memcpy(ibus2State.channelTypes, payload, IBUS2_CHANNEL_TYPES_LENGTH);
         ibus2State.haveChannelTypes = true;
-        ibus2State.requiredResources &= (uint8_t)~IBUS2_REQUIRED_RESOURCE_CHANNEL_TYPES;
-        ibus2TelemetrySetRequiredResources(ibus2State.requiredResources);
         if (ibus2State.havePackedChannels) {
             ibus2DecodeStoredChannels(ibus2State.lastPackedTimeUs, ibus2State.lastPackedSyncLost, ibus2State.lastPackedFailsafe);
         }
@@ -354,8 +347,6 @@ static void ibus2ProcessFirstFrame(const uint8_t *frame, size_t frameLen, timeUs
         ibus2State.subtype2FrameCount++;
         memset(ibus2State.packedFailsafe, 0, sizeof(ibus2State.packedFailsafe));
         memcpy(ibus2State.packedFailsafe, payload, payloadLen < sizeof(ibus2State.packedFailsafe) ? payloadLen : sizeof(ibus2State.packedFailsafe));
-        ibus2State.requiredResources &= (uint8_t)~IBUS2_REQUIRED_RESOURCE_FAILSAFE;
-        ibus2TelemetrySetRequiredResources(ibus2State.requiredResources);
         break;
 
     default:
@@ -603,7 +594,6 @@ bool ibus2Init(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 
     if (ibusPort) {
         ibus2TelemetryInit(ibusPort);
-        ibus2TelemetrySetRequiredResources(ibus2State.requiredResources);
     }
 
     return ibusPort != NULL;

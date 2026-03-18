@@ -87,7 +87,6 @@ static uint8_t ibus2PendingCommandCode = 0;
 static uint8_t ibus2PendingAddress = IBUS2_BROADCAST_ADDRESS;
 static uint8_t ibus2PendingFrame[IBUS2_COMMAND_FRAME_LEN];
 static timeUs_t ibus2PendingCommandReceivedAtUs = 0;
-static ibus2TelemetryDebug_t ibus2TelemetryDebug = { 0 };
 
 static const uint8_t ibus2SensorPriority[] = {
     IBUS_SENSOR_TYPE_EXTERNAL_VOLTAGE,
@@ -429,14 +428,6 @@ static void ibus2SendTxTestPattern(void)
         return;
     }
 
-    ibus2TelemetryDebug.sendCount++;
-    ibus2TelemetryDebug.lastResponseCode = 0x3F;
-    ibus2TelemetryDebug.responseByte0 = testFrame[0];
-    ibus2TelemetryDebug.responseByte1 = testFrame[1];
-    ibus2TelemetryDebug.responseByte2 = testFrame[2];
-    ibus2TelemetryDebug.responseByte3 = testFrame[3];
-    ibus2TelemetryDebug.responseByte14 = testFrame[14];
-    ibus2TelemetryDebug.responseByte15 = testFrame[15];
     serialWriteBuf(ibus2TelemetryPort, testFrame, sizeof(testFrame));
     ibus2TelemetryTransmitting = true;
 }
@@ -458,14 +449,6 @@ static void ibus2SendResponse(uint8_t commandCode, const uint8_t *payload, size_
     memcpy(&frame[1], payload, payloadLen);
     frame[IBUS2_RESPONSE_FRAME_LEN - 1] = crc8_update(0xFF, frame, IBUS2_RESPONSE_FRAME_LEN - 1, 0x25);
 
-    ibus2TelemetryDebug.sendCount++;
-    ibus2TelemetryDebug.lastResponseCode = commandCode;
-    ibus2TelemetryDebug.responseByte0 = frame[0];
-    ibus2TelemetryDebug.responseByte1 = frame[1];
-    ibus2TelemetryDebug.responseByte2 = frame[2];
-    ibus2TelemetryDebug.responseByte3 = frame[3];
-    ibus2TelemetryDebug.responseByte14 = frame[14];
-    ibus2TelemetryDebug.responseByte15 = frame[15];
     serialWriteBuf(ibus2TelemetryPort, frame, sizeof(frame));
     ibus2TelemetryTransmitting = true;
 }
@@ -490,7 +473,6 @@ static void ibus2SendGetTypeResponse(uint8_t address)
         payload[0] = deviceType;
         payload[1] = valueLength;
         payload[2] = 0;
-        ibus2TelemetryDebug.requiredResources = 0;
         ibus2SendResponse(IBUS2_CMD_GET_TYPE, payload, sizeof(payload));
     }
 }
@@ -525,8 +507,6 @@ static void ibus2SendGetParamResponse(const uint8_t *frame)
 
     writeU16Unaligned(payload, paramType);
     payload[2] = 0;
-    ibus2TelemetryDebug.lastParamType = paramType;
-
     ibus2SendResponse(IBUS2_CMD_GET_PARAM, payload, sizeof(payload));
 }
 
@@ -536,7 +516,6 @@ static void ibus2SendSetParamResponse(const uint8_t *frame)
     const uint16_t paramType = readU16Unaligned(&frame[1]);
 
     writeU16Unaligned(payload, paramType);
-    ibus2TelemetryDebug.lastParamType = paramType;
     payload[2] = 0;
 
     ibus2SendResponse(IBUS2_CMD_SET_PARAM, payload, sizeof(payload));
@@ -546,20 +525,17 @@ static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
 {
     const uint8_t commandCode = ibus2PendingCommandCode;
     const uint8_t address = ibus2PendingAddress;
-    const timeDelta_t sendDelayUs = cmpTimeUs(micros(), receivedAtUs);
-    ibus2TelemetryDebug.lastSendDelayUs = (uint16_t)constrain(sendDelayUs, 0, UINT16_MAX);
-    if (ibus2TelemetryDebug.lastSendDelayUs > ibus2TelemetryDebug.maxSendDelayUs) {
-        ibus2TelemetryDebug.maxSendDelayUs = ibus2TelemetryDebug.lastSendDelayUs;
-    }
 
     ibus2PendingCommand = false;
 #if IBUS2_TX_TEST_MODE
+    UNUSED(receivedAtUs);
     ibus2SendTxTestPattern();
     return;
 #endif
 
+    UNUSED(receivedAtUs);
+
     if (address == IBUS2_BROADCAST_ADDRESS) {
-        ibus2TelemetryDebug.broadcastCount++;
         if (commandCode == IBUS2_CMD_RESET) {
             ibus2TelemetryReset();
         }
@@ -567,7 +543,6 @@ static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
     }
 
     if (address != IBUS2_HUB_ADDRESS && ibus2GetDeviceIndexForAddress(address) < 0) {
-        ibus2TelemetryDebug.addressDropCount++;
         return;
     }
 
@@ -597,7 +572,6 @@ static void ibus2TelemetryRespondNow(timeUs_t receivedAtUs)
 void ibus2TelemetryInit(serialPort_t *port)
 {
     ibus2TelemetryPort = port;
-    memset(&ibus2TelemetryDebug, 0, sizeof(ibus2TelemetryDebug));
     ibus2TelemetryReset();
 }
 
@@ -612,11 +586,6 @@ void ibus2TelemetryReset(void)
     ibus2RefreshDevices();
 }
 
-void ibus2TelemetrySetRequiredResources(uint8_t requiredResources)
-{
-    ibus2TelemetryDebug.requiredResources = requiredResources;
-}
-
 void ibus2TelemetryUpdateAddress(const uint8_t *frame, size_t frameLen)
 {
     if (frameLen < 3) {
@@ -624,7 +593,6 @@ void ibus2TelemetryUpdateAddress(const uint8_t *frame, size_t frameLen)
     }
 
     ibus2LastAddress = frame[2] & IBUS2_BROADCAST_ADDRESS;
-    ibus2TelemetryDebug.lastAddress = ibus2LastAddress;
 }
 
 void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t receivedAtUs)
@@ -640,23 +608,8 @@ void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t 
     ibus2PendingCommand = true;
     ibus2PendingCommandCode = ibus2GetCommandCode(frame);
     ibus2PendingAddress = ibus2LastAddress;
-    ibus2TelemetryDebug.queueCount++;
-    ibus2TelemetryDebug.lastAddress = ibus2LastAddress;
-    ibus2TelemetryDebug.lastCommandCode = ibus2PendingCommandCode;
     ibus2PendingCommandReceivedAtUs = receivedAtUs;
     memcpy(ibus2PendingFrame, frame, sizeof(ibus2PendingFrame));
-}
-
-void ibus2TelemetryGetDebug(ibus2TelemetryDebug_t *debug)
-{
-    if (!debug) {
-        return;
-    }
-
-    *debug = ibus2TelemetryDebug;
-    debug->pendingCommand = ibus2PendingCommand;
-    debug->transmitting = ibus2TelemetryTransmitting;
-    debug->lastAddress = ibus2LastAddress;
 }
 
 bool ibus2TelemetryPending(void)
@@ -669,7 +622,6 @@ bool ibus2TelemetryProcess(timeUs_t nowUs)
     if (ibus2TelemetryTransmitting) {
         if (isSerialTransmitBufferEmpty(ibus2TelemetryPort)) {
             ibus2TelemetryTransmitting = false;
-            ibus2TelemetryDebug.txCompleteCount++;
             return true;
         }
         return false;
@@ -698,11 +650,6 @@ void ibus2TelemetryReset(void)
 {
 }
 
-void ibus2TelemetrySetRequiredResources(uint8_t requiredResources)
-{
-    UNUSED(requiredResources);
-}
-
 void ibus2TelemetryUpdateAddress(const uint8_t *frame, size_t frameLen)
 {
     UNUSED(frame);
@@ -714,11 +661,6 @@ void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t 
     UNUSED(frame);
     UNUSED(frameLen);
     UNUSED(receivedAtUs);
-}
-
-void ibus2TelemetryGetDebug(ibus2TelemetryDebug_t *debug)
-{
-    UNUSED(debug);
 }
 
 bool ibus2TelemetryPending(void)
