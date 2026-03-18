@@ -17,7 +17,7 @@
 
 #include "platform.h"
 
-#ifdef USE_SERIALRX_IBUS
+#ifdef USE_SERIALRX_IBUS2
 
 #include <stdbool.h>
 #include <stdint.h>

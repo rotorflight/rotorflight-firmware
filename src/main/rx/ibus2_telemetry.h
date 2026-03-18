@@ -49,6 +49,7 @@ typedef struct {
     bool transmitting;
 } ibus2TelemetryDebug_t;
 
+#ifdef USE_SERIALRX_IBUS2
 void ibus2TelemetryInit(serialPort_t *port);
 void ibus2TelemetryReset(void);
 void ibus2TelemetrySetRequiredResources(uint8_t requiredResources);
@@ -57,3 +58,4 @@ void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t 
 void ibus2TelemetryGetDebug(ibus2TelemetryDebug_t *debug);
 bool ibus2TelemetryPending(void);
 bool ibus2TelemetryProcess(timeUs_t nowUs);
+#endif

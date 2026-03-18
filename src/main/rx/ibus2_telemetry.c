@@ -17,7 +17,7 @@
   
 #include "platform.h"
 
-#if defined(USE_SERIALRX_IBUS) && defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS)
+#if defined(USE_SERIALRX_IBUS2) && defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS)
 
 #include <stdbool.h>
 #include <limits.h>
