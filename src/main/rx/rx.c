@@ -68,9 +68,7 @@
 #include "rx/msp.h"
 #include "rx/xbus.h"
 #include "rx/ibus.h"
-#ifdef USE_SERIALRX_IBUS2
 #include "rx/ibus2.h"
-#endif
 #include "rx/jetiexbus.h"
 #include "rx/crsf.h"
 #include "rx/ghst.h"
