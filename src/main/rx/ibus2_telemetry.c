@@ -17,7 +17,7 @@
   
 #include "platform.h"
 
-#if defined(USE_SERIALRX_IBUS2) && defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS)
+#if defined(USE_SERIALRX_IBUS2) && defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS2)
 
 #include <stdbool.h>
 #include <limits.h>
@@ -636,41 +636,6 @@ bool ibus2TelemetryProcess(timeUs_t nowUs)
         return false;
     }
 
-    return true;
-}
-
-#else
-
-void ibus2TelemetryInit(serialPort_t *port)
-{
-    UNUSED(port);
-}
-
-void ibus2TelemetryReset(void)
-{
-}
-
-void ibus2TelemetryUpdateAddress(const uint8_t *frame, size_t frameLen)
-{
-    UNUSED(frame);
-    UNUSED(frameLen);
-}
-
-void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t receivedAtUs)
-{
-    UNUSED(frame);
-    UNUSED(frameLen);
-    UNUSED(receivedAtUs);
-}
-
-bool ibus2TelemetryPending(void)
-{
-    return false;
-}
-
-bool ibus2TelemetryProcess(timeUs_t nowUs)
-{
-    UNUSED(nowUs);
     return true;
 }
 

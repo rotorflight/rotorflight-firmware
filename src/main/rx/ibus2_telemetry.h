@@ -24,11 +24,9 @@
 #include "drivers/serial.h"
 #include "common/time.h"
 
-#ifdef USE_SERIALRX_IBUS2
 void ibus2TelemetryInit(serialPort_t *port);
 void ibus2TelemetryReset(void);
 void ibus2TelemetryUpdateAddress(const uint8_t *frame, size_t frameLen);
 void ibus2TelemetryQueueCommand(const uint8_t *frame, size_t frameLen, timeUs_t receivedAtUs);
 bool ibus2TelemetryPending(void);
 bool ibus2TelemetryProcess(timeUs_t nowUs);
-#endif

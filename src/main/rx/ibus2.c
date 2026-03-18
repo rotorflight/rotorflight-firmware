@@ -37,7 +37,15 @@
 #include "pg/serial.h"
 
 #include "rx/ibus2.h"
+#if defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS2)
 #include "rx/ibus2_telemetry.h"
+#else
+#define ibus2TelemetryInit(port)                           do { UNUSED(port); } while (0)
+#define ibus2TelemetryUpdateAddress(frame, frameLen)       do { UNUSED(frame); UNUSED(frameLen); } while (0)
+#define ibus2TelemetryQueueCommand(frame, frameLen, time)  do { UNUSED(frame); UNUSED(frameLen); UNUSED(time); } while (0)
+#define ibus2TelemetryPending()                            false
+#define ibus2TelemetryProcess(nowUs)                       (UNUSED(nowUs), true)
+#endif
 #include "rx/rx.h"
 
 #define IBUS2_BAUDRATE 1500000
@@ -591,7 +599,6 @@ bool ibus2Init(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     );
 
     ibus2State.rxSerialPort = ibusPort;
-
     if (ibusPort) {
         ibus2TelemetryInit(ibusPort);
     }

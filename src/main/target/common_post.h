@@ -97,6 +97,7 @@
 #undef USE_TELEMETRY_FRSKY_HUB
 #undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_IBUS
+#undef USE_TELEMETRY_IBUS2
 #undef USE_TELEMETRY_IBUS_EXTENDED
 #undef USE_TELEMETRY_JETIEXBUS
 #undef USE_TELEMETRY_LTM
@@ -132,6 +133,10 @@
 
 #if !defined(USE_TELEMETRY_IBUS)
 #undef USE_TELEMETRY_IBUS_EXTENDED
+#endif
+
+#if !defined(USE_SERIALRX_IBUS2)
+#undef USE_TELEMETRY_IBUS2
 #endif
 
 // If USE_SERIALRX_SPEKTRUM was dropped by a target, drop all related options
