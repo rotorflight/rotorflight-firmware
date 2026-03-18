@@ -216,6 +216,8 @@ the actual values are calculated automatically (#332).
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
+`serialrx_provider` extended to include `IBUS2` as a protocol option
+
 
 ## Defaults
 
@@ -351,6 +353,11 @@ completes. The existing CLI parameters are unchanged.
 Minor changes introduced to all three presets for better match to common
 use cases.
 
+## Receiver Protocols
+
+### IBUS 2 Support (#424)
+
+Support for the IBUS2 protocol for control link and basic telemetry using the ibus hub protocol.
 
 ## Bug Fixes
 
