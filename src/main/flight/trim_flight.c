@@ -46,6 +46,7 @@
 typedef struct {
     bool            active;
     bool            was_active;
+    bool            was_mode_active;
     float           stick_threshold;
     float           max_trim;
     float           accum_rate;
@@ -63,6 +64,7 @@ void INIT_CODE trimFlightInit(void)
 {
     trim.active = false;
     trim.was_active = false;
+    trim.was_mode_active = false;
     trim.accumulator[0] = 0.0f;
     trim.accumulator[1] = 0.0f;
 
@@ -107,9 +109,6 @@ static bool trimFlightCheckPreconditions(void)
     if (fabsf(getRcDeflection(PITCH)) > trim.stick_threshold)
         return false;
 
-    if (!IS_RC_MODE_ACTIVE(BOXTRIMFLIGHT))
-        return false;
-
     if (FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE | ANGLE_MODE | HORIZON_MODE))
         return false;
 
@@ -124,9 +123,11 @@ void trimFlightUpdate(void)
 
     float filtered_iterm[2] = { 0.0f, 0.0f };
 
-    trim.active = trimFlightCheckPreconditions();
+    const bool mode_active = IS_RC_MODE_ACTIVE(BOXTRIMFLIGHT);
 
-    if (trim.active && !trim.was_active) {
+    trim.active = mode_active && trimFlightCheckPreconditions();
+
+    if (mode_active && !trim.was_mode_active) {
         for (int i = 0; i < 2; i++) {
             trim.iterm_filter[i].y1 = 0.0f;
         }
@@ -150,8 +151,17 @@ void trimFlightUpdate(void)
         }
     }
 
-    if (trim.was_active && !trim.active) {
-        if (ARMING_FLAG(ARMED)) {
+    if (trim.was_active && !trim.active && mode_active) {
+        trim.accumulator[0] = 0.0f;
+        trim.accumulator[1] = 0.0f;
+
+        for (int i = 0; i < 2; i++) {
+            trim.iterm_filter[i].y1 = 0.0f;
+        }
+    }
+
+    if (trim.was_mode_active && !mode_active) {
+        if (trimFlightCheckPreconditions()) {
             for (int i = 0; i < 2; i++) {
                 const int16_t new_trim = constrain(
                     mixerConfig()->trim_flight_trim[i] + lrintf(trim.accumulator[i] * 1000.0f),
@@ -168,6 +178,7 @@ void trimFlightUpdate(void)
     }
 
     trim.was_active = trim.active;
+    trim.was_mode_active = mode_active;
 
     DEBUG(TRIM_FLIGHT, 0, lrintf(trim.accumulator[0] * 1000));
     DEBUG(TRIM_FLIGHT, 1, lrintf(trim.accumulator[1] * 1000));
@@ -200,7 +211,14 @@ void set_ADJUSTMENT_TRIM_FLIGHT_RESET(int value)
     if (value != 0) {
         mixerConfigMutable()->trim_flight_trim[0] = 0;
         mixerConfigMutable()->trim_flight_trim[1] = 0;
+
         trim.accumulator[0] = 0.0f;
         trim.accumulator[1] = 0.0f;
+
+        for (int i = 0; i < 2; i++) {
+            trim.iterm_filter[i].y1 = 0.0f;
+        }
+
+        setConfigDirty();
     }
 }
