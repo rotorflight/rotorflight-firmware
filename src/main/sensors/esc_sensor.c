@@ -351,12 +351,6 @@ static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
 static bool am32ProgrammingActive = false;
 static uint8_t am32EscCount = 0;
 
-static void am32DelayMs(uint32_t delayMs)
-{
-    uint32_t start = millis();
-    while (millis() - start < delayMs);
-}
-
 static uint8_32_u *am32WaitForDeviceInitFlash(uint8_t escID)
 {
     uint32_t start = millis();
@@ -368,7 +362,7 @@ static uint8_32_u *am32WaitForDeviceInitFlash(uint8_t escID)
             return devInfo;
         }
 
-        am32DelayMs(AM32_RETRY_DELAY);
+        delay(AM32_RETRY_DELAY);
     } while (millis() - start < AM32_INIT_FLASH_TIMEOUT);
 
     return NULL;
@@ -448,7 +442,7 @@ static bool fourwayIfFetchData(uint8_t escID)
                 }
 
                 if (matchedEepromAddr != 0) {
-                    am32DelayMs(AM32_READ_DELAY);
+                    delay(AM32_READ_DELAY);
                     if (fwifCmdDeviceRead(AM32_NUM_EEPROM_BYTES, paramPayload, matchedEepromAddr)) {
                         retVal = true;
                         escSig = ESC_SIG_AM32;
@@ -518,7 +512,7 @@ static bool fourwayIfWriteData(uint8_t escID)
                             break;
                         }
 
-                        am32DelayMs(AM32_RETRY_DELAY);
+                        delay(AM32_RETRY_DELAY);
                     } while (millis() - writeStart < AM32_WRITE_TIMEOUT);
                 }
                 /* Unknown signature: do not touch fwif_eepromAddr or flags */
@@ -532,6 +526,11 @@ static bool fourwayIfWriteData(uint8_t escID)
 static void scheduleAm32Write(uint8_t id)
 {
     taskInfo_t escTaskInfo;
+
+    /* Guard against race: don't accept a new write if one is already pending */
+    if (am32WritePending) {
+        return;
+    }
 
     am32WriteEscId = id;
     am32WritePending = true;
@@ -4084,7 +4083,7 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength()
+uint8_t escGetParamBufferLength(void)
 {
     paramMspActive = true;
     if(escID < MAX_SUPPORTED_MOTORS) {
