@@ -1,27 +1,28 @@
-  /*
-   * This file is part of Rotorflight.
-   *
-   * Rotorflight is free software. You can redistribute it and/or modify
-   * it under the terms of the GNU General Public License as published by
-   * the Free Software Foundation, either version 3 of the License, or
-   * (at your option) any later version.
-   *
-   * Rotorflight is distributed in the hope that it will be useful,
-   * but WITHOUT ANY WARRANTY; without even the implied warranty of
-   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-   * See the GNU General Public License for more details.
-   *
-   * You should have received a copy of the GNU General Public License
-   * along with this software. If not, see <https://www.gnu.org/licenses/>.
-   */
+/*
+ * This file is part of Rotorflight.
+ *
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "platform.h"
 
 #ifdef USE_SERIALRX_IBUS2
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
 
 #include "build/atomic.h"
 
@@ -36,44 +37,36 @@
 
 #include "pg/serial.h"
 
-#include "rx/ibus2.h"
-#if defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS2)
-#include "rx/ibus2_telemetry.h"
-#else
-#define ibus2TelemetryInit(port)                           do { UNUSED(port); } while (0)
-#define ibus2TelemetryUpdateAddress(frame, frameLen)       do { UNUSED(frame); UNUSED(frameLen); } while (0)
-#define ibus2TelemetryQueueCommand(frame, frameLen, time)  do { UNUSED(frame); UNUSED(frameLen); UNUSED(time); } while (0)
-#define ibus2TelemetryPending()                            false
-#define ibus2TelemetryProcess(nowUs)                       (UNUSED(nowUs), true)
-#endif
 #include "rx/rx.h"
+#include "rx/ibus2.h"
+#include "rx/ibus2_telemetry.h"
 
-#define IBUS2_BAUDRATE 1500000
-#define IBUS2_FIRST_FRAME_MIN_LEN 4
-#define IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN 33
-#define IBUS2_UNPACK_TAIL_READ_BYTES 4
-#define IBUS2_FIRST_FRAME_MAX_LEN (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + 4)
-#define IBUS2_PACKED_BUFFER_LEN (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + IBUS2_UNPACK_TAIL_READ_BYTES)
-#define IBUS2_COMMAND_FRAME_LEN 21
-#define IBUS2_BASE_CHANNEL_COUNT 18
-#define IBUS2_CHANNEL_COUNT 32
-#define IBUS2_BASE_CHANNELS_12BIT_PAYLOAD_LEN ((IBUS2_BASE_CHANNEL_COUNT * 12U) / 8U)
-#define IBUS2_CHANNEL_TYPES_LENGTH 20
-#define IBUS2_CHANNEL_RANGE_100 16384
-#define IBUS2_CHANNEL_RANGE_150 ((IBUS2_CHANNEL_RANGE_100 * 150) / 100)
-#define IBUS2_HEADER_PACKET_TYPE_MASK 0x03
-#define IBUS2_HEADER_SUBTYPE_MASK 0x3C
-#define IBUS2_HEADER_SYNC_LOST_MASK 0x40
-#define IBUS2_HEADER_FAILSAFE_MASK 0x80
-#define IBUS2_ADDRESS_RESERVED_MASK 0xC0
-#define IBUS2_INTERFRAME_GAP_MIN_US 70
-#define IBUS2_DEBUG_PRINT_INTERVAL_US 1000000
-#define IBUS2_CHANNEL_TYPE_BITS 5
-#define IBUS2_CHANNEL_TYPE_BITS_MASK 0x0F
-#define IBUS2_KEEP_FAILSAFE_CHANNEL (-32768)
-#define IBUS2_STOP_FAILSAFE_CHANNEL (-32767)
-#define IBUS2_CHANNEL_US_MIN 750
-#define IBUS2_CHANNEL_US_MAX 2250
+#define IBUS2_BAUDRATE                          1500000
+#define IBUS2_FIRST_FRAME_MIN_LEN               4
+#define IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN       33
+#define IBUS2_UNPACK_TAIL_READ_BYTES            4
+#define IBUS2_FIRST_FRAME_MAX_LEN               (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + 4)
+#define IBUS2_PACKED_BUFFER_LEN                 (IBUS2_FIRST_FRAME_PAYLOAD_MAX_LEN + IBUS2_UNPACK_TAIL_READ_BYTES)
+#define IBUS2_COMMAND_FRAME_LEN                 21
+#define IBUS2_BASE_CHANNEL_COUNT                18
+#define IBUS2_CHANNEL_COUNT                     32
+#define IBUS2_BASE_CHANNELS_12BIT_PAYLOAD_LEN   ((IBUS2_BASE_CHANNEL_COUNT * 12U) / 8U)
+#define IBUS2_CHANNEL_TYPES_LENGTH              20
+#define IBUS2_CHANNEL_RANGE_100                 16384
+#define IBUS2_CHANNEL_RANGE_150                 ((IBUS2_CHANNEL_RANGE_100 * 150) / 100)
+#define IBUS2_HEADER_PACKET_TYPE_MASK           0x03
+#define IBUS2_HEADER_SUBTYPE_MASK               0x3C
+#define IBUS2_HEADER_SYNC_LOST_MASK             0x40
+#define IBUS2_HEADER_FAILSAFE_MASK              0x80
+#define IBUS2_ADDRESS_RESERVED_MASK             0xC0
+#define IBUS2_INTERFRAME_GAP_MIN_US             70
+#define IBUS2_DEBUG_PRINT_INTERVAL_US           1000000
+#define IBUS2_CHANNEL_TYPE_BITS                 5
+#define IBUS2_CHANNEL_TYPE_BITS_MASK            0x0F
+#define IBUS2_KEEP_FAILSAFE_CHANNEL             (-32768)
+#define IBUS2_STOP_FAILSAFE_CHANNEL             (-32767)
+#define IBUS2_CHANNEL_US_MIN                    750
+#define IBUS2_CHANNEL_US_MAX                    2250
 
 static const uint32_t ibus2UnpackChannelFactors[] = {
     0, 0, 0x40000000, 0, 0, 0, 0x028F5C29, 0x0147AE15,
@@ -604,11 +597,6 @@ bool ibus2Init(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
     }
 
     return ibusPort != NULL;
-}
-
-serialPort_t *ibus2GetRxSerialPort(void)
-{
-    return ibus2State.rxSerialPort;
 }
 
 #endif

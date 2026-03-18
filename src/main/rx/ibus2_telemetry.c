@@ -1,28 +1,28 @@
-  /*
-   * This file is part of Rotorflight.
-   *
-   * Rotorflight is free software. You can redistribute it and/or modify
-   * it under the terms of the GNU General Public License as published by
-   * the Free Software Foundation, either version 3 of the License, or
-   * (at your option) any later version.
-   *
-   * Rotorflight is distributed in the hope that it will be useful,
-   * but WITHOUT ANY WARRANTY; without even the implied warranty of
-   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-   * See the GNU General Public License for more details.
-   *
-   * You should have received a copy of the GNU General Public License
-   * along with this software. If not, see <https://www.gnu.org/licenses/>.
-   */
-  
-#include "platform.h"
+/*
+ * This file is part of Rotorflight.
+ *
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-#if defined(USE_SERIALRX_IBUS2) && defined(USE_TELEMETRY) && defined(USE_TELEMETRY_IBUS2)
+#include "platform.h"
 
 #include <stdbool.h>
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+
+#ifdef USE_TELEMETRY_IBUS2
 
 #include "common/crc.h"
 #include "common/maths.h"
@@ -290,16 +290,22 @@ static uint16_t ibus2GetCurrent(void)
 
 static uint16_t ibus2GetMode(void)
 {
-    uint16_t flightMode = 1;
+    uint16_t flightMode = 0;
 
-    if (FLIGHT_MODE(ANGLE_MODE)) {
-        flightMode = 0;
-    } else if (FLIGHT_MODE(HORIZON_MODE)) {
-        flightMode = 7;
-    } else if (FLIGHT_MODE(RESCUE_MODE)) {
-        flightMode = 4;
-    } else if (FLIGHT_MODE(FAILSAFE_MODE)) {
+    if (FLIGHT_MODE(FAILSAFE_MODE)) {
         flightMode = 9;
+    }
+    else if (FLIGHT_MODE(RESCUE_MODE)) {
+        flightMode = 4;
+    }
+    else if (FLIGHT_MODE(HORIZON_MODE)) {
+        flightMode = 7;
+    }
+    else if (FLIGHT_MODE(ANGLE_MODE)) {
+        flightMode = 0;
+    }
+    else {
+        flightMode = 1;
     }
 
     return flightMode;
@@ -385,11 +391,11 @@ static bool ibus2GetSensorValue(uint8_t sensorType, uint8_t *valueBuffer, uint8_
         return true;
 
     case IBUS_SENSOR_TYPE_RPM_FLYSKY:
-        writeU16Unaligned(valueBuffer, (uint16_t)constrain(getHeadSpeed(), 0, UINT16_MAX));
+        writeU16Unaligned(valueBuffer, constrain(getHeadSpeed(), 0, UINT16_MAX));
         return true;
 
     case IBUS_SENSOR_TYPE_ALT_FLYSKY:
-        writeU16Unaligned(valueBuffer, (uint16_t)(int16_t)constrain(getEstimatedAltitudeCm() / 100, SHRT_MIN, SHRT_MAX));
+        writeU16Unaligned(valueBuffer, constrain(getEstimatedAltitudeCm() / 100, SHRT_MIN, SHRT_MAX));
         return true;
 
     case IBUS_SENSOR_TYPE_ARMED:
