@@ -216,6 +216,8 @@ the actual values are calculated automatically (#332).
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
+`serialrx_provider` extended to include `IBUS2` as a protocol option
+
 
 ## Defaults
 
@@ -356,7 +358,6 @@ use cases.
 ### IBUS 2 Support (#424)
 
 Support for the IBUS2 protocol for control link and basic telemetry using the ibus hub protocol.
-Future work will expand telemetry and msp support once edge tx officially supports the ibus2.
 
 ## Bug Fixes
 
