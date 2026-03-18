@@ -103,6 +103,7 @@
 #include "flight/governor.h"
 #include "flight/rpm_filter.h"
 #include "flight/trim_flight.h"
+#include "flight/ff_estimate.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
@@ -695,6 +696,9 @@ void init(void)
 
     // Initialize trim flight (must be after pidInit for valid PID frequency)
     trimFlightInit();
+
+    // Initialize FF estimate (must be after pidInit for valid PID frequency)
+    ffEstimateInit();
 
 #ifdef USE_SERVOS
     servoInit();

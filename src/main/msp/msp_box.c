@@ -106,6 +106,7 @@ static const box_t boxes[CHECKBOX_ITEM_COUNT] =
     BOXITEM(BOXGOVSUSPEND, "GOVERNOR SUSPEND", 56),
     BOXITEM(BOXGOVBYPASS, "GOVERNOR BYPASS", 57),
     BOXITEM(BOXTRIMFLIGHT, "TRIM FLIGHT", 58),
+    BOXITEM(BOXFFESTIMATE, "FF ESTIMATE", 59),
 };
 
 // mask of enabled IDs, calculated on startup based on enabled features. boxId_e is used as bit index
@@ -275,6 +276,7 @@ void initActiveBoxIds(void)
 #endif
 
     BME(BOXTRIMFLIGHT);
+    BME(BOXFFESTIMATE);
 
     BME(BOXSTICKCOMMANDDISABLE);
 

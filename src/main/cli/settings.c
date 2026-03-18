@@ -938,6 +938,11 @@ const clivalue_t valueTable[] = {
     { "trim_flight_max_trim",        VAR_INT16  | MASTER_VALUE,  .config.minmax = { 0, 100 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, trim_flight_max_trim) },
     { "trim_flight_roll_trim",       VAR_INT16  | MASTER_VALUE,  .config.minmax = { -1000, 1000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, trim_flight_trim[0]) },
     { "trim_flight_pitch_trim",      VAR_INT16  | MASTER_VALUE,  .config.minmax = { -1000, 1000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, trim_flight_trim[1]) },
+    { "ff_estimate_gain",            VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 200 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, ff_estimate_gain) },
+    { "ff_estimate_min_setpoint",    VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 10, 500 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, ff_estimate_min_setpoint) },
+    { "ff_estimate_convergence",     VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 1, 50 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, ff_estimate_convergence) },
+    { "ff_estimate_min_f",           VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, ff_estimate_min_f) },
+    { "ff_estimate_max_f",           VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 1000 }, PG_GENERIC_MIXER_CONFIG, offsetof(mixerConfig_t, ff_estimate_max_f) },
 
 // PG_GOVERNOR_CONFIG
     { "gov_mode",                   VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GOVERNOR_MODE }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_mode) },

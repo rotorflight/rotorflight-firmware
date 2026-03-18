@@ -44,6 +44,11 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .trim_flight_stick_threshold = 10,
     .trim_flight_max_trim = 50,
     .trim_flight_trim = { 0, 0 },
+    .ff_estimate_gain = 50,
+    .ff_estimate_min_setpoint = 50,
+    .ff_estimate_convergence = 10,
+    .ff_estimate_min_f = 80,
+    .ff_estimate_max_f = 150,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);

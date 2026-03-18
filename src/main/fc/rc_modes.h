@@ -70,6 +70,7 @@ typedef enum {
     BOXUSER3,
     BOXUSER4,
     BOXTRIMFLIGHT,
+    BOXFFESTIMATE,
 
     CHECKBOX_ITEM_COUNT,
 

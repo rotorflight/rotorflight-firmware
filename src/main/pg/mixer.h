@@ -115,6 +115,12 @@ typedef struct
     int16_t   trim_flight_max_trim;        // max trim per axis (0-100, in 0.001 swash units)
 
     int16_t   trim_flight_trim[2];        // trim flight captured trims (roll/pitch, in 0.001 swash units)
+
+    uint8_t   ff_estimate_gain;          // accumulation speed (0=off, 1-200)
+    uint16_t  ff_estimate_min_setpoint;  // minimum |setpoint| to measure (deg/s)
+    uint8_t   ff_estimate_convergence;   // max |error/setpoint| ratio for steady-state (%)
+    uint16_t  ff_estimate_min_f;         // minimum allowed F parameter value
+    uint16_t  ff_estimate_max_f;         // maximum allowed F parameter value
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
