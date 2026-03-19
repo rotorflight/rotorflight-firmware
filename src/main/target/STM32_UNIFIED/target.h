@@ -257,7 +257,7 @@
 #undef USE_SDCARD
 #undef USE_SDCARD_SPI
 
-#undef USE_RANGFINDER
+#undef USE_RANGEFINDER
 #undef USE_ESCSERIAL
 
 #undef USE_GPS
