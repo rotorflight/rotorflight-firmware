@@ -156,11 +156,9 @@ uint8_t esc4wayInit(void)
 
 void esc4wayDeinit(void)
 {
-    uint8_t cnt = escCount;
-    while (cnt > 0) {
-        cnt--;
-        IOConfigGPIO(escHardware[cnt].io, IOCFG_AF_PP);
-        setEscLo(cnt);
+    for (uint8_t cnt = escCount; cnt > 0; cnt--) {
+        IOConfigGPIO(escHardware[cnt - 1].io, IOCFG_AF_PP);
+        setEscLo(cnt - 1);
     }
 }
 
@@ -351,9 +349,7 @@ static uint8_t Connect(uint8_32_u *pDeviceInfo)
             CurrentInterfaceMode = imSK;
             return 1;
         } else {
-            uint32_t startTime = micros();
-            while(micros() < startTime + 10000) {
-            }
+            delayMicroseconds(10000);
             if (BL_ConnectEx(pDeviceInfo)) {
                 if  SILABS_DEVICE_MATCH {
                     CurrentInterfaceMode = imSIL_BLB;
@@ -476,6 +472,9 @@ bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr)
     ioMem_t ioMem;
     ioMem.D_NUM_BYTES = num_bytes;
     ioMem.D_PTR_I = data_buffer;
+    if (addr > 0xFFFFu) {
+        return false;
+    }
     ioMem.D_FLASH_ADDR_H = (uint8_t) ((addr >> 8) & 0xFF);
     ioMem.D_FLASH_ADDR_L = (uint8_t) (addr & 0xFF);
     switch (CurrentInterfaceMode)
@@ -484,11 +483,15 @@ bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr)
         case imATM_BLB:
         case imARM_BLB:
         {
+#ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
             if (!BL_ReadFlash(CurrentInterfaceMode, &ioMem))
             {
                 return false;
             }
             break;
+#else
+            return false;
+#endif
         }
         case imSK:
         {
@@ -512,14 +515,8 @@ bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t 
 {
     ioMem_t ioMem;
     ioMem.D_NUM_BYTES = num_bytes;
-    /* Cast away const for ioMem compatibility; write functions don't modify the buffer */
-    union {
-        const uint8_t *const_ptr;
-        uint8_t *ptr;
-    } ptr_cast;
-    ptr_cast.const_ptr = data_buffer;
-    ioMem.D_PTR_I = ptr_cast.ptr;
-    /* Address must fit in 16 bits for the ioMem flash address fields. */
+    /* Cast away const for ioMem compatibility */
+    ioMem.D_PTR_I = (uint8_t *)data_buffer;
     if (addr > 0xFFFFu) {
         return false;
     }

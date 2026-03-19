@@ -59,12 +59,6 @@ uint32_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
 
 uint8_t escGetParamBufferLength(void);
-/**
- * Select 4-way interface ESC by id.
- *
- * @param id ESC identifier (0..MAX_SUPPORTED_MOTORS-1). Use 0xFF to deselect the 4-way interface.
- * @return 0 on success, non-zero on error (e.g. invalid id).
- */
 uint8_t escSelect4WIfById(uint8_t id);
 uint8_t *escGetParamBuffer(void);
 uint8_t *escGetParamUpdBuffer(void);

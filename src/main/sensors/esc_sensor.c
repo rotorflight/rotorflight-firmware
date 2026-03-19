@@ -373,12 +373,6 @@ static uint8_t blheliSWriteEscId = MAX_SUPPORTED_MOTORS;
 static bool fourwayProgrammingActive = false;
 static uint8_t fourwayEscCount = 0;
 
-static void fwifDelayMs(uint32_t delayMs)
-{
-    uint32_t start = millis();
-    while (millis() - start < delayMs);
-}
-
 static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
 {
     uint32_t start = millis();
@@ -390,7 +384,7 @@ static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
             return devInfo;
         }
 
-        fwifDelayMs(FWIF_RETRY_DELAY);
+        delay(FWIF_RETRY_DELAY);
     } while (millis() - start < FWIF_INIT_FLASH_TIMEOUT);
 
     return NULL;
@@ -496,7 +490,7 @@ static bool am32IfFetchData(uint8_t escID)
             if (devInfo != NULL) {
                 const uint32_t matchedEepromAddr = fwifGetAm32EepromAddress(devInfo);
                 if (matchedEepromAddr != 0) {
-                    fwifDelayMs(FWIF_READ_DELAY);
+                    delay(FWIF_READ_DELAY);
                     if (fwifCmdDeviceRead(AM32_NUM_EEPROM_BYTES, paramPayload, matchedEepromAddr)) {
                         retVal = true;
                         escSig = ESC_SIG_AM32;
@@ -543,7 +537,7 @@ static bool am32IfWriteData(uint8_t escID)
                     do {
                         if (fwifCmdDeviceWrite(AM32_NUM_EEPROM_BYTES, paramUpdPayload, matchedEepromAddr)) {
                             uint8_t verifyBuffer[AM32_NUM_EEPROM_BYTES];
-                            fwifDelayMs(FWIF_READ_DELAY);
+                            delay(FWIF_READ_DELAY);
                             if (fwifCmdDeviceRead(AM32_NUM_EEPROM_BYTES, verifyBuffer, matchedEepromAddr) &&
                                 memcmp(verifyBuffer, paramUpdPayload, AM32_NUM_EEPROM_BYTES) == 0) {
                                 retVal = true;
@@ -553,7 +547,7 @@ static bool am32IfWriteData(uint8_t escID)
                             }
                         }
 
-                        fwifDelayMs(FWIF_RETRY_DELAY);
+                        delay(FWIF_RETRY_DELAY);
                     } while (millis() - writeStart < FWIF_WRITE_TIMEOUT);
                 }
             }
@@ -566,6 +560,10 @@ static bool am32IfWriteData(uint8_t escID)
 static void scheduleAm32Write(uint8_t id)
 {
     taskInfo_t escTaskInfo;
+
+    if (am32WritePending) {
+        return;
+    }
 
     am32WriteEscId = id;
     am32WritePending = true;
@@ -611,7 +609,7 @@ static bool blheliSIfFetchData(uint8_t escID)
             if (devInfo != NULL) {
                 const uint32_t matchedEepromAddr = fwifGetBlheliSEepromAddress(devInfo);
                 if (matchedEepromAddr != 0) {
-                    fwifDelayMs(FWIF_READ_DELAY);
+                    delay(FWIF_READ_DELAY);
                     if (fwifCmdDeviceRead(BLHELI_S_NUM_EEPROM_BYTES, paramPayload, matchedEepromAddr)) {
                         retVal = true;
                         escSig = ESC_SIG_BLHELI_S;
@@ -660,12 +658,12 @@ static bool blheliSIfWriteData(uint8_t escID)
                     uint32_t writeStart = millis();
                     do {
                         if (matchedPageErase == 0xFF || !fwifCmdDevicePageErase(matchedPageErase)) {
-                            fwifDelayMs(FWIF_RETRY_DELAY);
+                            delay(FWIF_RETRY_DELAY);
                             continue;
                         }
 
                         if (fwifCmdDeviceWrite(BLHELI_S_NUM_EEPROM_BYTES, paramUpdPayload, matchedEepromAddr)) {
-                            fwifDelayMs(FWIF_READ_DELAY);
+                            delay(FWIF_READ_DELAY);
                             if (fwifCmdDeviceRead(BLHELI_S_NUM_EEPROM_BYTES, verifyBuffer, matchedEepromAddr) &&
                                 memcmp(verifyBuffer, paramUpdPayload, BLHELI_S_NUM_EEPROM_BYTES) == 0) {
                                 retVal = true;
@@ -675,7 +673,7 @@ static bool blheliSIfWriteData(uint8_t escID)
                             }
                         }
 
-                        fwifDelayMs(FWIF_RETRY_DELAY);
+                        delay(FWIF_RETRY_DELAY);
                     } while (millis() - writeStart < FWIF_WRITE_TIMEOUT);
                 }
             }
@@ -688,6 +686,10 @@ static bool blheliSIfWriteData(uint8_t escID)
 static void scheduleBlheliSWrite(uint8_t id)
 {
     taskInfo_t escTaskInfo;
+
+    if (blheliSWritePending) {
+        return;
+    }
 
     blheliSWriteEscId = id;
     blheliSWritePending = true;
