@@ -47,8 +47,8 @@ typedef struct {
     float           min_setpoint;
     float           convergence_ratio;
     float           accum_rate;
-    float           min_kf;
-    float           max_kf;
+    float           min_kf[2];
+    float           max_kf[2];
     float           base_kf[2];
     float           kf_correction[2];
     pt1Filter_t     ff_error_filter[2];
@@ -73,8 +73,13 @@ void INIT_CODE ffEstimateInit(void)
     ffest.min_setpoint = mixerConfig()->ff_estimate_min_setpoint;
     ffest.convergence_ratio = mixerConfig()->ff_estimate_convergence / 100.0f;
     ffest.accum_rate = gain / 100.0f;
-    ffest.min_kf = mixerConfig()->ff_estimate_min_f * ROLL_F_TERM_SCALE;
-    ffest.max_kf = mixerConfig()->ff_estimate_max_f * ROLL_F_TERM_SCALE;
+    
+    const float f_term_scale[2] = { ROLL_F_TERM_SCALE, PITCH_F_TERM_SCALE };
+
+    for (int i = 0; i < 2; i++) {
+        ffest.min_kf[i] = mixerConfig()->ff_estimate_min_f * f_term_scale[i];
+        ffest.max_kf[i] = mixerConfig()->ff_estimate_max_f * f_term_scale[i];
+    }
 
     const float cutoff_freq = 0.5f;
     const float pid_freq = pidGetPidFrequency();
@@ -163,7 +168,7 @@ void ffEstimateUpdate(void)
                 ffest.kf_correction[i] += filtered_ff_error[i] * ffest.accum_rate * dT;
 
                 const float total_kf = ffest.base_kf[i] + ffest.kf_correction[i];
-                const float clamped_kf = constrainf(total_kf, ffest.min_kf, ffest.max_kf);
+                const float clamped_kf = constrainf(total_kf, ffest.min_kf[i], ffest.max_kf[i]);
                 ffest.kf_correction[i] = clamped_kf - ffest.base_kf[i];
             }
         }
