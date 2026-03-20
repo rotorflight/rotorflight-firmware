@@ -118,9 +118,9 @@ float acroTrainerApply(int axis, float setPoint)
 
             // Allow pilot input that helps return, block input that drives further out
             if (angleSign > 0) {
-                setPoint = MIN(setPoint, correction);
+                setPoint = fminf(setPoint, correction);
             } else {
-                setPoint = MAX(setPoint, correction);
+                setPoint = fmaxf(setPoint, correction);
             }
 
             limiting = true;
