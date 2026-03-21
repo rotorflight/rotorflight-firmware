@@ -318,7 +318,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, totalConsumption);
 
-    escSensorData[0].consumption = totalConsumption;
+    escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
 /*
@@ -557,12 +557,12 @@ static bool am32IfWriteData(uint8_t escID)
     return retVal;
 }
 
-static void scheduleAm32Write(uint8_t id)
+static bool scheduleAm32Write(uint8_t id)
 {
     taskInfo_t escTaskInfo;
 
     if (am32WritePending) {
-        return;
+        return false;
     }
 
     am32WriteEscId = id;
@@ -576,6 +576,8 @@ static void scheduleAm32Write(uint8_t id)
     } else {
         am32WriteTaskEnabledByUs = false;
     }
+
+    return true;
 }
 
 static bool blheliSIfFetchData(uint8_t escID)
@@ -4416,7 +4418,7 @@ uint8_t *escGetParamBuffer(void)
     return paramBuffer;
 }
 
-uint8_t *escGetParamUpdBuffer()
+uint8_t *escGetParamUpdBuffer(void)
 {
     const uint8_t fullLength = escGetParamFullBufferLength();
 
@@ -4457,7 +4459,7 @@ bool escCommitParameters(void)
 
         if (paramBuffer[PARAM_HEADER_SIG] == ESC_SIG_AM32) {
             am32paramCached[escID] = false;
-            scheduleAm32Write(escID);
+            return scheduleAm32Write(escID);
         } else {
             blheliSParamCached[escID] = false;
             scheduleBlheliSWrite(escID);
