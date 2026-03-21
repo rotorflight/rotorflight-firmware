@@ -435,6 +435,38 @@ uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx)
     return &DeviceInfo;
 }
 
+bool fwifCmdDevicePageErase(uint8_t page)
+{
+    ioMem_t ioMem;
+    ioMem.D_NUM_BYTES = 0;
+    ioMem.D_FLASH_ADDR_L = 0;
+    ioMem.D_PTR_I = NULL;
+
+    switch (CurrentInterfaceMode)
+    {
+        case imSIL_BLB:
+        {
+            /* Page numbers are expressed in 512-byte units for SiLabs targets. */
+            ioMem.D_FLASH_ADDR_H = (uint8_t)(page << 1);
+            break;
+        }
+        case imARM_BLB:
+        {
+            /* Page numbers are expressed in 1024-byte units for ARM targets. */
+            ioMem.D_FLASH_ADDR_H = (uint8_t)(page << 2);
+            break;
+        }
+        default:
+            return false;
+    }
+
+#ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
+    return BL_PageErase(&ioMem);
+#else
+    return false;
+#endif
+}
+
 bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr)
 {
     ioMem_t ioMem;
