@@ -561,6 +561,7 @@ static bool scheduleAm32Write(uint8_t id)
 {
     taskInfo_t escTaskInfo;
 
+    /* Guard against race: don't accept a new write if one is already pending */
     if (am32WritePending) {
         return false;
     }
@@ -4456,7 +4457,6 @@ bool escCommitParameters(void)
         if (ARMING_FLAG(ARMED)) {
             return false;
         }
-
         if (paramBuffer[PARAM_HEADER_SIG] == ESC_SIG_AM32) {
             am32paramCached[escID] = false;
             return scheduleAm32Write(escID);

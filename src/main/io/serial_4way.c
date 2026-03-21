@@ -472,6 +472,7 @@ bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr)
     ioMem_t ioMem;
     ioMem.D_NUM_BYTES = num_bytes;
     ioMem.D_PTR_I = data_buffer;
+    /* Address must fit in 16 bits for the ioMem flash address fields. */
     if (addr > 0xFFFFu) {
         return false;
     }
@@ -517,6 +518,7 @@ bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t 
     ioMem.D_NUM_BYTES = num_bytes;
     /* Cast away const for ioMem compatibility */
     ioMem.D_PTR_I = (uint8_t *)data_buffer;
+    /* Address must fit in 16 bits for the ioMem flash address fields. */
     if (addr > 0xFFFFu) {
         return false;
     }
