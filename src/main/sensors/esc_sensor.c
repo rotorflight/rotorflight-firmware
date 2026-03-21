@@ -314,7 +314,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_CAPACITY, totalConsumption);
 
-    escSensorData[0].consumption = totalConsumption;
+    escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
 /*
@@ -523,13 +523,13 @@ static bool fourwayIfWriteData(uint8_t escID)
     return retVal;
 }
 
-static void scheduleAm32Write(uint8_t id)
+static bool scheduleAm32Write(uint8_t id)
 {
     taskInfo_t escTaskInfo;
 
     /* Guard against race: don't accept a new write if one is already pending */
     if (am32WritePending) {
-        return;
+        return false;
     }
 
     am32WriteEscId = id;
@@ -543,6 +543,8 @@ static void scheduleAm32Write(uint8_t id)
     } else {
         am32WriteTaskEnabledByUs = false;
     }
+
+    return true;
 }
  
  
@@ -4176,7 +4178,7 @@ uint8_t *escGetParamBuffer(void)
     return paramBuffer;
 }
 
-uint8_t *escGetParamUpdBuffer()
+uint8_t *escGetParamUpdBuffer(void)
 {
     return paramUpdBuffer;
 }
@@ -4197,8 +4199,7 @@ bool escCommitParameters(void)
         }
         // invalidate cache to check next what was actually written
         am32paramCached[escID] = false;
-        scheduleAm32Write(escID);
-        return true;
+        return scheduleAm32Write(escID);
     }
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
