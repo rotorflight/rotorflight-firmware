@@ -162,6 +162,16 @@ int16_t mixerSetOverride(uint8_t index, int16_t value)
     return mixer.override[index] = value;
 }
 
+bool isMixerOverrideActive(void)
+{
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
+        const int16_t ovr = mixer.override[i];
+        if ((ovr >= MIXER_OVERRIDE_MIN && ovr <= MIXER_OVERRIDE_MAX) || ovr == MIXER_OVERRIDE_PASSTHROUGH)
+            return true;
+    }
+    return false;
+}
+
 bool mixerIsCyclicServo(uint8_t index)
 {
     return (mixer.cyclicMapping & BIT(MIXER_SERVO_OFFSET + index));
