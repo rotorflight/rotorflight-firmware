@@ -234,6 +234,7 @@
 
 #undef USE_GYRO_CLK
 #undef USE_MULTI_GYRO
+#undef USE_BLHELI_FORWARD_PROGRAMMING
 #undef USE_AM32_FORWARD_PROGRAMMING
 
 // Remove drivers that are not supported by any existinting F411 boards
@@ -380,6 +381,7 @@
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 6)
 
 #undef  USE_MULTI_GYRO
+#undef USE_BLHELI_FORWARD_PROGRAMMING
 #undef USE_AM32_FORWARD_PROGRAMMING
 
 #define USE_SPI_DEVICE_1
@@ -461,4 +463,3 @@
 #elif !defined(UNIT_TEST)
 #error "No resources defined for this Unified Target."
 #endif
-
