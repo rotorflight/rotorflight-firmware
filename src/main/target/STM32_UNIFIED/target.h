@@ -234,6 +234,7 @@
 
 #undef USE_GYRO_CLK
 #undef USE_MULTI_GYRO
+#undef USE_AM32_FORWARD_PROGRAMMING
 
 // Remove drivers that are not supported by any existinting F411 boards
 #undef USE_ACCGYRO_SPI_BMI323
@@ -379,6 +380,7 @@
 #define SERIAL_PORT_COUNT       (UNIFIED_SERIAL_PORT_COUNT + 6)
 
 #undef  USE_MULTI_GYRO
+#undef USE_AM32_FORWARD_PROGRAMMING
 
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
