@@ -41,7 +41,11 @@
 #include "drivers/fbus_sensor.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
-#define GET_BIT(value, bit) ((value >> bit) & 1)
+
+static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
+{
+    return (value >> bit) & 1U;
+}
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -123,9 +127,9 @@ static uint8_t fbusMasterTakeNextScanPhysId(void)
 
 static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
 {
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 1) ^ GET_BIT(*phyIDByte, 2)) << 5;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 3) ^ GET_BIT(*phyIDByte, 4)) << 6;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 4)) << 7;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 1) ^ fbusGetBit(*phyIDByte, 2)) << 5;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 3) ^ fbusGetBit(*phyIDByte, 4)) << 6;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 4)) << 7;
 }
 
 static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
