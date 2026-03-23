@@ -109,13 +109,13 @@ static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
 
 static uint8_t fbusMasterTakeNextScanPhysId(void)
 {
-    if (currentPhysId > FBUS_MAX_PHYS_ID) {
+    if (currentPhysId >= FBUS_MAX_PHYS_ID) {
         currentPhysId = 0;
     }
 
     if (currentPhysId == FC_COMMON_ID) {
         currentPhysId++;
-        if (currentPhysId > FBUS_MAX_PHYS_ID) {
+        if (currentPhysId >= FBUS_MAX_PHYS_ID) {
             currentPhysId = 0;
         }
     }
