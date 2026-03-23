@@ -185,7 +185,10 @@ static void paramEscNeedRestart(void)
 bool isEscSensorActive(void)
 {
 #ifdef USE_FBUS_MASTER
-    if (fbusMasterIsEnabled() && fbusSensorHasEscData()) {
+    if (featureIsEnabled(FEATURE_ESC_SENSOR)
+        && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
+        && fbusMasterIsEnabled()
+        && fbusSensorHasEscData()) {
         return true;
     }
 #endif
