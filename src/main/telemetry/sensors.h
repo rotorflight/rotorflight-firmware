@@ -172,14 +172,8 @@ typedef enum
     TELEM_FBUS_SENSOR_4                 = 113,
     TELEM_FBUS_SENSOR_5                 = 114,
     TELEM_FBUS_SENSOR_6                 = 115,
-
-    TELEM_FBUS_VOLTAGE                  = 116,
-    TELEM_FBUS_CURRENT                  = 117,
-    TELEM_FBUS_RPM                      = 118,
-    TELEM_FBUS_BEC_CURRENT              = 119,
-    TELEM_FBUS_BEC_VOLTAGE              = 120,
-    TELEM_FBUS_ESC_TEMP                 = 121,
-    TELEM_FBUS_ESC_CONSUMPTION          = 122,
+    TELEM_FBUS_SENSOR_7                 = 116,
+    TELEM_FBUS_SENSOR_8                 = 117,
 
     TELEM_SENSOR_COUNT
 
@@ -249,4 +243,3 @@ typedef enum {
 void legacySensorInit(void);
 
 bool telemetryIsSensorEnabled(uint32_t sensor_bits);
-
