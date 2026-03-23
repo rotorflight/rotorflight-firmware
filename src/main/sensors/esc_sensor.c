@@ -223,6 +223,80 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
+#ifdef USE_FBUS_MASTER
+static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
+{
+    if (!escData || !fbusMasterIsEnabled()) {
+        return false;
+    }
+
+    const bool hasCurrentData = fbusSensorHasCurrentData();
+    const bool hasEscData = fbusSensorHasEscData();
+
+    if (!hasCurrentData && !hasEscData) {
+        return false;
+    }
+
+    fbusCurrentData_t fbusCurrentData;
+    fbusEscData_t fbusEscData;
+    bool hasVoltage = false;
+    bool hasCurrent = false;
+
+    fbusSensorGetCurrentData(&fbusCurrentData);
+    fbusSensorGetEscData(&fbusEscData);
+    memset(escData, 0, sizeof(*escData));
+
+    escData->age = 0;
+    escData->id = hasCurrentData ? FBUS_SENSOR_CURRENT : FBUS_SENSOR_ESC;
+
+    if (hasCurrentData && fbusCurrentData.hasVoltage) {
+        escData->voltage = applyVoltageCorrection((uint32_t)fbusCurrentData.voltageCentiVolts * 10U);
+        escData->bec_voltage = escData->voltage;
+        hasVoltage = true;
+    }
+
+    if (hasCurrentData) {
+        if (fbusCurrentData.hasHighPrecisionCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentMilliAmps);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        } else if (fbusCurrentData.hasCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentDeciAmps * 100U);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasPower) {
+        escData->id = FBUS_SENSOR_ESC;
+
+        if (!hasVoltage) {
+            escData->voltage = applyVoltageCorrection((uint32_t)fbusEscData.voltageCentiVolts * 10U);
+            escData->bec_voltage = escData->voltage;
+        }
+
+        if (!hasCurrent) {
+            escData->current = applyCurrentCorrection((uint32_t)fbusEscData.currentCentiAmps * 10U);
+            escData->bec_current = escData->current;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasRpmConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
+        escData->erpm = fbusEscData.erpm;
+        escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
+    }
+
+    if (hasEscData && fbusEscData.hasTemperature) {
+        escData->id = FBUS_SENSOR_ESC;
+        // FBUS temperature is in C, escSensorData uses 0.1C.
+        escData->temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+    }
+
+    return true;
+}
+#endif
+
 static void combinedDataUpdate(void)
 {
     const int motorCount = getMotorCount();
@@ -270,36 +344,9 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
 #ifdef USE_FBUS_MASTER
-            // FBUS-backed ESC telemetry is mapped from fbusSensorGetEscData().
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
-                if (fbusMasterIsEnabled() && fbusSensorHasEscData()) {
-                    static escSensorData_t fbusEscSensorData;
-                    fbusEscData_t fbusEscData;
-
-                    fbusSensorGetEscData(&fbusEscData);
-                    memset(&fbusEscSensorData, 0, sizeof(fbusEscSensorData));
-
-                    fbusEscSensorData.age = 0;
-                    fbusEscSensorData.id = FBUS_SENSOR_ESC;
-
-                    if (fbusEscData.hasPower) {
-                        // FBUS ESC voltage/current are V/100 and A/100. escSensorData expects mV/mA.
-                        fbusEscSensorData.voltage = applyVoltageCorrection((uint32_t)fbusEscData.voltageCentiVolts * 10U);
-                        fbusEscSensorData.current = applyCurrentCorrection((uint32_t)fbusEscData.currentCentiAmps * 10U);
-                        fbusEscSensorData.bec_voltage = fbusEscSensorData.voltage;
-                        fbusEscSensorData.bec_current = fbusEscSensorData.current;
-                    }
-
-                    if (fbusEscData.hasRpmConsumption) {
-                        fbusEscSensorData.erpm = fbusEscData.erpm;
-                        fbusEscSensorData.consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
-                    }
-
-                    if (fbusEscData.hasTemperature) {
-                        // FBUS temperature is in C, escSensorData uses 0.1C.
-                        fbusEscSensorData.temperature = (int16_t)fbusEscData.temperatureDegC * 10;
-                    }
-
+                static escSensorData_t fbusEscSensorData;
+                if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {
                     return &fbusEscSensorData;
                 }
             }

@@ -473,11 +473,19 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 #ifdef USE_FBUS_MASTER
             {
                 fbusCurrentData_t fbusCurrent;
+                fbusEscData_t fbusEsc;
+
                 fbusSensorGetCurrentData(&fbusCurrent);
+                fbusSensorGetEscData(&fbusEsc);
 
                 if (fbusCurrent.hasVoltage && fbusSensorHasCurrentData()) {
                     // FBUS voltage is V/100; convert to mV.
                     voltageMeter.sample = fbusCurrent.voltageCentiVolts * 10;
+                    voltageMeter.voltage = voltageMeter.sample;
+                    batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+                } else if (fbusSensorHasEscData() && fbusEsc.hasPower) {
+                    // Fallback for FBUS ESC telemetry when no separate FBUS current sensor is present.
+                    voltageMeter.sample = (uint32_t)fbusEsc.voltageCentiVolts * 10U;
                     voltageMeter.voltage = voltageMeter.sample;
                     batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
                 } else {
