@@ -308,11 +308,11 @@ bool gpsUsesFbusTransport(void)
 #ifdef USE_FBUS_MASTER
     const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
 
-    if (!hasFbusMasterPort || gpsConfig()->provider == GPS_MSP) {
+    if (!hasFbusMasterPort) {
         return false;
     }
 
-    return gpsConfig()->provider == GPS_FBUS || findSerialPortConfig(FUNCTION_GPS) == NULL;
+    return gpsConfig()->provider == GPS_FBUS;
 #else
     return false;
 #endif
