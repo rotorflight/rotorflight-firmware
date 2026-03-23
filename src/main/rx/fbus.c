@@ -630,10 +630,10 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
             
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
             // First pass: advertise configured forwarded sensors on startup.
             // Keep startup frames prioritized so all configured sensors are discovered.
-            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
+            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                 // Check if this sensor is active (configured and FBUS master enabled)
                 if (telemetrySensorActive(sensorId)) {
                     // Get the native FrSky physical ID for this sensor
@@ -661,7 +661,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
             // Second pass: forward buffered sensor data once startup advertising is complete.
             if (!forwardedSensor) {
-                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
+                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                     if (!telemetrySensorActive(sensorId)) {
                         continue;
                     }

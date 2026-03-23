@@ -126,7 +126,7 @@ static uint32_t getTupleHash(uint32_t a, uint32_t b)
 #ifdef USE_FBUS_MASTER
 /**
  * Get value from a generic FBUS forwarded sensor
- * @param sensorIndex Index into forwardedSensors array (0-5)
+ * @param sensorIndex Index into forwardedSensors array (0-7)
  * @return Sensor data value, or 0 if not available
  */
 static int getFbusSensorValue(uint8_t sensorIndex)
@@ -388,6 +388,10 @@ int telemetrySensorValue(sensor_id_e id)
             return getFbusSensorValue(4);
         case TELEM_FBUS_SENSOR_6:
             return getFbusSensorValue(5);
+        case TELEM_FBUS_SENSOR_7:
+            return getFbusSensorValue(6);
+        case TELEM_FBUS_SENSOR_8:
+            return getFbusSensorValue(7);
 #endif
 
         default:
@@ -578,6 +582,10 @@ bool telemetrySensorActive(sensor_id_e id)
             return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[4] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_6:
             return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[5] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_7:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[6] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_8:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[7] <= FBUS_MAX_PHYS_ID);
 #endif
 
         default:
@@ -610,6 +618,12 @@ uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
             break;
         case TELEM_FBUS_SENSOR_6:
             sensorIndex = 5;
+            break;
+        case TELEM_FBUS_SENSOR_7:
+            sensorIndex = 6;
+            break;
+        case TELEM_FBUS_SENSOR_8:
+            sensorIndex = 7;
             break;
         default:
             return FBUS_INVALID_PHYSICAL_ID;  // Invalid sensor ID
