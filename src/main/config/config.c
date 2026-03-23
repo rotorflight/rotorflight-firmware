@@ -205,6 +205,7 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
+    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
     const bool gpsUsesFbus = gpsUsesFbusTransport();
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
@@ -215,7 +216,7 @@ static void validateAndFixConfig(void)
 #endif
     if (
 #if defined(USE_GPS)
-        (gpsConfig()->provider != GPS_MSP && !gpsSerial && !gpsUsesFbus)
+        (gpsConfig()->provider != GPS_MSP && !gpsSerial && !hasFbusMasterPort)
         &&
 #endif
         true) {
