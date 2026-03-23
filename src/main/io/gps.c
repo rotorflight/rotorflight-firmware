@@ -303,6 +303,21 @@ static void gpsSetState(gpsState_e state)
     gpsData.ackState = UBLOX_ACK_IDLE;
 }
 
+bool gpsUsesFbusTransport(void)
+{
+#ifdef USE_FBUS_MASTER
+    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
+
+    if (!hasFbusMasterPort || gpsConfig()->provider == GPS_MSP) {
+        return false;
+    }
+
+    return gpsConfig()->provider == GPS_FBUS || findSerialPortConfig(FUNCTION_GPS) == NULL;
+#else
+    return false;
+#endif
+}
+
 void gpsInit(void)
 {
     gpsData.baudrateIndex = 0;
@@ -316,7 +331,7 @@ void gpsInit(void)
 
     gpsData.lastMessage = millis();
 
-    if (gpsConfig()->provider == GPS_MSP || gpsConfig()->provider == GPS_FBUS) { // no serial ports used when GPS_MSP or GPS_FBUS is configured
+    if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) { // no serial port is used when GPS is fed by MSP or FBUS
         gpsSetState(GPS_STATE_INITIALIZED);
         return;
     }
@@ -769,7 +784,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
     
     // GPS data received via MSP or FBUS
     if (GPS_update & GPS_MSP_UPDATE) {
-        if (gpsConfig()->provider == GPS_MSP || gpsConfig()->provider == GPS_FBUS) {
+        if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) {
             gpsSetState(GPS_STATE_RECEIVING_DATA);
             onGpsNewData();
         }
@@ -791,7 +806,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
         case GPS_STATE_CHANGE_BAUD:
         case GPS_STATE_CONFIGURE:
             // Skip hardware initialization for MSP and FBUS GPS (no serial port)
-            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
                 gpsInitHardware();
             }
             break;
@@ -806,7 +821,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
             gpsSol.numSat = 0;
             DISABLE_STATE(GPS_FIX);
             // Don't try to reinitialize MSP/FBUS GPS on timeout
-            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
                 gpsSetState(GPS_STATE_INITIALIZING);
             }
             break;
@@ -814,7 +829,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
         case GPS_STATE_RECEIVING_DATA:
             // check for no data/gps timeout/cable disconnection etc
             // Skip timeout check for MSP/FBUS GPS (data comes from other sources)
-            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
                 if (millis() - gpsData.lastMessage > GPS_TIMEOUT) {
                     gpsSetState(GPS_STATE_LOST_COMMUNICATION);
 #ifdef USE_GPS_UBLOX

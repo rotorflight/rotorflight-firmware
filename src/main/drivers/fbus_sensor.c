@@ -525,7 +525,7 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
     }
 
 #ifdef USE_GPS
-    if (gpsConfig()->provider == GPS_FBUS) {
+    if (gpsUsesFbusTransport()) {
         if (fbusGps.hasPosition) {
             gpsSol.llh.lat = fbusGps.latitude;
             gpsSol.llh.lon = fbusGps.longitude;

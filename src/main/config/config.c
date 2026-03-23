@@ -205,27 +205,17 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
-#ifdef USE_FBUS_MASTER
-    const serialPortConfig_t *fbusMasterSerial = findSerialPortConfig(FUNCTION_FBUS_MASTER);
-#endif
+    const bool gpsUsesFbus = gpsUsesFbusTransport();
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
-    // FBUS GPS doesn't need a GPS serial port (uses FBUS_MASTER port instead), remove it if configured
-    if (gpsConfig()->provider == GPS_FBUS && gpsSerial) {
+    if (gpsUsesFbus && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
 #endif
     if (
 #if defined(USE_GPS)
-        // Disable GPS feature if:
-        // - Provider is not MSP and not FBUS and no GPS serial port configured
-        // - Provider is FBUS but no FBUS_MASTER serial port configured
-        ((gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS && !gpsSerial)
-#ifdef USE_FBUS_MASTER
-        || (gpsConfig()->provider == GPS_FBUS && !fbusMasterSerial)
-#endif
-        )
+        (gpsConfig()->provider != GPS_MSP && !gpsSerial && !gpsUsesFbus)
         &&
 #endif
         true) {
