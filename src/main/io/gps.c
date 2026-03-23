@@ -769,8 +769,10 @@ void gpsUpdate(timeUs_t currentTimeUs)
     
     // GPS data received via MSP or FBUS
     if (GPS_update & GPS_MSP_UPDATE) {
-        gpsSetState(GPS_STATE_RECEIVING_DATA);
-        onGpsNewData();
+        if (gpsConfig()->provider == GPS_MSP || gpsConfig()->provider == GPS_FBUS) {
+            gpsSetState(GPS_STATE_RECEIVING_DATA);
+            onGpsNewData();
+        }
         GPS_update &= ~GPS_MSP_UPDATE;
     }
 
