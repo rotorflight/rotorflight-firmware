@@ -25,6 +25,7 @@
 #include "common/maths.h"
 #include "drivers/time.h"
 #include "pg/fbus_master.h"
+#include "pg/gps.h"
 #include "scheduler/scheduler.h"
 #include <string.h>
 
@@ -596,43 +597,46 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusEsc.hasTemperature = false;
     }
     
-    // Update Rotorflight GPS data if we have valid FBUS GPS data
-    if (fbusGps.hasPosition) {
-        gpsSol.llh.lat = fbusGps.latitude;
-        gpsSol.llh.lon = fbusGps.longitude;
-        
-        if (fbusGps.hasAltitude) {
-            gpsSol.llh.altCm = fbusGps.altitudeCm;
+    // Only mirror FBUS GPS into the core GPS state when FBUS is the selected
+    // GPS provider. FBUS master can also be enabled for unrelated sensors.
+    if (gpsConfig()->provider == GPS_FBUS) {
+        if (fbusGps.hasPosition) {
+            gpsSol.llh.lat = fbusGps.latitude;
+            gpsSol.llh.lon = fbusGps.longitude;
+
+            if (fbusGps.hasAltitude) {
+                gpsSol.llh.altCm = fbusGps.altitudeCm;
+            }
+
+            if (fbusGps.hasSpeed) {
+                // Convert knots*1000 to 0.1 m/s for groundSpeed
+                gpsSol.groundSpeed = fbusGpsConvertSpeed(fbusGps.speedKnots);
+                gpsSol.speed3d = gpsSol.groundSpeed;  // Use same value for 3D speed
+            }
+
+            if (fbusGps.hasCourse) {
+                gpsSol.groundCourse = fbusGps.courseDeg;
+            }
+
+            // Set number of satellites (FBUS GPS doesn't provide this, so use a fixed value when we have a fix)
+            gpsSol.numSat = 5;  // Minimum required for GPS operations
+
+            // Set HDOP (FBUS GPS doesn't provide this, use a reasonable default)
+            gpsSol.hdop = 100;  // 1.0 HDOP (stored as hdop * 100)
+
+            // Update GPS module's last message timestamp to prevent timeout
+            gpsData.lastMessage = millis();
+
+            // Set GPS fix state
+            gpsSetFixState(true);
+
+            // Trigger GPS update
+            GPS_update |= GPS_MSP_UPDATE;
+        } else {
+            // Clear GPS fix when position data is not available
+            gpsSetFixState(false);
+            gpsSol.numSat = 0;
         }
-        
-        if (fbusGps.hasSpeed) {
-            // Convert knots*1000 to 0.1 m/s for groundSpeed
-            gpsSol.groundSpeed = fbusGpsConvertSpeed(fbusGps.speedKnots);
-            gpsSol.speed3d = gpsSol.groundSpeed;  // Use same value for 3D speed
-        }
-        
-        if (fbusGps.hasCourse) {
-            gpsSol.groundCourse = fbusGps.courseDeg;
-        }
-        
-        // Set number of satellites (FBUS GPS doesn't provide this, so use a fixed value when we have a fix)
-        gpsSol.numSat = 5;  // Minimum required for GPS operations
-        
-        // Set HDOP (FBUS GPS doesn't provide this, use a reasonable default)
-        gpsSol.hdop = 100;  // 1.0 HDOP (stored as hdop * 100)
-        
-        // Update GPS module's last message timestamp to prevent timeout
-        gpsData.lastMessage = millis();
-        
-        // Set GPS fix state
-        gpsSetFixState(true);
-        
-        // Trigger GPS update
-        GPS_update |= GPS_MSP_UPDATE;
-    } else {
-        // Clear GPS fix when position data is not available
-        gpsSetFixState(false);
-        gpsSol.numSat = 0;
     }
     
     // Servo data can be used for telemetry or monitoring
