@@ -4178,9 +4178,6 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
         case ESC_SENSOR_PROTO_ZTW:     
             escSensorConfigMutable()->halfDuplex = true;
             break;
-        case ESC_SENSOR_PROTO_FBUS:
-            escSensorConfigMutable()->halfDuplex = true;
-            break;
 #ifdef USE_TELEMETRY_CASTLE
         case ESC_SENSOR_PROTO_NONE:
             if (isMotorProtocolCastlePWM()) {
