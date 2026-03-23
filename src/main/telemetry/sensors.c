@@ -143,7 +143,7 @@ static int getFbusSensorValue(uint8_t sensorIndex)
     }
     
     // Get latest sensor frame from the forwarding buffer
-    fbusSensorFrame_t frame;
+    fbusSensorFrame_t frame = {0};
     if (fbusSensorGetForwardedFrame(physicalId, &frame) && frame.valid) {
         return frame.data;
     }
@@ -588,11 +588,6 @@ bool telemetrySensorActive(sensor_id_e id)
 }
 
 #ifdef USE_FBUS_MASTER
-/**
- * Get the native FrSky physical ID for a generic FBUS sensor
- * @param id Generic sensor ID (TELEM_FBUS_SENSOR_1 through TELEM_FBUS_SENSOR_6)
- * @return Native FrSky physical ID, or 0 if not configured or invalid ID
- */
 uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
 {
     // Map generic sensor ID to forwardedSensors array index
