@@ -32,6 +32,10 @@
 
 #include "drivers/adc.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#endif
+
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/adcinternal.h"
@@ -144,6 +148,10 @@ void voltageSensorADCInit(void)
 static voltageSensorState_t voltageESCSensor;
 #endif
 
+#ifdef USE_FBUS_MASTER
+static voltageSensorState_t voltageFBUSSensor;
+#endif
+
 bool voltageSensorESCReadMotor(uint8_t motorNumber, voltageMeter_t *meter)
 {
     UNUSED(motorNumber);
@@ -205,6 +213,56 @@ void voltageSensorESCInit(void)
     memset(&voltageESCSensor, 0, sizeof(voltageESCSensor));
     lowpassFilterInit(&voltageESCSensor.filter, LPF_BESSEL,
         escSensorConfig()->filter_cutoff,
+        batteryConfig()->vbatUpdateHz, 0);
+#endif
+}
+
+bool voltageSensorFBUSRead(voltageMeter_t *meter)
+{
+#ifdef USE_FBUS_MASTER
+    const voltageSensorState_t *state = &voltageFBUSSensor;
+
+    meter->sample = state->sample;
+    meter->voltage = state->voltage;
+    return state->enabled;
+#else
+    voltageMeterReset(meter);
+    return false;
+#endif
+}
+
+void voltageSensorFBUSRefresh(void)
+{
+#ifdef USE_FBUS_MASTER
+    voltageSensorState_t *state = &voltageFBUSSensor;
+    fbusCurrentData_t fbusCurrent;
+    fbusEscData_t fbusEsc;
+
+    fbusSensorGetCurrentData(&fbusCurrent);
+    fbusSensorGetEscData(&fbusEsc);
+
+    if (fbusSensorHasCurrentData() && fbusCurrent.hasVoltage) {
+        state->sample = fbusCurrent.voltageCentiVolts * 10U;
+        state->voltage = filterApply(&state->filter, state->sample);
+        state->enabled = true;
+    } else if (fbusSensorHasEscData() && fbusEsc.hasPower) {
+        state->sample = (uint32_t)fbusEsc.voltageCentiVolts * 10U;
+        state->voltage = filterApply(&state->filter, state->sample);
+        state->enabled = true;
+    } else {
+        state->sample = 0;
+        state->voltage = 0;
+        state->enabled = false;
+    }
+#endif
+}
+
+void voltageSensorFBUSInit(void)
+{
+#ifdef USE_FBUS_MASTER
+    memset(&voltageFBUSSensor, 0, sizeof(voltageFBUSSensor));
+    lowpassFilterInit(&voltageFBUSSensor.filter, LPF_BESSEL,
+        batteryConfig()->vbatLpfHz,
         batteryConfig()->vbatUpdateHz, 0);
 #endif
 }
