@@ -390,7 +390,7 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
             fbusGps.lastUpdateUs = currentTimeUs;
             
         } else if (appId >= FBUS_GPS_SPEED_BASE && appId <= (FBUS_GPS_SPEED_BASE + 0x0F)) {
-            fbusGps.speedKnots = data;
+            fbusGps.speedMilliKnots = data;
             fbusGps.hasSpeed = true;
             fbusGps.lastUpdateUs = currentTimeUs;
             
@@ -530,7 +530,7 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
             }
 
             if (fbusGps.hasSpeed) {
-                gpsSol.groundSpeed = fbusGpsConvertSpeed(fbusGps.speedKnots);
+                gpsSol.groundSpeed = fbusGpsConvertSpeed(fbusGps.speedMilliKnots);
                 gpsSol.speed3d = gpsSol.groundSpeed;
             }
 
