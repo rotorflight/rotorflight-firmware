@@ -4236,12 +4236,9 @@ static bool escParametersWritable(void)
     return paramCommit != NULL;
 }
 
+ #ifdef USE_4WAY_FORWARD_PROGRAMMING
 static bool is4wayParamBufferValid(uint8_t id)
 {
-#ifndef USE_4WAY_FORWARD_PROGRAMMING
-    UNUSED(id);
-    return false;
-#else
     if (paramBufferEscID != id) {
         return false;
     }
@@ -4271,8 +4268,8 @@ static bool is4wayParamBufferValid(uint8_t id)
         default:
             return false;
     }
-#endif // USE_4WAY_FORWARD_PROGRAMMING
 }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 
 uint8_t escSelect4WIfById(uint8_t id)
 {
@@ -4357,9 +4354,9 @@ uint8_t *escGetParamBuffer(void)
 
 uint8_t *escGetParamUpdBuffer(void)
 {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
     const uint8_t fullLength = escGetParamFullBufferLength();
 
-#ifdef USE_BLHELI_FORWARD_PROGRAMMING
     if (fullLength != 0 &&
         is4wayEscSelected() &&
         escSig == ESC_SIG_BLHELI_S &&
