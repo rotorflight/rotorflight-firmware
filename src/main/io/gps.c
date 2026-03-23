@@ -316,7 +316,7 @@ void gpsInit(void)
 
     gpsData.lastMessage = millis();
 
-    if (gpsConfig()->provider == GPS_MSP) { // no serial ports used when GPS_MSP is configured
+    if (gpsConfig()->provider == GPS_MSP || gpsConfig()->provider == GPS_FBUS) { // no serial ports used when GPS_MSP or GPS_FBUS is configured
         gpsSetState(GPS_STATE_INITIALIZED);
         return;
     }

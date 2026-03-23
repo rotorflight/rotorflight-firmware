@@ -211,12 +211,19 @@ static void validateAndFixConfig(void)
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
+    // FBUS GPS doesn't need a GPS serial port (uses FBUS_MASTER port instead), remove it if configured
+    if (gpsConfig()->provider == GPS_FBUS && gpsSerial) {
+        serialRemovePort(gpsSerial->identifier);
+    }
 #endif
     if (
 #if defined(USE_GPS)
-        gpsConfig()->provider != GPS_MSP && !gpsSerial
+        // Disable GPS feature if:
+        // - Provider is not MSP and not FBUS and no GPS serial port configured
+        // - Provider is FBUS but no FBUS_MASTER serial port configured
+        (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS && !gpsSerial)
 #ifdef USE_FBUS_MASTER
-        && !fbusMasterSerial
+        || (gpsConfig()->provider == GPS_FBUS && !fbusMasterSerial)
 #endif
         &&
 #endif
