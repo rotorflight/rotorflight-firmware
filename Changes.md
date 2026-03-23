@@ -359,6 +359,12 @@ completes. The existing CLI parameters are unchanged.
 Minor changes introduced to all three presets for better match to common
 use cases.
 
+### Servo/Mixer Override disables arming (#431)
+
+A new arming disabled flag `OVERRIDE` was added. It is activated if either
+servo or mixer override is active.
+
+
 ## Receiver Protocols
 
 ### IBUS 2 Support (#424)
