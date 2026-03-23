@@ -42,7 +42,9 @@ This legacy MSP call is disabled, as it does not have a timeout (#304).
 
 ### MSP_SET_4WIF_ESC_FWD_PROG
 
-New MSP command (244) to select an ESC for AM32 forward programming over the 4-way interface. Payload: U8 ESC id; values in `0..MAX_SUPPORTED_MOTORS-1` select that ESC, while values `>= MAX_SUPPORTED_MOTORS` (for example `0xFF`) are treated as deselect/exit and return success. The only error conditions for command `244` are: the system is armed, the payload length is not exactly 1 byte, or the 4-way selection fails.
+New MSP command (244) to select an ESC for forward programming over the 4-way interface. Payload: U8 ESC id; values in `0..MAX_SUPPORTED_MOTORS-1` select that ESC, while values `>= MAX_SUPPORTED_MOTORS` (for example `0xFF`) are treated as deselect/exit and return success. The only error conditions for command `244` are: the system is armed, the payload length is not exactly 1 byte, or the 4-way selection fails.
+
+When a 4-way ESC is selected, `MSP_ESC_PARAMETERS` / `MSP_SET_ESC_PARAMETERS` now expose the detected target EEPROM payload for both AM32 and BLHeli_S SiLabs targets. AM32 continues to use the compact 48-byte payload; BLHeli_S uses the 0x70-byte BLHeli_S EEPROM layout and erases the containing settings page before writes.
 
 ### MSP_SET_PID_PROFILE
 
