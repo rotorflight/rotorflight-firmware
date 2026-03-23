@@ -634,7 +634,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     // Get the native FrSky physical ID for this sensor
                     uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
                     
-                    if (physicalId <= FBUS_MAX_PHYSICAL_ID) {
+                    if (physicalId <= FBUS_MAX_PHYS_ID) {
                         // Check if we need to send startup frame
                         if (fbusSensorNeedsStartupFrame(physicalId)) {
                             // Send empty frame to signal sensor presence
@@ -662,7 +662,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     }
 
                     uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    if (physicalId == 0) {
+                    if (physicalId > FBUS_MAX_PHYS_ID) {
                         continue;
                     }
 

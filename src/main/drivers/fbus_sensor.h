@@ -49,6 +49,9 @@ typedef enum {
     FBUS_MAX_PHYSICAL_ID    = 0x1B,
 } fbusSensorPhysicalId_e;
 
+#define FBUS_MAX_PHYS_ID FBUS_MAX_PHYSICAL_ID
+#define FBUS_INVALID_PHYSICAL_ID UINT8_MAX
+
 // FBUS GPS Data IDs
 typedef enum {
     FBUS_GPS_LATITUDE_BASE  = 0x0800,  // 0x0800~0x080f

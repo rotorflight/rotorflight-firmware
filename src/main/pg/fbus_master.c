@@ -21,12 +21,13 @@
 #include <string.h>
 
 #include "pg/fbus_master.h"
+#include "drivers/fbus_sensor.h"
 #include "drivers/serial.h"
 
 #ifdef USE_FBUS_MASTER
 
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 6);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 7);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 500;
@@ -36,7 +37,7 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
 
     config->telemetryRate = 200;
     config->sensorDiscoveryTimeMs = 5000;
-    memset(config->forwardedSensors, 0, sizeof(config->forwardedSensors));
+    memset(config->forwardedSensors, FBUS_INVALID_PHYSICAL_ID, sizeof(config->forwardedSensors));
 }
 
 #endif

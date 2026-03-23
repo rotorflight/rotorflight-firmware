@@ -138,7 +138,7 @@ static int getFbusSensorValue(uint8_t sensorIndex)
     
     // Get configured physical ID for this sensor slot
     uint8_t physicalId = fbusMasterConfig()->forwardedSensors[sensorIndex];
-    if (physicalId == 0) {
+    if (physicalId > FBUS_MAX_PHYS_ID) {
         return 0;  // Sensor slot not configured
     }
     
@@ -565,19 +565,19 @@ bool telemetrySensorActive(sensor_id_e id)
 
 #ifdef USE_FBUS_MASTER
         // Generic FBUS sensor forwarding - active if FBUS master is enabled
-        // and the sensor slot is configured (non-zero physical ID)
+        // and the sensor slot is configured with a valid physical ID
         case TELEM_FBUS_SENSOR_1:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[0] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[0] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_2:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[1] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[1] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_3:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[2] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[2] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_4:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[3] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[3] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_5:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[4] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[4] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_6:
-            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[5] != 0);
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[5] <= FBUS_MAX_PHYS_ID);
 #endif
 
         default:
@@ -612,7 +612,7 @@ uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
             sensorIndex = 5;
             break;
         default:
-            return 0;  // Invalid sensor ID
+            return FBUS_INVALID_PHYSICAL_ID;  // Invalid sensor ID
     }
     
     // Return the configured physical ID for this sensor slot

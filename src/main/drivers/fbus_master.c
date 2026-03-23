@@ -59,8 +59,6 @@ enum {
 serialPort_t *fbusMasterPort = NULL;
 
 #define FC_COMMON_ID 0x1B
-#define FBUS_MAX_PHYS_ID 0x1B
-
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
     FBUS_MASTER_QUERY_PHY_ID,
@@ -380,4 +378,3 @@ void fbusMasterInit(void)
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
-
