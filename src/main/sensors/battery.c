@@ -533,7 +533,14 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 #ifdef USE_FBUS_MASTER
             {
                 fbusCurrentData_t fbusCurrent;
+                fbusEscData_t fbusEsc;
+                bool hasEscData = false;
                 fbusSensorGetCurrentData(&fbusCurrent);
+                fbusSensorGetEscData(&fbusEsc);
+
+                if (fbusSensorHasEscData()) {
+                    hasEscData = true;
+                }
 
                 if (fbusSensorHasCurrentData() && (fbusCurrent.hasHighPrecisionCurrent || fbusCurrent.hasCurrent)) {
                     // Prefer high-precision current (A/1000 -> mA), fallback to A/10 -> mA.
@@ -541,6 +548,13 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
                         ? fbusCurrent.currentMilliAmps
                         : (fbusCurrent.currentDeciAmps * 100);
                     currentMeter.current = currentMeter.sample;
+                    batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+                    currentMeter.capacity = (hasEscData && fbusEsc.hasRpmConsumption) ? fbusEsc.consumptionMah : 0;
+                } else if (hasEscData && fbusEsc.hasPower) {
+                    // Fallback for FBUS ESC telemetry when no separate FBUS current sensor is present.
+                    currentMeter.sample = (uint32_t)fbusEsc.currentCentiAmps * 10U;
+                    currentMeter.current = currentMeter.sample;
+                    currentMeter.capacity = fbusEsc.hasRpmConsumption ? fbusEsc.consumptionMah : 0;
                     batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
                 } else {
                     currentMeterReset(&currentMeter);
