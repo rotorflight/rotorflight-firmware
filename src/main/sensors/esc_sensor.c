@@ -155,7 +155,6 @@ static uint8_t reqLength = 0;
 static uint8_t reqbuffer[REQUEST_BUFFER_SIZE] = { 0, };
 
 static uint8_t escSig = 0;
-static uint8_t escID = MAX_SUPPORTED_MOTORS + 1;
 
 static uint8_t paramPayloadLength = 0;
 static uint8_t paramBuffer[PARAM_BUFFER_SIZE] = { 0, };
@@ -325,6 +324,12 @@ static void updateConsumption(timeUs_t currentTimeUs)
  * Mapping to 4wayif
  */
 
+#if defined(USE_AM32_FORWARD_PROGRAMMING) || defined(USE_BLHELI_FORWARD_PROGRAMMING)
+#define USE_4WAY_FORWARD_PROGRAMMING
+#endif
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+#ifdef USE_AM32_FORWARD_PROGRAMMING
  // true = ok, false = error
 #define AM32_SIG_G071_2KB              0x2b
 #define AM32_G071_2KB_EEPROM_ADDR      0x7E00
@@ -335,6 +340,9 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define AM32_NUM_EEPROM_BYTES          48
 #define AM32_ESC_NAME_LENGTH           32
 #define AM32_PARAM_PROTOCOL_VERSION    0
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
 
 #define BLHELI_S_SIG_EFM8BB10          0xE8B1
 #define BLHELI_S_SIG_EFM8BB21          0xE8B2
@@ -348,6 +356,7 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define BLHELI_S_NUM_EEPROM_BYTES      0x70
 #define BLHELI_S_MSP_NUM_EEPROM_BYTES  0x40
 #define BLHELI_S_PARAM_PROTOCOL_VERSION 0
+#endif
 
 #define ESC_INIT_DELAY 2500
 #define ESC_DEINIT_DELAY 100
@@ -356,12 +365,19 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define FWIF_READ_DELAY 50
 #define FWIF_WRITE_TIMEOUT 100
 
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+#define FWIF_MAX_EEPROM_BYTES BLHELI_S_NUM_EEPROM_BYTES
+#else
+#define FWIF_MAX_EEPROM_BYTES AM32_NUM_EEPROM_BYTES
+#endif
+
+static uint8_t escID = MAX_SUPPORTED_MOTORS + 1;
 
 static bool fwifParamCached[MAX_SUPPORTED_MOTORS] = {false};
 static bool fwifParamWritten[MAX_SUPPORTED_MOTORS] = {false};
 static uint8_t fwifParamSig[MAX_SUPPORTED_MOTORS] = {0};
 static uint8_t fwifParamLength[MAX_SUPPORTED_MOTORS] = {0};
-static uint8_t fwifParamBuffers[MAX_SUPPORTED_MOTORS][BLHELI_S_NUM_EEPROM_BYTES];
+static uint8_t fwifParamBuffers[MAX_SUPPORTED_MOTORS][FWIF_MAX_EEPROM_BYTES];
 static uint8_t paramBufferEscID = 0xFF;  // Track which ESC's data is in paramBuffer
 static bool am32WritePending = false;
 static bool am32WriteTaskEnabledByUs = false;
@@ -386,6 +402,7 @@ static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
     return NULL;
 }
 
+#ifdef USE_AM32_FORWARD_PROGRAMMING
 static uint32_t fwifGetAm32EepromAddress(const uint8_32_u *devInfo)
 {
     if (devInfo->bytes[1] == AM32_SIG_F0_1KB) {
@@ -398,7 +415,9 @@ static uint32_t fwifGetAm32EepromAddress(const uint8_32_u *devInfo)
 
     return 0;
 }
+#endif
 
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
 static uint32_t fwifGetBlheliSEepromAddress(const uint8_32_u *devInfo)
 {
     switch (devInfo->words[0]) {
@@ -424,9 +443,11 @@ static uint8_t fwifGetBlheliSPageEraseIndex(const uint8_32_u *devInfo)
             return 0xFF;
     }
 }
+#endif
 
 static uint32_t fwifGetEepromAddress(const uint8_32_u *devInfo, uint8_t *detectedSig, uint8_t *payloadLength, uint8_t *pageErase)
 {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
     const uint32_t am32EepromAddr = fwifGetAm32EepromAddress(devInfo);
     if (am32EepromAddr != 0) {
         *detectedSig = ESC_SIG_AM32;
@@ -434,7 +455,9 @@ static uint32_t fwifGetEepromAddress(const uint8_32_u *devInfo, uint8_t *detecte
         *pageErase = 0xFF;
         return am32EepromAddr;
     }
+#endif
 
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
     const uint32_t blheliSEepromAddr = fwifGetBlheliSEepromAddress(devInfo);
     if (blheliSEepromAddr != 0) {
         *detectedSig = ESC_SIG_BLHELI_S;
@@ -442,6 +465,7 @@ static uint32_t fwifGetEepromAddress(const uint8_32_u *devInfo, uint8_t *detecte
         *pageErase = fwifGetBlheliSPageEraseIndex(devInfo);
         return blheliSEepromAddr;
     }
+#endif
 
     *detectedSig = ESC_SIG_NONE;
     *payloadLength = 0;
@@ -564,14 +588,16 @@ static bool fourwayIfWriteData(uint8_t escID)
                 const uint32_t matchedEepromAddr = fwifGetEepromAddress(devInfo, &detectedSig, &payloadLength, &pageErase);
 
                 if (matchedEepromAddr != 0 && detectedSig == paramBuffer[PARAM_HEADER_SIG]) {
-                    uint8_t verifyBuffer[BLHELI_S_NUM_EEPROM_BYTES];
+                    uint8_t verifyBuffer[FWIF_MAX_EEPROM_BYTES];
                     uint32_t writeStart = millis();
                     do {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
                         if (detectedSig == ESC_SIG_BLHELI_S &&
                             (pageErase == 0xFF || !fwifCmdDevicePageErase(pageErase))) {
                             delay(FWIF_RETRY_DELAY);
                             continue;
                         }
+#endif
 
                         if (fwifCmdDeviceWrite(payloadLength, paramUpdPayload, matchedEepromAddr)) {
                             delay(FWIF_READ_DELAY);
@@ -617,6 +643,8 @@ static bool scheduleAm32Write(uint8_t id)
 
     return true;
 }
+
+#endif // USE_4WAY_FORWARD_PROGRAMMING
  
  
 /*
@@ -3977,6 +4005,7 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (am32WritePending) {
         am32WritePending = false;
         fourwayIfWriteData(am32WriteEscId);
@@ -3988,6 +4017,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
             }
         }
     }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
@@ -4159,11 +4189,13 @@ bool INIT_CODE escSensorInit(void)
 static uint8_t escGetParamFullBufferLength(void)
 {
     paramMspActive = true;
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     if(escID < MAX_SUPPORTED_MOTORS) {
         //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
         //first call will fail, since we need to switch the ESCs to BL mode first
         fourwayIfFetchData(escID);
     }
+#endif
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
 }
 
@@ -4175,18 +4207,24 @@ uint8_t escGetParamBufferLength(void)
         return 0;
     }
 
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
     if (is4wayEscSelected() &&
         escSig == ESC_SIG_BLHELI_S &&
         paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
         return PARAM_HEADER_SIZE + BLHELI_S_MSP_NUM_EEPROM_BYTES;
     }
+#endif
 
     return fullLength;
 }
 
 static bool is4wayEscSelected(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     return escID < MAX_SUPPORTED_MOTORS;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+    return false;
 }
 
 static bool escParametersWritable(void)
@@ -4198,6 +4236,7 @@ static bool escParametersWritable(void)
     return paramCommit != NULL;
 }
 
+ #ifdef USE_4WAY_FORWARD_PROGRAMMING
 static bool is4wayParamBufferValid(uint8_t id)
 {
     if (paramBufferEscID != id) {
@@ -4214,21 +4253,27 @@ static bool is4wayParamBufferValid(uint8_t id)
     }
 
     switch (paramBuffer[PARAM_HEADER_SIG]) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
         case ESC_SIG_AM32:
             return paramPayloadLength == AM32_NUM_EEPROM_BYTES &&
                 (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION &&
                 (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
         case ESC_SIG_BLHELI_S:
             return paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES &&
                 (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION &&
                 (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION;
+#endif
         default:
             return false;
     }
 }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 
 uint8_t escSelect4WIfById(uint8_t id)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
     /* Support 0xFF as a sentinel to deselect 4WIF (set to out-of-range). */
     if (ARMING_FLAG(ARMED)) {
@@ -4266,20 +4311,29 @@ uint8_t escSelect4WIfById(uint8_t id)
     escSig = ESC_SIG_NONE;
     paramBufferEscID = 0xFF;
     return 0;
+#else
+    UNUSED(id);
+    return 0;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 }
 
 uint8_t *escGetParamBuffer(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (is4wayEscSelected()) {
         uint8_t protocolVersion = 0;
 
         switch (escSig) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
             case ESC_SIG_AM32:
                 protocolVersion = AM32_PARAM_PROTOCOL_VERSION;
                 break;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
             case ESC_SIG_BLHELI_S:
                 protocolVersion = BLHELI_S_PARAM_PROTOCOL_VERSION;
                 break;
+#endif
             default:
                 protocolVersion = 0;
                 break;
@@ -4290,6 +4344,7 @@ uint8_t *escGetParamBuffer(void)
             (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
         return paramBuffer;
     }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 
     paramBuffer[PARAM_HEADER_SIG] = escSig;
     paramBuffer[PARAM_HEADER_VER] = (paramVer & (PARAM_HEADER_VER_MASK | PARAM_HEADER_USER)) |
@@ -4299,6 +4354,7 @@ uint8_t *escGetParamBuffer(void)
 
 uint8_t *escGetParamUpdBuffer(void)
 {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
     const uint8_t fullLength = escGetParamFullBufferLength();
 
     if (fullLength != 0 &&
@@ -4307,12 +4363,14 @@ uint8_t *escGetParamUpdBuffer(void)
         paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
         memcpy(paramUpdBuffer, paramBuffer, fullLength);
     }
+#endif
 
     return paramUpdBuffer;
 }
 
 bool escCommitParameters(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (is4wayEscSelected()) {
         if (!is4wayParamBufferValid(escID)) {
             return false;
@@ -4328,6 +4386,7 @@ bool escCommitParameters(void)
         fwifParamCached[escID] = false;
         return scheduleAm32Write(escID);
     }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
         escParametersWritable() && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);

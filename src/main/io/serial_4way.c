@@ -45,7 +45,9 @@
 #ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
 #include "io/serial_4way_avrootloader.h"
 #endif
+#if defined(USE_SERIAL_4WAY_SK_BOOTLOADER)
 #include "io/serial_4way_stk500v2.h"
+#endif
 
 #if defined(USE_HAL_DRIVER)
 #define Bit_RESET GPIO_PIN_RESET
