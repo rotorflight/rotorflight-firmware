@@ -31,7 +31,8 @@ typedef struct accelerationRuntime_s {
     flightDynamicsTrims_t *accelerationTrims;
     int accumulatedMeasurementCount;
     float accumulatedMeasurements[XYZ_AXIS_COUNT];
-    uint16_t calibratingA;      // the calibration is done is the main loop. Calibrating decreases at each cycle down to 0, then we enter in a normal mode.
+    uint16_t calibratingA;
+    int16_t calibrationKey;
 } accelerationRuntime_t;
 
 extern accelerationRuntime_t accelerationRuntime;

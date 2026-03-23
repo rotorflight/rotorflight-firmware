@@ -242,12 +242,15 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_CRSF       // Team Black Sheep Crossfire protocol
 #define USE_SERIALRX_GHST       // ImmersionRC Ghost Protocol
 #define USE_SERIALRX_IBUS       // FlySky and Turnigy receivers
+#define USE_SERIALRX_IBUS2      // FlySky AFHDS3 receivers
 #define USE_SERIALRX_SBUS       // Frsky and Futaba receivers
 #define USE_SERIALRX_SPEKTRUM   // SRXL, DSM2 and DSMX protocol
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 #define USE_SBUS_OUTPUT         // SBus Output feature
 #define USE_FBUS_MASTER         // FBUS Master feature
-
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+#define USE_BUS_SERVO
+#endif
 
 #if (TARGET_FLASH_SIZE > 256)
 #define PID_PROFILE_COUNT 6
@@ -261,6 +264,7 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if (TARGET_FLASH_SIZE > 64)
+#define USE_ACRO_TRAINER
 #define USE_BLACKBOX
 #define USE_CLI_BATCH
 #define USE_RESOURCE_MGMT
@@ -373,6 +377,7 @@ extern uint8_t _dmaram_end__;
 #define USE_SENSOR_NAMES
 #define USE_SERIALRX_JETIEXBUS
 #define USE_TELEMETRY_IBUS
+#define USE_TELEMETRY_IBUS2
 #define USE_TELEMETRY_IBUS_EXTENDED
 #define USE_TELEMETRY_JETIEXBUS
 #define USE_TELEMETRY_MAVLINK
@@ -393,6 +398,10 @@ extern uint8_t _dmaram_end__;
 #define USE_CUSTOM_BOX_NAMES
 #define USE_RX_LINK_UPLINK_POWER
 #define USE_CRSF_V3
+#define USE_SERIAL_4WAY_BLHELI_BOOTLOADER
+#define USE_SERIAL_4WAY_SK_BOOTLOADER
+#define USE_BLHELI_FORWARD_PROGRAMMING
+#define USE_AM32_FORWARD_PROGRAMMING
 #endif
 
 #if (TARGET_FLASH_SIZE > 512)

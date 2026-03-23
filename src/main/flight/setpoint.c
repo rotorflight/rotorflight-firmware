@@ -33,6 +33,7 @@
 #include "flight/imu.h"
 #include "flight/position.h"
 #include "flight/governor.h"
+#include "flight/airborne.h"
 
 #include "fc/runtime_config.h"
 #include "fc/rc.h"
@@ -58,6 +59,7 @@ typedef struct
     float setpoint[4];
     float deflection[4];
 
+    bool  polarCoord;
     float ringLimit[2];
 
     float limited[4];
@@ -67,11 +69,6 @@ typedef struct
     float smoothingFactor;
     uint16_t smoothingCutoff;
     filter_t smoothingFilter[4];
-
-    float maximum[4];
-    float maxGainUp;
-    float maxGainDown;
-    float movementThreshold[4];
 
     float boostGain[4];
     difFilter_t boostFilter[4];
@@ -225,8 +222,6 @@ INIT_CODE void setpointInitProfile(void)
             sp.responseAccel[i] = 1;
         }
 
-        sp.movementThreshold[i] = sq(rcControlsConfig()->rc_threshold[i] / 1000.0f);
-
         sp.boostGain[i] = currentControlRateProfile->setpoint_boost_gain[i] * SP_BOOST_SCALE;
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());
     }
@@ -237,6 +232,8 @@ INIT_CODE void setpointInitProfile(void)
     difFilterUpdate(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
     pt1FilterUpdate(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
+    sp.polarCoord = currentControlRateProfile->cyclic_polar;
+
     if (currentControlRateProfile->cyclic_ring) {
         const float cyclicLimit = currentControlRateProfile->cyclic_ring / 100.0f;
         sp.ringLimit[FD_ROLL]  = applyRatesCurve(FD_ROLL, 1.0f)  * cyclicLimit;
@@ -246,16 +243,12 @@ INIT_CODE void setpointInitProfile(void)
         sp.ringLimit[FD_ROLL]  = 2000;
         sp.ringLimit[FD_PITCH] = 2000;
     }
-
 }
 
 INIT_CODE void setpointInit(void)
 {
     sp.smoothingFactor = 25e6f / constrain(rcControlsConfig()->rc_smoothness, 1, 250);
     sp.smoothingCutoff = SP_SMOOTHING_FILTER_MAX_HZ;
-
-    sp.maxGainUp = pt1FilterGain(SP_MAX_UP_CUTOFF, pidGetPidFrequency());
-    sp.maxGainDown = pt1FilterGain(SP_MAX_DN_CUTOFF, pidGetPidFrequency());
 
     for (int i = 0; i < 4; i++) {
         lowpassFilterInit(&sp.smoothingFilter[i], LPF_PT3, SP_SMOOTHING_FILTER_MAX_HZ, pidGetPidFrequency(), LPF_UPDATE);
@@ -264,6 +257,7 @@ INIT_CODE void setpointInit(void)
     difFilterInit(&sp.yawDynamicSepointDiff, currentControlRateProfile->yaw_dynamic_deadband_cutoff, pidGetPidFrequency());
     pt1FilterInit(&sp.yawDynamicSepointLPF, currentControlRateProfile->yaw_dynamic_deadband_filter / 10.0f, pidGetPidFrequency());
 
+    airborneInit();
     setpointInitProfile();
 }
 
@@ -283,18 +277,6 @@ static float applyYawDynamicRange(float setpoint)
     return setpoint;
 }
 
-static void airborneDebug(void)
-{
-    DEBUG(AIRBORNE, 0, sqrtf(sp.maximum[FD_ROLL]) * 1000);
-    DEBUG(AIRBORNE, 1, sqrtf(sp.maximum[FD_PITCH]) * 1000);
-    DEBUG(AIRBORNE, 2, sqrtf(sp.maximum[FD_YAW]) * 1000);
-    DEBUG(AIRBORNE, 3, sqrtf(sp.maximum[FD_COLL]) * 1000);
-    DEBUG(AIRBORNE, 4, getCosTiltAngle() * 1000);
-    DEBUG(AIRBORNE, 5, isSpooledUp());
-    DEBUG(AIRBORNE, 6, isHandsOn());
-    DEBUG(AIRBORNE, 7, isAirborne());
-}
-
 void setpointUpdate(void)
 {
     float SP[4];
@@ -302,10 +284,9 @@ void setpointUpdate(void)
     for (int axis = 0; axis < 4; axis++) {
         SP[axis] = getRcDeflection(axis);
         DEBUG_AXIS(SETPOINT, axis, 0, SP[axis] * 1000);
-
-        float delta = sq(SP[axis])- sp.maximum[axis];
-        sp.maximum[axis] += delta * ((delta > 0) ? sp.maxGainUp : sp.maxGainDown);
     }
+
+    airborneUpdate(SP);
 
     // rcCommand[YAW] CW direction is positive, while gyro[YAW] is negative
     SP[FD_YAW] = -SP[FD_YAW];
@@ -324,48 +305,49 @@ void setpointUpdate(void)
 
         SP[axis] += difFilterApply(&sp.boostFilter[axis], SP[axis]) * sp.boostGain[axis];
         DEBUG_AXIS(SETPOINT, axis, 4, SP[axis]);
-
-        SP[axis] = applyRatesCurve(axis, SP[axis]);
-        DEBUG_AXIS(SETPOINT, axis, 5, SP[axis]);
     }
 
-    const float R = SP[FD_ROLL]  / sp.ringLimit[FD_ROLL];
-    const float P = SP[FD_PITCH] / sp.ringLimit[FD_PITCH];
-    const float C = sqrtf(sq(R) + sq(P));
+    if (sp.polarCoord) {
+        const float dist = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));
+        const float rate = fminf(applyRatesCurve(FD_PITCH, dist), sp.ringLimit[FD_PITCH]);
+        const float mult = (dist > 1e-6f) ? rate / dist : 0;
 
-    if (C > 1.0f) {
-        SP[FD_ROLL]  /= C;
-        SP[FD_PITCH] /= C;
+        SP[FD_ROLL] = SP[FD_ROLL] * mult;
+        SP[FD_PITCH] = SP[FD_PITCH] * mult;
+
+        DEBUG(POLAR_RATE, 0, SP[FD_ROLL]);
+        DEBUG(POLAR_RATE, 1, SP[FD_PITCH]);
+        DEBUG(POLAR_RATE, 2, rate);
+        DEBUG(POLAR_RATE, 3, mult);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
     }
+    else {
+        SP[FD_ROLL] = applyRatesCurve(FD_ROLL, SP[FD_ROLL]);
+        SP[FD_PITCH] = applyRatesCurve(FD_PITCH, SP[FD_PITCH]);
+
+        DEBUG_AXIS(SETPOINT, FD_ROLL, 5, SP[FD_ROLL]);
+        DEBUG_AXIS(SETPOINT, FD_PITCH, 5, SP[FD_PITCH]);
+
+        const float R = SP[FD_ROLL]  / sp.ringLimit[FD_ROLL];
+        const float P = SP[FD_PITCH] / sp.ringLimit[FD_PITCH];
+        const float C = sqrtf(sq(R) + sq(P));
+
+        if (C > 1.0f) {
+            SP[FD_ROLL]  /= C;
+            SP[FD_PITCH] /= C;
+        }
+    }
+
+    SP[FD_YAW] = applyRatesCurve(FD_YAW, SP[FD_YAW]);
+    DEBUG_AXIS(SETPOINT, FD_YAW, 5, SP[FD_YAW]);
+
+    SP[FD_COLL] = applyRatesCurve(FD_COLL, SP[FD_COLL]);
+    DEBUG_AXIS(SETPOINT, FD_COLL, 5, SP[FD_COLL]);
 
     for (int axis = 0; axis < 4; axis++) {
         sp.setpoint[axis] = SP[axis];
         DEBUG_AXIS(SETPOINT, axis, 7, SP[axis] * 1000);
     }
-
-    airborneDebug();
-}
-
-bool isHandsOn(void)
-{
-    return (
-        sp.maximum[FD_ROLL] > sp.movementThreshold[FD_ROLL] ||
-        sp.maximum[FD_PITCH] > sp.movementThreshold[FD_PITCH] ||
-        sp.maximum[FD_YAW] > sp.movementThreshold[FD_YAW] ||
-        sp.maximum[FD_COLL] > sp.movementThreshold[FD_COLL]
-    );
-}
-
-bool isAirborne(void)
-{
-    return (
-        ARMING_FLAG(ARMED) &&
-        isSpooledUp() &&
-        (
-            isHandsOn() ||
-            //getAltitude() > 2.0f ||
-            getCosTiltAngle() < 0.9f ||
-            FLIGHT_MODE(RESCUE_MODE | GPS_RESCUE_MODE | FAILSAFE_MODE)
-        )
-    );
 }

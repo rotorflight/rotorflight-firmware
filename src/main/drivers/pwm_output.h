@@ -49,6 +49,7 @@ typedef struct {
     bool forceOverflow;
     bool enabled;
     IO_t io;
+    const timerHardware_t *timerHardware;
 } pwmOutputPort_t;
 
 extern FAST_DATA_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];

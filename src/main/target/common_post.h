@@ -80,6 +80,7 @@
 #if !defined(USE_SERIAL_RX)
 #undef USE_SERIALRX_CRSF
 #undef USE_SERIALRX_IBUS
+#undef USE_SERIALRX_IBUS2
 #undef USE_SERIALRX_JETIEXBUS
 #undef USE_SERIALRX_SBUS
 #undef USE_SERIALRX_SPEKTRUM
@@ -96,6 +97,7 @@
 #undef USE_TELEMETRY_FRSKY_HUB
 #undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_IBUS
+#undef USE_TELEMETRY_IBUS2
 #undef USE_TELEMETRY_IBUS_EXTENDED
 #undef USE_TELEMETRY_JETIEXBUS
 #undef USE_TELEMETRY_LTM
@@ -131,6 +133,10 @@
 
 #if !defined(USE_TELEMETRY_IBUS)
 #undef USE_TELEMETRY_IBUS_EXTENDED
+#endif
+
+#if !defined(USE_SERIALRX_IBUS2)
+#undef USE_TELEMETRY_IBUS2
 #endif
 
 // If USE_SERIALRX_SPEKTRUM was dropped by a target, drop all related options
@@ -406,4 +412,29 @@ extern uint8_t __config_end;
 
 #ifndef USE_GPS
 #undef USE_GPS_PLUS_CODES
+#endif
+
+#ifdef USE_SERIAL_PRINTF
+#ifndef PRINTF_SERIAL_PORT
+#define PRINTF_SERIAL_PORT SERIAL_PORT_USART3
+#endif
+#ifndef PRINTF_SERIAL_SPEED
+#define PRINTF_SERIAL_SPEED 921600
+#endif
+#ifndef PRINTF_SERIAL_OPTIONS
+#define PRINTF_SERIAL_OPTIONS 0
+#endif
+#endif
+
+#if !defined(UNIT_TEST) && !defined(SIMULATOR_BUILD)
+#if defined(USE_NULL_PRINTF)
+#define printf(...)     null_printf(__VA_ARGS__)
+#define sprintf(...)    null_sprintf(__VA_ARGS__)
+#elif defined(USE_ITM_PRINTF) || defined(USE_SERIAL_PRINTF)
+#define printf(...)     tfp_printf(__VA_ARGS__)
+#define sprintf(...)    tfp_sprintf(__VA_ARGS__)
+#else
+#define printf(...)     STATIC_ASSERT(false, printf_not_implemented)
+#define sprintf(...)    STATIC_ASSERT(false, sprintf_not_implemented)
+#endif
 #endif

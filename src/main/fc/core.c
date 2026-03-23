@@ -318,6 +318,12 @@ void updateArmingStatus(void)
         }
 #endif
 
+        if (IS_RC_MODE_ACTIVE(BOXRESCUE)) {
+            setArmingDisabled(ARMING_DISABLED_RESC);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_RESC);
+        }
+
 #ifdef USE_DSHOT_BITBANG
         if (isDshotBitbangActive(&motorConfig()->dev) && dshotBitbangGetStatus() != DSHOT_BITBANG_STATUS_OK) {
             setArmingDisabled(ARMING_DISABLED_DSHOT_BITBANG);
@@ -340,6 +346,12 @@ void updateArmingStatus(void)
 
         if (!isMotorProtocolEnabled()) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
+        }
+
+        if (isServoOverrideActive() || isMixerOverrideActive()) {
+            setArmingDisabled(ARMING_DISABLED_OVERRIDE);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_OVERRIDE);
         }
 
         if (!isUsingSticksForArming()) {
@@ -497,10 +509,6 @@ void tryArm(void)
         armingEnabledWiggle = WIGGLE_DONE;
 
         resetMotorOverride();
-
-#ifdef USE_ACRO_TRAINER
-        acroTrainerReset();
-#endif
 
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
