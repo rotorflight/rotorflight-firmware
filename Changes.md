@@ -40,6 +40,12 @@ at least once per second to keep the override active (#304).
 
 This legacy MSP call is disabled, as it does not have a timeout (#304).
 
+### MSP_SET_4WIF_ESC_FWD_PROG
+
+New MSP command (244) to select an ESC for forward programming over the 4-way interface. Payload: U8 ESC id; values in `0..MAX_SUPPORTED_MOTORS-1` select that ESC, while values `>= MAX_SUPPORTED_MOTORS` (for example `0xFF`) are treated as deselect/exit and return success. The only error conditions for command `244` are: the system is armed, the payload length is not exactly 1 byte, or the 4-way selection fails.
+
+When a 4-way ESC is selected, `MSP_ESC_PARAMETERS` / `MSP_SET_ESC_PARAMETERS` now expose the detected target EEPROM payload for both AM32 and BLHeli_S SiLabs targets. AM32 continues to use the compact 48-byte payload; BLHeli_S uses the 0x70-byte BLHeli_S EEPROM layout and erases the containing settings page before writes.
+
 ### MSP_SET_PID_PROFILE
 
 The `pid_mode` parameter can be now changed.
@@ -216,6 +222,8 @@ the actual values are calculated automatically (#332).
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
+`serialrx_provider` extended to include `IBUS2` as a protocol option
+
 
 ## Defaults
 
@@ -351,6 +359,17 @@ completes. The existing CLI parameters are unchanged.
 Minor changes introduced to all three presets for better match to common
 use cases.
 
+### Servo/Mixer Override disables arming (#431)
+
+A new arming disabled flag `OVERRIDE` was added. It is activated if either
+servo or mixer override is active.
+
+
+## Receiver Protocols
+
+### IBUS 2 Support (#424)
+
+Support for the IBUS2 protocol for control link and basic telemetry using the ibus hub protocol.
 
 ## Bug Fixes
 

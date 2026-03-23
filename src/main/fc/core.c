@@ -348,6 +348,12 @@ void updateArmingStatus(void)
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
+        if (isServoOverrideActive() || isMixerOverrideActive()) {
+            setArmingDisabled(ARMING_DISABLED_OVERRIDE);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_OVERRIDE);
+        }
+
         if (!isUsingSticksForArming()) {
             /* Ignore ARMING_DISABLED_CALIBRATING if we are going to calibrate gyro on first arm */
             bool ignoreGyro = armingConfig()->gyro_cal_on_first_arm
@@ -503,10 +509,6 @@ void tryArm(void)
         armingEnabledWiggle = WIGGLE_DONE;
 
         resetMotorOverride();
-
-#ifdef USE_ACRO_TRAINER
-        acroTrainerReset();
-#endif
 
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
