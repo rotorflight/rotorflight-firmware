@@ -29,7 +29,6 @@
 #include "scheduler/scheduler.h"
 #include <string.h>
 
-// Sensor name lookup table
 static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_VARIO2]        = "VARIO2",
     [FBUS_SENSOR_FLVSS]         = "FLVSS",
@@ -53,28 +52,16 @@ static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_S6R]           = "S6R",
 };
 
-// Internal GPS data storage
 static fbusGpsData_t fbusGps;
-
-// Internal Servo data storage
 static fbusServoData_t fbusServo;
-
-// Internal Current sensor data storage
 static fbusCurrentData_t fbusCurrent;
-
-// Internal ESC sensor data storage
 static fbusEscData_t fbusEsc;
 
-// Sensor data cache
 #define FBUS_SENSOR_CACHE_SIZE 32
 static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
 static uint8_t sensorCacheIndex = 0;
-
-// Observed sensors tracking
 static fbusObservedSensor_t observedSensors[FBUS_MAX_OBSERVED_SENSORS];
 static uint8_t observedSensorCount = 0;
-
-// Frame forwarding buffers - one for each configured forwarded sensor
 static fbusSensorForwardBuffer_t forwardBuffers[FBUS_MASTER_MAX_FORWARDED_SENSORS];
 
 void fbusSensorInit(void)
@@ -88,29 +75,19 @@ void fbusSensorInit(void)
     memset(observedSensors, 0, sizeof(observedSensors));
     observedSensorCount = 0;
     
-    // Initialize frame forwarding
     fbusSensorInitForwarding();
 }
 
 int32_t fbusGpsConvertLatLon(uint32_t fbusData)
 {
-    // Extract direction bits
-    bool isNegative = (fbusData & FBUS_GPS_LAT_LON_BIT30) != 0;  // South or West
-    
-    // Extract data (minutes / 10000)
+    bool isNegative = (fbusData & FBUS_GPS_LAT_LON_BIT30) != 0;
     uint32_t minutesTimes10000 = fbusData & FBUS_GPS_LAT_LON_DATA_MASK;
     
-    // Convert minutes to degrees
-    // minutes / 60 = degrees
-    // (minutes / 10000) / 60 = degrees / 10000
-    // degrees = (minutes / 10000) / 60 * 10000 = minutes / 60
     float minutes = (float)minutesTimes10000 / 10000.0f;
     float degrees = minutes / 60.0f;
     
-    // Convert to Rotorflight format (degrees * 1e7)
     int32_t result = (int32_t)(degrees * 1e7f);
     
-    // Apply sign based on direction
     if (isNegative) {
         result = -result;
     }
@@ -120,16 +97,11 @@ int32_t fbusGpsConvertLatLon(uint32_t fbusData)
 
 int32_t fbusGpsConvertAltitude(uint32_t fbusData)
 {
-    // Direct conversion - both use cm
     return (int32_t)fbusData;
 }
 
 uint16_t fbusGpsConvertSpeed(uint32_t fbusData)
 {
-    // Convert knots/1000 to m/s
-    // 1 knot = 0.514444 m/s
-    // knots/1000 * 0.514444 = m/s
-    // (m/s) * 10 = 0.1 m/s units
     float knots = (float)fbusData / 1000.0f;
     float metersPerSec = knots * 0.514444f;
     uint16_t result = (uint16_t)(metersPerSec * 10.0f);
@@ -139,12 +111,8 @@ uint16_t fbusGpsConvertSpeed(uint32_t fbusData)
 
 uint16_t fbusGpsConvertCourse(uint32_t fbusData)
 {
-    // FBUS: degrees/100
-    // Rotorflight: degrees * 10
-    // Conversion: (degrees/100) * 10 = degrees/10
     uint16_t result = (uint16_t)(fbusData / 10);
     
-    // Ensure within valid range (0-3599 for degrees * 10)
     if (result >= 3600) {
         result = result % 3600;
     }
@@ -154,7 +122,6 @@ uint16_t fbusGpsConvertCourse(uint32_t fbusData)
 
 bool fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds)
 {
-    // Initialize outputs to safe defaults
     if (hours) *hours = 0;
     if (minutes) *minutes = 0;
     if (seconds) *seconds = 0;
@@ -194,13 +161,8 @@ bool fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_
 
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature)
 {
-    // Extract current (bits 0-7): 0.1A units, range 0~25.5A
     *current = (fbusData & FBUS_SERVO_CURRENT_MASK);
-    
-    // Extract voltage (bits 8-15): 0.1V units, range 0~25.5V
     *voltage = ((fbusData & FBUS_SERVO_VOLTAGE_MASK) >> 8);
-    
-    // Extract temperature (bits 16-23): 1°C units, range 0~255°C
     *temperature = ((fbusData & FBUS_SERVO_TEMP_MASK) >> 16);
 }
 
@@ -257,8 +219,6 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
 {
     // Find existing sensor or add new one
     fbusObservedSensor_t *sensor = getObservedSensorByPhysicalId(physicalId);
-
-    // Add new sensor if not found and space available
     if (!sensor && observedSensorCount < FBUS_MAX_OBSERVED_SENSORS) {
         sensor = &observedSensors[observedSensorCount++];
         sensor->physicalId = physicalId;
@@ -268,11 +228,9 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
     }
 
     if (sensor) {
-        // Update last seen time and packet count
         sensor->lastSeenUs = currentTimeUs;
         sensor->packetCount++;
 
-        // Track app ID if not already tracked
         bool appIdExists = false;
         for (uint8_t i = 0; i < sensor->appIdCount; i++) {
             if (sensor->appIds[i] == appId) {
@@ -285,8 +243,6 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
             sensor->appIds[sensor->appIdCount++] = appId;
         }
 
-        // App-ID-first type detection. Keep the first valid type to avoid
-        // oscillation from occasional unrelated frames.
         if (sensor->detectedType == FBUS_DETECTED_SENSOR_UNKNOWN) {
             const fbusDetectedSensorType_e detected = classifySensorTypeByAppId(appId);
             if (detected != FBUS_DETECTED_SENSOR_UNKNOWN) {
@@ -346,13 +302,11 @@ static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data)
         buffer->count--;
     }
     
-    // Add new frame at write position
     buffer->frames[buffer->writeIndex].physicalId = physicalId;
     buffer->frames[buffer->writeIndex].appId = appId;
     buffer->frames[buffer->writeIndex].data = data;
     buffer->frames[buffer->writeIndex].valid = true;
     
-    // Update write index and count
     buffer->writeIndex = (buffer->writeIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
     buffer->count++;
 }
@@ -368,7 +322,6 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
         return false;
     }
     
-    // If buffer is empty, return frame with all zeros
     if (buffer->count == 0) {
         frame->physicalId = physicalId;
         frame->appId = 0;
@@ -377,10 +330,8 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
         return true;
     }
     
-    // Get frame from read position
     memcpy(frame, &buffer->frames[buffer->readIndex], sizeof(fbusSensorFrame_t));
     
-    // Update read index and count
     buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
     buffer->count--;
     
@@ -408,8 +359,6 @@ void fbusSensorMarkStartupFrameSent(uint8_t physicalId)
 bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
 {
     timeUs_t currentTimeUs = micros();
-    
-    // Track this sensor observation and determine type by App ID signatures
     fbusObservedSensor_t *observed = trackObservedSensor(physicalId, appId, currentTimeUs);
     const fbusDetectedSensorType_e detectedType = observed ? observed->detectedType : FBUS_DETECTED_SENSOR_UNKNOWN;
     
@@ -420,47 +369,37 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
     sensorCache[sensorCacheIndex].valid = true;
     sensorCache[sensorCacheIndex].lastUpdateUs = currentTimeUs;
     sensorCacheIndex = (sensorCacheIndex + 1) % FBUS_SENSOR_CACHE_SIZE;
-    
-    // If this sensor is configured for forwarding, add to forward buffer
+
     if (fbusSensorIsForwarded(physicalId)) {
         addFrameToBuffer(physicalId, appId, data);
     }
-    
-    // Process GPS data (App-ID-based detection, independent of physical ID)
+
     if (detectedType == FBUS_DETECTED_SENSOR_GPS) {
-        // Check which GPS data type this is
         if (appId >= FBUS_GPS_LATITUDE_BASE && appId <= (FBUS_GPS_LATITUDE_BASE + 0x0F)) {
-            // Latitude or Longitude (differentiated by bit 31)
             if (data & FBUS_GPS_LAT_LON_BIT31) {
-                // Longitude
                 fbusGps.longitude = fbusGpsConvertLatLon(data);
             } else {
-                // Latitude
                 fbusGps.latitude = fbusGpsConvertLatLon(data);
             }
             fbusGps.hasPosition = true;
-            fbusGps.lastUpdateUs = currentTimeUs;
-            
+            fbusGps.lastUpdateUs = currentTimeUs;  
+
         } else if (appId >= FBUS_GPS_ALTITUDE_BASE && appId <= (FBUS_GPS_ALTITUDE_BASE + 0x0F)) {
-            // Altitude
             fbusGps.altitudeCm = fbusGpsConvertAltitude(data);
             fbusGps.hasAltitude = true;
             fbusGps.lastUpdateUs = currentTimeUs;
             
         } else if (appId >= FBUS_GPS_SPEED_BASE && appId <= (FBUS_GPS_SPEED_BASE + 0x0F)) {
-            // Speed
-            fbusGps.speedKnots = data;  // Store raw knots*1000 for reference
+            fbusGps.speedKnots = data;
             fbusGps.hasSpeed = true;
             fbusGps.lastUpdateUs = currentTimeUs;
             
         } else if (appId >= FBUS_GPS_COURSE_BASE && appId <= (FBUS_GPS_COURSE_BASE + 0x0F)) {
-            // Course
             fbusGps.courseDeg = fbusGpsConvertCourse(data);
             fbusGps.hasCourse = true;
             fbusGps.lastUpdateUs = currentTimeUs;
             
         } else if (appId >= FBUS_GPS_TIME_BASE && appId <= (FBUS_GPS_TIME_BASE + 0x0F)) {
-            // Time or Date
             uint8_t type = (data >> 24) & 0xFF;
             if (type == FBUS_GPS_TIME_TYPE_TIME) {
                 if (fbusGpsConvertTime(data, &fbusGps.hours, &fbusGps.minutes, &fbusGps.seconds)) {
@@ -481,11 +420,8 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return true;
     }
     
-    // Process Servo data (App-ID-based detection, independent of physical ID)
     if (detectedType == FBUS_DETECTED_SENSOR_XACT_SERVO) {
-        // Check if this is servo data
         if (appId >= FBUS_SERVO_DATA_BASE && appId <= (FBUS_SERVO_DATA_BASE + 0x0F)) {
-            // Convert servo data
             fbusServoConvertData(data, &fbusServo.currentDeciAmps,
                                 &fbusServo.voltageDeciVolts,
                                 &fbusServo.temperatureDegC);
@@ -496,9 +432,7 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return true;
     }
 
-    // Process Current/FAS data (App-ID-based detection, independent of physical ID)
     if (detectedType == FBUS_DETECTED_SENSOR_FAS_150S) {
-        // Current 0x0200~0x020F, unit A/10, U32
         if (appId >= FBUS_CURRENT_BASE && appId <= (FBUS_CURRENT_BASE + 0x0F)) {
             fbusCurrent.currentDeciAmps = data;
             fbusCurrent.hasCurrent = true;
@@ -506,7 +440,6 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
             return true;
         }
 
-        // Voltage 0x0210~0x021F, unit V/100, U32
         if (appId >= FBUS_VOLTAGE_BASE && appId <= (FBUS_VOLTAGE_BASE + 0x0F)) {
             fbusCurrent.voltageCentiVolts = data;
             fbusCurrent.hasVoltage = true;
@@ -514,7 +447,6 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
             return true;
         }
 
-        // High-precision current 0x0220~0x022F, unit A/1000, U16 (packed in DATA)
         if (appId >= FBUS_HIGH_PREC_CURRENT_BASE && appId <= (FBUS_HIGH_PREC_CURRENT_BASE + 0x0F)) {
             fbusCurrent.currentMilliAmps = (uint16_t)(data & 0xFFFF);
             fbusCurrent.hasHighPrecisionCurrent = true;
@@ -525,7 +457,6 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return false;
     }
 
-    // Process ESC data (App-ID-based detection, independent of physical ID)
     if (detectedType == FBUS_DETECTED_SENSOR_ESC) {
         // ESC_POWER 0x0B50~0x0B5F:
         // bits 0..15 voltage (V/100), bits 16..31 current (A/100)
@@ -559,16 +490,12 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return false;
     }
     
-    // Add processing for other sensor types here in the future
-    
     return false;
 }
 
 void fbusSensorUpdate(timeUs_t currentTimeUs)
 {
-    // Check for GPS data timeout (1 second)
     if (fbusGps.lastUpdateUs > 0 && (currentTimeUs - fbusGps.lastUpdateUs) > 1000000) {
-        // Clear GPS data validity flags on timeout
         fbusGps.hasPosition = false;
         fbusGps.hasAltitude = false;
         fbusGps.hasSpeed = false;
@@ -577,28 +504,22 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusGps.hasDate = false;
     }
     
-    // Check for Servo data timeout (1 second)
     if (fbusServo.lastUpdateUs > 0 && (currentTimeUs - fbusServo.lastUpdateUs) > 1000000) {
-        // Clear Servo data validity flag on timeout
         fbusServo.hasData = false;
     }
 
-    // Check for Current data timeout (1 second)
     if (fbusCurrent.lastUpdateUs > 0 && (currentTimeUs - fbusCurrent.lastUpdateUs) > 1000000) {
         fbusCurrent.hasCurrent = false;
         fbusCurrent.hasVoltage = false;
         fbusCurrent.hasHighPrecisionCurrent = false;
     }
 
-    // Check for ESC data timeout (1 second)
     if (fbusEsc.lastUpdateUs > 0 && (currentTimeUs - fbusEsc.lastUpdateUs) > 1000000) {
         fbusEsc.hasPower = false;
         fbusEsc.hasRpmConsumption = false;
         fbusEsc.hasTemperature = false;
     }
     
-    // Only mirror FBUS GPS into the core GPS state when FBUS is the selected
-    // GPS provider. FBUS master can also be enabled for unrelated sensors.
     if (gpsConfig()->provider == GPS_FBUS) {
         if (fbusGps.hasPosition) {
             gpsSol.llh.lat = fbusGps.latitude;
@@ -609,38 +530,24 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
             }
 
             if (fbusGps.hasSpeed) {
-                // Convert knots*1000 to 0.1 m/s for groundSpeed
                 gpsSol.groundSpeed = fbusGpsConvertSpeed(fbusGps.speedKnots);
-                gpsSol.speed3d = gpsSol.groundSpeed;  // Use same value for 3D speed
+                gpsSol.speed3d = gpsSol.groundSpeed;
             }
 
             if (fbusGps.hasCourse) {
                 gpsSol.groundCourse = fbusGps.courseDeg;
             }
 
-            // Set number of satellites (FBUS GPS doesn't provide this, so use a fixed value when we have a fix)
-            gpsSol.numSat = 5;  // Minimum required for GPS operations
-
-            // Set HDOP (FBUS GPS doesn't provide this, use a reasonable default)
-            gpsSol.hdop = 100;  // 1.0 HDOP (stored as hdop * 100)
-
-            // Update GPS module's last message timestamp to prevent timeout
+            gpsSol.numSat = 5;
+            gpsSol.hdop = 100;
             gpsData.lastMessage = millis();
-
-            // Set GPS fix state
             gpsSetFixState(true);
-
-            // Trigger GPS update
             GPS_update |= GPS_MSP_UPDATE;
         } else {
-            // Clear GPS fix when position data is not available
             gpsSetFixState(false);
             gpsSol.numSat = 0;
         }
     }
-    
-    // Servo data can be used for telemetry or monitoring
-    // Integration with servo monitoring system can be added here in the future
 }
 
 void fbusSensorGetGpsData(fbusGpsData_t *gpsData)
@@ -654,7 +561,6 @@ bool fbusSensorHasGpsData(void)
 {
     timeUs_t currentTimeUs = micros();
     
-    // Check if we have position data and it's recent (within 1 second)
     if (fbusGps.hasPosition && fbusGps.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusGps.lastUpdateUs) < 1000000) {
             return true;
@@ -675,7 +581,6 @@ bool fbusSensorHasServoData(void)
 {
     timeUs_t currentTimeUs = micros();
     
-    // Check if we have servo data and it's recent (within 1 second)
     if (fbusServo.hasData && fbusServo.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusServo.lastUpdateUs) < 1000000) {
             return true;
@@ -696,7 +601,6 @@ bool fbusSensorHasCurrentData(void)
 {
     timeUs_t currentTimeUs = micros();
 
-    // Any current-sensor channel counts as valid data.
     if ((fbusCurrent.hasCurrent || fbusCurrent.hasVoltage || fbusCurrent.hasHighPrecisionCurrent)
         && fbusCurrent.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000) {
@@ -718,7 +622,6 @@ bool fbusSensorHasEscData(void)
 {
     timeUs_t currentTimeUs = micros();
 
-    // Any ESC channel counts as valid data.
     if ((fbusEsc.hasPower || fbusEsc.hasRpmConsumption || fbusEsc.hasTemperature)
         && fbusEsc.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
@@ -750,7 +653,6 @@ void fbusSensorClearObserved(void)
 
 const char* fbusSensorGetName(uint8_t physicalId)
 {
-    // Prefer runtime App-ID-based classification for observed sensors
     fbusObservedSensor_t *observed = getObservedSensorByPhysicalId(physicalId);
     if (observed) {
         switch (observed->detectedType) {
@@ -768,7 +670,6 @@ const char* fbusSensorGetName(uint8_t physicalId)
         }
     }
 
-    // Fallback to static default physical-ID naming
     if (physicalId < sizeof(fbusSensorNames) / sizeof(fbusSensorNames[0]) && fbusSensorNames[physicalId]) {
         return fbusSensorNames[physicalId];
     }

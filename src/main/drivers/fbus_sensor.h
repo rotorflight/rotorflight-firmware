@@ -125,7 +125,7 @@ typedef struct {
     int32_t longitude;      // Longitude in degrees * 1e7 (Rotorflight format)
     int32_t altitudeCm;     // Altitude in cm
     uint16_t speedKnots;    // Speed in knots * 1000
-    uint16_t courseDeg;     // Course in degrees * 100
+    uint16_t courseDeg;     // Course in degrees * 10 (Rotorflight groundCourse format)
     uint8_t hours;          // UTC hours
     uint8_t minutes;        // UTC minutes
     uint8_t seconds;        // UTC seconds
