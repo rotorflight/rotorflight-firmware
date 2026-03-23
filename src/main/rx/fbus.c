@@ -351,6 +351,7 @@ static void writeUplinkFrame(const smartPortPayload_t *payload)
     writeUplinkFramePhyID(FBUS_FC_COMMON_ID, payload);
 }
 
+#ifdef USE_FBUS_MASTER
 static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
 {
     uint8_t checkedPhyID = phyID;
@@ -359,6 +360,7 @@ static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
     checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 4)) << 7;
     return checkedPhyID;
 }
+#endif
 #endif
 
 static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
@@ -623,6 +625,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
             
+#ifdef USE_FBUS_MASTER
             // First pass: advertise configured forwarded sensors on startup.
             // Keep startup frames prioritized so all configured sensors are discovered.
             for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
@@ -678,6 +681,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     }
                 }
             }
+#endif
             
             // If no forwarded sensor, handle FC telemetry or other sensors
             if (!forwardedSensor) {

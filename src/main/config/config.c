@@ -221,10 +221,11 @@ static void validateAndFixConfig(void)
         // Disable GPS feature if:
         // - Provider is not MSP and not FBUS and no GPS serial port configured
         // - Provider is FBUS but no FBUS_MASTER serial port configured
-        (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS && !gpsSerial)
+        ((gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS && !gpsSerial)
 #ifdef USE_FBUS_MASTER
         || (gpsConfig()->provider == GPS_FBUS && !fbusMasterSerial)
 #endif
+        )
         &&
 #endif
         true) {

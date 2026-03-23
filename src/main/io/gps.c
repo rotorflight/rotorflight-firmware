@@ -765,7 +765,10 @@ void gpsUpdate(timeUs_t currentTimeUs)
         }
         // Restore default task rate
         rescheduleTask(TASK_SELF, TASK_PERIOD_HZ(TASK_GPS_RATE));
-   } else if (GPS_update & GPS_MSP_UPDATE) { // GPS data received via MSP
+    }
+    
+    // GPS data received via MSP or FBUS
+    if (GPS_update & GPS_MSP_UPDATE) {
         gpsSetState(GPS_STATE_RECEIVING_DATA);
         onGpsNewData();
         GPS_update &= ~GPS_MSP_UPDATE;
@@ -785,7 +788,10 @@ void gpsUpdate(timeUs_t currentTimeUs)
         case GPS_STATE_INITIALIZING:
         case GPS_STATE_CHANGE_BAUD:
         case GPS_STATE_CONFIGURE:
-            gpsInitHardware();
+            // Skip hardware initialization for MSP and FBUS GPS (no serial port)
+            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+                gpsInitHardware();
+            }
             break;
 
         case GPS_STATE_LOST_COMMUNICATION:
@@ -797,49 +803,55 @@ void gpsUpdate(timeUs_t currentTimeUs)
             }
             gpsSol.numSat = 0;
             DISABLE_STATE(GPS_FIX);
-            gpsSetState(GPS_STATE_INITIALIZING);
+            // Don't try to reinitialize MSP/FBUS GPS on timeout
+            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+                gpsSetState(GPS_STATE_INITIALIZING);
+            }
             break;
 
         case GPS_STATE_RECEIVING_DATA:
             // check for no data/gps timeout/cable disconnection etc
-            if (millis() - gpsData.lastMessage > GPS_TIMEOUT) {
-                gpsSetState(GPS_STATE_LOST_COMMUNICATION);
+            // Skip timeout check for MSP/FBUS GPS (data comes from other sources)
+            if (gpsConfig()->provider != GPS_MSP && gpsConfig()->provider != GPS_FBUS) {
+                if (millis() - gpsData.lastMessage > GPS_TIMEOUT) {
+                    gpsSetState(GPS_STATE_LOST_COMMUNICATION);
 #ifdef USE_GPS_UBLOX
-            } else {
-                if (gpsConfig()->autoConfig == GPS_AUTOCONFIG_ON) { // Only if autoconfig is enabled
-                    switch (gpsData.state_position) {
-                        case 0:
-                            if (!isConfiguratorConnected()) {
-                                if (gpsData.ubloxUseSAT) {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 0); // disable SAT MSG
-                                } else {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 0); // disable SVINFO MSG
+                } else {
+                    if (gpsConfig()->autoConfig == GPS_AUTOCONFIG_ON) { // Only if autoconfig is enabled
+                        switch (gpsData.state_position) {
+                            case 0:
+                                if (!isConfiguratorConnected()) {
+                                    if (gpsData.ubloxUseSAT) {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 0); // disable SAT MSG
+                                    } else {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 0); // disable SVINFO MSG
+                                    }
+                                    gpsData.state_position = 1;
                                 }
-                                gpsData.state_position = 1;
-                            }
-                            break;
-                        case 1:
-                            if (STATE(GPS_FIX) && (gpsConfig()->gps_ublox_mode == UBLOX_DYNAMIC)) {
-                                ubloxSendNAV5Message(true);
-                                gpsData.state_position = 2;
-                            }
-                            if (isConfiguratorConnected()) {
-                                gpsData.state_position = 2;
-                            }
-                            break;
-                        case 2:
-                            if (isConfiguratorConnected()) {
-                                if (gpsData.ubloxUseSAT) {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 5); // set SAT MSG rate (every 5 cycles)
-                                } else {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 5); // set SVINFO MSG rate (every 5 cycles)
+                                break;
+                            case 1:
+                                if (STATE(GPS_FIX) && (gpsConfig()->gps_ublox_mode == UBLOX_DYNAMIC)) {
+                                    ubloxSendNAV5Message(true);
+                                    gpsData.state_position = 2;
                                 }
-                                gpsData.state_position = 0;
-                            }
-                            break;
+                                if (isConfiguratorConnected()) {
+                                    gpsData.state_position = 2;
+                                }
+                                break;
+                            case 2:
+                                if (isConfiguratorConnected()) {
+                                    if (gpsData.ubloxUseSAT) {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 5); // set SAT MSG rate (every 5 cycles)
+                                    } else {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 5); // set SVINFO MSG rate (every 5 cycles)
+                                    }
+                                    gpsData.state_position = 0;
+                                }
+                                break;
+                        }
                     }
-                }
 #endif //USE_GPS_UBLOX
+                }
             }
             break;
     }
