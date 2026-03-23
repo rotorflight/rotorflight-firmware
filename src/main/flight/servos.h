@@ -59,6 +59,7 @@ uint16_t getServoOutput(uint8_t servo);
 int16_t getServoOverride(uint8_t servo);
 int16_t setServoOverride(uint8_t servo, int16_t val);
 bool    hasServoOverride(uint8_t servo);
+bool    isServoOverrideActive(void);
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
 float geometryCorrection(float pos);
