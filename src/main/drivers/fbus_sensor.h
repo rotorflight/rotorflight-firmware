@@ -46,6 +46,7 @@ typedef enum {
     FBUS_SENSOR_GATEWAY     = 0x18,
     FBUS_SENSOR_REDUNDANCY_BUS = 0x19,
     FBUS_SENSOR_S6R         = 0x1A,
+    FBUS_MAX_PHYSICAL_ID    = 0x1B,
 } fbusSensorPhysicalId_e;
 
 // FBUS GPS Data IDs
@@ -191,8 +192,8 @@ int32_t fbusGpsConvertLatLon(uint32_t fbusData);
 int32_t fbusGpsConvertAltitude(uint32_t fbusData);
 uint16_t fbusGpsConvertSpeed(uint32_t fbusData);
 uint16_t fbusGpsConvertCourse(uint32_t fbusData);
-void fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds);
-void fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year);
+bool fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds);
+bool fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year);
 
 // Servo data conversion functions
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature);
@@ -211,7 +212,7 @@ typedef struct {
     uint8_t physicalId;
     uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
     uint8_t appIdCount;
-    uint32_t lastSeenUs;
+    timeUs_t lastSeenUs;
     uint32_t packetCount;
     fbusDetectedSensorType_e detectedType;
 } fbusObservedSensor_t;

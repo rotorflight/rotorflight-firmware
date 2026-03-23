@@ -18,6 +18,8 @@
 #include "pg/pg_ids.h"
 #include "platform.h"
 
+#include <string.h>
+
 #include "pg/fbus_master.h"
 #include "drivers/serial.h"
 

@@ -151,28 +151,44 @@ uint16_t fbusGpsConvertCourse(uint32_t fbusData)
     return result;
 }
 
-void fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds)
+bool fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds)
 {
+    // Initialize outputs to safe defaults
+    if (hours) *hours = 0;
+    if (minutes) *minutes = 0;
+    if (seconds) *seconds = 0;
+
     // Extract bytes: D3 is type, D4-D6 are data
     uint8_t type = (fbusData >> 24) & 0xFF;
-    
+
     if (type == FBUS_GPS_TIME_TYPE_TIME) {
-        *seconds = (fbusData >> 16) & 0xFF;
-        *minutes = (fbusData >> 8) & 0xFF;
-        *hours = fbusData & 0xFF;
+        if (seconds) *seconds = (fbusData >> 16) & 0xFF;
+        if (minutes) *minutes = (fbusData >> 8) & 0xFF;
+        if (hours) *hours = fbusData & 0xFF;
+        return true;
     }
+
+    return false;
 }
 
-void fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year)
+bool fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year)
 {
+    // Initialize outputs to safe defaults
+    if (day) *day = 0;
+    if (month) *month = 0;
+    if (year) *year = 0;
+
     // Extract bytes: D3 is type, D4-D6 are data
     uint8_t type = (fbusData >> 24) & 0xFF;
-    
+
     if (type == FBUS_GPS_TIME_TYPE_DATE) {
-        *day = (fbusData >> 16) & 0xFF;
-        *month = (fbusData >> 8) & 0xFF;
-        *year = 2000 + (fbusData & 0xFF);  // Assuming year is offset from 2000
+        if (day) *day = (fbusData >> 16) & 0xFF;
+        if (month) *month = (fbusData >> 8) & 0xFF;
+        if (year) *year = 2000 + (fbusData & 0xFF);  // Assuming year is offset from 2000
+        return true;
     }
+
+    return false;
 }
 
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature)
@@ -411,14 +427,6 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
     
     // Process GPS data (App-ID-based detection, independent of physical ID)
     if (detectedType == FBUS_DETECTED_SENSOR_GPS) {
-#ifdef USE_GPS
-        if (!featureIsEnabled(FEATURE_GPS)) {
-            featureEnableImmediate(FEATURE_GPS);
-            gpsInit();
-            setTaskEnabled(TASK_GPS, true);
-        }
-#endif
-
         // Check which GPS data type this is
         if (appId >= FBUS_GPS_LATITUDE_BASE && appId <= (FBUS_GPS_LATITUDE_BASE + 0x0F)) {
             // Latitude or Longitude (differentiated by bit 31)
@@ -454,11 +462,17 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
             // Time or Date
             uint8_t type = (data >> 24) & 0xFF;
             if (type == FBUS_GPS_TIME_TYPE_TIME) {
-                fbusGpsConvertTime(data, &fbusGps.hours, &fbusGps.minutes, &fbusGps.seconds);
-                fbusGps.hasTime = true;
+                if (fbusGpsConvertTime(data, &fbusGps.hours, &fbusGps.minutes, &fbusGps.seconds)) {
+                    fbusGps.hasTime = true;
+                } else {
+                    fbusGps.hasTime = false;
+                }
             } else if (type == FBUS_GPS_TIME_TYPE_DATE) {
-                fbusGpsConvertDate(data, &fbusGps.day, &fbusGps.month, &fbusGps.year);
-                fbusGps.hasDate = true;
+                if (fbusGpsConvertDate(data, &fbusGps.day, &fbusGps.month, &fbusGps.year)) {
+                    fbusGps.hasDate = true;
+                } else {
+                    fbusGps.hasDate = false;
+                }
             }
             fbusGps.lastUpdateUs = currentTimeUs;
         }
@@ -606,6 +620,9 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         
         // Set HDOP (FBUS GPS doesn't provide this, use a reasonable default)
         gpsSol.hdop = 100;  // 1.0 HDOP (stored as hdop * 100)
+        
+        // Update GPS module's last message timestamp to prevent timeout
+        gpsData.lastMessage = millis();
         
         // Set GPS fix state
         gpsSetFixState(true);

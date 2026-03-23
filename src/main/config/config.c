@@ -324,10 +324,10 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    // Enable ESC_SENSOR feature if FBUS ESC is detected and protocol is set to FBUS
+    // Enable ESC_SENSOR only when protocol is FBUS and a FBUS master serial port is configured.
 #ifdef USE_FBUS_MASTER
-    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-        // FBUS ESC telemetry doesn't require a serial port (uses FBUS master)
+    const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS && fbusMasterSerialForEsc) {
         if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
             featureEnableImmediate(FEATURE_ESC_SENSOR);
         }
