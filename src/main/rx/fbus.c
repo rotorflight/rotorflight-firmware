@@ -78,6 +78,11 @@
 
 #define MS2US(ms)   ((ms) * 1000)
 
+static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
+{
+    return (value >> bit) & 1U;
+}
+
 enum {
     DEBUG_FBUS_FRAME_INTERVAL = 0,
     DEBUG_FBUS_FRAME_ERRORS,
@@ -355,9 +360,9 @@ static void writeUplinkFrame(const smartPortPayload_t *payload)
 static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
 {
     uint8_t checkedPhyID = phyID;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 1) ^ GET_BIT(checkedPhyID, 2)) << 5;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 3) ^ GET_BIT(checkedPhyID, 4)) << 6;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 4)) << 7;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 1) ^ fbusGetBit(checkedPhyID, 2)) << 5;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 3) ^ fbusGetBit(checkedPhyID, 4)) << 6;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 4)) << 7;
     return checkedPhyID;
 }
 #endif
