@@ -356,7 +356,7 @@ use cases.
 ### Servo/Mixer Override disables arming (#431)
 
 A new arming disabled flag `OVERRIDE` was added. It is activated if either
-servo or motor override is active.
+servo or mixer override is active.
 
 
 ## Receiver Protocols
