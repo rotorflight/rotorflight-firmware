@@ -21,11 +21,15 @@
 
 #include "fbus_sensor.h"
 #include "config/feature.h"
+#ifdef USE_GPS
 #include "io/gps.h"
+#endif
 #include "common/maths.h"
 #include "drivers/time.h"
 #include "pg/fbus_master.h"
+#ifdef USE_GPS
 #include "pg/gps.h"
+#endif
 #include "scheduler/scheduler.h"
 #include <string.h>
 
@@ -519,7 +523,8 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusEsc.hasRpmConsumption = false;
         fbusEsc.hasTemperature = false;
     }
-    
+
+#ifdef USE_GPS
     if (gpsConfig()->provider == GPS_FBUS) {
         if (fbusGps.hasPosition) {
             gpsSol.llh.lat = fbusGps.latitude;
@@ -548,6 +553,7 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
             gpsSol.numSat = 0;
         }
     }
+#endif
 }
 
 void fbusSensorGetGpsData(fbusGpsData_t *gpsData)
