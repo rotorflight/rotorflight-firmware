@@ -26,7 +26,7 @@
 #ifdef USE_FBUS_MASTER
 
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 5);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 6);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 500;
@@ -35,7 +35,7 @@ void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->inverted = 1;
 
     config->telemetryRate = 200;
-    config->sensorDiscoveryTimeMs = 3000;
+    config->sensorDiscoveryTimeMs = 5000;
     memset(config->forwardedSensors, 0, sizeof(config->forwardedSensors));
 }
 
