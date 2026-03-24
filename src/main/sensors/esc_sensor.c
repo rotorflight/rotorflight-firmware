@@ -53,12 +53,18 @@
 #include "drivers/fbus_master.h"
 #endif
 
+#include "fc/runtime_config.h"
+
+#include "scheduler/scheduler.h"
+
 #include "flight/mixer.h"
 
 #include "io/serial.h"
+#include "io/serial_4way.h"
 
 #include "esc_sensor.h"
 
+#include "drivers/time.h"
 
 enum {
     DEBUG_ESC_1_RPM = 0,
@@ -94,7 +100,7 @@ enum {
 
 #define TELEMETRY_BUFFER_SIZE    140
 #define REQUEST_BUFFER_SIZE      64
-#define PARAM_BUFFER_SIZE        96
+#define PARAM_BUFFER_SIZE        128
 #define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_SIG         0
 #define PARAM_HEADER_VER         1
@@ -117,6 +123,8 @@ enum {
 #define ESC_SIG_XDFLY             0xA6
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
+#define ESC_SIG_BLHELI_S          0xC1
+#define ESC_SIG_AM32              0xC2
 #define ESC_SIG_CASTLE            0xCC
 #define ESC_SIG_RESTART           0xFF
 
@@ -159,6 +167,9 @@ static uint8_t *paramPayload = paramBuffer + PARAM_HEADER_SIZE;
 static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramVer = 0;
 static bool paramMspActive = false;
+
+static bool is4wayEscSelected(void);
+static uint8_t escGetParamFullBufferLength(void);
 
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
@@ -357,7 +368,332 @@ static void updateConsumption(timeUs_t currentTimeUs)
     escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
+/*
+ * Mapping to 4wayif
+ */
 
+#if defined(USE_AM32_FORWARD_PROGRAMMING) || defined(USE_BLHELI_FORWARD_PROGRAMMING)
+#define USE_4WAY_FORWARD_PROGRAMMING
+#endif
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+ // true = ok, false = error
+#define AM32_SIG_G071_2KB              0x2b
+#define AM32_G071_2KB_EEPROM_ADDR      0x7E00
+#define AM32_SIG_F0_1KB                0x1f
+#define AM32_F0_1KB_EEPROM_ADDR        0x7C00
+#define AM32_SIG_F3_2KB                0x35
+#define AM32_F3_2KB_EEPROM_ADDR        0xF800
+#define AM32_NUM_EEPROM_BYTES          48
+#define AM32_ESC_NAME_LENGTH           32
+#define AM32_PARAM_PROTOCOL_VERSION    0
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+
+#define BLHELI_S_SIG_EFM8BB10          0xE8B1
+#define BLHELI_S_SIG_EFM8BB21          0xE8B2
+#define BLHELI_S_SIG_EFM8BB51          0xE8B5
+#define BLHELI_S_EEPROM_ADDR_SMALL     0x1A00
+#define BLHELI_S_EEPROM_ADDR_LARGE     0x3000
+#define BLHELI_S_PAGE_SIZE_SMALL       512
+#define BLHELI_S_PAGE_SIZE_LARGE       2048
+#define BLHELI_S_PAGE_MULTIPLIER_SMALL 1
+#define BLHELI_S_PAGE_MULTIPLIER_LARGE 4
+#define BLHELI_S_NUM_EEPROM_BYTES      0x70
+#define BLHELI_S_MSP_NUM_EEPROM_BYTES  0x40
+#define BLHELI_S_PARAM_PROTOCOL_VERSION 0
+#endif
+
+#define ESC_INIT_DELAY 2500
+#define ESC_DEINIT_DELAY 100
+#define FWIF_RETRY_DELAY 5
+#define FWIF_INIT_FLASH_TIMEOUT 100
+#define FWIF_READ_DELAY 50
+#define FWIF_WRITE_TIMEOUT 100
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+#define FWIF_MAX_EEPROM_BYTES BLHELI_S_NUM_EEPROM_BYTES
+#else
+#define FWIF_MAX_EEPROM_BYTES AM32_NUM_EEPROM_BYTES
+#endif
+static uint8_t escID = MAX_SUPPORTED_MOTORS + 1;
+
+static bool fwifParamCached[MAX_SUPPORTED_MOTORS] = {false};
+static bool fwifParamWritten[MAX_SUPPORTED_MOTORS] = {false};
+static uint8_t fwifParamSig[MAX_SUPPORTED_MOTORS] = {0};
+static uint8_t fwifParamLength[MAX_SUPPORTED_MOTORS] = {0};
+static uint8_t fwifParamBuffers[MAX_SUPPORTED_MOTORS][FWIF_MAX_EEPROM_BYTES];
+static uint8_t paramBufferEscID = 0xFF;  // Track which ESC's data is in paramBuffer
+static bool am32WritePending = false;
+static bool am32WriteTaskEnabledByUs = false;
+static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
+static bool fourwayProgrammingActive = false;
+static uint8_t fourwayEscCount = 0;
+
+static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
+{
+    uint32_t start = millis();
+    uint8_32_u *devInfo = NULL;
+
+    do {
+        devInfo = fwifCmdDeviceInitFlash(escID);
+        if (devInfo != NULL) {
+            return devInfo;
+        }
+
+        delay(FWIF_RETRY_DELAY);
+    } while (millis() - start < FWIF_INIT_FLASH_TIMEOUT);
+
+    return NULL;
+}
+
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+static uint32_t fwifGetAm32EepromAddress(const uint8_32_u *devInfo)
+{
+    if (devInfo->bytes[1] == AM32_SIG_F0_1KB) {
+        return AM32_F0_1KB_EEPROM_ADDR;
+    } else if (devInfo->bytes[1] == AM32_SIG_F3_2KB) {
+        return AM32_F3_2KB_EEPROM_ADDR;
+    } else if (devInfo->bytes[1] == AM32_SIG_G071_2KB) {
+        return AM32_G071_2KB_EEPROM_ADDR;
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+static uint32_t fwifGetBlheliSEepromAddress(const uint8_32_u *devInfo)
+{
+    switch (devInfo->words[0]) {
+        case BLHELI_S_SIG_EFM8BB10:
+        case BLHELI_S_SIG_EFM8BB21:
+            return BLHELI_S_EEPROM_ADDR_SMALL;
+        case BLHELI_S_SIG_EFM8BB51:
+            return BLHELI_S_EEPROM_ADDR_LARGE;
+        default:
+            return 0;
+    }
+}
+
+static uint8_t fwifGetBlheliSPageEraseIndex(const uint8_32_u *devInfo)
+{
+    switch (devInfo->words[0]) {
+        case BLHELI_S_SIG_EFM8BB10:
+        case BLHELI_S_SIG_EFM8BB21:
+            return (uint8_t)(BLHELI_S_EEPROM_ADDR_SMALL / BLHELI_S_PAGE_SIZE_SMALL * BLHELI_S_PAGE_MULTIPLIER_SMALL);
+        case BLHELI_S_SIG_EFM8BB51:
+            return (uint8_t)(BLHELI_S_EEPROM_ADDR_LARGE / BLHELI_S_PAGE_SIZE_LARGE * BLHELI_S_PAGE_MULTIPLIER_LARGE);
+        default:
+            return 0xFF;
+    }
+}
+#endif
+
+static uint32_t fwifGetEepromAddress(const uint8_32_u *devInfo, uint8_t *detectedSig, uint8_t *payloadLength, uint8_t *pageErase)
+{
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+    const uint32_t am32EepromAddr = fwifGetAm32EepromAddress(devInfo);
+    if (am32EepromAddr != 0) {
+        *detectedSig = ESC_SIG_AM32;
+        *payloadLength = AM32_NUM_EEPROM_BYTES;
+        *pageErase = 0xFF;
+        return am32EepromAddr;
+    }
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    const uint32_t blheliSEepromAddr = fwifGetBlheliSEepromAddress(devInfo);
+    if (blheliSEepromAddr != 0) {
+        *detectedSig = ESC_SIG_BLHELI_S;
+        *payloadLength = BLHELI_S_NUM_EEPROM_BYTES;
+        *pageErase = fwifGetBlheliSPageEraseIndex(devInfo);
+        return blheliSEepromAddr;
+    }
+#endif
+
+    *detectedSig = ESC_SIG_NONE;
+    *payloadLength = 0;
+    *pageErase = 0xFF;
+    return 0;
+}
+
+static void fourwayEnterProgrammingMode(void)
+{
+    if (fourwayProgrammingActive) {
+        return;
+    }
+
+    fourwayEscCount = esc4wayInit();
+    uint32_t initStart = millis();
+    while (millis() < initStart + ESC_INIT_DELAY);
+
+    fourwayProgrammingActive = true;
+}
+
+static void fourwayExitProgrammingMode(void)
+{
+    if (!fourwayProgrammingActive) {
+        return;
+    }
+
+    esc4wayDeinit();
+
+    uint32_t start = millis();
+    while (millis() < start + ESC_DEINIT_DELAY);
+
+    esc4wayRelease();
+
+    fourwayProgrammingActive = false;
+    fourwayEscCount = 0;
+}
+
+static bool fourwayIfFetchData(uint8_t escID)
+{
+    bool retVal = false;
+
+    if (ARMING_FLAG(ARMED)) {
+        return false;
+    }
+
+    if (!fourwayProgrammingActive) {
+        return false;
+    }
+
+    if (fwifParamCached[escID]) {
+        memcpy(paramPayload, fwifParamBuffers[escID], fwifParamLength[escID]);
+        paramPayloadLength = fwifParamLength[escID];
+        paramBufferEscID = escID;
+        escSig = fwifParamSig[escID];
+        return true;
+    }
+
+    paramPayloadLength = 0;
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    if (pwmMotors[escID].enabled && escID < fourwayEscCount) {
+        if (pwmMotors[escID].io != IO_NONE) {
+            uint8_32_u *devInfo = fwifWaitForDeviceInitFlash(escID);
+
+            if (devInfo != NULL) {
+                uint8_t detectedSig = ESC_SIG_NONE;
+                uint8_t payloadLength = 0;
+                uint8_t pageErase = 0xFF;
+                const uint32_t matchedEepromAddr = fwifGetEepromAddress(devInfo, &detectedSig, &payloadLength, &pageErase);
+                UNUSED(pageErase);
+
+                if (matchedEepromAddr != 0) {
+                    delay(FWIF_READ_DELAY);
+                    if (fwifCmdDeviceRead(payloadLength, paramPayload, matchedEepromAddr)) {
+                        retVal = true;
+                        escSig = detectedSig;
+                        memcpy(fwifParamBuffers[escID], paramPayload, payloadLength);
+                        fwifParamCached[escID] = true;
+                        fwifParamWritten[escID] = false;
+                        fwifParamSig[escID] = detectedSig;
+                        fwifParamLength[escID] = payloadLength;
+                        paramPayloadLength = payloadLength;
+                        paramBufferEscID = escID;
+                    }
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+static bool fourwayIfWriteData(uint8_t escID)
+{
+    bool retVal = false;
+
+    if (ARMING_FLAG(ARMED)) {
+        return false;
+    }
+
+    if (!fourwayProgrammingActive) {
+        return false;
+    }
+
+    if (fwifParamWritten[escID]) {
+        return true;
+    }
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    if (pwmMotors[escID].enabled && escID < fourwayEscCount) {
+        if (pwmMotors[escID].io != IO_NONE) {
+            uint8_32_u *devInfo = fwifWaitForDeviceInitFlash(escID);
+
+            if (devInfo != NULL) {
+                uint8_t detectedSig = ESC_SIG_NONE;
+                uint8_t payloadLength = 0;
+                uint8_t pageErase = 0xFF;
+                const uint32_t matchedEepromAddr = fwifGetEepromAddress(devInfo, &detectedSig, &payloadLength, &pageErase);
+
+                if (matchedEepromAddr != 0 && detectedSig == paramBuffer[PARAM_HEADER_SIG]) {
+                    uint8_t verifyBuffer[FWIF_MAX_EEPROM_BYTES];
+                    uint32_t writeStart = millis();
+                    do {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+                        if (detectedSig == ESC_SIG_BLHELI_S &&
+                            (pageErase == 0xFF || !fwifCmdDevicePageErase(pageErase))) {
+                            delay(FWIF_RETRY_DELAY);
+                            continue;
+                        }
+#endif
+
+                        if (fwifCmdDeviceWrite(payloadLength, paramUpdPayload, matchedEepromAddr)) {
+                            delay(FWIF_READ_DELAY);
+                            if (fwifCmdDeviceRead(payloadLength, verifyBuffer, matchedEepromAddr) &&
+                                memcmp(verifyBuffer, paramUpdPayload, payloadLength) == 0) {
+                                retVal = true;
+                                fwifParamCached[escID] = false;
+                                fwifParamWritten[escID] = true;
+                                break;
+                            }
+                        }
+
+                        delay(FWIF_RETRY_DELAY);
+                    } while (millis() - writeStart < FWIF_WRITE_TIMEOUT);
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+static bool scheduleAm32Write(uint8_t id)
+{
+    taskInfo_t escTaskInfo;
+
+    /* Guard against race: don't accept a new write if one is already pending */
+    if (am32WritePending) {
+        return false;
+    }
+
+    am32WriteEscId = id;
+    am32WritePending = true;
+
+    getTaskInfo(TASK_ESC_SENSOR, &escTaskInfo);
+    if (!escTaskInfo.isEnabled) {
+        am32WriteTaskEnabledByUs = true;
+        rescheduleTask(TASK_ESC_SENSOR, TASK_PERIOD_MS(1));
+        setTaskEnabled(TASK_ESC_SENSOR, true);
+    } else {
+        am32WriteTaskEnabledByUs = false;
+    }
+
+    return true;
+}
+
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+ 
+ 
 /*
  * BLHeli32 / KISS Telemetry Protocol
  *
@@ -3716,6 +4052,20 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (am32WritePending) {
+        am32WritePending = false;
+        fourwayIfWriteData(am32WriteEscId);
+        if (am32WriteTaskEnabledByUs) {
+            am32WriteTaskEnabledByUs = false;
+            if (!featureIsEnabled(FEATURE_ESC_SENSOR) && escSensorPort == NULL) {
+                setTaskEnabled(TASK_ESC_SENSOR, false);
+                return;
+            }
+        }
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
@@ -3894,29 +4244,210 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength(void)
+static uint8_t escGetParamFullBufferLength(void)
 {
     paramMspActive = true;
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if(escID < MAX_SUPPORTED_MOTORS) {
+        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        //first call will fail, since we need to switch the ESCs to BL mode first
+        fourwayIfFetchData(escID);
+    }
+#endif
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+}
+
+uint8_t escGetParamBufferLength(void)
+{
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength == 0) {
+        return 0;
+    }
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    if (is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        return PARAM_HEADER_SIZE + BLHELI_S_MSP_NUM_EEPROM_BYTES;
+    }
+#endif
+
+    return fullLength;
+}
+
+static bool is4wayEscSelected(void)
+{
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    return escID < MAX_SUPPORTED_MOTORS;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+    return false;
+}
+
+static bool escParametersWritable(void)
+{
+    if (is4wayEscSelected()) {
+        return !ARMING_FLAG(ARMED);
+    }
+
+    return paramCommit != NULL;
+}
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+static bool is4wayParamBufferValid(uint8_t id)
+{
+    if (paramBufferEscID != id) {
+        return false;
+    }
+
+    if (paramBuffer[PARAM_HEADER_SIG] != paramUpdBuffer[PARAM_HEADER_SIG]) {
+        return false;
+    }
+
+    if ((paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) != 0 ||
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) != 0) {
+        return false;
+    }
+
+    switch (paramBuffer[PARAM_HEADER_SIG]) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+        case ESC_SIG_AM32:
+            return paramPayloadLength == AM32_NUM_EEPROM_BYTES &&
+                (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION &&
+                (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+        case ESC_SIG_BLHELI_S:
+            return paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES &&
+                (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION &&
+                (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION;
+#endif
+        default:
+            return false;
+    }
+}
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+uint8_t escSelect4WIfById(uint8_t id)
+{
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
+    /* Support 0xFF as a sentinel to deselect 4WIF (set to out-of-range). */
+    if (ARMING_FLAG(ARMED)) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 1;
+    }
+
+    if (id >= MAX_SUPPORTED_MOTORS) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 0;
+    }
+
+    fourwayEnterProgrammingMode();
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+    if (id >= fourwayEscCount || !pwmMotors[id].enabled || pwmMotors[id].io == IO_NONE) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 1;
+    }
+
+    escID = id;
+    paramPayloadLength = 0;
+    escSig = ESC_SIG_NONE;
+    paramBufferEscID = 0xFF;
+    return 0;
+#else
+    UNUSED(id);
+    return 0;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 }
 
 uint8_t *escGetParamBuffer(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (is4wayEscSelected()) {
+        uint8_t protocolVersion = 0;
+
+        switch (escSig) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+            case ESC_SIG_AM32:
+                protocolVersion = AM32_PARAM_PROTOCOL_VERSION;
+                break;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+            case ESC_SIG_BLHELI_S:
+                protocolVersion = BLHELI_S_PARAM_PROTOCOL_VERSION;
+                break;
+#endif
+            default:
+                protocolVersion = 0;
+                break;
+        }
+
+        paramBuffer[PARAM_HEADER_SIG] = escSig;
+        paramBuffer[PARAM_HEADER_VER] = (protocolVersion & PARAM_HEADER_VER_MASK) |
+            (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
+        return paramBuffer;
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
     paramBuffer[PARAM_HEADER_SIG] = escSig;
-    paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
+    paramBuffer[PARAM_HEADER_VER] = (paramVer & (PARAM_HEADER_VER_MASK | PARAM_HEADER_USER)) |
+        (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
     return paramBuffer;
 }
 
 uint8_t *escGetParamUpdBuffer(void)
 {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength != 0 &&
+        is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        memcpy(paramUpdBuffer, paramBuffer, fullLength);
+    }
+#endif
+
     return paramUpdBuffer;
 }
 
 bool escCommitParameters(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (is4wayEscSelected()) {
+        if (!is4wayParamBufferValid(escID)) {
+            return false;
+        }
+
+        // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        // Avoid performing 4WIF write ops while armed which would disable motors
+        if (ARMING_FLAG(ARMED)) {
+            return false;
+        }
+
+        fwifParamWritten[escID] = false;
+        fwifParamCached[escID] = false;
+        return scheduleAm32Write(escID);
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
-        paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
+        escParametersWritable() && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
 }
 
 #endif

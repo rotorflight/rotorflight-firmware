@@ -95,6 +95,15 @@ int16_t setServoOverride(uint8_t servo, int16_t val)
     return servoOverride[servo] = val;
 }
 
+bool isServoOverrideActive(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        if (hasServoOverride(i))
+            return true;
+    }
+    return false;
+}
+
 void validateAndFixServoConfig(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
