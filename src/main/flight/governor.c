@@ -1260,17 +1260,8 @@ static void govUpdateGovernedState(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static int validateIdleThrottle(int value)
-{
-    const int maxThrottle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 255);
-    return constrain(value, 0, maxThrottle);
-}
-
-static int validateAutoThrottle(int value)
-{
-    const int maxThrottle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 255);
-    return constrain(value, governorConfig()->gov_idle_throttle, maxThrottle);
-}
+static void validateAndSetIdleAutoThrottle(uint8_t idleThrottle, uint8_t autoThrottle);
+static void validateAndSetMinMaxThrottle(uint8_t minThrottle, uint8_t maxThrottle);
 
 int get_ADJUSTMENT_GOV_GAIN(void)
 {
@@ -1367,9 +1358,9 @@ int get_ADJUSTMENT_GOV_IDLE_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_IDLE_THROTTLE(int value)
 {
-    const int throttle = validateIdleThrottle(value);
-    governorConfigMutable()->gov_idle_throttle = throttle;
-    gov.idleThrottle = throttle / 1000.0f;
+    validateAndSetIdleAutoThrottle(value, governorConfig()->gov_auto_throttle);
+    gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
+    gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
     gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
@@ -1380,9 +1371,10 @@ int get_ADJUSTMENT_GOV_AUTO_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 {
-    const int throttle = validateAutoThrottle(value);
-    governorConfigMutable()->gov_auto_throttle = throttle;
-    gov.autoThrottle = throttle / 1000.0f;
+    validateAndSetIdleAutoThrottle(governorConfig()->gov_idle_throttle, value);
+    gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
+    gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
+    gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
 int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
@@ -1392,10 +1384,9 @@ int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_MAX_THROTTLE(int value)
 {
-    const int throttle = constrain(value, 0, 100);
-    currentPidProfile->governor.max_throttle = throttle;
-    gov.maxThrottle = fmaxf(currentPidProfile->governor.max_throttle / 100.0f, gov.handoverThrottle);
-    gov.minActiveThrottle = fminf(currentPidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+    validateAndSetMinMaxThrottle(currentPidProfile->governor.min_throttle, value);
+    gov.maxThrottle = currentPidProfile->governor.max_throttle / 100.0f;
+    gov.minActiveThrottle = currentPidProfile->governor.min_throttle / 100.0f;
     gov.maxSpoolupThrottle = gov.maxThrottle;
 }
 
@@ -1406,9 +1397,8 @@ int get_ADJUSTMENT_GOV_MIN_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_MIN_THROTTLE(int value)
 {
-    const int throttle = constrain(value, 0, 100);
-    currentPidProfile->governor.min_throttle = throttle;
-    gov.minActiveThrottle = fminf(currentPidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+    validateAndSetMinMaxThrottle(value, currentPidProfile->governor.max_throttle);
+    gov.minActiveThrottle = currentPidProfile->governor.min_throttle / 100.0f;
 }
 
 int get_ADJUSTMENT_GOV_HEADSPEED(void)
@@ -1475,6 +1465,26 @@ void governorUpdate(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
+static void validateAndSetIdleAutoThrottle(uint8_t idleThrottle, uint8_t autoThrottle)
+{
+    const int maxIdle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 255);
+
+    idleThrottle = constrain(idleThrottle, 0, maxIdle);
+    autoThrottle = constrain(autoThrottle, idleThrottle, maxIdle);
+
+    governorConfigMutable()->gov_idle_throttle = idleThrottle;
+    governorConfigMutable()->gov_auto_throttle = autoThrottle;
+}
+
+static void validateAndSetMinMaxThrottle(uint8_t minThrottle, uint8_t maxThrottle)
+{
+    maxThrottle = constrain(maxThrottle, governorConfig()->gov_handover_throttle, 100);
+    minThrottle = constrain(minThrottle, 10, maxThrottle);
+
+    currentPidProfile->governor.min_throttle = minThrottle;
+    currentPidProfile->governor.max_throttle = maxThrottle;
+}
+
 void INIT_CODE validateAndFixGovernorConfig(void)
 {
     if (governorConfig()->gov_mode < GOV_MODE_ELECTRIC) {
@@ -1483,10 +1493,13 @@ void INIT_CODE validateAndFixGovernorConfig(void)
         }
     }
 
-    governorConfigMutable()->gov_handover_throttle = constrain(governorConfig()->gov_handover_throttle, 1, 100);
+    governorConfigMutable()->gov_handover_throttle =
+        constrain(governorConfig()->gov_handover_throttle, 10, 100);
 
-    governorConfigMutable()->gov_idle_throttle = validateIdleThrottle(governorConfig()->gov_idle_throttle);
-    governorConfigMutable()->gov_auto_throttle = validateAutoThrottle(governorConfig()->gov_auto_throttle);
+    validateAndSetIdleAutoThrottle(
+        governorConfig()->gov_idle_throttle,
+        governorConfig()->gov_auto_throttle
+    );
 }
 
 void INIT_CODE validateAndFixGovernorProfile(void)
@@ -1500,6 +1513,11 @@ void INIT_CODE validateAndFixGovernorProfile(void)
             BIT(GOV_FLAG_PID_SPOOLUP) |
             BIT(GOV_FLAG_DYN_MIN_THROTTLE));
     }
+
+    validateAndSetMinMaxThrottle(
+        pidProfile->governor.min_throttle,
+        pidProfile->governor.max_throttle
+    );
 }
 
 static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
@@ -1554,8 +1572,8 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
         gov.minD = -gov.maxD;
         gov.minF = 0;
 
-        gov.maxThrottle = fmaxf(pidProfile->governor.max_throttle / 100.0f, gov.handoverThrottle);
-        gov.minActiveThrottle = fminf(pidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+        gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
+        gov.minActiveThrottle = pidProfile->governor.min_throttle / 100.0f;
 
         gov.minSpoolupThrottle = gov.idleThrottle;
         gov.maxSpoolupThrottle = gov.maxThrottle;
