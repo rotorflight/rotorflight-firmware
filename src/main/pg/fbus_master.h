@@ -46,8 +46,8 @@ typedef struct fbusMasterConfig_s {
 
     uint16_t telemetryRate;
     uint16_t sensorDiscoveryTimeMs;
-    // List of sensor physical IDs to forward to the receiver (max 6)
-    // 0 = disabled slot
+    // List of sensor physical IDs to forward to the receiver (max 8)
+    // 0xFF = disabled slot, 0..FBUS_MAX_PHYS_ID = valid physical IDs
     uint8_t forwardedSensors[FBUS_MASTER_MAX_FORWARDED_SENSORS];
 
 } fbusMasterConfig_t;

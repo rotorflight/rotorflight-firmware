@@ -455,6 +455,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
+#ifdef USE_FBUS_MASTER
+    voltageSensorFBUSRefresh();
+#endif
+
     switch (batteryConfig()->voltageMeterSource) {
         case VOLTAGE_METER_ADC:
             voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BAT, &voltageMeter);
@@ -471,19 +475,11 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 
         case VOLTAGE_METER_FBUS:
 #ifdef USE_FBUS_MASTER
-            {
-                fbusCurrentData_t fbusCurrent;
-                fbusSensorGetCurrentData(&fbusCurrent);
-
-                if (fbusCurrent.hasVoltage && fbusSensorHasCurrentData()) {
-                    // FBUS voltage is V/100; convert to mV.
-                    voltageMeter.sample = fbusCurrent.voltageCentiVolts * 10;
-                    voltageMeter.voltage = voltageMeter.sample;
-                    batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
-                } else {
-                    voltageMeterReset(&voltageMeter);
-                    batteryVoltage = 0;
-                }
+            if (voltageSensorFBUSRead(&voltageMeter)) {
+                batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+            } else {
+                voltageMeterReset(&voltageMeter);
+                batteryVoltage = 0;
             }
 #else
             voltageMeterReset(&voltageMeter);
@@ -533,7 +529,14 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 #ifdef USE_FBUS_MASTER
             {
                 fbusCurrentData_t fbusCurrent;
+                fbusEscData_t fbusEsc;
+                bool hasEscData = false;
                 fbusSensorGetCurrentData(&fbusCurrent);
+                fbusSensorGetEscData(&fbusEsc);
+
+                if (fbusSensorHasEscData()) {
+                    hasEscData = true;
+                }
 
                 if (fbusSensorHasCurrentData() && (fbusCurrent.hasHighPrecisionCurrent || fbusCurrent.hasCurrent)) {
                     // Prefer high-precision current (A/1000 -> mA), fallback to A/10 -> mA.
@@ -541,6 +544,13 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
                         ? fbusCurrent.currentMilliAmps
                         : (fbusCurrent.currentDeciAmps * 100);
                     currentMeter.current = currentMeter.sample;
+                    batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+                    currentMeter.capacity = (hasEscData && fbusEsc.hasRpmConsumption) ? fbusEsc.consumptionMah : 0;
+                } else if (hasEscData && fbusEsc.hasPower) {
+                    // Fallback for FBUS ESC telemetry when no separate FBUS current sensor is present.
+                    currentMeter.sample = (uint32_t)fbusEsc.currentCentiAmps * 10U;
+                    currentMeter.current = currentMeter.sample;
+                    currentMeter.capacity = fbusEsc.hasRpmConsumption ? fbusEsc.consumptionMah : 0;
                     batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
                 } else {
                     currentMeterReset(&currentMeter);
@@ -580,6 +590,8 @@ void batteryInit(void)
     voltageSensorESCInit();
     currentSensorESCInit();
 #endif
+
+    voltageSensorFBUSInit();
 
     lowpassFilterInit(&voltageFilter, LPF_DAMPED,
         batteryConfig()->vbatLpfHz,

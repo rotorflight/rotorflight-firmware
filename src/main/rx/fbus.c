@@ -78,6 +78,11 @@
 
 #define MS2US(ms)   ((ms) * 1000)
 
+static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
+{
+    return (value >> bit) & 1U;
+}
+
 enum {
     DEBUG_FBUS_FRAME_INTERVAL = 0,
     DEBUG_FBUS_FRAME_ERRORS,
@@ -351,14 +356,16 @@ static void writeUplinkFrame(const smartPortPayload_t *payload)
     writeUplinkFramePhyID(FBUS_FC_COMMON_ID, payload);
 }
 
+#ifdef USE_FBUS_MASTER
 static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
 {
     uint8_t checkedPhyID = phyID;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 1) ^ GET_BIT(checkedPhyID, 2)) << 5;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 3) ^ GET_BIT(checkedPhyID, 4)) << 6;
-    checkedPhyID |= (GET_BIT(checkedPhyID, 0) ^ GET_BIT(checkedPhyID, 2) ^ GET_BIT(checkedPhyID, 4)) << 7;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 1) ^ fbusGetBit(checkedPhyID, 2)) << 5;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 3) ^ fbusGetBit(checkedPhyID, 4)) << 6;
+    checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 4)) << 7;
     return checkedPhyID;
 }
+#endif
 #endif
 
 static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
@@ -623,15 +630,16 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
             
+#if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
             // First pass: advertise configured forwarded sensors on startup.
             // Keep startup frames prioritized so all configured sensors are discovered.
-            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
+            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                 // Check if this sensor is active (configured and FBUS master enabled)
                 if (telemetrySensorActive(sensorId)) {
                     // Get the native FrSky physical ID for this sensor
                     uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
                     
-                    if (physicalId != 0) {
+                    if (physicalId <= FBUS_MAX_PHYS_ID) {
                         // Check if we need to send startup frame
                         if (fbusSensorNeedsStartupFrame(physicalId)) {
                             // Send empty frame to signal sensor presence
@@ -653,13 +661,13 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
             // Second pass: forward buffered sensor data once startup advertising is complete.
             if (!forwardedSensor) {
-                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_6; sensorId++) {
+                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                     if (!telemetrySensorActive(sensorId)) {
                         continue;
                     }
 
                     uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    if (physicalId == 0) {
+                    if (physicalId > FBUS_MAX_PHYS_ID) {
                         continue;
                     }
 
@@ -678,6 +686,7 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     }
                 }
             }
+#endif
             
             // If no forwarded sensor, handle FC telemetry or other sensors
             if (!forwardedSensor) {

@@ -205,19 +205,18 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
-#ifdef USE_FBUS_MASTER
-    const serialPortConfig_t *fbusMasterSerial = findSerialPortConfig(FUNCTION_FBUS_MASTER);
-#endif
+    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
+    const bool gpsUsesFbus = gpsUsesFbusTransport();
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
+        serialRemovePort(gpsSerial->identifier);
+    }
+    if (gpsUsesFbus && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
 #endif
     if (
 #if defined(USE_GPS)
-        gpsConfig()->provider != GPS_MSP && !gpsSerial
-#ifdef USE_FBUS_MASTER
-        && !fbusMasterSerial
-#endif
+        (gpsConfig()->provider != GPS_MSP && !gpsSerial && !hasFbusMasterPort)
         &&
 #endif
         true) {
@@ -316,10 +315,10 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    // Enable ESC_SENSOR feature if FBUS ESC is detected and protocol is set to FBUS
+    // Enable ESC_SENSOR only when protocol is FBUS and a FBUS master serial port is configured.
 #ifdef USE_FBUS_MASTER
-    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-        // FBUS ESC telemetry doesn't require a serial port (uses FBUS master)
+    const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS && fbusMasterSerialForEsc) {
         if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
             featureEnableImmediate(FEATURE_ESC_SENSOR);
         }

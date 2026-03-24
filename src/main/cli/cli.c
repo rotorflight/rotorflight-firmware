@@ -5091,13 +5091,28 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         int appIdPos = 0;
         appIdList[0] = '\0';
         for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+            int remaining = (int)sizeof(appIdList) - appIdPos;
+
+            // Reserve room for digits plus the trailing '\0' that tfp_sprintf writes.
+            uint16_t appIdValue = sensor->appIds[j];
+            int neededDigits = 1;
+            while (appIdValue >= 10) {
+                appIdValue /= 10;
+                neededDigits++;
+            }
+            if (remaining <= neededDigits) {
+                break;
+            }
+
             const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor->appIds[j]);
-            if (written <= 0 || (appIdPos + written) >= (int)sizeof(appIdList)) {
+            if (written <= 0 || written >= remaining) {
                 break;
             }
             appIdPos += written;
             if (j < sensor->appIdCount - 1) {
-                if ((appIdPos + 2) >= (int)sizeof(appIdList)) {
+                remaining = (int)sizeof(appIdList) - appIdPos;
+                // Need space for ", ", plus terminating '\0'.
+                if (remaining <= 2) {
                     break;
                 }
                 appIdList[appIdPos++] = ',';

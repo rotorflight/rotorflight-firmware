@@ -41,7 +41,11 @@
 #include "drivers/fbus_sensor.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
-#define GET_BIT(value, bit) ((value >> bit) & 1)
+
+static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
+{
+    return (value >> bit) & 1U;
+}
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -59,8 +63,6 @@ enum {
 serialPort_t *fbusMasterPort = NULL;
 
 #define FC_COMMON_ID 0x1B
-#define FBUS_MAX_PHYS_ID 0x1B
-
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
     FBUS_MASTER_QUERY_PHY_ID,
@@ -107,13 +109,13 @@ static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
 
 static uint8_t fbusMasterTakeNextScanPhysId(void)
 {
-    if (currentPhysId > FBUS_MAX_PHYS_ID) {
+    if (currentPhysId >= FBUS_MAX_PHYS_ID) {
         currentPhysId = 0;
     }
 
     if (currentPhysId == FC_COMMON_ID) {
         currentPhysId++;
-        if (currentPhysId > FBUS_MAX_PHYS_ID) {
+        if (currentPhysId >= FBUS_MAX_PHYS_ID) {
             currentPhysId = 0;
         }
     }
@@ -125,9 +127,9 @@ static uint8_t fbusMasterTakeNextScanPhysId(void)
 
 static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
 {
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 1) ^ GET_BIT(*phyIDByte, 2)) << 5;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 3) ^ GET_BIT(*phyIDByte, 4)) << 6;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 4)) << 7;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 1) ^ fbusGetBit(*phyIDByte, 2)) << 5;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 3) ^ fbusGetBit(*phyIDByte, 4)) << 6;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 4)) << 7;
 }
 
 static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
@@ -380,4 +382,3 @@ void fbusMasterInit(void)
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
-
