@@ -568,8 +568,6 @@ bool telemetrySensorActive(sensor_id_e id)
             return debugMode;
 
 #ifdef USE_FBUS_MASTER
-        // Generic FBUS sensor forwarding - active if FBUS master is enabled
-        // and the sensor slot is configured with a valid physical ID
         case TELEM_FBUS_SENSOR_1:
             return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[0] <= FBUS_MAX_PHYS_ID);
         case TELEM_FBUS_SENSOR_2:
@@ -598,7 +596,6 @@ bool telemetrySensorActive(sensor_id_e id)
 #ifdef USE_FBUS_MASTER
 uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
 {
-    // Map generic sensor ID to forwardedSensors array index
     uint8_t sensorIndex;
     switch (id) {
         case TELEM_FBUS_SENSOR_1:
@@ -626,10 +623,9 @@ uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
             sensorIndex = 7;
             break;
         default:
-            return FBUS_INVALID_PHYSICAL_ID;  // Invalid sensor ID
+            return FBUS_INVALID_PHYSICAL_ID;  
     }
     
-    // Return the configured physical ID for this sensor slot
     return fbusMasterConfig()->forwardedSensors[sensorIndex];
 }
 #endif
