@@ -15,23 +15,23 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "platform.h"
 
-#ifdef USE_FBUS_MASTER
-
-#include "fbus_sensor.h"
-#include "config/feature.h"
-#ifdef USE_GPS
-#include "io/gps.h"
-#endif
-#include "common/maths.h"
-#include "drivers/time.h"
 #include "pg/fbus_master.h"
-#ifdef USE_GPS
 #include "pg/gps.h"
-#endif
+
+#include "common/maths.h"
+#include "config/feature.h"
+#include "drivers/time.h"
+#include "io/gps.h"
+
 #include "scheduler/scheduler.h"
-#include <string.h>
+
+#include "drivers/fbus_sensor.h"
+
+#ifdef USE_FBUS_MASTER
 
 static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_VARIO2]        = "VARIO2",
@@ -683,3 +683,4 @@ const char* fbusSensorGetName(uint8_t physicalId)
 }
 
 #endif // USE_FBUS_MASTER
+

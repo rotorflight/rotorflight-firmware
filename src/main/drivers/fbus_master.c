@@ -23,21 +23,27 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "build/build_config.h"
-#include "common/maths.h"
-#include "common/time.h"
-#include "drivers/time.h"
-#include "fc/runtime_config.h"
-#include "flight/mixer.h"
-#include "flight/servos.h"
-#include "drivers/sbus_output.h"
-#include "pg/bus_servo.h"
+#include "platform.h"
+
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
 #include "pg/servos.h"
+#include "pg/bus_servo.h"
+
+#include "common/maths.h"
+#include "common/time.h"
+
+#include "drivers/time.h"
+#include "drivers/sbus_output.h"
+
+#include "flight/mixer.h"
+#include "flight/servos.h"
+
+#include "fc/runtime_config.h"
+#include "build/build_config.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
-#include "platform.h"
+
 #include "drivers/fbus_sensor.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
