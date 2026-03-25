@@ -1467,7 +1467,7 @@ void governorUpdate(void)
 
 static void validateAndSetIdleAutoThrottle(uint8_t idleThrottle, uint8_t autoThrottle)
 {
-    const int maxIdle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 255);
+    const int maxIdle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 250);
 
     idleThrottle = constrain(idleThrottle, 0, maxIdle);
     autoThrottle = constrain(autoThrottle, idleThrottle, maxIdle);
