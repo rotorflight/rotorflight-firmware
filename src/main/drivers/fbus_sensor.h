@@ -122,6 +122,19 @@ typedef struct {
     bool startupFrameSent;  // Track if empty startup frame was sent
 } fbusSensorForwardBuffer_t;
 
+// GPS specific time/date structures
+typedef struct {
+    uint8_t hours;          // UTC hours
+    uint8_t minutes;        // UTC minutes
+    uint8_t seconds;        // UTC seconds
+} fbusGpsTime_t;
+
+typedef struct {
+    uint8_t day;            // Day
+    uint8_t month;          // Month
+    uint16_t year;          // Year
+} fbusGpsDate_t;
+
 // GPS specific data structure
 typedef struct {
     int32_t latitude;       // Latitude in degrees * 1e7 (Rotorflight format)
@@ -129,12 +142,8 @@ typedef struct {
     int32_t altitudeCm;     // Altitude in cm
     uint32_t speedMilliKnots; // Speed in knots * 1000 (FrSky GPS Speed 0x0830 U32 format)
     uint16_t courseDeg;     // Course in degrees * 10 (Rotorflight groundCourse format)
-    uint8_t hours;          // UTC hours
-    uint8_t minutes;        // UTC minutes
-    uint8_t seconds;        // UTC seconds
-    uint8_t day;            // Day
-    uint8_t month;          // Month
-    uint16_t year;          // Year
+    fbusGpsTime_t time;     // UTC time
+    fbusGpsDate_t date;     // UTC date
     bool hasPosition;       // Position data valid
     bool hasAltitude;       // Altitude data valid
     bool hasSpeed;          // Speed data valid
@@ -195,8 +204,8 @@ int32_t fbusGpsConvertLatLon(uint32_t fbusData);
 int32_t fbusGpsConvertAltitude(uint32_t fbusData);
 uint16_t fbusGpsConvertSpeed(uint32_t fbusData);
 uint16_t fbusGpsConvertCourse(uint32_t fbusData);
-bool fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds);
-bool fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year);
+bool fbusGpsConvertTime(uint32_t fbusData, fbusGpsTime_t *time);
+bool fbusGpsConvertDate(uint32_t fbusData, fbusGpsDate_t *date);
 
 // Servo data conversion functions
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature);

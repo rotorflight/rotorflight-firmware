@@ -124,39 +124,38 @@ uint16_t fbusGpsConvertCourse(uint32_t fbusData)
     return result;
 }
 
-bool fbusGpsConvertTime(uint32_t fbusData, uint8_t *hours, uint8_t *minutes, uint8_t *seconds)
+bool fbusGpsConvertTime(uint32_t fbusData, fbusGpsTime_t *time)
 {
-    if (hours) *hours = 0;
-    if (minutes) *minutes = 0;
-    if (seconds) *seconds = 0;
+    if (time) {
+        memset(time, 0, sizeof(*time));
+    }
 
     // Extract bytes: D3 is type, D4-D6 are data
     uint8_t type = (fbusData >> 24) & 0xFF;
 
-    if (type == FBUS_GPS_TIME_TYPE_TIME) {
-        if (seconds) *seconds = (fbusData >> 16) & 0xFF;
-        if (minutes) *minutes = (fbusData >> 8) & 0xFF;
-        if (hours) *hours = fbusData & 0xFF;
+    if (type == FBUS_GPS_TIME_TYPE_TIME && time) {
+        time->seconds = (fbusData >> 16) & 0xFF;
+        time->minutes = (fbusData >> 8) & 0xFF;
+        time->hours = fbusData & 0xFF;
         return true;
     }
 
     return false;
 }
 
-bool fbusGpsConvertDate(uint32_t fbusData, uint8_t *day, uint8_t *month, uint16_t *year)
+bool fbusGpsConvertDate(uint32_t fbusData, fbusGpsDate_t *date)
 {
-    // Initialize outputs to safe defaults
-    if (day) *day = 0;
-    if (month) *month = 0;
-    if (year) *year = 0;
+    if (date) {
+        memset(date, 0, sizeof(*date));
+    }
 
     // Extract bytes: D3 is type, D4-D6 are data
     uint8_t type = (fbusData >> 24) & 0xFF;
 
-    if (type == FBUS_GPS_TIME_TYPE_DATE) {
-        if (day) *day = (fbusData >> 16) & 0xFF;
-        if (month) *month = (fbusData >> 8) & 0xFF;
-        if (year) *year = 2000 + (fbusData & 0xFF);  // Assuming year is offset from 2000
+    if (type == FBUS_GPS_TIME_TYPE_DATE && date) {
+        date->day = (fbusData >> 16) & 0xFF;
+        date->month = (fbusData >> 8) & 0xFF;
+        date->year = 2000 + (fbusData & 0xFF);  // Assuming year is offset from 2000
         return true;
     }
 
@@ -406,17 +405,9 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         } else if (appId >= FBUS_GPS_TIME_BASE && appId <= (FBUS_GPS_TIME_BASE + 0x0F)) {
             uint8_t type = (data >> 24) & 0xFF;
             if (type == FBUS_GPS_TIME_TYPE_TIME) {
-                if (fbusGpsConvertTime(data, &fbusGps.hours, &fbusGps.minutes, &fbusGps.seconds)) {
-                    fbusGps.hasTime = true;
-                } else {
-                    fbusGps.hasTime = false;
-                }
+                fbusGps.hasTime = fbusGpsConvertTime(data, &fbusGps.time);
             } else if (type == FBUS_GPS_TIME_TYPE_DATE) {
-                if (fbusGpsConvertDate(data, &fbusGps.day, &fbusGps.month, &fbusGps.year)) {
-                    fbusGps.hasDate = true;
-                } else {
-                    fbusGps.hasDate = false;
-                }
+                fbusGps.hasDate = fbusGpsConvertDate(data, &fbusGps.date);
             }
             fbusGps.lastUpdateUs = currentTimeUs;
         }
