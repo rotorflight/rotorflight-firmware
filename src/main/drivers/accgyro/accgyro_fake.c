@@ -93,6 +93,7 @@ bool fakeGyroDetect(gyroDev_t *gyro)
     gyro->initFn = fakeGyroInit;
     gyro->readFn = fakeGyroRead;
     gyro->temperatureFn = fakeGyroReadTemperature;
+    gyro->gyroSampleRateHz = 1000;
 #if defined(SIMULATOR_BUILD)
     gyro->scale = GYRO_SCALE_2000DPS;
 #else

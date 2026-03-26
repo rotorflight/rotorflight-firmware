@@ -162,6 +162,16 @@ int16_t mixerSetOverride(uint8_t index, int16_t value)
     return mixer.override[index] = value;
 }
 
+bool isMixerOverrideActive(void)
+{
+    for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
+        const int16_t ovr = mixer.override[i];
+        if ((ovr >= MIXER_OVERRIDE_MIN && ovr <= MIXER_OVERRIDE_MAX) || ovr == MIXER_OVERRIDE_PASSTHROUGH)
+            return true;
+    }
+    return false;
+}
+
 bool mixerIsCyclicServo(uint8_t index)
 {
     return (mixer.cyclicMapping & BIT(MIXER_SERVO_OFFSET + index));
@@ -372,12 +382,10 @@ static void mixerUpdateMotorizedTail(void)
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
 
-        // Slow spoolup
+        // Start tail motor asap
         if (!isSpooledUp()) {
-            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.05f)
+            if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.001f)
                 throttle = 0;
-            else if (mixer.input[MIXER_IN_STABILIZED_THROTTLE] < 0.10f)
-                throttle *= mixer.input[MIXER_IN_STABILIZED_THROTTLE] / 0.10f;
         }
 
         // Yaw is now tail motor throttle

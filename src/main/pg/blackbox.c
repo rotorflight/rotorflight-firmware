@@ -40,7 +40,7 @@ PG_REGISTER_WITH_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CO
 
 PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
     .device = DEFAULT_BLACKBOX_DEVICE,
-    .mode = BLACKBOX_MODE_NORMAL,
+    .mode = BLACKBOX_MODE_ARMED,
     .denom = 8,
     .fields = BIT(FLIGHT_LOG_FIELD_SELECT_COMMAND) |
               BIT(FLIGHT_LOG_FIELD_SELECT_SETPOINT) |
@@ -57,11 +57,11 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
               BIT(FLIGHT_LOG_FIELD_SELECT_SERVO) |
               BIT(FLIGHT_LOG_FIELD_SELECT_VBEC) |
               BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
-              BIT(FLIGHT_LOG_FIELD_SELECT_VBUS) |
               BIT(FLIGHT_LOG_FIELD_SELECT_TEMP) |
+              BIT(FLIGHT_LOG_FIELD_SELECT_GOV) |
               0,
     .initialEraseFreeSpaceKiB = 0,
-    .rollingErase = 0,
+    .rollingErase = 1,
     .gracePeriod = 5,
 );
 

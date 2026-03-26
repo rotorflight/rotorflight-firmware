@@ -30,6 +30,7 @@
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/crc.h"
 #include "common/filter.h"
 #include "common/utils.h"
 
@@ -44,6 +45,7 @@
 #include "drivers/accgyro/accgyro_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_bmi160.h"
 #include "drivers/accgyro/accgyro_spi_bmi270.h"
+#include "drivers/accgyro/accgyro_spi_bmi323.h"
 #include "drivers/accgyro/accgyro_spi_bmi088.h"
 #include "drivers/accgyro/accgyro_spi_icm20649.h"
 #include "drivers/accgyro/accgyro_spi_icm20689.h"
@@ -95,12 +97,12 @@ FAST_DATA_ZERO_INIT accelerationRuntime_t accelerationRuntime;
 
 static void setConfigCalibrationCompleted(void)
 {
-    accelerometerConfigMutable()->accZero.values.calibrationCompleted = 1;
+    accelerometerConfigMutable()->accZero.values.calibrationCompleted = accelerationRuntime.calibrationKey;
 }
 
 bool accHasBeenCalibrated(void)
 {
-    return accelerometerConfig()->accZero.values.calibrationCompleted;
+    return accelerometerConfig()->accZero.values.calibrationCompleted == accelerationRuntime.calibrationKey;
 }
 
 void accResetRollAndPitchTrims(void)
@@ -274,6 +276,15 @@ retry:
         FALLTHROUGH;
 #endif
 
+#ifdef USE_ACCGYRO_SPI_BMI323
+    case ACC_BMI323:
+        if (bmi323SpiAccDetect(dev)) {
+            accHardware = ACC_BMI323;
+            break;
+        }
+        FALLTHROUGH;
+#endif
+
 #ifdef USE_ACCGYRO_SPI_BMI088
     case ACC_BMI088:
         if (bmi088SpiAccDetect(dev)) {
@@ -367,7 +378,12 @@ bool accInit(uint16_t accSampleRateHz)
     acc.dev.acc_1G_rec = 1.0f / acc.dev.acc_1G;
 
     acc.sampleRateHz = accSampleRateHz;
+
+    // Valid key can't be 0 or 1
+    accelerationRuntime.calibrationKey = (crc16_ccitt_update(0, (void *)UID_BASE, 12) % 65521) + 2;
+
     accInitFilters();
+
     return true;
 }
 

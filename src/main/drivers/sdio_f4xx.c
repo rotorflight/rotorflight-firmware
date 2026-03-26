@@ -1387,6 +1387,7 @@ static SD_Error_t SD_PowerON(void)
     uint32_t   SD_Type;
     //uint32_t   TickStart;
 
+    Response     = 0;
     Count        = 0;
     ValidVoltage = 0;
     SD_Type      = SD_RESP_STD_CAPACITY;

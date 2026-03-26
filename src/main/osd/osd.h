@@ -26,6 +26,7 @@
 #include "drivers/display.h"
 
 #include "pg/osd.h"
+#include "pg/adjustments.h"
 
 #include "sensors/esc_sensor.h"
 
@@ -311,3 +312,8 @@ void osdSetVisualBeeperState(bool state);
 statistic_t *osdGetStats(void);
 bool osdNeedsAccelerometer(void);
 int osdPrintFloat(char *buffer, char leadingSymbol, float value, char *formatString, unsigned decimalPlaces, bool round, char trailingSymbol);
+
+#ifdef USE_OSD_PROFILES
+ADJFUN_DECLARE(OSD_PROFILE)
+#endif
+

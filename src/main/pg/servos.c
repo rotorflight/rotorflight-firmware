@@ -22,6 +22,7 @@
 
 #include "pg/pg_ids.h"
 #include "pg/servos.h"
+#include "bus_servo.h"
 
 #include "config/config_reset.h"
 
@@ -30,7 +31,7 @@
 #include "flight/servos.h"
 
 
-PG_REGISTER_WITH_RESET_FN(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 0);
+PG_REGISTER_WITH_RESET_FN(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 1);
 
 void pgResetFn_servoConfig(servoConfig_t *servoConfig)
 {
@@ -39,7 +40,7 @@ void pgResetFn_servoConfig(servoConfig_t *servoConfig)
     }
 }
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams, PG_SERVO_PARAMS, 0);
+PG_REGISTER_ARRAY_WITH_RESET_FN(servoParam_t, MAX_SUPPORTED_SERVOS, servoParams, PG_SERVO_PARAMS, 1);
 
 void pgResetFn_servoParams(servoParam_t *instance)
 {
@@ -54,6 +55,15 @@ void pgResetFn_servoParams(servoParam_t *instance)
                      .speed = DEFAULT_SERVO_SPEED,
                      .flags = DEFAULT_SERVO_FLAGS,
         );
+        
+        // S1-S8 (indices 0-7) are PWM servos with wider range
+        // S9-S26 (indices 8-25) are BUS servos with constrained range
+        if (i > 7) {
+            instance[i].min = DEFAULT_BUS_SERVO_MIN;
+            instance[i].max = DEFAULT_BUS_SERVO_MAX;
+            instance[i].rneg = DEFAULT_BUS_SERVO_SCALE;
+            instance[i].rpos = DEFAULT_BUS_SERVO_SCALE;
+        }
     }
 }
 

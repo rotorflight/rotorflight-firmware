@@ -858,7 +858,7 @@ void flashfsFillEntireFlash(void)
     const uint32_t testLimit = flashfsGetSize();
 
     for (address = 0; address < testLimit; address += bufferSize) {
-        tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", address);
+        tfp_sprintf(buffer, "%08x >> **0123456789ABCDEF**", (uint)address);
         flashfsWrite((uint8_t*)buffer, strlen(buffer));
         flashfsFlushSync();
     }
@@ -883,7 +883,7 @@ bool flashfsVerifyEntireFlash(void)
 
     int verificationFailures = 0;
     for (address = 0; address < testLimit; address += bufferSize) {
-        tfp_sprintf(expectedBuffer, "%08x >> **0123456789ABCDEF**", address);
+        tfp_sprintf(expectedBuffer, "%08x >> **0123456789ABCDEF**", (uint)address);
 
         memset(buffer, 0, sizeof(buffer));
         int bytesRead = flashfsReadPhysical(address, (uint8_t *)buffer, bufferSize);

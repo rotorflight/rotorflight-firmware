@@ -3,7 +3,6 @@ COMMON_SRC = \
             build/build_config.c \
             build/debug.c \
             build/debug_pin.c \
-            build/dprintf.c \
             build/version.c \
             $(TARGET_DIR_SRC) \
             $(addprefix pg/, $(notdir $(wildcard $(SRC_DIR)/pg/*.c))) \
@@ -78,6 +77,7 @@ COMMON_SRC = \
             drivers/castle_telemetry_decode.c \
             drivers/pwm_output.c \
             drivers/sbus_output.c \
+            drivers/fbus_master.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -104,10 +104,13 @@ COMMON_SRC = \
             flight/rescue.c \
             flight/setpoint.c \
             flight/wiggle.c \
+            flight/airborne.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \
             rx/ibus.c \
+            rx/ibus2.c \
+            rx/ibus2_telemetry.c \
             rx/jetiexbus.c \
             rx/msp.c \
             rx/pwm.c \
@@ -230,11 +233,13 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             common/filter.c \
             common/maths.c \
             common/sdft.c \
+            common/printf.c \
             common/typeconversion.c \
             drivers/accgyro/accgyro_mpu.c \
             drivers/accgyro/accgyro_mpu3050.c \
             drivers/accgyro/accgyro_spi_bmi160.c \
             drivers/accgyro/accgyro_spi_bmi270.c \
+            drivers/accgyro/accgyro_spi_bmi323.c \
             drivers/accgyro/accgyro_spi_bmi088.c \
             drivers/accgyro/accgyro_spi_lsm6dso.c \
             drivers/accgyro_legacy/accgyro_adxl345.c \
@@ -268,6 +273,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             flight/pid.c \
             flight/rpm_filter.c \
             rx/ibus.c \
+            rx/ibus2.c \
             rx/rx.c \
             rx/rx_spi.c \
             rx/crsf.c \
@@ -294,6 +300,7 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_fake.c \
             drivers/barometer/barometer_bmp085.c \
             drivers/barometer/barometer_bmp280.c \
+            drivers/barometer/barometer_bmp581.c \
             drivers/barometer/barometer_fake.c \
             drivers/barometer/barometer_ms5611.c \
             drivers/barometer/barometer_lps.c \

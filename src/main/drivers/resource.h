@@ -112,6 +112,7 @@ typedef enum {
     OWNER_RX_SPI_EXPRESSLRS_BUSY,
     OWNER_FREQ,
     OWNER_ACC_CS,
+    OWNER_GYRO_CLK,
     OWNER_TOTAL_COUNT
 } resourceOwner_e;
 

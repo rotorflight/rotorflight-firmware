@@ -24,31 +24,50 @@
 
 typedef enum {
     GOV_MODE_NONE = 0,
-    GOV_MODE_EXTERNAL,
+    GOV_MODE_LIMIT,
+    GOV_MODE_DIRECT,
     GOV_MODE_ELECTRIC,
     GOV_MODE_NITRO,
 } govMode_e;
 
 typedef enum {
     GOV_THROTTLE_NORMAL = 0,
-    GOV_THROTTLE_OFF_ON,
-    GOV_THROTTLE_OFF_IDLE_ON,
-    GOV_THROTTLE_OFF_IDLE_AUTO_ON,
+    GOV_THROTTLE_SWITCH,
+    GOV_THROTTLE_FUNCTION,
 } govThrottle_e;
 
 typedef enum {
-    GOV_FLAG_FC_THROTTLE_CURVE,
-    GOV_FLAG_TX_PRECOMP_CURVE,
-    GOV_FLAG_FALLBACK_PRECOMP,
-    GOV_FLAG_VOLTAGE_COMP,
-    GOV_FLAG_PID_SPOOLUP,
-    GOV_FLAG_HS_ADJUSTMENT,
-    GOV_FLAG_DYN_MIN_THROTTLE,
-    GOV_FLAG_AUTOROTATION,
-    GOV_FLAG_SUSPEND,
-    GOV_FLAG_BYPASS,
+    GOV_FLAG_FALLBACK_PRECOMP       = 2,
+    GOV_FLAG_VOLTAGE_COMP           = 3,
+    GOV_FLAG_PID_SPOOLUP            = 4,
+    GOV_FLAG_DYN_MIN_THROTTLE       = 6,
 } govFlags_e;
 
+typedef struct {
+    uint32_t    flags;
+    uint16_t    headspeed;
+    uint8_t     min_throttle;
+    uint8_t     max_throttle;
+    uint8_t     gain;
+    uint8_t     p_gain;
+    uint8_t     i_gain;
+    uint8_t     d_gain;
+    uint8_t     f_gain;
+    uint8_t     p_limit;
+    uint8_t     i_limit;
+    uint8_t     d_limit;
+    uint8_t     f_limit;
+    uint8_t     tta_gain;
+    uint8_t     tta_limit;
+    uint8_t     yaw_weight;
+    uint8_t     cyclic_weight;
+    uint8_t     collective_weight;
+    uint8_t     collective_curve;
+    uint8_t     fallback_drop;
+    uint8_t     dyn_min_throttle;
+} governorProfile_t;
+
+#define GOV_THROTTLE_CURVE_POINTS    9
 
 typedef struct governorConfig_s {
     uint8_t  gov_mode;
@@ -59,11 +78,11 @@ typedef struct governorConfig_s {
     uint16_t gov_recovery_time;
     uint16_t gov_spooldown_time;
     uint8_t  gov_throttle_hold_timeout;
+    uint8_t  gov_autorotation_timeout;
     uint8_t  gov_idle_throttle;
     uint8_t  gov_auto_throttle;
     uint8_t  gov_handover_throttle;
-    int8_t   gov_wot_collective;
-    int8_t   gov_idle_collective;
+    uint8_t  gov_bypass_throttle[GOV_THROTTLE_CURVE_POINTS];
     uint8_t  gov_pwr_filter;
     uint8_t  gov_rpm_filter;
     uint8_t  gov_tta_filter;

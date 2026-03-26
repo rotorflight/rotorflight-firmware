@@ -102,6 +102,7 @@
 #undef USE_SERIALRX_CRSF
 #undef USE_SERIALRX_GHST
 #undef USE_SERIALRX_IBUS
+#undef USE_SERIALRX_IBUS2
 #undef USE_SERIALRX_SBUS
 #undef USE_SERIALRX_SPEKTRUM
 #undef USE_SERIALRX_SUMD
@@ -259,5 +260,4 @@ uint64_t micros64(void);
 uint64_t millis64(void);
 
 int lockMainPID(void);
-
 

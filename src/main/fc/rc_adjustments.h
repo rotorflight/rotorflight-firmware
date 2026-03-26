@@ -40,12 +40,12 @@ typedef enum {
     ADJUSTMENT_RATE_PROFILE             = 1,
     ADJUSTMENT_PID_PROFILE              = 2,
     ADJUSTMENT_LED_PROFILE              = 3,
-    ADJUSTMENT_BATTERY_PROFILE          = 4,
+    ADJUSTMENT_OSD_PROFILE              = 4,
 
     // Rates
-    ADJUSTMENT_PITCH_RATE               = 5,
-    ADJUSTMENT_ROLL_RATE                = 6,
-    ADJUSTMENT_YAW_RATE                 = 7,
+    ADJUSTMENT_PITCH_SRATE              = 5,
+    ADJUSTMENT_ROLL_SRATE               = 6,
+    ADJUSTMENT_YAW_SRATE                = 7,
     ADJUSTMENT_PITCH_RC_RATE            = 8,
     ADJUSTMENT_ROLL_RC_RATE             = 9,
     ADJUSTMENT_YAW_RC_RATE              = 10,
@@ -151,6 +151,7 @@ typedef enum {
     ADJUSTMENT_GOV_MIN_THROTTLE         = 79,
     ADJUSTMENT_GOV_HEADSPEED            = 80,
     ADJUSTMENT_GOV_YAW_FF               = 81,
+    ADJUSTMENT_BATTERY_PROFILE          = 82,
 
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;

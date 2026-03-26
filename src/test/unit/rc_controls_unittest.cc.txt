@@ -282,9 +282,9 @@ protected:
         controlRateConfig.thrMid8 = 0;
         controlRateConfig.thrExpo8 = 0;
         controlRateConfig.rcExpo[FD_YAW] = 0;
-        controlRateConfig.rates[0] = 0;
-        controlRateConfig.rates[1] = 0;
-        controlRateConfig.rates[2] = 0;
+        controlRateConfig.sRates[0] = 0;
+        controlRateConfig.sRates[1] = 0;
+        controlRateConfig.sRates[2] = 0;
 
         PG_RESET(adjustmentRanges);
         adjustmentRangesIndex = 0;

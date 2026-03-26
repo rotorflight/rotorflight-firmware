@@ -24,3 +24,4 @@
 bool frskyCheckSumIsGood(uint8_t *data, uint8_t length);
 void frskyCheckSumStep(uint16_t *checksum, uint8_t byte);   // Add byte to checksum
 void frskyCheckSumFini(uint16_t *checksum);                 // Finalize checksum
+uint8_t frskyCheckSum(uint8_t *data, uint8_t length);

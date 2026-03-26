@@ -53,7 +53,6 @@ typedef struct {
     uint16_t    gyro_soft_notch_cutoff_1;
     uint16_t    gyro_soft_notch_hz_2;
     uint16_t    gyro_soft_notch_cutoff_2;
-    int16_t     gyro_offset_yaw;
     uint8_t     checkOverflow;
 
     uint8_t     gyro_lpf1_type;

@@ -1,3 +1,48 @@
+# 4.6.0-20260208
+
+This is a _development snapshot_ of the Rotorflight 2.3 firmware.
+
+## Notes
+
+This version is intended to be used for beta-testing only.
+It is not fully working nor stable, and should not be used by end-users.
+
+For more information, please join the Rotorflight Discord chat.
+
+Please also read [Configuration Changes](https://github.com/rotorflight/rotorflight-firmware/blob/snapshot/4.6.0-20260208/Changes.md).
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/snapshot/2.3.0-20260208)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/snapshot/2.3.0-20260208)
+- [LUA Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/snapshot/2.3.0-20260208)
+- [LUA Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/snapshot/2.3.0-20260208)
+
+## Changes from 4.6.0-20251111
+
+- Introduce Rotorflight Rates with refactored rate handling
+- Add a tech preview for applying the rates in polar coordinates
+- Improve governor behaviour and fix several governor issues
+- Disallow arming while rescue is active
+- Fix failsafe throttle handling
+- Add GYRO_CLK support for external gyro clocking
+- Add support for the BMP581 barometer
+- Add FBUS Master Out
+- Add ESC telemetry output to Spektrum transmitters
+- Add Forward Programming support for ZTW and OMP ESCs
+- Add new MSP APIs for tools and Lua scripts
+- Miscellaneous fixes in:
+  - ICM426xx gyro driver
+  - W25N flash handling
+  - ESC sensor build dependencies
+  - Spektrum telemetry
+- Remove most legacy flight controller targets
+
+
+***
+
 # 4.6.0-20251111
 
 This is a _development snapshot_ of the Rotorflight 2.3 firmware.

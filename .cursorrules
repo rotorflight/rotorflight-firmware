@@ -1,0 +1,403 @@
+# Rotorflight Firmware Coding Guidelines
+
+## Project Context
+This is the Rotorflight Flight Controller Firmware - a safety-critical embedded C project for single-rotor RC helicopters, forked from Betaflight 4.3. Code quality and consistency are paramount for flight safety.
+
+## Review Workflow and Tools
+
+Rotorflight uses both GitHub pull requests (with CodeRabbit) and local reviews in Cursor. All changes MUST follow this review workflow:
+
+- **Before opening a PR**
+  - Ensure the code compiles with all warnings treated as errors (`-Werror`).
+  - Run any relevant local tests or bench checks (for example, sensor initialisation, arming, basic spool-up on the bench).
+  - Update `Changes.md` when required (CLI, MSP, default values).
+  - Fill in the PR description with:
+    - A short, clear summary of the change.
+    - Whether the change is **flight-critical** (affects control loop, sensor pipelines, failsafes, arming logic, power management or timing).
+    - Testing performed (for example, "bench only", "hover test", "full flight test", including heli type if relevant).
+
+- **PR scope and focus**
+  - Each pull request MUST have a clear, limited scope and title that reflects it.
+  - Do not mix unrelated changes in the same PR (for example, combining PID logic changes with OSD cosmetic tweaks).
+  - Do not change unrelated files "while you are there" (for example, drive-by formatting or renaming) unless:
+    - They are strictly necessary for the main change (for example, shared API changes), and
+    - This is clearly explained in the PR description.
+  - If you discover an unrelated issue while working on a PR, open a separate PR (or at least a separate commit and follow-up PR) rather than bundling it in.
+
+- **GitHub + CodeRabbit review**
+  - CodeRabbit is used to provide first-pass automated review and highlight potential issues.
+  - Human maintainers are responsible for final decisions, especially for flight-critical code.
+  - If CodeRabbit flags style issues in legacy files, prefer matching the existing style unless performing a larger refactor.
+  - Treat all CodeRabbit findings as suggestions that must be either:
+    - Fixed, or
+    - Explicitly acknowledged and justified in the PR discussion.
+
+- **Local Cursor reviews**
+  - Use Cursor to:
+    - Inspect complex logic, invariants and interactions between modules.
+    - Check for hidden assumptions and edge cases (overflow, timing, race conditions).
+    - Help reason about refactors, but do not rely on Cursor alone for flight-critical sign-off.
+  - Always re-read the final diff yourself with the checklist below before merging.
+
+## C Coding Standards
+
+Use these rules with Rotorflight specific files and any new files.
+With existing legacy files, follow the existing coding style.
+
+- Target C standard: C11 (or C99 where explicitly required) with no variable-length arrays and no dynamic memory allocation.
+
+### Indentation and Formatting
+- **ALWAYS use 4 spaces for indentation** - Never use tabs
+- Maximum line length: 120 characters
+- Trailing (invisible) white space is not allowed
+- Use blank lines sparingly:
+  - One blank line between code blocks is preferred
+  - Two blank lines can be used between separate sections of code
+  - Three or more blank lines are not allowed
+- Use a hybrid K&R/Allman brace style:
+  - Allman for function definitions
+  - K&R for control structures
+- Use consistent spacing
+  - function calls:
+    ```c
+    doSomething(var1, var2);
+    ```
+  - function definitions:
+    ```c
+    void myFunction(int x, data_t *data)
+    {
+        ...
+    }
+    ```
+  - if and while statement:
+    ```c
+    if (condition) {
+        ...
+    }
+    ```
+  - for statement:
+    ```c
+    for (i = 0; i < 10; i++) {
+        ...
+    }
+    ```
+  - switch statement:
+    ```c
+    switch (var) {
+        case 0:
+            ...
+            break;
+        case 1:
+            ...
+            break;
+        default:
+            break;
+    }
+    ```
+  - assignment:
+    ```c
+    a = 10;
+    ```
+  - increment and decrement:
+    ```c
+    a++;
+    b--;
+    ```
+  - math operators:
+    ```c
+    a = (b + 8) * 10;
+    ```
+
+
+### Naming Conventions
+
+#### Variables
+- Use lowercase_with_underscores (snake_case)
+- Be descriptive and avoid abbreviations unless widely understood
+- Examples:
+  ```c
+  float gyro_rate;
+  int motor_count;
+  pidProfile_t *current_pid_profile;
+  static const uint8_t error_decay_rate_curve[16] = {...};
+  ```
+
+#### Functions
+- Use camelCase (lowerCamelCase)
+- Start with lowercase letter, capitalize each subsequent word
+- Be descriptive and use verb-noun patterns
+- Examples:
+  ```c
+  void pidApplySetpoint(uint8_t axis);
+  float pidGetDT(void);
+  uint8_t getCurrentPidProfileIndex(void);
+  void changePidProfile(uint8_t index);
+  ```
+
+#### Preprocessor Constants and Macros
+- **MUST** use UPPERCASE_WITH_UNDERSCORES
+- **MUST** Use parenthesis around macro arguments
+- Examples:
+  ```c
+  #define MAX_SUPPORTED_MOTORS 8
+  #define PID_PROFILE_COUNT 3
+  #define PLUS_ONE(x) ((x) + 1)
+  ```
+
+#### Type Definitions
+- Use `typedef` with `_t` suffix for custom types
+- Use `typedef` with `struct` definitions
+- Use descriptive names
+- Examples:
+  ```c
+  typedef struct {
+      uint8_t mode;
+      pidGains_t gains[XYZ_AXIS_COUNT];
+  } pidProfile_t;
+  ```
+
+
+### Code Organization
+
+#### File Structure
+- Add Rotorflight copyright header to new files:
+  ```c
+  /*
+   * This file is part of Rotorflight.
+   *
+   * Rotorflight is free software. You can redistribute it and/or modify
+   * it under the terms of the GNU General Public License as published by
+   * the Free Software Foundation, either version 3 of the License, or
+   * (at your option) any later version.
+   *
+   * Rotorflight is distributed in the hope that it will be useful,
+   * but WITHOUT ANY WARRANTY; without even the implied warranty of
+   * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+   * See the GNU General Public License for more details.
+   *
+   * You should have received a copy of the GNU General Public License
+   * along with this software. If not, see <https://www.gnu.org/licenses/>.
+   */
+  ```
+- Group related functions by sections or subsystem
+- Use section order: includes → defines → types → static variables → static functions → public functions
+- Public headers must be minimal and self-contained; avoid exposing internal globals or unnecessary implementation details.
+- Example structure:
+  ```c
+  /*
+   * Copyright header
+   */
+
+  // Includes
+  #include "platform.h"
+  #include "flight/pid.h"
+
+  // Defines and constants
+  #define MAX_VALUE 100
+
+  // Type definitions
+  typedef struct {...} myType_t;
+
+  // Static variables
+  static FAST_DATA_ZERO_INIT pidData_t pid;
+
+  // Static helper functions
+  static void helperFunction(void) {...}
+
+  // Public API functions
+  void publicFunction(void) {...}
+  ```
+
+#### Conditional Compilation
+- Use `#ifdef` for optional features
+- Keep optional code isolated
+- Avoid littering the code with dozens of small blocks in `#ifdef`
+- Verify that the code works with and without the feature
+- Example:
+  ```c
+  #ifdef USE_DSHOT
+      dshotSetPidLoopTime(pidLooptime);
+  #endif
+  ```
+
+
+### Comments and Documentation
+
+#### Comments
+- Use `//` for single-line comments
+- Use `/* */` for multi-line comments
+- Explain complex algorithms or non-obvious logic
+- Comments should provide more information and deeper insight
+- Avoid comments that repeat what can be easily seen from the code
+- Keep comments up-to-date with code changes
+
+
+### Data Types
+
+#### Standard Types
+- Use standard integer types `int` and `unsigned int` whenever the size is not relevant
+- Use fixed-width integer types `uint8_t`, `uint16_t`, `uint32_t`, `int8_t`, `int16_t`, `int32_t`
+  when it is necessary to know or fix the size
+- Use `bool` for boolean values
+- Use `float` for all floating-point variables and operations
+- Use floating point only if the operations can't be performed with integers
+- **MUST** postfix floating point constants with `f`
+  ```c
+  float pi = 3.1414593f;
+  ```
+- **MUST NOT** use `double` - it is not supported
+
+#### Type Safety
+- Use `const` for read-only parameters and variables
+- Prefer not to use pointers if possible
+- Avoid implicit conversions
+- Avoid bitwise operations on signed data types
+
+### Real-time Behaviour and Concurrency
+- Code running in ISRs or timing-critical loops MUST NOT perform blocking operations, logging or dynamic allocation.
+- Shared data accessed from both ISRs and non-ISR code MUST use `volatile` where required and appropriate synchronisation to ensure atomicity and data consistency.
+- Any change to timing, scheduling or critical sections MUST be reviewed for impact on jitter and CPU load.
+
+### Memory Management
+- **ALWAYS** use static allocation - dynamic allocation is not supported
+- Don't use the stack for variables larger than 128 bytes
+
+#### Initialization
+- Initialize variables at declaration when reasonable
+- Use designated initializers for structs and arrays
+- Example:
+  ```c
+  pidProfile_t profile = {
+      .pid_mode = 3,
+      .error_limit = {100, 100, 100}
+  };
+  ```
+
+### Error Handling
+
+#### Defensive Programming
+- Validate function parameters
+- Check return values
+
+#### Return Values
+- Use meaningful return values
+- Use `void` if a function does not return anything meaningful
+- Consider using error codes or status enums rather than plain `bool` or `int`
+
+
+### Compiler Warnings and Code Quality
+
+#### Strict Compilation Standards
+- The project compiles with `-Werror` (treat warnings as errors) to enforce code quality
+- All compiler warnings must be resolved before code can be merged
+- This ensures zero-tolerance for potential bugs and code quality issues
+
+#### Unused Variables (`-Werror=unused-variable`)
+- **Never declare variables that are not used**
+- Common scenarios to watch for:
+  * Variables declared but never read
+  * Buffer declarations that become obsolete after refactoring
+  * Temporary variables left over from debugging
+  * Parameters that are no longer needed after code changes
+
+#### Other Important Warning Flags
+- `-Werror=implicit-function-declaration` - All functions must be properly declared
+- `-Werror=return-type` - All non-void functions must return a value
+- `-Werror=uninitialized` - Variables must be initialized before use
+- `-Werror=format` - Printf-style format strings must match argument types
+
+
+### Change Documentation
+
+#### Changes.md Requirements
+- **All changes to CLI commands must be documented in Changes.md**
+- **All changes to MSP protocol must be documented in Changes.md**
+- **All changes to default values must be documented in Changes.md**
+- Document the change with clear description of what changed and why
+- Include version information when the change was introduced
+- This ensures users and integrators are aware of breaking changes or new features
+
+
+## Code Review Checklist
+
+When writing or reviewing code (human or AI), verify:
+
+- [ ] Uses 4-space indentation (no tabs).
+- [ ] Variables use lowercase_with_underscores.
+- [ ] Macros and constants use UPPERCASE_WITH_UNDERSCORES.
+- [ ] Functions are grouped by subsystem.
+- [ ] All functions have clear, descriptive names.
+- [ ] Complex logic is commented.
+- [ ] No magic numbers (use named constants with units in the name where appropriate).
+- [ ] Correct integer types are used (no unintended signed/unsigned mixing).
+- [ ] Floats are not used unnecessarily, and expensive math is not placed in tight loops without justification.
+- [ ] Memory is managed safely (no dynamic allocation, no large stack allocations).
+- [ ] Error conditions are handled and, where appropriate, surfaced to the user (OSD/MSP/log).
+- [ ] External inputs (CLI, MSP, RC, sensors) are validated and clamped to safe ranges.
+- [ ] Timing and scheduling changes have been reviewed for CPU load and real-time impact.
+- [ ] Changes to CLI/MSP/defaults are documented in `Changes.md`.
+- [ ] For flight-critical changes, the PR description includes testing performed (bench and/or flight) and any remaining risks.
+
+
+## AI Assistant Instructions
+
+Rotorflight is flight-critical software. AI tools (including GitHub CodeRabbit and local Cursor assistants) are helpers only and MUST NOT replace human review and testing.
+
+### General AI Usage
+
+When generating or modifying code for this project (by any AI):
+
+1. **Always follow the rules above**.
+2. **Always follow the naming conventions**:
+   - Variables: lowercase_with_underscores (snake_case)
+   - Functions: camelCase
+   - Constants: UPPERCASE_WITH_UNDERSCORES
+3. **Use 4-space indentation** - Never generate code with tabs.
+4. **Match existing style** - In legacy files, prefer the existing style unless performing a larger refactor.
+5. **Be explicit** - Use clear variable names, avoid abbreviations, add comments for complex or non-obvious logic.
+6. **Prefer minimal, targeted changes** - Avoid huge refactors or broad API changes in a single PR, unless explicitly requested.
+7. **Consider safety first** - Never trade clarity or robustness for small performance wins without explicit human approval.
+
+### AI in GitHub PRs (CodeRabbit)
+
+CodeRabbit is configured as a reviewer on GitHub pull requests. It MUST:
+
+- Focus primarily on:
+  - Correctness, invariants and safety (especially in control loops, sensor fusion, failsafes, arming logic, power paths and timing-sensitive code).
+  - API and behaviour changes (CLI, MSP, defaults) and whether `Changes.md` has been updated.
+  - Overflow, underflow, signed/unsigned issues and time or tick wrap-around.
+  - Concurrency and ISR issues, including timing constraints and shared data access.
+  - Whether the PR stays within its stated scope and does not include unrelated changes.
+- De-prioritise:
+  - Pure style nits in legacy code unless they hide real defects.
+  - Large "nice to have" refactors that go beyond the current PR scope.
+  - Suggestions that expand the scope beyond what the PR description covers.
+- Treat configuration and defaults carefully:
+  - Call out any change in units, ranges or default values.
+  - Ask for explicit confirmation that the new behaviour is intended and documented.
+- Mark reviews as failed if:
+  - CI fails, or the diff strongly suggests compile breakage, undefined behaviour or race conditions.
+  - Required documentation updates are missing (`Changes.md` for CLI/MSP/defaults).
+  - Tests claimed in the PR description are clearly inconsistent with the changes.
+
+### AI in Local Development (Cursor)
+
+When using Cursor locally:
+
+- Ask Cursor to:
+  - Explain existing logic, control-theory implications and data flows.
+  - Suggest small, well-scoped code improvements or safer patterns.
+  - Help reason about error-handling paths and edge cases.
+- Do not:
+  - Blindly accept large diffs from Cursor for flight-critical code without careful manual review.
+  - Merge AI-generated changes that:
+    - Introduce new dependencies or change build flags,
+    - Add dynamic memory allocation,
+    - Alter timing-critical loops,
+    - Change control gains or tuning defaults,
+    without explicit human design and testing.
+- After using Cursor to edit code, the human developer MUST:
+  - Re-run all relevant builds and tests.
+  - Manually scan the diff against the checklist above.
+  - For flight-critical changes, perform bench and flight testing before enabling the change by default.
+

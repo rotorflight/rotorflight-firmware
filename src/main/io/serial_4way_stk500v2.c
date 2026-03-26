@@ -46,7 +46,7 @@
 
 static uint8_t StkInBuf[16];
 
-#define STK_BIT_TIMEOUT 250 // micro seconds
+#define STK_BIT_TIMEOUT 500 // micro seconds
 #define STK_WAIT_TICKS (1000 / STK_BIT_TIMEOUT)    // per ms
 #define STK_WAITCYLCES (STK_WAIT_TICKS * 35)       // 35ms
 #define STK_WAITCYLCES_START (STK_WAIT_TICKS / 2)  // 0.5 ms

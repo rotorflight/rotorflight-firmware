@@ -798,7 +798,7 @@ static void osdElementCurrentDraw(osdElementParms_t *element)
 
 static void osdElementDebug(osdElementParms_t *element)
 {
-    tfp_sprintf(element->buff, "DBG %5d %5d %5d %5d", debug[0], debug[1], debug[2], debug[3]);
+    tfp_sprintf(element->buff, "DBG %5d %5d %5d %5d", (int)debug[0], (int)debug[1], (int)debug[2], (int)debug[3]);
 }
 
 static void osdElementDisarmed(osdElementParms_t *element)
@@ -828,7 +828,7 @@ static void osdBackgroundDisplayName(osdElementParms_t *element)
 #ifdef USE_PERSISTENT_STATS
 static void osdElementTotalFlights(osdElementParms_t *element)
 {
-    const int32_t total_flights = statsConfig()->stats_total_flights;
+    const int total_flights = statsConfig()->stats_total_flights;
     tfp_sprintf(element->buff, "#%d", total_flights);
 }
 #endif
@@ -1011,7 +1011,7 @@ static void osdElementGpsSats(osdElementParms_t *element)
 static void osdElementGpsSpeed(osdElementParms_t *element)
 {
     if (STATE(GPS_FIX)) {
-        tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, osdGetSpeedToSelectedUnit(gpsConfig()->gps_use_3d_speed ? gpsSol.speed3d : gpsSol.groundSpeed), osdGetSpeedToSelectedUnitSymbol());
+        tfp_sprintf(element->buff, "%c%3d%c", SYM_SPEED, (int)osdGetSpeedToSelectedUnit(gpsConfig()->gps_use_3d_speed ? gpsSol.speed3d : gpsSol.groundSpeed), osdGetSpeedToSelectedUnitSymbol());
     } else {
         tfp_sprintf(element->buff, "%c%c%c", SYM_SPEED, SYM_HYPHEN, osdGetSpeedToSelectedUnitSymbol());
     }
@@ -1096,7 +1096,7 @@ static void osdElementLogStatus(osdElementParms_t *element)
         } else {
             int32_t logNumber = blackboxGetLogNumber();
             if (logNumber >= 0) {
-                tfp_sprintf(element->buff, "%c%d", SYM_BBLOG, logNumber);
+                tfp_sprintf(element->buff, "%c%d", SYM_BBLOG, (int)logNumber);
             } else {
                 tfp_sprintf(element->buff, "%c", SYM_BBLOG);
             }
@@ -1107,7 +1107,7 @@ static void osdElementLogStatus(osdElementParms_t *element)
 
 static void osdElementMahDrawn(osdElementParms_t *element)
 {
-    tfp_sprintf(element->buff, "%4d%c", getBatteryCapacityUsed(), SYM_MAH);
+    tfp_sprintf(element->buff, "%4u%c", (uint)getBatteryCapacityUsed(), SYM_MAH);
 }
 
 static void osdElementMainBatteryUsage(osdElementParms_t *element)
@@ -1117,24 +1117,25 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
 
     const int usedCapacity = getBatteryCapacityUsed();
     int displayBasis = usedCapacity;
+    const uint16_t battery_capacity = getBatteryCapacity();
 
     switch (element->type) {
     case OSD_ELEMENT_TYPE_3:  // mAh remaining percentage (counts down as battery is used)
-        displayBasis = constrain(batteryConfig()->batteryCapacity - usedCapacity, 0, batteryConfig()->batteryCapacity);
+        displayBasis = constrain(battery_capacity - usedCapacity, 0, battery_capacity);
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_4:  // mAh used percentage (counts up as battery is used)
         {
             int displayPercent = 0;
-            if (batteryConfig()->batteryCapacity) {
-                displayPercent = constrain(lrintf(100.0f * displayBasis / batteryConfig()->batteryCapacity), 0, 100);
+            if (battery_capacity) {
+                displayPercent = constrain(lrintf(100.0f * displayBasis / battery_capacity), 0, 100);
             }
             tfp_sprintf(element->buff, "%c%d%%", SYM_MAH, displayPercent);
             break;
         }
 
     case OSD_ELEMENT_TYPE_2:  // mAh used graphical progress bar (grows as battery is used)
-        displayBasis = constrain(batteryConfig()->batteryCapacity - usedCapacity, 0, batteryConfig()->batteryCapacity);
+        displayBasis = constrain(battery_capacity - usedCapacity, 0, battery_capacity);
         FALLTHROUGH;
 
     case OSD_ELEMENT_TYPE_1:  // mAh remaining graphical progress bar (shrinks as battery is used)
@@ -1142,9 +1143,9 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
         {
             uint8_t remainingCapacityBars = 0;
 
-            if (batteryConfig()->batteryCapacity) {
-                const float batteryRemaining = constrain(batteryConfig()->batteryCapacity - displayBasis, 0, batteryConfig()->batteryCapacity);
-                remainingCapacityBars = ceilf((batteryRemaining / (batteryConfig()->batteryCapacity / MAIN_BATT_USAGE_STEPS)));
+            if (battery_capacity >= MAIN_BATT_USAGE_STEPS) {
+                const float batteryRemaining = constrain(battery_capacity - displayBasis, 0, battery_capacity);
+                remainingCapacityBars = ceilf((batteryRemaining / (battery_capacity / MAIN_BATT_USAGE_STEPS)));
             }
 
             // Create empty battery indicator bar

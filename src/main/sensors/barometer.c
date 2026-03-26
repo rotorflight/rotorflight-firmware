@@ -36,6 +36,7 @@
 #include "drivers/barometer/barometer_bmp085.h"
 #include "drivers/barometer/barometer_bmp280.h"
 #include "drivers/barometer/barometer_bmp388.h"
+#include "drivers/barometer/barometer_bmp581.h"
 #include "drivers/barometer/barometer_dps310.h"
 #include "drivers/barometer/barometer_qmp6988.h"
 #include "drivers/barometer/barometer_fake.h"
@@ -91,7 +92,7 @@ bool baroDetect(baroDev_t *baroDev, baroSensor_e baroHardwareToUse)
 
     baroSensor_e baroHardware = baroHardwareToUse;
 
-#if !defined(USE_BARO_BMP085) && !defined(USE_BARO_MS5611) && !defined(USE_BARO_SPI_MS5611) && !defined(USE_BARO_BMP388) && !defined(USE_BARO_BMP280) && !defined(USE_BARO_SPI_BMP280)&& !defined(USE_BARO_QMP6988) && !defined(USE_BARO_SPI_QMP6988) && !defined(USE_BARO_DPS310) && !defined(USE_BARO_SPI_DPS310)
+#if !defined(USE_BARO_BMP085) && !defined(USE_BARO_MS5611) && !defined(USE_BARO_SPI_MS5611) && !defined(USE_BARO_BMP388) && !defined(USE_BARO_BMP280) && !defined(USE_BARO_SPI_BMP280)&& !defined(USE_BARO_QMP6988) && !defined(USE_BARO_SPI_QMP6988) && !defined(USE_BARO_DPS310) && !defined(USE_BARO_SPI_DPS310) && !defined(USE_BARO_BMP581) && !defined(USE_BARO_SPI_BMP581)
     UNUSED(dev);
 #endif
 
@@ -180,6 +181,23 @@ bool baroDetect(baroDev_t *baroDev, baroSensor_e baroHardwareToUse)
 
             if (bmp388Detect(bmp388Config, baroDev)) {
                 baroHardware = BARO_BMP388;
+                break;
+            }
+        }
+#endif
+        FALLTHROUGH;
+
+    case BARO_BMP581:
+#if defined(USE_BARO_BMP581) || defined(USE_BARO_SPI_BMP581)
+        {
+            static bmp581Config_t defaultBMP581Config;
+
+            defaultBMP581Config.eocTag = barometerConfig()->baro_eoc_tag;
+
+            static const bmp581Config_t *bmp581Config = &defaultBMP581Config;
+
+            if (bmp581Detect(bmp581Config, baroDev)) {
+                baroHardware = BARO_BMP581;
                 break;
             }
         }

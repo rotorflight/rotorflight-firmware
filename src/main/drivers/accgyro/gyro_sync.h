@@ -31,3 +31,4 @@
 
 bool gyroSyncCheckUpdate(gyroDev_t *gyro);
 void gyroSetSampleRate(gyroDev_t *gyro);
+bool gyroExternalClockInit(const extDevice_t *dev, uint32_t clockFreq);

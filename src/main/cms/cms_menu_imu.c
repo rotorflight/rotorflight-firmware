@@ -288,9 +288,9 @@ static const OSD_Entry cmsx_menuRateProfileEntries[] =
     { "RC P RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_PITCH], 1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1}},
     { "RC Y RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_YAW],   1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
 
-    { "ROLL SUPER",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rates[FD_ROLL],    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
-    { "PITCH SUPER", OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rates[FD_PITCH],   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
-    { "YAW SUPER",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rates[FD_YAW],     0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "ROLL SUPER",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_ROLL],    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "PITCH SUPER", OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_PITCH],   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "YAW SUPER",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_YAW],     0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
 
     { "RC R EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_ROLL],   0, 100, 1 }},
     { "RC P EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_PITCH],  0, 100, 1 }},

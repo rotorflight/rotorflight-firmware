@@ -1356,6 +1356,7 @@ static void loadMainState(timeUs_t currentTimeUs)
 
     blackboxCurrent->mcu_temp = getCoreTemperatureCelsius();
 
+#ifdef USE_ESC_SENSOR
     escSensorData_t *escData = getEscSensorData(0);
     if (escData && escData->age <= ESC_BATTERY_AGE_MAX) {
         blackboxCurrent->esc_voltage = escData->voltage / 10;
@@ -1397,6 +1398,7 @@ static void loadMainState(timeUs_t currentTimeUs)
         blackboxCurrent->esc2_temp = 0;
         blackboxCurrent->esc2_rpm = 0;
     }
+#endif
 
     blackboxCurrent->headspeed = getHeadSpeed();
     blackboxCurrent->tailspeed = getTailSpeed();
@@ -1640,7 +1642,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_RATES_TYPE, "%d",             currentControlRateProfile->rates_type);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_rates", "%d", 3,                    currentControlRateProfile->rcRates);
         BLACKBOX_PRINT_HEADER_ARRAY("rc_expo", "%d", 3,                     currentControlRateProfile->rcExpo);
-        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->rates);
+        BLACKBOX_PRINT_HEADER_ARRAY("rates", "%d", 3,                       currentControlRateProfile->sRates);
         BLACKBOX_PRINT_HEADER_ARRAY("response_time", "%d", 3,               currentControlRateProfile->response_time);
         BLACKBOX_PRINT_HEADER_ARRAY("accel_limit", "%d", 3,                 currentControlRateProfile->accel_limit);
 

@@ -54,3 +54,17 @@ uint8_t esc4wayInit(void);
 struct serialPort_s;
 void esc4wayProcess(struct serialPort_s *mspPort);
 void esc4wayRelease(void);
+/*
+ * fwifCmd* functions implement the low-level firmware-interface (FWIF)
+ * used by the 4-way serial/bootloader code. They are not part of the
+ * public `esc4way*` API surface; the `fwifCmd` prefix indicates these
+ * helpers perform direct device/bootloader commands (init/read/write)
+ * which are called from the `esc4way` layer. Keeping this prefix makes
+ * the difference between higher-level `esc4way*` and lower-level FWIF
+ * functions explicit for readers and maintainers.
+ */
+uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx);
+bool fwifCmdDevicePageErase(uint8_t page);
+bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr);
+bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t addr);
+void esc4wayDeinit(void);
