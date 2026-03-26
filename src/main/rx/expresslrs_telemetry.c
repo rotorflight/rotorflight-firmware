@@ -89,28 +89,6 @@ static void telemetrySenderResetState(void)
     bytesPerCall = 1;
 }
 
-static void updateTelemetrySensorMask(void)
-{
-    tlmSensors = 0;
-
-    if (sensors(SENSOR_ACC) && telemetryIsSensorEnabled(SENSOR_PITCH | SENSOR_ROLL | SENSOR_HEADING)) {
-        tlmSensors |= BIT(CRSF_FRAME_ATTITUDE_INDEX);
-    }
-    if ((isBatteryVoltageConfigured() && telemetryIsSensorEnabled(SENSOR_VOLTAGE))
-        || (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
-        tlmSensors |= BIT(CRSF_FRAME_BATTERY_SENSOR_INDEX);
-    }
-    if (telemetryIsSensorEnabled(SENSOR_MODE)) {
-        tlmSensors |= BIT(CRSF_FRAME_FLIGHT_MODE_INDEX);
-    }
-#ifdef USE_GPS
-    if (featureIsEnabled(FEATURE_GPS)
-       && telemetryIsSensorEnabled(SENSOR_ALTITUDE | SENSOR_LAT_LONG | SENSOR_GROUND_SPEED | SENSOR_HEADING)) {
-        tlmSensors |= BIT(CRSF_FRAME_GPS_INDEX);
-    }
-#endif
-}
-
 /***
  * Queues a message to send, will abort the current message if one is currently being transmitted
  ***/
@@ -345,7 +323,22 @@ void initTelemetry(void)
         return;
     }
 
-    updateTelemetrySensorMask();
+    if (sensors(SENSOR_ACC) && telemetryIsSensorEnabled(SENSOR_PITCH | SENSOR_ROLL | SENSOR_HEADING)) {
+        tlmSensors |= BIT(CRSF_FRAME_ATTITUDE_INDEX);
+    }
+    if ((isBatteryVoltageConfigured() && telemetryIsSensorEnabled(SENSOR_VOLTAGE))
+        || (isBatteryCurrentConfigured() && telemetryIsSensorEnabled(SENSOR_CURRENT | SENSOR_FUEL))) {
+        tlmSensors |= BIT(CRSF_FRAME_BATTERY_SENSOR_INDEX);
+    }
+    if (telemetryIsSensorEnabled(SENSOR_MODE)) {
+        tlmSensors |= BIT(CRSF_FRAME_FLIGHT_MODE_INDEX);
+    }
+#ifdef USE_GPS
+    if (featureIsEnabled(FEATURE_GPS)
+       && telemetryIsSensorEnabled(SENSOR_ALTITUDE | SENSOR_LAT_LONG | SENSOR_GROUND_SPEED | SENSOR_HEADING)) {
+        tlmSensors |= BIT(CRSF_FRAME_GPS_INDEX);
+    }
+#endif
 
     telemetrySenderResetState();
 #ifdef USE_MSP_OVER_TELEMETRY
@@ -355,8 +348,6 @@ void initTelemetry(void)
 
 bool getNextTelemetryPayload(uint8_t *nextPayloadSize, uint8_t **payloadData)
 {
-    updateTelemetrySensorMask();
-
 #ifdef USE_MSP_OVER_TELEMETRY
     if (deviceInfoReplyPending) {
         *nextPayloadSize = getCrsfFrame(tlmBuffer, CRSF_FRAMETYPE_DEVICE_INFO);
