@@ -236,17 +236,11 @@ void voltageSensorFBUSRefresh(void)
 #ifdef USE_FBUS_MASTER
     voltageSensorState_t *state = &voltageFBUSSensor;
     fbusCurrentData_t fbusCurrent;
-    fbusEscData_t fbusEsc;
 
     fbusSensorGetCurrentData(&fbusCurrent);
-    fbusSensorGetEscData(&fbusEsc);
 
     if (fbusSensorHasCurrentData() && fbusCurrent.hasVoltage) {
         state->sample = fbusCurrent.voltageCentiVolts * 10U;
-        state->voltage = filterApply(&state->filter, state->sample);
-        state->enabled = true;
-    } else if (fbusSensorHasEscData() && fbusEsc.hasPower) {
-        state->sample = (uint32_t)fbusEsc.voltageCentiVolts * 10U;
         state->voltage = filterApply(&state->filter, state->sample);
         state->enabled = true;
     } else {
