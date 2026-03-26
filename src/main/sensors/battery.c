@@ -571,8 +571,10 @@ void batteryInit(void)
     currentSensorESCInit();
 #endif
 
+#ifdef USE_FBUS_MASTER
     voltageSensorFBUSInit();
     currentSensorFBUSInit();
+#endif
 
     lowpassFilterInit(&voltageFilter, LPF_DAMPED,
         batteryConfig()->vbatLpfHz,
