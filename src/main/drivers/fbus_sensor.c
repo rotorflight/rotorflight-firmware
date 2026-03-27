@@ -26,6 +26,7 @@
 
 #include "common/maths.h"
 #include "config/feature.h"
+#include "drivers/nvic.h"
 #include "drivers/time.h"
 #include "io/gps.h"
 
@@ -265,8 +266,7 @@ void fbusSensorInitForwarding(void)
 
     // Initialize buffer for each configured forwarded sensor
     for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
-        uint8_t physicalId = fbusMasterConfig()->forwardedSensors[i];
-        forwardBuffers[i].physicalId = (physicalId <= FBUS_MAX_PHYS_ID) ? physicalId : FBUS_INVALID_PHYSICAL_ID;
+        forwardBuffers[i].physicalId = fbusMasterConfig()->forwardedSensors[i];
         forwardBuffers[i].writeIndex = 0;
         forwardBuffers[i].readIndex = 0;
         forwardBuffers[i].count = 0;
@@ -277,7 +277,7 @@ void fbusSensorInitForwarding(void)
 bool fbusSensorIsForwarded(uint8_t physicalId)
 {
     for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
-        if (forwardBuffers[i].physicalId <= FBUS_MAX_PHYS_ID && forwardBuffers[i].physicalId == physicalId) {
+        if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return true;
         }
     }
@@ -287,7 +287,7 @@ bool fbusSensorIsForwarded(uint8_t physicalId)
 static fbusSensorForwardBuffer_t* getForwardBuffer(uint8_t physicalId)
 {
     for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
-        if (forwardBuffers[i].physicalId <= FBUS_MAX_PHYS_ID && forwardBuffers[i].physicalId == physicalId) {
+        if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return &forwardBuffers[i];
         }
     }
