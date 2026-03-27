@@ -232,12 +232,10 @@ void voltageSensorFBUSRefresh(void)
 {
 #ifdef USE_FBUS_MASTER
     voltageSensorState_t *state = &voltageFBUSSensor;
-    fbusCurrentData_t fbusCurrent;
+    uint32_t voltageCentiVolts = 0;
 
-    fbusSensorGetCurrentData(&fbusCurrent);
-
-    if (fbusSensorHasCurrentData() && fbusCurrent.hasVoltage) {
-        state->sample = fbusCurrent.voltageCentiVolts * 10U;
+    if (fbusSensorGetBatteryVoltageCentiVolts(&voltageCentiVolts)) {
+        state->sample = voltageCentiVolts * 10U;
         state->voltage = filterApply(&state->filter, state->sample);
         state->enabled = true;
     } else {

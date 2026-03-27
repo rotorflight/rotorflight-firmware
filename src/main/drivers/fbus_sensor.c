@@ -66,6 +66,18 @@ static fbusServoData_t fbusServo;
 static fbusCurrentData_t fbusCurrent;
 static fbusEscData_t fbusEsc;
 
+#define FBUS_FLVSS_MAX_CELLS 8
+
+typedef struct {
+    uint16_t cellVoltageCentiVolts[FBUS_FLVSS_MAX_CELLS];
+    uint32_t voltageCentiVolts;
+    uint8_t cellCount;
+    bool hasVoltage;
+    timeUs_t lastUpdateUs;
+} fbusFlvssData_t;
+
+static fbusFlvssData_t fbusFlvss;
+
 #define FBUS_SENSOR_CACHE_SIZE 32
 static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
 static uint8_t sensorCacheIndex = 0;
@@ -79,6 +91,7 @@ void fbusSensorInit(void)
     memset(&fbusServo, 0, sizeof(fbusServoData_t));
     memset(&fbusCurrent, 0, sizeof(fbusCurrentData_t));
     memset(&fbusEsc, 0, sizeof(fbusEscData_t));
+    memset(&fbusFlvss, 0, sizeof(fbusFlvssData_t));
     memset(sensorCache, 0, sizeof(sensorCache));
     sensorCacheIndex = 0;
     memset(observedSensors, 0, sizeof(observedSensors));
@@ -174,6 +187,37 @@ void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltag
     *temperature = ((fbusData & FBUS_SERVO_TEMP_MASK) >> 16);
 }
 
+static uint16_t fbusFlvssConvertCellVoltage(uint16_t rawVoltage)
+{
+    return (rawVoltage + 2U) / 5U;
+}
+
+static void fbusFlvssUpdatePackVoltage(void)
+{
+    if (fbusFlvss.cellCount == 0 || fbusFlvss.cellCount > FBUS_FLVSS_MAX_CELLS) {
+        fbusFlvss.voltageCentiVolts = 0;
+        fbusFlvss.hasVoltage = false;
+        return;
+    }
+
+    uint32_t totalVoltageCentiVolts = 0;
+
+    for (uint8_t cellIndex = 0; cellIndex < fbusFlvss.cellCount; cellIndex++) {
+        const uint16_t cellVoltage = fbusFlvss.cellVoltageCentiVolts[cellIndex];
+
+        if (cellVoltage == 0) {
+            fbusFlvss.voltageCentiVolts = 0;
+            fbusFlvss.hasVoltage = false;
+            return;
+        }
+
+        totalVoltageCentiVolts += cellVoltage;
+    }
+
+    fbusFlvss.voltageCentiVolts = totalVoltageCentiVolts;
+    fbusFlvss.hasVoltage = true;
+}
+
 static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
 {
     // FrSky S.Port protocol: Application ID and physical ID are independent.
@@ -200,6 +244,10 @@ static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
         (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) ||
         (appId >= FBUS_ESC_TEMP_BASE && appId <= (FBUS_ESC_TEMP_BASE + 0x0F))) {
         return FBUS_DETECTED_SENSOR_ESC;
+    }
+
+    if (appId >= FBUS_FLVSS_VOLTAGE_BASE && appId <= (FBUS_FLVSS_VOLTAGE_BASE + 0x0F)) {
+        return FBUS_DETECTED_SENSOR_FLVSS;
     }
 
     // FAS current/voltage sensor signatures seen in field captures and FrSky IDs:
@@ -456,6 +504,36 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
         return false;
     }
 
+    if (detectedType == FBUS_DETECTED_SENSOR_FLVSS) {
+        if (appId >= FBUS_FLVSS_VOLTAGE_BASE && appId <= (FBUS_FLVSS_VOLTAGE_BASE + 0x0F)) {
+            const uint8_t cellBaseIndex = data & 0x0FU;
+            const uint8_t totalCellCount = (data >> 4) & 0x0FU;
+            const uint16_t firstCellRaw = (data >> 8) & 0x0FFFU;
+            const uint16_t secondCellRaw = (data >> 20) & 0x0FFFU;
+
+            if (cellBaseIndex >= FBUS_FLVSS_MAX_CELLS || (cellBaseIndex & 0x01U) || totalCellCount == 0 || totalCellCount > FBUS_FLVSS_MAX_CELLS) {
+                return false;
+            }
+
+            if (fbusFlvss.cellCount != totalCellCount) {
+                memset(fbusFlvss.cellVoltageCentiVolts, 0, sizeof(fbusFlvss.cellVoltageCentiVolts));
+            }
+
+            fbusFlvss.cellCount = totalCellCount;
+            fbusFlvss.cellVoltageCentiVolts[cellBaseIndex] = fbusFlvssConvertCellVoltage(firstCellRaw);
+
+            if ((cellBaseIndex + 1U) < totalCellCount) {
+                fbusFlvss.cellVoltageCentiVolts[cellBaseIndex + 1U] = fbusFlvssConvertCellVoltage(secondCellRaw);
+            }
+
+            fbusFlvss.lastUpdateUs = currentTimeUs;
+            fbusFlvssUpdatePackVoltage();
+            return true;
+        }
+
+        return false;
+    }
+
     if (detectedType == FBUS_DETECTED_SENSOR_ESC) {
         // ESC_POWER 0x0B50~0x0B5F:
         // bits 0..15 voltage (V/100), bits 16..31 current (A/100)
@@ -517,6 +595,13 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusEsc.hasPower = false;
         fbusEsc.hasRpmConsumption = false;
         fbusEsc.hasTemperature = false;
+    }
+
+    if (fbusFlvss.lastUpdateUs > 0 && (currentTimeUs - fbusFlvss.lastUpdateUs) > 1000000) {
+        memset(fbusFlvss.cellVoltageCentiVolts, 0, sizeof(fbusFlvss.cellVoltageCentiVolts));
+        fbusFlvss.voltageCentiVolts = 0;
+        fbusFlvss.cellCount = 0;
+        fbusFlvss.hasVoltage = false;
     }
 
 #ifdef USE_GPS
@@ -619,6 +704,24 @@ bool fbusSensorHasCurrentData(void)
     return false;
 }
 
+bool fbusSensorGetBatteryVoltageCentiVolts(uint32_t *voltageCentiVolts)
+{
+    const timeUs_t currentTimeUs = micros();
+    const bool hasCurrentVoltage = fbusCurrent.hasVoltage
+        && fbusCurrent.lastUpdateUs > 0
+        && (currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000;
+    const bool hasFlvssVoltage = fbusFlvss.hasVoltage
+        && fbusFlvss.lastUpdateUs > 0
+        && (currentTimeUs - fbusFlvss.lastUpdateUs) < 1000000;
+
+    if (voltageCentiVolts) {
+        *voltageCentiVolts = hasCurrentVoltage ? fbusCurrent.voltageCentiVolts
+            : (hasFlvssVoltage ? fbusFlvss.voltageCentiVolts : 0);
+    }
+
+    return hasCurrentVoltage || hasFlvssVoltage;
+}
+
 void fbusSensorGetEscData(fbusEscData_t *escData)
 {
     if (escData) {
@@ -672,6 +775,8 @@ const char* fbusSensorGetName(uint8_t physicalId)
                 return "ESC";
             case FBUS_DETECTED_SENSOR_FAS_150S:
                 return "FAS_150S";
+            case FBUS_DETECTED_SENSOR_FLVSS:
+                return "FLVSS";
             case FBUS_DETECTED_SENSOR_XACT_SERVO:
                 return "XACT_SERVO";
             case FBUS_DETECTED_SENSOR_UNKNOWN:

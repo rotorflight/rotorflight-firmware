@@ -83,6 +83,10 @@ typedef enum {
     FBUS_HIGH_PREC_CURRENT_BASE = 0x0220,  // 0x0220~0x022F, Current (A/1000)
 } fbusCurrentDataId_e;
 
+typedef enum {
+    FBUS_FLVSS_VOLTAGE_BASE     = 0x0300,  // 0x0300~0x030F, Packed cell voltages (V/500)
+} fbusFlvssDataId_e;
+
 // FBUS ESC Data IDs
 typedef enum {
     FBUS_ESC_POWER_BASE         = 0x0B50,  // 0x0B50~0x0B5F, ESC V/C
@@ -196,6 +200,7 @@ void fbusSensorGetServoData(fbusServoData_t *servoData);
 bool fbusSensorHasServoData(void);
 void fbusSensorGetCurrentData(fbusCurrentData_t *currentData);
 bool fbusSensorHasCurrentData(void);
+bool fbusSensorGetBatteryVoltageCentiVolts(uint32_t *voltageCentiVolts);
 void fbusSensorGetEscData(fbusEscData_t *escData);
 bool fbusSensorHasEscData(void);
 
@@ -217,6 +222,7 @@ typedef enum {
     FBUS_DETECTED_SENSOR_GPS,
     FBUS_DETECTED_SENSOR_ESC,
     FBUS_DETECTED_SENSOR_FAS_150S,
+    FBUS_DETECTED_SENSOR_FLVSS,
     FBUS_DETECTED_SENSOR_XACT_SERVO,
 } fbusDetectedSensorType_e;
 
