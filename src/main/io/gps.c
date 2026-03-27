@@ -786,6 +786,9 @@ void gpsUpdate(timeUs_t currentTimeUs)
     if (GPS_update & GPS_MSP_UPDATE) {
         if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) {
             gpsSetState(GPS_STATE_RECEIVING_DATA);
+            if (gpsUsesFbusTransport()) {
+                sensorsSet(SENSOR_GPS);
+            }
             onGpsNewData();
         }
         GPS_update &= ~GPS_MSP_UPDATE;

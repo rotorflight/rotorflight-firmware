@@ -26,6 +26,7 @@
 
 #include "common/maths.h"
 #include "config/feature.h"
+#include "fc/runtime_config.h"
 #include "drivers/nvic.h"
 #include "drivers/time.h"
 #include "io/gps.h"
@@ -33,6 +34,7 @@
 #include "scheduler/scheduler.h"
 
 #include "drivers/fbus_sensor.h"
+#include "sensors/sensors.h"
 
 #ifdef USE_FBUS_MASTER
 
@@ -542,6 +544,7 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
             gpsSetFixState(true);
             GPS_update |= GPS_MSP_UPDATE;
         } else {
+            sensorsClear(SENSOR_GPS);
             gpsSetFixState(false);
             gpsSol.numSat = 0;
         }
@@ -684,4 +687,3 @@ const char* fbusSensorGetName(uint8_t physicalId)
 }
 
 #endif // USE_FBUS_MASTER
-
