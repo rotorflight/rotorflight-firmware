@@ -241,7 +241,7 @@ the actual values are calculated automatically (#332).
 
 `fbus_master_frame_rate` defaults to 500 Hz.
 
-`fbus_master_pinswap` defaults to OFF (0).
+`fbus_master_pinswap` defaults to ON (1).
 
 `fbus_master_inverted` defaults to ON (SERIAL_INVERTED), which is the standard for FBUS receivers.
 

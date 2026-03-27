@@ -28,7 +28,8 @@ PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 500;
-    config->pinSwap = 0;
+    // Default to swapped TX/RX pins for the FBUS master serial port.
+    config->pinSwap = 1;
     // Default to inverted F.Bus (normal for F.Bus receivers).
     config->inverted = 1;
 }
