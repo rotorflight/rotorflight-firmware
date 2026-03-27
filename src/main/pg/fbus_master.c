@@ -27,7 +27,7 @@
 #ifdef USE_FBUS_MASTER
 
 PG_REGISTER_WITH_RESET_FN(fbusMasterConfig_t, fbusMasterConfig,
-                          PG_DRIVER_FBUS_MASTER_CONFIG, 7);
+                          PG_DRIVER_FBUS_MASTER_CONFIG, 5);
 
 void pgResetFn_fbusMasterConfig(fbusMasterConfig_t *config) {
     config->frameRate = 500;
