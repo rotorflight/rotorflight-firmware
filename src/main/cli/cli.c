@@ -5056,8 +5056,8 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     
     cliPrintLinefeed();
     cliPrintLine("Observed FBUS Sensors:");
-    cliPrintLine("Physical ID | Sensor Name       | App IDs                                   | Packets");
-    cliPrintLine("----------- | ----------------- | ----------------------------------------- | -------");
+    cliPrintLine("Physical ID | Sensor Name       | Forwarded | App IDs                                   | Packets");
+    cliPrintLine("----------- | ----------------- | --------- | ----------------------------------------- | -------");
     
     for (uint8_t i = 0; i < count; i++) {
         const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
@@ -5083,6 +5083,14 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
             cliPrint(" ");
         }
         cliPrint(" | ");
+
+        // Print forwarded status in a fixed-width column
+        const char *forwardedStatus = fbusSensorIsForwarded(sensor->physicalId) ? "yes" : "no";
+        cliPrintf("%s", forwardedStatus);
+        const int forwardedStatusLen = (int)strlen(forwardedStatus);
+        for (int k = forwardedStatusLen; k < 9; k++) {
+            cliPrint(" ");
+        }
 
         // Build app ID list and align to a fixed-width column
         char appIdList[96];
@@ -5119,6 +5127,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
             }
         }
 
+        cliPrint(" | ");
         cliPrintf("%s", appIdList);
         const int appIdLen = (int)strlen(appIdList);
         for (int k = appIdLen; k < 41; k++) {
