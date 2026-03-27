@@ -50,7 +50,6 @@ void voltageSensorFBUSInit(void);
 void voltageSensorFBUSRefresh(void);
 bool voltageSensorFBUSRead(voltageMeter_t *voltageMeter);
 
-
 //
 // Voltage Meter API
 //

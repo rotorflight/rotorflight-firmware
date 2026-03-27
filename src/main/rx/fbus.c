@@ -33,6 +33,7 @@
 #include "common/utils.h"
 
 #include "drivers/time.h"
+#include "drivers/fbus_sensor.h"
 
 #ifdef MSP_FIRMWARE_UPDATE__WARNING_DEAD_CODE__
 #include "fc/firmware_update.h"
@@ -51,10 +52,7 @@
 #include "rx/sbus_channels.h"
 #include "rx/fbus.h"
 
-#ifdef USE_TELEMETRY_SMARTPORT
-#include "drivers/fbus_sensor.h"
 #include "pg/fbus_master.h"
-#endif
 
 #define FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US 500
 #define FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US 3000

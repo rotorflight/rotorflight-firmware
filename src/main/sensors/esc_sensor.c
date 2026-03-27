@@ -190,7 +190,6 @@ bool isEscSensorActive(void)
         return true;
     }
 #endif
-
     return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 

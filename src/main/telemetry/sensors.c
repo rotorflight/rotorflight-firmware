@@ -64,7 +64,6 @@
 #include "pg/fbus_master.h"
 #endif
 
-
 /** Sensor functions **/
 
 static int getVoltage(voltageMeterId_e id)
@@ -151,7 +150,6 @@ static int getFbusSensorValue(uint8_t sensorIndex)
     return 0;
 }
 #endif
-
 
 int telemetrySensorValue(sensor_id_e id)
 {
@@ -393,7 +391,6 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_FBUS_SENSOR_8:
             return getFbusSensorValue(7);
 #endif
-
         default:
             return 0;
     }

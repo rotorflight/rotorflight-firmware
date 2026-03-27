@@ -173,9 +173,7 @@ typedef enum
     TELEM_FBUS_SENSOR_6                 = 115,
     TELEM_FBUS_SENSOR_7                 = 116,
     TELEM_FBUS_SENSOR_8                 = 117,
-
     TELEM_SENSOR_COUNT
-
 } sensor_id_e;
 
 
@@ -215,7 +213,6 @@ bool telemetrySensorActive(sensor_id_e id);
 #ifdef USE_FBUS_MASTER
 uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id);
 #endif
-
 
 /** Legacy sensors **/
 

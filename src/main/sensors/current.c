@@ -256,9 +256,7 @@ void currentSensorFBUSInit(void)
         batteryConfig()->ibatLpfHz,
         batteryConfig()->ibatUpdateHz, 0);
 }
-
 #endif
-
 
 //
 // API for current meters using IDs
