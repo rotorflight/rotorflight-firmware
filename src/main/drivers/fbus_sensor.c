@@ -19,6 +19,8 @@
 
 #include "platform.h"
 
+#include "build/atomic.h"
+
 #include "pg/fbus_master.h"
 #include "pg/gps.h"
 
@@ -344,11 +346,11 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
 bool fbusSensorNeedsStartupFrame(uint8_t physicalId)
 {
     fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
-    if (!buffer) {
-        return false;
+    if (buffer) {
+        return !buffer->startupFrameSent;
     }
-    
-    return !buffer->startupFrameSent;
+
+    return false;
 }
 
 void fbusSensorMarkStartupFrameSent(uint8_t physicalId)
@@ -550,7 +552,9 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
 void fbusSensorGetGpsData(fbusGpsData_t *gpsData)
 {
     if (gpsData) {
-        memcpy(gpsData, &fbusGps, sizeof(fbusGpsData_t));
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(gpsData, &fbusGps, sizeof(fbusGpsData_t));
+        }
     }
 }
 
@@ -570,7 +574,9 @@ bool fbusSensorHasGpsData(void)
 void fbusSensorGetServoData(fbusServoData_t *servoData)
 {
     if (servoData) {
-        memcpy(servoData, &fbusServo, sizeof(fbusServoData_t));
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(servoData, &fbusServo, sizeof(fbusServoData_t));
+        }
     }
 }
 
@@ -590,7 +596,9 @@ bool fbusSensorHasServoData(void)
 void fbusSensorGetCurrentData(fbusCurrentData_t *currentData)
 {
     if (currentData) {
-        memcpy(currentData, &fbusCurrent, sizeof(fbusCurrentData_t));
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(currentData, &fbusCurrent, sizeof(fbusCurrentData_t));
+        }
     }
 }
 
@@ -611,7 +619,9 @@ bool fbusSensorHasCurrentData(void)
 void fbusSensorGetEscData(fbusEscData_t *escData)
 {
     if (escData) {
-        memcpy(escData, &fbusEsc, sizeof(fbusEscData_t));
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(escData, &fbusEsc, sizeof(fbusEscData_t));
+        }
     }
 }
 
