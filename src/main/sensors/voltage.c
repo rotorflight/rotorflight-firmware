@@ -31,10 +31,7 @@
 #include "config/config_reset.h"
 
 #include "drivers/adc.h"
-
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_sensor.h"
-#endif
 
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"

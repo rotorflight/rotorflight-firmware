@@ -48,10 +48,8 @@
 #include "drivers/dshot_dpwm.h"
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_sensor.h"
 #include "drivers/fbus_master.h"
-#endif
 
 #include "fc/runtime_config.h"
 

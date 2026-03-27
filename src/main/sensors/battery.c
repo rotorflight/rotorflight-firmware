@@ -31,10 +31,7 @@
 #include "config/feature.h"
 
 #include "drivers/adc.h"
-
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_sensor.h"
-#endif
 
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"

@@ -17,8 +17,6 @@
 
  //this uses SBUS out and SPORT/FBUS_in
 
-#include "drivers/fbus_master.h"
-
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
@@ -35,6 +33,8 @@
 
 #include "drivers/time.h"
 #include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
+#include "drivers/fbus_sensor.h"
 
 #include "flight/mixer.h"
 #include "flight/servos.h"
@@ -43,8 +43,6 @@
 #include "build/build_config.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
-
-#include "drivers/fbus_sensor.h"
 
 #define FBUS_MASTER_BUFFER_SIZE 64
 

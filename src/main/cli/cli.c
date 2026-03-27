@@ -98,9 +98,7 @@ bool cliMode = false;
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_sensor.h"
-#endif
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
