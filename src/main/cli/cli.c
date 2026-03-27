@@ -1965,11 +1965,41 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #endif
 
 #ifdef USE_SERVOS
-static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
+static bool serialConfigHasBusServos(const serialConfig_t *config)
+{
+    if (!config) {
+        return false;
+    }
+
+    for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
+        if (config->portConfigs[i].functionMask & (FUNCTION_SBUS_OUT | FUNCTION_FBUS_MASTER)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos)
+{
+    if (hasBusServos || !defaultServoParams) {
+        return hasBusServos;
+    }
+
+    for (int i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++) {
+        if (memcmp(&servoParams[i], &defaultServoParams[i], sizeof(servoParams[i])) != 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos, const char *headingStr)
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t pwmServoCount = getServoCount();
-    const bool hasBusServos = hasBusServosConfigured();
+    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, hasBusServos);
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
 
@@ -2010,8 +2040,7 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
     }
 
     // Print Bus servos
-    if (hasBusServos) {
-        cliPrintLine("# Bus Servos");
+    if (printBusServos) {
         for (uint32_t i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++) {
             const servoParam_t *servoConf = &servoParams[i];
             bool equalsDefault = false;
@@ -2115,7 +2144,7 @@ static void cliServo(const char *cmdName, char *cmdline)
     }
 
     if (count == 0) {
-        printServo(DUMP_MASTER, servoParams(0), NULL, NULL);
+        printServo(DUMP_MASTER, servoParams(0), NULL, hasBusServos, NULL);
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         if (pwmServoCount > 0) {
@@ -6378,7 +6407,8 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
             printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
-            printServo(dumpMask, servoParams_CopyArray, servoParams(0), "servo");
+            const bool hasBusServos = serialConfigHasBusServos(&serialConfig_Copy) || serialConfigHasBusServos(serialConfig());
+            printServo(dumpMask, servoParams_CopyArray, servoParams(0), hasBusServos, "servo");
 #endif
 
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");
