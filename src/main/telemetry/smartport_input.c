@@ -237,7 +237,6 @@ void initSmartPortInput(void)
         return;
     }
 
-    memset(smartPortInputDiscoveredSensors, 0, sizeof(smartPortInputDiscoveredSensors));
     smartPortInputDiscoveredCount = 0;
     smartPortInputDiscoveredIndex = 0;
     smartPortInputCurrentScanPhysicalId = 0;
