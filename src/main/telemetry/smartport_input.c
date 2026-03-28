@@ -259,8 +259,6 @@ void initSmartPortInput(void)
         SMARTPORT_INPUT_BAUDRATE,
         MODE_RXTX,
         portOptions);
-
-    UNUSED(smartPortInputPort);
 }
 
 void handleSmartPortInput(timeUs_t currentTimeUs)
