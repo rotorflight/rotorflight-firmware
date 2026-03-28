@@ -146,7 +146,7 @@ static void smartPortInputProcessFrame(const smartPortInputParser_t *parser)
         return;
     }
 
-    if ((uint8_t)decodedPhysicalId > FBUS_MAX_PHYS_ID) {
+    if ((uint8_t)decodedPhysicalId >= FBUS_MAX_PHYS_ID) {
         return;
     }
 
