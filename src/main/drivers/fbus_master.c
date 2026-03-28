@@ -372,6 +372,10 @@ bool fbusMasterIsEnabled(void)
 
 void fbusMasterInit(void)
 {
+    // Keep sensor caches and forwarding state valid even when only the FBUS RX
+    // path is active and no dedicated FBUS master serial port is configured.
+    fbusSensorInit();
+
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_FBUS_MASTER);
 
@@ -387,8 +391,6 @@ void fbusMasterInit(void)
     nextTelemetryPollTimeUs = 0;
     fbusMasterStartDiscoveryWindow(micros());
 
-    // Initialize FBUS sensor caches and forwarding buffers from current config.
-    fbusSensorInit();
 #if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
     initSmartPortInput();
 #endif

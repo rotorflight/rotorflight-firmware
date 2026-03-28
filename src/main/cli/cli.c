@@ -5068,6 +5068,27 @@ static void cliStatus(const char *cmdName, char *cmdline)
 }
 
 #ifdef USE_FBUS_MASTER
+static const char *cliFbusSensorName(const fbusObservedSensor_t *sensor)
+{
+    switch (sensor->detectedType) {
+        case FBUS_DETECTED_SENSOR_GPS:
+            return "GPS";
+        case FBUS_DETECTED_SENSOR_ESC:
+            return "ESC";
+        case FBUS_DETECTED_SENSOR_FAS_150S:
+            return "FAS_150S";
+        case FBUS_DETECTED_SENSOR_FLVSS:
+            return "FLVSS";
+        case FBUS_DETECTED_SENSOR_XACT_SERVO:
+            return "XACT_SERVO";
+        case FBUS_DETECTED_SENSOR_UNKNOWN:
+        default:
+            break;
+    }
+
+    return fbusSensorGetName(sensor->physicalId);
+}
+
 static void cliFbusSensors(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
@@ -5112,7 +5133,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         }
         
         // Print physical ID and sensor name
-        const char *sensorName = fbusSensorGetName(sensor.physicalId);
+        const char *sensorName = cliFbusSensorName(&sensor);
         // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
         char nameBuffer[17];
         if (strcmp(sensorName, "UNKNOWN") == 0) {
