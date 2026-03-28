@@ -5097,14 +5097,12 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     
     for (uint8_t i = 0; i < count; i++) {
         fbusObservedSensor_t sensor;
-        const char *sensorName = NULL;
         bool haveSensor = false;
 
         ATOMIC_BLOCK(NVIC_PRIO_MAX) {
             const fbusObservedSensor_t *sensorPtr = fbusSensorGetObserved(i);
             if (sensorPtr) {
                 memcpy(&sensor, sensorPtr, sizeof(sensor));
-                sensorName = fbusSensorGetName(sensor.physicalId);
                 haveSensor = true;
             }
         }
@@ -5114,6 +5112,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         }
         
         // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor.physicalId);
         // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
         char nameBuffer[17];
         if (strcmp(sensorName, "UNKNOWN") == 0) {
