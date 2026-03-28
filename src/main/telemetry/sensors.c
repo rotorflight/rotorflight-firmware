@@ -58,6 +58,11 @@
 
 #include "telemetry/sensors.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_sensor.h"
+#include "drivers/fbus_master.h"
+#include "pg/fbus_master.h"
+#endif
 
 /** Sensor functions **/
 
@@ -117,6 +122,34 @@ static uint32_t getTupleHash(uint32_t a, uint32_t b)
     return fnv_update(0x42424242, data, sizeof(data));
 }
 
+#ifdef USE_FBUS_MASTER
+/**
+ * Get value from a generic FBUS forwarded sensor
+ * @param sensorIndex Index into forwardedSensors array (0-7)
+ * @return Sensor data value, or 0 if not available
+ */
+static int getFbusSensorValue(uint8_t sensorIndex)
+{
+    // Validate index
+    if (sensorIndex >= FBUS_MASTER_MAX_FORWARDED_SENSORS) {
+        return 0;
+    }
+    
+    // Get configured physical ID for this sensor slot
+    uint8_t physicalId = fbusMasterConfig()->forwardedSensors[sensorIndex];
+    if (physicalId > FBUS_MAX_PHYS_ID) {
+        return 0;  // Sensor slot not configured
+    }
+    
+    // Get latest sensor frame from the forwarding buffer
+    fbusSensorFrame_t frame = {0};
+    if (fbusSensorGetForwardedFrame(physicalId, &frame) && frame.valid) {
+        return frame.data;
+    }
+    
+    return 0;
+}
+#endif
 
 int telemetrySensorValue(sensor_id_e id)
 {
@@ -237,6 +270,8 @@ int telemetrySensorValue(sensor_id_e id)
             return getTailSpeed();
 
         case TELEM_MOTOR_RPM:
+            return 0;
+
         case TELEM_TRANS_RPM:
             return 0;
 
@@ -337,6 +372,25 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debug[7];
 
+#ifdef USE_FBUS_MASTER
+        // Generic FBUS sensor forwarding
+        case TELEM_FBUS_SENSOR_1:
+            return getFbusSensorValue(0);
+        case TELEM_FBUS_SENSOR_2:
+            return getFbusSensorValue(1);
+        case TELEM_FBUS_SENSOR_3:
+            return getFbusSensorValue(2);
+        case TELEM_FBUS_SENSOR_4:
+            return getFbusSensorValue(3);
+        case TELEM_FBUS_SENSOR_5:
+            return getFbusSensorValue(4);
+        case TELEM_FBUS_SENSOR_6:
+            return getFbusSensorValue(5);
+        case TELEM_FBUS_SENSOR_7:
+            return getFbusSensorValue(6);
+        case TELEM_FBUS_SENSOR_8:
+            return getFbusSensorValue(7);
+#endif
         default:
             return 0;
     }
@@ -440,6 +494,8 @@ bool telemetrySensorActive(sensor_id_e id)
             return true;
 
         case TELEM_MOTOR_RPM:
+            return false;
+
         case TELEM_TRANS_RPM:
             return false;
 
@@ -508,12 +564,68 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_DEBUG_7:
             return debugMode;
 
+#ifdef USE_FBUS_MASTER
+        case TELEM_FBUS_SENSOR_1:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[0] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_2:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[1] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_3:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[2] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_4:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[3] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_5:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[4] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_6:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[5] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_7:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[6] <= FBUS_MAX_PHYS_ID);
+        case TELEM_FBUS_SENSOR_8:
+            return fbusMasterIsEnabled() && (fbusMasterConfig()->forwardedSensors[7] <= FBUS_MAX_PHYS_ID);
+#endif
+
         default:
             return false;
     }
 
     return false;
 }
+
+#ifdef USE_FBUS_MASTER
+uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id)
+{
+    uint8_t sensorIndex;
+    switch (id) {
+        case TELEM_FBUS_SENSOR_1:
+            sensorIndex = 0;
+            break;
+        case TELEM_FBUS_SENSOR_2:
+            sensorIndex = 1;
+            break;
+        case TELEM_FBUS_SENSOR_3:
+            sensorIndex = 2;
+            break;
+        case TELEM_FBUS_SENSOR_4:
+            sensorIndex = 3;
+            break;
+        case TELEM_FBUS_SENSOR_5:
+            sensorIndex = 4;
+            break;
+        case TELEM_FBUS_SENSOR_6:
+            sensorIndex = 5;
+            break;
+        case TELEM_FBUS_SENSOR_7:
+            sensorIndex = 6;
+            break;
+        case TELEM_FBUS_SENSOR_8:
+            sensorIndex = 7;
+            break;
+        default:
+            return FBUS_INVALID_PHYSICAL_ID;  
+    }
+    
+    return fbusMasterConfig()->forwardedSensors[sensorIndex];
+}
+#endif
 
 
 /** Legacy sensors **/

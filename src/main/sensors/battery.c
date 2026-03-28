@@ -31,6 +31,7 @@
 #include "config/feature.h"
 
 #include "drivers/adc.h"
+#include "drivers/fbus_sensor.h"
 
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
@@ -68,12 +69,14 @@ const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
     [VOLTAGE_METER_NONE]    = "NONE",
     [VOLTAGE_METER_ADC]     = "ADC",
     [VOLTAGE_METER_ESC]     = "ESC",
+    [VOLTAGE_METER_FBUS]    = "FBUS",
 };
 
 const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
     [CURRENT_METER_NONE]    = "NONE",
     [CURRENT_METER_ADC]     = "ADC",
     [CURRENT_METER_ESC]     = "ESC",
+    [CURRENT_METER_FBUS]    = "FBUS",
 };
 
 
@@ -449,6 +452,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
+#ifdef USE_FBUS_MASTER
+    voltageSensorFBUSRefresh();
+#endif
+
     switch (batteryConfig()->voltageMeterSource) {
         case VOLTAGE_METER_ADC:
             voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BAT, &voltageMeter);
@@ -461,6 +468,25 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
                 batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
             }
 #endif
+            break;
+
+        case VOLTAGE_METER_FBUS:
+#ifdef USE_FBUS_MASTER
+            if (voltageSensorFBUSRead(&voltageMeter)) {
+                batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+            } else {
+                voltageMeterReset(&voltageMeter);
+                batteryVoltage = 0;
+            }
+#else
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+#endif
+            break;
+
+        default:
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
             break;
     }
 
@@ -481,6 +507,10 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
+#ifdef USE_FBUS_MASTER
+    currentSensorFBUSRefresh();
+#endif
+
     switch (batteryConfig()->currentMeterSource) {
         case CURRENT_METER_ADC:
             currentSensorADCRead(CURRENT_SENSOR_ADC_BAT, &currentMeter);
@@ -494,6 +524,25 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
                 batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
             }
 #endif
+            break;
+
+        case CURRENT_METER_FBUS:
+#ifdef USE_FBUS_MASTER
+            if (currentSensorFBUSRead(&currentMeter)) {
+                batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+            } else {
+                currentMeterReset(&currentMeter);
+                batteryCurrent = 0;
+            }
+#else
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
+#endif
+            break;
+
+        default:
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
             break;
     }
 
@@ -517,6 +566,11 @@ void batteryInit(void)
 #ifdef USE_ESC_SENSOR
     voltageSensorESCInit();
     currentSensorESCInit();
+#endif
+
+#ifdef USE_FBUS_MASTER
+    voltageSensorFBUSInit();
+    currentSensorFBUSInit();
 #endif
 
     lowpassFilterInit(&voltageFilter, LPF_DAMPED,

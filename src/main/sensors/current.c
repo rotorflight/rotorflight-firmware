@@ -33,6 +33,7 @@
 #include "config/config_reset.h"
 
 #include "drivers/adc.h"
+#include "drivers/fbus_sensor.h"
 
 #include "pg/current.h"
 
@@ -208,6 +209,54 @@ void currentSensorESCInit(void)
 
 #endif
 
+#ifdef USE_FBUS_MASTER
+
+static currentSensorState_t currentFBUSSensor;
+
+bool currentSensorFBUSRead(currentMeter_t *meter)
+{
+    const currentSensorState_t *state = &currentFBUSSensor;
+
+    meter->sample = state->sample;
+    meter->current = state->current;
+    meter->capacity = state->capacity;
+
+    return state->enabled;
+}
+
+void currentSensorFBUSRefresh(void)
+{
+    currentSensorState_t *state = &currentFBUSSensor;
+    fbusCurrentData_t fbusCurrent;
+
+    fbusSensorGetCurrentData(&fbusCurrent);
+
+    if (fbusSensorHasCurrentData() && (fbusCurrent.hasHighPrecisionCurrent || fbusCurrent.hasCurrent)) {
+        const uint32_t current = fbusCurrent.hasHighPrecisionCurrent
+            ? fbusCurrent.currentMilliAmps
+            : (fbusCurrent.currentDeciAmps * 100U);
+
+        state->sample = current;
+        state->current = filterApply(&state->filter, current);
+        state->capacity = 0;
+        state->enabled = true;
+    } else {
+        state->sample = 0;
+        state->current = 0;
+        state->capacity = 0;
+        state->enabled = false;
+    }
+}
+
+void currentSensorFBUSInit(void)
+{
+    memset(&currentFBUSSensor, 0, sizeof(currentFBUSSensor));
+
+    lowpassFilterInit(&currentFBUSSensor.filter, LPF_BESSEL,
+        batteryConfig()->ibatLpfHz,
+        batteryConfig()->ibatUpdateHz, 0);
+}
+#endif
 
 //
 // API for current meters using IDs

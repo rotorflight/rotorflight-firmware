@@ -72,6 +72,7 @@
 #include "pg/beeper.h"
 #include "pg/beeper_dev.h"
 #include "pg/displayport_profiles.h"
+#include "pg/esc_sensor.h"
 #include "pg/gyrodev.h"
 #include "pg/motor.h"
 #include "pg/pg.h"
@@ -93,6 +94,7 @@
 #include "sensors/battery.h"
 #include "sensors/compass.h"
 #include "sensors/gyro.h"
+#include "sensors/esc_sensor.h"
 
 #include "config.h"
 
@@ -203,13 +205,24 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
+    const bool hasFbusMasterSerial = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
+    const bool gpsUsesFbus = gpsUsesFbusTransport();
+    const bool gpsHasValidTransport =
+        gpsConfig()->provider == GPS_MSP ||
+        gpsSerial != NULL ||
+        hasFbusMasterSerial;
+
     if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
+        serialRemovePort(gpsSerial->identifier);
+    }
+    if (gpsUsesFbus && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
 #endif
     if (
 #if defined(USE_GPS)
-        gpsConfig()->provider != GPS_MSP && !gpsSerial &&
+        !gpsHasValidTransport
+        &&
 #endif
         true) {
         featureDisableImmediate(FEATURE_GPS);
@@ -307,6 +320,15 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
+    // Enable ESC_SENSOR only when protocol is FBUS and a FBUS master serial port is configured.
+#ifdef USE_FBUS_MASTER
+    const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS && fbusMasterSerialForEsc) {
+        if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
+            featureEnableImmediate(FEATURE_ESC_SENSOR);
+        }
+    } else
+#endif
     if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }

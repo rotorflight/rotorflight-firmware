@@ -43,6 +43,7 @@ typedef enum {
     VOLTAGE_METER_NONE = 0,
     VOLTAGE_METER_ADC,
     VOLTAGE_METER_ESC,
+    VOLTAGE_METER_FBUS,
     VOLTAGE_METER_COUNT
 } voltageMeterSource_e;
 
@@ -50,6 +51,7 @@ typedef enum {
     CURRENT_METER_NONE = 0,
     CURRENT_METER_ADC,
     CURRENT_METER_ESC,
+    CURRENT_METER_FBUS,
     CURRENT_METER_COUNT
 } currentMeterSource_e;
 
