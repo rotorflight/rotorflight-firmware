@@ -5076,7 +5076,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         ATOMIC_BLOCK(NVIC_PRIO_MAX) {
             fbusSensorClearObserved();
         }
-        cliPrintLine("Observed FBUS sensors cleared");
+        cliPrintLine("Observed sensors cleared");
         return;
     }
     
@@ -5086,12 +5086,12 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     }
     
     if (count == 0) {
-        cliPrintLine("No FBUS sensors observed yet");
+        cliPrintLine("No sensors observed yet");
         return;
     }
     
     cliPrintLinefeed();
-    cliPrintLine("Observed FBUS Sensors:");
+    cliPrintLine("Observed Sensors:");
     cliPrintLine("Physical ID | Source | Sensor Name       | Forwarded | App IDs                                   | Packets");
     cliPrintLine("----------- | ------ | ----------------- | --------- | ----------------------------------------- | -------");
     
