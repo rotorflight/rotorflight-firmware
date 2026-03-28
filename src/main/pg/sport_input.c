@@ -28,7 +28,7 @@ PG_REGISTER_WITH_RESET_FN(sportInputConfig_t, sportInputConfig,
 void pgResetFn_sportInputConfig(sportInputConfig_t *config)
 {
     config->pinSwap = 1;
-    config->inverted = 0;
+    config->inverted = 1;
 }
 
 #endif
