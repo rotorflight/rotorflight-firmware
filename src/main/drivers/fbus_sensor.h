@@ -216,8 +216,10 @@ bool fbusGpsConvertDate(uint32_t fbusData, fbusGpsDate_t *date);
 // Servo data conversion functions
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature);
 
-// Observed sensor tracking
-#define FBUS_MAX_OBSERVED_SENSORS 32
+// Observed sensor tracking:
+// the observed table is keyed by (physicalId, source), so allow a full set of
+// physical IDs for each supported source.
+#define FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE 32
 typedef enum {
     FBUS_DETECTED_SENSOR_UNKNOWN = 0,
     FBUS_DETECTED_SENSOR_GPS,
@@ -230,7 +232,10 @@ typedef enum {
 typedef enum {
     FBUS_SENSOR_SOURCE_FBUS = 0,
     FBUS_SENSOR_SOURCE_SPORT,
+    FBUS_SENSOR_SOURCE_COUNT,
 } fbusSensorSource_e;
+
+#define FBUS_MAX_OBSERVED_SENSORS (FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE * FBUS_SENSOR_SOURCE_COUNT)
 
 typedef struct {
     uint8_t physicalId;

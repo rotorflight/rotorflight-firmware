@@ -43,7 +43,7 @@
 #include "build/build_config.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
-#ifdef USE_TELEMETRY
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
 #include "telemetry/smartport_input.h"
 #endif
 
@@ -330,7 +330,7 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (!fbusMasterPort)
         return;
 
-#ifdef USE_TELEMETRY
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
     handleSmartPortInput(currentTimeUs);
 #endif
 
@@ -384,7 +384,7 @@ void fbusMasterInit(void)
 
     // Initialize FBUS sensor caches and forwarding buffers from current config.
     fbusSensorInit();
-#ifdef USE_TELEMETRY
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
     initSmartPortInput();
 #endif
 

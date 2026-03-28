@@ -240,7 +240,7 @@ void initSmartPortInput(void)
 
     portOptions_e portOptions =
         SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
-        (sportInputConfig()->inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED) |
+        (sportInputConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
         (sportInputConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP) |
         SERIAL_BIDIR | SERIAL_BIDIR_PP;
 
