@@ -5085,8 +5085,8 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     
     cliPrintLinefeed();
     cliPrintLine("Observed FBUS Sensors:");
-    cliPrintLine("Physical ID | Sensor Name       | Forwarded | App IDs                                   | Packets");
-    cliPrintLine("----------- | ----------------- | --------- | ----------------------------------------- | -------");
+    cliPrintLine("Physical ID | Source | Sensor Name       | Forwarded | App IDs                                   | Packets");
+    cliPrintLine("----------- | ------ | ----------------- | --------- | ----------------------------------------- | -------");
     
     for (uint8_t i = 0; i < count; i++) {
         const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
@@ -5104,6 +5104,14 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         }
         // Print physical ID in a fixed-width column
         cliPrintf("    %3u     | ", sensor->physicalId);
+
+        const char *sourceName = fbusSensorGetSourceName(sensor->source);
+        cliPrintf("%s", sourceName);
+        const int sourceNameLen = (int)strlen(sourceName);
+        for (int k = sourceNameLen; k < 6; k++) {
+            cliPrint(" ");
+        }
+        cliPrint(" | ");
 
         // Print sensor name in a fixed-width column
         cliPrintf("%s", sensorName);

@@ -44,6 +44,9 @@
 #ifdef USE_TELEMETRY
 #include "telemetry/telemetry.h"
 #include "telemetry/smartport.h"
+#ifdef USE_FBUS_MASTER
+#include "telemetry/smartport_input.h"
+#endif
 #include "telemetry/sensors.h"
 #endif
 
@@ -575,9 +578,13 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 {
     UNUSED(rxRuntimeConfig);
 
-#if defined(USE_TELEMETRY_SMARTPORT)
     timeUs_t currentTimeUs = micros();
 
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
+    handleSmartPortInput(currentTimeUs);
+#endif
+
+#if defined(USE_TELEMETRY_SMARTPORT)
     if (cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) > FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US) {
        clearToSend = false;
     }
@@ -767,6 +774,9 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
     if (fbusPort) {
 #if defined(USE_TELEMETRY_SMARTPORT)
         telemetryEnabled = initSmartPortTelemetryExternal(writeUplinkFrame);
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
+        initSmartPortInput();
 #endif
 
         if (rssiSource == RSSI_SOURCE_NONE) {

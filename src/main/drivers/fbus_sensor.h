@@ -194,6 +194,7 @@ typedef struct {
 void fbusSensorInit(void);
 void fbusSensorUpdate(timeUs_t currentTimeUs);
 bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data);
+void fbusSensorObservePhysicalId(uint8_t physicalId);
 void fbusSensorGetGpsData(fbusGpsData_t *gpsData);
 bool fbusSensorHasGpsData(void);
 void fbusSensorGetServoData(fbusServoData_t *servoData);
@@ -226,8 +227,14 @@ typedef enum {
     FBUS_DETECTED_SENSOR_XACT_SERVO,
 } fbusDetectedSensorType_e;
 
+typedef enum {
+    FBUS_SENSOR_SOURCE_FBUS = 0,
+    FBUS_SENSOR_SOURCE_SPORT,
+} fbusSensorSource_e;
+
 typedef struct {
     uint8_t physicalId;
+    fbusSensorSource_e source;
     uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
     uint8_t appIdCount;
     timeUs_t lastSeenUs;
@@ -239,6 +246,7 @@ uint8_t fbusSensorGetObservedCount(void);
 const fbusObservedSensor_t* fbusSensorGetObserved(uint8_t index);
 void fbusSensorClearObserved(void);
 const char* fbusSensorGetName(uint8_t physicalId);
+const char* fbusSensorGetSourceName(fbusSensorSource_e source);
 
 // Frame forwarding functions
 void fbusSensorInitForwarding(void);
@@ -246,3 +254,5 @@ bool fbusSensorIsForwarded(uint8_t physicalId);
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorNeedsStartupFrame(uint8_t physicalId);
 void fbusSensorMarkStartupFrameSent(uint8_t physicalId);
+bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source);
+void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source);

@@ -43,6 +43,9 @@
 #include "build/build_config.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
+#ifdef USE_TELEMETRY
+#include "telemetry/smartport_input.h"
+#endif
 
 #define FBUS_MASTER_BUFFER_SIZE 64
 
@@ -327,6 +330,10 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (!fbusMasterPort)
         return;
 
+#ifdef USE_TELEMETRY
+    handleSmartPortInput(currentTimeUs);
+#endif
+
     // Keep derived FBUS sensor states (timeouts/GPS mirrors) updated.
     fbusSensorUpdate(currentTimeUs);
 
@@ -377,6 +384,9 @@ void fbusMasterInit(void)
 
     // Initialize FBUS sensor caches and forwarding buffers from current config.
     fbusSensorInit();
+#ifdef USE_TELEMETRY
+    initSmartPortInput();
+#endif
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
