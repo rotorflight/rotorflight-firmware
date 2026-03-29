@@ -237,6 +237,7 @@
 #undef USE_BLHELI_FORWARD_PROGRAMMING
 #undef USE_AM32_FORWARD_PROGRAMMING
 #undef USE_FBUS_MASTER
+#undef USE_SMARTPORT_INPUT
 #undef USE_BUS_SERVO
 
 // Remove drivers that are not supported by any existinting F411 boards
@@ -386,6 +387,7 @@
 #undef USE_BLHELI_FORWARD_PROGRAMMING
 #undef USE_AM32_FORWARD_PROGRAMMING
 #undef USE_FBUS_MASTER
+#undef USE_SMARTPORT_INPUT
 #undef USE_BUS_SERVO
 
 #define USE_SPI_DEVICE_1

@@ -31,8 +31,6 @@
 #include "common/maths.h"
 #include "common/time.h"
 
-#include "config/feature.h"
-
 #include "drivers/time.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
@@ -45,10 +43,6 @@
 #include "build/build_config.h"
 #include "rx/frsky_crc.h"
 #include "io/serial.h"
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-#include "telemetry/smartport_input.h"
-#endif
-
 #define FBUS_MASTER_BUFFER_SIZE 64
 
 static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
@@ -382,11 +376,6 @@ void fbusMasterInit(void)
 
     // Initialize FBUS sensor caches and forwarding buffers from current config.
     fbusSensorInit();
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-    if (featureIsEnabled(FEATURE_TELEMETRY)) {
-        initSmartPortInput();
-    }
-#endif
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(

@@ -209,7 +209,7 @@ void currentSensorESCInit(void)
 
 #endif
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
 
 static currentSensorState_t currentFBUSSensor;
 
@@ -306,4 +306,3 @@ void currentMeterReset(currentMeter_t *meter)
 {
     memset(meter, 0, sizeof(currentMeter_t));
 }
-

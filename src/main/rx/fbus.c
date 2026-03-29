@@ -32,8 +32,6 @@
 #include "common/maths.h"
 #include "common/utils.h"
 
-#include "config/feature.h"
-
 #include "drivers/time.h"
 #include "drivers/fbus_sensor.h"
 
@@ -46,9 +44,6 @@
 #ifdef USE_TELEMETRY
 #include "telemetry/telemetry.h"
 #include "telemetry/smartport.h"
-#ifdef USE_FBUS_MASTER
-#include "telemetry/smartport_input.h"
-#endif
 #include "telemetry/sensors.h"
 #endif
 
@@ -772,11 +767,6 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
     if (fbusPort) {
 #if defined(USE_TELEMETRY_SMARTPORT)
         telemetryEnabled = initSmartPortTelemetryExternal(writeUplinkFrame);
-#endif
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-        if (featureIsEnabled(FEATURE_TELEMETRY)) {
-            initSmartPortInput();
-        }
 #endif
 
         if (rssiSource == RSSI_SOURCE_NONE) {

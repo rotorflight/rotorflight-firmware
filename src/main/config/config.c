@@ -319,10 +319,14 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    // Enable ESC_SENSOR only when protocol is FBUS and a FBUS master serial port is configured.
-#ifdef USE_FBUS_MASTER
+    // Enable ESC_SENSOR when FBUS transport is available either from FBUS master
+    // or from standalone SmartPort input.
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
     const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
-    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS && fbusMasterSerialForEsc) {
+    const bool hasSmartPortInputForEsc = featureIsConfigured(FEATURE_TELEMETRY)
+        && findSerialPortConfig(FUNCTION_SMARTPORT_INPUT) != NULL;
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
+        && (fbusMasterSerialForEsc || hasSmartPortInputForEsc)) {
         if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
             featureEnableImmediate(FEATURE_ESC_SENSOR);
         }

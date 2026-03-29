@@ -21,7 +21,7 @@
 
 #include "platform.h"
 
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
+#if defined(USE_TELEMETRY) && defined(USE_SMARTPORT_INPUT)
 
 #include "common/utils.h"
 #include "drivers/fbus_sensor.h"
@@ -230,6 +230,8 @@ void initSmartPortInput(void)
     if (!portConfig) {
         return;
     }
+
+    fbusSensorInit();
 
     memset(smartPortInputDiscoveredSensors, 0, sizeof(smartPortInputDiscoveredSensors));
     smartPortInputDiscoveredCount = 0;

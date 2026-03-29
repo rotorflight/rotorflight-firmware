@@ -20,7 +20,7 @@
 #include "pg/pg_ids.h"
 #include "pg/sport_input.h"
 
-#ifdef USE_FBUS_MASTER
+#ifdef USE_SMARTPORT_INPUT
 
 PG_REGISTER_WITH_RESET_FN(sportInputConfig_t, sportInputConfig,
                           PG_DRIVER_SPORT_INPUT_CONFIG, 1);

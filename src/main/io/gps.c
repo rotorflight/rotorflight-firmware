@@ -305,7 +305,7 @@ static void gpsSetState(gpsState_e state)
 
 bool gpsUsesFbusTransport(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
     if (gpsConfig()->provider != GPS_FBUS) {
         return false;
     }

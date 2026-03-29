@@ -49,7 +49,9 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 #include "drivers/fbus_sensor.h"
+#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
+#endif
 
 #include "fc/runtime_config.h"
 
@@ -182,11 +184,10 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
-        && fbusMasterIsEnabled()
-        && fbusSensorHasEscData()) {
+        && (fbusSensorHasCurrentData() || fbusSensorHasEscData())) {
         return true;
     }
 #endif
@@ -223,10 +224,10 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
 static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
 {
-    if (!escData || !fbusMasterIsEnabled()) {
+    if (!escData) {
         return false;
     }
 
@@ -343,7 +344,7 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
             }
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
                 static escSensorData_t fbusEscSensorData;
                 if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {

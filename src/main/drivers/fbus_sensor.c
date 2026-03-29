@@ -21,8 +21,10 @@
 
 #include "build/atomic.h"
 
-#include "pg/fbus_master.h"
 #include "pg/gps.h"
+#ifdef USE_FBUS_MASTER
+#include "pg/fbus_master.h"
+#endif
 
 #include "common/maths.h"
 #include "config/feature.h"
@@ -36,7 +38,7 @@
 #include "drivers/fbus_sensor.h"
 #include "sensors/sensors.h"
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
 
 static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_VARIO2]        = "VARIO2",
@@ -83,7 +85,7 @@ static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
 static uint8_t sensorCacheIndex = 0;
 static fbusObservedSensor_t observedSensors[FBUS_MAX_OBSERVED_SENSORS];
 static uint8_t observedSensorCount = 0;
-static fbusSensorForwardBuffer_t forwardBuffers[FBUS_MASTER_MAX_FORWARDED_SENSORS];
+static fbusSensorForwardBuffer_t forwardBuffers[FBUS_SENSOR_MAX_FORWARD_BUFFERS];
 
 void fbusSensorInit(void)
 {
@@ -331,9 +333,12 @@ void fbusSensorInitForwarding(void)
 {
     memset(forwardBuffers, 0, sizeof(forwardBuffers));
 
-    // Initialize buffer for each configured forwarded sensor
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
+#ifdef USE_FBUS_MASTER
         forwardBuffers[i].physicalId = fbusMasterConfig()->forwardedSensors[i];
+#else
+        forwardBuffers[i].physicalId = FBUS_INVALID_PHYSICAL_ID;
+#endif
         forwardBuffers[i].writeIndex = 0;
         forwardBuffers[i].readIndex = 0;
         forwardBuffers[i].count = 0;
@@ -343,7 +348,7 @@ void fbusSensorInitForwarding(void)
 
 bool fbusSensorIsForwarded(uint8_t physicalId)
 {
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
         if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return true;
         }
@@ -353,7 +358,7 @@ bool fbusSensorIsForwarded(uint8_t physicalId)
 
 static fbusSensorForwardBuffer_t* getForwardBuffer(uint8_t physicalId)
 {
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
         if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return &forwardBuffers[i];
         }
@@ -837,4 +842,4 @@ const char* fbusSensorGetSourceName(fbusSensorSource_e source)
     }
 }
 
-#endif // USE_FBUS_MASTER
+#endif // USE_FBUS_MASTER || USE_SMARTPORT_INPUT

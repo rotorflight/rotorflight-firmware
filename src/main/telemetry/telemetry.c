@@ -60,7 +60,7 @@
 #include "telemetry/ibus.h"
 #include "telemetry/sbus2.h"
 #include "telemetry/msp_shared.h"
-#ifdef USE_FBUS_MASTER
+#ifdef USE_SMARTPORT_INPUT
 #include "telemetry/smartport_input.h"
 #endif
 
@@ -222,7 +222,7 @@ void INIT_CODE telemetryInit(void)
 #ifdef USE_TELEMETRY_SBUS2
     initSbus2Telemetry();
 #endif
-#ifdef USE_FBUS_MASTER
+#ifdef USE_SMARTPORT_INPUT
     initSmartPortInput();
 #endif
 #if defined(USE_MSP_OVER_TELEMETRY)

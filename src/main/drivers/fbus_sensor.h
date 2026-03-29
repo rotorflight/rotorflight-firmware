@@ -23,6 +23,7 @@
 
 // Frame forwarding configuration
 #define FBUS_FORWARDED_FRAME_BUFFER_SIZE 10
+#define FBUS_SENSOR_MAX_FORWARD_BUFFERS 8
 
 // FBUS Sensor Physical IDs
 typedef enum {
