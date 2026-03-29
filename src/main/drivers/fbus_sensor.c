@@ -281,9 +281,8 @@ static fbusObservedSensor_t* getObservedSensorByPhysicalId(uint8_t physicalId)
     return NULL;
 }
 
-static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs, fbusSensorSource_e source)
+static fbusObservedSensor_t* ensureObservedSensor(uint8_t physicalId, fbusSensorSource_e source)
 {
-    // Find existing sensor or add new one
     fbusObservedSensor_t *sensor = getObservedSensor(physicalId, source);
     if (!sensor && observedSensorCount < FBUS_MAX_OBSERVED_SENSORS) {
         sensor = &observedSensors[observedSensorCount++];
@@ -293,6 +292,13 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
         sensor->packetCount = 0;
         sensor->detectedType = FBUS_DETECTED_SENSOR_UNKNOWN;
     }
+
+    return sensor;
+}
+
+static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs, fbusSensorSource_e source)
+{
+    fbusObservedSensor_t *sensor = ensureObservedSensor(physicalId, source);
 
     if (sensor) {
         sensor->lastSeenUs = currentTimeUs;
@@ -588,7 +594,10 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
 
 void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source)
 {
-    trackObservedSensor(physicalId, 0, micros(), source);
+    fbusObservedSensor_t *sensor = ensureObservedSensor(physicalId, source);
+    if (sensor) {
+        sensor->lastSeenUs = micros();
+    }
 }
 
 void fbusSensorObservePhysicalId(uint8_t physicalId)

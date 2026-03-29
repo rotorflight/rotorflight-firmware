@@ -151,13 +151,14 @@ static void smartPortInputProcessFrame(const smartPortInputParser_t *parser)
     }
 
     smartPortInputRecordDiscoveredSensor((uint8_t)decodedPhysicalId);
-    fbusSensorObservePhysicalIdWithSource((uint8_t)decodedPhysicalId, FBUS_SENSOR_SOURCE_SPORT);
 
     smartPortPayload_t payload;
     memcpy(&payload, parser->payload, sizeof(payload));
 
     if (payload.frameId == FSSP_DATA_FRAME) {
         fbusSensorProcessDataWithSource((uint8_t)decodedPhysicalId, payload.valueId, payload.data, FBUS_SENSOR_SOURCE_SPORT);
+    } else {
+        fbusSensorObservePhysicalIdWithSource((uint8_t)decodedPhysicalId, FBUS_SENSOR_SOURCE_SPORT);
     }
 }
 
