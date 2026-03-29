@@ -582,6 +582,8 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
 #if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
     handleSmartPortInput(currentTimeUs);
+    // Keep sensor-derived state fresh when sensors arrive via RX-side S.Port input.
+    fbusSensorUpdate(currentTimeUs);
 #endif
 
 #if defined(USE_TELEMETRY_SMARTPORT)

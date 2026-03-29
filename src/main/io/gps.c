@@ -306,13 +306,12 @@ static void gpsSetState(gpsState_e state)
 bool gpsUsesFbusTransport(void)
 {
 #ifdef USE_FBUS_MASTER
-    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
-
-    if (!hasFbusMasterPort) {
+    if (gpsConfig()->provider != GPS_FBUS) {
         return false;
     }
 
-    return gpsConfig()->provider == GPS_FBUS;
+    return findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL
+        || findSerialPortConfig(FUNCTION_SMARTPORT_INPUT) != NULL;
 #else
     return false;
 #endif
