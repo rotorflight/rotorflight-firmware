@@ -580,12 +580,6 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 
     timeUs_t currentTimeUs = micros();
 
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-    handleSmartPortInput(currentTimeUs);
-    // Keep sensor-derived state fresh when sensors arrive via RX-side S.Port input.
-    fbusSensorUpdate(currentTimeUs);
-#endif
-
 #if defined(USE_TELEMETRY_SMARTPORT)
     if (cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) > FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US) {
        clearToSend = false;

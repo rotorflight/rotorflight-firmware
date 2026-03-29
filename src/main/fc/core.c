@@ -108,6 +108,10 @@
 #include "sensors/gyro.h"
 
 #include "telemetry/telemetry.h"
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
+#include "drivers/fbus_sensor.h"
+#include "telemetry/smartport_input.h"
+#endif
 
 #include "core.h"
 
@@ -737,6 +741,11 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 {
     static timeUs_t lastGyroTempTimeUs = 0;
 
+#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
+    handleSmartPortInput(currentTimeUs);
+    fbusSensorUpdate(currentTimeUs);
+#endif
+
     if (cmpTimeUs(currentTimeUs, lastGyroTempTimeUs) >= GYRO_TEMP_READ_DELAY_US) {
         // Read out gyro temperature if used for telemmetry
         gyroReadTemperature();
@@ -1052,4 +1061,3 @@ timeUs_t getLastDisarmTimeUs(void)
 {
     return lastDisarmTimeUs;
 }
-

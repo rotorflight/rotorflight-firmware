@@ -330,10 +330,6 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (!fbusMasterPort)
         return;
 
-#if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-    handleSmartPortInput(currentTimeUs);
-#endif
-
     // Keep derived FBUS sensor states (timeouts/GPS mirrors) updated.
     fbusSensorUpdate(currentTimeUs);
 
