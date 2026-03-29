@@ -15,9 +15,9 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "pg/pg_ids.h"
 #include "platform.h"
 
+#include "pg/pg_ids.h"
 #include "pg/sport_input.h"
 
 #ifdef USE_FBUS_MASTER
