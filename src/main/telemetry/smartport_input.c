@@ -42,9 +42,9 @@
 #define SMARTPORT_INPUT_FC_COMMON_ID 0x1B
 
 static serialPort_t *smartPortInputPort = NULL;
-static volatile uint8_t smartPortInputDiscoveredSensors[SMARTPORT_INPUT_MAX_DISCOVERED_SENSORS];
-static volatile uint8_t smartPortInputDiscoveredCount = 0;
-static volatile uint8_t smartPortInputDiscoveredIndex = 0;
+static uint8_t smartPortInputDiscoveredSensors[SMARTPORT_INPUT_MAX_DISCOVERED_SENSORS];
+static uint8_t smartPortInputDiscoveredCount = 0;
+static uint8_t smartPortInputDiscoveredIndex = 0;
 static uint8_t smartPortInputCurrentScanPhysicalId = 0;
 static timeUs_t smartPortInputNextPollTimeUs = 0;
 static timeUs_t smartPortInputDiscoveryEndTimeUs = 0;
