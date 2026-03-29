@@ -321,23 +321,6 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
     return sensor;
 }
 
-static void observePhysicalId(uint8_t physicalId, timeUs_t currentTimeUs, fbusSensorSource_e source)
-{
-    fbusObservedSensor_t *sensor = getObservedSensor(physicalId, source);
-    if (!sensor && observedSensorCount < FBUS_MAX_OBSERVED_SENSORS) {
-        sensor = &observedSensors[observedSensorCount++];
-        sensor->physicalId = physicalId;
-        sensor->source = source;
-        sensor->appIdCount = 0;
-        sensor->packetCount = 0;
-        sensor->detectedType = FBUS_DETECTED_SENSOR_UNKNOWN;
-    }
-
-    if (sensor) {
-        sensor->lastSeenUs = currentTimeUs;
-    }
-}
-
 void fbusSensorInitForwarding(void)
 {
     memset(forwardBuffers, 0, sizeof(forwardBuffers));
@@ -605,7 +588,7 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
 
 void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source)
 {
-    observePhysicalId(physicalId, micros(), source);
+    trackObservedSensor(physicalId, 0, micros(), source);
 }
 
 void fbusSensorObservePhysicalId(uint8_t physicalId)
