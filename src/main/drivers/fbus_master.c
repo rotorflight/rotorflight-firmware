@@ -23,8 +23,6 @@
 
 #include "platform.h"
 
-#include "build/atomic.h"
-
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
 #include "pg/servos.h"
@@ -34,7 +32,6 @@
 #include "common/time.h"
 
 #include "drivers/time.h"
-#include "drivers/nvic.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
@@ -279,9 +276,7 @@ static void processDownlinkFrame(uint8_t *data)
             // Convert 4-byte array to uint32_t (little-endian)
             uint32_t sensorData = downlink.data[0] | (downlink.data[1] << 8) |
                                   (downlink.data[2] << 16) | (downlink.data[3] << 24);
-            ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-                fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
-            }
+            fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
         }
     }
 }

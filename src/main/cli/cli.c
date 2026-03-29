@@ -37,7 +37,6 @@ bool cliMode = false;
 #include "blackbox/blackbox.h"
 
 #include "build/build_config.h"
-#include "build/atomic.h"
 #include "build/debug.h"
 #include "build/version.h"
 
@@ -61,7 +60,6 @@ bool cliMode = false;
 
 #include "drivers/accgyro/accgyro.h"
 #include "drivers/adc.h"
-#include "drivers/nvic.h"
 #include "drivers/buf_writer.h"
 #include "drivers/bus_i2c.h"
 #include "drivers/bus_spi.h"
@@ -5073,17 +5071,12 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     UNUSED(cmdName);
     
     if (!isEmpty(cmdline) && strncasecmp(cmdline, "clear", 5) == 0) {
-        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-            fbusSensorClearObserved();
-        }
+        fbusSensorClearObserved();
         cliPrintLine("Observed FBUS sensors cleared");
         return;
     }
     
-    uint8_t count = 0;
-    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-        count = fbusSensorGetObservedCount();
-    }
+    const uint8_t count = fbusSensorGetObservedCount();
     
     if (count == 0) {
         cliPrintLine("No FBUS sensors observed yet");
@@ -5096,34 +5089,23 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
     cliPrintLine("----------- | ------ | ----------------- | --------- | ----------------------------------------- | -------");
     
     for (uint8_t i = 0; i < count; i++) {
-        fbusObservedSensor_t sensor;
-        const char *sensorName = NULL;
-        bool haveSensor = false;
-
-        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-            const fbusObservedSensor_t *sensorPtr = fbusSensorGetObserved(i);
-            if (sensorPtr) {
-                memcpy(&sensor, sensorPtr, sizeof(sensor));
-                sensorName = fbusSensorGetName(sensor.physicalId);
-                haveSensor = true;
-            }
-        }
-
-        if (!haveSensor) {
+        const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
+        if (!sensor) {
             break;
         }
         
         // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor->physicalId);
         // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
         char nameBuffer[17];
         if (strcmp(sensorName, "UNKNOWN") == 0) {
-            tfp_sprintf(nameBuffer, "ID_%u", sensor.physicalId);
+            tfp_sprintf(nameBuffer, "ID_%u", sensor->physicalId);
             sensorName = nameBuffer;
         }
         // Print physical ID in a fixed-width column
-        cliPrintf("    %3u     | ", sensor.physicalId);
+        cliPrintf("    %3u     | ", sensor->physicalId);
 
-        const char *sourceName = fbusSensorGetSourceName(sensor.source);
+        const char *sourceName = fbusSensorGetSourceName(sensor->source);
         cliPrintf("%s", sourceName);
         const int sourceNameLen = (int)strlen(sourceName);
         for (int k = sourceNameLen; k < 6; k++) {
@@ -5140,7 +5122,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         cliPrint(" | ");
 
         // Print forwarded status in a fixed-width column
-        const char *forwardedStatus = fbusSensorIsForwarded(sensor.physicalId) ? "yes" : "no";
+        const char *forwardedStatus = fbusSensorIsForwarded(sensor->physicalId) ? "yes" : "no";
         cliPrintf("%s", forwardedStatus);
         const int forwardedStatusLen = (int)strlen(forwardedStatus);
         for (int k = forwardedStatusLen; k < 9; k++) {
@@ -5151,11 +5133,11 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         char appIdList[96];
         int appIdPos = 0;
         appIdList[0] = '\0';
-        for (uint8_t j = 0; j < sensor.appIdCount; j++) {
+        for (uint8_t j = 0; j < sensor->appIdCount; j++) {
             int remaining = (int)sizeof(appIdList) - appIdPos;
 
             // Reserve room for digits plus the trailing '\0' that tfp_sprintf writes.
-            uint16_t appIdValue = sensor.appIds[j];
+            uint16_t appIdValue = sensor->appIds[j];
             int neededDigits = 1;
             while (appIdValue >= 10) {
                 appIdValue /= 10;
@@ -5165,12 +5147,12 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
                 break;
             }
 
-            const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor.appIds[j]);
+            const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor->appIds[j]);
             if (written <= 0 || written >= remaining) {
                 break;
             }
             appIdPos += written;
-            if (j < sensor.appIdCount - 1) {
+            if (j < sensor->appIdCount - 1) {
                 remaining = (int)sizeof(appIdList) - appIdPos;
                 // Need space for ", ", plus terminating '\0'.
                 if (remaining <= 2) {
@@ -5190,7 +5172,7 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         }
 
         // Print packet count
-        cliPrintf(" | %7u", sensor.packetCount);
+        cliPrintf(" | %7u", sensor->packetCount);
         
         cliPrintLinefeed();
     }

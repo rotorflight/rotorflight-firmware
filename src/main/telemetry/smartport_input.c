@@ -23,10 +23,7 @@
 
 #if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
 
-#include "build/atomic.h"
-
 #include "common/utils.h"
-#include "drivers/nvic.h"
 #include "drivers/fbus_sensor.h"
 #include "drivers/time.h"
 #include "io/serial.h"
@@ -154,17 +151,13 @@ static void smartPortInputProcessFrame(const smartPortInputParser_t *parser)
     }
 
     smartPortInputRecordDiscoveredSensor((uint8_t)decodedPhysicalId);
-    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-        fbusSensorObservePhysicalIdWithSource((uint8_t)decodedPhysicalId, FBUS_SENSOR_SOURCE_SPORT);
-    }
+    fbusSensorObservePhysicalIdWithSource((uint8_t)decodedPhysicalId, FBUS_SENSOR_SOURCE_SPORT);
 
     smartPortPayload_t payload;
     memcpy(&payload, parser->payload, sizeof(payload));
 
     if (payload.frameId == FSSP_DATA_FRAME) {
-        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-            fbusSensorProcessDataWithSource((uint8_t)decodedPhysicalId, payload.valueId, payload.data, FBUS_SENSOR_SOURCE_SPORT);
-        }
+        fbusSensorProcessDataWithSource((uint8_t)decodedPhysicalId, payload.valueId, payload.data, FBUS_SENSOR_SOURCE_SPORT);
     }
 }
 
