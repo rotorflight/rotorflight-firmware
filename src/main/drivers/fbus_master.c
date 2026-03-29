@@ -31,6 +31,8 @@
 #include "common/maths.h"
 #include "common/time.h"
 
+#include "config/feature.h"
+
 #include "drivers/time.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
@@ -381,7 +383,9 @@ void fbusMasterInit(void)
     // Initialize FBUS sensor caches and forwarding buffers from current config.
     fbusSensorInit();
 #if defined(USE_TELEMETRY) && defined(USE_FBUS_MASTER)
-    initSmartPortInput();
+    if (featureIsEnabled(FEATURE_TELEMETRY)) {
+        initSmartPortInput();
+    }
 #endif
 
     serialReceiveCallbackPtr callback = dataReceive;
