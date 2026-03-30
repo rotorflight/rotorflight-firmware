@@ -11,6 +11,7 @@ reviews:
   fail_commit_status: true
   collapse_walkthrough: false
   in_progress_fortune: false
+  sequence_diagram: true
   poem: false
   auto_review:
     enabled: true
