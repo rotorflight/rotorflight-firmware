@@ -148,7 +148,7 @@ New MSP command to set the active battery profile. (#415)
 
 ### MSP2_GET_SMARTFUEL_CONFIG / MSP2_SET_SMARTFUEL_CONFIG
 
-New MSP2 commands to read and write firmware-side smartfuel configuration, including the selected source (`CURRENT` or `VOLTAGE`) and the voltage-mode tuning parameters.
+New MSP2 commands to read and write firmware-side smartfuel configuration, including the selected source (`CURRENT` or `VOLTAGE`) and the 6 voltage-mode tuning parameters in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `fuel_rise_tenths_percent_per_sec`, `sag_multiplier_percent`.
 
 
 ## CLI Changes
@@ -165,7 +165,7 @@ the PID loop rate to half too.
 
 `smartfuel_source` parameter added (`CURRENT`/`VOLTAGE`) to select whether smartfuel is derived from measured consumption or voltage-only estimation.
 
-`smartfuel_voltage_params` parameter added to tune voltage-mode smartfuel behaviour.
+`smartfuel_voltage_params` parameter added to tune voltage-mode smartfuel behaviour as a 6-value array in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `fuel_rise_tenths_percent_per_sec`, `sag_multiplier_percent`.
 
 `board_name`, `board_design`, and `manufacturer_id` now display a detailed
 incompatible-configuration warning and halt the system when an attempt is made
