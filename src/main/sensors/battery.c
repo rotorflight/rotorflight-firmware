@@ -281,7 +281,7 @@ static void batteryUpdateAlarms(void)
 
 static bool isVoltageStable(void)
 {
-    return ABS(batteryVoltage - voltageMeter.sample) <= VBAT_STABLE_MAX_DELTA;
+    return ABS(cmp32(batteryVoltage, voltageMeter.sample)) <= VBAT_STABLE_MAX_DELTA;
 }
 
 static bool isVoltageFromBat(void)
