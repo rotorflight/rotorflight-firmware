@@ -17,6 +17,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <math.h>
 
 #include "platform.h"
@@ -37,10 +38,12 @@
 #include "fc/rc_controls.h"
 
 #include "flight/mixer.h"
+#include "flight/motors.h"
 
 #include "io/beeper.h"
 
 #include "pg/battery.h"
+#include "pg/telemetry.h"
 
 #include "scheduler/scheduler.h"
 
@@ -63,6 +66,8 @@
 
 #define VBAT_STABLE_MAX_DELTA           200         // mV
 #define LVC_AFFECT_TIME                 10000000    // 10 secs for the LVC to slowly kick in
+#define SMARTFUEL_MAX_SAG_COMP_V        0.5f
+#define SMARTFUEL_STABLE_SAMPLE_COUNT   5
 
 
 const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
@@ -103,6 +108,345 @@ static uint16_t batteryCriticalHysteresisVoltage;
 static batteryState_e batteryState;
 static batteryState_e voltageState;
 static batteryState_e consumptionState;
+
+typedef struct smartFuelConfigSig_s {
+    uint8_t profile;
+    uint8_t cellCount;
+    uint8_t source;
+    uint8_t reserved;
+    uint16_t capacity;
+    uint16_t reserve;
+    uint16_t vbatMin;
+    uint16_t vbatMax;
+    uint16_t vbatFull;
+} smartFuelConfigSig_t;
+
+typedef struct smartFuelState_s {
+    bool voltageStabilized;
+    bool voltageFiltered;
+    bool startStateValid;
+    bool lastPercentValid;
+    bool lastHeadspeedValid;
+    bool wasArmed;
+    bool hadFlight;
+    timeUs_t stabilizeNotBeforeUs;
+    timeUs_t lastUpdateUs;
+    uint8_t voltageSampleCount;
+    float voltageSamples[SMARTFUEL_STABLE_SAMPLE_COUNT];
+    float filteredVoltage;
+    float startPercent;
+    float startConsumption;
+    float lastPercent;
+    float lastHeadspeed;
+    uint8_t percent;
+    smartFuelConfigSig_t config;
+} smartFuelState_t;
+
+static smartFuelState_t smartFuel = INIT_ZERO;
+
+#ifdef USE_SMARTFUEL
+static uint16_t smartFuelVoltageParam(unsigned index, uint16_t fallback)
+{
+#ifdef USE_TELEMETRY
+    if (index < SMARTFUEL_VOLTAGE_PARAM_COUNT) {
+        const uint16_t value = telemetryConfig()->smartfuel_voltage_params[index];
+        return value ? value : fallback;
+    }
+#else
+    UNUSED(index);
+#endif
+
+    return fallback;
+}
+
+static timeUs_t smartFuelStabilizeDelayUs(void)
+{
+    return (timeUs_t)smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_STABILIZE_DELAY_MS, 1500) * 1000;
+}
+
+static float smartFuelStableWindowVolts(void)
+{
+    return smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_STABLE_WINDOW_CV, 15) / 100.0f;
+}
+
+static float smartFuelVoltageFallLimitPerSecond(void)
+{
+    return smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_VOLTAGE_FALL_CVPS, 5) / 100.0f;
+}
+
+static float smartFuelDropPerSecond(void)
+{
+    return smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S, 10) / 10.0f;
+}
+
+static float smartFuelRisePerSecond(void)
+{
+    return smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S, 2) / 10.0f;
+}
+
+static float smartFuelSagMultiplier(void)
+{
+    return smartFuelVoltageParam(SMARTFUEL_VOLTAGE_PARAM_SAG_MULTIPLIER_PERCENT, 70) / 100.0f;
+}
+
+static smartFuelSource_e smartFuelGetConfiguredSource(void)
+{
+#ifdef USE_TELEMETRY
+    return (smartFuelSource_e)telemetryConfig()->smartfuel_source;
+#else
+    return SMARTFUEL_SOURCE_CURRENT;
+#endif
+}
+
+static smartFuelConfigSig_t smartFuelGetConfig(void)
+{
+    return (smartFuelConfigSig_t) {
+        .profile = batteryConfig()->batteryProfile,
+        .cellCount = batteryCellCount,
+        .source = smartFuelGetConfiguredSource(),
+        .reserved = 0,
+        .capacity = getBatteryCapacity(),
+        .reserve = batteryConfig()->consumptionWarningPercentage,
+        .vbatMin = batteryConfig()->vbatmincellvoltage,
+        .vbatMax = batteryConfig()->vbatmaxcellvoltage,
+        .vbatFull = batteryConfig()->vbatfullcellvoltage,
+    };
+}
+
+static void smartFuelResetState(timeUs_t currentTimeUs)
+{
+    smartFuel.voltageStabilized = false;
+    smartFuel.voltageFiltered = false;
+    smartFuel.startStateValid = false;
+    smartFuel.lastPercentValid = false;
+    smartFuel.lastHeadspeedValid = false;
+    smartFuel.hadFlight = false;
+    smartFuel.stabilizeNotBeforeUs = currentTimeUs + smartFuelStabilizeDelayUs();
+    smartFuel.lastUpdateUs = currentTimeUs;
+    smartFuel.voltageSampleCount = 0;
+    memset(smartFuel.voltageSamples, 0, sizeof(smartFuel.voltageSamples));
+    smartFuel.filteredVoltage = 0.0f;
+    smartFuel.startPercent = 0.0f;
+    smartFuel.startConsumption = 0.0f;
+    smartFuel.lastPercent = 0.0f;
+    smartFuel.lastHeadspeed = 0.0f;
+    smartFuel.percent = 0;
+}
+
+static uint8_t smartFuelClampReserve(uint8_t reserve)
+{
+    if (reserve < 15 || reserve > 60) {
+        return 35;
+    }
+
+    return reserve;
+}
+
+static float smartFuelPercentFromVoltage(float voltage, uint8_t cellCount)
+{
+    if (cellCount == 0) {
+        return 0.0f;
+    }
+
+    const float voltagePerCell = voltage / cellCount;
+    const float minCellVoltage = batteryConfig()->vbatmincellvoltage / 100.0f;
+    const float fullCellVoltage = batteryConfig()->vbatfullcellvoltage / 100.0f;
+    const float cellVoltageSpan = fullCellVoltage - minCellVoltage;
+
+    if (cellVoltageSpan <= 0.0f) {
+        return 0.0f;
+    }
+
+    if (voltagePerCell <= minCellVoltage) {
+        return 0.0f;
+    }
+
+    if (voltagePerCell >= fullCellVoltage) {
+        return 100.0f;
+    }
+
+    const float scaledVoltage = constrainf(
+        3.0f + ((voltagePerCell - minCellVoltage) / cellVoltageSpan) * 1.2f,
+        3.0f, 4.2f);
+
+    return constrainf(100.0f / (1.0f + expf(-12.0f * (scaledVoltage - 3.7f))), 0.0f, 100.0f);
+}
+
+static float smartFuelPercentFromVoltageOnly(float voltage, uint8_t cellCount)
+{
+    if (cellCount == 0) {
+        return 0.0f;
+    }
+
+    const float fullCellVoltage = batteryConfig()->vbatfullcellvoltage / 100.0f;
+    const float minCellVoltage = batteryConfig()->vbatmincellvoltage / 100.0f;
+    const float reserve = smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f;
+    const float adjustedMinVoltage = minCellVoltage + (fullCellVoltage - minCellVoltage) * reserve * 1.4f;
+    const float usableSpan = fullCellVoltage - adjustedMinVoltage;
+
+    if (usableSpan <= 0.0f) {
+        return 0.0f;
+    }
+
+    const float voltagePerCell = constrainf(voltage / cellCount, 3.3f, fullCellVoltage);
+    const float scaledVoltage = constrainf(
+        3.3f + ((voltagePerCell - adjustedMinVoltage) / usableSpan) * 0.9f,
+        3.3f, 4.2f);
+
+    return constrainf((scaledVoltage - 3.3f) * (100.0f / 0.9f), 0.0f, 100.0f);
+}
+
+static void smartFuelAddVoltageSample(float voltage)
+{
+    if (smartFuel.voltageSampleCount < SMARTFUEL_STABLE_SAMPLE_COUNT) {
+        smartFuel.voltageSamples[smartFuel.voltageSampleCount++] = voltage;
+        return;
+    }
+
+    memmove(&smartFuel.voltageSamples[0], &smartFuel.voltageSamples[1],
+        sizeof(smartFuel.voltageSamples[0]) * (SMARTFUEL_STABLE_SAMPLE_COUNT - 1));
+    smartFuel.voltageSamples[SMARTFUEL_STABLE_SAMPLE_COUNT - 1] = voltage;
+}
+
+static bool smartFuelVoltageIsStable(void)
+{
+    if (smartFuel.voltageSampleCount < SMARTFUEL_STABLE_SAMPLE_COUNT) {
+        return false;
+    }
+
+    float minVoltage = smartFuel.voltageSamples[0];
+    float maxVoltage = smartFuel.voltageSamples[0];
+
+    for (unsigned i = 1; i < smartFuel.voltageSampleCount; i++) {
+        minVoltage = MIN(minVoltage, smartFuel.voltageSamples[i]);
+        maxVoltage = MAX(maxVoltage, smartFuel.voltageSamples[i]);
+    }
+
+    return (maxVoltage - minVoltage) <= smartFuelStableWindowVolts();
+}
+
+static float smartFuelApplySagCompensation(float voltage)
+{
+    if (!ARMING_FLAG(ARMED)) {
+        smartFuel.lastHeadspeedValid = false;
+        return voltage;
+    }
+
+    const float roll = fabsf(mixerGetInput(MIXER_IN_STABILIZED_ROLL));
+    const float pitch = fabsf(mixerGetInput(MIXER_IN_STABILIZED_PITCH));
+    const float collective = fabsf(mixerGetInput(MIXER_IN_STABILIZED_COLLECTIVE));
+    const float stickLoad = constrainf(roll + pitch + collective * 1.2f, 0.0f, 1.0f);
+
+    float rpmDrop = 0.0f;
+    const float headSpeed = getHeadSpeed();
+    if (headSpeed >= 100.0f) {
+        if (smartFuel.lastHeadspeedValid && smartFuel.lastHeadspeed > 0.0f) {
+            rpmDrop = MAX((smartFuel.lastHeadspeed - headSpeed) / smartFuel.lastHeadspeed, 0.0f);
+        }
+        smartFuel.lastHeadspeed = headSpeed;
+        smartFuel.lastHeadspeedValid = true;
+    } else {
+        smartFuel.lastHeadspeedValid = false;
+    }
+
+    const float sagFactor = MAX(stickLoad, rpmDrop);
+    const float compensationScale = powf(smartFuelSagMultiplier(), 1.5f);
+
+    return voltage + compensationScale * sagFactor * SMARTFUEL_MAX_SAG_COMP_V;
+}
+
+static void smartFuelUpdate(timeUs_t currentTimeUs)
+{
+    const bool armed = ARMING_FLAG(ARMED);
+    const smartFuelConfigSig_t config = smartFuelGetConfig();
+
+    if (memcmp(&smartFuel.config, &config, sizeof(config)) != 0) {
+        smartFuel.config = config;
+        smartFuelResetState(currentTimeUs);
+    }
+
+    if (!isBatteryVoltageConfigured() || batteryCellCount == 0) {
+        smartFuel.wasArmed = armed;
+        smartFuelResetState(currentTimeUs);
+        return;
+    }
+
+    if (armed && !smartFuel.wasArmed) {
+        smartFuel.hadFlight = true;
+    }
+    smartFuel.wasArmed = armed;
+
+    const float voltage = getBatteryVoltage() / 100.0f;
+    if (voltage < 2.0f) {
+        smartFuelResetState(currentTimeUs);
+        return;
+    }
+
+    const smartFuelSource_e source = smartFuelGetConfiguredSource();
+    float percent = (source == SMARTFUEL_SOURCE_VOLTAGE) ?
+        smartFuelPercentFromVoltageOnly(voltage, batteryCellCount) :
+        smartFuelPercentFromVoltage(voltage, batteryCellCount);
+
+    const float dt = smartFuel.lastUpdateUs ? cmpTimeUs(currentTimeUs, smartFuel.lastUpdateUs) * 1e-6f : 0.0f;
+    smartFuel.lastUpdateUs = currentTimeUs;
+
+    const float previousVoltage = smartFuel.voltageSampleCount ?
+        smartFuel.voltageSamples[smartFuel.voltageSampleCount - 1] : voltage;
+
+    if (cmpTimeUs(currentTimeUs, smartFuel.stabilizeNotBeforeUs) >= 0) {
+        smartFuelAddVoltageSample(voltage);
+
+        if (!smartFuel.voltageStabilized) {
+            smartFuel.voltageStabilized = smartFuelVoltageIsStable();
+        } else if (!armed && !smartFuel.hadFlight && voltage > previousVoltage + smartFuelStableWindowVolts()) {
+            smartFuelResetState(currentTimeUs);
+            percent = (source == SMARTFUEL_SOURCE_VOLTAGE) ?
+                smartFuelPercentFromVoltageOnly(voltage, batteryCellCount) :
+                smartFuelPercentFromVoltage(voltage, batteryCellCount);
+        }
+    }
+
+    if (source == SMARTFUEL_SOURCE_CURRENT) {
+        const float packCapacity = getBatteryCapacity();
+        if (smartFuel.voltageStabilized && packCapacity >= 10.0f) {
+            float usableCapacity = packCapacity * (1.0f - smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f);
+            if (usableCapacity < 10.0f) {
+                usableCapacity = packCapacity;
+            }
+
+            if (!smartFuel.startStateValid) {
+                smartFuel.startPercent = percent;
+                smartFuel.startConsumption = getBatteryCapacityUsed() - usableCapacity * (1.0f - smartFuel.startPercent / 100.0f);
+                smartFuel.startStateValid = true;
+            }
+
+            const float usedCapacity = getBatteryCapacityUsed() - smartFuel.startConsumption;
+            percent = smartFuel.startPercent - (usedCapacity * 100.0f / usableCapacity);
+        }
+    } else {
+        float filteredVoltage = voltage;
+        if (smartFuel.voltageFiltered && dt > 0.0f && voltage < smartFuel.filteredVoltage) {
+            filteredVoltage = MAX(voltage, smartFuel.filteredVoltage - dt * smartFuelVoltageFallLimitPerSecond());
+        } else {
+            smartFuel.voltageFiltered = true;
+        }
+        smartFuel.filteredVoltage = filteredVoltage;
+        percent = smartFuelPercentFromVoltageOnly(smartFuelApplySagCompensation(filteredVoltage), batteryCellCount);
+
+        if ((armed || smartFuel.hadFlight) && smartFuel.lastPercentValid && dt > 0.0f) {
+            if (percent < smartFuel.lastPercent) {
+                percent = MAX(percent, smartFuel.lastPercent - dt * smartFuelDropPerSecond());
+            } else if (percent > smartFuel.lastPercent) {
+                percent = MIN(percent, smartFuel.lastPercent + dt * smartFuelRisePerSecond());
+            }
+        }
+    }
+
+    smartFuel.lastPercent = constrainf(percent, 0.0f, 100.0f);
+    smartFuel.lastPercentValid = true;
+    smartFuel.percent = lrintf(smartFuel.lastPercent);
+}
+#endif
 
 
 /** Access function **/
@@ -190,6 +534,15 @@ uint16_t getBatteryCapacity(void)
 uint32_t getBatteryCapacityUsed(void)
 {
     return currentMeter.capacity;
+}
+
+uint8_t getBatterySmartFuel(void)
+{
+#ifdef USE_SMARTFUEL
+    return smartFuel.percent;
+#else
+    return 0;
+#endif
 }
 
 batteryState_e getBatteryState(void)
@@ -434,6 +787,9 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
     }
 
     batteryUpdateStates(currentTimeUs);
+#ifdef USE_SMARTFUEL
+    smartFuelUpdate(currentTimeUs);
+#endif
     batteryUpdateAlarms();
 }
 
@@ -597,4 +953,8 @@ void batteryInit(void)
 
     // current
     consumptionState = BATTERY_OK;
+
+#ifdef USE_SMARTFUEL
+    memset(&smartFuel, 0, sizeof(smartFuel));
+#endif
 }

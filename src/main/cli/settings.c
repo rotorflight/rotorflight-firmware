@@ -496,6 +496,12 @@ const char * const lookupTableSwashType[] = {
     "NONE", "PASSTHROUGH", "CP120", "CP135", "CP140", "FP90L", "FP90V",
 };
 
+#ifdef USE_SMARTFUEL
+const char * const lookupTableSmartFuelSource[] = {
+    "CURRENT", "VOLTAGE",
+};
+#endif
+
 const char * const lookupTableTelemMode[] = {
     "NATIVE", "CUSTOM",
 };
@@ -622,6 +628,9 @@ const lookupTableEntry_t lookupTables[] = {
 
     LOOKUP_TABLE_ENTRY(lookupTableRescueMode),
     LOOKUP_TABLE_ENTRY(lookupTableSwashType),
+#ifdef USE_SMARTFUEL
+    LOOKUP_TABLE_ENTRY(lookupTableSmartFuelSource),
+#endif
     LOOKUP_TABLE_ENTRY(lookupTableTelemMode),
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
@@ -1234,6 +1243,10 @@ const clivalue_t valueTable[] = {
     // Set to 10 to show a tenth of your capacity drawn.
     // Set to $size_of_battery to get a percentage of battery used.
     { "mavlink_mah_as_heading_divisor", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, mavlink_mah_as_heading_divisor) },
+#endif
+#ifdef USE_SMARTFUEL
+    { "smartfuel_source",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SMARTFUEL_SOURCE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_source) },
+    { "smartfuel_voltage_params",   VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SMARTFUEL_VOLTAGE_PARAM_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_voltage_params)},
 #endif
     { "crsf_telemetry_mode",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TELEM_MODE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_mode) },
     { "crsf_telemetry_link_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_rate) },

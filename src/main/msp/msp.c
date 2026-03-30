@@ -1353,6 +1353,15 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
 #endif
 
+#ifdef USE_SMARTFUEL
+    case MSP2_GET_SMARTFUEL_CONFIG:
+        sbufWriteU8(dst, telemetryConfig()->smartfuel_source);
+        for (unsigned i = 0; i < SMARTFUEL_VOLTAGE_PARAM_COUNT; i++) {
+            sbufWriteU16(dst, telemetryConfig()->smartfuel_voltage_params[i]);
+        }
+        break;
+#endif
+
     case MSP_RC:
         for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcInput[i]);
@@ -3340,6 +3349,26 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 if (DSHOT_CMD_TYPE_BLOCKING == commandType) {
                     motorEnable();
                 }
+            }
+        }
+        break;
+#endif
+
+#ifdef USE_SMARTFUEL
+    case MSP2_SET_SMARTFUEL_CONFIG:
+        if (dataSize < (1U + 2U * SMARTFUEL_VOLTAGE_PARAM_COUNT)) {
+            return MSP_RESULT_ERROR;
+        }
+
+        {
+            const uint8_t source = sbufReadU8(src);
+            if (source > SMARTFUEL_SOURCE_VOLTAGE) {
+                return MSP_RESULT_ERROR;
+            }
+
+            telemetryConfigMutable()->smartfuel_source = source;
+            for (unsigned i = 0; i < SMARTFUEL_VOLTAGE_PARAM_COUNT; i++) {
+                telemetryConfigMutable()->smartfuel_voltage_params[i] = sbufReadU16(src);
             }
         }
         break;

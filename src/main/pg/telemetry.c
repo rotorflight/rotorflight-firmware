@@ -26,7 +26,7 @@
 #include "pg/telemetry.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 6);
+PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 8);
 
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
@@ -37,6 +37,7 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .frsky_coordinate_format = FRSKY_FORMAT_DMS,
     .frsky_unit = UNIT_METRIC,
     .frsky_vfas_precision = 0,
+    .smartfuel_source = SMARTFUEL_SOURCE_CURRENT,
     .hottAlarmSoundInterval = 5,
     .report_cell_voltage = false,
     .flysky_sensors = {
@@ -48,6 +49,14 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
+    .smartfuel_voltage_params = {
+        1500, // stabilize delay ms
+        15,   // stable window centivolts
+        5,    // voltage fall limit centivolts per second
+        10,   // fuel drop tenths percent per second
+        2,    // fuel rise tenths percent per second
+        70,   // sag multiplier percent
+    },
     .telemetry_sensors = INIT_ZERO,
     .telemetry_interval = INIT_ZERO,
 );

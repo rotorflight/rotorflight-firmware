@@ -78,6 +78,7 @@ uint16_t getBatteryCurrentSample(void);
 uint16_t getLegacyBatteryCurrent(void);
 uint16_t getBatteryCapacity(void);
 uint32_t getBatteryCapacityUsed(void);
+uint8_t getBatterySmartFuel(void);
 
 uint8_t calculateBatteryPercentageRemaining(void);
 

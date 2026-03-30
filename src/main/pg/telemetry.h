@@ -28,12 +28,27 @@ typedef enum {
     FRSKY_FORMAT_NMEA
 } frskyGpsCoordFormat_e;
 
+typedef enum {
+    SMARTFUEL_SOURCE_CURRENT = 0,
+    SMARTFUEL_SOURCE_VOLTAGE,
+} smartFuelSource_e;
+
 enum {
     CRSF_TELEMETRY_MODE_NATIVE = 0,
     CRSF_TELEMETRY_MODE_CUSTOM,
 };
 
 #define TELEM_SENSOR_SLOT_COUNT 40
+#define SMARTFUEL_VOLTAGE_PARAM_COUNT 6
+
+typedef enum {
+    SMARTFUEL_VOLTAGE_PARAM_STABILIZE_DELAY_MS = 0,
+    SMARTFUEL_VOLTAGE_PARAM_STABLE_WINDOW_CV,
+    SMARTFUEL_VOLTAGE_PARAM_VOLTAGE_FALL_CVPS,
+    SMARTFUEL_VOLTAGE_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S,
+    SMARTFUEL_VOLTAGE_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S,
+    SMARTFUEL_VOLTAGE_PARAM_SAG_MULTIPLIER_PERCENT,
+} smartFuelVoltageParamIndex_e;
 
 typedef struct telemetryConfig_s {
     int16_t gpsNoFixLatitude;
@@ -44,6 +59,7 @@ typedef struct telemetryConfig_s {
     uint8_t frsky_coordinate_format;
     uint8_t frsky_unit;
     uint8_t frsky_vfas_precision;
+    uint8_t smartfuel_source;
     uint8_t hottAlarmSoundInterval;
     uint8_t report_cell_voltage;
     uint8_t flysky_sensors[IBUS_SENSOR_COUNT];
@@ -51,9 +67,9 @@ typedef struct telemetryConfig_s {
     uint8_t crsf_telemetry_mode;
     uint16_t crsf_telemetry_link_rate;
     uint16_t crsf_telemetry_link_ratio;
+    uint16_t smartfuel_voltage_params[SMARTFUEL_VOLTAGE_PARAM_COUNT];
     uint16_t telemetry_sensors[TELEM_SENSOR_SLOT_COUNT];
     uint16_t telemetry_interval[TELEM_SENSOR_SLOT_COUNT];
 } telemetryConfig_t;
 
 PG_DECLARE(telemetryConfig_t, telemetryConfig);
-
