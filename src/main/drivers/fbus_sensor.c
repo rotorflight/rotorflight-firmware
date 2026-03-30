@@ -366,17 +366,17 @@ static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data)
     buffer->count++;
 }
 
-bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
+bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
 {
     if (!frame) {
         return false;
     }
-    
+
     fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
     if (!buffer) {
         return false;
     }
-    
+
     if (buffer->count == 0) {
         frame->physicalId = physicalId;
         frame->appId = 0;
@@ -384,12 +384,29 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
         frame->valid = false;
         return true;
     }
-    
+
     memcpy(frame, &buffer->frames[buffer->readIndex], sizeof(fbusSensorFrame_t));
-    
+    return true;
+}
+
+bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
+{
+    if (!fbusSensorPeekForwardedFrame(physicalId, frame)) {
+        return false;
+    }
+
+    if (!frame->valid) {
+        return true;
+    }
+
+    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+    if (!buffer) {
+        return false;
+    }
+
     buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
     buffer->count--;
-    
+
     return true;
 }
 

@@ -4272,8 +4272,6 @@ bool INIT_CODE escSensorInit(void)
             callback = xdflySensorInit(ESC_SIG_XDFLY);
             baudrate = 115200;
             break;
-        case ESC_SENSOR_PROTO_FBUS:
-            break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
             break;

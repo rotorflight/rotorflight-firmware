@@ -1981,8 +1981,10 @@ static bool serialConfigHasBusServos(const serialConfig_t *config)
     return false;
 }
 
-static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos)
+static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault)
 {
+    const bool hasBusServos = serialConfigHasBusServos(serialConfigCurrent) || serialConfigHasBusServos(serialConfigDefault);
+
     if (hasBusServos || !defaultServoParams) {
         return hasBusServos;
     }
@@ -1996,11 +1998,11 @@ static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoPar
     return false;
 }
 
-static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos, const char *headingStr)
+static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault, const char *headingStr)
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t pwmServoCount = getServoCount();
-    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, hasBusServos);
+    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, serialConfigCurrent, serialConfigDefault);
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
 
@@ -2145,7 +2147,7 @@ static void cliServo(const char *cmdName, char *cmdline)
     }
 
     if (count == 0) {
-        printServo(DUMP_MASTER, servoParams(0), NULL, hasBusServos, NULL);
+        printServo(DUMP_MASTER, servoParams(0), NULL, serialConfig(), NULL, NULL);
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         if (pwmServoCount > 0) {
@@ -6516,8 +6518,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
             printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
-            const bool hasBusServos = serialConfigHasBusServos(&serialConfig_Copy) || serialConfigHasBusServos(serialConfig());
-            printServo(dumpMask, servoParams_CopyArray, servoParams(0), hasBusServos, "servo");
+            printServo(dumpMask, servoParams_CopyArray, servoParams(0), &serialConfig_Copy, serialConfig(), "servo");
 #endif
 
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");

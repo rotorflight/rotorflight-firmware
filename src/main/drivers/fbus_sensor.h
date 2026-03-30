@@ -54,8 +54,7 @@ typedef enum {
 
 // FBUS GPS Data IDs
 typedef enum {
-    FBUS_GPS_LATITUDE_BASE  = 0x0800,  // 0x0800~0x080f
-    FBUS_GPS_LONGITUDE_BASE = 0x0800,  // Same base, differentiated by bit31
+    FBUS_GPS_LATITUDE_BASE  = 0x0800,  // 0x0800~0x080f, bit31 differentiates latitude/longitude
     FBUS_GPS_ALTITUDE_BASE  = 0x0820,  // 0x0820~0x082f
     FBUS_GPS_SPEED_BASE     = 0x0830,  // 0x0830~0x083f
     FBUS_GPS_COURSE_BASE    = 0x0840,  // 0x0840~0x084f
@@ -243,6 +242,7 @@ const char* fbusSensorGetName(uint8_t physicalId);
 // Frame forwarding functions
 void fbusSensorInitForwarding(void);
 bool fbusSensorIsForwarded(uint8_t physicalId);
+bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorNeedsStartupFrame(uint8_t physicalId);
 void fbusSensorMarkStartupFrameSent(uint8_t physicalId);

@@ -24,7 +24,6 @@
 #include "common/time.h"
 #include "common/utils.h"
 
-
 #define FMUS_MASTER_CONTROL_EXTRA_FIELDS 4
 #define FBUS_MASTER_NUM_CHANNELS 16
 #define SBUS_BITS_PER_CHANNEL 11
