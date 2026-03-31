@@ -406,23 +406,31 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
         }
     }
 
+    if (!smartFuel.voltageStabilized) {
+        smartFuel.lastPercentValid = false;
+        return;
+    }
+
     if (source == SMARTFUEL_SOURCE_CURRENT) {
         const float packCapacity = getBatteryCapacity();
-        if (smartFuel.voltageStabilized && packCapacity >= 10.0f) {
-            float usableCapacity = packCapacity * (1.0f - smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f);
-            if (usableCapacity < 10.0f) {
-                usableCapacity = packCapacity;
-            }
-
-            if (!smartFuel.startStateValid) {
-                smartFuel.startPercent = percent;
-                smartFuel.startConsumption = getBatteryCapacityUsed() - usableCapacity * (1.0f - smartFuel.startPercent / 100.0f);
-                smartFuel.startStateValid = true;
-            }
-
-            const float usedCapacity = getBatteryCapacityUsed() - smartFuel.startConsumption;
-            percent = smartFuel.startPercent - (usedCapacity * 100.0f / usableCapacity);
+        if (packCapacity < 10.0f) {
+            smartFuel.lastPercentValid = false;
+            return;
         }
+
+        float usableCapacity = packCapacity * (1.0f - smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f);
+        if (usableCapacity < 10.0f) {
+            usableCapacity = packCapacity;
+        }
+
+        if (!smartFuel.startStateValid) {
+            smartFuel.startPercent = percent;
+            smartFuel.startConsumption = getBatteryCapacityUsed() - usableCapacity * (1.0f - smartFuel.startPercent / 100.0f);
+            smartFuel.startStateValid = true;
+        }
+
+        const float usedCapacity = getBatteryCapacityUsed() - smartFuel.startConsumption;
+        percent = smartFuel.startPercent - (usedCapacity * 100.0f / usableCapacity);
     } else {
         float filteredVoltage = voltage;
         if (smartFuel.voltageFiltered && dt > 0.0f && voltage < smartFuel.filteredVoltage) {
@@ -536,12 +544,12 @@ uint32_t getBatteryCapacityUsed(void)
     return currentMeter.capacity;
 }
 
-uint8_t getBatterySmartFuel(void)
+int getBatterySmartFuel(void)
 {
 #ifdef USE_SMARTFUEL
-    return smartFuel.percent;
+    return smartFuel.lastPercentValid ? smartFuel.percent : -1;
 #else
-    return 0;
+    return -1;
 #endif
 }
 
