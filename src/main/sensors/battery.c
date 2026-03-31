@@ -242,36 +242,6 @@ static uint8_t smartFuelClampReserve(uint8_t reserve)
     return reserve;
 }
 
-static float smartFuelPercentFromVoltage(float voltage, uint8_t cellCount)
-{
-    if (cellCount == 0) {
-        return 0.0f;
-    }
-
-    const float voltagePerCell = voltage / cellCount;
-    const float minCellVoltage = batteryConfig()->vbatmincellvoltage / 100.0f;
-    const float fullCellVoltage = batteryConfig()->vbatfullcellvoltage / 100.0f;
-    const float cellVoltageSpan = fullCellVoltage - minCellVoltage;
-
-    if (cellVoltageSpan <= 0.0f) {
-        return 0.0f;
-    }
-
-    if (voltagePerCell <= minCellVoltage) {
-        return 0.0f;
-    }
-
-    if (voltagePerCell >= fullCellVoltage) {
-        return 100.0f;
-    }
-
-    const float scaledVoltage = constrainf(
-        3.0f + ((voltagePerCell - minCellVoltage) / cellVoltageSpan) * 1.2f,
-        3.0f, 4.2f);
-
-    return constrainf(100.0f / (1.0f + expf(-12.0f * (scaledVoltage - 3.7f))), 0.0f, 100.0f);
-}
-
 static float smartFuelPercentFromVoltageOnly(float voltage, uint8_t cellCount)
 {
     if (cellCount == 0) {
@@ -383,9 +353,7 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
     }
 
     const smartFuelSource_e source = smartFuelGetConfiguredSource();
-    float percent = (source == SMARTFUEL_SOURCE_VOLTAGE) ?
-        smartFuelPercentFromVoltageOnly(voltage, batteryCellCount) :
-        smartFuelPercentFromVoltage(voltage, batteryCellCount);
+    float percent = smartFuelPercentFromVoltageOnly(voltage, batteryCellCount);
 
     const float dt = smartFuel.lastUpdateUs ? cmpTimeUs(currentTimeUs, smartFuel.lastUpdateUs) * 1e-6f : 0.0f;
     smartFuel.lastUpdateUs = currentTimeUs;
@@ -400,9 +368,7 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
             smartFuel.voltageStabilized = smartFuelVoltageIsStable();
         } else if (!armed && !smartFuel.hadFlight && voltage > previousVoltage + smartFuelStableWindowVolts()) {
             smartFuelResetState(currentTimeUs);
-            percent = (source == SMARTFUEL_SOURCE_VOLTAGE) ?
-                smartFuelPercentFromVoltageOnly(voltage, batteryCellCount) :
-                smartFuelPercentFromVoltage(voltage, batteryCellCount);
+            percent = smartFuelPercentFromVoltageOnly(voltage, batteryCellCount);
         }
     }
 
