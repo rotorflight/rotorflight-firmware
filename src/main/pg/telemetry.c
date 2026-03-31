@@ -50,12 +50,12 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
     .smartfuel_params = {
-        1500, // stabilize delay ms (shared by current and voltage modes)
-        15,   // stable window centivolts (shared by current and voltage modes)
-        5,    // voltage fall limit centivolts per second
-        10,   // fuel drop tenths percent per second
-        2,    // fuel rise tenths percent per second
-        70,   // sag multiplier percent
+        SMARTFUEL_STABILIZE_DELAY_DEFAULT_MS,                  // stabilize delay ms (shared by current and voltage modes)
+        SMARTFUEL_STABLE_WINDOW_DEFAULT_CV,                    // stable window centivolts (shared by current and voltage modes)
+        SMARTFUEL_VOLTAGE_FALL_LIMIT_DEFAULT_CVPS,             // voltage fall limit centivolts per second
+        SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S, // fuel drop tenths percent per second
+        SMARTFUEL_FUEL_RISE_RATE_DEFAULT_TENTHS_PERCENT_PER_S, // fuel rise tenths percent per second
+        SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT,              // sag multiplier percent
     },
     .telemetry_sensors = INIT_ZERO,
     .telemetry_interval = INIT_ZERO,

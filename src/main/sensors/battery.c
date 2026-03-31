@@ -161,32 +161,32 @@ static uint16_t smartFuelVoltageParam(unsigned index, uint16_t fallback)
 
 static timeUs_t smartFuelStabilizeDelayUs(void)
 {
-    return (timeUs_t)smartFuelVoltageParam(SMARTFUEL_PARAM_STABILIZE_DELAY_MS, 1500) * 1000;
+    return (timeUs_t)smartFuelVoltageParam(SMARTFUEL_PARAM_STABILIZE_DELAY_MS, SMARTFUEL_STABILIZE_DELAY_DEFAULT_MS) * 1000;
 }
 
 static float smartFuelStableWindowVolts(void)
 {
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_STABLE_WINDOW_CV, 15) / 100.0f;
+    return smartFuelVoltageParam(SMARTFUEL_PARAM_STABLE_WINDOW_CV, SMARTFUEL_STABLE_WINDOW_DEFAULT_CV) / 100.0f;
 }
 
 static float smartFuelVoltageFallLimitPerSecond(void)
 {
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS, 5) / 100.0f;
+    return smartFuelVoltageParam(SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS, SMARTFUEL_VOLTAGE_FALL_LIMIT_DEFAULT_CVPS) / 100.0f;
 }
 
 static float smartFuelDropPerSecond(void)
 {
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S, 10) / 10.0f;
+    return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S, SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S) / 10.0f;
 }
 
 static float smartFuelRisePerSecond(void)
 {
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S, 2) / 10.0f;
+    return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S, SMARTFUEL_FUEL_RISE_RATE_DEFAULT_TENTHS_PERCENT_PER_S) / 10.0f;
 }
 
 static float smartFuelSagMultiplier(void)
 {
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT, 70) / 100.0f;
+    return smartFuelVoltageParam(SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT, SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT) / 100.0f;
 }
 
 static smartFuelSource_e smartFuelGetConfiguredSource(void)

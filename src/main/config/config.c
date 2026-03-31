@@ -84,6 +84,7 @@
 #include "pg/freq.h"
 #include "pg/system.h"
 #include "pg/pilot.h"
+#include "pg/telemetry.h"
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -196,6 +197,36 @@ static void validateAndFixPositionConfig(void)
 {
 
 }
+
+#ifdef USE_SMARTFUEL
+static void validateAndFixSmartFuelConfig(void)
+{
+    telemetryConfig_t *config = telemetryConfigMutable();
+
+    if (config->smartfuel_source >= SMARTFUEL_SOURCE_COUNT) {
+        config->smartfuel_source = SMARTFUEL_SOURCE_CURRENT;
+    }
+
+    if (config->smartfuel_params[SMARTFUEL_PARAM_STABILIZE_DELAY_MS] > SMARTFUEL_STABILIZE_DELAY_MAX_MS) {
+        config->smartfuel_params[SMARTFUEL_PARAM_STABILIZE_DELAY_MS] = SMARTFUEL_STABILIZE_DELAY_DEFAULT_MS;
+    }
+    if (config->smartfuel_params[SMARTFUEL_PARAM_STABLE_WINDOW_CV] > SMARTFUEL_STABLE_WINDOW_MAX_CV) {
+        config->smartfuel_params[SMARTFUEL_PARAM_STABLE_WINDOW_CV] = SMARTFUEL_STABLE_WINDOW_DEFAULT_CV;
+    }
+    if (config->smartfuel_params[SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS] > SMARTFUEL_VOLTAGE_FALL_LIMIT_MAX_CVPS) {
+        config->smartfuel_params[SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS] = SMARTFUEL_VOLTAGE_FALL_LIMIT_DEFAULT_CVPS;
+    }
+    if (config->smartfuel_params[SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S] > SMARTFUEL_FUEL_DROP_RATE_MAX_TENTHS_PERCENT_PER_S) {
+        config->smartfuel_params[SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S] = SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S;
+    }
+    if (config->smartfuel_params[SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S] > SMARTFUEL_FUEL_RISE_RATE_MAX_TENTHS_PERCENT_PER_S) {
+        config->smartfuel_params[SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S] = SMARTFUEL_FUEL_RISE_RATE_DEFAULT_TENTHS_PERCENT_PER_S;
+    }
+    if (config->smartfuel_params[SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT] > SMARTFUEL_SAG_MULTIPLIER_MAX_PERCENT) {
+        config->smartfuel_params[SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT] = SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT;
+    }
+}
+#endif
 
 static void validateAndFixConfig(void)
 {
@@ -533,6 +564,10 @@ static void validateAndFixConfig(void)
 #endif
 
     validateAndFixRatesSettings();  // constrain the various rates settings to limits imposed by the rates type
+
+#ifdef USE_SMARTFUEL
+    validateAndFixSmartFuelConfig();
+#endif
 
     // validate that the minimum battery cell voltage is less than the maximum cell voltage
     // reset to defaults if not
