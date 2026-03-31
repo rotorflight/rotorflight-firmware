@@ -391,7 +391,7 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
 
         if (!smartFuel.startStateValid) {
             smartFuel.startPercent = percent;
-            smartFuel.startConsumption = getBatteryCapacityUsed() - usableCapacity * (1.0f - smartFuel.startPercent / 100.0f);
+            smartFuel.startConsumption = getBatteryCapacityUsed();
             smartFuel.startStateValid = true;
         }
 
