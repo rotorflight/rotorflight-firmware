@@ -39,16 +39,16 @@ enum {
 };
 
 #define TELEM_SENSOR_SLOT_COUNT 40
-#define SMARTFUEL_VOLTAGE_PARAM_COUNT 6
+#define SMARTFUEL_PARAM_COUNT 6
 
 typedef enum {
-    SMARTFUEL_VOLTAGE_PARAM_STABILIZE_DELAY_MS = 0,
-    SMARTFUEL_VOLTAGE_PARAM_STABLE_WINDOW_CV,
-    SMARTFUEL_VOLTAGE_PARAM_VOLTAGE_FALL_CVPS,
-    SMARTFUEL_VOLTAGE_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S,
-    SMARTFUEL_VOLTAGE_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S,
-    SMARTFUEL_VOLTAGE_PARAM_SAG_MULTIPLIER_PERCENT,
-} smartFuelVoltageParamIndex_e;
+    SMARTFUEL_PARAM_STABILIZE_DELAY_MS = 0,
+    SMARTFUEL_PARAM_STABLE_WINDOW_CV,
+    SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS,
+    SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S,
+    SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S,
+    SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT,
+} smartFuelParamIndex_e;
 
 typedef struct telemetryConfig_s {
     int16_t gpsNoFixLatitude;
@@ -67,7 +67,7 @@ typedef struct telemetryConfig_s {
     uint8_t crsf_telemetry_mode;
     uint16_t crsf_telemetry_link_rate;
     uint16_t crsf_telemetry_link_ratio;
-    uint16_t smartfuel_voltage_params[SMARTFUEL_VOLTAGE_PARAM_COUNT];
+    uint16_t smartfuel_params[SMARTFUEL_PARAM_COUNT];
     uint16_t telemetry_sensors[TELEM_SENSOR_SLOT_COUNT];
     uint16_t telemetry_interval[TELEM_SENSOR_SLOT_COUNT];
 } telemetryConfig_t;

@@ -49,9 +49,9 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
-    .smartfuel_voltage_params = {
-        1500, // stabilize delay ms
-        15,   // stable window centivolts
+    .smartfuel_params = {
+        1500, // stabilize delay ms (shared by current and voltage modes)
+        15,   // stable window centivolts (shared by current and voltage modes)
         5,    // voltage fall limit centivolts per second
         10,   // fuel drop tenths percent per second
         2,    // fuel rise tenths percent per second

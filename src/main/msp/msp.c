@@ -1356,8 +1356,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 #ifdef USE_SMARTFUEL
     case MSP2_GET_SMARTFUEL_CONFIG:
         sbufWriteU8(dst, telemetryConfig()->smartfuel_source);
-        for (unsigned i = 0; i < SMARTFUEL_VOLTAGE_PARAM_COUNT; i++) {
-            sbufWriteU16(dst, telemetryConfig()->smartfuel_voltage_params[i]);
+        for (unsigned i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
+            sbufWriteU16(dst, telemetryConfig()->smartfuel_params[i]);
         }
         break;
 #endif
@@ -3356,7 +3356,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
 #ifdef USE_SMARTFUEL
     case MSP2_SET_SMARTFUEL_CONFIG:
-        if (dataSize < (1U + 2U * SMARTFUEL_VOLTAGE_PARAM_COUNT)) {
+        if (dataSize < (1U + 2U * SMARTFUEL_PARAM_COUNT)) {
             return MSP_RESULT_ERROR;
         }
 
@@ -3367,8 +3367,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             }
 
             telemetryConfigMutable()->smartfuel_source = source;
-            for (unsigned i = 0; i < SMARTFUEL_VOLTAGE_PARAM_COUNT; i++) {
-                telemetryConfigMutable()->smartfuel_voltage_params[i] = sbufReadU16(src);
+            for (unsigned i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
+                telemetryConfigMutable()->smartfuel_params[i] = sbufReadU16(src);
             }
         }
         break;

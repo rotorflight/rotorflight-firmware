@@ -1246,7 +1246,7 @@ const clivalue_t valueTable[] = {
 #endif
 #ifdef USE_SMARTFUEL
     { "smartfuel_source",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SMARTFUEL_SOURCE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_source) },
-    { "smartfuel_voltage_params",   VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SMARTFUEL_VOLTAGE_PARAM_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_voltage_params)},
+    { "smartfuel_params",           VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SMARTFUEL_PARAM_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params)},
 #endif
     { "crsf_telemetry_mode",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TELEM_MODE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_mode) },
     { "crsf_telemetry_link_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_rate) },

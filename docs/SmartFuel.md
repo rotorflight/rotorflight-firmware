@@ -19,12 +19,12 @@ set smartfuel_source = CURRENT
 
 ```text
 set smartfuel_source = VOLTAGE
-set smartfuel_voltage_params = 1500,15,5,10,2,70
+set smartfuel_params = 1500,15,5,10,2,70
 ```
 
-## Voltage parameter order
+## SmartFuel parameter order
 
-`smartfuel_voltage_params` is a 6-value array in this order:
+`smartfuel_params` is a 6-value array in this order:
 
 1. `stabilize_delay_ms`
 2. `stable_window_centi_volts`
@@ -33,10 +33,17 @@ set smartfuel_voltage_params = 1500,15,5,10,2,70
 5. `fuel_rise_tenths_percent_per_sec`
 6. `sag_multiplier_percent`
 
+The first two parameters apply in both `CURRENT` and `VOLTAGE` modes:
+
+- `stabilize_delay_ms`
+- `stable_window_centi_volts`
+
+The remaining four parameters are only used in `VOLTAGE` mode.
+
 Default values:
 
 ```text
-smartfuel_voltage_params = 1500,15,5,10,2,70
+smartfuel_params = 1500,15,5,10,2,70
 ```
 
 If any value is set to `0`, the firmware falls back to the built-in default for that element.
@@ -47,12 +54,16 @@ If any value is set to `0`, the firmware falls back to the built-in default for 
 
 How long SmartFuel waits after reset, battery connection or configuration change before trying to decide that pack voltage is stable.
 
+This applies in both `CURRENT` and `VOLTAGE` modes.
+
 - Increase it if the reported value is noisy or jumps around immediately after plugging in.
 - Decrease it if you want the value to settle sooner.
 
 ### `stable_window_centi_volts`
 
 How tightly grouped the recent voltage samples must be before the pack is considered stable.
+
+This applies in both `CURRENT` and `VOLTAGE` modes.
 
 - Increase it if SmartFuel takes too long to settle on a value.
 - Decrease it if SmartFuel settles too early while the pack voltage is still moving around.
@@ -99,6 +110,11 @@ Before tuning SmartFuel itself, make sure:
 - the consumption warning percentage is set to the reserve you actually want to keep
 
 If those values are right, current-mode SmartFuel should usually need little or no tuning.
+
+The only SmartFuel tuning values that still matter in `CURRENT` mode are:
+
+- `stabilize_delay_ms`
+- `stable_window_centi_volts`
 
 ### Voltage mode
 
