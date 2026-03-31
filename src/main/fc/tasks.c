@@ -460,12 +460,8 @@ void tasksInit(void)
 
     const bool useBatteryVoltage = batteryConfig()->voltageMeterSource != VOLTAGE_METER_NONE;
     const bool useBatteryCurrent = batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
-#ifdef USE_SMARTFUEL
-    setTaskEnabled(TASK_BATTERY_ALERTS, useBatteryVoltage || useBatteryCurrent);
-#else
     const bool useBatteryAlerts = batteryConfig()->useVoltageAlerts || batteryConfig()->useConsumptionAlerts || featureIsEnabled(FEATURE_OSD);
     setTaskEnabled(TASK_BATTERY_ALERTS, (useBatteryVoltage || useBatteryCurrent) && useBatteryAlerts);
-#endif
 
 #ifdef USE_STACK_CHECK
     setTaskEnabled(TASK_STACK_CHECK, true);

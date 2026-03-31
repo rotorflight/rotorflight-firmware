@@ -761,9 +761,6 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
     }
 
     batteryUpdateStates(currentTimeUs);
-#ifdef USE_SMARTFUEL
-    smartFuelUpdate(currentTimeUs);
-#endif
     batteryUpdateAlarms();
 }
 
@@ -772,8 +769,6 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
 
 void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
-
     voltageSensorADCRefresh();
 
 #ifdef USE_ESC_SENSOR
@@ -822,6 +817,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 
     DEBUG(BATTERY, 0, voltageMeter.sample);
     DEBUG(BATTERY, 1, batteryVoltage);
+
+#ifdef USE_SMARTFUEL
+    smartFuelUpdate(currentTimeUs);
+#endif
 }
 
 
