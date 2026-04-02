@@ -142,9 +142,9 @@ typedef struct smartFuelState_s {
     smartFuelConfigSig_t config;
 } smartFuelState_t;
 
+#ifdef USE_SMARTFUEL
 static smartFuelState_t smartFuel = INIT_ZERO;
 
-#ifdef USE_SMARTFUEL
 static uint16_t smartFuelVoltageParam(unsigned index, uint16_t fallback)
 {
 #ifdef USE_TELEMETRY
