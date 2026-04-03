@@ -29,6 +29,13 @@
 // Backward compatibility aliases
 typedef busServoSourceType_e fbusMasterSourceType_e;
 
+#define FBUS_MASTER_MAX_FORWARDED_SENSORS 8
+
+#define FBUS_MASTER_TELEMETRY_RATE_MIN_HZ 25
+#define FBUS_MASTER_TELEMETRY_RATE_MAX_HZ 550
+#define FBUS_MASTER_DISCOVERY_TIME_MIN_MS 100
+#define FBUS_MASTER_DISCOVERY_TIME_MAX_MS 10000
+
 typedef struct fbusMasterConfig_s {
     uint16_t frameRate;
     uint8_t pinSwap;
@@ -36,6 +43,12 @@ typedef struct fbusMasterConfig_s {
     // When ON, the UART output is electrically inverted (F.Bus signal uses
     // inverted logic). When OFF, the output is non-inverted.
     uint8_t inverted;
+
+    uint16_t telemetryRate;
+    uint16_t sensorDiscoveryTimeMs;
+    // List of sensor physical IDs to forward to the receiver (max 8)
+    // 0xFF = disabled slot, 0..FBUS_MAX_PHYS_ID = valid physical IDs
+    uint8_t forwardedSensors[FBUS_MASTER_MAX_FORWARDED_SENSORS];
 
 } fbusMasterConfig_t;
 

@@ -48,6 +48,8 @@
 #include "drivers/dshot_dpwm.h"
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
+#include "drivers/fbus_sensor.h"
+#include "drivers/fbus_master.h"
 
 #include "fc/runtime_config.h"
 
@@ -180,12 +182,21 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
+#ifdef USE_FBUS_MASTER
+    if (featureIsEnabled(FEATURE_ESC_SENSOR)
+        && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
+        && fbusMasterIsEnabled()
+        && fbusSensorHasEscData()) {
+        return true;
+    }
+#endif
     return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 
 uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
-    return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
+    escSensorData_t *data = getEscSensorData(motorNumber);
+    return data ? data->erpm : 0;
 }
 
 static uint32_t applyVoltageCorrection(uint32_t voltage)
@@ -211,6 +222,80 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
 
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
+
+#ifdef USE_FBUS_MASTER
+static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
+{
+    if (!escData || !fbusMasterIsEnabled()) {
+        return false;
+    }
+
+    const bool hasCurrentData = fbusSensorHasCurrentData();
+    const bool hasEscData = fbusSensorHasEscData();
+
+    if (!hasCurrentData && !hasEscData) {
+        return false;
+    }
+
+    fbusCurrentData_t fbusCurrentData;
+    fbusEscData_t fbusEscData;
+    bool hasVoltage = false;
+    bool hasCurrent = false;
+
+    fbusSensorGetCurrentData(&fbusCurrentData);
+    fbusSensorGetEscData(&fbusEscData);
+    memset(escData, 0, sizeof(*escData));
+
+    escData->age = 0;
+    escData->id = hasCurrentData ? FBUS_SENSOR_CURRENT : FBUS_SENSOR_ESC;
+
+    if (hasCurrentData && fbusCurrentData.hasVoltage) {
+        escData->voltage = applyVoltageCorrection((uint32_t)fbusCurrentData.voltageCentiVolts * 10U);
+        escData->bec_voltage = escData->voltage;
+        hasVoltage = true;
+    }
+
+    if (hasCurrentData) {
+        if (fbusCurrentData.hasHighPrecisionCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentMilliAmps);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        } else if (fbusCurrentData.hasCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentDeciAmps * 100U);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasPower) {
+        escData->id = FBUS_SENSOR_ESC;
+
+        if (!hasVoltage) {
+            escData->voltage = applyVoltageCorrection((uint32_t)fbusEscData.voltageCentiVolts * 10U);
+            escData->bec_voltage = escData->voltage;
+        }
+
+        if (!hasCurrent) {
+            escData->current = applyCurrentCorrection((uint32_t)fbusEscData.currentCentiAmps * 10U);
+            escData->bec_current = escData->current;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasRpmConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
+        escData->erpm = fbusEscData.erpm;
+        escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
+    }
+
+    if (hasEscData && fbusEscData.hasTemperature) {
+        escData->id = FBUS_SENSOR_ESC;
+        // FBUS temperature is in C, escSensorData uses 0.1C.
+        escData->temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+    }
+
+    return true;
+}
+#endif
 
 static void combinedDataUpdate(void)
 {
@@ -256,6 +341,16 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
                 combinedDataUpdate();
                 return &escSensorDataCombined;
             }
+        }
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+#ifdef USE_FBUS_MASTER
+            if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
+                static escSensorData_t fbusEscSensorData;
+                if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {
+                    return &fbusEscSensorData;
+                }
+            }
+#endif
         }
         else {
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED)
@@ -4052,6 +4147,8 @@ void escSensorProcess(timeUs_t currentTimeUs)
             case ESC_SENSOR_PROTO_OMPHOBBY:            
                 rrfsmSensorProcess(currentTimeUs);
                 break;
+            case ESC_SENSOR_PROTO_FBUS:
+                break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
                 break;
@@ -4114,6 +4211,10 @@ bool INIT_CODE escSensorInit(void)
         escSensorCommonInit();
         return true;
     }
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+        escSensorCommonInit();
+        return true;
+    }
     if (!portConfig) {
         return false;
     }
@@ -4170,6 +4271,8 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_XDFLY:
             callback = xdflySensorInit(ESC_SIG_XDFLY);
             baudrate = 115200;
+            break;
+        case ESC_SENSOR_PROTO_FBUS:
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];

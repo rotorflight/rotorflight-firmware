@@ -31,6 +31,7 @@
 #include "config/config_reset.h"
 
 #include "drivers/adc.h"
+#include "drivers/fbus_sensor.h"
 
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
@@ -144,6 +145,10 @@ void voltageSensorADCInit(void)
 static voltageSensorState_t voltageESCSensor;
 #endif
 
+#ifdef USE_FBUS_MASTER
+static voltageSensorState_t voltageFBUSSensor;
+#endif
+
 bool voltageSensorESCReadMotor(uint8_t motorNumber, voltageMeter_t *meter)
 {
     UNUSED(motorNumber);
@@ -205,6 +210,48 @@ void voltageSensorESCInit(void)
     memset(&voltageESCSensor, 0, sizeof(voltageESCSensor));
     lowpassFilterInit(&voltageESCSensor.filter, LPF_BESSEL,
         escSensorConfig()->filter_cutoff,
+        batteryConfig()->vbatUpdateHz, 0);
+#endif
+}
+
+bool voltageSensorFBUSRead(voltageMeter_t *meter)
+{
+#ifdef USE_FBUS_MASTER
+    const voltageSensorState_t *state = &voltageFBUSSensor;
+
+    meter->sample = state->sample;
+    meter->voltage = state->voltage;
+    return state->enabled;
+#else
+    voltageMeterReset(meter);
+    return false;
+#endif
+}
+
+void voltageSensorFBUSRefresh(void)
+{
+#ifdef USE_FBUS_MASTER
+    voltageSensorState_t *state = &voltageFBUSSensor;
+    uint32_t voltageCentiVolts = 0;
+
+    if (fbusSensorGetBatteryVoltageCentiVolts(&voltageCentiVolts)) {
+        state->sample = voltageCentiVolts * 10U;
+        state->voltage = filterApply(&state->filter, state->sample);
+        state->enabled = true;
+    } else {
+        state->sample = 0;
+        state->voltage = 0;
+        state->enabled = false;
+    }
+#endif
+}
+
+void voltageSensorFBUSInit(void)
+{
+#ifdef USE_FBUS_MASTER
+    memset(&voltageFBUSSensor, 0, sizeof(voltageFBUSSensor));
+    lowpassFilterInit(&voltageFBUSSensor.filter, LPF_BESSEL,
+        batteryConfig()->vbatLpfHz,
         batteryConfig()->vbatUpdateHz, 0);
 #endif
 }
