@@ -79,6 +79,7 @@ COMMON_SRC = \
             drivers/pwm_output.c \
             drivers/sbus_output.c \
             drivers/fbus_master.c \
+            drivers/fbus_sensor.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -110,6 +111,8 @@ COMMON_SRC = \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \
             rx/ibus.c \
+            rx/ibus2.c \
+            rx/ibus2_telemetry.c \
             rx/jetiexbus.c \
             rx/msp.c \
             rx/pwm.c \
@@ -272,6 +275,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             flight/pid.c \
             flight/rpm_filter.c \
             rx/ibus.c \
+            rx/ibus2.c \
             rx/rx.c \
             rx/rx_spi.c \
             rx/crsf.c \

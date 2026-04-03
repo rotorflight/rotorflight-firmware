@@ -165,8 +165,15 @@ typedef enum
     TELEM_RPM                           = 108,
     TELEM_TEMP                          = 109,
 
+    TELEM_FBUS_SENSOR_1                 = 110,
+    TELEM_FBUS_SENSOR_2                 = 111,
+    TELEM_FBUS_SENSOR_3                 = 112,
+    TELEM_FBUS_SENSOR_4                 = 113,
+    TELEM_FBUS_SENSOR_5                 = 114,
+    TELEM_FBUS_SENSOR_6                 = 115,
+    TELEM_FBUS_SENSOR_7                 = 116,
+    TELEM_FBUS_SENSOR_8                 = 117,
     TELEM_SENSOR_COUNT
-
 } sensor_id_e;
 
 
@@ -203,6 +210,9 @@ struct telemetrySensor_s {
 int telemetrySensorValue(sensor_id_e id);
 bool telemetrySensorActive(sensor_id_e id);
 
+#ifdef USE_FBUS_MASTER
+uint8_t telemetryGetFbusSensorPhysicalId(sensor_id_e id);
+#endif
 
 /** Legacy sensors **/
 
@@ -227,4 +237,3 @@ typedef enum {
 void legacySensorInit(void);
 
 bool telemetryIsSensorEnabled(uint32_t sensor_bits);
-

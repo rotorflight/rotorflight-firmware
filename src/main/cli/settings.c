@@ -196,7 +196,7 @@ static const char * const lookupTableGyro[] = {
 
 #ifdef USE_GPS
 static const char * const lookupTableGPSProvider[] = {
-    "NMEA", "UBLOX", "MSP"
+    "NMEA", "UBLOX", "MSP", "FBUS"
 };
 
 static const char * const lookupTableGPSSBASMode[] = {
@@ -239,6 +239,7 @@ static const char * const lookupTableSerialRX[] = {
     "FPORT2",
     "FBUS",
     "XB-A",
+    "IBUS2",
 };
 #endif
 
@@ -483,7 +484,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "SRXL2", "RECORD",
+    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "FBUS", "SRXL2", "RECORD",
 };
 #endif
 
@@ -944,7 +945,7 @@ const clivalue_t valueTable[] = {
     { "gov_spooldown_time",         VAR_UINT16 | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 600 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_spooldown_time) },
     { "gov_throttle_hold_timeout",  VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_throttle_hold_timeout) },
     { "gov_autorotation_timeout",   VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_autorotation_timeout) },
-    { "gov_handover_throttle",      VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_handover_throttle) },
+    { "gov_handover_throttle",      VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 10, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_handover_throttle) },
     { "gov_idle_throttle",          VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_idle_throttle) },
     { "gov_auto_throttle",          VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_auto_throttle) },
     { "gov_bypass_throttle",        VAR_UINT8  | MASTER_VALUE | MODE_ARRAY, .config.array.length = GOV_THROTTLE_CURVE_POINTS, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_bypass_throttle) },
@@ -1201,8 +1202,8 @@ const clivalue_t valueTable[] = {
     { "gov_yaw_ff_weight",          VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.yaw_weight) },
     { "gov_cyclic_ff_weight",       VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.cyclic_weight) },
     { "gov_collective_ff_weight",   VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.collective_weight) },
-    { "gov_max_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.max_throttle) },
-    { "gov_min_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.min_throttle) },
+    { "gov_max_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 10, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.max_throttle) },
+    { "gov_min_throttle",           VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 10, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.min_throttle) },
     { "gov_fallback_drop",          VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 50 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.fallback_drop) },
     { "gov_collective_curve",       VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 5, 40 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.collective_curve) },
     { "gov_dyn_min_throttle",       VAR_UINT8  |  PROFILE_VALUE,  .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, governor.dyn_min_throttle) },
@@ -1750,6 +1751,9 @@ const clivalue_t valueTable[] = {
     { "fbus_master_frame_rate",        VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {25, 550}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, frameRate) },
     { "fbus_master_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, pinSwap) },
     { "fbus_master_inverted",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, inverted) },
+    { "fbus_master_telemetry_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, telemetryRate) },
+    { "fbus_master_discovery_ms",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {FBUS_MASTER_DISCOVERY_TIME_MIN_MS, FBUS_MASTER_DISCOVERY_TIME_MAX_MS}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sensorDiscoveryTimeMs) },
+    { "fbus_master_forwarded_sensors", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_MAX_FORWARDED_SENSORS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, forwardedSensors) },
 #endif
 };
 

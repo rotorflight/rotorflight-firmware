@@ -1429,6 +1429,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_gain);
         sbufWriteU8(dst, currentControlRateProfile->yaw_dynamic_deadband_filter);
         sbufWriteU8(dst, currentControlRateProfile->cyclic_ring);
+        sbufWriteU8(dst, currentControlRateProfile->cyclic_polar);
         break;
 
     case MSP_PID_TUNING:
@@ -2631,6 +2632,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 1) {
             currentControlRateProfile->cyclic_ring = sbufReadU8(src);
         }
+        if (sbufBytesRemaining(src) >= 1) {
+            currentControlRateProfile->cyclic_polar = sbufReadU8(src);
+        }
         loadControlRateProfile();
         break;
 
@@ -3085,6 +3089,25 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
             if (!escCommitParameters())
                 return MSP_RESULT_ERROR;
+        }
+        break;
+    
+    case MSP_SET_4WIF_ESC_FWD_PROG:
+        {
+            if (ARMING_FLAG(ARMED)) {
+                return MSP_RESULT_ERROR;
+            }
+
+            /* Expect exactly one byte: the ESC id */
+            const int rem = sbufBytesRemaining(src);
+            if (rem != 1) {
+                return MSP_RESULT_ERROR;
+            }
+
+            uint8_t id = sbufReadU8(src);
+            if (escSelect4WIfById(id) != 0) {
+                return MSP_RESULT_ERROR;
+            }
         }
         break;
 #endif

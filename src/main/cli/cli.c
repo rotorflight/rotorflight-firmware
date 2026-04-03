@@ -98,6 +98,7 @@ bool cliMode = false;
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
+#include "drivers/fbus_sensor.h"
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
@@ -1971,11 +1972,41 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #endif
 
 #ifdef USE_SERVOS
-static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
+static bool serialConfigHasBusServos(const serialConfig_t *config)
+{
+    if (!config) {
+        return false;
+    }
+
+    for (int i = 0; i < SERIAL_PORT_COUNT; i++) {
+        if (config->portConfigs[i].functionMask & (FUNCTION_SBUS_OUT | FUNCTION_FBUS_MASTER)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos)
+{
+    if (hasBusServos || !defaultServoParams) {
+        return hasBusServos;
+    }
+
+    for (int i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++) {
+        if (memcmp(&servoParams[i], &defaultServoParams[i], sizeof(servoParams[i])) != 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos, const char *headingStr)
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t pwmServoCount = getServoCount();
-    const bool hasBusServos = hasBusServosConfigured();
+    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, hasBusServos);
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
 
@@ -2016,8 +2047,7 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
     }
 
     // Print Bus servos
-    if (hasBusServos) {
-        cliPrintLine("# Bus Servos");
+    if (printBusServos) {
         for (uint32_t i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++) {
             const servoParam_t *servoConf = &servoParams[i];
             bool equalsDefault = false;
@@ -2121,7 +2151,7 @@ static void cliServo(const char *cmdName, char *cmdline)
     }
 
     if (count == 0) {
-        printServo(DUMP_MASTER, servoParams(0), NULL, NULL);
+        printServo(DUMP_MASTER, servoParams(0), NULL, hasBusServos, NULL);
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         if (pwmServoCount > 0) {
@@ -3478,6 +3508,19 @@ static void printName(dumpFlags_t dumpMask, const pilotConfig_t *pilotConfig)
 
 #define ERROR_MESSAGE "%s CANNOT BE CHANGED. CURRENT VALUE: '%s'"
 
+static void incompatibleConfigError(const char *cmdName, const char *fieldName,
+    const char *currentValue, const char *newValue)
+{
+    cliPrintErrorLinef(cmdName, "INCOMPATIBLE CONFIGURATION");
+    cliPrintErrorLinef(cmdName, "%s cannot be changed from '%s' to '%s' after it has been set.",
+        fieldName, currentValue, newValue);
+    cliPrintErrorLinef(cmdName, "This is probably from loading a dump file from an incompatible flight controller.");
+    cliPrintErrorLinef(cmdName, "The configuration is bound to the hardware type, and cannot be changed.");
+    cliPrintErrorLinef(cmdName, "System halted.");
+
+    failureMode(FAILURE_INCOMPATIBLE_CONFIG);
+}
+
 static void printBoardName(dumpFlags_t dumpMask)
 {
     if (!(dumpMask & DO_DIFF) || strlen(getBoardName())) {
@@ -3490,7 +3533,7 @@ static void cliBoardName(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *boardName = getBoardName();
     if (len > 0 && strlen(boardName) != 0 && boardInformationIsSet() && (len != strlen(boardName) || strncmp(boardName, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_NAME", boardName);
+        incompatibleConfigError(cmdName, "board_name", boardName, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setBoardName(cmdline)) {
             boardInformationUpdated = true;
@@ -3513,7 +3556,7 @@ static void cliBoardDesign(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *boardDesign = getBoardDesign();
     if (len > 0 && strlen(boardDesign) != 0 && boardInformationIsSet() && (len != strlen(boardDesign) || strncmp(boardDesign, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_DESIGN", boardDesign);
+        incompatibleConfigError(cmdName, "board_design", boardDesign, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setBoardDesign(cmdline)) {
             boardInformationUpdated = true;
@@ -3536,7 +3579,7 @@ static void cliManufacturerId(const char *cmdName, char *cmdline)
     const unsigned int len = strlen(cmdline);
     const char *manufacturerId = getManufacturerId();
     if (len > 0 && boardInformationIsSet() && strlen(manufacturerId) != 0 && (len != strlen(manufacturerId) || strncmp(manufacturerId, cmdline, len))) {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "MANUFACTURER_ID", manufacturerId);
+        incompatibleConfigError(cmdName, "manufacturer_id", manufacturerId, cmdline);
     } else {
         if (len > 0 && !configIsInCopy && setManufacturerId(cmdline)) {
             boardInformationUpdated = true;
@@ -5028,6 +5071,114 @@ static void cliStatus(const char *cmdName, char *cmdline)
     cliPrintLinefeed();
 }
 
+#ifdef USE_FBUS_MASTER
+static void cliFbusSensors(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+    
+    if (!isEmpty(cmdline) && strncasecmp(cmdline, "clear", 5) == 0) {
+        fbusSensorClearObserved();
+        cliPrintLine("Observed FBUS sensors cleared");
+        return;
+    }
+    
+    const uint8_t count = fbusSensorGetObservedCount();
+    
+    if (count == 0) {
+        cliPrintLine("No FBUS sensors observed yet");
+        return;
+    }
+    
+    cliPrintLinefeed();
+    cliPrintLine("Observed FBUS Sensors:");
+    cliPrintLine("Physical ID | Sensor Name       | Forwarded | App IDs                                   | Packets");
+    cliPrintLine("----------- | ----------------- | --------- | ----------------------------------------- | -------");
+    
+    for (uint8_t i = 0; i < count; i++) {
+        const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
+        if (!sensor) {
+            break;
+        }
+        
+        // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor->physicalId);
+        // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
+        char nameBuffer[17];
+        if (strcmp(sensorName, "UNKNOWN") == 0) {
+            tfp_sprintf(nameBuffer, "ID_%u", sensor->physicalId);
+            sensorName = nameBuffer;
+        }
+        // Print physical ID in a fixed-width column
+        cliPrintf("    %3u     | ", sensor->physicalId);
+
+        // Print sensor name in a fixed-width column
+        cliPrintf("%s", sensorName);
+        const int sensorNameLen = (int)strlen(sensorName);
+        for (int k = sensorNameLen; k < 17; k++) {
+            cliPrint(" ");
+        }
+        cliPrint(" | ");
+
+        // Print forwarded status in a fixed-width column
+        const char *forwardedStatus = fbusSensorIsForwarded(sensor->physicalId) ? "yes" : "no";
+        cliPrintf("%s", forwardedStatus);
+        const int forwardedStatusLen = (int)strlen(forwardedStatus);
+        for (int k = forwardedStatusLen; k < 9; k++) {
+            cliPrint(" ");
+        }
+
+        // Build app ID list and align to a fixed-width column
+        char appIdList[96];
+        int appIdPos = 0;
+        appIdList[0] = '\0';
+        for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+            int remaining = (int)sizeof(appIdList) - appIdPos;
+
+            // Reserve room for digits plus the trailing '\0' that tfp_sprintf writes.
+            uint16_t appIdValue = sensor->appIds[j];
+            int neededDigits = 1;
+            while (appIdValue >= 10) {
+                appIdValue /= 10;
+                neededDigits++;
+            }
+            if (remaining <= neededDigits) {
+                break;
+            }
+
+            const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor->appIds[j]);
+            if (written <= 0 || written >= remaining) {
+                break;
+            }
+            appIdPos += written;
+            if (j < sensor->appIdCount - 1) {
+                remaining = (int)sizeof(appIdList) - appIdPos;
+                // Need space for ", ", plus terminating '\0'.
+                if (remaining <= 2) {
+                    break;
+                }
+                appIdList[appIdPos++] = ',';
+                appIdList[appIdPos++] = ' ';
+                appIdList[appIdPos] = '\0';
+            }
+        }
+
+        cliPrint(" | ");
+        cliPrintf("%s", appIdList);
+        const int appIdLen = (int)strlen(appIdList);
+        for (int k = appIdLen; k < 41; k++) {
+            cliPrint(" ");
+        }
+
+        // Print packet count
+        cliPrintf(" | %7u", sensor->packetCount);
+        
+        cliPrintLinefeed();
+    }
+    
+    cliPrintLinefeed();
+}
+#endif
+
 static void cliTasks(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
@@ -6371,7 +6522,8 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
             printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
-            printServo(dumpMask, servoParams_CopyArray, servoParams(0), "servo");
+            const bool hasBusServos = serialConfigHasBusServos(&serialConfig_Copy) || serialConfigHasBusServos(serialConfig());
+            printServo(dumpMask, servoParams_CopyArray, servoParams(0), hasBusServos, "servo");
 #endif
 
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");
@@ -6653,6 +6805,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("escprog", "passthrough esc to serial", "<mode [sk/bl/ki/cc]> <index>", cliEscPassthrough),
 #endif
     CLI_COMMAND_DEF("exit", NULL, NULL, cliExit),
+#ifdef USE_FBUS_MASTER
+    CLI_COMMAND_DEF("fbus_sensors", "show observed FBUS sensors", "[clear]", cliFbusSensors),
+#endif
     CLI_COMMAND_DEF("feature", "configure features",
         "list\r\n"
         "\t<->[name]", cliFeature),
