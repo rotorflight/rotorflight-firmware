@@ -6567,7 +6567,7 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
                         if (interval == 0) {
                             cliPrintLine("Telemetry polling disabled");
                         } else {
-                            cliPrintLinef("Telemetry requested every %d frame(s)", interval);
+                            cliPrintLinef("Telemetry requested every %d frame(s)", (unsigned)interval);
                         }
                     }
                 } else {
@@ -6590,20 +6590,6 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
         cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
         cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
     }
-}
-#endif
-
-#ifdef USE_SERIALRX_SRXL2
-/* Weak stubs so CLI links when SRXL2 runtime isn't linked in. Real
- * implementations (if compiled) will override these. */
-__attribute__((weak)) const char *srxl2_debug_messageDM(void)
-{
-    return "SRXL2 not present";
-}
-
-__attribute__((weak)) const char *srxl2_debug_lastErrorDM(void)
-{
-    return "None";
 }
 #endif
 

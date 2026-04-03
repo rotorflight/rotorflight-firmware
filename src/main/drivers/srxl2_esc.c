@@ -93,6 +93,9 @@
 #define SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US 50000
 #define SRXL2_ESC_SEND_HANDSHAKE_TIMEOUT_US 50000
 #define SRXL2_ESC_LISTEN_FOR_HANDSHAKE_TIMEOUT_US 200000
+#define SRXL2_ESC_HANDSHAKE_RETRY_BASE_US      45000u
+#define SRXL2_ESC_HANDSHAKE_RETRY_JITTER_US    12000u
+#define SRXL2_ESC_HANDSHAKE_PRE_TX_GUARD_US      700u
 
 #define SPEKTRUM_PULSE_OFFSET          988 // Offset value to convert digital data into RC pulse
 
@@ -214,6 +217,7 @@ typedef enum {
 } srxl2escHandshakeStage_t;
 
 static srxl2escHandshakeStage_t handshakeStage = SRXL2_ESC_HANDSHAKE_STAGE_IDLE;
+static bool srxl2escBootHandshakeDone = false;
 static bool srxl2escHandshakeComplete = false;
 static bool srxl2escBroadcastConfirmPending = false;
 static Srxl2HandshakeFrame srxl2escBroadcastConfirmFrame;
@@ -313,6 +317,16 @@ static void srxl2escScheduleBroadcastConfirm(uint8_t fcId);
 static bool srxl2escQueueChannelDataFrame(uint16_t channelValue);
 static void srxl2escRecordTelemetryFrame(const Srxl2Header *header);
 static void srxl2escHandleTelemetryFrame(const Srxl2Header *header);
+
+static uint32_t srxl2escHandshakeRetryIntervalUs(uint32_t nowUs)
+{
+    /* Add deterministic jitter so retries don't phase-lock with ESC timing. */
+    const uint32_t entropy = nowUs ^ (nowUs >> 5) ^ (lastReceiveTimestamp << 1);
+    const uint32_t jitter = (SRXL2_ESC_HANDSHAKE_RETRY_JITTER_US > 0u)
+        ? (entropy % SRXL2_ESC_HANDSHAKE_RETRY_JITTER_US)
+        : 0u;
+    return SRXL2_ESC_HANDSHAKE_RETRY_BASE_US + jitter;
+}
 
 static void srxl2escScheduleBroadcastConfirm(uint8_t fcId)
 {
@@ -418,14 +432,14 @@ static void srxl2escHandleTelemetryFrame(const Srxl2Header *header)
     srxl2escLatestTelemetrySensorId = sensorId;
     srxl2escLatestTelemetrySecondaryId = secondaryId;
     memcpy(srxl2escLatestTelemetryData, payload + 3, sizeof(srxl2escLatestTelemetryData));
+    srxl2escLatestTelemetrySeq++; // odd = write in progress
     srxl2escLatestTelemetryValid = true;
-    srxl2escLatestTelemetrySeq++;
     srxl2escLatestTelemetrySnapshot.sensorId = sensorId;
     srxl2escLatestTelemetrySnapshot.secondaryId = secondaryId;
     memcpy(srxl2escLatestTelemetrySnapshot.data, payload + 3, sizeof(srxl2escLatestTelemetrySnapshot.data));
     srxl2escLatestTelemetrySnapshot.timestampUs = rxCompleteUs;
     srxl2escLatestTelemetrySnapshot.valid = true;
-    srxl2escLatestTelemetrySeq++;
+    srxl2escLatestTelemetrySeq++; // even = write complete
 }
 
 static void srxl2escRecordTelemetryFrame(const Srxl2Header *header)
@@ -821,7 +835,7 @@ static inline void put_be16(uint8_t *p, uint16_t v) { p[0] = (uint8_t)(v >> 8); 
 
 static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
 {
-    UNUSED(rxRuntimeState);
+    UNUSED(runtimeState);
 
     globalResult = RX_FRAME_PENDING;
 
@@ -1008,7 +1022,7 @@ static float srxl2escReadRawRC(const srxl2esc_runtimeState_t *runtimeState, uint
  * timestamp observed by the driver as an approximation of frame time. */
 static timeUs_t srxl2escLocalFrameTimeUs(void) { return lastIdleTimestamp; }
 
-void srxl2escWriteData(const void *data, int len)
+void srxl2escWriteData(void *data, int len)
 {
     const uint16_t crc = crc16_ccitt_update(0, (uint8_t*)data, len - 2);
     ((uint8_t*)data)[len-2] = ((uint8_t *) &crc)[1] & 0xFF;
@@ -1326,17 +1340,23 @@ bool srxl2escDriverInit(void)
     /* If we're the initiator (unitId == 0), actively send handshakes in a blocking
      * loop for up to 200ms before returning. This ensures we transmit within the
      * ESC's 250ms listening window, before the scheduler starts. */
-    if (localCfg.srxl2_unit_id == 0) {
+    if (localCfg.srxl2_unit_id == 0 && !srxl2escBootHandshakeDone) {
         const uint32_t startUs = micros();
         const uint32_t deadlineUs = startUs + 200000; // 200ms window
         uint32_t nextHandshakeUs = startUs;
+        bool sendBroadcastHandshake = false;
 
         while (cmpTimeUs(micros(), deadlineUs) < 0) {
             const uint32_t now = micros();
             const bool busDiscovered = (state == Running || busMasterDeviceId != 0xFF);
+            const bool seenIdleSinceLastRx = cmpTimeUs(lastIdleTimestamp, lastReceiveTimestamp) > 0;
+            const bool txGuardElapsed = cmpTimeUs(now, lastReceiveTimestamp + SRXL2_ESC_HANDSHAKE_PRE_TX_GUARD_US) >= 0;
+            const bool canStartTx = seenIdleSinceLastRx || txGuardElapsed;
 
-            /* Send handshake every 50ms */
-            if (!busDiscovered && !srxl2escTxInProgress && writeBufferIdx == 0 && cmpTimeUs(now, nextHandshakeUs) >= 0) {
+            /* Send handshake at a jittered interval so retries don't repeatedly collide.
+             * Alternate destination between fixed ESC ID (0x40) and broadcast (0x00)
+             * for compatibility across ESC variants/firmware revisions. */
+            if (!busDiscovered && canStartTx && !srxl2escTxInProgress && writeBufferIdx == 0 && cmpTimeUs(now, nextHandshakeUs) >= 0) {
                 Srxl2HandshakeFrame handshake = {
                     .header = {
                         .id = packet_HEADER,
@@ -1345,7 +1365,7 @@ bool srxl2escDriverInit(void)
                     },
                     .payload = {
                         .sourceDeviceId      = (FlightController << 4) | localCfg.srxl2_unit_id,
-                        .destinationDeviceId = 0x40, // ESC device ID
+                        .destinationDeviceId = sendBroadcastHandshake ? 0x00 : 0x40,
                         .priority            = 10,
                         .baudSupported       = 0,
                         .info                = 0,
@@ -1355,7 +1375,8 @@ bool srxl2escDriverInit(void)
 
                 srxl2escWriteData(&handshake, sizeof(handshake));
                 srxl2escTrySendPendingWriteBuffer();
-                nextHandshakeUs = now + 50000; // next attempt in 50ms
+                sendBroadcastHandshake = !sendBroadcastHandshake;
+                nextHandshakeUs = now + srxl2escHandshakeRetryIntervalUs(now);
             }
 
             /* Process any incoming handshake responses */

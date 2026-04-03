@@ -1,7 +1,25 @@
+/*
+ * This file is part of Rotorflight (rotorflight.org)
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
-#ifdef USE_SRXL2_ESC
 #include <stdint.h>
 #include <stdbool.h>
+
+#ifdef USE_SRXL2_ESC
 
 #include "common/time.h"
 
@@ -30,14 +48,14 @@ typedef struct {
 } srxl2esc_config_t;
 
 typedef struct srxl2esc_runtimeState_s {
-	uint16_t                    *channelData;      /* channel storage */
-	uint8_t                      channelCount;     /* number of channels */
-	uint16_t                     rxRefreshRate;    /* refresh period */
-	srxl2esc_readRawDataFnPtr  rcReadRawFn;      /* read raw channel helper */
-	srxl2esc_frameStatusFnPtr  rcFrameStatusFn;  /* frame-status callback */
-	srxl2esc_processFrameFnPtr rcProcessFrameFn; /* process-frame callback */
-	srxl2esc_getFrameTimeUsFn *rcFrameTimeUsFn;  /* timestamp helper */
-	timeUs_t                     lastRcFrameTimeUs;
+	uint16_t                    	*channelData;      	/* channel storage */
+	uint8_t                      	channelCount;     	/* number of channels */
+	uint16_t                     	rxRefreshRate;    	/* refresh period */
+	srxl2esc_readRawDataFnPtr  		rcReadRawFn;      	/* read raw channel helper */
+	srxl2esc_frameStatusFnPtr  		rcFrameStatusFn;  	/* frame-status callback */
+	srxl2esc_processFrameFnPtr 		rcProcessFrameFn; 	/* process-frame callback */
+	srxl2esc_getFrameTimeUsFn 		*rcFrameTimeUsFn;  	/* timestamp helper */
+	timeUs_t                     	lastRcFrameTimeUs;
 } srxl2esc_runtimeState_t;
 
 typedef struct {
@@ -52,7 +70,7 @@ void validateAndFixSrxl2escConfig(void);
 void srxl2esc_poll(void);
 void srxl2esc_service(void);
 bool srxl2escInit(const srxl2esc_config_t *escConfig);
-void srxl2escWriteData(const void *data, int len);
+void srxl2escWriteData(void *data, int len);
 unsigned srxl2escGetTelemetryHistoryCount(void);
 unsigned srxl2escCopyTelemetryHistory(
 	unsigned idx,

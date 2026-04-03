@@ -242,13 +242,12 @@ INIT_CODE void motorInit(void)
 {
     const ioTag_t *ioTags = motorConfig()->dev.ioTags;
 
-    if (isMotorProtocolSrxl2() ) {
+    if (isMotorProtocolSrxl2()) {
         motorCount = 1;
-        
     } else {
       for (motorCount = 0;
-           motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
-           motorCount++);
+            motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
+            motorCount++);
     }
 
     motorDevInit(&motorConfig()->dev, motorCount);

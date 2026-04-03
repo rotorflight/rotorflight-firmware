@@ -148,7 +148,7 @@ bool isMotorProtocolSrxl2(void)
 #ifdef USE_SRXL2_ESC
     return motorConfig()->dev.motorPwmProtocol == PWM_TYPE_SRXL2;
 #else
-  return false;
+    return false;
 #endif
 }
 

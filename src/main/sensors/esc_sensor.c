@@ -351,9 +351,6 @@ static void srxl2escSensorProcess(timeUs_t currentTimeUs)
                         dst->erpm = inj.erpm;
                         dst->voltage = applyVoltageCorrection(inj.voltage);
                         dst->current = applyCurrentCorrection(inj.current);
-                        if (inj.consumption != 0) {
-                            dst->consumption = applyConsumptionCorrection(inj.consumption);
-                        }
                         dst->temperature = inj.temperature;
                         dst->temperature2 = inj.temperature2;
                         dst->bec_voltage = inj.bec_voltage;
