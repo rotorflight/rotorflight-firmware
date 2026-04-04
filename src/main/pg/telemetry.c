@@ -18,8 +18,6 @@
 #include "types.h"
 #include "platform.h"
 
-#ifdef USE_TELEMETRY
-
 #include "common/unit.h"
 
 #include "pg/pg_ids.h"
@@ -60,5 +58,3 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_sensors = INIT_ZERO,
     .telemetry_interval = INIT_ZERO,
 );
-
-#endif

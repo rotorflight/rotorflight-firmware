@@ -147,13 +147,9 @@ static smartFuelState_t smartFuel = INIT_ZERO;
 
 static uint16_t smartFuelVoltageParam(unsigned index, uint16_t fallback)
 {
-#ifdef USE_TELEMETRY
     if (index < SMARTFUEL_PARAM_COUNT) {
         return telemetryConfig()->smartfuel_params[index];
     }
-#else
-    UNUSED(index);
-#endif
 
     return fallback;
 }
@@ -190,11 +186,7 @@ static float smartFuelSagMultiplier(void)
 
 static smartFuelSource_e smartFuelGetConfiguredSource(void)
 {
-#ifdef USE_TELEMETRY
     return (smartFuelSource_e)telemetryConfig()->smartfuel_source;
-#else
-    return SMARTFUEL_SOURCE_CURRENT;
-#endif
 }
 
 static smartFuelConfigSig_t smartFuelGetConfig(void)
