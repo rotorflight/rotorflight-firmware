@@ -735,6 +735,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(BATTERY_CHARGE_LEVEL,    0x1014,   200,  3000,    0,     U8),
 #ifdef USE_SMARTFUEL
     TLM_SENSOR(BATTERY_SMARTFUEL,       0x1015,   200,  3000,    0,     S8),
+    TLM_SENSOR(BATTERY_SMARTCONSUMPTION, 0x1016,  200,  3000,    0,     U16),
 #endif
 
     TLM_SENSOR(BATTERY_CELL_COUNT,      0x1020,   200,  3000,    0,     U8),

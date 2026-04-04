@@ -149,8 +149,7 @@ static uint16_t smartFuelVoltageParam(unsigned index, uint16_t fallback)
 {
 #ifdef USE_TELEMETRY
     if (index < SMARTFUEL_PARAM_COUNT) {
-        const uint16_t value = telemetryConfig()->smartfuel_params[index];
-        return value ? value : fallback;
+        return telemetryConfig()->smartfuel_params[index];
     }
 #else
     UNUSED(index);
@@ -240,6 +239,21 @@ static uint8_t smartFuelClampReserve(uint8_t reserve)
     }
 
     return reserve;
+}
+
+static float smartFuelGetUsableCapacity(void)
+{
+    const float packCapacity = getBatteryCapacity();
+    if (packCapacity < 10.0f) {
+        return 0.0f;
+    }
+
+    float usableCapacity = packCapacity * (1.0f - smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f);
+    if (usableCapacity < 10.0f) {
+        usableCapacity = packCapacity;
+    }
+
+    return usableCapacity;
 }
 
 static float smartFuelPercentFromVoltageOnly(float voltage, uint8_t cellCount)
@@ -378,15 +392,10 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
     }
 
     if (source == SMARTFUEL_SOURCE_CURRENT) {
-        const float packCapacity = getBatteryCapacity();
-        if (packCapacity < 10.0f) {
+        const float usableCapacity = smartFuelGetUsableCapacity();
+        if (usableCapacity < 10.0f) {
             smartFuel.lastPercentValid = false;
             return;
-        }
-
-        float usableCapacity = packCapacity * (1.0f - smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f);
-        if (usableCapacity < 10.0f) {
-            usableCapacity = packCapacity;
         }
 
         if (!smartFuel.startStateValid) {
@@ -516,6 +525,29 @@ int getBatterySmartFuel(void)
     return smartFuel.lastPercentValid ? smartFuel.percent : -1;
 #else
     return -1;
+#endif
+}
+
+int getBatterySmartConsumption(void)
+{
+#ifdef USE_SMARTFUEL
+    if (smartFuelGetConfiguredSource() == SMARTFUEL_SOURCE_CURRENT) {
+        return getBatteryCapacityUsed();
+    }
+
+    if (!smartFuel.lastPercentValid) {
+        return 0;
+    }
+
+    const float usableCapacity = smartFuelGetUsableCapacity();
+    if (usableCapacity < 10.0f) {
+        return 0;
+    }
+
+    const float usedPercent = constrainf(100.0f - smartFuel.lastPercent, 0.0f, 100.0f);
+    return lrintf(usedPercent * usableCapacity / 100.0f);
+#else
+    return getBatteryCapacityUsed();
 #endif
 }
 

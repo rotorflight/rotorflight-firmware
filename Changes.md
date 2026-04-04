@@ -150,6 +150,8 @@ New MSP command to set the active battery profile. (#415)
 
 New MSP2 commands to read and write firmware-side smartfuel configuration, including the selected source (`CURRENT` or `VOLTAGE`) and the 6 SmartFuel tuning parameters in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `fuel_rise_tenths_percent_per_sec`, `sag_multiplier_percent`.
 
+Supported telemetry protocols now also export native `BATTERY_SMARTFUEL` and `BATTERY_SMARTCONSUMPTION` sensors. `BATTERY_SMARTCONSUMPTION` mirrors measured consumed mAh in `CURRENT` mode and is estimated from SmartFuel remaining percentage in `VOLTAGE` mode.
+
 
 ## CLI Changes
 

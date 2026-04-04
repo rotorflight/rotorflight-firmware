@@ -179,6 +179,8 @@ int telemetrySensorValue(sensor_id_e id)
 #ifdef USE_SMARTFUEL
         case TELEM_BATTERY_SMARTFUEL:
             return getBatterySmartFuel();
+        case TELEM_BATTERY_SMARTCONSUMPTION:
+            return getBatterySmartConsumption();
 #endif
 
         case TELEM_CONTROL:
@@ -421,6 +423,7 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_BATTERY_CELL_VOLTAGE:
 #ifdef USE_SMARTFUEL
         case TELEM_BATTERY_SMARTFUEL:
+        case TELEM_BATTERY_SMARTCONSUMPTION:
 #endif
             return true;
 

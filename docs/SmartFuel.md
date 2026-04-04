@@ -46,8 +46,6 @@ Default values:
 smartfuel_params = 1500,15,5,10,2,70
 ```
 
-If any value is set to `0`, the firmware falls back to the built-in default for that element.
-
 ## Parameter guide
 
 ### `stabilize_delay_ms`
@@ -147,3 +145,8 @@ Use these adjustment patterns:
 ## Telemetry
 
 SmartFuel is exported as the `BATTERY_SMARTFUEL` telemetry sensor for supported telemetry protocols.
+
+Supported telemetry protocols also export `BATTERY_SMARTCONSUMPTION`:
+
+- In `CURRENT` mode it mirrors the measured consumed mAh.
+- In `VOLTAGE` mode it estimates consumed mAh from the SmartFuel remaining percentage and the usable configured pack capacity.
