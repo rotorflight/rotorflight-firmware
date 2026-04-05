@@ -45,10 +45,6 @@
 #if defined(USE_SERIAL_4WAY_BLHELI_BOOTLOADER) && !defined(USE_FAKE_ESC)
 
 // Bootloader commands
-// RunCmd
-#define RestartBootloader   0
-#define ExitBootloader      1
-
 #define CMD_RUN             0x00
 #define CMD_PROG_FLASH      0x01
 #define CMD_ERASE_FLASH     0x02
@@ -247,12 +243,17 @@ uint8_t BL_SendCMDKeepAlive(void)
     return 1;
 }
 
-void BL_SendCMDRunRestartBootloader(uint8_32_u *pDeviceInfo)
+void BL_SendCMDRun(uint8_t runMode, uint8_32_u *pDeviceInfo)
 {
-    uint8_t sCMD[] = {RestartBootloader, 0};
+    uint8_t sCMD[] = {runMode, 0};
     pDeviceInfo->bytes[0] = 1;
     BL_SendBuf(sCMD, 2); //sends simply 4 x 0x00 (CRC =00)
     return;
+}
+
+void BL_SendCMDRunRestartBootloader(uint8_32_u *pDeviceInfo)
+{
+    BL_SendCMDRun(BL_RUN_RESTART_BOOTLOADER, pDeviceInfo);
 }
 
 static uint8_t BL_SendCMDSetAddress(ioMem_t *pMem) //supports only 16 bit Adr
@@ -844,10 +845,16 @@ uint8_t BL_SendCMDKeepAlive(void)
     return true;
 }
 
-void BL_SendCMDRunRestartBootloader(uint8_32_u *pDeviceInfo)
+void BL_SendCMDRun(uint8_t runMode, uint8_32_u *pDeviceInfo)
 {
+    UNUSED(runMode);
     pDeviceInfo->bytes[0] = 1;
     return;
+}
+
+void BL_SendCMDRunRestartBootloader(uint8_32_u *pDeviceInfo)
+{
+    BL_SendCMDRun(BL_RUN_RESTART_BOOTLOADER, pDeviceInfo);
 }
 
 static uint8_t BL_ReadA(uint8_t cmd, ioMem_t *pMem)
