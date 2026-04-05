@@ -39,10 +39,6 @@
 #include "pg/freq.h"
 
 
-// Accepted frequence range
-#define FREQ_RANGE_MIN        25
-#define FREQ_RANGE_MAX        10000
-
 // Prescaler limits
 #define FREQ_PRESCALER_MIN    0x0001
 
@@ -84,6 +80,9 @@ typedef struct {
 
     float freq;
     float clock;
+
+    float minhz;
+    float maxhz;
 
     uint16_t percoef;
     uint16_t freqcoef;
@@ -203,9 +202,9 @@ static FAST_CODE void freqEdgeCallback16(timerCCHandlerRec_t *cbRec, captureComp
             if (period) {
                 float freq = input->clock / (input->prescaler * period);
                 if (period > FREQ_PERIOD_MIN(input->period) && period < FREQ_PERIOD_MAX(input->period)) {
-                    if (freq < FREQ_RANGE_MIN)
+                    if (freq < input->minhz)
                         freq = 0;
-                    if (freq < FREQ_RANGE_MAX)
+                    if (freq < input->maxhz)
                         UPDATE_FREQ_FILTER(input, freq);
                 }
 
@@ -256,9 +255,9 @@ static FAST_CODE void freqEdgeCallback32(timerCCHandlerRec_t *cbRec, captureComp
             if (period) {
                 float freq = input->clock / period;
                 if (period > FREQ_PERIOD_MIN(input->period) && period < FREQ_PERIOD_MAX(input->period)) {
-                    if (freq < FREQ_RANGE_MIN)
+                    if (freq < input->minhz)
                         freq = 0;
-                    if (freq < FREQ_RANGE_MAX)
+                    if (freq < input->maxhz)
                         UPDATE_FREQ_FILTER(input, freq);
                 }
 
@@ -335,6 +334,8 @@ void freqInit(const freqConfig_t *freqConfig)
             input->timeout = FREQ_TIMEOUT(timerClock(timer->tim));
             input->percoef = 1;
             input->freqcoef = 1;
+            input->minhz = freqConfig->minhz;
+            input->maxhz = FREQ_INPUT_MAXHZ_DEFAULT;
             input->freq = 0;
 
             input->pin = IOGetByTag(freqConfig->ioTag[port]);
