@@ -25,6 +25,12 @@
 */
 
 #pragma once
+
+#include <stdint.h>
+
+#include "io/serial_4way.h"
+#include "io/serial_4way_impl.h"
+
 // Bootloader result codes
 #define brSUCCESS           0x30
 #define brERRORVERIFY       0xC0
