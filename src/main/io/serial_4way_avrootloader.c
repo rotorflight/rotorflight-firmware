@@ -245,7 +245,7 @@ uint8_t BL_SendCMDKeepAlive(void)
 
 void BL_SendCMDRun(uint8_t runMode, uint8_32_u *pDeviceInfo)
 {
-    uint8_t sCMD[] = {runMode, 0};
+    uint8_t sCMD[] = {CMD_RUN, runMode};
     pDeviceInfo->bytes[0] = 1;
     BL_SendBuf(sCMD, 2); //sends simply 4 x 0x00 (CRC =00)
     return;
