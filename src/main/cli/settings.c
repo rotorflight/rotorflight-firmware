@@ -769,6 +769,7 @@ const clivalue_t valueTable[] = {
 #if defined(USE_FREQ_SENSOR)
     { "freq_input_pull",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  .config.lookup = { TABLE_INPUT_PULL_MODE }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, pullupdn) },
     { "freq_input_edge",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  .config.lookup = { TABLE_INPUT_EDGE_MODE }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, polarity) },
+    { "freq_input_minhz",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, minhz) },
 #endif
 
 // PG_BLACKBOX_CONFIG

@@ -212,6 +212,8 @@ the actual values are calculated automatically (#332).
 
 `fbus_master_inverted` parameter added (ON/OFF). Controls electrical inversion of the FBUS Master UART output.
 
+`freq_input_minhz` parameter added. Value in 1..100 Hz, sets the minimum accepted frequency on the input sensor.
+
 `rates_type` accepts `ROTORFLIGHT` (#345).
 
 `cyclic_ring` meaning is changed. The value indicates % of the max rate.
