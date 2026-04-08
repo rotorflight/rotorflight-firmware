@@ -39,7 +39,6 @@
 #define brNONE              0xFF
 
 #define BL_RUN_RESTART_BOOTLOADER 0
-#define BL_RUN_EXIT_BOOTLOADER    1
 
 void BL_SendBootInit(void);
 uint8_t BL_ConnectEx(uint8_32_u *pDeviceInfo);

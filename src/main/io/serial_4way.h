@@ -65,7 +65,6 @@ void esc4wayRelease(void);
  */
 uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx);
 bool fwifCmdDeviceReset(bool rebootEsc);
-bool fwifCmdDeviceExitBootloader(bool rebootEsc);
 bool fwifCmdDevicePageErase(uint8_t page);
 bool fwifCmdDeviceRead(uint8_t num_bytes, uint8_t *data_buffer, uint32_t addr);
 bool fwifCmdDeviceWrite(uint8_t num_bytes, const uint8_t *data_buffer, uint32_t addr);
