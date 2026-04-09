@@ -99,6 +99,7 @@ bool cliMode = false;
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
@@ -6695,13 +6696,6 @@ static void cliHelp(const char *cmdName, char *cmdline);
 #ifdef USE_SRXL2_ESC
 static void cliSrxl2Esc(const char *cmdName, char *cmdline)
 {
-    extern void srxl2escSetThrottleRateHz(uint32_t rateHz);
-    extern uint32_t srxl2escGetThrottleRateHz(void);
-    extern void srxl2escSetTelemetryIntervalFrames(uint8_t frames);
-    extern uint8_t srxl2escGetTelemetryIntervalFrames(void);
-    extern bool srxl2escTelemetryRequested(void);
-    extern bool srxl2escDriverIsReady(void);
-
     if (cmdline) {
         while (*cmdline == ' ') cmdline++;
         if (*cmdline) {

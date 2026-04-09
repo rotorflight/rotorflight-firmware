@@ -91,4 +91,8 @@ void srxl2escAttachPort(serialPort_t *p);
 bool srxl2escDriverInit(void);
 void srxl2escDriverTask(timeUs_t currentTimeUs);
 bool srxl2escDriverIsReady(void);
+
+uint32_t srxl2escGetThrottleRateHz(void);
+void srxl2escSetTelemetryIntervalFrames(uint8_t frames);
+uint8_t srxl2escGetTelemetryIntervalFrames(void);
 #endif

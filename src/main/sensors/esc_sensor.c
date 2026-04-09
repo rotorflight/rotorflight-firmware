@@ -390,14 +390,7 @@ static void srxl2escSensorProcess(timeUs_t currentTimeUs)
             srxl2escLastSeq = seq;
 
             if (getMotorCount() > 0 && featureIsEnabled(FEATURE_ESC_SENSOR)) {
-                int motorIndex = -1;
-                const int motorCount = getMotorCount();
-
-                if (snap.sensorId < (uint8_t)motorCount) {
-                    motorIndex = (int)snap.sensorId;
-                } else if (snap.sensorId >= 0x20 && snap.sensorId < (uint8_t)(0x20 + motorCount)) {
-                    motorIndex = (int)(snap.sensorId - 0x20);
-                }
+                const int motorIndex = (snap.sensorId == 0x20) ? 0 : -1;
 
                 if (motorIndex >= 0) {
                     escSensorData_t inj;
