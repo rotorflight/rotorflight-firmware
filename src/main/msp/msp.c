@@ -1374,7 +1374,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP_SETPOINT:
         for (int i = 0; i < 4; i++) {
-            sbufWriteU16(dst, lrintf(getSetpoint(i)));
+            sbufWriteS16(dst, lrintf(getSetpoint(i)));
         }
         break;
 
