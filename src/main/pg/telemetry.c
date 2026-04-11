@@ -52,7 +52,6 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
         SMARTFUEL_STABLE_WINDOW_DEFAULT_CV,                    // stable window centivolts (shared by current and voltage modes)
         SMARTFUEL_VOLTAGE_FALL_LIMIT_DEFAULT_CVPS,             // voltage fall limit centivolts per second
         SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S, // fuel drop tenths percent per second
-        SMARTFUEL_FUEL_RISE_RATE_DEFAULT_TENTHS_PERCENT_PER_S, // fuel rise tenths percent per second
         SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT,              // sag multiplier percent
     },
     .telemetry_sensors = INIT_ZERO,

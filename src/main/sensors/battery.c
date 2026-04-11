@@ -125,6 +125,7 @@ typedef struct smartFuelState_s {
     bool voltageStabilized;
     bool voltageFiltered;
     bool startStateValid;
+    bool virtualConsumptionValid;
     bool lastPercentValid;
     bool lastHeadspeedValid;
     bool wasArmed;
@@ -136,6 +137,7 @@ typedef struct smartFuelState_s {
     float filteredVoltage;
     float startPercent;
     float startConsumption;
+    float virtualConsumption;
     float lastPercent;
     float lastHeadspeed;
     uint8_t percent;
@@ -174,11 +176,6 @@ static float smartFuelDropPerSecond(void)
     return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S, SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S) / 10.0f;
 }
 
-static float smartFuelRisePerSecond(void)
-{
-    return smartFuelVoltageParam(SMARTFUEL_PARAM_FUEL_RISE_TENTHS_PERCENT_PER_S, SMARTFUEL_FUEL_RISE_RATE_DEFAULT_TENTHS_PERCENT_PER_S) / 10.0f;
-}
-
 static float smartFuelSagMultiplier(void)
 {
     return smartFuelVoltageParam(SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT, SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT) / 100.0f;
@@ -209,6 +206,7 @@ static void smartFuelResetState(timeUs_t currentTimeUs)
     smartFuel.voltageStabilized = false;
     smartFuel.voltageFiltered = false;
     smartFuel.startStateValid = false;
+    smartFuel.virtualConsumptionValid = false;
     smartFuel.lastPercentValid = false;
     smartFuel.lastHeadspeedValid = false;
     smartFuel.hadFlight = false;
@@ -219,6 +217,7 @@ static void smartFuelResetState(timeUs_t currentTimeUs)
     smartFuel.filteredVoltage = 0.0f;
     smartFuel.startPercent = 0.0f;
     smartFuel.startConsumption = 0.0f;
+    smartFuel.virtualConsumption = 0.0f;
     smartFuel.lastPercent = 0.0f;
     smartFuel.lastHeadspeed = 0.0f;
     smartFuel.percent = 0;
@@ -256,20 +255,33 @@ static float smartFuelPercentFromVoltageOnly(float voltage, uint8_t cellCount)
 
     const float fullCellVoltage = batteryConfig()->vbatfullcellvoltage / 100.0f;
     const float minCellVoltage = batteryConfig()->vbatmincellvoltage / 100.0f;
-    const float reserve = smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage) / 100.0f;
-    const float adjustedMinVoltage = minCellVoltage + (fullCellVoltage - minCellVoltage) * reserve * 1.4f;
-    const float usableSpan = fullCellVoltage - adjustedMinVoltage;
+    const uint8_t reserve = smartFuelClampReserve(batteryConfig()->consumptionWarningPercentage);
+    const float voltagePerCell = voltage / cellCount;
 
-    if (usableSpan <= 0.0f) {
+    if (voltagePerCell >= fullCellVoltage) {
+        return 100.0f;
+    } else if (voltagePerCell <= minCellVoltage) {
         return 0.0f;
     }
 
-    const float voltagePerCell = constrainf(voltage / cellCount, 3.3f, fullCellVoltage);
+    const float sigmoidMin = 3.0f;
+    const float sigmoidMax = 4.2f;
     const float scaledVoltage = constrainf(
-        3.3f + ((voltagePerCell - adjustedMinVoltage) / usableSpan) * 0.9f,
-        3.3f, 4.2f);
+        sigmoidMin + ((voltagePerCell - minCellVoltage) / (fullCellVoltage - minCellVoltage)) * (sigmoidMax - sigmoidMin),
+        sigmoidMin, sigmoidMax);
 
-    return constrainf((scaledVoltage - 3.3f) * (100.0f / 0.9f), 0.0f, 100.0f);
+    const float rawPercent = constrainf(100.0f / (1.0f + expf(-12.0f * (scaledVoltage - 3.7f))), 0.0f, 100.0f);
+    const float usableSpan = 100.0f - reserve;
+
+    if (usableSpan <= 0.0f) {
+        return rawPercent;
+    }
+
+    if (rawPercent <= reserve) {
+        return 0.0f;
+    }
+
+    return constrainf(((rawPercent - reserve) / usableSpan) * 100.0f, 0.0f, 100.0f);
 }
 
 static void smartFuelAddVoltageSample(float voltage)
@@ -392,13 +404,19 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
 
         if (!smartFuel.startStateValid) {
             smartFuel.startPercent = percent;
-            smartFuel.startConsumption = getBatteryCapacityUsed();
+            smartFuel.startConsumption = getBatteryCapacityUsed() - usableCapacity * (1.0f - smartFuel.startPercent / 100.0f);
             smartFuel.startStateValid = true;
         }
 
         const float usedCapacity = getBatteryCapacityUsed() - smartFuel.startConsumption;
-        percent = smartFuel.startPercent - (usedCapacity * 100.0f / usableCapacity);
+        percent = 100.0f - (usedCapacity * 100.0f / usableCapacity);
     } else {
+        const float usableCapacity = smartFuelGetUsableCapacity();
+        if (usableCapacity < 10.0f) {
+            smartFuel.lastPercentValid = false;
+            return;
+        }
+
         float filteredVoltage = voltage;
         if (smartFuel.voltageFiltered && dt > 0.0f && voltage < smartFuel.filteredVoltage) {
             filteredVoltage = MAX(voltage, smartFuel.filteredVoltage - dt * smartFuelVoltageFallLimitPerSecond());
@@ -406,15 +424,19 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
             smartFuel.voltageFiltered = true;
         }
         smartFuel.filteredVoltage = filteredVoltage;
-        percent = smartFuelPercentFromVoltageOnly(smartFuelApplySagCompensation(filteredVoltage), batteryCellCount);
+        const float targetPercent = smartFuelPercentFromVoltageOnly(smartFuelApplySagCompensation(filteredVoltage), batteryCellCount);
+        const float targetConsumption = usableCapacity * (100.0f - targetPercent) / 100.0f;
+        const bool reseedFromVoltage = !armed && !smartFuel.hadFlight;
 
-        if ((armed || smartFuel.hadFlight) && smartFuel.lastPercentValid && dt > 0.0f) {
-            if (percent < smartFuel.lastPercent) {
-                percent = MAX(percent, smartFuel.lastPercent - dt * smartFuelDropPerSecond());
-            } else if (percent > smartFuel.lastPercent) {
-                percent = MIN(percent, smartFuel.lastPercent + dt * smartFuelRisePerSecond());
-            }
+        if (!smartFuel.virtualConsumptionValid || reseedFromVoltage) {
+            smartFuel.virtualConsumption = targetConsumption;
+            smartFuel.virtualConsumptionValid = true;
+        } else if (dt > 0.0f && targetConsumption > smartFuel.virtualConsumption) {
+            const float maxConsumptionIncrease = dt * smartFuelDropPerSecond() * usableCapacity / 100.0f;
+            smartFuel.virtualConsumption = MIN(targetConsumption, smartFuel.virtualConsumption + maxConsumptionIncrease);
         }
+
+        percent = 100.0f - (smartFuel.virtualConsumption * 100.0f / usableCapacity);
     }
 
     smartFuel.lastPercent = constrainf(percent, 0.0f, 100.0f);
@@ -527,17 +549,10 @@ int getBatterySmartConsumption(void)
         return getBatteryCapacityUsed();
     }
 
-    if (!smartFuel.lastPercentValid) {
+    if (!smartFuel.lastPercentValid || !smartFuel.virtualConsumptionValid) {
         return 0;
     }
-
-    const float usableCapacity = smartFuelGetUsableCapacity();
-    if (usableCapacity < 10.0f) {
-        return 0;
-    }
-
-    const float usedPercent = constrainf(100.0f - smartFuel.lastPercent, 0.0f, 100.0f);
-    return lrintf(usedPercent * usableCapacity / 100.0f);
+    return lrintf(MAX(smartFuel.virtualConsumption, 0.0f));
 #else
     return getBatteryCapacityUsed();
 #endif
