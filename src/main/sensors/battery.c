@@ -426,12 +426,13 @@ static void smartFuelUpdate(timeUs_t currentTimeUs)
         smartFuel.filteredVoltage = filteredVoltage;
         const float targetPercent = smartFuelPercentFromVoltageOnly(smartFuelApplySagCompensation(filteredVoltage), batteryCellCount);
         const float targetConsumption = usableCapacity * (100.0f - targetPercent) / 100.0f;
-        const bool reseedFromVoltage = !armed && !smartFuel.hadFlight;
 
-        if (!smartFuel.virtualConsumptionValid || reseedFromVoltage) {
+        // Seed once from stabilized resting voltage, then keep the preflight estimate stable
+        // until flight begins. A meaningful voltage rise in preflight still resets state above.
+        if (!smartFuel.virtualConsumptionValid) {
             smartFuel.virtualConsumption = targetConsumption;
             smartFuel.virtualConsumptionValid = true;
-        } else if (dt > 0.0f && targetConsumption > smartFuel.virtualConsumption) {
+        } else if ((armed || smartFuel.hadFlight) && dt > 0.0f && targetConsumption > smartFuel.virtualConsumption) {
             const float maxConsumptionIncrease = dt * smartFuelDropPerSecond() * usableCapacity / 100.0f;
             smartFuel.virtualConsumption = MIN(targetConsumption, smartFuel.virtualConsumption + maxConsumptionIncrease);
         }
