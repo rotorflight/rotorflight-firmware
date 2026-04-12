@@ -548,8 +548,9 @@ FAST_CODE void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sa
         cutoff = limitCutoff(cutoff, sampleRate);
 
         const float omega = M_2PIf * cutoff / sampleRate;
-        const float sinom = sin_approx(omega);
-        const float cosom = cos_approx(omega);
+        const sincosf_t sincos = sincos_approx(omega);
+        const float sinom = sincos.sin;
+        const float cosom = sincos.cos;
         const float alpha = sinom / (2 * Q);
 
         switch (filterType) {

@@ -293,8 +293,8 @@ bool bmp388Detect(const bmp388Config_t *config, baroDev_t *baro)
 
     // See datasheet 3.9.2 "Measurement rate in forced mode and normal mode"
     baro->up_delay = 234 +
-        (392 + (powf(2, BMP388_PRESSURE_OSR + 1) * 2000)) +
-        (313 + (powf(2, BMP388_TEMPERATURE_OSR + 1) * 2000));
+        (392 + (2 << BMP388_PRESSURE_OSR) * 2000) +
+        (313 + (2 << BMP388_TEMPERATURE_OSR) * 2000);
 
     baro->calculate = bmp388Calculate;
 
