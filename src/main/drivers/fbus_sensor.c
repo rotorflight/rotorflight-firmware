@@ -837,8 +837,9 @@ const char* fbusSensorGetSourceName(fbusSensorSource_e source)
         case FBUS_SENSOR_SOURCE_SPORT:
             return "SPORT";
         case FBUS_SENSOR_SOURCE_FBUS:
-        default:
             return "FBUS";
+        default:
+            return "UNKNOWN";
     }
 }
 
