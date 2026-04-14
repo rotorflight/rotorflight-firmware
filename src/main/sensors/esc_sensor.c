@@ -461,11 +461,6 @@ static void srxl2escSensorProcess(timeUs_t currentTimeUs)
 
                         combinedNeedsUpdate = true;
                         dataUpdateUs = micros();
-
-                        if (motorIndex == 0 && inj.consumption != 0) {
-                            totalConsumption = (float)dst->consumption;
-                            consumptionUpdateUs = micros();
-                        }
                     }
                 }
             }

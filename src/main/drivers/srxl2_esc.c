@@ -198,7 +198,7 @@ static struct escBufse* srxl2escGetSpareBuffer(void)
 {
     for (int i = 0; i < 3; ++i) {
         struct escBufse *b = &readBufferse[i];
-        if (b != readBufferPtr && b != processBufferPtr) return b;
+        if (b != readBufferPtr && b != processBufferPtr && b->len == 0) return b;
     }
     return NULL;
 }
@@ -513,6 +513,11 @@ const char *srxl2escGetHandshakeStageString(void) { return srxl2escHandshakeStag
 
 bool srxl2escProcessHandshake(const Srxl2Header* header)
 {
+    const size_t minHandshakeLen = sizeof(Srxl2Header) + sizeof(Srxl2HandshakeSubHeader);
+    if (!header || header->length < minHandshakeLen) {
+        return false;
+    }
+
     const Srxl2HandshakeSubHeader* handshake = (const Srxl2HandshakeSubHeader*)(header + 1);
 
     // srxl2escRecordHandshakeFrame((const uint8_t *)header, header->length, false);
@@ -721,7 +726,7 @@ void srxl2escDataReceive(uint16_t character, void *data)
                     if (spare == NULL) {
                         for (int i = 0; i < 3; ++i) {
                             struct escBufse *b = &readBufferse[i];
-                            if (b != processBufferPtr) { spare = b; break; }
+                            if (b != readBufferPtr && b != processBufferPtr && b->len == 0) { spare = b; break; }
                         }
                     }
                     readBufferPtr = spare;
@@ -1341,6 +1346,7 @@ bool srxl2escDriverInit(void)
      * loop for up to 200ms before returning. This ensures we transmit within the
      * ESC's 250ms listening window, before the scheduler starts. */
     if (localCfg.srxl2_unit_id == 0 && !srxl2escBootHandshakeDone) {
+        srxl2escBootHandshakeDone = true;
         const uint32_t startUs = micros();
         const uint32_t deadlineUs = startUs + 200000; // 200ms window
         uint32_t nextHandshakeUs = startUs;
