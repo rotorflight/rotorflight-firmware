@@ -22,9 +22,7 @@
 #include "build/atomic.h"
 
 #include "pg/gps.h"
-#ifdef USE_FBUS_MASTER
 #include "pg/fbus_master.h"
-#endif
 
 #include "common/maths.h"
 #include "config/feature.h"
