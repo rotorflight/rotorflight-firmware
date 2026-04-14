@@ -38,7 +38,7 @@
 #include "drivers/fbus_sensor.h"
 #include "sensors/sensors.h"
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 
 static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_VARIO2]        = "VARIO2",
@@ -842,4 +842,4 @@ const char* fbusSensorGetSourceName(fbusSensorSource_e source)
     }
 }
 
-#endif // USE_FBUS_MASTER || USE_SMARTPORT_INPUT
+#endif // USE_FBUS_MASTER || USE_SPORT_MASTER

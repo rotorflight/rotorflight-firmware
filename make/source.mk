@@ -195,7 +195,7 @@ COMMON_SRC = \
             telemetry/sbus2.c \
             telemetry/sbus2_sensors.c \
             telemetry/smartport.c \
-            telemetry/smartport_input.c \
+            telemetry/sport_master.c \
             telemetry/ltm.c \
             telemetry/mavlink.c \
             telemetry/msp_shared.c \

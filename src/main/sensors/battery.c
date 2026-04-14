@@ -452,7 +452,7 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorFBUSRefresh();
 #endif
 
@@ -471,7 +471,7 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
             break;
 
         case VOLTAGE_METER_FBUS:
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (voltageSensorFBUSRead(&voltageMeter)) {
                 batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
             } else {
@@ -507,7 +507,7 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     currentSensorFBUSRefresh();
 #endif
 
@@ -527,7 +527,7 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
             break;
 
         case CURRENT_METER_FBUS:
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (currentSensorFBUSRead(&currentMeter)) {
                 batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
             } else {
@@ -568,7 +568,7 @@ void batteryInit(void)
     currentSensorESCInit();
 #endif
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorFBUSInit();
     currentSensorFBUSInit();
 #endif

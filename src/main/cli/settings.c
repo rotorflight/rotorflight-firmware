@@ -108,7 +108,7 @@
 #include "pg/freq.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
-#include "pg/sport_input.h"
+#include "pg/sport_master.h"
 #include "pg/bus_servo.h"
 
 #include "rx/a7105_flysky.h"
@@ -1757,9 +1757,9 @@ const clivalue_t valueTable[] = {
     { "fbus_master_forwarded_sensors", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_MAX_FORWARDED_SENSORS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, forwardedSensors) },
 #endif
 
-#ifdef USE_SMARTPORT_INPUT
-    { "sport_input_pinswap",           VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_INPUT_CONFIG, offsetof(sportInputConfig_t, pinSwap) },
-    { "sport_input_inverted",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_INPUT_CONFIG, offsetof(sportInputConfig_t, inverted) },
+#ifdef USE_SPORT_MASTER
+    { "sport_master_pinswap",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_MASTER_CONFIG, offsetof(sportMasterConfig_t, pinSwap) },
+    { "sport_master_inverted",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_MASTER_CONFIG, offsetof(sportMasterConfig_t, inverted) },
 #endif
 
 };

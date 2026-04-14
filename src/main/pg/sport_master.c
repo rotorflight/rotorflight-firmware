@@ -18,14 +18,14 @@
 #include "platform.h"
 
 #include "pg/pg_ids.h"
-#include "pg/sport_input.h"
+#include "pg/sport_master.h"
 
-#ifdef USE_SMARTPORT_INPUT
+#ifdef USE_SPORT_MASTER
 
-PG_REGISTER_WITH_RESET_FN(sportInputConfig_t, sportInputConfig,
-                          PG_DRIVER_SPORT_INPUT_CONFIG, 1);
+PG_REGISTER_WITH_RESET_FN(sportMasterConfig_t, sportMasterConfig,
+                          PG_DRIVER_SPORT_MASTER_CONFIG, 1);
 
-void pgResetFn_sportInputConfig(sportInputConfig_t *config)
+void pgResetFn_sportMasterConfig(sportMasterConfig_t *config)
 {
     config->pinSwap = 1;
     config->inverted = 1;

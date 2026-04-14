@@ -5065,7 +5065,7 @@ static void cliStatus(const char *cmdName, char *cmdline)
     cliPrintLinefeed();
 }
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static void cliFbusSensors(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
@@ -6754,7 +6754,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("escprog", "passthrough esc to serial", "<mode [sk/bl/ki/cc]> <index>", cliEscPassthrough),
 #endif
     CLI_COMMAND_DEF("exit", NULL, NULL, cliExit),
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     CLI_COMMAND_DEF("fbus_sensors", "show observed FBUS sensors", "[clear]", cliFbusSensors),
 #endif
     CLI_COMMAND_DEF("feature", "configure features",

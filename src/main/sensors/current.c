@@ -209,7 +209,7 @@ void currentSensorESCInit(void)
 
 #endif
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 
 static currentSensorState_t currentFBUSSensor;
 

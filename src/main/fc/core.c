@@ -108,9 +108,9 @@
 #include "sensors/gyro.h"
 
 #include "telemetry/telemetry.h"
-#if defined(USE_TELEMETRY) && defined(USE_SMARTPORT_INPUT)
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
 #include "drivers/fbus_sensor.h"
-#include "telemetry/smartport_input.h"
+#include "telemetry/sport_master.h"
 #endif
 
 #include "core.h"
@@ -741,8 +741,8 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 {
     static timeUs_t lastGyroTempTimeUs = 0;
 
-#if defined(USE_TELEMETRY) && defined(USE_SMARTPORT_INPUT)
-    handleSmartPortInput(currentTimeUs);
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+    handleSportMaster(currentTimeUs);
     fbusSensorUpdate(currentTimeUs);
 #endif
 

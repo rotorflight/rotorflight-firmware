@@ -184,7 +184,7 @@ static void paramEscNeedRestart(void)
 
 bool isEscSensorActive(void)
 {
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
         && (fbusSensorHasCurrentData() || fbusSensorHasEscData())) {
@@ -224,7 +224,7 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
 {
     if (!escData) {
@@ -344,7 +344,7 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
             }
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-#if defined(USE_FBUS_MASTER) || defined(USE_SMARTPORT_INPUT)
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
                 static escSensorData_t fbusEscSensorData;
                 if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {

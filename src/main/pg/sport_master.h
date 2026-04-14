@@ -19,9 +19,9 @@
 
 #include "pg/pg.h"
 
-typedef struct sportInputConfig_s {
+typedef struct sportMasterConfig_s {
     uint8_t pinSwap;
     uint8_t inverted;
-} sportInputConfig_t;
+} sportMasterConfig_t;
 
-PG_DECLARE(sportInputConfig_t, sportInputConfig);
+PG_DECLARE(sportMasterConfig_t, sportMasterConfig);

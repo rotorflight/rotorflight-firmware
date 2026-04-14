@@ -19,5 +19,5 @@
 
 #include "common/time.h"
 
-void initSmartPortInput(void);
-void handleSmartPortInput(timeUs_t currentTimeUs);
+void initSportMaster(void);
+void handleSportMaster(timeUs_t currentTimeUs);
