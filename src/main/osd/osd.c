@@ -116,8 +116,8 @@ const char * const osdTimerSourceNames[] = {
 
 // Things in both OSD and CMS
 
-#define IS_HI(X)  (rcCommand[X] > 400)
-#define IS_LO(X)  (rcCommand[X] < -400)
+#define IS_HI(X)  (rcCommand[X] > 300)
+#define IS_LO(X)  (rcCommand[X] < -300)
 #define IS_MID(X) (rcCommand[X] > -100 && rcCommand[X] < 100)
 
 timeUs_t osdFlyTime = 0;

@@ -284,20 +284,23 @@ static const OSD_Entry cmsx_menuRateProfileEntries[] =
 {
     { "-- RATE --", OME_Label, NULL, rateProfileIndexString },
 
-    { "RC R RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_ROLL],  1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
-    { "RC P RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_PITCH], 1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1}},
-    { "RC Y RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_YAW],   1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
+    { "R RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_ROLL],  1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
+    { "P RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_PITCH], 1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
+    { "Y RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_YAW],   1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
+    { "C RATE",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcRates[FD_COLL],  1, CONTROL_RATE_CONFIG_RC_RATES_MAX, 1 }},
 
-    { "ROLL SUPER",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_ROLL],    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
-    { "PITCH SUPER", OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_PITCH],   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
-    { "YAW SUPER",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_YAW],     0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "R SHAPE",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_ROLL],    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "P SHAPE",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_PITCH],   0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "Y SHAPE",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_YAW],     0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
+    { "C SHAPE",  OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.sRates[FD_COLL],    0, CONTROL_RATE_CONFIG_SUPER_RATE_MAX, 1 }},
 
-    { "RC R EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_ROLL],   0, 100, 1 }},
-    { "RC P EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_PITCH],  0, 100, 1 }},
-    { "RC Y EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_YAW],    0, 100, 1 }},
+    { "R EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_ROLL],   0, 100, 1 }},
+    { "P EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_PITCH],  0, 100, 1 }},
+    { "Y EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_YAW],    0, 100, 1 }},
+    { "C EXPO",   OME_UINT8,  NULL, &(OSD_UINT8_t) { &rateProfile.rcExpo[FD_COLL],   0, 100, 1 }},
 
-    { "ROLL LVL EXPO",  OME_UINT8, NULL, &(OSD_UINT8_t) { &rateProfile.levelExpo[FD_ROLL],  0, 100, 1 }},
-    { "PITCH LVL EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &rateProfile.levelExpo[FD_PITCH], 0, 100, 1 }},
+    { "R LEVEL EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &rateProfile.levelExpo[FD_ROLL],  0, 100, 1 }},
+    { "P LEVEL EXPO", OME_UINT8, NULL, &(OSD_UINT8_t) { &rateProfile.levelExpo[FD_PITCH], 0, 100, 1 }},
 
     { "BACK", OME_Back, NULL, NULL },
     { NULL, OME_END, NULL, NULL}
