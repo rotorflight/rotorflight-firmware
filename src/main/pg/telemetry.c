@@ -18,13 +18,15 @@
 #include "types.h"
 #include "platform.h"
 
+#ifdef USE_TELEMETRY
+
 #include "common/unit.h"
 
 #include "pg/pg_ids.h"
 #include "pg/telemetry.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 8);
+PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 9);
 
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
@@ -35,6 +37,7 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .frsky_coordinate_format = FRSKY_FORMAT_DMS,
     .frsky_unit = UNIT_METRIC,
     .frsky_vfas_precision = 0,
+    .smartfuel = false,
     .smartfuel_source = SMARTFUEL_SOURCE_CURRENT,
     .hottAlarmSoundInterval = 5,
     .report_cell_voltage = false,
@@ -57,3 +60,5 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_sensors = INIT_ZERO,
     .telemetry_interval = INIT_ZERO,
 );
+
+#endif

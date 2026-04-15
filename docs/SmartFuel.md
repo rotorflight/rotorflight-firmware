@@ -14,36 +14,37 @@ SmartFuel supports two sources:
 CLI examples:
 
 ```text
+set smartfuel = ON
 set smartfuel_source = CURRENT
 ```
 
 ```text
+set smartfuel = ON
 set smartfuel_source = VOLTAGE
-set smartfuel_params = 1500,15,5,10,2,70
+set smartfuel_params = 1500,15,5,10,70
 ```
 
 ## SmartFuel parameter order
 
-`smartfuel_params` is a 6-value array in this order:
+`smartfuel_params` is a 5-value array in this order:
 
 1. `stabilize_delay_ms`
 2. `stable_window_centi_volts`
 3. `voltage_fall_centi_volts_per_sec`
 4. `fuel_drop_tenths_percent_per_sec`
-5. `fuel_rise_tenths_percent_per_sec`
-6. `sag_multiplier_percent`
+5. `sag_multiplier_percent`
 
 The first two parameters apply in both `CURRENT` and `VOLTAGE` modes:
 
 - `stabilize_delay_ms`
 - `stable_window_centi_volts`
 
-The remaining four parameters are only used in `VOLTAGE` mode.
+The remaining three parameters are only used in `VOLTAGE` mode.
 
 Default values:
 
 ```text
-smartfuel_params = 1500,15,5,10,2,70
+smartfuel_params = 1500,15,5,10,70
 ```
 
 ## Parameter guide
@@ -79,13 +80,6 @@ Maximum allowed SmartFuel percentage drop rate once the model has flown.
 
 - Increase it if the displayed percentage lags too much behind the real pack condition.
 - Decrease it if the percentage drops too aggressively during load spikes.
-
-### `fuel_rise_tenths_percent_per_sec`
-
-Maximum allowed SmartFuel percentage rise rate once the model has flown.
-
-- Increase it if recovery after unloading is too slow.
-- Decrease it if the percentage bounces back unrealistically after hard manoeuvres.
 
 ### `sag_multiplier_percent`
 
@@ -130,7 +124,6 @@ Use these adjustment patterns:
 - Too jumpy before flight: increase `stabilize_delay_ms` or reduce `stable_window_centi_volts`.
 - Settles too slowly before flight: increase `stable_window_centi_volts` or reduce `stabilize_delay_ms`.
 - Drops too hard during load: reduce `fuel_drop_tenths_percent_per_sec` or increase `sag_multiplier_percent`.
-- Recovers too much after unloading: reduce `fuel_rise_tenths_percent_per_sec`.
 - Feels too pessimistic overall under load: increase `sag_multiplier_percent`.
 - Feels too optimistic overall: reduce `sag_multiplier_percent`.
 - Tracks real depletion too slowly throughout the flight: increase `voltage_fall_centi_volts_per_sec` or increase `fuel_drop_tenths_percent_per_sec`.
@@ -144,9 +137,10 @@ Use these adjustment patterns:
 
 ## Telemetry
 
-SmartFuel is exported as the `BATTERY_SMARTFUEL` telemetry sensor for supported telemetry protocols.
+When `smartfuel = OFF`, telemetry keeps the existing master behaviour.
 
-Supported telemetry protocols also export `BATTERY_SMARTCONSUMPTION`:
+When `smartfuel = ON`, SmartFuel reuses the existing battery fuel and consumption outputs instead of adding new telemetry sensors:
 
-- In `CURRENT` mode it mirrors the measured consumed mAh.
-- In `VOLTAGE` mode it estimates consumed mAh from the SmartFuel remaining percentage and the usable configured pack capacity.
+- the existing fuel/charge-level output reports SmartFuel remaining percentage
+- the existing consumption output reports measured mAh in `CURRENT` mode
+- the existing consumption output reports estimated mAh in `VOLTAGE` mode

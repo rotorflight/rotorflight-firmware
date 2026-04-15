@@ -83,7 +83,7 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
     float cellVoltage =  getBatteryAverageCellVoltage() * 0.01f;
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
     float current =  getBatteryCurrent() * 0.01f;
-    float capacity = getBatteryCapacityUsed();
+    float capacity = getBatteryFuelConsumption();
     float temperature =  getCoreTemperatureCelsius();
     uint32_t rpm = getHeadSpeed();
 

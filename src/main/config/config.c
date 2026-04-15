@@ -84,7 +84,9 @@
 #include "pg/freq.h"
 #include "pg/system.h"
 #include "pg/pilot.h"
+#ifdef USE_SMARTFUEL
 #include "pg/telemetry.h"
+#endif
 
 #include "rx/rx.h"
 #include "rx/rx_spi.h"
@@ -202,6 +204,10 @@ static void validateAndFixPositionConfig(void)
 static void validateAndFixSmartFuelConfig(void)
 {
     telemetryConfig_t *config = telemetryConfigMutable();
+
+    if (config->smartfuel > 1) {
+        config->smartfuel = false;
+    }
 
     if (config->smartfuel_source >= SMARTFUEL_SOURCE_COUNT) {
         config->smartfuel_source = SMARTFUEL_SOURCE_CURRENT;

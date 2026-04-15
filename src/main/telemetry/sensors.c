@@ -167,21 +167,15 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_CURRENT:
             return getBatteryCurrent();
         case TELEM_BATTERY_CONSUMPTION:
-            return getBatteryCapacityUsed();
+            return getBatteryFuelConsumption();
         case TELEM_BATTERY_CHARGE_LEVEL:
-            return calculateBatteryPercentageRemaining();
+            return getBatteryFuelLevel();
         case TELEM_BATTERY_CELL_COUNT:
             return getBatteryCellCount();
         case TELEM_BATTERY_CELL_VOLTAGE:
             return getBatteryAverageCellVoltage();
         case TELEM_BATTERY_CELL_VOLTAGES:
             return 0;
-#ifdef USE_SMARTFUEL
-        case TELEM_BATTERY_SMARTFUEL:
-            return getBatterySmartFuel();
-        case TELEM_BATTERY_SMARTCONSUMPTION:
-            return getBatterySmartConsumption();
-#endif
 
         case TELEM_CONTROL:
             return millis();
@@ -421,10 +415,6 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_BATTERY_CHARGE_LEVEL:
         case TELEM_BATTERY_CELL_COUNT:
         case TELEM_BATTERY_CELL_VOLTAGE:
-#ifdef USE_SMARTFUEL
-        case TELEM_BATTERY_SMARTFUEL:
-        case TELEM_BATTERY_SMARTCONSUMPTION:
-#endif
             return true;
 
         case TELEM_BATTERY_CELL_VOLTAGES:

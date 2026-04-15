@@ -173,8 +173,6 @@ typedef enum
     TELEM_FBUS_SENSOR_6                 = 115,
     TELEM_FBUS_SENSOR_7                 = 116,
     TELEM_FBUS_SENSOR_8                 = 117,
-    TELEM_BATTERY_SMARTFUEL             = 118,
-    TELEM_BATTERY_SMARTCONSUMPTION      = 119,
     TELEM_SENSOR_COUNT
 } sensor_id_e;
 

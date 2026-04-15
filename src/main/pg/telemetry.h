@@ -70,6 +70,7 @@ typedef struct telemetryConfig_s {
     uint8_t frsky_coordinate_format;
     uint8_t frsky_unit;
     uint8_t frsky_vfas_precision;
+    uint8_t smartfuel;
     uint8_t smartfuel_source;
     uint8_t hottAlarmSoundInterval;
     uint8_t report_cell_voltage;

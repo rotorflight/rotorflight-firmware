@@ -146,13 +146,6 @@ New MSP command to get the active battery profile. (#415)
 
 New MSP command to set the active battery profile. (#415)
 
-### MSP2_GET_SMARTFUEL_CONFIG / MSP2_SET_SMARTFUEL_CONFIG
-
-New MSP2 commands to read and write firmware-side smartfuel configuration, including the selected source (`CURRENT` or `VOLTAGE`) and the 6 SmartFuel tuning parameters in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `fuel_rise_tenths_percent_per_sec`, `sag_multiplier_percent`.
-
-Supported telemetry protocols now also export native `BATTERY_SMARTFUEL` and `BATTERY_SMARTCONSUMPTION` sensors. `BATTERY_SMARTCONSUMPTION` mirrors measured consumed mAh in `CURRENT` mode and is estimated from SmartFuel remaining percentage in `VOLTAGE` mode.
-
-
 ## CLI Changes
 
 `pid_process_denom` is a divider for the PID loop speed vs. the gyro
@@ -165,9 +158,11 @@ the PID loop rate to half too.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
 
+`smartfuel` parameter added (ON/OFF). When `OFF`, fuel telemetry keeps the existing behaviour. When `ON`, SmartFuel drives the existing fuel and consumption telemetry outputs.
+
 `smartfuel_source` parameter added (`CURRENT`/`VOLTAGE`) to select whether smartfuel is derived from measured consumption or voltage-only estimation.
 
-`smartfuel_params` parameter added as a 6-value smartfuel tuning array in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `fuel_rise_tenths_percent_per_sec`, `sag_multiplier_percent`. The first two values apply in both `CURRENT` and `VOLTAGE` modes; the remaining four are only used in `VOLTAGE` mode.
+`smartfuel_params` parameter added as a 5-value smartfuel tuning array in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `sag_multiplier_percent`. The first two values apply in both `CURRENT` and `VOLTAGE` modes; the remaining three are only used in `VOLTAGE` mode.
 
 `board_name`, `board_design`, and `manufacturer_id` now display a detailed
 incompatible-configuration warning and halt the system when an attempt is made

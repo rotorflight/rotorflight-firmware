@@ -162,10 +162,6 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(BATTERY_VOLTAGE,         0x0210,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(BATTERY_CURRENT,         0x0200,   100,  3000,   1,  10,   10,   INT),
     TLM_SENSOR(BATTERY_CONSUMPTION,     0x5250,   100,  3000,   1,  10,   0,    INT),
-#ifdef USE_SMARTFUEL
-    TLM_SENSOR(BATTERY_SMARTFUEL,       0x5251,   100,  3000,   1,  10,   0,    INT),
-    TLM_SENSOR(BATTERY_SMARTCONSUMPTION, 0x5252,  100,  3000,   1,  10,   0,    INT),
-#endif
     TLM_SENSOR(BATTERY_CHARGE_LEVEL,    0x0600,   100,  3000,   1,  10,   0,    INT),
 
     TLM_SENSOR(BATTERY_CELL_COUNT,      0x5260,   200,  3000,   1,  10,   0,    INT),

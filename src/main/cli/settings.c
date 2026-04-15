@@ -1245,6 +1245,7 @@ const clivalue_t valueTable[] = {
     { "mavlink_mah_as_heading_divisor", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 30000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, mavlink_mah_as_heading_divisor) },
 #endif
 #ifdef USE_SMARTFUEL
+    { "smartfuel",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel) },
     { "smartfuel_source",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SMARTFUEL_SOURCE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_source) },
     { "smartfuel_params",           VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SMARTFUEL_PARAM_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params)},
 #endif
