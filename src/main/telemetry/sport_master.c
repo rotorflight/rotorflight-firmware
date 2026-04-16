@@ -220,6 +220,11 @@ static void sportMasterPollSensor(uint8_t physicalId)
     smartPortSendByte(sportMasterPhyIdWithCheckBits(physicalId), NULL, sportMasterPort);
 }
 
+bool sportMasterIsEnabled(void)
+{
+    return sportMasterPort != NULL;
+}
+
 void initSportMaster(void)
 {
     if (sportMasterPort) {

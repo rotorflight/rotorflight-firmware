@@ -52,6 +52,9 @@
 #ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
 #endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#include "telemetry/sport_master.h"
+#endif
 
 #include "fc/runtime_config.h"
 
@@ -181,13 +184,30 @@ static void paramEscNeedRestart(void)
     escSensorData[0].id = ESC_SIG_RESTART;
 }
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static bool isFbusEscTransportAvailable(void)
+{
+#ifdef USE_FBUS_MASTER
+    if (fbusMasterIsEnabled()) {
+        return true;
+    }
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+    if (sportMasterIsEnabled()) {
+        return true;
+    }
+#endif
+    return false;
+}
+#endif
 
 bool isEscSensorActive(void)
 {
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
-        && (fbusSensorHasCurrentData() || fbusSensorHasEscData())) {
+        && isFbusEscTransportAvailable()
+        && fbusSensorHasEscData()) {
         return true;
     }
 #endif

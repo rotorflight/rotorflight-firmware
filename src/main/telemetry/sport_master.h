@@ -20,4 +20,5 @@
 #include "common/time.h"
 
 void initSportMaster(void);
+bool sportMasterIsEnabled(void);
 void handleSportMaster(timeUs_t currentTimeUs);
