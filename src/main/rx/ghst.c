@@ -192,6 +192,30 @@ static bool shouldSendTelemetryFrame(void)
     return telemetryBufLen > 0 && timeSinceRxFrameEndUs > GHST_RX_TO_TELEMETRY_MIN_US && timeSinceRxFrameEndUs < GHST_RX_TO_TELEMETRY_MAX_US;
 }
 
+static bool ghstFramePayloadLengthIsValid(const ghstFrame_t *frame)
+{
+    const int payloadLength = frame->frame.len - GHST_FRAME_LENGTH_TYPE_CRC - 1;
+
+    if (frame->frame.type < GHST_UL_RC_CHANS_HS4_FIRST || frame->frame.type > GHST_UL_RC_CHANS_HS4_LAST) {
+        return true;
+    }
+
+    if (payloadLength < (int)sizeof(ghstPayloadServo4_t)) {
+        return false;
+    }
+
+    switch (frame->frame.type) {
+    case GHST_UL_RC_CHANS_HS4_RSSI:
+        return payloadLength >= (int)sizeof(ghstPayloadPulsesRssi_t);
+    case GHST_UL_RC_CHANS_HS4_5TO8:
+    case GHST_UL_RC_CHANS_HS4_9TO12:
+    case GHST_UL_RC_CHANS_HS4_13TO16:
+        return payloadLength >= (int)sizeof(ghstPayloadPulses_t);
+    default:
+        return true;
+    }
+}
+
 STATIC_UNIT_TESTED uint8_t ghstFrameStatus(rxRuntimeState_t *rxRuntimeState)
 {
     UNUSED(rxRuntimeState);
@@ -207,6 +231,10 @@ STATIC_UNIT_TESTED uint8_t ghstFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
         const uint8_t crc = ghstFrameCRC(&ghstValidatedFrame);
         if (crc == ghstValidatedFrame.bytes[fullFrameLength - 1] && ghstValidatedFrame.frame.addr == GHST_ADDR_FC) {
+            if (!ghstFramePayloadLengthIsValid(&ghstValidatedFrame)) {
+                return RX_FRAME_DROPPED;
+            }
+
             ghstValidatedFrameAvailable = true;
             rxRuntimeState->lastRcFrameTimeUs = ghstRxFrameEndAtUs;
             return RX_FRAME_COMPLETE | RX_FRAME_PROCESSING_REQUIRED;            // request callback through ghstProcessFrame to do the decoding  work
@@ -242,6 +270,8 @@ static bool ghstProcessFrame(const rxRuntimeState_t *rxRuntimeState)
     }
 
     if (ghstValidatedFrameAvailable) {
+        ghstValidatedFrameAvailable = false;
+
         int startIdx = 0;
 
         if (ghstValidatedFrame.frame.type >= GHST_UL_RC_CHANS_HS4_FIRST &&
