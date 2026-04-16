@@ -575,9 +575,9 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 {
     UNUSED(rxRuntimeConfig);
 
+#if defined(USE_TELEMETRY_SMARTPORT)
     timeUs_t currentTimeUs = micros();
 
-#if defined(USE_TELEMETRY_SMARTPORT)
     if (cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) > FBUS_MAX_TELEMETRY_RESPONSE_DELAY_US) {
        clearToSend = false;
     }
