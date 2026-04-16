@@ -97,6 +97,8 @@
 #define XBUS_MODEA_BAUDRATE 250000
 #define XBUS_MODEA_MAX_FRAME_TIME 2700 // 2760us round up to 2800 (69/[250k/10bits]=2760)
 #define XBUS_MODEA_START_OF_FRAME_BYTE (0xA4)
+#define XBUS_MODEA_MIN_PAYLOAD_LENGTH 2
+#define XBUS_MODEA_MAX_PAYLOAD_LENGTH (XBUS_MODEA_FRAME_SIZE - 3)
 // Mode A needs a different conversion as the resolution is 16bit, not 12bit
 //0x0000      800uSec
 //0x1249      900uSec(-60°, -75°, or -90°)
@@ -108,7 +110,7 @@
 static timeDelta_t xBusMaxFrameTime;
 static timeUs_t xBusTimeLast = 0;
 
-static bool xBusFrameReceived = false;
+static volatile bool xBusFrameReceived = false;
 static bool xBusDataIncoming = false;
 static uint8_t xBusFramePosition;
 static uint8_t xBusFrameLength;
@@ -192,7 +194,7 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
                 value |= ((uint16_t)xBusFrame[frameAddr + 1]);
 
                 // Convert to internal format
-                if (nChannelNumber <= XBUS_MODEA_CHANNEL_COUNT)
+                if (nChannelNumber < XBUS_MODEA_CHANNEL_COUNT)
                 {
                     uint16_t val = XBUS_MODEA_CONVERT_TO_USEC(value);
 
@@ -310,6 +312,12 @@ static void xBusDataReceive(uint16_t c, void *data)
 
     // Only do this if we are receiving to a frame
     if (xBusDataIncoming == true) {
+        if (xBusFramePosition >= xBusFrameLength) {
+            xBusDataIncoming = false;
+            xBusFramePosition = 0;
+            return;
+        }
+
         // Store in frame copy
         xBusFrame[xBusFramePosition] = (uint8_t)c;
 
@@ -317,6 +325,12 @@ static void xBusDataReceive(uint16_t c, void *data)
         // adjust the frame length accordingly.
         // Packet length is the second byte of the array
         if (xBusProvider == SERIALRX_XBUS_MODE_A && xBusFramePosition == 1) {
+            if (((uint8_t)c < XBUS_MODEA_MIN_PAYLOAD_LENGTH) || ((uint8_t)c > XBUS_MODEA_MAX_PAYLOAD_LENGTH)) {
+                xBusDataIncoming = false;
+                xBusFramePosition = 0;
+                return;
+            }
+
             xBusFrameLength = (uint8_t)c + 3;   //adjust framesize
         }
         xBusFramePosition++;
