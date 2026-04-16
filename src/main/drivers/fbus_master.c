@@ -374,9 +374,6 @@ void fbusMasterInit(void)
     nextTelemetryPollTimeUs = 0;
     fbusMasterStartDiscoveryWindow(micros());
 
-    // Initialize FBUS sensor caches and forwarding buffers from current config.
-    fbusSensorInit();
-
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
         portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL, 460800, MODE_RXTX,

@@ -231,8 +231,6 @@ void initSportMaster(void)
         return;
     }
 
-    fbusSensorInit();
-
     memset(sportMasterDiscoveredSensors, 0, sizeof(sportMasterDiscoveredSensors));
     sportMasterDiscoveredCount = 0;
     sportMasterDiscoveredIndex = 0;
