@@ -109,6 +109,7 @@ static uint8_t telemetryBufLen = 0;
 #define GHST_FRAME_LENGTH_ADDRESS       1
 #define GHST_FRAME_LENGTH_FRAMELENGTH   1
 #define GHST_FRAME_LENGTH_TYPE_CRC      1
+#define GHST_FRAME_LENGTH_MAX           (GHST_FRAME_SIZE - GHST_FRAME_LENGTH_ADDRESS - GHST_FRAME_LENGTH_FRAMELENGTH)
 
 // called from telemetry/ghst.c
 void ghstRxWriteTelemetryData(const void *data, int len)
@@ -155,11 +156,18 @@ STATIC_UNIT_TESTED void ghstDataReceive(uint16_t c, void *data)
         ghstRxFrameStartAtUs = currentTimeUs;
     }
 
+    if (ghstFrameIdx == GHST_FRAME_LENGTH_ADDRESS) {
+        if (((uint8_t)c < GHST_FRAME_LENGTH_TYPE_CRC) || ((uint8_t)c > GHST_FRAME_LENGTH_MAX)) {
+            ghstFrameIdx = 0;
+            return;
+        }
+    }
+
     // assume frame is 5 bytes long until we have received the frame length
     // full frame length includes the length of the address and framelength fields
     const int fullFrameLength = ghstFrameIdx < 3 ? 5 : ghstIncomingFrame.frame.len + GHST_FRAME_LENGTH_ADDRESS + GHST_FRAME_LENGTH_FRAMELENGTH;
 
-    if (ghstFrameIdx < fullFrameLength) {
+    if (ghstFrameIdx < fullFrameLength && ghstFrameIdx < (int)sizeof(ghstIncomingFrame.bytes)) {
         ghstIncomingFrame.bytes[ghstFrameIdx++] = (uint8_t)c;
         if (ghstFrameIdx >= fullFrameLength) {
             ghstFrameIdx = 0;
@@ -172,6 +180,8 @@ STATIC_UNIT_TESTED void ghstDataReceive(uint16_t c, void *data)
             // remember what time the incoming (Rx) packet ended, so that we can ensure a quite bus before sending telemetry
             ghstRxFrameEndAtUs = microsISR();
         }
+    } else {
+        ghstFrameIdx = 0;
     }
 }
 
@@ -190,8 +200,12 @@ STATIC_UNIT_TESTED uint8_t ghstFrameStatus(rxRuntimeState_t *rxRuntimeState)
     if (ghstFrameAvailable) {
         ghstFrameAvailable = false;
 
-        const uint8_t crc = ghstFrameCRC(&ghstValidatedFrame);
         const int fullFrameLength = ghstValidatedFrame.frame.len + GHST_FRAME_LENGTH_ADDRESS + GHST_FRAME_LENGTH_FRAMELENGTH;
+        if ((ghstValidatedFrame.frame.len < GHST_FRAME_LENGTH_TYPE_CRC) || (fullFrameLength > (int)sizeof(ghstValidatedFrame.bytes))) {
+            return RX_FRAME_DROPPED;
+        }
+
+        const uint8_t crc = ghstFrameCRC(&ghstValidatedFrame);
         if (crc == ghstValidatedFrame.bytes[fullFrameLength - 1] && ghstValidatedFrame.frame.addr == GHST_ADDR_FC) {
             ghstValidatedFrameAvailable = true;
             rxRuntimeState->lastRcFrameTimeUs = ghstRxFrameEndAtUs;
