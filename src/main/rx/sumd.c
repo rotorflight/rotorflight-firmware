@@ -99,6 +99,11 @@ static void sumdDataReceive(uint16_t c, void *data)
             crc = 0;
         }
     } else if (sumdIndex == SUMD_CHANNEL_COUNT_INDEX) {
+        if ((c == 0) || (c > SUMD_MAX_CHANNEL)) {
+            sumdIndex = 0;
+            return;
+        }
+
         sumdChannelCount = (uint8_t)c;
     }
 
@@ -127,6 +132,10 @@ static uint8_t sumdFrameStatus(rxRuntimeState_t *rxRuntimeState)
     }
 
     sumdFrameDone = false;
+
+    if ((sumdChannelCount == 0) || (sumdChannelCount > SUMD_MAX_CHANNEL)) {
+        return RX_FRAME_DROPPED;
+    }
 
     // verify CRC
     if (crc == ((sumd[SUMD_BYTES_PER_CHANNEL * sumdChannelCount + SUMD_OFFSET_CHANNEL_1_HIGH] << 8) |
