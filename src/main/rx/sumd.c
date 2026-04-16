@@ -69,13 +69,13 @@
 #define SUMDV3_FRAME_STATE_OK 0x03
 #define SUMD_FRAME_STATE_FAILSAFE 0x81
 
-static bool sumdFrameDone = false;
+static volatile bool sumdFrameDone = false;
 static uint16_t sumdChannels[MAX_SUPPORTED_RC_CHANNEL_COUNT];
-static uint16_t crc;
+static volatile uint16_t crc;
 
 static uint8_t sumd[SUMD_BUFFSIZE] = { 0, };
-static uint8_t sumdChannelCount;
-static timeUs_t lastFrameTimeUs = 0;
+static volatile uint8_t sumdChannelCount;
+static volatile timeUs_t lastFrameTimeUs = 0;
 
 // Receive ISR callback
 static void sumdDataReceive(uint16_t c, void *data)
