@@ -1372,6 +1372,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_SETPOINT:
+        for (int i = 0; i < 4; i++) {
+            sbufWriteS16(dst, lrintf(getSetpoint(i) * 10));
+        }
+        break;
+
     case MSP_ATTITUDE:
         sbufWriteU16(dst, attitude.values.roll);
         sbufWriteU16(dst, attitude.values.pitch);

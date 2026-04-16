@@ -437,6 +437,40 @@ uint8_32_u *fwifCmdDeviceInitFlash(uint8_t esc_idx)
     return &DeviceInfo;
 }
 
+bool fwifCmdDeviceReset(bool rebootEsc)
+{
+    switch (CurrentInterfaceMode)
+    {
+#ifdef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
+        case imSIL_BLB:
+        case imATM_BLB:
+        case imARM_BLB:
+        {
+            BL_SendCMDRun(BL_RUN_RESTART_BOOTLOADER, &DeviceInfo);
+            if (rebootEsc) {
+                ESC_OUTPUT;
+                setEscLo(selected_esc);
+                timeMs_t start = millis();
+                while (millis() - start < 300);
+                setEscHi(selected_esc);
+                ESC_INPUT;
+            }
+            break;
+        }
+#endif
+#ifdef USE_SERIAL_4WAY_SK_BOOTLOADER
+        case imSK:
+            break;
+#endif
+        default:
+            return false;
+    }
+
+    CurrentInterfaceMode = 0;
+    SET_DISCONNECTED;
+    return true;
+}
+
 bool fwifCmdDevicePageErase(uint8_t page)
 {
     ioMem_t ioMem;
@@ -765,7 +799,7 @@ void esc4wayProcess(serialPort_t *mspPort)
                         case imATM_BLB:
                         case imARM_BLB:
                         {
-                            BL_SendCMDRunRestartBootloader(&DeviceInfo);
+                            BL_SendCMDRun(BL_RUN_RESTART_BOOTLOADER, &DeviceInfo);
                             if (rebootEsc) {
                                 ESC_OUTPUT;
                                 setEscLo(selected_esc);
