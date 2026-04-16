@@ -743,7 +743,9 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 
 #if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
     handleSportMaster(currentTimeUs);
+#if !defined(USE_FBUS_MASTER)
     fbusSensorUpdate(currentTimeUs);
+#endif
 #endif
 
     if (cmpTimeUs(currentTimeUs, lastGyroTempTimeUs) >= GYRO_TEMP_READ_DELAY_US) {
