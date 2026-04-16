@@ -555,6 +555,11 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
             // calculate the number of channels packed
             uint8_t numOfChannels = ((crsfChannelDataFrame.frame.frameLength - CRSF_FRAME_LENGTH_TYPE_CRC - 1) * 8) / channelBits;
+            if (startChannel >= CRSF_MAX_CHANNEL) {
+                return RX_FRAME_DROPPED;
+            }
+
+            numOfChannels = MIN(numOfChannels, CRSF_MAX_CHANNEL - startChannel);
 
             // unpack the channel data
             uint8_t bitsMerged = 0;
