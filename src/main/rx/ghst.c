@@ -109,6 +109,7 @@ static uint8_t telemetryBufLen = 0;
 #define GHST_FRAME_LENGTH_ADDRESS       1
 #define GHST_FRAME_LENGTH_FRAMELENGTH   1
 #define GHST_FRAME_LENGTH_TYPE_CRC      1
+#define GHST_FRAME_LENGTH_MIN           2                   // at least type + CRC
 #define GHST_FRAME_LENGTH_MAX           (GHST_FRAME_SIZE - GHST_FRAME_LENGTH_ADDRESS - GHST_FRAME_LENGTH_FRAMELENGTH)
 
 // called from telemetry/ghst.c
@@ -157,7 +158,7 @@ STATIC_UNIT_TESTED void ghstDataReceive(uint16_t c, void *data)
     }
 
     if (ghstFrameIdx == GHST_FRAME_LENGTH_ADDRESS) {
-        if (((uint8_t)c < GHST_FRAME_LENGTH_TYPE_CRC) || ((uint8_t)c > GHST_FRAME_LENGTH_MAX)) {
+        if (((uint8_t)c < GHST_FRAME_LENGTH_MIN) || ((uint8_t)c > GHST_FRAME_LENGTH_MAX)) {
             ghstFrameIdx = 0;
             return;
         }
@@ -225,7 +226,7 @@ STATIC_UNIT_TESTED uint8_t ghstFrameStatus(rxRuntimeState_t *rxRuntimeState)
         ghstFrameAvailable = false;
 
         const int fullFrameLength = ghstValidatedFrame.frame.len + GHST_FRAME_LENGTH_ADDRESS + GHST_FRAME_LENGTH_FRAMELENGTH;
-        if ((ghstValidatedFrame.frame.len < GHST_FRAME_LENGTH_TYPE_CRC) || (fullFrameLength > (int)sizeof(ghstValidatedFrame.bytes))) {
+        if ((ghstValidatedFrame.frame.len < GHST_FRAME_LENGTH_MIN) || (fullFrameLength > (int)sizeof(ghstValidatedFrame.bytes))) {
             return RX_FRAME_DROPPED;
         }
 
