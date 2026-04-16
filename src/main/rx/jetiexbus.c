@@ -83,8 +83,8 @@ uint32_t jetiTimeStampRequest = 0;
 static uint8_t jetiExBusFramePosition;
 static uint8_t jetiExBusFrameLength;
 
-static uint8_t jetiExBusFrameState = EXBUS_STATE_ZERO;
-uint8_t jetiExBusRequestState = EXBUS_STATE_ZERO;
+static volatile uint8_t jetiExBusFrameState = EXBUS_STATE_ZERO;
+volatile uint8_t jetiExBusRequestState = EXBUS_STATE_ZERO;
 
 // Use max values for ram areas
 static uint8_t jetiExBusChannelFrame[EXBUS_MAX_CHANNEL_FRAME_SIZE];
@@ -181,6 +181,14 @@ static void jetiExBusDataReceive(uint16_t c, void *data)
         }
     }
 
+    // Bounds check before writing to prevent buffer overflow
+    if (jetiExBusFramePosition >= jetiExBusFrameLength) {
+        jetiExBusFrameReset();
+        jetiExBusFrameState = EXBUS_STATE_ZERO;
+        jetiExBusRequestState = EXBUS_STATE_ZERO;
+        return;
+    }
+
     // Store in frame copy
     jetiExBusFrame[jetiExBusFramePosition] = (uint8_t)c;
     jetiExBusFramePosition++;
@@ -188,12 +196,16 @@ static void jetiExBusDataReceive(uint16_t c, void *data)
     // Check the header for the message length
     if (jetiExBusFramePosition == EXBUS_HEADER_LEN) {
 
-        if ((jetiExBusFrameState == EXBUS_STATE_IN_PROGRESS) && (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] <= EXBUS_MAX_CHANNEL_FRAME_SIZE)) {
+        if ((jetiExBusFrameState == EXBUS_STATE_IN_PROGRESS) &&
+            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] >= EXBUS_OVERHEAD) &&
+            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] <= EXBUS_MAX_CHANNEL_FRAME_SIZE)) {
             jetiExBusFrameLength = jetiExBusFrame[EXBUS_HEADER_MSG_LEN];
             return;
         }
 
-        if ((jetiExBusRequestState == EXBUS_STATE_IN_PROGRESS) && (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] <= EXBUS_MAX_REQUEST_FRAME_SIZE)) {
+        if ((jetiExBusRequestState == EXBUS_STATE_IN_PROGRESS) &&
+            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] >= EXBUS_OVERHEAD) &&
+            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] <= EXBUS_MAX_REQUEST_FRAME_SIZE)) {
             jetiExBusFrameLength = jetiExBusFrame[EXBUS_HEADER_MSG_LEN];
             return;
         }
