@@ -66,6 +66,7 @@
 #include "drivers/pin_pull_up_down.h"
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
+#include "drivers/fbus_sensor.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/sensor.h"
@@ -698,6 +699,10 @@ void init(void)
 
 #ifdef USE_SBUS_OUTPUT
     sbusOutInit();
+#endif
+
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    fbusSensorInit();
 #endif
 
 #ifdef USE_FBUS_MASTER
