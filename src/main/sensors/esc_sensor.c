@@ -49,7 +49,12 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 #include "drivers/fbus_sensor.h"
+#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#include "telemetry/sport_master.h"
+#endif
 
 #include "fc/runtime_config.h"
 
@@ -179,13 +184,29 @@ static void paramEscNeedRestart(void)
     escSensorData[0].id = ESC_SIG_RESTART;
 }
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static bool isFbusEscTransportAvailable(void)
+{
+#ifdef USE_FBUS_MASTER
+    if (fbusMasterIsEnabled()) {
+        return true;
+    }
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+    if (sportMasterIsEnabled()) {
+        return true;
+    }
+#endif
+    return false;
+}
+#endif
 
 bool isEscSensorActive(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
-        && fbusMasterIsEnabled()
+        && isFbusEscTransportAvailable()
         && fbusSensorHasEscData()) {
         return true;
     }
@@ -223,10 +244,10 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
 {
-    if (!escData || !fbusMasterIsEnabled()) {
+    if (!escData) {
         return false;
     }
 
@@ -343,7 +364,7 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
             }
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
                 static escSensorData_t fbusEscSensorData;
                 if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {
