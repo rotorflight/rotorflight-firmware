@@ -72,6 +72,12 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .yaw_collective_ff_gain = 60,
         .yaw_inertia_precomp_gain = 0,
         .yaw_inertia_precomp_cutoff = 25,
+        .tail_guard_mode = TAIL_GUARD_MODE_OFF,
+        .tail_guard_strength = 100,
+        .tail_guard_yaw_limit = 35,
+        .tail_guard_boost = 25,
+        .tail_guard_collective_gain = 100,
+        .tail_guard_headspeed_gain = 125,
         .pitch_collective_ff_gain = 0,
         .cyclic_cross_coupling_gain = 50,
         .cyclic_cross_coupling_ratio = 0,
@@ -133,4 +139,3 @@ void pgResetFn_pidProfiles(pidProfile_t *pidProfiles)
         resetPidProfile(&pidProfiles[i]);
     }
 }
-

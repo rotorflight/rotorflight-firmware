@@ -57,6 +57,7 @@
 #include "flight/leveling.h"
 #include "flight/governor.h"
 #include "flight/rpm_filter.h"
+#include "flight/setpoint.h"
 
 #include "pid.h"
 
@@ -884,6 +885,7 @@ static void pidApplyPrecomp(void)
 {
     // Yaw precompensation direction and ratio
     const float masterGain = mixerRotationSign() * getSpoolUpRatio();
+    const float tailGuardBoost = getTailGuardBoost();
 
     // Get actual control deflections (from previous cycle)
     const float collectiveDeflection = getCollectiveDeflection();
@@ -918,7 +920,7 @@ static void pidApplyPrecomp(void)
     const float mainPrecomp = filterApply(&pid.precomp.yawPrecompFilter, mainDrag);
 
     // Total precomp with direction
-    const float totalPrecomp = (mainPrecomp + torquePrecomp) * masterGain;
+    const float totalPrecomp = (mainPrecomp + torquePrecomp) * masterGain * tailGuardBoost;
 
     // Add to YAW feedforward
     pid.data[FD_YAW].F += totalPrecomp;
@@ -929,6 +931,7 @@ static void pidApplyPrecomp(void)
     DEBUG(YAW_PRECOMP, 2, mainDeflection * 1000);
     DEBUG(YAW_PRECOMP, 3, collectiveDeflection * 1000);
     DEBUG(YAW_PRECOMP, 4, cyclicDeflection * 1000);
+    DEBUG(YAW_PRECOMP, 5, (tailGuardBoost - 1.0f) * 1000);
     DEBUG(YAW_PRECOMP, 6, speedChange * 1000);
     DEBUG(YAW_PRECOMP, 7, torquePrecomp * 1000);
 
@@ -1263,6 +1266,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
 static void pidApplyYawMode3(void)
 {
     const uint8_t axis = FD_YAW;
+    const float tailGuardBoost = getTailGuardBoost();
 
     // Rate setpoint
     const float setpoint = pidApplySetpoint(axis);
@@ -1332,7 +1336,7 @@ static void pidApplyYawMode3(void)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint * tailGuardBoost;
 
 
   //// Feedforward Boost (FF Derivative)
@@ -1341,7 +1345,7 @@ static void pidApplyYawMode3(void)
     const float bTerm = difFilterApply(&pid.btermFilter[axis], setpoint);
 
     // Calculate B-component
-    pid.data[axis].B = pid.coef[axis].Kb * bTerm;
+    pid.data[axis].B = pid.coef[axis].Kb * bTerm * tailGuardBoost;
 
 
   //// PID Sum
@@ -1605,6 +1609,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
 static void pidApplyYawMode4(void)
 {
     const uint8_t axis = FD_YAW;
+    const float tailGuardBoost = getTailGuardBoost();
 
     // Rate setpoint
     const float setpoint = pidApplySetpoint(axis);
@@ -1674,7 +1679,7 @@ static void pidApplyYawMode4(void)
   //// Feedforward
 
     // Calculate F component
-    pid.data[axis].F = pid.coef[axis].Kf * setpoint;
+    pid.data[axis].F = pid.coef[axis].Kf * setpoint * tailGuardBoost;
 
 
   //// Feedforward Boost (FF Derivative)
@@ -1683,7 +1688,7 @@ static void pidApplyYawMode4(void)
     const float bTerm = difFilterApply(&pid.btermFilter[axis], setpoint);
 
     // Calculate B-component
-    pid.data[axis].B = pid.coef[axis].Kb * bTerm;
+    pid.data[axis].B = pid.coef[axis].Kb * bTerm * tailGuardBoost;
 
 
   //// PID Sum

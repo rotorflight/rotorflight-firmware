@@ -50,6 +50,12 @@ enum {
     ITERM_RELAX_RPY,
 };
 
+typedef enum {
+    TAIL_GUARD_MODE_OFF,
+    TAIL_GUARD_MODE_ON,
+    TAIL_GUARD_MODE_AUX,
+} tailGuardMode_e;
+
 typedef struct {
     uint16_t P;
     uint16_t I;
@@ -138,6 +144,12 @@ typedef struct pidProfile_s {
     uint8_t             yaw_collective_ff_gain;
     uint8_t             yaw_inertia_precomp_gain;
     uint8_t             yaw_inertia_precomp_cutoff;
+    uint8_t             tail_guard_mode;
+    uint8_t             tail_guard_strength;
+    uint8_t             tail_guard_yaw_limit;
+    uint8_t             tail_guard_boost;
+    uint8_t             tail_guard_collective_gain;
+    uint8_t             tail_guard_headspeed_gain;
 
     uint8_t             pitch_collective_ff_gain;
 
@@ -154,4 +166,3 @@ typedef struct pidProfile_s {
 } pidProfile_t;
 
 PG_DECLARE_ARRAY(pidProfile_t, PID_PROFILE_COUNT, pidProfiles);
-

@@ -37,6 +37,7 @@
 
 #include "fc/runtime_config.h"
 #include "fc/rc.h"
+#include "fc/rc_modes.h"
 
 #include "setpoint.h"
 
@@ -77,6 +78,7 @@ typedef struct
     float yawDynamicCeilingGain;
     float yawDynamicDeadband;
     float yawDynamicDeadbandGain;
+    float tailGuardRisk;
 
     pt1Filter_t yawDynamicSepointLPF;
     difFilter_t yawDynamicSepointDiff;
@@ -172,6 +174,58 @@ float getSetpoint(int axis)
 float getDeflection(int axis)
 {
     return sp.deflection[axis];
+}
+
+float getTailGuardRisk(void)
+{
+    return sp.tailGuardRisk;
+}
+
+static bool tailGuardIsEnabled(void)
+{
+    switch (currentPidProfile->tail_guard_mode) {
+        case TAIL_GUARD_MODE_ON:
+            return true;
+        case TAIL_GUARD_MODE_AUX:
+            return IS_RC_MODE_ACTIVE(BOXTAILGUARD);
+        default:
+            return false;
+    }
+}
+
+float getTailGuardBoost(void)
+{
+    if (!tailGuardIsEnabled()) {
+        return 1.0f;
+    }
+
+    return 1.0f + sp.tailGuardRisk * currentPidProfile->tail_guard_boost / 100.0f;
+}
+
+static float tailGuardRiskCalc(float yawSetpoint, float collectiveSetpoint)
+{
+    if (!tailGuardIsEnabled() || !ARMING_FLAG(ARMED) || !isSpooledUp()) {
+        return 0;
+    }
+
+    const float yawDemand = constrainf(fabsf(yawSetpoint), 0, 1.0f);
+    const float collectiveDemand = constrainf(fabsf(collectiveSetpoint), 0, 1.0f);
+    const float collectiveLoad = sq(collectiveDemand) * currentPidProfile->tail_guard_collective_gain / 100.0f;
+    const float headspeedDrop = 1.0f - constrainf(getFullHeadSpeedRatio(), 0, 1.0f);
+    const float headspeedLoad = headspeedDrop * currentPidProfile->tail_guard_headspeed_gain / 100.0f;
+    const float strength = currentPidProfile->tail_guard_strength / 100.0f;
+
+    return constrainf(yawDemand * (collectiveLoad + headspeedLoad) * strength, 0, 1.0f);
+}
+
+static float applyTailGuard(float yawSetpoint, float collectiveSetpoint)
+{
+    sp.tailGuardRisk = tailGuardRiskCalc(yawSetpoint, collectiveSetpoint);
+
+    const float yawLimit = constrainf(currentPidProfile->tail_guard_yaw_limit / 100.0f, 0, 1.0f);
+    const float scale = 1.0f - sp.tailGuardRisk * yawLimit;
+
+    return yawSetpoint * scale;
 }
 
 static float setpointResponseAccel(int axis, float value)
@@ -281,6 +335,8 @@ void setpointUpdate(void)
 {
     float SP[4];
 
+    sp.tailGuardRisk = 0;
+
     for (int axis = 0; axis < 4; axis++) {
         SP[axis] = getRcDeflection(axis);
         DEBUG_AXIS(SETPOINT, axis, 0, SP[axis] * 1000);
@@ -306,6 +362,10 @@ void setpointUpdate(void)
         SP[axis] += difFilterApply(&sp.boostFilter[axis], SP[axis]) * sp.boostGain[axis];
         DEBUG_AXIS(SETPOINT, axis, 4, SP[axis]);
     }
+
+    SP[FD_YAW] = applyTailGuard(SP[FD_YAW], SP[FD_COLL]);
+    sp.deflection[FD_YAW] = SP[FD_YAW];
+    DEBUG_AXIS(SETPOINT, FD_YAW, 6, sp.tailGuardRisk * 1000);
 
     if (sp.polarCoord) {
         const float dist = sqrtf(sq(SP[FD_ROLL]) + sq(SP[FD_PITCH]));

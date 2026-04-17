@@ -26,6 +26,8 @@
 
 float getSetpoint(int axis);
 float getDeflection(int axis);
+float getTailGuardRisk(void);
+float getTailGuardBoost(void);
 
 void setpointInit(void);
 void setpointInitProfile(void);

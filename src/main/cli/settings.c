@@ -479,6 +479,10 @@ static const char * const lookupTableGovernorThrottleType[] = {
     "NORMAL", "SWITCH", "FUNCTION",
 };
 
+static const char * const lookupTableTailGuardMode[] = {
+    "OFF", "ON", "AUX",
+};
+
 const char * const lookupTableErrorRelaxType[] = {
     "OFF", "RP", "RPY",
 };
@@ -615,6 +619,7 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTableTailMode),
     LOOKUP_TABLE_ENTRY(lookupTableGovernorMode),
     LOOKUP_TABLE_ENTRY(lookupTableGovernorThrottleType),
+    LOOKUP_TABLE_ENTRY(lookupTableTailGuardMode),
     LOOKUP_TABLE_ENTRY(lookupTableErrorRelaxType),
 
 #ifdef USE_ESC_SENSOR
@@ -1127,6 +1132,13 @@ const clivalue_t valueTable[] = {
 
     { "yaw_inertia_precomp_gain",      VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_inertia_precomp_gain) },
     { "yaw_inertia_precomp_cutoff",    VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_inertia_precomp_cutoff) },
+
+    { "tail_guard_mode",             VAR_UINT8 | PROFILE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TAIL_GUARD_MODE }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_mode) },
+    { "tail_guard_strength",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_strength) },
+    { "tail_guard_yaw_limit",        VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_yaw_limit) },
+    { "tail_guard_boost",            VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_boost) },
+    { "tail_guard_collective_gain",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_collective_gain) },
+    { "tail_guard_headspeed_gain",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, tail_guard_headspeed_gain) },
 
     { "pitch_collective_ff_gain",   VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, pitch_collective_ff_gain) },
 

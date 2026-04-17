@@ -69,6 +69,7 @@ typedef enum {
     BOXUSER2,
     BOXUSER3,
     BOXUSER4,
+    BOXTAILGUARD,
 
     CHECKBOX_ITEM_COUNT,
 
