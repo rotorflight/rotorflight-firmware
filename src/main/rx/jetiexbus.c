@@ -67,11 +67,6 @@
 
 // jetiExBusDecodeChannelFrame() reads 16 packed 16-bit channel values after the header; shorter
 // CRC-valid frames must be rejected or stale buffer bytes past MSG_LEN would be interpreted as RC.
-#define JETIEXBUS_MIN_CHANNEL_FRAME_LEN (EXBUS_HEADER_LEN + JETIEXBUS_CHANNEL_COUNT * 2 + EXBUS_CRC_LEN)
-
-#if JETIEXBUS_MIN_CHANNEL_FRAME_LEN > EXBUS_MAX_CHANNEL_FRAME_SIZE
-#error JETIEXBUS_MIN_CHANNEL_FRAME_LEN exceeds EXBUS_MAX_CHANNEL_FRAME_SIZE
-#endif
 
 #define EXBUS_START_CHANNEL_FRAME       (0x3E)
 #define EXBUS_START_REQUEST_FRAME       (0x3D)
@@ -204,8 +199,7 @@ static void jetiExBusDataReceive(uint16_t c, void *data)
     if (jetiExBusFramePosition == EXBUS_HEADER_LEN) {
 
         if ((jetiExBusFrameState == EXBUS_STATE_IN_PROGRESS) &&
-            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] >= JETIEXBUS_MIN_CHANNEL_FRAME_LEN) &&
-            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] <= EXBUS_MAX_CHANNEL_FRAME_SIZE)) {
+            (jetiExBusFrame[EXBUS_HEADER_MSG_LEN] == EXBUS_MAX_CHANNEL_FRAME_SIZE)) {
             jetiExBusFrameLength = jetiExBusFrame[EXBUS_HEADER_MSG_LEN];
             return;
         }
@@ -245,7 +239,7 @@ static uint8_t jetiExBusFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
     if (jetiExBusFrameState == EXBUS_STATE_RECEIVED) {
         const uint8_t msg_len = jetiExBusChannelFrame[EXBUS_HEADER_MSG_LEN];
-        if ((msg_len >= JETIEXBUS_MIN_CHANNEL_FRAME_LEN) &&
+        if ((msg_len == EXBUS_MAX_CHANNEL_FRAME_SIZE) &&
             (jetiExBusCalcCRC16(jetiExBusChannelFrame, msg_len) == 0)) {
             jetiExBusDecodeChannelFrame(jetiExBusChannelFrame);
             frameStatus = RX_FRAME_COMPLETE;
