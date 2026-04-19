@@ -235,6 +235,10 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t moto
         sLen = 1e-3f;
         useUnsyncedPwm = true;
         break;
+    case PWM_TYPE_SRXL2:
+        sMin = 1e-3f;
+        sLen = 1e-3f;
+        break;
 #ifdef USE_TELEMETRY_CASTLE
     case PWM_TYPE_CASTLE_LINK:
         sMin = 1e-3f;

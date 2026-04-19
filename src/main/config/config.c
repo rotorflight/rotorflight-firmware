@@ -40,6 +40,7 @@
 #include "drivers/dshot_command.h"
 #include "drivers/motor.h"
 #include "drivers/system.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/rc_rates.h"
 #include "fc/core.h"
@@ -332,12 +333,38 @@ static void validateAndFixConfig(void)
         }
     } else
 #endif
-    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()) {
+    /* If there is no dedicated ESC_SENSOR serial port and we're not using
+     * Castle PWM, normally disable the ESC sensor feature. However, allow
+     * the feature to remain configured when SRXL2 ESC is configured or
+     * when a SRXL2 ESC serial port is present (SRXL2 ESC provides telemetry
+     * over its own path).
+     */
+    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()
+        && !findSerialPortConfig(FUNCTION_SRXL2_ESC) && !featureIsConfigured(FEATURE_SRXL2_ESC)) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
 
     if (featureIsConfigured(FEATURE_ESC_SENSOR)) {
         validateAndFixEscSensorConfig();
+    }
+#endif
+
+#if defined(USE_SRXL2_ESC)
+    if (findSerialPortConfig(FUNCTION_SRXL2_ESC)) {
+        if (!featureIsConfigured(FEATURE_SRXL2_ESC)) {
+            featureEnableImmediate(FEATURE_SRXL2_ESC);
+        }
+        /* If SRXL2 ESC port exists, ensure ESC_SENSOR feature is enabled so
+         * telemetry is processed via the ESC_SENSOR subsystem as well. */
+#ifdef USE_ESC_SENSOR
+        if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
+            featureEnableImmediate(FEATURE_ESC_SENSOR);
+        }
+        validateAndFixEscSensorConfig();
+#endif
+        validateAndFixSrxl2escConfig();
+    } else {
+        featureDisableImmediate(FEATURE_SRXL2_ESC);
     }
 #endif
 

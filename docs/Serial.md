@@ -121,6 +121,7 @@ Other devices can be added starting from id 50.
 | FUNCTION_FRSKY_OSD           | 65536 |
 | FUNCTION_FBUS_MASTER         | 524288 |
 | FUNCTION_SPORT_MASTER        | 1048576 |
+| FUNCTION_SRXL2_ESC           | 2097152 |
 
 Note: values above `FUNCTION_LIDAR_TF` require more than 16 bits. `FUNCTION_SPORT_MASTER` = `(1<<20)` requires 21 bits.
 

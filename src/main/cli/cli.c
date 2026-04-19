@@ -99,6 +99,7 @@ bool cliMode = false;
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
@@ -204,6 +205,12 @@ static bool commandBatchActive = false;
 static bool commandBatchError = false;
 #endif
 
+/* Forward declarations to avoid implicit-declaration when this helper is placed
+ * before the main CLI print function definitions. These match prototypes
+ * in cli.h. */
+extern void cliPrintLine(const char *str);
+extern void cliPrintLinef(const char *format, ...);
+
 #if defined(USE_BOARD_INFO)
 static bool boardInformationUpdated = false;
 #if defined(USE_SIGNATURE)
@@ -263,7 +270,7 @@ static const char * const featureNames[] = {
     [21] = "",
     [22] = "",
     [23] = "",
-    [24] = "",
+    [24] = "SRXL2_ESC",
     [25] = "RX_SPI",
     [26] = "GOVERNOR",
     [27] = "ESC_SENSOR",
@@ -6694,6 +6701,52 @@ typedef struct {
 
 static void cliHelp(const char *cmdName, char *cmdline);
 
+#ifdef USE_SRXL2_ESC
+static void cliSrxl2Esc(const char *cmdName, char *cmdline)
+{
+    if (cmdline) {
+        while (*cmdline == ' ') cmdline++;
+        if (*cmdline) {
+            if (strncasecmp(cmdline, "telem", 5) == 0 &&
+                (cmdline[5] == '\0' || isspace((unsigned char)cmdline[5]))) {
+                char *p = cmdline + 5;
+                while (*p == ' ') p++;
+                if (*p) {
+                    char *end = NULL;
+                    long interval = strtol(p, &end, 10);
+                    if (*end != '\0' || interval < 0 || interval > UINT8_MAX) {
+                        cliPrintErrorLinef(cmdName, "INTERVAL MUST BE BETWEEN 0 AND 255 FRAMES");
+                    } else {
+                        srxl2escSetTelemetryIntervalFrames((uint8_t)interval);
+                        if (interval == 0) {
+                            cliPrintLine("Telemetry polling disabled");
+                        } else {
+                            cliPrintLinef("Telemetry requested every %d frame(s)", (unsigned)interval);
+                        }
+                    }
+                } else {
+                    cliPrintLinef("Telemetry interval: %u frame(s)", 
+                        (unsigned)srxl2escGetTelemetryIntervalFrames());
+                }
+                return;
+            }
+            cliShowParseError(cmdName);
+            return;
+        }
+    }
+
+    /* Print concise status: throttle refresh and telemetry rates */
+    {
+        const uint32_t throttleHz = srxl2escGetThrottleRateHz();
+        const uint8_t telemInterval = srxl2escGetTelemetryIntervalFrames();
+        const uint32_t telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
+        cliPrintLinef("SRXL2 ESC driver ready: %s", srxl2escDriverIsReady() ? "YES" : "NO");
+        cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
+        cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
+    }
+}
+#endif
+
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
@@ -6861,6 +6914,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("set", "change setting", "[<name>=<value>]", cliSet),
 #if defined(USE_SIGNATURE)
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
+#endif
+#ifdef USE_SRXL2_ESC
+    CLI_COMMAND_DEF("srxl2esc", "show SRXL2 ESC status / telemetry interval", "[telem [interval_frames]]", cliSrxl2Esc),
 #endif
     CLI_COMMAND_DEF("status", "show status", NULL, cliStatus),
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),
