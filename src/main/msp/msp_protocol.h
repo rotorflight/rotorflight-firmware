@@ -162,6 +162,7 @@
 #define MSP_PID_TUNING                       112
 #define MSP_RC_COMMAND                       113
 #define MSP_RX_CHANNELS                      114
+#define MSP_SETPOINT                         115
 
 #define MSP_BOXNAMES                         116
 

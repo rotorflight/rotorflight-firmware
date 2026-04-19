@@ -44,7 +44,6 @@
 #include "rx/frsky_crc.h"
 #include "rx/fbus.h"
 #include "io/serial.h"
-
 #define FBUS_MASTER_BUFFER_SIZE 64
 
 enum {
@@ -363,9 +362,6 @@ void fbusMasterInit(void)
     fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
     nextTelemetryPollTimeUs = 0;
     fbusMasterStartDiscoveryWindow(micros());
-
-    // Initialize FBUS sensor caches and forwarding buffers from current config.
-    fbusSensorInit();
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
