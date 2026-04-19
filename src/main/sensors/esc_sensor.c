@@ -50,7 +50,12 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 #include "drivers/fbus_sensor.h"
+#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#include "telemetry/sport_master.h"
+#endif
 #include "drivers/srxl2_esc.h"
 
 #include "fc/runtime_config.h"
@@ -186,13 +191,29 @@ static void paramEscNeedRestart(void)
     escSensorData[0].id = ESC_SIG_RESTART;
 }
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static bool isFbusEscTransportAvailable(void)
+{
+#ifdef USE_FBUS_MASTER
+    if (fbusMasterIsEnabled()) {
+        return true;
+    }
+#endif
+#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+    if (sportMasterIsEnabled()) {
+        return true;
+    }
+#endif
+    return false;
+}
+#endif
 
 bool isEscSensorActive(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     if (featureIsEnabled(FEATURE_ESC_SENSOR)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
-        && fbusMasterIsEnabled()
+        && isFbusEscTransportAvailable()
         && fbusSensorHasEscData()) {
         return true;
     }
@@ -235,10 +256,10 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
 {
-    if (!escData || !fbusMasterIsEnabled()) {
+    if (!escData) {
         return false;
     }
 
@@ -355,7 +376,7 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
             }
         }
         else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
                 static escSensorData_t fbusEscSensorData;
                 if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {
@@ -567,9 +588,10 @@ static void updateConsumption(timeUs_t currentTimeUs)
 #define ESC_INIT_DELAY 2500
 #define ESC_DEINIT_DELAY 100
 #define FWIF_RETRY_DELAY 5
-#define FWIF_INIT_FLASH_TIMEOUT 100
-#define FWIF_READ_DELAY 50
+#define FWIF_INIT_FLASH_TIMEOUT 500
+#define FWIF_READ_DELAY 250
 #define FWIF_WRITE_TIMEOUT 100
+#define FWIF_POST_WRITE_SETTLE_DELAY 1000
 
 #ifdef USE_BLHELI_FORWARD_PROGRAMMING
 #define FWIF_MAX_EEPROM_BYTES BLHELI_S_NUM_EEPROM_BYTES
@@ -589,6 +611,17 @@ static bool am32WriteTaskEnabledByUs = false;
 static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
 static bool fourwayProgrammingActive = false;
 static uint8_t fourwayEscCount = 0;
+static timeMs_t fourwayLastWriteTimeMs = 0;
+
+static void fourwayWaitForWriteSettle(void)
+{
+    if (fourwayLastWriteTimeMs == 0) {
+        return;
+    }
+
+    while (millis() - fourwayLastWriteTimeMs < FWIF_POST_WRITE_SETTLE_DELAY);
+    fourwayLastWriteTimeMs = 0;
+}
 
 static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
 {
@@ -605,6 +638,21 @@ static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
     } while (millis() - start < FWIF_INIT_FLASH_TIMEOUT);
 
     return NULL;
+}
+
+static void fourwayResetAllEscs(void)
+{
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    for (uint8_t i = 0; i < fourwayEscCount && i < MAX_SUPPORTED_MOTORS; i++) {
+        if (!pwmMotors[i].enabled || pwmMotors[i].io == IO_NONE) {
+            continue;
+        }
+
+        if (fwifWaitForDeviceInitFlash(i) != NULL) {
+            fwifCmdDeviceReset(false);
+        }
+    }
 }
 
 #ifdef USE_AM32_FORWARD_PROGRAMMING
@@ -697,7 +745,11 @@ static void fourwayExitProgrammingMode(void)
         return;
     }
 
+    fourwayResetAllEscs();
+
     esc4wayDeinit();
+
+    fourwayWaitForWriteSettle();
 
     uint32_t start = millis();
     while (millis() < start + ESC_DEINIT_DELAY);
@@ -811,6 +863,7 @@ static bool fourwayIfWriteData(uint8_t escID)
                                 retVal = true;
                                 fwifParamCached[escID] = false;
                                 fwifParamWritten[escID] = true;
+                                fourwayLastWriteTimeMs = millis();
                                 break;
                             }
                         }
@@ -847,6 +900,27 @@ static bool scheduleAm32Write(uint8_t id)
     }
 
     return true;
+}
+
+static void fourwayFlushPendingWrite(void)
+{
+    if (!am32WritePending) {
+        return;
+    }
+
+    const uint8_t pendingEscId = am32WriteEscId;
+    am32WritePending = false;
+
+    if (pendingEscId < MAX_SUPPORTED_MOTORS) {
+        fourwayIfWriteData(pendingEscId);
+    }
+
+    if (am32WriteTaskEnabledByUs) {
+        am32WriteTaskEnabledByUs = false;
+        if (!featureIsEnabled(FEATURE_ESC_SENSOR) && escSensorPort == NULL) {
+            setTaskEnabled(TASK_ESC_SENSOR, false);
+        }
+    }
 }
 
 #endif // USE_4WAY_FORWARD_PROGRAMMING
@@ -4492,6 +4566,8 @@ static bool is4wayParamBufferValid(uint8_t id)
 uint8_t escSelect4WIfById(uint8_t id)
 {
 #ifdef USE_4WAY_FORWARD_PROGRAMMING
+    fourwayFlushPendingWrite();
+
     /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
     /* Support 0xFF as a sentinel to deselect 4WIF (set to out-of-range). */
     if (ARMING_FLAG(ARMED)) {

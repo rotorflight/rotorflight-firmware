@@ -85,6 +85,7 @@ Click on a command to jump to the relevant documentation page.
 | `dump`                                  | print configurable settings in a pastable form |
 | `dma`                                   | configure direct memory access channel         |
 | `exit`                                  |                                                |
+| [`fbus_sensors`]                        | show observed FBUS/S.Port sensors              |
 | `feature`                               | list or -val or val                            |
 | `get`                                   | get variable value                             |
 | [`gpspassthrough`](Gps.md)              | passthrough GPS to serial                      |

@@ -234,9 +234,8 @@
 
 #undef USE_GYRO_CLK
 #undef USE_MULTI_GYRO
-#undef USE_BLHELI_FORWARD_PROGRAMMING
-#undef USE_AM32_FORWARD_PROGRAMMING
 #undef USE_FBUS_MASTER
+#undef USE_SPORT_MASTER
 #undef USE_BUS_SERVO
 
 // Remove drivers that are not supported by any existinting F411 boards
@@ -262,7 +261,6 @@
 #undef USE_SDCARD_SPI
 
 #undef USE_RANGEFINDER
-#undef USE_ESCSERIAL
 
 #undef USE_GPS
 #undef USE_MAG
@@ -386,6 +384,7 @@
 #undef USE_BLHELI_FORWARD_PROGRAMMING
 #undef USE_AM32_FORWARD_PROGRAMMING
 #undef USE_FBUS_MASTER
+#undef USE_SPORT_MASTER
 #undef USE_BUS_SERVO
 
 #define USE_SPI_DEVICE_1

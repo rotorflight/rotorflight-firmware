@@ -119,12 +119,11 @@ Other devices can be added starting from id 50.
 | FUNCTION_RCDEVICE            | 16384 |
 | FUNCTION_LIDAR_TF            | 32768 |
 | FUNCTION_FRSKY_OSD           | 65536 |
-| FUNCTION_DPRINTF             | 131072 |
-| FUNCTION_SBUS_OUT            | 262144 |
 | FUNCTION_FBUS_MASTER         | 524288 |
-| FUNCTION_SRXL2_ESC           | 1048576 |
+| FUNCTION_SPORT_MASTER        | 1048576 |
+| FUNCTION_SRXL2_ESC           | 2097152 |
 
-Note: `FUNCTION_FRSKY_OSD` = `(1<<16)` requires 17 bits.
+Note: values above `FUNCTION_LIDAR_TF` require more than 16 bits. `FUNCTION_SPORT_MASTER` = `(1<<20)` requires 21 bits.
 
 ### 3. MSP Baudrates
 

@@ -53,7 +53,8 @@ typedef enum {
     FUNCTION_PRINTF              = (1 << 17), // 131072
     FUNCTION_SBUS_OUT            = (1 << 18), // 262144
     FUNCTION_FBUS_MASTER         = (1 << 19), // 524288
-    FUNCTION_SRXL2_ESC           = (1 << 20), // 1048576
+    FUNCTION_SPORT_MASTER        = (1 << 20), // 1048576
+    FUNCTION_SRXL2_ESC           = (1 << 21), // 2097152
 
 } serialPortFunction_e;
 
