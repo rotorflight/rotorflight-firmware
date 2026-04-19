@@ -181,6 +181,10 @@ typedef enum {
 #ifdef USE_FBUS_MASTER
     TASK_FBUS_MASTER,
 #endif
+
+#ifdef USE_SPORT_MASTER
+    TASK_SPORT_MASTER,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 

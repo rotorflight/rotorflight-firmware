@@ -21,7 +21,7 @@
 
 #include "platform.h"
 
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#ifdef USE_SPORT_MASTER
 
 #include "common/utils.h"
 #include "drivers/fbus_sensor.h"
