@@ -49,12 +49,9 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 #include "drivers/fbus_sensor.h"
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
-#endif
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+
 #include "telemetry/sport_master.h"
-#endif
 
 #include "fc/runtime_config.h"
 
