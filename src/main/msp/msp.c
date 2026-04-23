@@ -105,6 +105,7 @@
 #include "io/vtx.h"
 
 #include "msp/msp_box.h"
+#include "msp/msp_esc.h"
 #include "msp/msp_protocol.h"
 #include "msp/msp_protocol_v2_betaflight.h"
 #include "msp/msp_protocol_v2_common.h"
@@ -2470,6 +2471,12 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     uint32_t i;
     uint8_t value;
     const unsigned int dataSize = sbufBytesRemaining(src);
+
+    const mspResult_e escRet = mspEscProcessSetCommand(cmdMSP, src);
+    if (escRet != MSP_RESULT_CMD_UNKNOWN) {
+        return escRet;
+    }
+
     switch (cmdMSP) {
     case MSP_SELECT_SETTING:
         value = sbufReadU8(src);
@@ -4062,6 +4069,8 @@ mspResult_e mspFcProcessCommand(mspDescriptor_t srcDesc, mspPacket_t *cmd, mspPa
         ret = MSP_RESULT_ACK;
     } else if (mspProcessOutCommand(cmdMSP, dst)) {
         ret = MSP_RESULT_ACK;
+    } else if ((ret = mspEscProcessCommand(cmdMSP, src, dst)) != MSP_RESULT_CMD_UNKNOWN) {
+        /* ret */;
     } else if ((ret = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, src, dst, mspPostProcessFn)) != MSP_RESULT_CMD_UNKNOWN) {
         /* ret */;
     } else if (cmdMSP == MSP_SET_PASSTHROUGH) {

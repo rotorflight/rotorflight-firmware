@@ -42,6 +42,72 @@ typedef struct {
     uint8_t   id;               // ESC id / flags
 } escSensorData_t;
 
+typedef enum {
+    ESC_WRITE_STATE_IDLE = 0,
+    ESC_WRITE_STATE_QUEUED,
+    ESC_WRITE_STATE_RUNNING,
+    ESC_WRITE_STATE_VERIFYING,
+    ESC_WRITE_STATE_DONE,
+    ESC_WRITE_STATE_FAILED,
+} escWriteState_e;
+
+typedef enum {
+    ESC_WRITE_ERROR_NONE = 0,
+    ESC_WRITE_ERROR_INVALID,
+    ESC_WRITE_ERROR_ARMED,
+    ESC_WRITE_ERROR_BUSY,
+    ESC_WRITE_ERROR_IO,
+    ESC_WRITE_ERROR_VERIFY,
+    ESC_WRITE_ERROR_TIMEOUT,
+} escWriteError_e;
+
+enum {
+    ESC_INFO_FLAG_ACTIVE = (1 << 0),
+    ESC_INFO_FLAG_SELECTED = (1 << 1),
+    ESC_INFO_FLAG_NAME_GENERIC = (1 << 2),
+    ESC_INFO_FLAG_MODEL_GENERIC = (1 << 3),
+};
+
+enum {
+    ESC_DETAIL_FLAG_VERSION_GENERIC = (1 << 0),
+    ESC_DETAIL_FLAG_FIRMWARE_GENERIC = (1 << 1),
+};
+
+enum {
+    ESC_CAP_TELEMETRY = (1 << 0),
+    ESC_CAP_PARAM_READ = (1 << 1),
+    ESC_CAP_PARAM_WRITE = (1 << 2),
+    ESC_CAP_FORWARD_PROGRAMMING = (1 << 3),
+};
+
+#define ESC_MSP_PARAM_CHUNK_SIZE 64
+
+typedef struct {
+    uint8_t escId;
+    uint8_t protocol;
+    uint8_t signature;
+    uint8_t flags;
+    uint8_t capabilities;
+    uint8_t parameterBytes;
+    uint8_t maxChunkSize;
+} escInfo_t;
+
+typedef struct {
+    uint16_t opId;
+    uint8_t escId;
+    uint8_t protocol;
+    uint8_t signature;
+    uint8_t state;
+    uint8_t error;
+} escWriteStatus_t;
+
+typedef struct {
+    uint8_t escId;
+    uint8_t totalLength;
+    uint8_t offset;
+    uint8_t chunkLength;
+} escParamChunk_t;
+
 #define ESC_DATA_INVALID 255
 
 #define ESC_BATTERY_AGE_MAX 10
@@ -57,6 +123,14 @@ bool isEscSensorActive(void);
 
 uint32_t getEscSensorRPM(uint8_t motorNumber);
 escSensorData_t *getEscSensorData(uint8_t motorNumber);
+bool escGetInfo(uint8_t requestedEscId, escInfo_t *info);
+bool escGetNameInfo(uint8_t requestedEscId, const char **name, const char **model, uint8_t *flags);
+bool escGetDetailInfo(uint8_t requestedEscId, const char **version, const char **firmware, uint8_t *flags);
+void escGetWriteStatus(escWriteStatus_t *status);
+bool escReadParamChunk(uint8_t requestedEscId, uint8_t offset, uint8_t maxLength, escParamChunk_t *chunk, uint8_t *data);
+bool escBeginParamWrite(uint8_t requestedEscId);
+bool escWriteParamChunk(uint8_t requestedEscId, uint8_t offset, const uint8_t *data, uint8_t length);
+bool escCommitStagedParamWrite(uint8_t requestedEscId);
 
 uint8_t escGetParamBufferLength(void);
 uint8_t escSelect4WIfById(uint8_t id);

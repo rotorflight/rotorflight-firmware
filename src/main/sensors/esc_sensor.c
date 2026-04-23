@@ -32,6 +32,7 @@
 
 #include "common/time.h"
 #include "common/crc.h"
+#include "common/printf.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -111,6 +112,8 @@ enum {
 #define PARAM_HEADER_CMD_MASK    0xC0
 #define PARAM_HEADER_RDONLY      0x40
 #define PARAM_HEADER_USER        0x80
+#define ESC_WRITE_STATUS_TIMEOUT_MS 5000
+#define ESC_NAME_INFO_BUFFER_LENGTH 48
 
 // ESC signatures
 #define ESC_SIG_NONE              0x00
@@ -173,10 +176,84 @@ static bool paramMspActive = false;
 
 static bool is4wayEscSelected(void);
 static uint8_t escGetParamFullBufferLength(void);
+static uint8_t escGetParamFullBufferLengthRaw(void);
+static uint8_t escGetMspVisibleParamBufferLengthRaw(void);
 
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
+
+static escWriteStatus_t escWriteStatus = { 0, };
+static timeMs_t escWriteDeadlineMs = 0;
+static bool escParamWriteStaged = false;
+static uint8_t escParamWriteEscId = ESC_SENSOR_COMBINED;
+static uint8_t escParamWriteLength = 0;
+static char escNameInfoNameBuffer[ESC_NAME_INFO_BUFFER_LENGTH];
+static char escNameInfoModelBuffer[ESC_NAME_INFO_BUFFER_LENGTH];
+static char escDetailInfoVersionBuffer[ESC_NAME_INFO_BUFFER_LENGTH];
+static char escDetailInfoFirmwareBuffer[ESC_NAME_INFO_BUFFER_LENGTH];
+
+static bool escWriteStatusPending(void)
+{
+    return escWriteStatus.state == ESC_WRITE_STATE_QUEUED ||
+        escWriteStatus.state == ESC_WRITE_STATE_RUNNING ||
+        escWriteStatus.state == ESC_WRITE_STATE_VERIFYING;
+}
+
+static void escWriteStatusBegin(uint8_t escId, uint8_t protocol, uint8_t signature)
+{
+    escWriteStatus.opId++;
+    if (escWriteStatus.opId == 0) {
+        escWriteStatus.opId = 1;
+    }
+
+    escWriteStatus.escId = escId;
+    escWriteStatus.protocol = protocol;
+    escWriteStatus.signature = signature;
+    escWriteStatus.state = ESC_WRITE_STATE_IDLE;
+    escWriteStatus.error = ESC_WRITE_ERROR_NONE;
+    escWriteDeadlineMs = millis() + ESC_WRITE_STATUS_TIMEOUT_MS;
+}
+
+static void escWriteStatusSetState(escWriteState_e state)
+{
+    escWriteStatus.state = state;
+    if (escWriteStatusPending()) {
+        escWriteDeadlineMs = millis() + ESC_WRITE_STATUS_TIMEOUT_MS;
+    } else {
+        escWriteDeadlineMs = 0;
+    }
+}
+
+static void escWriteStatusQueue(void)
+{
+    if (escWriteStatus.state == ESC_WRITE_STATE_IDLE) {
+        escWriteStatus.state = ESC_WRITE_STATE_QUEUED;
+    }
+    escWriteStatus.error = ESC_WRITE_ERROR_NONE;
+    escWriteDeadlineMs = millis() + ESC_WRITE_STATUS_TIMEOUT_MS;
+}
+
+static void escWriteStatusFail(escWriteError_e error)
+{
+    escWriteStatus.state = ESC_WRITE_STATE_FAILED;
+    escWriteStatus.error = error;
+    escWriteDeadlineMs = 0;
+}
+
+static void escWriteStatusComplete(void)
+{
+    escWriteStatus.state = ESC_WRITE_STATE_DONE;
+    escWriteStatus.error = ESC_WRITE_ERROR_NONE;
+    escWriteDeadlineMs = 0;
+}
+
+static void escWriteStatusCheckTimeout(void)
+{
+    if (escWriteStatusPending() && escWriteDeadlineMs != 0 && millis() >= escWriteDeadlineMs) {
+        escWriteStatusFail(ESC_WRITE_ERROR_TIMEOUT);
+    }
+}
 
 static void paramEscNeedRestart(void)
 {
@@ -708,12 +785,15 @@ static bool fourwayIfFetchData(uint8_t escID)
 static bool fourwayIfWriteData(uint8_t escID)
 {
     bool retVal = false;
+    bool verifyAttempted = false;
 
     if (ARMING_FLAG(ARMED)) {
+        escWriteStatusFail(ESC_WRITE_ERROR_ARMED);
         return false;
     }
 
     if (!fourwayProgrammingActive) {
+        escWriteStatusFail(ESC_WRITE_ERROR_INVALID);
         return false;
     }
 
@@ -746,6 +826,8 @@ static bool fourwayIfWriteData(uint8_t escID)
 #endif
 
                         if (fwifCmdDeviceWrite(payloadLength, paramUpdPayload, matchedEepromAddr)) {
+                            escWriteStatusSetState(ESC_WRITE_STATE_VERIFYING);
+                            verifyAttempted = true;
                             delay(FWIF_READ_DELAY);
                             if (fwifCmdDeviceRead(payloadLength, verifyBuffer, matchedEepromAddr) &&
                                 memcmp(verifyBuffer, paramUpdPayload, payloadLength) == 0) {
@@ -753,6 +835,7 @@ static bool fourwayIfWriteData(uint8_t escID)
                                 fwifParamCached[escID] = false;
                                 fwifParamWritten[escID] = true;
                                 fourwayLastWriteTimeMs = millis();
+                                escWriteStatusComplete();
                                 break;
                             }
                         }
@@ -762,6 +845,10 @@ static bool fourwayIfWriteData(uint8_t escID)
                 }
             }
         }
+    }
+
+    if (!retVal && escWriteStatusPending()) {
+        escWriteStatusFail(verifyAttempted ? ESC_WRITE_ERROR_VERIFY : ESC_WRITE_ERROR_TIMEOUT);
     }
 
     return retVal;
@@ -1850,6 +1937,8 @@ uint8_t flyCalculateCRC8(uint8_t *pData, uint16_t usLength)
 
 static bool flyParamCommit(uint8_t cmd)
 {
+    bool queued = false;
+
     // bail if invalid command
     if (cmd != 0)
         return false;
@@ -1868,7 +1957,11 @@ static bool flyParamCommit(uint8_t cmd)
             flyInvalidParamPages |= pageBit;
             // invalidate param payload - will be available again when all params again cached
             paramPayloadLength = 0;
+            queued = true;
         }
+    }
+    if (queued) {
+        escWriteStatusQueue();
     }
     return true;
 }
@@ -2259,6 +2352,8 @@ static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
 static bool pl5ParamCommit(uint8_t cmd)
 {
     if (cmd == 0) {
+        bool queued = false;
+
         // info should never change
         if (memcmp(paramPayload, paramUpdPayload, PL5_RESP_DEVINFO_PAYLOAD_LENGTH) != 0)
             return false;
@@ -2273,8 +2368,12 @@ static bool pl5ParamCommit(uint8_t cmd)
             pl5CachedParams = false;
             // invalidate param payload - will be available again when params again cached (write response or re-read)
             paramPayloadLength = 0;
+            queued = true;
         }
 
+        if (queued) {
+            escWriteStatusQueue();
+        }
         return true;
     }
     else {
@@ -2646,6 +2745,8 @@ static uint16_t calculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 static bool tribParamCommit(uint8_t cmd)
 {
     if (cmd == 0) {
+        bool queued = false;
+
         // save page
         // find dirty params, settings only
         uint8_t offset = 0;
@@ -2661,15 +2762,20 @@ static bool tribParamCommit(uint8_t cmd)
                     tribInvalidParams |= (1 << i);
                     // invalidate param payload - will be available again when all params again cached
                     paramPayloadLength = 0;
+                    queued = true;
                 }
             }
             offset += len;
+        }
+        if (queued) {
+            escWriteStatusQueue();
         }
         return true;
     }
     else if (cmd == TRIB_PARAM_CMD_RESET) {
         // reset ESC
         tribResetEsc = true;
+        escWriteStatusQueue();
         return true;
     }
     else {
@@ -3172,6 +3278,8 @@ static uint16_t oygeCalculateCRC16_CCITT(const uint8_t *ptr, size_t len)
 static bool oygeParamCommit(uint8_t cmd)
 {
     if (cmd == 0) {
+        bool queued = false;
+
         // save page
         // find dirty params, skip para[0] (parameter count)
         uint16_t *ygeParams = (uint16_t*)paramPayload;
@@ -3189,7 +3297,11 @@ static bool oygeParamCommit(uint8_t cmd)
                 oygeCachedParams &= ~(1ULL << idx);
                 // invalidate param payload - will be available again when all params again cached
                 paramPayloadLength = 0;
+                queued = true;
             }
+        }
+        if (queued) {
+            escWriteStatusQueue();
         }
         return true;
     }
@@ -3924,6 +4036,8 @@ static bool xdfly_param_commit(uint8_t cmd)
 {
     xdfly_write_param_index = 1;
     xdfly_setup_status = XDFLY_WRITE_PARAMS;
+    paramPayloadLength = 0;
+    escWriteStatusQueue();
     UNUSED(cmd);
     return true;
 }
@@ -4175,6 +4289,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
 {
 #ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (am32WritePending) {
+        escWriteStatusSetState(ESC_WRITE_STATE_RUNNING);
         am32WritePending = false;
         fourwayIfWriteData(am32WriteEscId);
         if (am32WriteTaskEnabledByUs) {
@@ -4186,6 +4301,10 @@ void escSensorProcess(timeUs_t currentTimeUs)
         }
     }
 #endif // USE_4WAY_FORWARD_PROGRAMMING
+
+    if (escWriteStatus.state == ESC_WRITE_STATE_QUEUED) {
+        escWriteStatusSetState(ESC_WRITE_STATE_RUNNING);
+    }
 
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
@@ -4241,6 +4360,14 @@ void escSensorProcess(timeUs_t currentTimeUs)
         castleSensorProcess(currentTimeUs);
     }
 #endif
+
+    if (escWriteStatusPending() &&
+        escWriteStatus.protocol != ESC_SENSOR_PROTO_NONE &&
+        paramPayloadLength != 0) {
+        escWriteStatusComplete();
+    }
+
+    escWriteStatusCheckTimeout();
 }
 
 void INIT_CODE validateAndFixEscSensorConfig(void)
@@ -4362,22 +4489,27 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
+static uint8_t escGetParamFullBufferLengthRaw(void)
+{
+    return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+}
+
 static uint8_t escGetParamFullBufferLength(void)
 {
     paramMspActive = true;
 #ifdef USE_4WAY_FORWARD_PROGRAMMING
-    if(escID < MAX_SUPPORTED_MOTORS) {
-        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
-        //first call will fail, since we need to switch the ESCs to BL mode first
+    if (escID < MAX_SUPPORTED_MOTORS) {
+        // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        // first call will fail, since we need to switch the ESCs to BL mode first
         fourwayIfFetchData(escID);
     }
 #endif
-    return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+    return escGetParamFullBufferLengthRaw();
 }
 
-uint8_t escGetParamBufferLength(void)
+static uint8_t escGetMspVisibleParamBufferLengthRaw(void)
 {
-    const uint8_t fullLength = escGetParamFullBufferLength();
+    const uint8_t fullLength = escGetParamFullBufferLengthRaw();
 
     if (fullLength == 0) {
         return 0;
@@ -4392,6 +4524,12 @@ uint8_t escGetParamBufferLength(void)
 #endif
 
     return fullLength;
+}
+
+uint8_t escGetParamBufferLength(void)
+{
+    escGetParamFullBufferLength();
+    return escGetMspVisibleParamBufferLengthRaw();
 }
 
 static bool is4wayEscSelected(void)
@@ -4548,26 +4686,1146 @@ uint8_t *escGetParamUpdBuffer(void)
 
 bool escCommitParameters(void)
 {
+    const uint8_t currentSignature = paramBuffer[PARAM_HEADER_SIG];
+
 #ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (is4wayEscSelected()) {
+        escWriteStatusBegin(escID, ESC_SENSOR_PROTO_NONE, currentSignature);
+
         if (!is4wayParamBufferValid(escID)) {
+            escWriteStatusFail(ESC_WRITE_ERROR_INVALID);
             return false;
         }
 
         // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
         // Avoid performing 4WIF write ops while armed which would disable motors
         if (ARMING_FLAG(ARMED)) {
+            escWriteStatusFail(ESC_WRITE_ERROR_ARMED);
             return false;
         }
 
         fwifParamWritten[escID] = false;
         fwifParamCached[escID] = false;
-        return scheduleAm32Write(escID);
+        if (!scheduleAm32Write(escID)) {
+            escWriteStatusFail(ESC_WRITE_ERROR_BUSY);
+            return false;
+        }
+
+        escWriteStatusQueue();
+        return true;
     }
 #endif // USE_4WAY_FORWARD_PROGRAMMING
-    return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
+
+    escWriteStatusBegin(0, escSensorConfig()->protocol, currentSignature);
+
+    const bool canCommit = paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
-        escParametersWritable() && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
+        escParametersWritable();
+
+    if (!canCommit || !paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK)) {
+        escWriteStatusFail(ESC_WRITE_ERROR_INVALID);
+        return false;
+    }
+
+    if (escWriteStatus.state == ESC_WRITE_STATE_IDLE) {
+        escWriteStatusComplete();
+    }
+
+    return true;
+}
+
+static bool escResolveInfoEscId(uint8_t requestedEscId, uint8_t *resolvedEscId, bool *selected4way)
+{
+    if (!resolvedEscId || !selected4way) {
+        return false;
+    }
+
+    *selected4way = false;
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (is4wayEscSelected()) {
+        if (requestedEscId == ESC_SENSOR_COMBINED || requestedEscId == escID) {
+            *resolvedEscId = escID;
+            *selected4way = true;
+            return true;
+        }
+    }
+#endif
+
+    const uint8_t escId = requestedEscId == ESC_SENSOR_COMBINED ? 0 : requestedEscId;
+
+#ifdef USE_TELEMETRY_CASTLE
+    if (isMotorProtocolCastlePWM() && escId == 0) {
+        *resolvedEscId = 0;
+        return true;
+    }
+#endif
+
+    if (!featureIsEnabled(FEATURE_ESC_SENSOR)) {
+        return false;
+    }
+
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        if (escId < getMotorCount()) {
+            *resolvedEscId = escId;
+            return true;
+        }
+    } else if (escId == 0) {
+        *resolvedEscId = 0;
+        return true;
+    }
+
+    return false;
+}
+
+static bool escResolveParamEscId(uint8_t requestedEscId, uint8_t *resolvedEscId, uint8_t *visibleLength)
+{
+    bool selected4way = false;
+
+    if (!resolvedEscId || !visibleLength || !escResolveInfoEscId(requestedEscId, resolvedEscId, &selected4way)) {
+        return false;
+    }
+
+    const uint8_t length = escGetParamBufferLength();
+    if (length == 0) {
+        return false;
+    }
+
+    *visibleLength = length;
+    return true;
+}
+
+static uint8_t escGetResolvedSignature(uint8_t escId, bool selected4way)
+{
+    if (selected4way) {
+        if (escSig != ESC_SIG_NONE) {
+            return escSig;
+        }
+
+        return escGetParamFullBufferLengthRaw() != 0 ? paramBuffer[PARAM_HEADER_SIG] : ESC_SIG_NONE;
+    }
+
+    escSensorData_t *data = getEscSensorData(escId);
+    if (data && data->id != ESC_SIG_NONE) {
+        return data->id;
+    }
+
+    if (escSig != ESC_SIG_NONE) {
+        return escSig;
+    }
+
+#ifdef USE_TELEMETRY_CASTLE
+    if (isMotorProtocolCastlePWM()) {
+        return ESC_SIG_CASTLE;
+    }
+#endif
+
+    return ESC_SIG_NONE;
+}
+
+static void escSetNameInfoText(char *dst, size_t dstLength, const char *src)
+{
+    if (!dst || dstLength == 0) {
+        return;
+    }
+
+    dst[0] = '\0';
+    if (!src) {
+        return;
+    }
+
+    strncpy(dst, src, dstLength - 1);
+    dst[dstLength - 1] = '\0';
+}
+
+static bool escCopyPayloadText(char *dst, size_t dstLength, const uint8_t *src, uint8_t srcLength, bool convertUnderscore)
+{
+    if (!dst || dstLength == 0 || !src || srcLength == 0) {
+        return false;
+    }
+
+    size_t out = 0;
+    bool started = false;
+
+    while (srcLength-- != 0 && out + 1 < dstLength) {
+        uint8_t c = *src++;
+
+        if (c == 0 || c == 0xFF) {
+            break;
+        }
+
+        if (c < 32 || c > 126) {
+            break;
+        }
+
+        if (!started && c == ' ') {
+            continue;
+        }
+
+        started = true;
+        if (convertUnderscore && c == '_') {
+            c = ' ';
+        }
+
+        dst[out++] = (char)c;
+    }
+
+    while (out > 0 && dst[out - 1] == ' ') {
+        out--;
+    }
+
+    dst[out] = '\0';
+    return out != 0;
+}
+
+static uint16_t escReadU16LE(const uint8_t *src)
+{
+    return src[0] | (src[1] << 8);
+}
+
+static uint16_t escReadU16BE(const uint8_t *src)
+{
+    return (src[0] << 8) | src[1];
+}
+
+static uint32_t escReadU32LE(const uint8_t *src)
+{
+    return (uint32_t)src[0] | ((uint32_t)src[1] << 8) | ((uint32_t)src[2] << 16) | ((uint32_t)src[3] << 24);
+}
+
+static bool escGetVisibleParamPayload(const uint8_t **payload, uint8_t *payloadLength)
+{
+    const uint8_t bufferLength = escGetParamBufferLength();
+
+    if (!payload || !payloadLength || bufferLength <= PARAM_HEADER_SIZE) {
+        return false;
+    }
+
+    *payload = escGetParamBuffer() + PARAM_HEADER_SIZE;
+    *payloadLength = bufferLength - PARAM_HEADER_SIZE;
+    return true;
+}
+
+static const char *escGetYgeModelName(uint16_t escType)
+{
+    switch (escType) {
+    case 848:
+        return "YGE 35 LVT BEC";
+    case 1616:
+        return "YGE 65 LVT BEC";
+    case 2128:
+        return "YGE 85 LVT BEC";
+    case 2384:
+        return "YGE 95 LVT BEC";
+    case 4944:
+        return "YGE 135 LVT BEC";
+    case 2304:
+        return "YGE 90 HVT Opto";
+    case 4608:
+        return "YGE 120 HVT Opto";
+    case 5712:
+        return "YGE 165 HVT";
+    case 8272:
+        return "YGE 205 HVT";
+    case 8273:
+        return "YGE 205 HVT BEC";
+    case 4177:
+        return "YGE Aureus 105";
+    case 4179:
+        return "YGE Aureus 105v2";
+    case 5025:
+        return "YGE Aureus 135";
+    case 5027:
+        return "YGE Aureus 135v2";
+    case 5457:
+        return "YGE Saphir 155";
+    case 5459:
+        return "YGE Saphir 155v2";
+    case 4689:
+        return "YGE Saphir 125";
+    case 4928:
+        return "YGE Opto 135";
+    case 9552:
+        return "YGE Opto 255";
+    case 16464:
+        return "YGE Opto 405";
+    default:
+        return NULL;
+    }
+}
+
+static const char *escGetSharedModelSuffix(uint8_t modelId)
+{
+    static const char * const escModels[] = {
+        "Reserved",
+        "35A",
+        "65A",
+        "85A",
+        "125A",
+        "155A",
+        "130A",
+        "195A",
+        "300A",
+    };
+
+    if (modelId == 0 || modelId >= ARRAYLEN(escModels)) {
+        return NULL;
+    }
+
+    return escModels[modelId];
+}
+
+static bool escGetHw5NameInfo(char *name, size_t nameLength, char *model, size_t modelLength)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveModel = false;
+
+    if (!escGetVisibleParamPayload(&payload, &payloadLength)) {
+        return false;
+    }
+
+    if (payloadLength >= 63) {
+        haveModel = escCopyPayloadText(model, modelLength, payload + 48, 15, true);
+    } else if (payloadLength >= 48) {
+        haveModel = escCopyPayloadText(model, modelLength, payload + 32, 16, true);
+    }
+
+    if (!haveModel) {
+        return false;
+    }
+
+    escSetNameInfoText(name, nameLength, "Hobbywing");
+    return true;
+}
+
+static bool escGetTribNameInfo(char *name, size_t nameLength, char *model, size_t modelLength)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+
+    if (!escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 32) {
+        return false;
+    }
+
+    if (!escCopyPayloadText(model, modelLength, payload, 32, false)) {
+        return false;
+    }
+
+    escSetNameInfoText(name, nameLength, "Scorpion");
+    return true;
+}
+
+static bool escGetFlyNameInfo(char *name, size_t nameLength, char *model, size_t modelLength)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+
+    if (!escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 3) {
+        return false;
+    }
+
+    const uint16_t amperage = escReadU16BE(payload + 1);
+    if (amperage == 0) {
+        return false;
+    }
+
+    escSetNameInfoText(name, nameLength, "FLYROTOR");
+    tfp_sprintf(model, "FLYROTOR %uA%s", amperage, payload[0] == 1 ? " F3C" : "");
+    return true;
+}
+
+static bool escGetYgeNameInfo(char *name, size_t nameLength, char *model, size_t modelLength)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+
+    if (!escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 24) {
+        return false;
+    }
+
+    const char *ygeModel = escGetYgeModelName(escReadU16LE(payload + 22));
+    if (!ygeModel) {
+        return false;
+    }
+
+    escSetNameInfoText(name, nameLength, "YGE");
+    escSetNameInfoText(model, modelLength, ygeModel);
+    return true;
+}
+
+static bool escGetSharedXdflyNameInfo(uint8_t signature, char *name, size_t nameLength, char *model, size_t modelLength)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+
+    if (!escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 2) {
+        return false;
+    }
+
+    const char *modelSuffix = escGetSharedModelSuffix(payload[1]);
+    if (!modelSuffix) {
+        return false;
+    }
+
+    const char *brand = "XDFly";
+    if (signature == ESC_SIG_OMP) {
+        brand = "OMP";
+    } else if (signature == ESC_SIG_ZTW) {
+        brand = "ZTW";
+    }
+
+    escSetNameInfoText(name, nameLength, brand);
+    tfp_sprintf(model, "%s %s", brand, modelSuffix);
+    return true;
+}
+
+static bool escFormatUnsignedText(char *dst, size_t dstLength, uint32_t value)
+{
+    if (!dst || dstLength == 0) {
+        return false;
+    }
+
+    tfp_sprintf(dst, "%u", (unsigned)value);
+    return dst[0] != '\0';
+}
+
+static bool escFormatHex32Text(char *dst, size_t dstLength, uint32_t value)
+{
+    if (!dst || dstLength == 0) {
+        return false;
+    }
+
+    tfp_sprintf(dst, "%08X", (unsigned)value);
+    return dst[0] != '\0';
+}
+
+static bool escFormatYgeFirmwareText(char *dst, size_t dstLength, uint32_t versionValue)
+{
+    if (!dst || dstLength == 0) {
+        return false;
+    }
+
+    const unsigned whole = versionValue / 100000U;
+    const unsigned fraction = versionValue % 100000U;
+
+    tfp_sprintf(dst, "%u.%05u", whole, fraction);
+    return dst[0] != '\0';
+}
+
+static bool escGetHw5DetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveVersion = false;
+    bool haveFirmware = false;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 32) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    haveFirmware = escCopyPayloadText(firmware, firmwareLength, payload, 16, true);
+    haveVersion = escCopyPayloadText(version, versionLength, payload + 16, 16, true);
+
+    *flags = 0;
+    if (!haveVersion) {
+        *flags |= ESC_DETAIL_FLAG_VERSION_GENERIC;
+    }
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    return haveVersion || haveFirmware;
+}
+
+static bool escGetTribDetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveVersion = false;
+    bool haveFirmware = false;
+    uint16_t versionValue = 0;
+    uint32_t firmwareValue = 0;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 60) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    versionValue = escReadU16LE(payload + 58);
+    firmwareValue = escReadU32LE(payload + 52);
+
+    if (versionValue != 0) {
+        haveVersion = escFormatUnsignedText(version, versionLength, versionValue);
+    }
+    if (firmwareValue != 0) {
+        haveFirmware = escFormatHex32Text(firmware, firmwareLength, firmwareValue);
+    }
+
+    *flags = 0;
+    if (!haveVersion) {
+        *flags |= ESC_DETAIL_FLAG_VERSION_GENERIC;
+    }
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    return haveVersion || haveFirmware;
+}
+
+static bool escGetYgeDetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveVersion = false;
+    bool haveFirmware = false;
+    uint32_t serialNumber = 0;
+    uint32_t firmwareValue = 0;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 32) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    firmwareValue = escReadU32LE(payload + 24);
+    serialNumber = escReadU32LE(payload + 28);
+
+    if (serialNumber != 0) {
+        haveVersion = escFormatUnsignedText(version, versionLength, serialNumber);
+    }
+    if (firmwareValue != 0) {
+        haveFirmware = escFormatYgeFirmwareText(firmware, firmwareLength, firmwareValue);
+    }
+
+    *flags = 0;
+    if (!haveVersion) {
+        *flags |= ESC_DETAIL_FLAG_VERSION_GENERIC;
+    }
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    return haveVersion || haveFirmware;
+}
+
+static bool escGetFlyDetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveVersion = false;
+    bool haveFirmware = false;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength)) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    if (payloadLength >= 11) {
+        uint8_t nonZeroCount = 0;
+
+        for (uint8_t index = 3; index <= 10; index++) {
+            if (payload[index] != 0) {
+                nonZeroCount++;
+            }
+        }
+
+        if (nonZeroCount != 0) {
+            tfp_sprintf(version, "%02X%02X%02X%02X%02X%02X%02X%02X",
+                payload[6], payload[5], payload[4], payload[3],
+                payload[10], payload[9], payload[8], payload[7]);
+            haveVersion = version[0] != '\0';
+        }
+    }
+
+    if (payloadLength >= 17 && (payload[14] != 0 || payload[15] != 0 || payload[16] != 0)) {
+        tfp_sprintf(firmware, "%u.%u.%u", payload[14], payload[15], payload[16]);
+        haveFirmware = firmware[0] != '\0';
+    }
+
+    *flags = 0;
+    if (!haveVersion) {
+        *flags |= ESC_DETAIL_FLAG_VERSION_GENERIC;
+    }
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    return haveVersion || haveFirmware;
+}
+
+static bool escGetSharedXdflyDetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveFirmware = false;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 1) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    if (payload[0] != 0) {
+        tfp_sprintf(firmware, "SW%u.%u", payload[0] >> 4, payload[0] & 0x0F);
+        haveFirmware = firmware[0] != '\0';
+    }
+
+    *flags = ESC_DETAIL_FLAG_VERSION_GENERIC;
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    UNUSED(versionLength);
+    return haveFirmware;
+}
+
+static bool escGetAm32DetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveFirmware = false;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 5) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    if (payload[3] != 0 || payload[4] != 0) {
+        tfp_sprintf(firmware, "SW%u.%u", payload[3], payload[4]);
+        haveFirmware = firmware[0] != '\0';
+    }
+
+    *flags = ESC_DETAIL_FLAG_VERSION_GENERIC;
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    UNUSED(versionLength);
+    return haveFirmware;
+}
+
+static bool escGetBlheliDetailInfo(char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    const uint8_t *payload = NULL;
+    uint8_t payloadLength = 0;
+    bool haveVersion = false;
+    bool haveFirmware = false;
+
+    if (!version || !firmware || !flags || !escGetVisibleParamPayload(&payload, &payloadLength) || payloadLength < 3) {
+        return false;
+    }
+
+    version[0] = '\0';
+    firmware[0] = '\0';
+
+    tfp_sprintf(version, "Revision %u", payload[2]);
+    tfp_sprintf(firmware, "FW%u.%u", payload[0], payload[1]);
+    haveVersion = version[0] != '\0';
+    haveFirmware = firmware[0] != '\0';
+
+    *flags = 0;
+    if (!haveVersion) {
+        *flags |= ESC_DETAIL_FLAG_VERSION_GENERIC;
+    }
+    if (!haveFirmware) {
+        *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    }
+
+    UNUSED(versionLength);
+    return haveVersion || haveFirmware;
+}
+
+static bool escGetParsedDetailInfo(const escInfo_t *info, char *version, size_t versionLength, char *firmware, size_t firmwareLength, uint8_t *flags)
+{
+    if (!info || !version || !firmware || !flags) {
+        return false;
+    }
+
+    switch (info->signature) {
+    case ESC_SIG_PL5:
+        return escGetHw5DetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_TRIB:
+        return escGetTribDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_OPENYGE:
+        return escGetYgeDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_XDFLY:
+    case ESC_SIG_OMP:
+    case ESC_SIG_ZTW:
+        return escGetSharedXdflyDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_FLY:
+        return escGetFlyDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_AM32:
+        return escGetAm32DetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SIG_BLHELI_S:
+        return escGetBlheliDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    default:
+        break;
+    }
+
+    switch (info->protocol) {
+    case ESC_SENSOR_PROTO_HW5:
+        return escGetHw5DetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SENSOR_PROTO_SCORPION:
+        return escGetTribDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SENSOR_PROTO_OPENYGE:
+        return escGetYgeDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SENSOR_PROTO_XDFLY:
+    case ESC_SENSOR_PROTO_OMPHOBBY:
+    case ESC_SENSOR_PROTO_ZTW:
+        return escGetSharedXdflyDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    case ESC_SENSOR_PROTO_FLY:
+        return escGetFlyDetailInfo(version, versionLength, firmware, firmwareLength, flags);
+    default:
+        break;
+    }
+
+    return false;
+}
+
+static bool escGetParsedNameInfo(const escInfo_t *info, char *name, size_t nameLength, char *model, size_t modelLength, uint8_t *flags)
+{
+    if (!info || !name || !model || !flags) {
+        return false;
+    }
+
+    name[0] = '\0';
+    model[0] = '\0';
+
+    switch (info->signature) {
+    case ESC_SIG_PL5:
+        if (escGetHw5NameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SIG_TRIB:
+        if (escGetTribNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SIG_OPENYGE:
+        if (escGetYgeNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SIG_XDFLY:
+    case ESC_SIG_OMP:
+    case ESC_SIG_ZTW:
+        if (escGetSharedXdflyNameInfo(info->signature, name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SIG_FLY:
+        if (escGetFlyNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    switch (info->protocol) {
+    case ESC_SENSOR_PROTO_HW5:
+        if (escGetHw5NameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_SCORPION:
+        if (escGetTribNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_OPENYGE:
+        if (escGetYgeNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_XDFLY:
+        if (escGetSharedXdflyNameInfo(ESC_SIG_XDFLY, name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_OMPHOBBY:
+        if (escGetSharedXdflyNameInfo(ESC_SIG_OMP, name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_ZTW:
+        if (escGetSharedXdflyNameInfo(ESC_SIG_ZTW, name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    case ESC_SENSOR_PROTO_FLY:
+        if (escGetFlyNameInfo(name, nameLength, model, modelLength)) {
+            *flags = ESC_INFO_FLAG_NAME_GENERIC;
+            return true;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return false;
+}
+
+static void escGetGenericNameFromSignature(uint8_t signature, const char **name, const char **model)
+{
+    switch (signature) {
+    case ESC_SIG_BLHELI32:
+        *name = "BLHeli32";
+        *model = "BLHeli32 Telemetry";
+        break;
+    case ESC_SIG_HW4:
+        *name = "Hobbywing";
+        *model = "Platinum V4";
+        break;
+    case ESC_SIG_KON:
+        *name = "Kontronik";
+        *model = "Kontronik ESC";
+        break;
+    case ESC_SIG_OMP:
+        *name = "OMPHobby";
+        *model = "OMPHobby ESC";
+        break;
+    case ESC_SIG_ZTW:
+        *name = "ZTW";
+        *model = "ZTW ESC";
+        break;
+    case ESC_SIG_APD:
+        *name = "APD";
+        *model = "APD ESC";
+        break;
+    case ESC_SIG_PL5:
+        *name = "Hobbywing";
+        *model = "Platinum V5";
+        break;
+    case ESC_SIG_TRIB:
+        *name = "Scorpion";
+        *model = "Tribunus";
+        break;
+    case ESC_SIG_OPENYGE:
+        *name = "OpenYGE";
+        *model = "OpenYGE ESC";
+        break;
+    case ESC_SIG_XDFLY:
+        *name = "XDFly";
+        *model = "XDFly ESC";
+        break;
+    case ESC_SIG_FLY:
+        *name = "FlyRotor";
+        *model = "FlyRotor ESC";
+        break;
+    case ESC_SIG_GRAUPNER:
+        *name = "Graupner";
+        *model = "Graupner ESC";
+        break;
+    case ESC_SIG_BLHELI_S:
+        *name = "BLHeli_S";
+        *model = "BLHeli_S 4way";
+        break;
+    case ESC_SIG_AM32:
+        *name = "AM32";
+        *model = "AM32 4way";
+        break;
+    case ESC_SIG_CASTLE:
+        *name = "Castle";
+        *model = "Castle ESC";
+        break;
+    case ESC_SIG_RESTART:
+        *name = "ESC Restart";
+        *model = "Pending Restart";
+        break;
+    default:
+        *name = "Unknown ESC";
+        *model = "Unknown Model";
+        break;
+    }
+}
+
+static void escGetGenericNameFromProtocol(uint8_t protocol, const char **name, const char **model)
+{
+    switch (protocol) {
+    case ESC_SENSOR_PROTO_BLHELI32:
+        *name = "BLHeli32";
+        *model = "BLHeli32 Telemetry";
+        break;
+    case ESC_SENSOR_PROTO_HW4:
+        *name = "Hobbywing";
+        *model = "Platinum V4";
+        break;
+    case ESC_SENSOR_PROTO_HW5:
+        *name = "Hobbywing";
+        *model = "Platinum V5";
+        break;
+    case ESC_SENSOR_PROTO_SCORPION:
+        *name = "Scorpion";
+        *model = "Tribunus";
+        break;
+    case ESC_SENSOR_PROTO_KONTRONIK:
+        *name = "Kontronik";
+        *model = "Kontronik ESC";
+        break;
+    case ESC_SENSOR_PROTO_OMPHOBBY:
+        *name = "OMPHobby";
+        *model = "OMPHobby ESC";
+        break;
+    case ESC_SENSOR_PROTO_ZTW:
+        *name = "ZTW";
+        *model = "ZTW ESC";
+        break;
+    case ESC_SENSOR_PROTO_APD:
+        *name = "APD";
+        *model = "APD ESC";
+        break;
+    case ESC_SENSOR_PROTO_OPENYGE:
+        *name = "OpenYGE";
+        *model = "OpenYGE ESC";
+        break;
+    case ESC_SENSOR_PROTO_FLY:
+        *name = "FlyRotor";
+        *model = "FlyRotor ESC";
+        break;
+    case ESC_SENSOR_PROTO_GRAUPNER:
+        *name = "Graupner";
+        *model = "Graupner ESC";
+        break;
+    case ESC_SENSOR_PROTO_XDFLY:
+        *name = "XDFly";
+        *model = "XDFly ESC";
+        break;
+    default:
+        *name = "Unknown ESC";
+        *model = "Unknown Model";
+        break;
+    }
+}
+
+bool escGetInfo(uint8_t requestedEscId, escInfo_t *info)
+{
+    bool selected4way = false;
+    uint8_t resolvedEscId = 0;
+
+    if (!info || !escResolveInfoEscId(requestedEscId, &resolvedEscId, &selected4way)) {
+        return false;
+    }
+
+    memset(info, 0, sizeof(*info));
+
+    info->escId = resolvedEscId;
+    info->protocol = selected4way ? ESC_SENSOR_PROTO_NONE : escSensorConfig()->protocol;
+    info->signature = escGetResolvedSignature(resolvedEscId, selected4way);
+    info->flags = ESC_INFO_FLAG_NAME_GENERIC | ESC_INFO_FLAG_MODEL_GENERIC;
+    info->capabilities = 0;
+    info->maxChunkSize = ESC_MSP_PARAM_CHUNK_SIZE;
+
+    if (selected4way || isEscSensorActive()) {
+        info->flags |= ESC_INFO_FLAG_ACTIVE;
+    }
+    if (selected4way) {
+        info->flags |= ESC_INFO_FLAG_SELECTED;
+    }
+
+    if (isEscSensorActive()) {
+        info->capabilities |= ESC_CAP_TELEMETRY;
+    }
+
+    if (selected4way) {
+        info->capabilities |= ESC_CAP_PARAM_READ | ESC_CAP_PARAM_WRITE | ESC_CAP_FORWARD_PROGRAMMING;
+        info->parameterBytes = escGetMspVisibleParamBufferLengthRaw();
+    } else {
+        if (paramCommit != NULL) {
+            info->capabilities |= ESC_CAP_PARAM_READ | ESC_CAP_PARAM_WRITE;
+        } else if (escGetMspVisibleParamBufferLengthRaw() != 0) {
+            info->capabilities |= ESC_CAP_PARAM_READ;
+        }
+
+        if (resolvedEscId == 0) {
+            info->parameterBytes = escGetMspVisibleParamBufferLengthRaw();
+        }
+    }
+
+    return true;
+}
+
+bool escGetNameInfo(uint8_t requestedEscId, const char **name, const char **model, uint8_t *flags)
+{
+    escInfo_t info;
+
+    if (!name || !model || !flags || !escGetInfo(requestedEscId, &info)) {
+        return false;
+    }
+
+    if (escGetParsedNameInfo(&info, escNameInfoNameBuffer, sizeof(escNameInfoNameBuffer),
+        escNameInfoModelBuffer, sizeof(escNameInfoModelBuffer), flags)) {
+        *name = escNameInfoNameBuffer;
+        *model = escNameInfoModelBuffer;
+        return true;
+    }
+
+    escGetGenericNameFromSignature(info.signature, name, model);
+    if (info.signature == ESC_SIG_NONE) {
+        escGetGenericNameFromProtocol(info.protocol, name, model);
+    }
+
+    *flags = info.flags & (ESC_INFO_FLAG_NAME_GENERIC | ESC_INFO_FLAG_MODEL_GENERIC);
+    return true;
+}
+
+bool escGetDetailInfo(uint8_t requestedEscId, const char **version, const char **firmware, uint8_t *flags)
+{
+    escInfo_t info;
+
+    if (!version || !firmware || !flags || !escGetInfo(requestedEscId, &info)) {
+        return false;
+    }
+
+    if (escGetParsedDetailInfo(&info, escDetailInfoVersionBuffer, sizeof(escDetailInfoVersionBuffer),
+        escDetailInfoFirmwareBuffer, sizeof(escDetailInfoFirmwareBuffer), flags)) {
+        *version = escDetailInfoVersionBuffer;
+        *firmware = escDetailInfoFirmwareBuffer;
+        return true;
+    }
+
+    escDetailInfoVersionBuffer[0] = '\0';
+    escDetailInfoFirmwareBuffer[0] = '\0';
+
+    *version = escDetailInfoVersionBuffer;
+    *firmware = escDetailInfoFirmwareBuffer;
+    *flags = ESC_DETAIL_FLAG_VERSION_GENERIC | ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
+    return true;
+}
+
+void escGetWriteStatus(escWriteStatus_t *status)
+{
+    if (!status) {
+        return;
+    }
+
+    escWriteStatusCheckTimeout();
+    *status = escWriteStatus;
+}
+
+bool escReadParamChunk(uint8_t requestedEscId, uint8_t offset, uint8_t maxLength, escParamChunk_t *chunk, uint8_t *data)
+{
+    uint8_t resolvedEscId = 0;
+    uint8_t totalLength = 0;
+
+    if (!chunk || !data || maxLength == 0) {
+        return false;
+    }
+
+    if (maxLength > ESC_MSP_PARAM_CHUNK_SIZE) {
+        maxLength = ESC_MSP_PARAM_CHUNK_SIZE;
+    }
+
+    if (!escResolveParamEscId(requestedEscId, &resolvedEscId, &totalLength) || offset >= totalLength) {
+        return false;
+    }
+
+    uint8_t chunkLength = totalLength - offset;
+    if (chunkLength > maxLength) {
+        chunkLength = maxLength;
+    }
+
+    memcpy(data, escGetParamBuffer() + offset, chunkLength);
+
+    chunk->escId = resolvedEscId;
+    chunk->totalLength = totalLength;
+    chunk->offset = offset;
+    chunk->chunkLength = chunkLength;
+    return true;
+}
+
+bool escBeginParamWrite(uint8_t requestedEscId)
+{
+    uint8_t resolvedEscId = 0;
+    uint8_t visibleLength = 0;
+
+    if (escWriteStatusPending() || !escResolveParamEscId(requestedEscId, &resolvedEscId, &visibleLength)) {
+        return false;
+    }
+
+    const uint8_t fullLength = escGetParamFullBufferLengthRaw();
+    if (fullLength == 0) {
+        return false;
+    }
+
+    memcpy(paramUpdBuffer, escGetParamBuffer(), fullLength);
+
+    escParamWriteStaged = true;
+    escParamWriteEscId = resolvedEscId;
+    escParamWriteLength = visibleLength;
+    return true;
+}
+
+bool escWriteParamChunk(uint8_t requestedEscId, uint8_t offset, const uint8_t *data, uint8_t length)
+{
+    uint8_t resolvedEscId = 0;
+    bool selected4way = false;
+
+    if (!escParamWriteStaged || !data || length == 0 || length > ESC_MSP_PARAM_CHUNK_SIZE || escWriteStatusPending()) {
+        return false;
+    }
+
+    if (!escResolveInfoEscId(requestedEscId, &resolvedEscId, &selected4way) || resolvedEscId != escParamWriteEscId) {
+        return false;
+    }
+
+    UNUSED(selected4way);
+
+    if (offset >= escParamWriteLength || (uint16_t)offset + length > escParamWriteLength) {
+        return false;
+    }
+
+    memcpy(paramUpdBuffer + offset, data, length);
+    return true;
+}
+
+bool escCommitStagedParamWrite(uint8_t requestedEscId)
+{
+    uint8_t resolvedEscId = 0;
+    bool selected4way = false;
+
+    if (!escParamWriteStaged || escWriteStatusPending()) {
+        return false;
+    }
+
+    if (!escResolveInfoEscId(requestedEscId, &resolvedEscId, &selected4way) || resolvedEscId != escParamWriteEscId) {
+        return false;
+    }
+
+    UNUSED(selected4way);
+
+    if (!escCommitParameters()) {
+        return false;
+    }
+
+    escParamWriteStaged = false;
+    escParamWriteEscId = ESC_SENSOR_COMBINED;
+    escParamWriteLength = 0;
+    return true;
 }
 
 #endif

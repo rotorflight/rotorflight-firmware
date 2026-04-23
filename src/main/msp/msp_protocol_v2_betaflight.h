@@ -24,3 +24,11 @@
 #define MSP2_SEND_DSHOT_COMMAND             0x3003
 #define MSP2_GET_VTX_DEVICE_STATUS          0x3004
 #define MSP2_GET_OSD_WARNINGS               0x3005  // returns active OSD warning message text
+#define MSP2_GET_ESC_INFO                   0x3006
+#define MSP2_GET_ESC_NAME                   0x3007
+#define MSP2_GET_ESC_WRITE_STATUS           0x3008
+#define MSP2_GET_ESC_PARAM_DATA             0x3009
+#define MSP2_SET_ESC_PARAM_BEGIN            0x300A
+#define MSP2_SET_ESC_PARAM_DATA             0x300B
+#define MSP2_SET_ESC_PARAM_COMMIT           0x300C
+#define MSP2_GET_ESC_DETAILS                0x300D
