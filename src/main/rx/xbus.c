@@ -35,6 +35,7 @@
 #ifdef USE_SERIALRX_XBUS
 
 #include "common/crc.h"
+#include "common/maths.h"
 
 #include "drivers/time.h"
 
@@ -164,9 +165,15 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
+    // xBusFrame[1] (payload length) is validated by the ISR to be within
+    // [MIN_PAYLOAD_LENGTH, MAX_PAYLOAD_LENGTH], so n_num_channels is bounded
+    // by XBUS_MODEA_CHANNEL_COUNT and cannot overrun xBusFrame.
+    const uint8_t payload_length = xBusFrame[1];
+    const uint8_t n_num_channels = (payload_length - 2) / 4;
+
     // Calculate the CRC according to JR XBus Specs
     // Using a CRC lookup table is faster than without
-    if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) == xBusFrame[xBusFrame[1] + 2])
+    if (crc8_dallas((uint8_t*)xBusFrame, payload_length + 2) == xBusFrame[payload_length + 2])
     {
         // Need to do a check on bytes 2 and 3. 
         // When failsafe, byte 2 goes from >0 to 0 and byte 3 goes from 0 to a value that appears to be dependant on the TX
@@ -179,8 +186,7 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
             // data and update the corresponding channel. The reason for this is that the 
             // number of the channel may not always be in the same spot in the packet. Also
             // there are only 16 channels of data sent per packet
-            uint8_t nNumChannels = (xBusFrame[1] - 2) / 4; // Calculate the number of channels in the frame
-            for (int i = 0; i < nNumChannels; i++)
+            for (uint8_t i = 0; i < n_num_channels; i++)
             {
                 // Channel packets are constructed as such:
                 // Byte 0 - Channel number
@@ -208,6 +214,14 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 
 static void xBusUnpackModeBFrame(uint8_t offsetBytes)
 {
+    if (xBusFrameLength < 3) {
+        return;
+    }
+
+    const uint8_t payload_bytes = xBusFrameLength - 3; // channel bytes between ID and CRC16
+    const uint8_t available_channels = payload_bytes / 2;
+    const uint8_t unpack_channels = MIN(xBusChannelCount, available_channels);
+
     // Calculate the CRC of the incoming frame
     // Calculate on all bytes except the final two CRC bytes
     const uint16_t inCrc = crc16_ccitt_update(0, (uint8_t*)&xBusFrame[offsetBytes], xBusFrameLength - 2);
@@ -217,7 +231,7 @@ static void xBusUnpackModeBFrame(uint8_t offsetBytes)
 
     if (crc == inCrc) {
         // Unpack the data, we have a valid frame, only 12 channel unpack also when receive 16 channel
-        for (int i = 0; i < xBusChannelCount; i++) {
+        for (uint8_t i = 0; i < unpack_channels; i++) {
 
             const uint8_t frameAddr = offsetBytes + 1 + i * 2;
             uint16_t value = ((uint16_t)xBusFrame[frameAddr]) << 8;
