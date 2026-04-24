@@ -305,14 +305,14 @@ static void gpsSetState(gpsState_e state)
 
 bool gpsUsesFbusTransport(void)
 {
-#ifdef USE_FBUS_MASTER
-    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
-
-    if (!hasFbusMasterPort) {
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    if (gpsConfig()->provider != GPS_FBUS) {
         return false;
     }
 
-    return gpsConfig()->provider == GPS_FBUS;
+    return findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL
+        || (featureIsEnabled(FEATURE_TELEMETRY)
+            && findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL);
 #else
     return false;
 #endif

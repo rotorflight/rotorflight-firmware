@@ -21,8 +21,8 @@
 
 #include "build/atomic.h"
 
-#include "pg/fbus_master.h"
 #include "pg/gps.h"
+#include "pg/fbus_master.h"
 
 #include "common/maths.h"
 #include "config/feature.h"
@@ -36,7 +36,7 @@
 #include "drivers/fbus_sensor.h"
 #include "sensors/sensors.h"
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 
 static const char* const fbusSensorNames[] = {
     [FBUS_SENSOR_VARIO2]        = "VARIO2",
@@ -83,7 +83,7 @@ static fbusSensorData_t sensorCache[FBUS_SENSOR_CACHE_SIZE];
 static uint8_t sensorCacheIndex = 0;
 static fbusObservedSensor_t observedSensors[FBUS_MAX_OBSERVED_SENSORS];
 static uint8_t observedSensorCount = 0;
-static fbusSensorForwardBuffer_t forwardBuffers[FBUS_MASTER_MAX_FORWARDED_SENSORS];
+static fbusSensorForwardBuffer_t forwardBuffers[FBUS_SENSOR_MAX_FORWARD_BUFFERS];
 
 void fbusSensorInit(void)
 {
@@ -261,6 +261,16 @@ static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
     return FBUS_DETECTED_SENSOR_UNKNOWN;
 }
 
+static fbusObservedSensor_t* getObservedSensor(uint8_t physicalId, fbusSensorSource_e source)
+{
+    for (uint8_t i = 0; i < observedSensorCount; i++) {
+        if (observedSensors[i].physicalId == physicalId && observedSensors[i].source == source) {
+            return &observedSensors[i];
+        }
+    }
+    return NULL;
+}
+
 static fbusObservedSensor_t* getObservedSensorByPhysicalId(uint8_t physicalId)
 {
     for (uint8_t i = 0; i < observedSensorCount; i++) {
@@ -271,17 +281,24 @@ static fbusObservedSensor_t* getObservedSensorByPhysicalId(uint8_t physicalId)
     return NULL;
 }
 
-static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs)
+static fbusObservedSensor_t* ensureObservedSensor(uint8_t physicalId, fbusSensorSource_e source)
 {
-    // Find existing sensor or add new one
-    fbusObservedSensor_t *sensor = getObservedSensorByPhysicalId(physicalId);
+    fbusObservedSensor_t *sensor = getObservedSensor(physicalId, source);
     if (!sensor && observedSensorCount < FBUS_MAX_OBSERVED_SENSORS) {
         sensor = &observedSensors[observedSensorCount++];
         sensor->physicalId = physicalId;
+        sensor->source = source;
         sensor->appIdCount = 0;
         sensor->packetCount = 0;
         sensor->detectedType = FBUS_DETECTED_SENSOR_UNKNOWN;
     }
+
+    return sensor;
+}
+
+static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t appId, timeUs_t currentTimeUs, fbusSensorSource_e source)
+{
+    fbusObservedSensor_t *sensor = ensureObservedSensor(physicalId, source);
 
     if (sensor) {
         sensor->lastSeenUs = currentTimeUs;
@@ -314,9 +331,12 @@ void fbusSensorInitForwarding(void)
 {
     memset(forwardBuffers, 0, sizeof(forwardBuffers));
 
-    // Initialize buffer for each configured forwarded sensor
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
+#ifdef USE_FBUS_MASTER
         forwardBuffers[i].physicalId = fbusMasterConfig()->forwardedSensors[i];
+#else
+        forwardBuffers[i].physicalId = FBUS_INVALID_PHYSICAL_ID;
+#endif
         forwardBuffers[i].writeIndex = 0;
         forwardBuffers[i].readIndex = 0;
         forwardBuffers[i].count = 0;
@@ -326,7 +346,7 @@ void fbusSensorInitForwarding(void)
 
 bool fbusSensorIsForwarded(uint8_t physicalId)
 {
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
         if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return true;
         }
@@ -336,7 +356,7 @@ bool fbusSensorIsForwarded(uint8_t physicalId)
 
 static fbusSensorForwardBuffer_t* getForwardBuffer(uint8_t physicalId)
 {
-    for (uint8_t i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
+    for (uint8_t i = 0; i < FBUS_SENSOR_MAX_FORWARD_BUFFERS; i++) {
         if (forwardBuffers[i].physicalId != FBUS_INVALID_PHYSICAL_ID && forwardBuffers[i].physicalId == physicalId) {
             return &forwardBuffers[i];
         }
@@ -411,10 +431,10 @@ void fbusSensorMarkStartupFrameSent(uint8_t physicalId)
     }
 }
 
-bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
+bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source)
 {
     timeUs_t currentTimeUs = micros();
-    fbusObservedSensor_t *observed = trackObservedSensor(physicalId, appId, currentTimeUs);
+    fbusObservedSensor_t *observed = trackObservedSensor(physicalId, appId, currentTimeUs, source);
     const fbusDetectedSensorType_e detectedType = observed ? observed->detectedType : FBUS_DETECTED_SENSOR_UNKNOWN;
     
     // Store in cache
@@ -568,6 +588,24 @@ bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
     }
     
     return false;
+}
+
+bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data)
+{
+    return fbusSensorProcessDataWithSource(physicalId, appId, data, FBUS_SENSOR_SOURCE_FBUS);
+}
+
+void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source)
+{
+    fbusObservedSensor_t *sensor = ensureObservedSensor(physicalId, source);
+    if (sensor) {
+        sensor->lastSeenUs = micros();
+    }
+}
+
+void fbusSensorObservePhysicalId(uint8_t physicalId)
+{
+    fbusSensorObservePhysicalIdWithSource(physicalId, FBUS_SENSOR_SOURCE_FBUS);
 }
 
 void fbusSensorUpdate(timeUs_t currentTimeUs)
@@ -791,4 +829,16 @@ const char* fbusSensorGetName(uint8_t physicalId)
     return "UNKNOWN";
 }
 
-#endif // USE_FBUS_MASTER
+const char* fbusSensorGetSourceName(fbusSensorSource_e source)
+{
+    switch (source) {
+        case FBUS_SENSOR_SOURCE_SPORT:
+            return "SPORT";
+        case FBUS_SENSOR_SOURCE_FBUS:
+            return "FBUS";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+#endif // USE_FBUS_MASTER || USE_SPORT_MASTER
