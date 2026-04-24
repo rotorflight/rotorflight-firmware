@@ -35,6 +35,7 @@
 #ifdef USE_SERIALRX_XBUS
 
 #include "common/crc.h"
+#include "common/maths.h"
 
 #include "drivers/time.h"
 
@@ -97,6 +98,8 @@
 #define XBUS_MODEA_BAUDRATE 250000
 #define XBUS_MODEA_MAX_FRAME_TIME 2700 // 2760us round up to 2800 (69/[250k/10bits]=2760)
 #define XBUS_MODEA_START_OF_FRAME_BYTE (0xA4)
+#define XBUS_MODEA_MIN_PAYLOAD_LENGTH 2
+#define XBUS_MODEA_MAX_PAYLOAD_LENGTH (XBUS_MODEA_FRAME_SIZE - 3)
 // Mode A needs a different conversion as the resolution is 16bit, not 12bit
 //0x0000      800uSec
 //0x1249      900uSec(-60°, -75°, or -90°)
@@ -108,7 +111,7 @@
 static timeDelta_t xBusMaxFrameTime;
 static timeUs_t xBusTimeLast = 0;
 
-static bool xBusFrameReceived = false;
+static volatile bool xBusFrameReceived = false;
 static bool xBusDataIncoming = false;
 static uint8_t xBusFramePosition;
 static uint8_t xBusFrameLength;
@@ -162,9 +165,15 @@ static uint8_t xBusRj01CRC8(uint8_t inData, uint8_t seed)
 
 static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 {
+    // xBusFrame[1] (payload length) is validated by the ISR to be within
+    // [MIN_PAYLOAD_LENGTH, MAX_PAYLOAD_LENGTH], so n_num_channels is bounded
+    // by XBUS_MODEA_CHANNEL_COUNT and cannot overrun xBusFrame.
+    const uint8_t payload_length = xBusFrame[1];
+    const uint8_t n_num_channels = (payload_length - 2) / 4;
+
     // Calculate the CRC according to JR XBus Specs
     // Using a CRC lookup table is faster than without
-    if (crc8_dallas((uint8_t*)xBusFrame, xBusFrame[1] + 2) == xBusFrame[xBusFrame[1] + 2])
+    if (crc8_dallas((uint8_t*)xBusFrame, payload_length + 2) == xBusFrame[payload_length + 2])
     {
         // Need to do a check on bytes 2 and 3. 
         // When failsafe, byte 2 goes from >0 to 0 and byte 3 goes from 0 to a value that appears to be dependant on the TX
@@ -177,8 +186,7 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
             // data and update the corresponding channel. The reason for this is that the 
             // number of the channel may not always be in the same spot in the packet. Also
             // there are only 16 channels of data sent per packet
-            uint8_t nNumChannels = (xBusFrame[1] - 2) / 4; // Calculate the number of channels in the frame
-            for (int i = 0; i < nNumChannels; i++)
+            for (uint8_t i = 0; i < n_num_channels; i++)
             {
                 // Channel packets are constructed as such:
                 // Byte 0 - Channel number
@@ -192,7 +200,7 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
                 value |= ((uint16_t)xBusFrame[frameAddr + 1]);
 
                 // Convert to internal format
-                if (nChannelNumber <= XBUS_MODEA_CHANNEL_COUNT)
+                if (nChannelNumber < XBUS_MODEA_CHANNEL_COUNT)
                 {
                     uint16_t val = XBUS_MODEA_CONVERT_TO_USEC(value);
 
@@ -206,6 +214,14 @@ static void xBusUnpackModeAFrame(uint8_t offsetBytes)
 
 static void xBusUnpackModeBFrame(uint8_t offsetBytes)
 {
+    if (xBusFrameLength < 3) {
+        return;
+    }
+
+    const uint8_t payload_bytes = xBusFrameLength - 3; // channel bytes between ID and CRC16
+    const uint8_t available_channels = payload_bytes / 2;
+    const uint8_t unpack_channels = MIN(xBusChannelCount, available_channels);
+
     // Calculate the CRC of the incoming frame
     // Calculate on all bytes except the final two CRC bytes
     const uint16_t inCrc = crc16_ccitt_update(0, (uint8_t*)&xBusFrame[offsetBytes], xBusFrameLength - 2);
@@ -215,7 +231,7 @@ static void xBusUnpackModeBFrame(uint8_t offsetBytes)
 
     if (crc == inCrc) {
         // Unpack the data, we have a valid frame, only 12 channel unpack also when receive 16 channel
-        for (int i = 0; i < xBusChannelCount; i++) {
+        for (uint8_t i = 0; i < unpack_channels; i++) {
 
             const uint8_t frameAddr = offsetBytes + 1 + i * 2;
             uint16_t value = ((uint16_t)xBusFrame[frameAddr]) << 8;
@@ -310,6 +326,12 @@ static void xBusDataReceive(uint16_t c, void *data)
 
     // Only do this if we are receiving to a frame
     if (xBusDataIncoming == true) {
+        if (xBusFramePosition >= xBusFrameLength) {
+            xBusDataIncoming = false;
+            xBusFramePosition = 0;
+            return;
+        }
+
         // Store in frame copy
         xBusFrame[xBusFramePosition] = (uint8_t)c;
 
@@ -317,6 +339,12 @@ static void xBusDataReceive(uint16_t c, void *data)
         // adjust the frame length accordingly.
         // Packet length is the second byte of the array
         if (xBusProvider == SERIALRX_XBUS_MODE_A && xBusFramePosition == 1) {
+            if (((uint8_t)c < XBUS_MODEA_MIN_PAYLOAD_LENGTH) || ((uint8_t)c > XBUS_MODEA_MAX_PAYLOAD_LENGTH)) {
+                xBusDataIncoming = false;
+                xBusFramePosition = 0;
+                return;
+            }
+
             xBusFrameLength = (uint8_t)c + 3;   //adjust framesize
         }
         xBusFramePosition++;
