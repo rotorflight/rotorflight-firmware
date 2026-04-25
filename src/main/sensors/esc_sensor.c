@@ -5032,6 +5032,7 @@ static bool escGetFlyNameInfo(char *name, size_t nameLength, char *model, size_t
 
     escSetNameInfoText(name, nameLength, "FLYROTOR");
     tfp_sprintf(model, "FLYROTOR %uA%s", amperage, payload[0] == 1 ? " F3C" : "");
+    UNUSED(modelLength);
     return true;
 }
 
@@ -5077,6 +5078,7 @@ static bool escGetSharedXdflyNameInfo(uint8_t signature, char *name, size_t name
 
     escSetNameInfoText(name, nameLength, brand);
     tfp_sprintf(model, "%s %s", brand, modelSuffix);
+    UNUSED(modelLength);
     return true;
 }
 
@@ -5259,6 +5261,8 @@ static bool escGetFlyDetailInfo(char *version, size_t versionLength, char *firmw
         *flags |= ESC_DETAIL_FLAG_FIRMWARE_GENERIC;
     }
 
+    UNUSED(versionLength);
+    UNUSED(firmwareLength);
     return haveVersion || haveFirmware;
 }
 
@@ -5286,6 +5290,7 @@ static bool escGetSharedXdflyDetailInfo(char *version, size_t versionLength, cha
     }
 
     UNUSED(versionLength);
+    UNUSED(firmwareLength);
     return haveFirmware;
 }
 
@@ -5313,6 +5318,7 @@ static bool escGetAm32DetailInfo(char *version, size_t versionLength, char *firm
     }
 
     UNUSED(versionLength);
+    UNUSED(firmwareLength);
     return haveFirmware;
 }
 
@@ -5344,6 +5350,7 @@ static bool escGetBlheliDetailInfo(char *version, size_t versionLength, char *fi
     }
 
     UNUSED(versionLength);
+    UNUSED(firmwareLength);
     return haveVersion || haveFirmware;
 }
 
