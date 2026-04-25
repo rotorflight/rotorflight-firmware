@@ -49,12 +49,9 @@
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
 #include "drivers/fbus_sensor.h"
-#ifdef USE_FBUS_MASTER
 #include "drivers/fbus_master.h"
-#endif
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+
 #include "telemetry/sport_master.h"
-#endif
 
 #include "fc/runtime_config.h"
 
@@ -4345,8 +4342,6 @@ bool INIT_CODE escSensorInit(void)
         case ESC_SENSOR_PROTO_XDFLY:
             callback = xdflySensorInit(ESC_SIG_XDFLY);
             baudrate = 115200;
-            break;
-        case ESC_SENSOR_PROTO_FBUS:
             break;
         case ESC_SENSOR_PROTO_RECORD:
             baudrate = baudRates[portConfig->telemetry_baudrateIndex];
