@@ -189,7 +189,7 @@ static bool isFbusEscTransportAvailable(void)
         return true;
     }
 #endif
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#ifdef USE_SPORT_MASTER
     if (sportMasterIsEnabled()) {
         return true;
     }
