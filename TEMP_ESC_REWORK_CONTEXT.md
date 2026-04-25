@@ -100,13 +100,14 @@ This is intended to create the new migration path without immediately rewriting 
 The following pieces are now in the tree:
 
 - New MSPv2 ESC command ids in `src/main/msp/msp_protocol_v2_betaflight.h`
-  - `MSP2_GET_ESC_INFO`
-  - `MSP2_GET_ESC_NAME`
-- `MSP2_GET_ESC_WRITE_STATUS`
-- `MSP2_GET_ESC_PARAM_DATA`
-- `MSP2_SET_ESC_PARAM_BEGIN`
-- `MSP2_SET_ESC_PARAM_DATA`
-- `MSP2_SET_ESC_PARAM_COMMIT`
+  - `MSP2_GET_ESC_INFO` (`0x3008`)
+  - `MSP2_GET_ESC_NAME` (`0x3009`)
+- `MSP2_GET_ESC_WRITE_STATUS` (`0x300A`)
+- `MSP2_GET_ESC_PARAM_DATA` (`0x300B`)
+- `MSP2_SET_ESC_PARAM_BEGIN` (`0x300C`)
+- `MSP2_SET_ESC_PARAM_DATA` (`0x300D`)
+- `MSP2_SET_ESC_PARAM_COMMIT` (`0x300E`)
+- `MSP2_GET_ESC_DETAILS` (`0x300F`)
 - New dedicated module:
   - `src/main/msp/msp_esc.c`
   - `src/main/msp/msp_esc.h`
@@ -163,6 +164,9 @@ The following pieces are now in the tree:
 - Windows-side targeted object builds succeeded for:
   - `msp_esc.o`
   - `esc_sensor.o`
+- Windows-side full firmware build also succeeded after the ESC MSPv2 ids were moved out of the SmartFuel range:
+  - `make hex TARGET=STM32F7X2`
+  - produced `obj/rotorflight_4.6.0_STM32F7X2.hex`
 - `msp.o` validation is currently blocked by an existing Windows/MSYS pthread header issue unrelated to this ESC change.
 - WSL SITL builds are also hitting environment/toolchain issues unrelated to this slice.
 
@@ -170,6 +174,8 @@ The following pieces are now in the tree:
 
 Current command shape:
 
+- Note:
+  - The ESC MSPv2 block now starts at `0x3008` so it does not collide with the existing SmartFuel MSPv2 commands at `0x3006` and `0x3007`.
 - `MSP2_GET_ESC_INFO`
   - Optional `escId` request byte.
   - Returns esc id, protocol, signature, flags, capabilities, visible parameter length, max chunk size.
@@ -208,12 +214,62 @@ Current command shape:
 - Do not regress existing configurator behavior while the new path is being introduced.
 - Avoid adding more ESC-specific complexity directly into `msp.c`.
 
+## Lua Migration Status
+
+Work has also started in `rotorflight-lua-ethos-suite`, but this is intentionally a hybrid migration instead of a full ESC page rewrite.
+
+- Existing ESC vendor APIs are still used for:
+  - compatibility detection
+  - page schema / form generation
+  - cached raw vendor buffer reads
+- New generic MSPv2 ESC APIs are now used, or prepared for use, for:
+  - ESC header identity (`name`, `model`)
+  - ESC header detail text (`version`, `firmware`)
+  - chunked parameter transport
+  - write-status polling
+
+Implemented Lua-side pieces so far:
+
+- New API wrappers:
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_INFO.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_NAME.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_DETAILS.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_WRITE_STATUS.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_PARAM_DATA.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_PARAM_BEGIN.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_PARAM_SET_DATA.lua`
+  - `src/rfsuite/tasks/scheduler/msp/api/ESC_PARAM_COMMIT.lua`
+- New helper modules:
+  - `src/rfsuite/app/modules/esc_tools/tools/esc_msp_v2.lua`
+    - sequences `ESC_NAME` then `ESC_DETAILS`
+    - used to override ESC header text on new firmware without replacing the old vendor page APIs
+  - `src/rfsuite/app/modules/esc_tools/tools/esc_param_v2.lua`
+    - reads a full parameter buffer via repeated `ESC_PARAM_DATA` chunk calls
+    - stages a full-buffer write via `BEGIN -> SET_DATA chunks -> COMMIT`
+    - reads `ESC_WRITE_STATUS` once for client-side polling integration
+- Existing ESC tool pages updated to prefer the new header APIs when `apiVersion >= 12.0.10`:
+  - `src/rfsuite/app/modules/esc_tools/tools/esc_tool.lua`
+  - `src/rfsuite/app/modules/esc_tools/tools/esc_tool_4way.lua`
+- Version gating in the Lua suite was relaxed so newer MSP API versions are treated as supported instead of being hard-blocked after `12.10`:
+  - `src/rfsuite/lib/utils.lua`
+  - `src/rfsuite/tasks/events/onconnect/tasks/apiversion.lua`
+  - `src/rfsuite/app/tasks.lua`
+  - `src/rfsuite/app/lib/ui.lua`
+
+Current Lua constraint:
+
+- The new generic transport exists, but the ESC tools still depend on the legacy vendor-specific parameter schemas for actual page layout and field semantics.
+- That means the current migration only modernizes discovery, header text, buffer transport helpers, and completion plumbing.
+- A later slice still needs either:
+  - generic parameter metadata/schema MSP calls, or
+  - a controlled client-side adapter layer that maps old vendor schemas onto the new chunked transport.
+
 ## Suggested Next Steps
 
 1. Add a compact `MSP2_GET_ESC_PARAM_META` or equivalent schema call so new Lua clients do not need to infer page structure from old vendor-specific blobs.
 2. Decide whether `GET_ESC_NAME` should promote Bluejay from generic `BLHeli_S` family naming now that the payload-based detail split exists.
 3. Add a normalized telemetry-only MSPv2 call so the new client stack can stop reading mixed programming / telemetry surfaces.
-4. Start moving one Lua client path onto the new `INFO` / `NAME` / `DETAILS` / `PARAM_DATA` / `WRITE_STATUS` calls to validate the transport choices before wider migration.
+4. Start moving one Lua client path from legacy vendor blob reads onto `INFO` / `PARAM_DATA` / `WRITE_STATUS` using the new `esc_param_v2.lua` helper as the transition layer.
 
 ## Notes
 
