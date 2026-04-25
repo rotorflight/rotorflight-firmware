@@ -1,3 +1,101 @@
+# 4.6.0-RC2
+
+This is a _Release Candidate_ for the Rotorflight 2.3 firmware.
+
+## Notes
+
+This version is intended for final testing before the official release.
+It is considered feature-complete and should be stable for most use cases,
+but please verify your configuration carefully before flying.
+
+For more information, please join the Rotorflight Discord chat.
+
+Please also read [Configuration Changes](https://github.com/rotorflight/rotorflight-firmware/blob/release/4.6.0-RC2/Changes.md).
+
+## Downloads
+
+The download locations are:
+
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.3.0-RC2)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.3.0-RC2)
+- [LUA Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.3.0-RC2)
+- [LUA Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.3.0-RC2)
+- [LUA Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.3.0-RC2)
+
+## Changes since 4.6.0-RC1
+
+### New features
+
+- Add S.PORT sensor input
+- Add MSP command to retrieve the current setpoints
+
+### Improvements
+
+- Update CMS rates menu and stick thresholds
+
+### Bug fixes
+
+- Fix potential buffer overflows in RX protocols
+- Fix isVoltageStable check in battery presence
+- Fix 4-way MSP ESC teardown for reliable return to normal run mode
+
+## Changes since 4.5.1
+
+### New features
+
+- Introduce Rotorflight Rates with refactored rate handling
+- Add support for applying rates in polar coordinates
+- Refactor Governor for Nitro/I.C. engines with multiple improvements and fixes
+- Refactor throttle channel range and arm limit
+- Refactor Adjustment Function implementation
+- Add PID Mode 4
+- Add battery profile support
+
+### New hardware and protocol support
+
+- Add Forward Programming support for AM32, BLHeli S/Bluejay, ZTW, OMP, and XDFly ESCs
+- Add FlySky IBUS2 Control & Telemetry Support
+- Add FBUS Master Out
+- Add FBUS sensor input
+- Add S.PORT sensor input
+- Add GYRO_CLK support for external gyro clocking
+- Add BMP581 barometer driver
+- Add BMI323 gyro driver
+- Add native ELRS telemetry sensors for RPM and TEMP
+- Add ESC telemetry output to Spektrum transmitters
+- Improve Hobbywing V4 ESC telemetry
+
+### Improvements
+
+- Reject incompatible dump/diff files
+- Improve gyro calibration routine
+- Improve the decimation filter
+- Enable Blackbox logging while ARMed with rolling erase by default
+- Increase max cyclic deadband to 100
+- Disable yaw dynamic ceiling and reduce deadband defaults
+- Change RESCUE default to FLIP
+- Increase default I-term and O-term (HSI) limits
+- Add motor override timeout
+- Disallow arming while rescue is active
+- Disallow arming if motor override is active
+- Remove PID term reset on profile change
+- Add new MSP APIs for tools and Lua scripts
+- Update CMS rates menu and stick thresholds
+
+### Bug fixes
+
+- Fix potential buffer overflows in RX protocols
+- Fix isVoltageStable check in battery presence
+- Fix ACRO TRAINER catastrophic failure
+- Fix failsafe throttle handling
+- Fix JR Xbus Mode-A channel corruption
+- Fix APD ESC telemetry
+- Fix MSPv2 over SmartPort
+- Fix OSD profile adjustment
+
+
+***
+
 # 4.6.0-RC1
 
 This is a _Release Candidate_ for the Rotorflight 2.3 firmware.
