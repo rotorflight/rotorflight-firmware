@@ -141,9 +141,9 @@ static int getFbusSensorValue(uint8_t sensorIndex)
         return 0;  // Sensor slot not configured
     }
     
-    // Get latest sensor frame from the forwarding buffer
+    // Get latest sensor frame from the forwarding buffer without consuming it.
     fbusSensorFrame_t frame = {0};
-    if (fbusSensorGetForwardedFrame(physicalId, &frame) && frame.valid) {
+    if (fbusSensorPeekForwardedFrame(physicalId, &frame) && frame.valid) {
         return frame.data;
     }
     

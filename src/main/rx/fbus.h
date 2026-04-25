@@ -20,5 +20,10 @@
 
 #pragma once
 
+static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
+{
+    return (value >> bit) & 1U;
+}
+
 bool fbusRxInit(const rxConfig_t *initialRxConfig, rxRuntimeState_t *rxRuntimeState, bool isFPORT2);
 
