@@ -63,7 +63,7 @@ uint8_t rssi_channel;
 
 static uint8_t spek_chan_shift;
 static uint8_t spek_chan_mask;
-static bool rcFrameComplete = false;
+static volatile bool rcFrameComplete = false;
 static bool spekHiRes = false;
 
 static volatile uint8_t spekFrame[SPEK_FRAME_SIZE];

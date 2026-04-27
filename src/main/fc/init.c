@@ -66,6 +66,7 @@
 #include "drivers/pin_pull_up_down.h"
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
+#include "drivers/fbus_sensor.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/sensor.h"
@@ -169,6 +170,9 @@
 #include "sensors/initialisation.h"
 
 #include "telemetry/telemetry.h"
+#ifdef USE_SPORT_MASTER
+#include "telemetry/sport_master.h"
+#endif
 
 #ifdef USE_HARDWARE_REVISION_DETECTION
 #include "hardware_revision.h"
@@ -700,6 +704,10 @@ void init(void)
     sbusOutInit();
 #endif
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    fbusSensorInit();
+#endif
+
 #ifdef USE_FBUS_MASTER
     fbusMasterInit();
 #endif
@@ -971,6 +979,11 @@ void init(void)
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
         telemetryInit();
     }
+#endif
+
+#ifdef USE_SPORT_MASTER
+    // Allow SPORT master transport for non-telemetry use-cases (e.g. ESC sensor bridge).
+    initSportMaster();
 #endif
 
     setArmingDisabled(ARMING_DISABLED_BOOT_GRACE_TIME);

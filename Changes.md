@@ -146,6 +146,11 @@ New MSP command to get the active battery profile. (#415)
 
 New MSP command to set the active battery profile. (#415)
 
+### MSP_SETPOINT
+
+New MSP command to get the current setpoint. (#443)
+
+
 ## CLI Changes
 
 `pid_process_denom` is a divider for the PID loop speed vs. the gyro

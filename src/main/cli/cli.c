@@ -1981,8 +1981,10 @@ static bool serialConfigHasBusServos(const serialConfig_t *config)
     return false;
 }
 
-static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos)
+static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault)
 {
+    const bool hasBusServos = serialConfigHasBusServos(serialConfigCurrent) || serialConfigHasBusServos(serialConfigDefault);
+
     if (hasBusServos || !defaultServoParams) {
         return hasBusServos;
     }
@@ -1996,11 +1998,11 @@ static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoPar
     return false;
 }
 
-static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, bool hasBusServos, const char *headingStr)
+static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault, const char *headingStr)
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
     const uint8_t pwmServoCount = getServoCount();
-    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, hasBusServos);
+    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, serialConfigCurrent, serialConfigDefault);
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
 
@@ -2145,7 +2147,7 @@ static void cliServo(const char *cmdName, char *cmdline)
     }
 
     if (count == 0) {
-        printServo(DUMP_MASTER, servoParams(0), NULL, hasBusServos, NULL);
+        printServo(DUMP_MASTER, servoParams(0), NULL, serialConfig(), NULL, NULL);
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         if (pwmServoCount > 0) {
@@ -5065,28 +5067,28 @@ static void cliStatus(const char *cmdName, char *cmdline)
     cliPrintLinefeed();
 }
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static void cliFbusSensors(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
     
     if (!isEmpty(cmdline) && strncasecmp(cmdline, "clear", 5) == 0) {
         fbusSensorClearObserved();
-        cliPrintLine("Observed FBUS sensors cleared");
+        cliPrintLine("Observed FBUS/S.Port sensors cleared");
         return;
     }
     
     const uint8_t count = fbusSensorGetObservedCount();
     
     if (count == 0) {
-        cliPrintLine("No FBUS sensors observed yet");
+        cliPrintLine("No FBUS/S.Port sensors observed yet");
         return;
     }
     
     cliPrintLinefeed();
-    cliPrintLine("Observed FBUS Sensors:");
-    cliPrintLine("Physical ID | Sensor Name       | Forwarded | App IDs                                   | Packets");
-    cliPrintLine("----------- | ----------------- | --------- | ----------------------------------------- | -------");
+    cliPrintLine("Observed FBUS/S.Port Sensors:");
+    cliPrintLine("Physical ID | Source | Sensor Name       | Forwarded | App IDs                                   | Packets");
+    cliPrintLine("----------- | ------ | ----------------- | --------- | ----------------------------------------- | -------");
     
     for (uint8_t i = 0; i < count; i++) {
         const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
@@ -5104,6 +5106,14 @@ static void cliFbusSensors(const char *cmdName, char *cmdline)
         }
         // Print physical ID in a fixed-width column
         cliPrintf("    %3u     | ", sensor->physicalId);
+
+        const char *sourceName = fbusSensorGetSourceName(sensor->source);
+        cliPrintf("%s", sourceName);
+        const int sourceNameLen = (int)strlen(sourceName);
+        for (int k = sourceNameLen; k < 6; k++) {
+            cliPrint(" ");
+        }
+        cliPrint(" | ");
 
         // Print sensor name in a fixed-width column
         cliPrintf("%s", sensorName);
@@ -6516,8 +6526,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
             printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
-            const bool hasBusServos = serialConfigHasBusServos(&serialConfig_Copy) || serialConfigHasBusServos(serialConfig());
-            printServo(dumpMask, servoParams_CopyArray, servoParams(0), hasBusServos, "servo");
+            printServo(dumpMask, servoParams_CopyArray, servoParams(0), &serialConfig_Copy, serialConfig(), "servo");
 #endif
 
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");
@@ -6746,7 +6755,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("escprog", "passthrough esc to serial", "<mode [sk/bl/ki/cc]> <index>", cliEscPassthrough),
 #endif
     CLI_COMMAND_DEF("exit", NULL, NULL, cliExit),
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     CLI_COMMAND_DEF("fbus_sensors", "show observed FBUS sensors", "[clear]", cliFbusSensors),
 #endif
     CLI_COMMAND_DEF("feature", "configure features",

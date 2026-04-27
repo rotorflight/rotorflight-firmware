@@ -76,11 +76,6 @@
 
 #define MS2US(ms)   ((ms) * 1000)
 
-static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
-{
-    return (value >> bit) & 1U;
-}
-
 enum {
     DEBUG_FBUS_FRAME_INTERVAL = 0,
     DEBUG_FBUS_FRAME_ERRORS,
