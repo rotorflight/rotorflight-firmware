@@ -375,8 +375,8 @@ static void crsfFrameBatterySensor(sbuf_t *dst)
     sbufWriteU8(dst, CRSF_FRAMETYPE_BATTERY_SENSOR);
     sbufWriteU16BE(dst, getLegacyBatteryVoltage());
     sbufWriteU16BE(dst, getLegacyBatteryCurrent());
-    sbufWriteU24BE(dst, getBatteryCapacityUsed());
-    sbufWriteU8(dst, calculateBatteryPercentageRemaining());
+    sbufWriteU24BE(dst, getBatteryFuelConsumption());
+    sbufWriteU8(dst, getBatteryFuelLevel());
 }
 
 /*

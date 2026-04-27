@@ -26,7 +26,7 @@
 #include "pg/telemetry.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 6);
+PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 9);
 
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
@@ -37,6 +37,8 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .frsky_coordinate_format = FRSKY_FORMAT_DMS,
     .frsky_unit = UNIT_METRIC,
     .frsky_vfas_precision = 0,
+    .smartfuel = false,
+    .smartfuel_source = SMARTFUEL_SOURCE_CURRENT,
     .hottAlarmSoundInterval = 5,
     .report_cell_voltage = false,
     .flysky_sensors = {
@@ -48,6 +50,13 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .crsf_telemetry_mode = CRSF_TELEMETRY_MODE_NATIVE,
     .crsf_telemetry_link_rate = 250,
     .crsf_telemetry_link_ratio = 8,
+    .smartfuel_params = {
+        SMARTFUEL_STABILIZE_DELAY_DEFAULT_MS,                  // stabilize delay ms (shared by current and voltage modes)
+        SMARTFUEL_STABLE_WINDOW_DEFAULT_CV,                    // stable window centivolts (shared by current and voltage modes)
+        SMARTFUEL_VOLTAGE_FALL_LIMIT_DEFAULT_CVPS,             // voltage fall limit centivolts per second
+        SMARTFUEL_FUEL_DROP_RATE_DEFAULT_TENTHS_PERCENT_PER_S, // fuel drop tenths percent per second
+        SMARTFUEL_SAG_MULTIPLIER_DEFAULT_PERCENT,              // sag multiplier percent
+    },
     .telemetry_sensors = INIT_ZERO,
     .telemetry_interval = INIT_ZERO,
 );

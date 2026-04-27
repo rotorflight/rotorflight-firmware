@@ -228,13 +228,11 @@ static uint16_t getTemperature()
 
 static uint16_t getFuel()
 {
-    uint16_t fuel = 0;
-    if (getBatteryCapacity() > 0) {
-        fuel = (uint16_t)calculateBatteryPercentageRemaining();
-    } else {
-        fuel = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
+    if (batteryFuelLevelIsPercentage()) {
+        return (uint16_t)getBatteryFuelLevel();
     }
-    return fuel;
+
+    return (uint16_t)constrain(getBatteryFuelConsumption(), 0, 0xFFFF);
 }
 
 static uint16_t getRPM()

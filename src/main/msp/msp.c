@@ -889,6 +889,11 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
+        {
+        uint8_t smartFuelSource = 0;
+        if (telemetryConfig()->smartfuel) {
+            smartFuelSource = telemetryConfig()->smartfuel_source == SMARTFUEL_SOURCE_VOLTAGE ? 2 : 1;
+        }
         sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
         sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
@@ -901,7 +906,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
         for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
             sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
+        sbufWriteU8(dst, smartFuelSource);
         break;
+        }
 
     case MSP_BATTERY_PROFILE:
         sbufWriteU8(dst, batteryConfig()->batteryProfile); // The active battery profile
@@ -3868,6 +3875,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
+        {
         batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
         batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
@@ -3882,7 +3890,19 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
             for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t smartFuelSource = sbufReadU8(src);
+            if (smartFuelSource > 2) {
+                return MSP_RESULT_ERROR;
+            }
+
+            telemetryConfigMutable()->smartfuel = smartFuelSource != 0;
+            if (smartFuelSource != 0) {
+                telemetryConfigMutable()->smartfuel_source = smartFuelSource == 2 ? SMARTFUEL_SOURCE_VOLTAGE : SMARTFUEL_SOURCE_CURRENT;
+            }
+        }
         break;
+        }
 
     case MSP_SET_BATTERY_PROFILE:
         {

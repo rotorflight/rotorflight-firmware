@@ -362,7 +362,7 @@ int32_t getSensorValue(uint8_t sensor)
         break;
 
     case EX_CAPACITY:
-        return getBatteryCapacityUsed();
+        return getBatteryFuelConsumption();
         break;
 
     case EX_POWER:

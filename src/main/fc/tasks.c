@@ -610,4 +610,3 @@ void tasksInit(void)
 #endif
 
 }
-

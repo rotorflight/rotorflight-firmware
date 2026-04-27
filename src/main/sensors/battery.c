@@ -36,8 +36,6 @@
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 
-#include "flight/mixer.h"
-
 #include "io/beeper.h"
 
 #include "pg/battery.h"
@@ -45,6 +43,7 @@
 #include "scheduler/scheduler.h"
 
 #include "sensors/battery.h"
+#include "sensors/smartfuel.h"
 
 
 /**
@@ -190,6 +189,35 @@ uint16_t getBatteryCapacity(void)
 uint32_t getBatteryCapacityUsed(void)
 {
     return currentMeter.capacity;
+}
+
+uint32_t getBatteryFuelConsumption(void)
+{
+#ifdef USE_SMARTFUEL
+    return smartFuelGetConsumption();
+#else
+    return getBatteryCapacityUsed();
+#endif
+}
+
+uint8_t getBatteryFuelLevel(void)
+{
+#ifdef USE_SMARTFUEL
+    return smartFuelGetPercent();
+#else
+    return calculateBatteryPercentageRemaining();
+#endif
+}
+
+bool batteryFuelLevelIsPercentage(void)
+{
+#ifdef USE_SMARTFUEL
+    if (smartFuelIsEnabled()) {
+        return true;
+    }
+#endif
+
+    return getBatteryCapacity() > 0;
 }
 
 batteryState_e getBatteryState(void)
@@ -442,8 +470,6 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
 
 void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
-
     voltageSensorADCRefresh();
 
 #ifdef USE_ESC_SENSOR
@@ -492,6 +518,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 
     DEBUG(BATTERY, 0, voltageMeter.sample);
     DEBUG(BATTERY, 1, batteryVoltage);
+
+#ifdef USE_SMARTFUEL
+    smartFuelUpdate(currentTimeUs);
+#endif
 }
 
 
@@ -597,4 +627,8 @@ void batteryInit(void)
 
     // current
     consumptionState = BATTERY_OK;
+
+#ifdef USE_SMARTFUEL
+    smartFuelInit();
+#endif
 }

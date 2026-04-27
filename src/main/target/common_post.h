@@ -92,6 +92,7 @@
 #endif
 
 #if !defined(USE_TELEMETRY)
+#undef USE_SMARTFUEL
 #undef USE_TELEMETRY_CRSF
 #undef USE_TELEMETRY_GHST
 #undef USE_TELEMETRY_FRSKY_HUB

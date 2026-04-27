@@ -266,15 +266,15 @@ static uint16_t ibus2GetFuel(void)
 {
     const escSensorData_t *escData = ibus2GetCombinedEscData();
 
-    if (getBatteryCapacity() > 0) {
-        return (uint16_t)calculateBatteryPercentageRemaining();
+    if (batteryFuelLevelIsPercentage()) {
+        return (uint16_t)getBatteryFuelLevel();
     }
 
     if (escData) {
         return (uint16_t)constrain(escData->consumption, 0, 0xFFFF);
     }
 
-    return (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
+    return (uint16_t)constrain(getBatteryFuelConsumption(), 0, 0xFFFF);
 }
 
 static uint16_t ibus2GetCurrent(void)

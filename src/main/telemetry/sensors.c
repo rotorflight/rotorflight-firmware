@@ -167,9 +167,9 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_CURRENT:
             return getBatteryCurrent();
         case TELEM_BATTERY_CONSUMPTION:
-            return getBatteryCapacityUsed();
+            return getBatteryFuelConsumption();
         case TELEM_BATTERY_CHARGE_LEVEL:
-            return calculateBatteryPercentageRemaining();
+            return getBatteryFuelLevel();
         case TELEM_BATTERY_CELL_COUNT:
             return getBatteryCellCount();
         case TELEM_BATTERY_CELL_VOLTAGE:
