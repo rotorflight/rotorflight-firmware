@@ -369,10 +369,10 @@ static float applyRotorflightRates(const int axis, const float rcCommandAbs)
 {
     float rcRate = currentControlRateProfile->rcRates[axis] * 5;
     float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    uint width = currentControlRateProfile->sRates[axis] / 16.0f + 2.0f;
+    float shape = currentControlRateProfile->sRates[axis] / 16.0f + 2.0f;
 
     // Variable order Expo
-    float expof = rcCommandAbs * (1.0f - rcExpo) + pow_approx(rcCommandAbs, width) * rcExpo;
+    float expof = rcCommandAbs * (1.0f - rcExpo) + pow_approx(rcCommandAbs, shape) * rcExpo;
 
     // Final angle rate
     float angleRate = rcRate * expof;
