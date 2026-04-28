@@ -78,8 +78,7 @@ typedef struct {
     float           cyclicRingLimit;
     float           cyclicSpeedLimit;
 
-    float           cyclicPhaseSin;
-    float           cyclicPhaseCos;
+    sincosf_t       cyclicPhase;
 
     bitmap_t        cyclicMapping;
 
@@ -312,12 +311,12 @@ static void mixerUpdateCyclic(void)
     }
 
     // Swash phasing
-    if (mixer.cyclicPhaseSin != 0)
+    if (mixer.cyclicPhase.sin != 0)
     {
         const float P = SP;
         const float R = SR;
-        SP = P * mixer.cyclicPhaseCos - R * mixer.cyclicPhaseSin;
-        SR = P * mixer.cyclicPhaseSin + R * mixer.cyclicPhaseCos;
+        SP = P * mixer.cyclicPhase.cos - R * mixer.cyclicPhase.sin;
+        SR = P * mixer.cyclicPhase.sin + R * mixer.cyclicPhase.cos;
     }
 
     // Apply new values
@@ -625,12 +624,11 @@ void INIT_CODE mixerInitConfig(void)
 
     if (mixerConfig()->swash_phase) {
         const float angle = DECIDEGREES_TO_RADIANS(mixerConfig()->swash_phase);
-        mixer.cyclicPhaseSin = sin_approx(angle);
-        mixer.cyclicPhaseCos = cos_approx(angle);
+        mixer.cyclicPhase = sinfcosf(angle);
     }
     else {
-        mixer.cyclicPhaseSin = 0;
-        mixer.cyclicPhaseCos = 1;
+        mixer.cyclicPhase.sin = 0.0f;
+        mixer.cyclicPhase.cos = 1.0f;
     }
 
     for (int i = 0; i < 3; i++)

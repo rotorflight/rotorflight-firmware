@@ -781,7 +781,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
         // Restore default task rate
         rescheduleTask(TASK_SELF, TASK_PERIOD_HZ(TASK_GPS_RATE));
     }
-    
+
     // GPS data received via MSP or FBUS
     if (GPS_update & GPS_MSP_UPDATE) {
         if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) {
@@ -1523,7 +1523,7 @@ static bool UBLOX_parse_gps(void)
         _new_position = true;
         gpsSol.numSat = _buffer.pvt.numSV;
         gpsSol.hdop = _buffer.pvt.pDOP;
-        gpsSol.speed3d = (uint16_t) sqrtf(powf(_buffer.pvt.gSpeed / 10, 2.0f) + powf(_buffer.pvt.velD / 10, 2.0f));
+        gpsSol.speed3d = (uint16_t) sqrtf(sqf(_buffer.pvt.gSpeed / 10.0f) + sqf(_buffer.pvt.velD / 10.0f));
         gpsSol.groundSpeed = _buffer.pvt.gSpeed / 10;    // cm/s
         gpsSol.groundCourse = (uint16_t) (_buffer.pvt.headMot / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
@@ -1804,7 +1804,7 @@ static void GPS_calculateDistanceFlownVerticalSpeed(bool initialize)
                 int32_t dir;
                 GPS_distance_cm_bearing(&gpsSol.llh.lat, &gpsSol.llh.lon, &lastCoord[GPS_LATITUDE], &lastCoord[GPS_LONGITUDE], &dist, &dir);
                 if (gpsConfig()->gps_use_3d_speed) {
-                    dist = sqrtf(powf(gpsSol.llh.altCm - lastAlt, 2.0f) + powf(dist, 2.0f));
+                    dist = sqrtf(sqf(gpsSol.llh.altCm - lastAlt) + sqf(dist));
                 }
                 GPS_distanceFlownInCm += dist;
             }
