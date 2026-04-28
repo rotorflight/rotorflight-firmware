@@ -848,10 +848,6 @@ static void processSrxl(timeUs_t currentTimeUs)
     sbuf_t *dst = &srxlPayloadBuf;
     srxlScheduleFnPtr srxlFnPtr;
 
-    bool tryNextUserFrame = true;
-    uint8_t tryNextUserCount = 0;
-
-  do {
     if (srxlScheduleIndex < SRXL_SCHEDULE_MANDATORY_COUNT) {
         srxlFnPtr = srxlScheduleFuncs[srxlScheduleIndex];
     } else {
@@ -873,14 +869,9 @@ static void processSrxl(timeUs_t currentTimeUs)
         srxlInitializeFrame(dst);
         if (srxlFnPtr(dst, currentTimeUs)) {
             srxlFinalize(dst);
-            tryNextUserFrame = false;
-            srxlScheduleIndex = (srxlScheduleIndex + 1) % SRXL_SCHEDULE_COUNT_MAX;
-        } else {
-            tryNextUserFrame = true;
-            tryNextUserCount++;
         }
     }
-  } while (tryNextUserFrame && tryNextUserCount < SRXL_SCHEDULE_USER_COUNT);
+    srxlScheduleIndex = (srxlScheduleIndex + 1) % SRXL_SCHEDULE_COUNT_MAX;
 }
 
 void initSrxlTelemetry(void)
