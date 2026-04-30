@@ -68,12 +68,12 @@ typedef struct motorDevice_s {
 } motorDevice_t;
 
 
-void motorPostInitNull();
+void motorPostInitNull(void);
 void motorWriteNull(uint8_t index, uint8_t mode, float value);
 bool motorUpdateStartNull(void);
 void motorUpdateCompleteNull(void);
 
-void motorPostInit();
+void motorPostInit(void);
 void motorWriteAll(float *values);
 
 void motorDevInit(const struct motorDevConfig_s *motorConfig, uint8_t motorCount);

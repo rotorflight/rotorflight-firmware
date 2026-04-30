@@ -240,7 +240,7 @@ static void configureSPIAndQuadSPI(void)
 }
 
 #ifdef USE_SDCARD
-static void sdCardAndFSInit()
+static void sdCardAndFSInit(void)
 {
     sdcard_init(sdcardConfig());
     afatfs_init();

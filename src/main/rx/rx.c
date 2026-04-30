@@ -258,7 +258,7 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 }
 #endif
 
-void validateAndFixRxConfig()
+void validateAndFixRxConfig(void)
 {
 #ifdef USE_SERIAL_RX
     if (featureIsEnabled(FEATURE_RX_SERIAL)) {

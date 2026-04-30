@@ -2697,7 +2697,7 @@ static void tribInvalidateParams(void)
     tribInvalidParams = ~(~1U << (ARRAYLEN(tribParamAddrLen) - 1));
 }
 
-static uint8_t tribCalcParamBufferLength()
+static uint8_t tribCalcParamBufferLength(void)
 {
     uint8_t len = 0;
     for (uint8_t j = 0; j < ARRAYLEN(tribParamAddrLen); j++)
@@ -3310,7 +3310,7 @@ static void oygeDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
-static const OpenYGEHeader_t *oygeGetHeaderWithCrcCheck()
+static const OpenYGEHeader_t *oygeGetHeaderWithCrcCheck(void)
 {
     // get header (w/ paranoid buffer access)
     const OpenYGEHeader_t *hdr = (OpenYGEHeader_t*)buffer;

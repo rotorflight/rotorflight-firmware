@@ -122,7 +122,7 @@ uint8_t getBatteryVoltageSource(void)
     return batteryConfig()->voltageMeterSource;
 }
 
-const voltageMeter_t * getBatteryVoltageMeter()
+const voltageMeter_t * getBatteryVoltageMeter(void)
 {
     return &voltageMeter;
 }
@@ -163,7 +163,7 @@ bool isBatteryCurrentConfigured(void)
     return batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
 }
 
-const currentMeter_t * getBatteryCurrentMeter()
+const currentMeter_t * getBatteryCurrentMeter(void)
 {
     return &currentMeter;
 }

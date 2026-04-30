@@ -280,7 +280,7 @@ static void shiftPacketLog(void)
     }
 }
 
-static bool isConfiguratorConnected() {
+static bool isConfiguratorConnected(void) {
     return (getArmingDisableFlags() & ARMING_DISABLED_MSP);
 }
 
@@ -524,7 +524,7 @@ static void ubloxSetNavRate(uint16_t measRate, uint16_t navRate, uint16_t timeRe
     ubloxSendConfigMessage(&tx_buffer, MSG_CFG_RATE, sizeof(ubx_cfg_rate));
 }
 
-static void ubloxSetSbas() {
+static void ubloxSetSbas(void) {
     ubx_message tx_buffer;
 
     //NOTE: default ublox config for sbas mode is: UBLOX_MODE_ENABLED, test is disabled
@@ -953,7 +953,7 @@ bool gpsNewFrame(uint8_t c)
 }
 
 // Check for healthy communications
-bool gpsIsHealthy()
+bool gpsIsHealthy(void)
 {
     return (gpsData.state == GPS_STATE_RECEIVING_DATA);
 }

@@ -275,7 +275,7 @@ STATIC_UNIT_TESTED void updateLedCount(void)
     setUsedLedCount(ledCounts.count);
 }
 
-void updateBlinkPauses() {
+void updateBlinkPauses(void) {
     memset(ledCounts.blinkPauses, 0, sizeof(ledCounts.blinkPauses));
 }
 

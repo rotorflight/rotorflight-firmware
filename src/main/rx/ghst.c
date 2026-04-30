@@ -351,7 +351,7 @@ STATIC_UNIT_TESTED float ghstReadRawRC(const rxRuntimeState_t *rxRuntimeState, u
 }
 
 // UART idle detected (inter-packet)
-static void ghstIdle()
+static void ghstIdle(void)
 {
     if (ghstTransmittingTelemetry) {
         ghstTransmittingTelemetry = false;

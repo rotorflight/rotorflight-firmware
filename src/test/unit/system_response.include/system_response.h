@@ -37,11 +37,11 @@ class SystemResponse {
         }
     }
     // Returns the iteration number
-    int GetSettleTime() { return settle_time_; }
+    int GetSettleTime(void) { return settle_time_; }
 
-    float GetOvershoot() { return overshoot_; }
+    float GetOvershoot(void) { return overshoot_; }
 
-    int GetOvershootTime() { return overshoot_time_; }
+    int GetOvershootTime(void) { return overshoot_time_; }
 
     int iterations_;
     std::unique_ptr<float[]> data_;

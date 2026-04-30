@@ -173,7 +173,7 @@ typedef enum {
 
 static rxState_e rxState = RX_STATE_CHECK;
 
-bool taskUpdateRxMainInProgress()
+bool taskUpdateRxMainInProgress(void)
 {
     return (rxState != RX_STATE_CHECK);
 }

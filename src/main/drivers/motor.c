@@ -250,7 +250,7 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
     }
 }
 
-void motorPostInit()
+void motorPostInit(void)
 {
     motorDevice->vTable.postInit();
 }
