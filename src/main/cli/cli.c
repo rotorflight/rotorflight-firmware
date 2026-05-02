@@ -413,7 +413,7 @@ static void cliPrintInternal(bufWriter_t *writer, const char *str)
     }
 }
 
-static void cliWriterFlush()
+static void cliWriterFlush(void)
 {
     cliWriterFlushInternal(cliWriter);
 }
@@ -769,13 +769,13 @@ static void restoreConfigs(uint16_t notToRestoreGroupId)
 }
 
 #if defined(USE_RESOURCE_MGMT) || defined(USE_TIMER_MGMT)
-static bool isReadingConfigFromCopy()
+static bool isReadingConfigFromCopy(void)
 {
     return configIsInCopy;
 }
 #endif
 
-static bool isWritingConfigToCopy()
+static bool isWritingConfigToCopy(void)
 {
     return configIsInCopy
 #if defined(USE_CUSTOM_DEFAULTS)
@@ -806,12 +806,12 @@ static void backupAndResetConfigs(const bool useCustomDefaults)
 #endif
 }
 
-static uint8_t getPidProfileIndexToUse()
+static uint8_t getPidProfileIndexToUse(void)
 {
     return pidProfileIndexToUse == CURRENT_PROFILE_INDEX ? getCurrentPidProfileIndex() : pidProfileIndexToUse;
 }
 
-static uint8_t getRateProfileIndexToUse()
+static uint8_t getRateProfileIndexToUse(void)
 {
     return rateProfileIndexToUse == CURRENT_PROFILE_INDEX ? getCurrentControlRateProfileIndex() : rateProfileIndexToUse;
 }

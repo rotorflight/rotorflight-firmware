@@ -105,7 +105,7 @@ static void setProfileIndexString(char *profileString, int profileIndex, char *p
     profileString[charIndex] = '\0';
 }
 
-static void cmsx_initPidProfile()
+static void cmsx_initPidProfile(void)
 {
     pidProfileIndex =    getCurrentPidProfileIndex();
     tmpPidProfileIndex = pidProfileIndex +1;
@@ -114,7 +114,7 @@ static void cmsx_initPidProfile()
     setProfileIndexString(pidProfileIndexString, pidProfileIndex, pidProfile->profileName);
 }
 
-void cmsx_updateCurrentPidProfile()
+void cmsx_updateCurrentPidProfile(void)
 {
   // Update current active PID profile only if it is the same as the one CMS has been working on
   if (pidProfileIndex == getCurrentPidProfileIndex() ) {
@@ -123,7 +123,7 @@ void cmsx_updateCurrentPidProfile()
 }
 
 
-static void cmsx_initRateProfile()
+static void cmsx_initRateProfile(void)
 {
     rateProfileIndex = getCurrentControlRateProfileIndex();
     tmpRateProfileIndex = rateProfileIndex + 1;

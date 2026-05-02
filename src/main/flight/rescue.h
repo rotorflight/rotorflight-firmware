@@ -41,7 +41,7 @@ typedef enum {
 
 int getRescueState(void);
 
-void rescueUpdate();
+void rescueUpdate(void);
 float rescueApply(uint8_t axis, float setpoint);
 void rescueInitProfile(const pidProfile_t *pidProfile);
 

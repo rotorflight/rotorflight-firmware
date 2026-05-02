@@ -292,7 +292,7 @@ FAST_CODE float rpmFilterGyro(int axis, float value)
     return value;
 }
 
-void rpmFilterUpdate()
+void rpmFilterUpdate(void)
 {
     if (totalBankCount)
     {

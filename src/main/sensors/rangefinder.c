@@ -211,7 +211,7 @@ void rangefinderUpdate(void)
     }
 }
 
-bool isSurfaceAltitudeValid() {
+bool isSurfaceAltitudeValid(void) {
 
     /*
      * Preconditions: raw and calculated altidude > 0

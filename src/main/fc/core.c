@@ -166,12 +166,12 @@ static bool isCalibrating(void)
         ;
 }
 
-bool isTryingToArm()
+bool isTryingToArm(void)
 {
     return (armingDelayed != ARMING_NOT_DELAYED);
 }
 
-void resetTryingToArm()
+void resetTryingToArm(void)
 {
     armingDelayed = ARMING_NOT_DELAYED;
 }

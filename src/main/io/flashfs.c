@@ -118,12 +118,12 @@ static inline bool flashfsBufferIsEmpty(void)
     return bufferTail == bufferHead;
 }
 
-uint32_t flashfsGetHeadAddress()
+uint32_t flashfsGetHeadAddress(void)
 {
     return headAddress;
 }
 
-uint32_t flashfsGetTailAddress()
+uint32_t flashfsGetTailAddress(void)
 {
     return tailAddress;
 }

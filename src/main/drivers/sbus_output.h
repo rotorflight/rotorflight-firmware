@@ -53,7 +53,7 @@ STATIC_ASSERT(sizeof(sbusOutFrame_t) == 25,
 // Routine function called by the scheduler or timer
 void sbusOutUpdate(timeUs_t currentTimeUs);
 
-bool sbusOutIsEnabled();
+bool sbusOutIsEnabled(void);
 
 // Init function
 void sbusOutInit(void);
