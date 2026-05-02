@@ -31,6 +31,7 @@
 #include "build/debug.h"
 
 #include "common/maths.h"
+#include "common/median.h"
 #include "common/time.h"
 #include "common/utils.h"
 

@@ -1,19 +1,20 @@
 /*
- * This file is part of Cleanflight and Betaflight.
+ * This file is part of Rotorflight.
  *
- * Cleanflight and Betaflight are free software. You can redistribute
- * this software and/or modify this software under the terms of the
- * GNU General Public License as published by the Free Software
- * Foundation, either version 3 of the License, or (at your option)
- * any later version.
+ * Rotorflight is free software. You can redistribute this software
+ * and/or modify this software under the terms of the GNU General
+ * Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later
+ * version.
  *
- * Cleanflight and Betaflight are distributed in the hope that they
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *
  * See the GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this software.
+ * You should have received a copy of the GNU General Public
+ * License along with this software.
  *
  * If not, see <http://www.gnu.org/licenses/>.
  */
@@ -21,6 +22,8 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdint.h>
+#include <math.h>
 
 #include "types.h"
 
@@ -28,14 +31,26 @@
  * Floating point constants
  */
 
-#define M_PIf           3.14159265358979323846f
-#define M_PI2f          1.57079632679489661923f
-#define M_2PIf          6.28318530717958647693f
-#define M_1_2PIf        0.15915494309189533577f
+#define M_PIf           3.14159265358979323846f     //  π
+#define M_PI2f          1.57079632679489661923f     //  π/2
+#define M_PI_2f         1.57079632679489661923f     //  π/2
+#define M_PI_4f         0.78539816339744830962f     //  π/4
+#define M_PI_8f         0.39269908169872415481f     //  π/8
+#define M_2PIf          6.28318530717958647693f     //  2π
+#define M_1_2PIf        0.15915494309189533577f     //  1/2π
+#define M_2_PIf         0.63661977236758134308f     //  2/π
 
-#define M_RADf          0.01745329251994329577f
-#define RAD             M_RADf
+#define M_RADf          0.01745329251994329577f     //  π/180
+#define RAD             M_RADf                      //  π/180
 
+/* Type for sin(x) and cos(x) return value */
+typedef struct {
+    float sin;
+    float cos;
+} sincosf_t;
+
+// sincosf() is already a GCC extension
+static inline sincosf_t sinfcosf(float x) { return (sincosf_t){ sinf(x), cosf(x) }; }
 
 /*
  * Fast math routines
@@ -43,31 +58,44 @@
 
 #ifndef USE_STANDARD_MATH
 
+float sin_fast(float x);
+float cos_fast(float x);
+float tan_fast(float x);
+sincosf_t sincos_fast(float x);
+
 float sin_approx(float x);
 float cos_approx(float x);
-float atan2_approx(float y, float x);
+float tan_approx(float x);
+float tan_approx2(float x);
+sincosf_t sincos_approx(float x);
+
 float asin_approx(float x);
 float acos_approx(float x);
+float atan2_approx(float y, float x);
+
 float exp_approx(float val);
 float log_approx(float val);
 float pow_approx(float a, float b);
 
-static inline float tan_approx(float x)
-{
-    return sin_approx(x) / cos_approx(x);
-}
-
 #else /* USE_STANDARD_MATH */
+
+#define sin_fast(x)         sinf(x)
+#define cos_fast(x)         cosf(x)
+#define tan_fast(x)         tanf(x)
+#define sincos_fast(x)      sinfcosf(x)
 
 #define sin_approx(x)       sinf(x)
 #define cos_approx(x)       cosf(x)
 #define tan_approx(x)       tanf(x)
+#define sincos_approx(x)    sinfcosf(x)
+
 #define asin_approx(x)      asinf(x)
 #define acos_approx(x)      acosf(x)
 #define atan2_approx(y,x)   atan2f(y,x)
+
 #define exp_approx(x)       expf(x)
 #define log_approx(x)       logf(x)
-#define pow_approx(a, b)    powf(b, a)
+#define pow_approx(a, b)    powf(a, b)
 
 #endif /* USE_STANDARD_MATH */
 
@@ -94,6 +122,10 @@ static inline float tan_approx(float x)
 
 #ifndef sq
 #define sq(x) POWER2(x)
+#endif
+
+#ifndef sqf
+#define sqf(x) POWER2((float)(x))
 #endif
 
 #define POWER2(x) \
@@ -292,21 +324,6 @@ void devClear(stdev_t *dev);
 void devPush(stdev_t *dev, float x);
 float devVariance(stdev_t *dev);
 float devStandardDeviation(stdev_t *dev);
-
-/*
- * Median calculus
- */
-
-int32_t quickMedianFilter3(int32_t * v);
-int32_t quickMedianFilter5(int32_t * v);
-int32_t quickMedianFilter7(int32_t * v);
-int32_t quickMedianFilter9(int32_t * v);
-
-float quickMedianFilter3f(float * v);
-float quickMedianFilter5f(float * v);
-float quickMedianFilter7f(float * v);
-float quickMedianFilter9f(float * v);
-
 
 /*
  * 3D calculus

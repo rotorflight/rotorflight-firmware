@@ -47,7 +47,7 @@ INIT_CODE void sdftInit(sdft_t *sdft, const int startBin, const int endBin, cons
         const float c = M_2PIf / SDFT_SAMPLE_SIZE;
         for (int i = 0; i < SDFT_BIN_COUNT; i++) {
             const float phi = c * i;
-            twiddle[i] = SDFT_R * (cos_approx(phi) + _Complex_I * sin_approx(phi));
+            twiddle[i] = SDFT_R * (cosf(phi) + _Complex_I * sinf(phi));
         }
     }
 
