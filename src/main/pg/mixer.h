@@ -94,6 +94,7 @@ typedef struct
     uint8_t   tail_rotor_mode;      // Tail motor vs. variable pitch tail
     uint8_t   tail_motor_idle;      // Idle throttle for tail motor
     int16_t   tail_center_trim;     // Tail center position offset
+    int16_t   tail_link_curve[8];   // Tail link curve coefficients
 
     uint8_t   swash_type;           // Swashplate type
     uint8_t   swash_ring;           // Swash ring size
@@ -109,6 +110,7 @@ typedef struct
 
     int8_t    collective_tilt_correction_pos;
     int8_t    collective_tilt_correction_neg;
+
 } mixerConfig_t;
 
 PG_DECLARE(mixerConfig_t, mixerConfig);
@@ -132,4 +134,3 @@ typedef struct
 } mixerRule_t;
 
 PG_DECLARE_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules);
-
