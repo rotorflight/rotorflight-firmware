@@ -1360,6 +1360,13 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
 #endif
 
+    case MSP2_GET_SMARTFUEL_CONFIG:
+        sbufWriteU8(dst, telemetryConfig()->smartfuel_source);
+        for (int i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
+            sbufWriteU16(dst, telemetryConfig()->smartfuel_params[i]);
+        }
+        break;
+
     case MSP_RC:
         for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcInput[i]);
@@ -3902,6 +3909,37 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
             }
         }
         break;
+        }
+
+    case MSP2_SET_SMARTFUEL_CONFIG:
+        {
+            if (sbufBytesRemaining(src) < 1 + (2 * SMARTFUEL_PARAM_COUNT)) {
+                return MSP_RESULT_ERROR;
+            }
+
+            const uint8_t smartFuelSource = sbufReadU8(src);
+            if (smartFuelSource >= SMARTFUEL_SOURCE_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            uint16_t smartFuelParams[SMARTFUEL_PARAM_COUNT];
+            for (int i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
+                smartFuelParams[i] = sbufReadU16(src);
+            }
+
+            if (smartFuelParams[SMARTFUEL_PARAM_STABILIZE_DELAY_MS] > SMARTFUEL_STABILIZE_DELAY_MAX_MS ||
+                smartFuelParams[SMARTFUEL_PARAM_STABLE_WINDOW_CV] > SMARTFUEL_STABLE_WINDOW_MAX_CV ||
+                smartFuelParams[SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS] > SMARTFUEL_VOLTAGE_FALL_LIMIT_MAX_CVPS ||
+                smartFuelParams[SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S] > SMARTFUEL_FUEL_DROP_RATE_MAX_TENTHS_PERCENT_PER_S ||
+                smartFuelParams[SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT] > SMARTFUEL_SAG_MULTIPLIER_MAX_PERCENT) {
+                return MSP_RESULT_ERROR;
+            }
+
+            telemetryConfigMutable()->smartfuel_source = smartFuelSource;
+            for (int i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
+                telemetryConfigMutable()->smartfuel_params[i] = smartFuelParams[i];
+            }
+            break;
         }
 
     case MSP_SET_BATTERY_PROFILE:
