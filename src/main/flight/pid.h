@@ -39,12 +39,14 @@
 #define ROLL_D_TERM_SCALE           0.1e-6f
 #define ROLL_F_TERM_SCALE           0.000025f
 #define ROLL_B_TERM_SCALE           0.1e-6f
+#define ROLL_G_TERM_SCALE           0.01f
 
 #define PITCH_P_TERM_SCALE          0.00000666666f
 #define PITCH_I_TERM_SCALE          0.0002f
 #define PITCH_D_TERM_SCALE          1.0e-6f
 #define PITCH_F_TERM_SCALE          0.000025f
 #define PITCH_B_TERM_SCALE          0.1e-6f
+#define PITCH_G_TERM_SCALE          0.01f
 
 #define YAW_P_TERM_SCALE            0.00006666666f
 #define YAW_I_TERM_SCALE            0.0005f
@@ -65,6 +67,7 @@ typedef struct {
     float F;
     float B;
     float O;
+    float G;
     float pidSum;
     float setPoint;
     float gyroRate;
@@ -80,6 +83,7 @@ typedef struct {
     float Kb;
     float Ko;
     float Kc;
+    float Kg;
 } pidAxisCoef_t;
 
 typedef struct {

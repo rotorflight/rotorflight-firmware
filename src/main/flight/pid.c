@@ -596,6 +596,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_ROLL].Kf = ROLL_F_TERM_SCALE * pidProfile->pid[PID_ROLL].F;
     pid.coef[PID_ROLL].Kb = ROLL_B_TERM_SCALE * pidProfile->pid[PID_ROLL].B;
     pid.coef[PID_ROLL].Ko = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].O;
+    pid.coef[PID_ROLL].Kg = ROLL_G_TERM_SCALE * pidProfile->pid[PID_ROLL].G;
 
     // Pitch axis
     pid.coef[PID_PITCH].Kp = PITCH_P_TERM_SCALE * pidProfile->pid[PID_PITCH].P;
@@ -604,6 +605,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_PITCH].Kf = PITCH_F_TERM_SCALE * pidProfile->pid[PID_PITCH].F;
     pid.coef[PID_PITCH].Kb = PITCH_B_TERM_SCALE * pidProfile->pid[PID_PITCH].B;
     pid.coef[PID_PITCH].Ko = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].O;
+    pid.coef[PID_PITCH].Kg = PITCH_G_TERM_SCALE * pidProfile->pid[PID_PITCH].G;
 
     // Yaw axis
     pid.coef[PID_YAW].Kp = YAW_P_TERM_SCALE * pidProfile->pid[PID_YAW].P;
@@ -1183,7 +1185,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit);
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate * (1 + fabsf(setpoint) * pid.coef[axis].Kg), errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 
