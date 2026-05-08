@@ -57,7 +57,7 @@ typedef struct {
     uint16_t F;
     uint16_t B;
     uint16_t O;
-    uint16_t G;
+    uint16_t S;
 } pidf_t;
 
 typedef struct {

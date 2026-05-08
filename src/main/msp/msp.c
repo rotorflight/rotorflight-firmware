@@ -1452,7 +1452,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU16(dst, currentPidProfile->pid[i].O);
         }
         for (int i = 0; i < CYCLIC_AXIS_COUNT; i++) {
-            sbufWriteU16(dst, currentPidProfile->pid[i].G);
+            sbufWriteU16(dst, currentPidProfile->pid[i].S);
         }
         break;
 
@@ -2567,7 +2567,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if (sbufBytesRemaining(src) >= 4) {
             for (int i = 0; i < CYCLIC_AXIS_COUNT; i++) {
-                currentPidProfile->pid[i].G = sbufReadU16(src);
+                currentPidProfile->pid[i].S = sbufReadU16(src);
             }
         }
         pidLoadProfile(currentPidProfile);
