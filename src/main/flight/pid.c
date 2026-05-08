@@ -1185,7 +1185,8 @@ static void pidApplyCyclicMode3(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate * (1 + fabsf(setpoint) * pid.coef[axis].Ks), errorDecayLimit);
+    const float errorDecayBoost = 1.0f + fabsf(setpoint) * pid.coef[axis].Ks;
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate * errorDecayBoost, errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 
