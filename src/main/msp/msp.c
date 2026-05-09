@@ -889,7 +889,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        {
         sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
         sbufWriteU8(dst, batteryConfig()->batteryCellCount);
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
@@ -903,7 +902,6 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
             sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
         break;
-        }
 
     case MSP_BATTERY_PROFILE:
         sbufWriteU8(dst, batteryConfig()->batteryProfile); // The active battery profile
@@ -3884,7 +3882,6 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     }
 
     case MSP_SET_BATTERY_CONFIG:
-        {
         batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
         batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
@@ -3900,7 +3897,6 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
         }
         break;
-        }
 
     case MSP2_SET_SMARTFUEL_CONFIG:
         {
