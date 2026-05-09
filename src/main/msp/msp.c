@@ -1355,9 +1355,11 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
     case MSP2_GET_SMARTFUEL_CONFIG:
         {
-        uint8_t smartFuelSource = 0;
+        uint8_t smartFuelSource = SMARTFUEL_MSP_SOURCE_OFF;
         if (telemetryConfig()->smartfuel) {
-            smartFuelSource = telemetryConfig()->smartfuel_source == SMARTFUEL_SOURCE_VOLTAGE ? 2 : 1;
+            smartFuelSource = telemetryConfig()->smartfuel_source == SMARTFUEL_SOURCE_VOLTAGE
+                ? SMARTFUEL_MSP_SOURCE_VOLTAGE
+                : SMARTFUEL_MSP_SOURCE_CURRENT;
         }
 
         sbufWriteU8(dst, smartFuelSource);
@@ -3905,7 +3907,7 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
             }
 
             const uint8_t smartFuelSource = sbufReadU8(src);
-            if (smartFuelSource > 2) {
+            if (smartFuelSource >= SMARTFUEL_MSP_SOURCE_COUNT) {
                 return MSP_RESULT_ERROR;
             }
 
@@ -3922,9 +3924,11 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                 return MSP_RESULT_ERROR;
             }
 
-            telemetryConfigMutable()->smartfuel = smartFuelSource != 0;
-            if (smartFuelSource != 0) {
-                telemetryConfigMutable()->smartfuel_source = smartFuelSource == 2 ? SMARTFUEL_SOURCE_VOLTAGE : SMARTFUEL_SOURCE_CURRENT;
+            telemetryConfigMutable()->smartfuel = smartFuelSource != SMARTFUEL_MSP_SOURCE_OFF;
+            if (smartFuelSource != SMARTFUEL_MSP_SOURCE_OFF) {
+                telemetryConfigMutable()->smartfuel_source = smartFuelSource == SMARTFUEL_MSP_SOURCE_VOLTAGE
+                    ? SMARTFUEL_SOURCE_VOLTAGE
+                    : SMARTFUEL_SOURCE_CURRENT;
             }
             for (int i = 0; i < SMARTFUEL_PARAM_COUNT; i++) {
                 telemetryConfigMutable()->smartfuel_params[i] = smartFuelParams[i];
