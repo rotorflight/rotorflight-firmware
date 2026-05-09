@@ -1248,7 +1248,11 @@ const clivalue_t valueTable[] = {
 #ifdef USE_SMARTFUEL
     { "smartfuel",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel) },
     { "smartfuel_source",           VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SMARTFUEL_SOURCE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_source) },
-    { "smartfuel_params",           VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = SMARTFUEL_PARAM_COUNT, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params)},
+    { "smartfuel_stabilize_delay",  VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_STABILIZE_DELAY_MAX_MS }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params[SMARTFUEL_PARAM_STABILIZE_DELAY_MS]) },
+    { "smartfuel_stable_window",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_STABLE_WINDOW_MAX_CV }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params[SMARTFUEL_PARAM_STABLE_WINDOW_CV]) },
+    { "smartfuel_voltage_fall_limit", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_VOLTAGE_FALL_LIMIT_MAX_CVPS }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params[SMARTFUEL_PARAM_VOLTAGE_FALL_CVPS]) },
+    { "smartfuel_fuel_drop_rate",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_FUEL_DROP_RATE_MAX_TENTHS_PERCENT_PER_S }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params[SMARTFUEL_PARAM_FUEL_DROP_TENTHS_PERCENT_PER_S]) },
+    { "smartfuel_sag_multiplier",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_SAG_MULTIPLIER_MAX_PERCENT }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, smartfuel_params[SMARTFUEL_PARAM_SAG_MULTIPLIER_PERCENT]) },
 #endif
     { "crsf_telemetry_mode",         VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_TELEM_MODE }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_mode) },
     { "crsf_telemetry_link_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 50000 }, PG_TELEMETRY_CONFIG, offsetof(telemetryConfig_t, crsf_telemetry_link_rate) },

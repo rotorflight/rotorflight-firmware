@@ -167,7 +167,7 @@ the PID loop rate to half too.
 
 `smartfuel_source` parameter added (`CURRENT`/`VOLTAGE`) to select whether smartfuel is derived from measured consumption or voltage-only estimation.
 
-`smartfuel_params` parameter added as a 5-value smartfuel tuning array in this order: `stabilize_delay_ms`, `stable_window_centi_volts`, `voltage_fall_centi_volts_per_sec`, `fuel_drop_tenths_percent_per_sec`, `sag_multiplier_percent`. The first two values apply in both `CURRENT` and `VOLTAGE` modes; the remaining three are only used in `VOLTAGE` mode.
+`smartfuel_stabilize_delay`, `smartfuel_stable_window`, `smartfuel_voltage_fall_limit`, `smartfuel_fuel_drop_rate`, and `smartfuel_sag_multiplier` parameters added for smartfuel tuning. The first two apply in both `CURRENT` and `VOLTAGE` modes; the remaining three are only used in `VOLTAGE` mode.
 
 `board_name`, `board_design`, and `manufacturer_id` now display a detailed
 incompatible-configuration warning and halt the system when an attempt is made

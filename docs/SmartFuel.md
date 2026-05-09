@@ -21,35 +21,43 @@ set smartfuel_source = CURRENT
 ```text
 set smartfuel = ON
 set smartfuel_source = VOLTAGE
-set smartfuel_params = 1500,15,5,10,70
+set smartfuel_stabilize_delay = 1500
+set smartfuel_stable_window = 15
+set smartfuel_voltage_fall_limit = 5
+set smartfuel_fuel_drop_rate = 10
+set smartfuel_sag_multiplier = 70
 ```
 
-## SmartFuel parameter order
+## SmartFuel tuning parameters
 
-`smartfuel_params` is a 5-value array in this order:
+CLI parameter names:
 
-1. `stabilize_delay_ms`
-2. `stable_window_centi_volts`
-3. `voltage_fall_centi_volts_per_sec`
-4. `fuel_drop_tenths_percent_per_sec`
-5. `sag_multiplier_percent`
+1. `smartfuel_stabilize_delay`
+2. `smartfuel_stable_window`
+3. `smartfuel_voltage_fall_limit`
+4. `smartfuel_fuel_drop_rate`
+5. `smartfuel_sag_multiplier`
 
 The first two parameters apply in both `CURRENT` and `VOLTAGE` modes:
 
-- `stabilize_delay_ms`
-- `stable_window_centi_volts`
+- `smartfuel_stabilize_delay`
+- `smartfuel_stable_window`
 
 The remaining three parameters are only used in `VOLTAGE` mode.
 
 Default values:
 
 ```text
-smartfuel_params = 1500,15,5,10,70
+smartfuel_stabilize_delay = 1500
+smartfuel_stable_window = 15
+smartfuel_voltage_fall_limit = 5
+smartfuel_fuel_drop_rate = 10
+smartfuel_sag_multiplier = 70
 ```
 
 ## Parameter guide
 
-### `stabilize_delay_ms`
+### `smartfuel_stabilize_delay`
 
 How long SmartFuel waits after reset, battery connection or configuration change before trying to decide that pack voltage is stable.
 
@@ -58,7 +66,9 @@ This applies in both `CURRENT` and `VOLTAGE` modes.
 - Increase it if the reported value is noisy or jumps around immediately after plugging in.
 - Decrease it if you want the value to settle sooner.
 
-### `stable_window_centi_volts`
+Units: milliseconds.
+
+### `smartfuel_stable_window`
 
 How tightly grouped the recent voltage samples must be before the pack is considered stable.
 
@@ -67,26 +77,34 @@ This applies in both `CURRENT` and `VOLTAGE` modes.
 - Increase it if SmartFuel takes too long to settle on a value.
 - Decrease it if SmartFuel settles too early while the pack voltage is still moving around.
 
-### `voltage_fall_centi_volts_per_sec`
+Units: centivolts.
+
+### `smartfuel_voltage_fall_limit`
 
 Maximum allowed downward movement of the filtered voltage in voltage mode.
 
 - Increase it if SmartFuel reacts too slowly to real pack depletion.
 - Decrease it if throttle punches or brief sag make SmartFuel fall too quickly.
 
-### `fuel_drop_tenths_percent_per_sec`
+Units: centivolts per second.
+
+### `smartfuel_fuel_drop_rate`
 
 Maximum allowed SmartFuel percentage drop rate once the model has flown.
 
 - Increase it if the displayed percentage lags too much behind the real pack condition.
 - Decrease it if the percentage drops too aggressively during load spikes.
 
-### `sag_multiplier_percent`
+Units: tenths of a percent per second.
+
+### `smartfuel_sag_multiplier`
 
 Amount of sag compensation applied in voltage mode.
 
 - Increase it if SmartFuel is too pessimistic under load.
 - Decrease it if SmartFuel is too optimistic during hard collective or cyclic loading.
+
+Units: percent.
 
 ## Tuning guidance
 
@@ -105,8 +123,8 @@ If those values are right, current-mode SmartFuel should usually need little or 
 
 The only SmartFuel tuning values that still matter in `CURRENT` mode are:
 
-- `stabilize_delay_ms`
-- `stable_window_centi_volts`
+- `smartfuel_stabilize_delay`
+- `smartfuel_stable_window`
 
 ### Voltage mode
 
@@ -121,12 +139,12 @@ Suggested workflow:
 
 Use these adjustment patterns:
 
-- Too jumpy before flight: increase `stabilize_delay_ms` or reduce `stable_window_centi_volts`.
-- Settles too slowly before flight: increase `stable_window_centi_volts` or reduce `stabilize_delay_ms`.
-- Drops too hard during load: reduce `fuel_drop_tenths_percent_per_sec` or increase `sag_multiplier_percent`.
-- Feels too pessimistic overall under load: increase `sag_multiplier_percent`.
-- Feels too optimistic overall: reduce `sag_multiplier_percent`.
-- Tracks real depletion too slowly throughout the flight: increase `voltage_fall_centi_volts_per_sec` or increase `fuel_drop_tenths_percent_per_sec`.
+- Too jumpy before flight: increase `smartfuel_stabilize_delay` or reduce `smartfuel_stable_window`.
+- Settles too slowly before flight: increase `smartfuel_stable_window` or reduce `smartfuel_stabilize_delay`.
+- Drops too hard during load: reduce `smartfuel_fuel_drop_rate` or increase `smartfuel_sag_multiplier`.
+- Feels too pessimistic overall under load: increase `smartfuel_sag_multiplier`.
+- Feels too optimistic overall: reduce `smartfuel_sag_multiplier`.
+- Tracks real depletion too slowly throughout the flight: increase `smartfuel_voltage_fall_limit` or increase `smartfuel_fuel_drop_rate`.
 
 ## Practical notes
 
