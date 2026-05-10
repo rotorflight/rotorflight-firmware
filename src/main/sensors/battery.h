@@ -22,6 +22,7 @@
 
 #include "sensors/current.h"
 #include "sensors/voltage.h"
+#include "sensors/smartfuel.h"
 
 #include "pg/battery.h"
 #include "pg/adjustments.h"
@@ -78,6 +79,9 @@ uint16_t getBatteryCurrentSample(void);
 uint16_t getLegacyBatteryCurrent(void);
 uint16_t getBatteryCapacity(void);
 uint32_t getBatteryCapacityUsed(void);
+
+bool isBatteryChargeLevelAvailable(void);
+uint8_t getBatteryChargeLevel(void);
 
 uint8_t calculateBatteryPercentageRemaining(void);
 

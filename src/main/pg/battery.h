@@ -38,7 +38,6 @@
 #define CURRENT_TASK_FREQ_HZ    50
 #endif
 
-
 typedef enum {
     VOLTAGE_METER_NONE = 0,
     VOLTAGE_METER_ADC,
@@ -54,6 +53,14 @@ typedef enum {
     CURRENT_METER_FBUS,
     CURRENT_METER_COUNT
 } currentMeterSource_e;
+
+#define SMARTFUEL_VOLTAGE_FALL_RATE_DEFAULT     5
+#define SMARTFUEL_VOLTAGE_FALL_RATE_MAX         100
+#define SMARTFUEL_CHARGE_DROP_RATE_DEFAULT      10
+#define SMARTFUEL_CHARGE_DROP_RATE_MAX          500
+#define SMARTFUEL_SAG_MULTIPLIER_DEFAULT        70
+#define SMARTFUEL_SAG_MULTIPLIER_MAX            200
+
 
 typedef struct {
 
@@ -90,6 +97,11 @@ typedef struct {
 
     uint16_t    vbatUpdateHz;               // Update rate for voltage task
     uint16_t    ibatUpdateHz;               // Update rate for current task
+
+    bool        smartfuel;
+    uint16_t    smartfuel_voltage_fall_rate;
+    uint16_t    smartfuel_charge_drop_rate;
+    uint16_t    smartfuel_sag_multiplier;
 
 } batteryConfig_t;
 

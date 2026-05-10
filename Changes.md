@@ -163,6 +163,10 @@ the PID loop rate to half too.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
 
+`smartfuel` parameter added (`OFF`/`ON`). When `ON`, SmartFuel drives the charge level using a voltage-only estimate that supersedes the simple voltage-to-percent fallback and any consumption-based percentage. Battery consumption telemetry is unchanged and continues to reflect the measured `currentMeter` capacity.
+
+`smartfuel_voltage_fall_rate`, `smartfuel_charge_drop_rate`, and `smartfuel_sag_multiplier` parameters added for SmartFuel tuning. `smartfuel_charge_drop_rate` is expressed directly as tenths-of-percent per second of allowed charge-level drop.
+
 `board_name`, `board_design`, and `manufacturer_id` now display a detailed
 incompatible-configuration warning and halt the system when an attempt is made
 to change them after they have been set. Previously only an error was shown.

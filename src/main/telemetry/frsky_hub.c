@@ -400,13 +400,7 @@ static void sendAmperage(void)
 
 static void sendFuelLevel(void)
 {
-    int16_t data;
-    if (getBatteryCapacity() > 0) {
-        data = (uint16_t)calculateBatteryPercentageRemaining();
-    } else {
-        data = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
-    }
-    frSkyHubWriteFrame(ID_FUEL_LEVEL, data);
+    frSkyHubWriteFrame(ID_FUEL_LEVEL, constrain(getBatteryChargeLevel(), 0, 0xFFFF));
 }
 
 #if defined(USE_MAG)

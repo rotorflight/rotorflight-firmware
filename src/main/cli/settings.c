@@ -880,6 +880,12 @@ const clivalue_t valueTable[] = {
     { "vbat_duration_for_critical", VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, 150 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatDurationForCritical) },
     { "vbat_update_hz",             VAR_UINT16 | MASTER_VALUE, .config.minmax = { 10, 1000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatUpdateHz) },
     { "ibat_update_hz",             VAR_UINT16 | MASTER_VALUE, .config.minmax = { 10, 1000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, ibatUpdateHz) },
+#ifdef USE_SMARTFUEL
+    { "smartfuel",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel) },
+    { "smartfuel_voltage_fall_rate", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_VOLTAGE_FALL_RATE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_voltage_fall_rate) },
+    { "smartfuel_charge_drop_rate", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_CHARGE_DROP_RATE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_charge_drop_rate) },
+    { "smartfuel_sag_multiplier",   VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_SAG_MULTIPLIER_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_sag_multiplier) },
+#endif
 
 //  PG_VOLTAGE_SENSOR_ADC_CONFIG
     { "vbat_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, scale) },
