@@ -29,7 +29,6 @@
 #define SRXL2_ESC_PORT_BAUDRATE_HIGH       400000
 #define SRXL2_ESC_DRIVER_TASK_FREQ_HZ      4000
 
-struct sbuf_s;
 /*
  * To fully isolate the SMART ESC driver from the global RX subsystem we
  * provide driver-local configuration/runtime types. These intentionally
