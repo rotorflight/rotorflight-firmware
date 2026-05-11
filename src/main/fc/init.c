@@ -569,9 +569,7 @@ void init(void)
  * (matching SRXL2 RX behavior which opens during rxInit). This ensures
  * the FC starts communicating within the ESC's 250ms listening window. */
 #ifdef USE_SRXL2_ESC
-    if (featureIsEnabled(FEATURE_SRXL2_ESC)) {
-        srxl2escDriverInit();
-    }
+    srxl2escDriverInit();
 #endif
 
 #ifdef TARGET_BUS_INIT

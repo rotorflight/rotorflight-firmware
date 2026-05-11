@@ -37,7 +37,7 @@
 #include "drivers/srxl2_esc.h"
 #include "rx/srxl2_types.h"
 #include "rx/rx.h"
-#include "../sensors/esc_sensor.h"
+#include "sensors/esc_sensor.h"
 #include "config/feature.h"
 #include "pg/srxl2_esc.h"
 #if defined(USE_MOTOR)
@@ -84,7 +84,7 @@
 #define SRXL2_ESC_TELEMETRY_REQUEST_HOLDOFF_MAX_US  5000
 #define SRXL2_ESC_TELEM_HISTORY             15
 
-#define packet_HEADER                     0xA6
+#define PACKET_HEADER                     0xA6
 #define SRXL2_ESC_MAX_PACKET_LENGTH        80
 #define SRXL2_ESC_DEVICE_ID_BROADCAST      0xFF
 
@@ -332,7 +332,7 @@ static void srxl2escScheduleBroadcastConfirm(uint8_t fcId)
 {
     srxl2escBroadcastConfirmFrame = (Srxl2HandshakeFrame) {
         .header = {
-            .id = packet_HEADER,
+            .id = PACKET_HEADER,
             .packetType = Handshake,
             .length = sizeof(Srxl2HandshakeFrame),
         },
@@ -381,7 +381,7 @@ static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
 
     srxl2escChannelDataFrame_t frame = {
         .header = {
-            .id = packet_HEADER,
+            .id = PACKET_HEADER,
             .packetType = ControlData,
             .length = sizeof(srxl2escChannelDataFrame_t),
         },
@@ -536,7 +536,7 @@ bool srxl2escProcessHandshake(const Srxl2Header* header)
 
         Srxl2HandshakeFrame response = {
             .header = {
-                .id = packet_HEADER,
+                .id = PACKET_HEADER,
                 .packetType = Handshake,
                 .length = sizeof(Srxl2HandshakeFrame),
             },
@@ -669,7 +669,7 @@ void srxl2escProcess(srxl2esc_runtimeState_t *runtimeState)
     const unsigned headerLen = processBufferPtr->packet.header.length;
     const uint8_t packetType = processBufferPtr->packet.header.packetType;
 
-    if (processBufferPtr->packet.header.id != packet_HEADER || processBufferPtr->len != processBufferPtr->packet.header.length) {
+    if (processBufferPtr->packet.header.id != PACKET_HEADER || processBufferPtr->len != processBufferPtr->packet.header.length) {
         globalResult = RX_FRAME_DROPPED;
         return;
     }
@@ -710,7 +710,7 @@ void srxl2escDataReceive(uint16_t character, void *data)
     /* If we see a new frame header (0xA6) and already have data in buffer,
      * this means a new frame is starting. Check if the previous frame is
      * complete and swap it to the process buffer. If incomplete, discard it. */
-    if (character == packet_HEADER && readBufferIdx > 0) {
+    if (character == PACKET_HEADER && readBufferIdx > 0) {
         /* Check if previous frame looks complete */
         if (readBufferIdx >= 3) {
             const uint8_t expectedLen = readBufferPtr->packet.raw[2];
@@ -1280,7 +1280,7 @@ void srxl2escInitializeFrame(sbuf_t *dst)
     dst->ptr = telemetryFrame;
     dst->end = ARRAYEND(telemetryFrame);
 
-    sbufWriteU8(dst, packet_HEADER);
+    sbufWriteU8(dst, PACKET_HEADER);
     sbufWriteU8(dst, TelemetrySensorData);
     sbufWriteU8(dst, ARRAYLEN(telemetryFrame));
     sbufWriteU8(dst, busMasterDeviceId);
@@ -1365,7 +1365,7 @@ bool srxl2escDriverInit(void)
             if (!busDiscovered && canStartTx && !srxl2escTxInProgress && writeBufferIdx == 0 && cmpTimeUs(now, nextHandshakeUs) >= 0) {
                 Srxl2HandshakeFrame handshake = {
                     .header = {
-                        .id = packet_HEADER,
+                        .id = PACKET_HEADER,
                         .packetType = Handshake,
                         .length = sizeof(Srxl2HandshakeFrame),
                     },

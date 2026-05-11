@@ -205,12 +205,6 @@ static bool commandBatchActive = false;
 static bool commandBatchError = false;
 #endif
 
-/* Forward declarations to avoid implicit-declaration when this helper is placed
- * before the main CLI print function definitions. These match prototypes
- * in cli.h. */
-extern void cliPrintLine(const char *str);
-extern void cliPrintLinef(const char *format, ...);
-
 #if defined(USE_BOARD_INFO)
 static bool boardInformationUpdated = false;
 #if defined(USE_SIGNATURE)
@@ -270,7 +264,7 @@ static const char * const featureNames[] = {
     [21] = "",
     [22] = "",
     [23] = "",
-    [24] = "SRXL2_ESC",
+    [24] = "",
     [25] = "RX_SPI",
     [26] = "GOVERNOR",
     [27] = "ESC_SENSOR",
@@ -6721,7 +6715,7 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
                         if (interval == 0) {
                             cliPrintLine("Telemetry polling disabled");
                         } else {
-                            cliPrintLinef("Telemetry requested every %d frame(s)", (unsigned)interval);
+                            cliPrintLinef("Telemetry requested every %u frame(s)", (unsigned)interval);
                         }
                     }
                 } else {
@@ -6737,9 +6731,9 @@ static void cliSrxl2Esc(const char *cmdName, char *cmdline)
 
     /* Print concise status: throttle refresh and telemetry rates */
     {
-        const uint32_t throttleHz = srxl2escGetThrottleRateHz();
-        const uint8_t telemInterval = srxl2escGetTelemetryIntervalFrames();
-        const uint32_t telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
+        const unsigned int throttleHz = srxl2escGetThrottleRateHz();
+        const unsigned int telemInterval = srxl2escGetTelemetryIntervalFrames();
+        const unsigned int telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
         cliPrintLinef("SRXL2 ESC driver ready: %s", srxl2escDriverIsReady() ? "YES" : "NO");
         cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
         cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);

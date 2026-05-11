@@ -553,7 +553,7 @@ void tasksInit(void)
 
 #ifdef USE_SRXL2_ESC
     rescheduleTask(TASK_SRXL2_ESC, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ));
-    setTaskEnabled(TASK_SRXL2_ESC, featureIsEnabled(FEATURE_SRXL2_ESC));
+    setTaskEnabled(TASK_SRXL2_ESC, true);
 #endif
 
 #ifdef USE_ADC_INTERNAL
