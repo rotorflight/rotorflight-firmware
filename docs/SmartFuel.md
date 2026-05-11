@@ -36,9 +36,9 @@ CLI example:
 
 ```text
 set smartfuel = VOLTAGE
-set smartfuel_voltage_drop_rate = 20
-set smartfuel_charge_drop_rate = 100
-set smartfuel_sag_gain = 70
+set smartfuel_voltage_drop_rate = 10
+set smartfuel_charge_drop_rate = 50
+set smartfuel_sag_gain = 40
 ```
 
 ## SmartFuel tuning parameters
@@ -52,36 +52,36 @@ CLI parameter names:
 Default values:
 
 ```text
-smartfuel_voltage_drop_rate = 20
-smartfuel_charge_drop_rate = 100
-smartfuel_sag_gain = 70
+smartfuel_voltage_drop_rate = 10
+smartfuel_charge_drop_rate = 50
+smartfuel_sag_gain = 40
 ```
 
 ## Parameter guide
 
 ### `smartfuel_voltage_drop_rate`
 
-Maximum allowed downward slew of the filtered pack voltage used as input to the charge-level estimator, expressed as a fraction of the previous filtered voltage. Independent of cell count and absolute pack voltage.
+Maximum allowed downward slew of the filtered **per-cell** voltage used for the fuel estimate. It only slows **drops**; when the voltage recovers, the estimate is not held down by this parameter.
 
-- Increase it if SmartFuel reacts too slowly to real pack depletion.
-- Decrease it if throttle punches or brief sag make SmartFuel fall too quickly.
+- Increase it (more mV/s) if SmartFuel reacts too slowly to real pack depletion.
+- Decrease it if throttle punches or brief sag make the estimate fall too quickly before sag compensation catches up.
 
-Units: hundredths of a percent per second.
+Units: **millivolts per second** (mV/s). Valid range **0**–**250** in the CLI and MSP. The value applies to **per-cell** voltage, not the full-pack total, so it does not depend on cell count.
 
 ### `smartfuel_charge_drop_rate`
 
-Maximum allowed SmartFuel percentage drop rate on the **voltage** path once the model is armed or has ever been armed in this power cycle (`ARMED` or `WAS_EVER_ARMED`). It limits how fast the estimate can fall per update when voltage wants to drop faster.
+Maximum allowed SmartFuel percentage drop rate on the **voltage** path once the model is armed or has ever been armed in this power cycle (`ARMED` or `WAS_EVER_ARMED`). It limits how fast the displayed percentage can fall when the voltage-based estimate would otherwise drop faster.
 
 - Increase it if the displayed percentage lags too much behind the real pack condition.
 - Decrease it if the percentage drops too aggressively during load spikes.
 
-Units: hundredths of a percent per second. (Internally the estimator uses a 0–1 fraction; this parameter is the user-facing rate for the displayed percent.)
+Units: hundredths of a percent per second.
 
 In `CURRENT` mode with non-zero used mAh, the level is the minimum of the voltage-derived estimate and the consumption ceiling — that combination does **not** go through this drop-rate limiter (only the `VOLTAGE` path and the `CURRENT` fallback when consumption data are unavailable do).
 
 ### `smartfuel_sag_gain`
 
-Amount of sag compensation applied to the voltage reading before it is mapped to a percentage. Sag compensation is only active once the model is detected airborne (`isAirborne()`) and is driven by cyclic and collective stick load.
+Amount of sag compensation applied to the voltage reading before it is turned into a percentage. Sag compensation is only active while the model is airborne and is driven by cyclic and collective stick load.
 
 - Increase it if SmartFuel is too pessimistic under load.
 - Decrease it if SmartFuel is too optimistic during hard collective or cyclic loading.
@@ -104,7 +104,7 @@ Use these adjustment patterns:
 - Drops too hard during load: reduce `smartfuel_charge_drop_rate` or increase `smartfuel_sag_gain`.
 - Feels too pessimistic overall under load: increase `smartfuel_sag_gain`.
 - Feels too optimistic overall: reduce `smartfuel_sag_gain`.
-- Tracks real depletion too slowly throughout the flight: increase `smartfuel_voltage_drop_rate` or increase `smartfuel_charge_drop_rate`.
+- Tracks real depletion too slowly throughout the flight: increase `smartfuel_voltage_drop_rate` (mV/s) or increase `smartfuel_charge_drop_rate`.
 
 ## Practical notes
 
@@ -125,5 +125,5 @@ The on-FC OSD elements are not routed through `getBatteryChargeLevel()`; they re
 
 When the firmware is built with `USE_SMARTFUEL`:
 
-- **`MSP2_GET_SMARTFUEL_CONFIG` (`0x4000`)** — response: U8 mode (`0` = OFF, `1` = VOLTAGE, `2` = CURRENT); U8 `smartfuel_voltage_drop_rate`; U8 `smartfuel_charge_drop_rate`; U8 `smartfuel_sag_gain`.
-- **`MSP2_SET_SMARTFUEL_CONFIG` (`0x4001`)** — payload: same four fields in the same order. Applies the same validation as CLI/startup and re-initialises SmartFuel.
+- **`MSP2_GET_SMARTFUEL_CONFIG` (`0x4000`)** — response: U8 mode (`0` = OFF, `1` = VOLTAGE, `2` = CURRENT); U8 `smartfuel_voltage_drop_rate` (mV/s, 0–250); U8 `smartfuel_charge_drop_rate`; U8 `smartfuel_sag_gain`.
+- **`MSP2_SET_SMARTFUEL_CONFIG` (`0x4001`)** — payload: same four fields in the same order. Values use the same limits as the CLI parameters.

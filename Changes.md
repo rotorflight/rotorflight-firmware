@@ -240,9 +240,9 @@ the actual values are calculated automatically (#332).
 
 `smartfuel` parameter added (`OFF`/`VOLTAGE`/`CURRENT`).
 
-`smartfuel_voltage_drop_rate` is in hundredths of a percent per second (maximum downward slew of the internal filtered pack voltage, as a fraction of the previous sample).
+`smartfuel_voltage_drop_rate` is in **millivolts per second** (mV/s): maximum downward slew of the internal filtered **per-cell** voltage used by the estimator.
 
-`smartfuel_charge_drop_rate` is in hundredths of a percent per second (maximum drop rate of the displayed percentage).
+`smartfuel_charge_drop_rate` is in **0.01% per second** (maximum drop rate of the displayed percentage).
 
 `smartfuel_sag_gain` scales sag compensation from cyclic and collective stick load while airborne.
 
