@@ -1,71 +1,87 @@
 # SmartFuel
 
-SmartFuel provides an intelligent remaining-charge percentage for the flight pack, derived from pack voltage. It is intended to give a more useful "fuel remaining" value than the simple linear voltage-to-percent curve, especially for telemetry display on the radio.
+SmartFuel provides an intelligent remaining-charge percentage for the flight pack. It is intended to give a more useful "fuel remaining" value than the simple linear voltage-to-percent curve, especially for telemetry display on the radio.
 
-SmartFuel is a voltage-only estimator. It does not use current, consumption, or battery capacity. Measured consumption (mAh used) is reported separately by the battery monitoring code and is unaffected by SmartFuel.
+SmartFuel always uses pack voltage as its primary input. A configured battery voltage sensor is required; if no voltage sensor is configured, SmartFuel forces itself to `OFF` at startup. In `CURRENT` mode, when both `bat_capacity` and used mAh are non-zero, the result combines the voltage-derived estimate with a consumption-based ceiling derived from the same mAh counter (see **Modes** below).
+
+Measured consumption is reported separately by the battery monitoring code and is unaffected by which SmartFuel mode is selected.
+
+## Modes
+
+`smartfuel` is a three-way lookup parameter:
+
+- `OFF` — SmartFuel does not run; `getBatteryChargeLevel()` falls through to the legacy sources.
+- `VOLTAGE` — voltage-only estimator. Pack voltage drives the percentage (with stick-based sag compensation once airborne); current/consumption are ignored.
+- `CURRENT` — when both `bat_capacity` and used mAh are non-zero, the level is the **lower** of the voltage-derived estimate and a consumption ceiling `initial − used / capacity`, where `initial` is the first voltage-derived fraction (0–1) after the pack is seen and `used / capacity` is the fraction of configured capacity counted by the current meter. When either capacity or used is zero, this mode behaves the same as `VOLTAGE`.
+
+In both `VOLTAGE` and `CURRENT`, the displayed percentage never rises above the initial anchor sampled when the pack is first seen. The consumption ceiling in `CURRENT` can pull the value down faster than voltage alone when mAh used is significant.
+
+If you plug in a pack that is not “full” (the first sample is well below 100%), treat `initial − used / capacity` as a simple fold-in of the mAh counter against that starting anchor, not as a full state-of-charge model on its own.
 
 ## How charge level is chosen
 
 `getBatteryChargeLevel()` picks the most accurate source available, in this order:
 
-1. **SmartFuel**, if `smartfuel = ON`. SmartFuel always wins when enabled.
+1. **SmartFuel**, if `smartfuel != OFF`. SmartFuel always wins when enabled.
 2. **Consumption-based**, if `bat_capacity` is non-zero. Reported as `100 × (capacity − used) / capacity`. Without a configured current sensor `used` stays at zero, so this path will report `100%` indefinitely — set `bat_capacity = 0` to fall through to the linear-voltage estimate instead.
 3. **Linear voltage**, if cell count is known. A simple linear interpolation between `vbat_min_cell_voltage` and `vbat_max_cell_voltage`.
 
 ## Configuration
 
-SmartFuel is enabled by setting `smartfuel = ON`. Set `smartfuel = OFF` to disable it; the firmware then falls back to consumption-based or linear-voltage charge level as described above.
+SmartFuel is enabled by setting `smartfuel` to `VOLTAGE` or `CURRENT`. Set `smartfuel = OFF` to disable it; the firmware then falls back to consumption-based or linear-voltage charge level as described above.
 
 SmartFuel anchors its initial percent on the first voltage sample after the battery monitoring code declares the pack present (i.e. once cell-count auto-detection has completed). It does not run its own settling timer.
 
 CLI example:
 
 ```text
-set smartfuel = ON
-set smartfuel_voltage_fall_rate = 5
-set smartfuel_charge_drop_rate = 10
-set smartfuel_sag_multiplier = 70
+set smartfuel = VOLTAGE
+set smartfuel_voltage_drop_rate = 20
+set smartfuel_charge_drop_rate = 100
+set smartfuel_sag_gain = 70
 ```
 
 ## SmartFuel tuning parameters
 
 CLI parameter names:
 
-1. `smartfuel_voltage_fall_rate`
+1. `smartfuel_voltage_drop_rate`
 2. `smartfuel_charge_drop_rate`
-3. `smartfuel_sag_multiplier`
+3. `smartfuel_sag_gain`
 
 Default values:
 
 ```text
-smartfuel_voltage_fall_rate = 5
-smartfuel_charge_drop_rate = 10
-smartfuel_sag_multiplier = 70
+smartfuel_voltage_drop_rate = 20
+smartfuel_charge_drop_rate = 100
+smartfuel_sag_gain = 70
 ```
 
 ## Parameter guide
 
-### `smartfuel_voltage_fall_rate`
+### `smartfuel_voltage_drop_rate`
 
-Maximum allowed downward movement of the filtered voltage used as input to the charge-level estimator.
+Maximum allowed downward slew of the filtered pack voltage used as input to the charge-level estimator, expressed as a fraction of the previous filtered voltage. Independent of cell count and absolute pack voltage.
 
 - Increase it if SmartFuel reacts too slowly to real pack depletion.
 - Decrease it if throttle punches or brief sag make SmartFuel fall too quickly.
 
-Units: centivolts per second.
+Units: hundredths of a percent per second.
 
 ### `smartfuel_charge_drop_rate`
 
-Maximum allowed SmartFuel percentage drop rate once the model has been armed (active during arm and from then on).
+Maximum allowed SmartFuel percentage drop rate on the **voltage** path once the model is armed or has ever been armed in this power cycle (`ARMED` or `WAS_EVER_ARMED`). It limits how fast the estimate can fall per update when voltage wants to drop faster.
 
 - Increase it if the displayed percentage lags too much behind the real pack condition.
 - Decrease it if the percentage drops too aggressively during load spikes.
 
-Units: tenths of a percent per second.
+Units: hundredths of a percent per second. (Internally the estimator uses a 0–1 fraction; this parameter is the user-facing rate for the displayed percent.)
 
-### `smartfuel_sag_multiplier`
+In `CURRENT` mode with non-zero used mAh, the level is the minimum of the voltage-derived estimate and the consumption ceiling — that combination does **not** go through this drop-rate limiter (only the `VOLTAGE` path and the `CURRENT` fallback when consumption data are unavailable do).
 
-Amount of sag compensation applied to the voltage reading before it is mapped to a percentage.
+### `smartfuel_sag_gain`
+
+Amount of sag compensation applied to the voltage reading before it is mapped to a percentage. Sag compensation is only active once the model is detected airborne (`isAirborne()`) and is driven by cyclic and collective stick load.
 
 - Increase it if SmartFuel is too pessimistic under load.
 - Decrease it if SmartFuel is too optimistic during hard collective or cyclic loading.
@@ -85,18 +101,29 @@ Suggested workflow:
 
 Use these adjustment patterns:
 
-- Drops too hard during load: reduce `smartfuel_charge_drop_rate` or increase `smartfuel_sag_multiplier`.
-- Feels too pessimistic overall under load: increase `smartfuel_sag_multiplier`.
-- Feels too optimistic overall: reduce `smartfuel_sag_multiplier`.
-- Tracks real depletion too slowly throughout the flight: increase `smartfuel_voltage_fall_rate` or increase `smartfuel_charge_drop_rate`.
+- Drops too hard during load: reduce `smartfuel_charge_drop_rate` or increase `smartfuel_sag_gain`.
+- Feels too pessimistic overall under load: increase `smartfuel_sag_gain`.
+- Feels too optimistic overall: reduce `smartfuel_sag_gain`.
+- Tracks real depletion too slowly throughout the flight: increase `smartfuel_voltage_drop_rate` or increase `smartfuel_charge_drop_rate`.
 
 ## Practical notes
 
 - Tune with the battery type and flying style you actually use.
 - Large changes are rarely needed; make small adjustments and re-fly.
 - Different packs may want slightly different behaviour, but the defaults are intended to be a reasonable starting point.
-- SmartFuel is still an estimate. A consumption-based percentage from a well-calibrated current sensor and a correctly configured `bat_capacity` will generally be more repeatable; if you have that data and want to use it, set `smartfuel = OFF`.
+- SmartFuel is still an estimate. If you have a well-calibrated current sensor and a correctly configured `bat_capacity`, `smartfuel = CURRENT` takes the more pessimistic of the voltage track and a ceiling derived from used mAh. To bypass SmartFuel entirely, set `smartfuel = OFF`; `getBatteryChargeLevel()` then uses the legacy behaviour (consumption-based when `bat_capacity` is non-zero, otherwise linear voltage when cell count is known).
 
 ## Telemetry
 
-When `smartfuel = ON`, SmartFuel drives the existing fuel/charge-level telemetry output (CRSF, FrSky, iBUS, MSP_BATTERY_STATE, LED strip, …) — anything routed through `getBatteryChargeLevel()`. The on-FC OSD elements are not routed through that path; they read `bat_capacity` and used mAh directly, so they continue to show the consumption-based percentage regardless of `smartfuel`. Battery consumption telemetry is also unchanged regardless of `smartfuel`: it always reports the measured `currentMeter` capacity, which is `0` when no current sensor is configured.
+When `smartfuel` is `VOLTAGE` or `CURRENT`, SmartFuel drives the existing fuel/charge-level telemetry output (CRSF, FrSky hub fuel, Flysky iBUS shared fuel, MSP battery state, LED strip, …) — anything routed through `getBatteryChargeLevel()`.
+
+**FrSky D-series hub** (`ID_FUEL_LEVEL`) **and Flysky iBUS shared fuel** used to send consumed mAh when `bat_capacity` was zero; they now always send the same 0–100 charge level as the other `getBatteryChargeLevel()` paths. Set `bat_capacity` and use consumption telemetry if you need mAh on the radio.
+
+The on-FC OSD elements are not routed through `getBatteryChargeLevel()`; they read `bat_capacity` and used mAh directly, so they continue to show the consumption-based percentage regardless of `smartfuel`. Battery **consumption** telemetry (mAh used) is unchanged regardless of `smartfuel`: it always reports the measured `currentMeter` capacity, which stays at `0` when no current sensor is configured.
+
+## MSP (Rotorflight MSPv2)
+
+When the firmware is built with `USE_SMARTFUEL`:
+
+- **`MSP2_GET_SMARTFUEL_CONFIG` (`0x4000`)** — response: U8 mode (`0` = OFF, `1` = VOLTAGE, `2` = CURRENT); U8 `smartfuel_voltage_drop_rate`; U8 `smartfuel_charge_drop_rate`; U8 `smartfuel_sag_gain`.
+- **`MSP2_SET_SMARTFUEL_CONFIG` (`0x4001`)** — payload: same four fields in the same order. Applies the same validation as CLI/startup and re-initialises SmartFuel.

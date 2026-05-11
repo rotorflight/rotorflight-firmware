@@ -150,6 +150,14 @@ New MSP command to set the active battery profile. (#415)
 
 New MSP command to get the current setpoint. (#443)
 
+### MSP2_GET_SMARTFUEL_CONFIG
+
+New Rotorflight MSPv2 command for SmartFuel.
+
+### MSP2_SET_SMARTFUEL_CONFIG
+
+New Rotorflight MSPv2 command for SmartFuel.
+
 
 ## CLI Changes
 
@@ -162,10 +170,6 @@ the PID loop rate to half too.
 `model_set_name` parameter added (ON/OFF). Corresponds with bit 0 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should set the name of the model on the radio.
 
 `model_tell_capacity` parameter added (ON/OFF). Corresponds with bit 1 of `pilotConfig_t.modelFlags` and is used to indicate whether the Lua scripts should announce the remaining capacity of the battery.
-
-`smartfuel` parameter added (`OFF`/`ON`). When `ON`, SmartFuel drives the charge level using a voltage-only estimate that supersedes the simple voltage-to-percent fallback and any consumption-based percentage. Battery consumption telemetry is unchanged and continues to reflect the measured `currentMeter` capacity.
-
-`smartfuel_voltage_fall_rate`, `smartfuel_charge_drop_rate`, and `smartfuel_sag_multiplier` parameters added for SmartFuel tuning. `smartfuel_charge_drop_rate` is expressed directly as tenths-of-percent per second of allowed charge-level drop.
 
 `board_name`, `board_design`, and `manufacturer_id` now display a detailed
 incompatible-configuration warning and halt the system when an attempt is made
@@ -233,6 +237,14 @@ the actual values are calculated automatically (#332).
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
 `serialrx_provider` extended to include `IBUS2` as a protocol option
+
+`smartfuel` parameter added (`OFF`/`VOLTAGE`/`CURRENT`).
+
+`smartfuel_voltage_drop_rate` is in hundredths of a percent per second (maximum downward slew of the internal filtered pack voltage, as a fraction of the previous sample).
+
+`smartfuel_charge_drop_rate` is in hundredths of a percent per second (maximum drop rate of the displayed percentage).
+
+`smartfuel_sag_gain` scales sag compensation from cyclic and collective stick load while airborne.
 
 
 ## Defaults

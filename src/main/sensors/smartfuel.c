@@ -15,7 +15,6 @@
  */
 
 #include <string.h>
-#include <math.h>
 
 #include "platform.h"
 
@@ -26,29 +25,28 @@
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 
+#include "flight/airborne.h"
 #include "flight/mixer.h"
-#include "flight/motors.h"
 
 #include "pg/battery.h"
 
 #include "sensors/battery.h"
 #include "sensors/smartfuel.h"
 
-#define SMARTFUEL_MAX_SAG_COMP_V      0.5f
-
 typedef struct smartFuelConfig_s {
-    uint8_t enabled;
-    float vbatMin;
-    float vbatFull;
-    float voltageFallRatePerSample;
+    smartFuelMode_e mode;
+    float vCellMin;
+    float vCellFull;
+    float voltageDropPerSample;
     float chargeDropPerSample;
     float sagCompensation;
 } smartFuelConfig_t;
 
 typedef struct smartFuelState_s {
-    float levelPercent;
-    float lastHeadspeed;
-    float lastVoltage;
+    float chargeLevel;
+    float initialChargeLevel;
+    float lastCellVoltage;
+    float initialCellVoltage;
     smartFuelConfig_t config;
 } smartFuelState_t;
 
@@ -57,43 +55,45 @@ static smartFuelState_t smartFuel = INIT_ZERO;
 
 bool smartFuelIsEnabled(void)
 {
-    return smartFuel.config.enabled;
+    return smartFuel.config.mode != SMARTFUEL_MODE_OFF;
 }
 
 uint8_t smartFuelChargeLevel(void)
 {
-    return lrintf(smartFuel.levelPercent);
+    return lrintf(smartFuel.chargeLevel * 100.0f);
 }
 
 float smartFuelChargeLevelf(void)
 {
-    return smartFuel.levelPercent;
+    return smartFuel.chargeLevel;
 }
 
 static void smartFuelResetState(void)
 {
-    smartFuel.levelPercent = 0.0f;
-    smartFuel.lastHeadspeed = 0.0f;
-    smartFuel.lastVoltage = 0.0f;
-}
-
-static inline float pow1_5(float x)
-{
-    return x * sqrtf(x);
+    smartFuel.chargeLevel = 0.0f;
+    smartFuel.initialChargeLevel = 0.0f;
+    smartFuel.lastCellVoltage = 0.0f;
+    smartFuel.initialCellVoltage = 0.0f;
 }
 
 void INIT_CODE validateAndFixSmartFuelConfig(void)
 {
     batteryConfig_t *config = batteryConfigMutable();
 
-    if (config->smartfuel_voltage_fall_rate > SMARTFUEL_VOLTAGE_FALL_RATE_MAX) {
-        config->smartfuel_voltage_fall_rate = SMARTFUEL_VOLTAGE_FALL_RATE_DEFAULT;
+    if (!isBatteryVoltageConfigured()) {
+        config->smartfuel_mode = SMARTFUEL_MODE_OFF;
+    }
+    if (config->smartfuel_mode >= SMARTFUEL_MODE_COUNT) {
+        config->smartfuel_mode = SMARTFUEL_MODE_OFF;
+    }
+    if (config->smartfuel_voltage_drop_rate > SMARTFUEL_VOLTAGE_DROP_RATE_MAX) {
+        config->smartfuel_voltage_drop_rate = SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT;
     }
     if (config->smartfuel_charge_drop_rate > SMARTFUEL_CHARGE_DROP_RATE_MAX) {
         config->smartfuel_charge_drop_rate = SMARTFUEL_CHARGE_DROP_RATE_DEFAULT;
     }
-    if (config->smartfuel_sag_multiplier > SMARTFUEL_SAG_MULTIPLIER_MAX) {
-        config->smartfuel_sag_multiplier = SMARTFUEL_SAG_MULTIPLIER_DEFAULT;
+    if (config->smartfuel_sag_gain > SMARTFUEL_SAG_GAIN_MAX) {
+        config->smartfuel_sag_gain = SMARTFUEL_SAG_GAIN_DEFAULT;
     }
 }
 
@@ -105,90 +105,105 @@ void INIT_CODE smartFuelInit(void)
 
     const float dT = 1.0f / batteryConfig()->vbatUpdateHz;
 
-    smartFuel.config.enabled = batteryConfig()->smartfuel;
+    smartFuel.config.mode = batteryConfig()->smartfuel_mode;
 
-    smartFuel.config.vbatMin = batteryConfig()->vbatmincellvoltage / 100.0f;
-    smartFuel.config.vbatFull = batteryConfig()->vbatfullcellvoltage / 100.0f;
+    smartFuel.config.vCellMin = batteryConfig()->vbatmincellvoltage / 100.0f;
+    smartFuel.config.vCellFull = batteryConfig()->vbatfullcellvoltage / 100.0f;
 
-    smartFuel.config.voltageFallRatePerSample = batteryConfig()->smartfuel_voltage_fall_rate / 100.0f * dT;
-    smartFuel.config.chargeDropPerSample = batteryConfig()->smartfuel_charge_drop_rate / 10.0f * dT;
+    smartFuel.config.voltageDropPerSample = (batteryConfig()->smartfuel_voltage_drop_rate / 10000.0f) * dT * smartFuel.config.vCellFull;
+    smartFuel.config.chargeDropPerSample = (batteryConfig()->smartfuel_charge_drop_rate / 10000.0f) * dT;
 
-    const float sagMultiplier = batteryConfig()->smartfuel_sag_multiplier / 100.0f;
-    smartFuel.config.sagCompensation = pow1_5(sagMultiplier) * SMARTFUEL_MAX_SAG_COMP_V;
+    smartFuel.config.sagCompensation = batteryConfig()->smartfuel_sag_gain / 100.0f;
 }
 
-static float smartFuelPercentFromVoltage(float voltage, uint8_t cellCount)
+static float smartFuelChargeLevelFromVoltage(float cellVoltage)
 {
-    const float fullCellVoltage = smartFuel.config.vbatFull;
-    const float minCellVoltage = smartFuel.config.vbatMin;
-    const float voltagePerCell = voltage / cellCount;
+    const float fullCellVoltage = smartFuel.config.vCellFull;
+    const float minCellVoltage = smartFuel.config.vCellMin;
 
-    if (voltagePerCell >= fullCellVoltage)
-        return 100.0f;
-    else if (voltagePerCell <= minCellVoltage)
+    if (cellVoltage >= fullCellVoltage)
+        return 1.0f;
+    else if (cellVoltage <= minCellVoltage)
         return 0.0f;
 
     const float scaledVoltage = constrainf(
-        3.0f + ((voltagePerCell - minCellVoltage) / (fullCellVoltage - minCellVoltage)) * 1.2f,
+        3.0f + ((cellVoltage - minCellVoltage) / (fullCellVoltage - minCellVoltage)) * 1.2f,
         3.0f, 4.2f);
 
-    return constrainf(100.0f / (1.0f + exp_approx(-12.0f * (scaledVoltage - 3.7f))), 0.0f, 100.0f);
+    return constrainf(1.0f / (1.0f + exp_approx(-12.0f * (scaledVoltage - 3.7f))), 0.0f, 1.0f);
 }
 
-static float smartFuelApplySagCompensation(float voltage)
+static float smartFuelApplySagCompensation(float cellVoltage)
 {
-    const float cyclic = getCyclicDeflection();
-    const float collective = getCollectiveDeflectionAbs();
-    const float stickLoad = constrainf(cyclic + collective * 1.2f, 0.0f, 1.0f);
+    if (isAirborne()) {
+        const float cyclic = getCyclicDeflection();
+        const float collective = getCollectiveDeflectionAbs();
+        const float stickLoad = constrainf(collective * collective + cyclic * 0.2f, 0.0f, 1.0f);
 
-    const float headSpeed = getHeadSpeedf();
-
-    if (ARMING_FLAG(ARMED) && headSpeed > 100.0f) {
-        float rpmDrop = 0.0f;
-        if (smartFuel.lastHeadspeed > 100.0f) {
-            rpmDrop = fmaxf((smartFuel.lastHeadspeed - headSpeed) / smartFuel.lastHeadspeed, 0.0f);
-        }
-        smartFuel.lastHeadspeed = headSpeed;
-        voltage += smartFuel.config.sagCompensation * fmaxf(stickLoad, rpmDrop);
-    }
-    else {
-        smartFuel.lastHeadspeed = 0.0f;
+        cellVoltage += smartFuel.config.sagCompensation * stickLoad;
     }
 
-    return voltage;
+    return cellVoltage;
 }
 
-void smartFuelUpdate(timeUs_t currentTimeUs)
+static float smartFuelChargeLevelFromVoltageEstimation(float estimation)
 {
-    UNUSED(currentTimeUs);
+    if (ARMING_FLAG(ARMED) || ARMING_FLAG(WAS_EVER_ARMED)) {
+        estimation = slewDownLimit(smartFuel.chargeLevel, estimation, smartFuel.config.chargeDropPerSample);
+    }
+    return fminf(estimation, smartFuel.initialChargeLevel);
+}
 
+static float smartFuelChargeLevelFromCurrentEstimation(float estimation, float capacity, float used)
+{
+    float charge_level = smartFuel.initialChargeLevel;
+
+    if (capacity > 0 && used > 0)
+        charge_level -= used / capacity;
+
+    return fminf(charge_level, estimation);
+}
+
+void smartFuelUpdate(void)
+{
     if (!smartFuelIsEnabled()) {
         return;
     }
 
-    if (!isBatteryVoltageConfigured() || getBatteryCellCount() == 0) {
+    if (getBatteryCellCount() == 0 || getVoltageState() == BATTERY_NOT_PRESENT) {
         smartFuelResetState();
         return;
     }
 
-    float voltage = getBatteryVoltage() / 100.0f;
+    float cellVoltage = (getBatteryVoltage() / 100.0f) / getBatteryCellCount();
 
-    if (smartFuel.lastVoltage > 0.0f && voltage < smartFuel.lastVoltage)
-        voltage = fmaxf(voltage, smartFuel.lastVoltage - smartFuel.config.voltageFallRatePerSample);
+    if (smartFuel.initialCellVoltage == 0)
+        smartFuel.initialCellVoltage = cellVoltage;
 
-    smartFuel.lastVoltage = voltage;
+    cellVoltage = slewDownLimit(smartFuel.lastCellVoltage, cellVoltage, smartFuel.config.voltageDropPerSample);
+    smartFuel.lastCellVoltage = cellVoltage;
 
-    const float compensatedVoltage = smartFuelApplySagCompensation(voltage);
-    const float estimation = smartFuelPercentFromVoltage(compensatedVoltage, getBatteryCellCount());
+    const float compensatedVoltage = smartFuelApplySagCompensation(cellVoltage);
+    float estimation = smartFuelChargeLevelFromVoltage(compensatedVoltage);
 
-    if ((ARMING_FLAG(ARMED) || ARMING_FLAG(WAS_EVER_ARMED)) && (estimation < smartFuel.levelPercent)) {
-        smartFuel.levelPercent = fmaxf(estimation, smartFuel.levelPercent - smartFuel.config.chargeDropPerSample);
+    if (smartFuel.initialChargeLevel == 0)
+        smartFuel.initialChargeLevel = estimation;
+
+    estimation = fminf(smartFuel.initialChargeLevel, estimation);
+
+    if (smartFuel.config.mode == SMARTFUEL_MODE_VOLTAGE) {
+        smartFuel.chargeLevel = smartFuelChargeLevelFromVoltageEstimation(estimation);
     }
-    else {
-        smartFuel.levelPercent = estimation;
+    else if (smartFuel.config.mode == SMARTFUEL_MODE_CURRENT) {
+        const uint32_t capacity = getBatteryCapacity();
+        const uint32_t used = getBatteryCapacityUsed();
+        if (capacity > 0 && used > 0)
+            smartFuel.chargeLevel = smartFuelChargeLevelFromCurrentEstimation(estimation, capacity, used);
+        else
+            smartFuel.chargeLevel = smartFuelChargeLevelFromVoltageEstimation(estimation);
     }
 
-    smartFuel.levelPercent = constrainf(smartFuel.levelPercent, 0.0f, 100.0f);
+    smartFuel.chargeLevel = constrainf(smartFuel.chargeLevel, 0.0f, 1.0f);
 }
 
 #endif

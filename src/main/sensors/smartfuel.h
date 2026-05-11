@@ -20,10 +20,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "common/time.h"
-
 void smartFuelInit(void);
-void smartFuelUpdate(timeUs_t currentTimeUs);
+void smartFuelUpdate(void);
 
 void validateAndFixSmartFuelConfig(void);
 

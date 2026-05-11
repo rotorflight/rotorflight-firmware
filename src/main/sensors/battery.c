@@ -419,7 +419,7 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && getBatteryCapacity() > 0 && batteryCellCount > 0) {
+    if (batteryConfig()->useConsumptionAlerts && isBatteryChargeLevelAvailable() && batteryCellCount > 0) {
         uint8_t batteryPercentageRemaining = getBatteryChargeLevel();
 
         if (batteryPercentageRemaining == 0) {
@@ -460,6 +460,8 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
 
 void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 {
+    UNUSED(currentTimeUs);
+
     voltageSensorADCRefresh();
 
 #ifdef USE_ESC_SENSOR
@@ -510,7 +512,7 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     DEBUG(BATTERY, 1, batteryVoltage);
 
 #ifdef USE_SMARTFUEL
-    smartFuelUpdate(currentTimeUs);
+    smartFuelUpdate();
 #endif
 }
 

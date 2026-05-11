@@ -1358,10 +1358,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 
 #ifdef USE_SMARTFUEL
     case MSP2_GET_SMARTFUEL_CONFIG:
-        sbufWriteU8(dst, batteryConfig()->smartfuel);
-        sbufWriteU16(dst, batteryConfig()->smartfuel_voltage_fall_rate);
-        sbufWriteU16(dst, batteryConfig()->smartfuel_charge_drop_rate);
-        sbufWriteU16(dst, batteryConfig()->smartfuel_sag_multiplier);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_mode);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_voltage_drop_rate);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_charge_drop_rate);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_sag_gain);
         break;
 #endif
 
@@ -3898,10 +3898,10 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
 
 #ifdef USE_SMARTFUEL
     case MSP2_SET_SMARTFUEL_CONFIG:
-        batteryConfigMutable()->smartfuel = sbufReadU8(src);
-        batteryConfigMutable()->smartfuel_voltage_fall_rate = sbufReadU16(src);
-        batteryConfigMutable()->smartfuel_charge_drop_rate = sbufReadU16(src);
-        batteryConfigMutable()->smartfuel_sag_multiplier = sbufReadU16(src);
+        batteryConfigMutable()->smartfuel_mode = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_voltage_drop_rate = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_charge_drop_rate = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_sag_gain = sbufReadU8(src);
         smartFuelInit();
         break;
 #endif
