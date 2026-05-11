@@ -311,8 +311,7 @@ bool gpsUsesFbusTransport(void)
     }
 
     return findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL
-        || (featureIsEnabled(FEATURE_TELEMETRY)
-            && findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL);
+        || findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
 #else
     return false;
 #endif

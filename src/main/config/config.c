@@ -323,8 +323,7 @@ static void validateAndFixConfig(void)
     // or from standalone S.Port master.
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
-    const bool hasSportMasterForEsc = featureIsConfigured(FEATURE_TELEMETRY)
-        && findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
+    const bool hasSportMasterForEsc = findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
     if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
         && (fbusMasterSerialForEsc || hasSportMasterForEsc)) {
         if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
