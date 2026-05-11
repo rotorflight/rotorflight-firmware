@@ -39,6 +39,7 @@ void pgResetFn_freqConfig(freqConfig_t *freqConfig)
 
     freqConfig->pullupdn = FREQ_INPUT_PULLUP;
     freqConfig->polarity = FREQ_INPUT_FALLING_EDGE;
+    freqConfig->minhz = FREQ_INPUT_MINHZ_DEFAULT;
 }
 
 #endif

@@ -63,7 +63,7 @@ uint8_t rssi_channel;
 
 static uint8_t spek_chan_shift;
 static uint8_t spek_chan_mask;
-static bool rcFrameComplete = false;
+static volatile bool rcFrameComplete = false;
 static bool spekHiRes = false;
 
 static volatile uint8_t spekFrame[SPEK_FRAME_SIZE];
@@ -325,7 +325,7 @@ static bool spektrumProcessFrame(const rxRuntimeState_t *rxRuntimeState)
     return true;
 }
 
-bool srxlTelemetryBufferEmpty()
+bool srxlTelemetryBufferEmpty(void)
 {
   if (telemetryBufLen == 0) {
       return true;

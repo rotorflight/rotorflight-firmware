@@ -131,7 +131,7 @@ TEST(CrossFireTest, TestCrsfFrameStatus)
     crsfFrame.frame.payload[CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE] = crc;
     memcpy(&crsfChannelDataFrame, &crsfFrame, sizeof(crsfFrame));
     const uint8_t status = crsfFrameStatus();
-    EXPECT_EQ(RX_FRAME_COMPLETE, status);
+    EXPECT_EQ(RX_FRAME_DROPPED, status);
     EXPECT_FALSE(crsfFrameDone);
 
     EXPECT_EQ(CRSF_ADDRESS_CRSF_RECEIVER, crsfFrame.frame.deviceAddress);

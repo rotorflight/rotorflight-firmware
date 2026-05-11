@@ -47,6 +47,7 @@
 #include "drivers/vtx_common.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
+#include "drivers/fbus_sensor.h"
 
 #include "config/config.h"
 #include "fc/core.h"
@@ -100,6 +101,7 @@
 #include "telemetry/telemetry.h"
 #include "telemetry/crsf.h"
 #include "telemetry/sbus2.h"
+#include "telemetry/sport_master.h"
 
 #ifdef USE_BST
 #include "i2c_bst.h"
@@ -173,7 +175,7 @@ typedef enum {
 
 static rxState_e rxState = RX_STATE_CHECK;
 
-bool taskUpdateRxMainInProgress()
+bool taskUpdateRxMainInProgress(void)
 {
     return (rxState != RX_STATE_CHECK);
 }
@@ -295,6 +297,16 @@ static void taskTelemetry(timeUs_t currentTimeUs)
 
         telemetryProcess(currentTimeUs);
     }
+}
+#endif
+
+#ifdef USE_SPORT_MASTER
+static void taskSportMaster(timeUs_t currentTimeUs)
+{
+    handleSportMaster(currentTimeUs);
+#ifndef USE_FBUS_MASTER
+    fbusSensorUpdate(currentTimeUs);
+#endif
 }
 #endif
 
@@ -432,6 +444,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #ifdef USE_FBUS_MASTER
     // 144Hz is the initial period. The actual period will be loaded from config.
     [TASK_FBUS_MASTER] = DEFINE_TASK("FBUS_MASTER", NULL, NULL, fbusMasterUpdate, TASK_PERIOD_HZ(144), TASK_PRIORITY_MEDIUM),
+#endif
+
+#ifdef USE_SPORT_MASTER
+    [TASK_SPORT_MASTER] = DEFINE_TASK("SPORT_MASTER", NULL, NULL, taskSportMaster, TASK_PERIOD_MS(12), TASK_PRIORITY_MEDIUM),
 #endif
 };
 
@@ -602,5 +618,9 @@ void tasksInit(void)
     setTaskEnabled(TASK_FBUS_MASTER, fbusMasterIsEnabled());
 #endif
 
-}
+#ifdef USE_SPORT_MASTER
+    rescheduleTask(TASK_SPORT_MASTER, TASK_PERIOD_MS(12));
+    setTaskEnabled(TASK_SPORT_MASTER, sportMasterIsEnabled());
+#endif
 
+}

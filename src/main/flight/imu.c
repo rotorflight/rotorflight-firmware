@@ -200,7 +200,8 @@ static void imuMahonyAHRSupdate(float dt, float gx, float gy, float gz,
             courseOverGround += (2.0f * M_PIf);
         }
 
-        const float ez_ef = (- sin_approx(courseOverGround) * rMat[0][0] - cos_approx(courseOverGround) * rMat[1][0]);
+        const sincosf_t sincos = sincos_approx(courseOverGround);
+        const float ez_ef = (- sincos.sin * rMat[0][0] - sincos.cos * rMat[1][0]);
 
         ex = rMat[2][0] * ez_ef;
         ey = rMat[2][1] * ez_ef;
@@ -410,19 +411,14 @@ static void imuComputeQuaternionFromRPY(quaternionProducts *quatProd, int16_t in
         initialYaw -= 3600;
     }
 
-    const float cosRoll = cos_approx(DECIDEGREES_TO_RADIANS(initialRoll) * 0.5f);
-    const float sinRoll = sin_approx(DECIDEGREES_TO_RADIANS(initialRoll) * 0.5f);
+    const sincosf_t scRoll = sincos_approx(DECIDEGREES_TO_RADIANS(initialRoll) * 0.5f);
+    const sincosf_t scPitch = sincos_approx(DECIDEGREES_TO_RADIANS(initialPitch) * 0.5f);
+    const sincosf_t scYaw = sincos_approx(DECIDEGREES_TO_RADIANS(-initialYaw) * 0.5f);
 
-    const float cosPitch = cos_approx(DECIDEGREES_TO_RADIANS(initialPitch) * 0.5f);
-    const float sinPitch = sin_approx(DECIDEGREES_TO_RADIANS(initialPitch) * 0.5f);
-
-    const float cosYaw = cos_approx(DECIDEGREES_TO_RADIANS(-initialYaw) * 0.5f);
-    const float sinYaw = sin_approx(DECIDEGREES_TO_RADIANS(-initialYaw) * 0.5f);
-
-    const float q0 = cosRoll * cosPitch * cosYaw + sinRoll * sinPitch * sinYaw;
-    const float q1 = sinRoll * cosPitch * cosYaw - cosRoll * sinPitch * sinYaw;
-    const float q2 = cosRoll * sinPitch * cosYaw + sinRoll * cosPitch * sinYaw;
-    const float q3 = cosRoll * cosPitch * sinYaw - sinRoll * sinPitch * cosYaw;
+    const float q0 = scRoll.cos * scPitch.cos * scYaw.cos + scRoll.sin * scPitch.sin * scYaw.sin;
+    const float q1 = scRoll.sin * scPitch.cos * scYaw.cos - scRoll.cos * scPitch.sin * scYaw.sin;
+    const float q2 = scRoll.cos * scPitch.sin * scYaw.cos + scRoll.sin * scPitch.cos * scYaw.sin;
+    const float q3 = scRoll.cos * scPitch.cos * scYaw.sin - scRoll.sin * scPitch.sin * scYaw.cos;
 
     quatProd->xx = sq(q1);
     quatProd->yy = sq(q2);
@@ -533,7 +529,7 @@ void imuUpdateAttitude(timeUs_t currentTimeUs)
 }
 #endif // USE_ACC
 
-bool shouldInitializeGPSHeading()
+bool shouldInitializeGPSHeading(void)
 {
     static bool initialized = false;
 

@@ -107,9 +107,9 @@ typedef union sbusFrame_u {
 
 typedef struct sbusFrameData_s {
     sbusFrame_t frame;
-    timeUs_t startAtUs;
-    uint8_t position;
-    bool done;
+    volatile timeUs_t startAtUs;
+    volatile uint8_t position;
+    volatile bool done;
 } sbusFrameData_t;
 
 #ifdef USE_TELEMETRY_SBUS2

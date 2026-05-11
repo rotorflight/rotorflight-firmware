@@ -1738,12 +1738,12 @@ static void osdDrawSingleElementBackground(displayPort_t *osdDisplayPort, uint8_
 
 static uint8_t activeElement = 0;
 
-uint8_t osdGetActiveElement()
+uint8_t osdGetActiveElement(void)
 {
     return activeElement;
 }
 
-uint8_t osdGetActiveElementCount()
+uint8_t osdGetActiveElementCount(void)
 {
     return activeOsdElementCount;
 }
@@ -1793,7 +1793,7 @@ void osdElementsInit(bool backgroundLayerFlag)
     pt1FilterInit(&batteryEfficiencyFilt, EFFICIENCY_CUTOFF_HZ, osdConfig()->framerate_hz);
 }
 
-void osdSyncBlink() {
+void osdSyncBlink(void) {
     static int blinkCount = 0;
 
     // If the OSD blink is due a transition, do so

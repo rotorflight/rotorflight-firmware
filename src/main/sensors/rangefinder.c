@@ -31,6 +31,7 @@
 #include "build/debug.h"
 
 #include "common/maths.h"
+#include "common/median.h"
 #include "common/time.h"
 #include "common/utils.h"
 
@@ -211,7 +212,7 @@ void rangefinderUpdate(void)
     }
 }
 
-bool isSurfaceAltitudeValid() {
+bool isSurfaceAltitudeValid(void) {
 
     /*
      * Preconditions: raw and calculated altidude > 0

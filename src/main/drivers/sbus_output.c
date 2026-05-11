@@ -293,12 +293,12 @@ void sbusOutUpdate(timeUs_t currentTimeUs)
     serialWriteBuf(sbusOutPort, (const uint8_t *)&frame, sizeof(frame));
 }
 
-bool sbusOutIsEnabled() 
+bool sbusOutIsEnabled(void)
 { 
     return sbusOutPort != NULL;
 }
 
-void sbusOutInit()
+void sbusOutInit(void)
 {
     const serialPortConfig_t *portConfig =
         findSerialPortConfig(FUNCTION_SBUS_OUT);

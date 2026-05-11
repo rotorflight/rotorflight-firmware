@@ -382,7 +382,7 @@ static rcdeviceResponseParseContext_t* getWaitingResponse(timeMs_t currentTimeMs
     return respCtx;
 }
 
-runcamDeviceRequest_t* rcdeviceGetRequest()
+runcamDeviceRequest_t* rcdeviceGetRequest(void)
 {
     if (requestParserContext.isParseDone) {
         // reset the parse done state, then we can handle next request from rcdevice

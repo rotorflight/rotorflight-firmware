@@ -108,7 +108,7 @@
 #include "sensors/gyro.h"
 
 #include "telemetry/telemetry.h"
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
+#ifdef USE_SPORT_MASTER
 #include "drivers/fbus_sensor.h"
 #include "telemetry/sport_master.h"
 #endif
@@ -166,12 +166,12 @@ static bool isCalibrating(void)
         ;
 }
 
-bool isTryingToArm()
+bool isTryingToArm(void)
 {
     return (armingDelayed != ARMING_NOT_DELAYED);
 }
 
-void resetTryingToArm()
+void resetTryingToArm(void)
 {
     armingDelayed = ARMING_NOT_DELAYED;
 }
@@ -741,11 +741,8 @@ void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 {
     static timeUs_t lastGyroTempTimeUs = 0;
 
-#if defined(USE_TELEMETRY) && defined(USE_SPORT_MASTER)
-    handleSportMaster(currentTimeUs);
-#if !defined(USE_FBUS_MASTER)
+#if defined(USE_SPORT_MASTER) && !defined(USE_FBUS_MASTER)
     fbusSensorUpdate(currentTimeUs);
-#endif
 #endif
 
     if (cmpTimeUs(currentTimeUs, lastGyroTempTimeUs) >= GYRO_TEMP_READ_DELAY_US) {

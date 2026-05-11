@@ -184,6 +184,10 @@ typedef enum {
 #ifdef USE_FBUS_MASTER
     TASK_FBUS_MASTER,
 #endif
+
+#ifdef USE_SPORT_MASTER
+    TASK_SPORT_MASTER,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 
@@ -234,15 +238,15 @@ void getTaskInfo(taskId_e taskId, taskInfo_t *taskInfo);
 void rescheduleTask(taskId_e taskId, timeDelta_t newPeriodUs);
 void setTaskEnabled(taskId_e taskId, bool newEnabledState);
 timeDelta_t getTaskDeltaTimeUs(taskId_e taskId);
-void schedulerIgnoreTaskStateTime();
-void schedulerIgnoreTaskExecRate();
-void schedulerIgnoreTaskExecTime();
-bool schedulerGetIgnoreTaskExecTime();
+void schedulerIgnoreTaskStateTime(void);
+void schedulerIgnoreTaskExecRate(void);
+void schedulerIgnoreTaskExecTime(void);
+bool schedulerGetIgnoreTaskExecTime(void);
 void schedulerResetTaskStatistics(taskId_e taskId);
 void schedulerResetTaskMaxExecutionTime(taskId_e taskId);
 void schedulerResetCheckFunctionMaxExecutionTime(void);
 void schedulerSetNextStateTime(timeDelta_t nextStateTime);
-timeDelta_t schedulerGetNextStateTime();
+timeDelta_t schedulerGetNextStateTime(void);
 void schedulerInit(void);
 void scheduler(void);
 timeUs_t schedulerExecuteTask(task_t *selectedTask, timeUs_t currentTimeUs);
