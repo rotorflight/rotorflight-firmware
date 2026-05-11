@@ -34,7 +34,7 @@ struct sbuf_s;
  * To fully isolate the SMART ESC driver from the global RX subsystem we
  * provide driver-local configuration/runtime types. These intentionally
  * mirror the small subset of fields used by the SMART ESC driver so the
- * driver can operate without depending on `rx/rx.h` types at link time.
+ * driver can operate without depending on global RX subsystem types at link time.
  */
 struct srxl2esc_runtimeState_s;
 typedef float (*srxl2esc_readRawDataFnPtr)(const struct srxl2esc_runtimeState_s *rs, uint8_t chan);

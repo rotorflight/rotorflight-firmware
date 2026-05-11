@@ -36,7 +36,6 @@
 
 #include "drivers/srxl2_esc.h"
 #include "rx/srxl2_types.h"
-#include "rx/rx.h"
 #include "sensors/esc_sensor.h"
 #include "config/feature.h"
 #include "pg/srxl2_esc.h"
@@ -98,6 +97,16 @@
 #define SRXL2_ESC_HANDSHAKE_PRE_TX_GUARD_US      700u
 
 #define SPEKTRUM_PULSE_OFFSET          988 // Offset value to convert digital data into RC pulse
+
+/* Mirror RX frame-state bit values locally to keep this driver
+ * independent from the global RX subsystem header. */
+enum {
+    SRXL2_ESC_RX_FRAME_PENDING = 0,
+    SRXL2_ESC_RX_FRAME_COMPLETE = (1 << 0),
+    SRXL2_ESC_RX_FRAME_FAILSAFE = (1 << 1),
+    SRXL2_ESC_RX_FRAME_PROCESSING_REQUIRED = (1 << 2),
+    SRXL2_ESC_RX_FRAME_DROPPED = (1 << 3),
+};
 
 typedef union {
         uint8_t raw[SRXL2_ESC_MAX_PACKET_LENGTH];
@@ -670,7 +679,7 @@ void srxl2escProcess(srxl2esc_runtimeState_t *runtimeState)
     const uint8_t packetType = processBufferPtr->packet.header.packetType;
 
     if (processBufferPtr->packet.header.id != PACKET_HEADER || processBufferPtr->len != processBufferPtr->packet.header.length) {
-        globalResult = RX_FRAME_DROPPED;
+        globalResult = SRXL2_ESC_RX_FRAME_DROPPED;
         return;
     }
 
@@ -678,7 +687,7 @@ void srxl2escProcess(srxl2esc_runtimeState_t *runtimeState)
 
     //Invalid if crc non-zero
     if (calculatedCrc) {
-        globalResult = RX_FRAME_DROPPED;
+        globalResult = SRXL2_ESC_RX_FRAME_DROPPED;
         DEBUG_PRINTF("crc mismatch %x\r\n", calculatedCrc);
         return;
     }
@@ -693,7 +702,7 @@ void srxl2escProcess(srxl2esc_runtimeState_t *runtimeState)
     }
 
     DEBUG_PRINTF("could not parse packet: %x\r\n", processBufferPtr->packet.header.packetType);
-    globalResult = RX_FRAME_DROPPED;
+    globalResult = SRXL2_ESC_RX_FRAME_DROPPED;
 }
 
 void srxl2escDataReceive(uint16_t character, void *data)
@@ -765,7 +774,7 @@ void srxl2escDataReceive(uint16_t character, void *data)
     //If the buffer index exceeds max length, disable reception
     if (readBufferIdx >= SRXL2_ESC_MAX_PACKET_LENGTH) {
         readBufferIdx = 0;
-        globalResult = RX_FRAME_DROPPED;
+        globalResult = SRXL2_ESC_RX_FRAME_DROPPED;
     }
     else {
         readBufferPtr->packet.raw[readBufferIdx] = character;
@@ -842,7 +851,7 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
 {
     UNUSED(runtimeState);
 
-    globalResult = RX_FRAME_PENDING;
+    globalResult = SRXL2_ESC_RX_FRAME_PENDING;
 
     // len should only be set after an idle interrupt (packet reception complete)
     if (processBufferPtr != NULL && processBufferPtr->len) {
@@ -915,14 +924,14 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
         if (cmpTimeUs(now, timeoutTimestamp) >= 0) {
             // @todo set another timeout for 50ms tries
             // fill write buffer with handshake frame
-            result |= RX_FRAME_PROCESSING_REQUIRED;
+            result |= SRXL2_ESC_RX_FRAME_PROCESSING_REQUIRED;
         }
 
         if (cmpTimeUs(now, fullTimeoutTimestamp) >= 0) {
             serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             DEBUG_PRINTF("case SendHandshake: switching to %d baud\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
-            result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
+            result = (result & ~SRXL2_ESC_RX_FRAME_PENDING) | SRXL2_ESC_RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
             lastReceiveTimestamp = 0;
@@ -936,7 +945,7 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
             serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             DEBUG_PRINTF("case ListenForHandshake: switching to %d baud\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
-            result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
+            result = (result & ~SRXL2_ESC_RX_FRAME_PENDING) | SRXL2_ESC_RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
             lastReceiveTimestamp = 0;
@@ -951,7 +960,7 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
             serialSetBaudRate(serialPort, SRXL2_ESC_PORT_BAUDRATE_DEFAULT);
             DEBUG_PRINTF("case Running: switching to %d baud: %d %d\r\n", SRXL2_ESC_PORT_BAUDRATE_DEFAULT, now, lastValidPacketTimestamp);
             timeoutTimestamp = now + SRXL2_ESC_LISTEN_FOR_ACTIVITY_TIMEOUT_US;
-            result = (result & ~RX_FRAME_PENDING) | RX_FRAME_FAILSAFE;
+            result = (result & ~SRXL2_ESC_RX_FRAME_PENDING) | SRXL2_ESC_RX_FRAME_FAILSAFE;
 
             state = ListenForActivity;
             lastReceiveTimestamp = 0;
@@ -962,10 +971,10 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
     };
 
     if (writeBufferIdx) {
-        result |= RX_FRAME_PROCESSING_REQUIRED;
+        result |= SRXL2_ESC_RX_FRAME_PROCESSING_REQUIRED;
     }
 
-    if (!(result & (RX_FRAME_FAILSAFE | RX_FRAME_DROPPED))) {
+    if (!(result & (SRXL2_ESC_RX_FRAME_FAILSAFE | SRXL2_ESC_RX_FRAME_DROPPED))) {
         runtimeState->lastRcFrameTimeUs = lastIdleTimestamp;
     }
 
