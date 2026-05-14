@@ -151,17 +151,20 @@ static float smartFuelChargeLevelFromVoltageEstimation(float estimation)
     if (ARMING_FLAG(ARMED) || ARMING_FLAG(WAS_EVER_ARMED)) {
         estimation = slewDownLimit(smartFuel.chargeLevel, estimation, smartFuel.config.chargeDropPerSample);
     }
-    return fminf(estimation, smartFuel.initialChargeLevel);
+    return estimation;
 }
 
-static float smartFuelChargeLevelFromCurrentEstimation(float estimation, float capacity, float used)
+static float smartFuelChargeLevelFromCurrentEstimation(float estimation)
 {
-    float charge_level = smartFuel.initialChargeLevel;
+    const float capacity = getBatteryCapacity();
+    const float used = getBatteryCapacityUsed();
 
     if (capacity > 0 && used > 0)
-        charge_level -= used / capacity;
+        estimation = smartFuel.initialChargeLevel - used / capacity;
+    else
+        estimation = smartFuelChargeLevelFromVoltageEstimation(estimation);
 
-    return fminf(charge_level, estimation);
+    return estimation;
 }
 
 void smartFuelUpdate(void)
@@ -186,24 +189,23 @@ void smartFuelUpdate(void)
     const float compensatedVoltage = smartFuelApplySagCompensation(cellVoltage);
     float estimation = smartFuelChargeLevelFromVoltage(compensatedVoltage);
 
-    if (smartFuel.initialChargeLevel == 0)
+    if (smartFuel.initialChargeLevel == 0) {
+        smartFuel.chargeLevel = estimation;
         smartFuel.initialChargeLevel = estimation;
+    }
 
     estimation = fminf(smartFuel.initialChargeLevel, estimation);
 
     if (smartFuel.config.mode == SMARTFUEL_MODE_VOLTAGE) {
-        smartFuel.chargeLevel = smartFuelChargeLevelFromVoltageEstimation(estimation);
+        estimation = smartFuelChargeLevelFromVoltageEstimation(estimation);
     }
     else if (smartFuel.config.mode == SMARTFUEL_MODE_CURRENT) {
-        const uint32_t capacity = getBatteryCapacity();
-        const uint32_t used = getBatteryCapacityUsed();
-        if (capacity > 0 && used > 0)
-            smartFuel.chargeLevel = smartFuelChargeLevelFromCurrentEstimation(estimation, capacity, used);
-        else
-            smartFuel.chargeLevel = smartFuelChargeLevelFromVoltageEstimation(estimation);
+        estimation = smartFuelChargeLevelFromCurrentEstimation(estimation);
     }
 
-    smartFuel.chargeLevel = constrainf(smartFuel.chargeLevel, 0.0f, 1.0f);
+    estimation = fminf(estimation, smartFuel.chargeLevel);
+
+    smartFuel.chargeLevel = constrainf(estimation, 0.0f, 1.0f);
 }
 
 #endif

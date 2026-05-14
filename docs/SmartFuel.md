@@ -2,7 +2,7 @@
 
 SmartFuel provides an intelligent remaining-charge percentage for the flight pack. It is intended to give a more useful "fuel remaining" value than the simple linear voltage-to-percent curve, especially for telemetry display on the radio.
 
-SmartFuel always uses pack voltage as its primary input. A configured battery voltage sensor is required; if no voltage sensor is configured, SmartFuel forces itself to `OFF` at startup. In `CURRENT` mode, when both `bat_capacity` and used mAh are non-zero, the result combines the voltage-derived estimate with a consumption-based ceiling derived from the same mAh counter (see **Modes** below).
+SmartFuel always uses pack voltage as its primary input. A configured battery voltage sensor is required; if no voltage sensor is configured, SmartFuel forces itself to `OFF` at startup. In `CURRENT` mode, when both `bat_capacity` and used mAh are non-zero, the result is derived directly from the mAh counter against the initial voltage-derived anchor (see **Modes** below).
 
 Measured consumption is reported separately by the battery monitoring code and is unaffected by which SmartFuel mode is selected.
 
@@ -12,11 +12,11 @@ Measured consumption is reported separately by the battery monitoring code and i
 
 - `OFF` — SmartFuel does not run; `getBatteryChargeLevel()` falls through to the legacy sources.
 - `VOLTAGE` — voltage-only estimator. Pack voltage drives the percentage (with stick-based sag compensation once airborne); current/consumption are ignored.
-- `CURRENT` — when both `bat_capacity` and used mAh are non-zero, the level is the **lower** of the voltage-derived estimate and a consumption ceiling `initial − used / capacity`, where `initial` is the first voltage-derived fraction (0–1) after the pack is seen and `used / capacity` is the fraction of configured capacity counted by the current meter. When either capacity or used is zero, this mode behaves the same as `VOLTAGE`.
+- `CURRENT` — when both `bat_capacity` and used mAh are non-zero, the level is `initial − used / capacity`, where `initial` is the first voltage-derived fraction (0–1) after the pack is seen and `used / capacity` is the fraction of configured capacity counted by the current meter. Voltage is not blended in on this path. When either capacity or used is zero, this mode behaves the same as `VOLTAGE`.
 
-In both `VOLTAGE` and `CURRENT`, the displayed percentage never rises above the initial anchor sampled when the pack is first seen. The consumption ceiling in `CURRENT` can pull the value down faster than voltage alone when mAh used is significant.
+In both `VOLTAGE` and `CURRENT`, the displayed percentage is monotonically non-increasing: each update can only hold steady or drop, never rise. It is also clamped to the initial anchor sampled when the pack is first seen. The `CURRENT` path typically pulls the value down faster than voltage alone when mAh used is significant.
 
-If you plug in a pack that is not “full” (the first sample is well below 100%), treat `initial − used / capacity` as a simple fold-in of the mAh counter against that starting anchor, not as a full state-of-charge model on its own.
+If you plug in a pack that is not “full” (the first sample is well below 100%), `initial − used / capacity` is a simple subtraction of the mAh counter from that starting anchor, not a full state-of-charge model.
 
 ## How charge level is chosen
 
@@ -77,7 +77,7 @@ Maximum allowed SmartFuel percentage drop rate on the **voltage** path once the 
 
 Units: hundredths of a percent per second.
 
-In `CURRENT` mode with non-zero used mAh, the level is the minimum of the voltage-derived estimate and the consumption ceiling — that combination does **not** go through this drop-rate limiter (only the `VOLTAGE` path and the `CURRENT` fallback when consumption data are unavailable do).
+In `CURRENT` mode with non-zero used mAh, the level is `initial − used / capacity` and does **not** go through this drop-rate limiter — fall speed is determined entirely by how fast `used` accumulates. Only the `VOLTAGE` path and the `CURRENT` fallback (when consumption data are unavailable) apply this limiter.
 
 ### `smartfuel_sag_gain`
 
@@ -111,7 +111,7 @@ Use these adjustment patterns:
 - Tune with the battery type and flying style you actually use.
 - Large changes are rarely needed; make small adjustments and re-fly.
 - Different packs may want slightly different behaviour, but the defaults are intended to be a reasonable starting point.
-- SmartFuel is still an estimate. If you have a well-calibrated current sensor and a correctly configured `bat_capacity`, `smartfuel = CURRENT` takes the more pessimistic of the voltage track and a ceiling derived from used mAh. To bypass SmartFuel entirely, set `smartfuel = OFF`; `getBatteryChargeLevel()` then uses the legacy behaviour (consumption-based when `bat_capacity` is non-zero, otherwise linear voltage when cell count is known).
+- SmartFuel is still an estimate. If you have a well-calibrated current sensor and a correctly configured `bat_capacity`, `smartfuel = CURRENT` derives the percentage directly from used mAh (`initial − used / capacity`), independent of voltage sag. To bypass SmartFuel entirely, set `smartfuel = OFF`; `getBatteryChargeLevel()` then uses the legacy behaviour (consumption-based when `bat_capacity` is non-zero, otherwise linear voltage when cell count is known).
 
 ## Telemetry
 
