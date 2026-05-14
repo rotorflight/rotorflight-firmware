@@ -159,12 +159,13 @@ static float smartFuelChargeLevelFromCurrentEstimation(float estimation)
     const float capacity = getBatteryCapacity();
     const float used = getBatteryCapacityUsed();
 
-    if (capacity > 0 && used > 0)
-        estimation = smartFuel.initialChargeLevel - used / capacity;
-    else
-        estimation = smartFuelChargeLevelFromVoltageEstimation(estimation);
+    float volt_estimation = smartFuelChargeLevelFromVoltageEstimation(estimation);
+    float curr_estimation = volt_estimation;
 
-    return estimation;
+    if (capacity > 0 && used > 0)
+        curr_estimation = smartFuel.initialChargeLevel - used / capacity;
+
+    return fminf(volt_estimation, curr_estimation);
 }
 
 void smartFuelUpdate(void)
