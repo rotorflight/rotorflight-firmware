@@ -194,7 +194,8 @@ typedef struct {
     uint8_t temperatureDegC;         // Temperature in C from 0x0B70~0x0B7F (bits 0..7)
     uint8_t temperature2DegC;         // Temperature in C from 0x0B70~0x0B7F (bits 0..7)
     bool hasPower;
-    bool hasRpmConsumption;
+    bool hasRpm;
+    bool hasConsumption;
     bool hasTemperature;
     timeUs_t lastUpdateUs;
 } fbusEscData_t;

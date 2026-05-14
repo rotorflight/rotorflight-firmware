@@ -299,9 +299,13 @@ static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
         }
     }
 
-    if (hasEscData && fbusEscData.hasRpmConsumption) {
+    if (hasEscData && fbusEscData.hasRpm) {
         escData->id = FBUS_SENSOR_ESC;
         escData->erpm = fbusEscData.erpm;
+    }
+
+    if (hasEscData && fbusEscData.hasConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
         escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
     }
 
