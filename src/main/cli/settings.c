@@ -515,7 +515,7 @@ const char * const lookupTableParamType[] = {
 
 #ifdef USE_SMARTFUEL
 static const char * const lookupTableSmartFuelMode[] = {
-    "OFF", "VOLTAGE", "CURRENT",
+    "OFF", "VOLTAGE", "CURRENT", "COMBINED",
 };
 #endif
 
