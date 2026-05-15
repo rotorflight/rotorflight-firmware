@@ -277,6 +277,8 @@ the actual values are calculated automatically (#332).
 
 `offset_limit` default is changed to 90,90 (#425).
 
+`stats_min_armed_time_s` default is changed to 15 (#460).
+
 
 ## CRSF Custom Telemetry
 
