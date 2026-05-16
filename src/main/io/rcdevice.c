@@ -487,7 +487,8 @@ void rcdeviceReceive(timeUs_t currentTimeUs)
                 requestParserContext.state = RCDEVICE_STATE_WAITING_DATA;
                 break;
             case RCDEVICE_STATE_WAITING_DATA:
-                if (requestParserContext.request.dataLength < requestParserContext.expectedDataLength) {
+                if (requestParserContext.request.dataLength < requestParserContext.expectedDataLength &&
+                    requestParserContext.request.dataLength < sizeof(requestParserContext.request.data)) {
                     requestParserContext.request.data[requestParserContext.request.dataLength] = c;
                     requestParserContext.request.dataLength++;
                 }
