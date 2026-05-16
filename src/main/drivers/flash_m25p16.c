@@ -111,7 +111,7 @@ struct {
     { 0xEF4018, 104, 50, 256, 256, &w25q_vTable },
     // PUYA PY25Q128HA
     // Datasheet: https://www.puyasemi.com/download_path/%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C/Flash%20%E8%8A%AF%E7%89%87/PY25Q128HA_Datasheet_V1.9.pdf
-    { 0x852018, 133, 80, 256, 256, &m25p16_vTable },
+    { 0x852018, 133, 80, 256, 256, &w25q_vTable },
     // Zbit ZB25VQ128
     // Datasheet: http://zbitsemi.com/upload/file/20201010/20201010174048_82182.pdf
     { 0x5E4018, 104, 50, 256, 256, &m25p16_vTable },
