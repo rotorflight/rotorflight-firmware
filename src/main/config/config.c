@@ -536,6 +536,10 @@ static void validateAndFixConfig(void)
 
     validateAndFixRatesSettings();  // constrain the various rates settings to limits imposed by the rates type
 
+#ifdef USE_SMARTFUEL
+    validateAndFixSmartFuelConfig();
+#endif
+
     // validate that the minimum battery cell voltage is less than the maximum cell voltage
     // reset to defaults if not
     if (batteryConfig()->vbatmincellvoltage >=  batteryConfig()->vbatmaxcellvoltage) {
