@@ -152,11 +152,11 @@ New MSP command to get the current setpoint. (#443)
 
 ### MSP2_GET_SMARTFUEL_CONFIG
 
-New Rotorflight MSPv2 command for SmartFuel.
+New Rotorflight MSPv2 command (`0x4000`) to get the SmartFuel configuration.
 
 ### MSP2_SET_SMARTFUEL_CONFIG
 
-New Rotorflight MSPv2 command for SmartFuel.
+New Rotorflight MSPv2 command (`0x4001`) to set the SmartFuel configuration.
 
 
 ## CLI Changes
@@ -238,13 +238,13 @@ the actual values are calculated automatically (#332).
 
 `serialrx_provider` extended to include `IBUS2` as a protocol option
 
-`smartfuel` parameter added (`OFF`/`VOLTAGE`/`CURRENT`).
+`smartfuel` parameter added (`OFF`/`VOLTAGE`/`CURRENT`/`COMBINED`). Selects the SmartFuel charge estimator mode.
 
-`smartfuel_voltage_drop_rate` is in **millivolts per second** (mV/s): maximum downward slew of the internal filtered **per-cell** voltage used by the estimator.
+`smartfuel_voltage_drop_rate` is in **millivolts per second** (mV/s): maximum downward slew of the internal filtered **per-cell** voltage used by the estimator. Range 0..250, default 10.
 
-`smartfuel_charge_drop_rate` is in **0.01% per second** (maximum drop rate of the displayed percentage).
+`smartfuel_charge_drop_rate` is in **0.01% units per second** (maximum drop rate of the displayed percentage once armed). Range 0..250, default 50.
 
-`smartfuel_sag_gain` scales sag compensation from cyclic and collective stick load while airborne.
+`smartfuel_sag_gain` scales sag compensation from cyclic and collective stick load while airborne. Range 0..100, default 40.
 
 
 ## Defaults
@@ -386,6 +386,29 @@ use cases.
 A new arming disabled flag `OVERRIDE` was added. It is activated if either
 servo or mixer override is active.
 
+### SmartFuel Battery Charge Estimator (#463)
+
+A new battery charge estimator is added that provides a monotonically
+non-increasing remaining-charge percentage suitable for telemetry, audible
+warnings, and Lua scripts.
+
+The estimator runs at the voltage task rate and combines:
+- a slew-rate-limited per-cell voltage (`smartfuel_voltage_drop_rate`),
+- a stick-load voltage-sag compensation while airborne, scaled by
+  `smartfuel_sag_gain` (cyclic + collective deflection),
+- a sigmoid voltage-to-charge curve clamped between `vbat_min_cell` and
+  `vbat_full_cell`,
+- optional coulomb counting from the measured current and the active
+  `bat_capacity` profile,
+- a slew-rate limit on the displayed charge level while armed
+  (`smartfuel_charge_drop_rate`), so the reported percentage cannot
+  bounce back up during flight.
+
+The mode is selected by the `smartfuel` parameter (`OFF` / `VOLTAGE` /
+`CURRENT` / `COMBINED`). When enabled, `getBatteryChargeLevel()` returns
+the SmartFuel estimate instead of the legacy capacity-based percentage,
+and the value is always reported as available regardless of whether
+`bat_capacity` is configured.
 
 ## Receiver Protocols
 
