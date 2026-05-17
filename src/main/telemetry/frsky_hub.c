@@ -549,14 +549,15 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
                 sendVoltageCells();
                 sendVoltageAmp();
             }
-
-            if (isBatteryCurrentConfigured()) {
-                if (telemetryIsSensorEnabled(SENSOR_CURRENT)) {
-                    sendAmperage();
-                }
-                if (telemetryIsSensorEnabled(SENSOR_FUEL)) {
-                    sendFuelLevel();
-                }
+        }
+        if (isBatteryCurrentConfigured()) {
+            if (telemetryIsSensorEnabled(SENSOR_CURRENT)) {
+                sendAmperage();
+            }
+        }
+        if (isBatteryChargeLevelAvailable()) {
+            if (telemetryIsSensorEnabled(SENSOR_FUEL)) {
+                sendFuelLevel();
             }
         }
 
