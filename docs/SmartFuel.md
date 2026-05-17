@@ -76,7 +76,7 @@ Maximum allowed SmartFuel percentage drop rate on the **voltage** path once the 
 - Increase it if the displayed percentage lags too much behind the real pack condition.
 - Decrease it if the percentage drops too aggressively during load spikes.
 
-Units: hundredths of a percent per second.
+Units: 0.01% points per second (e.g. `50` → 0.50 %p/s). Valid range **0**–**250** in the CLI and MSP.
 
 This limiter only applies to the **voltage** half of the estimate. In `CURRENT` mode with non-zero used mAh, the level is `initial − used / capacity` and is not rate-limited — fall speed is determined entirely by how fast `used` accumulates. In `COMBINED` mode, the voltage half is rate-limited but the `initial − used / capacity` half is not, so the combined `min(…)` can still fall faster than this parameter would suggest. The limiter is fully in effect only on the `VOLTAGE` path and on the `CURRENT`/`COMBINED` fallback when consumption data are unavailable.
 
@@ -87,7 +87,7 @@ Amount of sag compensation applied to the voltage reading before it is turned in
 - Increase it if SmartFuel is too pessimistic under load.
 - Decrease it if SmartFuel is too optimistic during hard collective or cyclic loading.
 
-Units: percent.
+Units: hundredths of a volt added to the per-cell voltage at full stick load (e.g. `40` → up to +0.40 V/cell). Valid range **0**–**100** in the CLI and MSP.
 
 ## Tuning guidance
 
