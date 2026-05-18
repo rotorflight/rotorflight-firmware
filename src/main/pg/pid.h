@@ -57,7 +57,6 @@ typedef struct {
     uint16_t F;
     uint16_t B;
     uint16_t O;
-    uint16_t S;
 } pidf_t;
 
 typedef struct {
@@ -112,6 +111,7 @@ typedef struct pidProfile_s {
 
     uint8_t             error_decay_time_ground;
     uint8_t             error_decay_time_cyclic;
+    uint8_t             error_decay_gain_cyclic;
     uint8_t             error_decay_time_yaw;
     uint8_t             error_decay_limit_cyclic;
     uint8_t             error_decay_limit_yaw;

@@ -596,7 +596,6 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_ROLL].Kf = ROLL_F_TERM_SCALE * pidProfile->pid[PID_ROLL].F;
     pid.coef[PID_ROLL].Kb = ROLL_B_TERM_SCALE * pidProfile->pid[PID_ROLL].B;
     pid.coef[PID_ROLL].Ko = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].O;
-    pid.coef[PID_ROLL].Ks = ROLL_S_TERM_SCALE * pidProfile->pid[PID_ROLL].S;
 
     // Pitch axis
     pid.coef[PID_PITCH].Kp = PITCH_P_TERM_SCALE * pidProfile->pid[PID_PITCH].P;
@@ -605,7 +604,6 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     pid.coef[PID_PITCH].Kf = PITCH_F_TERM_SCALE * pidProfile->pid[PID_PITCH].F;
     pid.coef[PID_PITCH].Kb = PITCH_B_TERM_SCALE * pidProfile->pid[PID_PITCH].B;
     pid.coef[PID_PITCH].Ko = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].O;
-    pid.coef[PID_PITCH].Ks = PITCH_S_TERM_SCALE * pidProfile->pid[PID_PITCH].S;
 
     // Yaw axis
     pid.coef[PID_YAW].Kp = YAW_P_TERM_SCALE * pidProfile->pid[PID_YAW].P;
@@ -646,6 +644,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Exponential error decay rates
     pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
     pid.errorDecayRateCyclic = (pidProfile->error_decay_time_cyclic) ? (10.0f / pidProfile->error_decay_time_cyclic) : 0;
+    pid.errorDecayGainCyclic = (pidProfile->error_decay_gain_cyclic) ? (pidProfile->error_decay_gain_cyclic / 50.0f) : 0;
     pid.errorDecayRateYaw    = (pidProfile->error_decay_time_yaw)    ? (10.0f / pidProfile->error_decay_time_yaw) : 0;
 
     // Max decay speeds in degs/s (linear decay)
@@ -1185,7 +1184,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecayBoost = 1.0f + fabsf(setpoint) * pid.coef[axis].Ks;
+    const float errorDecayBoost = 1.0f + fabsf(setpoint) * pid.errorDecayGainCyclic;
     const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate * errorDecayBoost, errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
