@@ -68,6 +68,7 @@ COMMON_SRC = \
             scheduler/scheduler.c \
             sensors/adcinternal.c \
             sensors/battery.c \
+            sensors/smartfuel.c \
             sensors/current.c \
             sensors/voltage.c \
             target/config_helper.c \
@@ -195,6 +196,7 @@ COMMON_SRC = \
             telemetry/sbus2.c \
             telemetry/sbus2_sensors.c \
             telemetry/smartport.c \
+            telemetry/sport_master.c \
             telemetry/ltm.c \
             telemetry/mavlink.c \
             telemetry/msp_shared.c \

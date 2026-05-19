@@ -42,14 +42,9 @@
 #include "fc/runtime_config.h"
 #include "build/build_config.h"
 #include "rx/frsky_crc.h"
+#include "rx/fbus.h"
 #include "io/serial.h"
-
 #define FBUS_MASTER_BUFFER_SIZE 64
-
-static inline uint8_t fbusGetBit(uint8_t value, uint8_t bit)
-{
-    return (value >> bit) & 1U;
-}
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -115,13 +110,6 @@ static uint8_t fbusMasterTakeNextScanPhysId(void)
 {
     if (currentPhysId >= FBUS_MAX_PHYS_ID) {
         currentPhysId = 0;
-    }
-
-    if (currentPhysId == FC_COMMON_ID) {
-        currentPhysId++;
-        if (currentPhysId >= FBUS_MAX_PHYS_ID) {
-            currentPhysId = 0;
-        }
     }
 
     const uint8_t phyId = currentPhysId;
@@ -374,9 +362,6 @@ void fbusMasterInit(void)
     fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
     nextTelemetryPollTimeUs = 0;
     fbusMasterStartDiscoveryWindow(micros());
-
-    // Initialize FBUS sensor caches and forwarding buffers from current config.
-    fbusSensorInit();
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(

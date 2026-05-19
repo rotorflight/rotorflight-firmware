@@ -680,7 +680,7 @@ static bool bbIsMotorEnabled(uint8_t index)
     return bbMotors[index].enabled;
 }
 
-static void bbPostInit()
+static void bbPostInit(void)
 {
     bbFindPacerTimer();
 
@@ -711,7 +711,7 @@ static motorVTable_t bbVTable = {
     .isMotorEnabled = bbIsMotorEnabled,
 };
 
-dshotBitbangStatus_e dshotBitbangGetStatus()
+dshotBitbangStatus_e dshotBitbangGetStatus(void)
 {
     return bbStatus;
 }

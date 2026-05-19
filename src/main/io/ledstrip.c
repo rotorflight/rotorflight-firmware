@@ -275,7 +275,7 @@ STATIC_UNIT_TESTED void updateLedCount(void)
     setUsedLedCount(ledCounts.count);
 }
 
-void updateBlinkPauses() {
+void updateBlinkPauses(void) {
     memset(ledCounts.blinkPauses, 0, sizeof(ledCounts.blinkPauses));
 }
 
@@ -538,7 +538,7 @@ static void applyLedFixedLayers(void)
 
         case LED_FUNCTION_BATTERY:
             color = HSV(RED);
-            hOffset += MAX(scaleRange(calculateBatteryPercentageRemaining(), 0, 100, -30, 120), 0);
+            hOffset += MAX(scaleRange(getBatteryChargeLevel(), 0, 100, -30, 120), 0);
             break;
 
         case LED_FUNCTION_RSSI:

@@ -280,7 +280,7 @@ static void shiftPacketLog(void)
     }
 }
 
-static bool isConfiguratorConnected() {
+static bool isConfiguratorConnected(void) {
     return (getArmingDisableFlags() & ARMING_DISABLED_MSP);
 }
 
@@ -305,14 +305,13 @@ static void gpsSetState(gpsState_e state)
 
 bool gpsUsesFbusTransport(void)
 {
-#ifdef USE_FBUS_MASTER
-    const bool hasFbusMasterPort = findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL;
-
-    if (!hasFbusMasterPort) {
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    if (gpsConfig()->provider != GPS_FBUS) {
         return false;
     }
 
-    return gpsConfig()->provider == GPS_FBUS;
+    return findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL
+        || findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
 #else
     return false;
 #endif
@@ -524,7 +523,7 @@ static void ubloxSetNavRate(uint16_t measRate, uint16_t navRate, uint16_t timeRe
     ubloxSendConfigMessage(&tx_buffer, MSG_CFG_RATE, sizeof(ubx_cfg_rate));
 }
 
-static void ubloxSetSbas() {
+static void ubloxSetSbas(void) {
     ubx_message tx_buffer;
 
     //NOTE: default ublox config for sbas mode is: UBLOX_MODE_ENABLED, test is disabled
@@ -781,7 +780,7 @@ void gpsUpdate(timeUs_t currentTimeUs)
         // Restore default task rate
         rescheduleTask(TASK_SELF, TASK_PERIOD_HZ(TASK_GPS_RATE));
     }
-    
+
     // GPS data received via MSP or FBUS
     if (GPS_update & GPS_MSP_UPDATE) {
         if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) {
@@ -953,7 +952,7 @@ bool gpsNewFrame(uint8_t c)
 }
 
 // Check for healthy communications
-bool gpsIsHealthy()
+bool gpsIsHealthy(void)
 {
     return (gpsData.state == GPS_STATE_RECEIVING_DATA);
 }
@@ -1523,7 +1522,7 @@ static bool UBLOX_parse_gps(void)
         _new_position = true;
         gpsSol.numSat = _buffer.pvt.numSV;
         gpsSol.hdop = _buffer.pvt.pDOP;
-        gpsSol.speed3d = (uint16_t) sqrtf(powf(_buffer.pvt.gSpeed / 10, 2.0f) + powf(_buffer.pvt.velD / 10, 2.0f));
+        gpsSol.speed3d = (uint16_t) sqrtf(sqf(_buffer.pvt.gSpeed / 10.0f) + sqf(_buffer.pvt.velD / 10.0f));
         gpsSol.groundSpeed = _buffer.pvt.gSpeed / 10;    // cm/s
         gpsSol.groundCourse = (uint16_t) (_buffer.pvt.headMot / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
@@ -1804,7 +1803,7 @@ static void GPS_calculateDistanceFlownVerticalSpeed(bool initialize)
                 int32_t dir;
                 GPS_distance_cm_bearing(&gpsSol.llh.lat, &gpsSol.llh.lon, &lastCoord[GPS_LATITUDE], &lastCoord[GPS_LONGITUDE], &dist, &dir);
                 if (gpsConfig()->gps_use_3d_speed) {
-                    dist = sqrtf(powf(gpsSol.llh.altCm - lastAlt, 2.0f) + powf(dist, 2.0f));
+                    dist = sqrtf(sqf(gpsSol.llh.altCm - lastAlt) + sqf(dist));
                 }
                 GPS_distanceFlownInCm += dist;
             }

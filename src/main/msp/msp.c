@@ -107,6 +107,7 @@
 #include "msp/msp_box.h"
 #include "msp/msp_protocol.h"
 #include "msp/msp_protocol_v2_betaflight.h"
+#include "msp/msp_protocol_v2_rotorflight.h"
 #include "msp/msp_protocol_v2_common.h"
 #include "msp/msp_serial.h"
 
@@ -125,6 +126,7 @@
 #include "pg/usb.h"
 #include "pg/vcd.h"
 #include "pg/vtx_table.h"
+#include "pg/battery.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
 #include "pg/bus_servo.h"
@@ -138,6 +140,7 @@
 #include "sensors/acceleration.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
+#include "sensors/smartfuel.h"
 #include "sensors/boardalignment.h"
 #include "sensors/compass.h"
 #include "sensors/esc_sensor.h"
@@ -829,7 +832,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU16(dst, constrain(getBatteryCapacityUsed(), 0, UINT16_MAX));      // mAh
         sbufWriteU16(dst, getBatteryVoltage());                                     // 10mV steps
         sbufWriteU16(dst, constrain(getBatteryCurrent(), 0, UINT16_MAX));           // 10mA steps
-        sbufWriteU8(dst, calculateBatteryPercentageRemaining());                    // %
+        sbufWriteU8(dst, getBatteryChargeLevel());                                  // %
         sbufWriteU8(dst, batteryConfig()->batteryProfile); // The battery profile
         break;
 
@@ -1353,6 +1356,15 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
 #endif
 
+#ifdef USE_SMARTFUEL
+    case MSP2_GET_SMARTFUEL_CONFIG:
+        sbufWriteU8(dst, batteryConfig()->smartfuel_mode);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_voltage_drop_rate);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_charge_drop_rate);
+        sbufWriteU8(dst, batteryConfig()->smartfuel_sag_gain);
+        break;
+#endif
+
     case MSP_RC:
         for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcInput[i]);
@@ -1369,6 +1381,12 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
     case MSP_RX_CHANNELS:
         for (int i = 0; i < activeRcChannelCount; i++) {
             sbufWriteU16(dst, (int16_t)rcRawChannel[i]);
+        }
+        break;
+
+    case MSP_SETPOINT:
+        for (int i = 0; i < 4; i++) {
+            sbufWriteS16(dst, lrintf(getSetpoint(i) * 10));
         }
         break;
 
@@ -3877,6 +3895,16 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
         }
         break;
+
+#ifdef USE_SMARTFUEL
+    case MSP2_SET_SMARTFUEL_CONFIG:
+        batteryConfigMutable()->smartfuel_mode = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_voltage_drop_rate = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_charge_drop_rate = sbufReadU8(src);
+        batteryConfigMutable()->smartfuel_sag_gain = sbufReadU8(src);
+        smartFuelInit();
+        break;
+#endif
 
     case MSP_SET_BATTERY_PROFILE:
         {

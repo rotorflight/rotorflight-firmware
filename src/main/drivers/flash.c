@@ -311,7 +311,7 @@ void flashFlush(void)
     }
 }
 
-bool flashSuspendSupported()
+bool flashSuspendSupported(void)
 {
     return flashDevice.vTable->suspend && flashDevice.vTable->resume &&
            flashDevice.vTable->isSuspended;

@@ -77,12 +77,12 @@ static const uint8_t offset_flood_curve[PID_LOOKUP_CURVE_POINTS]       = { 0,0,0
 
 //// Access functions
 
-float pidGetDT()
+float pidGetDT(void)
 {
     return pid.dT;
 }
 
-float pidGetPidFrequency()
+float pidGetPidFrequency(void)
 {
     return pid.freq;
 }

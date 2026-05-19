@@ -23,6 +23,7 @@
 
 // Frame forwarding configuration
 #define FBUS_FORWARDED_FRAME_BUFFER_SIZE 10
+#define FBUS_SENSOR_MAX_FORWARD_BUFFERS 8
 
 // FBUS Sensor Physical IDs
 typedef enum {
@@ -54,8 +55,7 @@ typedef enum {
 
 // FBUS GPS Data IDs
 typedef enum {
-    FBUS_GPS_LATITUDE_BASE  = 0x0800,  // 0x0800~0x080f
-    FBUS_GPS_LONGITUDE_BASE = 0x0800,  // Same base, differentiated by bit31
+    FBUS_GPS_LATITUDE_BASE  = 0x0800,  // 0x0800~0x080f, bit31 differentiates latitude/longitude
     FBUS_GPS_ALTITUDE_BASE  = 0x0820,  // 0x0820~0x082f
     FBUS_GPS_SPEED_BASE     = 0x0830,  // 0x0830~0x083f
     FBUS_GPS_COURSE_BASE    = 0x0840,  // 0x0840~0x084f
@@ -194,6 +194,7 @@ typedef struct {
 void fbusSensorInit(void);
 void fbusSensorUpdate(timeUs_t currentTimeUs);
 bool fbusSensorProcessData(uint8_t physicalId, uint16_t appId, uint32_t data);
+void fbusSensorObservePhysicalId(uint8_t physicalId);
 void fbusSensorGetGpsData(fbusGpsData_t *gpsData);
 bool fbusSensorHasGpsData(void);
 void fbusSensorGetServoData(fbusServoData_t *servoData);
@@ -215,8 +216,10 @@ bool fbusGpsConvertDate(uint32_t fbusData, fbusGpsDate_t *date);
 // Servo data conversion functions
 void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltage, uint16_t *temperature);
 
-// Observed sensor tracking
-#define FBUS_MAX_OBSERVED_SENSORS 32
+// Observed sensor tracking:
+// the observed table is keyed by (physicalId, source), so allow a full set of
+// physical IDs for each supported source.
+#define FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE 32
 typedef enum {
     FBUS_DETECTED_SENSOR_UNKNOWN = 0,
     FBUS_DETECTED_SENSOR_GPS,
@@ -226,8 +229,17 @@ typedef enum {
     FBUS_DETECTED_SENSOR_XACT_SERVO,
 } fbusDetectedSensorType_e;
 
+typedef enum {
+    FBUS_SENSOR_SOURCE_FBUS = 0,
+    FBUS_SENSOR_SOURCE_SPORT,
+    FBUS_SENSOR_SOURCE_COUNT,
+} fbusSensorSource_e;
+
+#define FBUS_MAX_OBSERVED_SENSORS (FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE * FBUS_SENSOR_SOURCE_COUNT)
+
 typedef struct {
     uint8_t physicalId;
+    fbusSensorSource_e source;
     uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
     uint8_t appIdCount;
     timeUs_t lastSeenUs;
@@ -239,10 +251,14 @@ uint8_t fbusSensorGetObservedCount(void);
 const fbusObservedSensor_t* fbusSensorGetObserved(uint8_t index);
 void fbusSensorClearObserved(void);
 const char* fbusSensorGetName(uint8_t physicalId);
+const char* fbusSensorGetSourceName(fbusSensorSource_e source);
 
 // Frame forwarding functions
 void fbusSensorInitForwarding(void);
 bool fbusSensorIsForwarded(uint8_t physicalId);
+bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorNeedsStartupFrame(uint8_t physicalId);
 void fbusSensorMarkStartupFrameSent(uint8_t physicalId);
+bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source);
+void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source);

@@ -85,6 +85,8 @@ When enabled, the following values calculated and used by the telemetry and OLED
 * mAh used
 * Capacity remaining
 
+See also: [SmartFuel](SmartFuel.md), which derives an intelligent remaining-charge percentage from pack voltage and overrides the simple voltage and consumption-based percentages when enabled.
+
 ## Configuration
 
 Enable current monitoring using the CLI command:

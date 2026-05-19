@@ -136,7 +136,7 @@ class FlashEmulator : public FlashInterface {
     } flash_state_ = kFlashStateIdle;
 
     // Reuseable actual "program" cmd
-    void Program();
+    void Program(void);
     // Helper functions for testing
     uint32_t GetSectorIndex(uint32_t address);
     uint32_t GetPageIndex(uint32_t address);

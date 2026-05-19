@@ -71,7 +71,7 @@ static uint8_t ibusChannelOffset;
 static uint8_t rxBytesToIgnore;
 static uint16_t ibusChecksum;
 
-static bool ibusFrameDone = false;
+static volatile bool ibusFrameDone = false;
 static uint32_t ibusChannelData[IBUS_MAX_CHANNEL];
 
 static uint8_t ibus[IBUS_BUFFSIZE] = { 0, };
@@ -119,6 +119,11 @@ static void ibusDataReceive(uint16_t c, void *data)
         } else if (ibusSyncByte != c) {
             return;
         }
+    }
+
+    if ((ibusFrameSize == 0) || (ibusFrameSize > IBUS_BUFFSIZE) || (ibusFramePosition >= ibusFrameSize)) {
+        ibusFramePosition = 0;
+        return;
     }
 
     ibus[ibusFramePosition] = (uint8_t)c;

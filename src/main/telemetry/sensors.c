@@ -141,9 +141,9 @@ static int getFbusSensorValue(uint8_t sensorIndex)
         return 0;  // Sensor slot not configured
     }
     
-    // Get latest sensor frame from the forwarding buffer
+    // Get latest sensor frame from the forwarding buffer without consuming it.
     fbusSensorFrame_t frame = {0};
-    if (fbusSensorGetForwardedFrame(physicalId, &frame) && frame.valid) {
+    if (fbusSensorPeekForwardedFrame(physicalId, &frame) && frame.valid) {
         return frame.data;
     }
     
@@ -169,7 +169,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_CONSUMPTION:
             return getBatteryCapacityUsed();
         case TELEM_BATTERY_CHARGE_LEVEL:
-            return calculateBatteryPercentageRemaining();
+            return getBatteryChargeLevel();
         case TELEM_BATTERY_CELL_COUNT:
             return getBatteryCellCount();
         case TELEM_BATTERY_CELL_VOLTAGE:

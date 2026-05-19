@@ -36,8 +36,6 @@
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 
-#include "flight/mixer.h"
-
 #include "io/beeper.h"
 
 #include "pg/battery.h"
@@ -122,7 +120,7 @@ uint8_t getBatteryVoltageSource(void)
     return batteryConfig()->voltageMeterSource;
 }
 
-const voltageMeter_t * getBatteryVoltageMeter()
+const voltageMeter_t * getBatteryVoltageMeter(void)
 {
     return &voltageMeter;
 }
@@ -163,7 +161,7 @@ bool isBatteryCurrentConfigured(void)
     return batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
 }
 
-const currentMeter_t * getBatteryCurrentMeter()
+const currentMeter_t * getBatteryCurrentMeter(void)
 {
     return &currentMeter;
 }
@@ -190,6 +188,26 @@ uint16_t getBatteryCapacity(void)
 uint32_t getBatteryCapacityUsed(void)
 {
     return currentMeter.capacity;
+}
+
+uint8_t getBatteryChargeLevel(void)
+{
+#ifdef USE_SMARTFUEL
+    if (smartFuelIsEnabled())
+        return smartFuelChargeLevel();
+    else
+#endif
+        return calculateBatteryPercentageRemaining();
+}
+
+bool isBatteryChargeLevelAvailable(void)
+{
+#ifdef USE_SMARTFUEL
+    if (smartFuelIsEnabled())
+        return true;
+    else
+#endif
+        return getBatteryCapacity() > 0 || getBatteryCellCount() > 0;
 }
 
 batteryState_e getBatteryState(void)
@@ -401,8 +419,8 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && getBatteryCapacity() > 0 && batteryCellCount > 0) {
-        uint8_t batteryPercentageRemaining = calculateBatteryPercentageRemaining();
+    if (batteryConfig()->useConsumptionAlerts && isBatteryChargeLevelAvailable() && batteryCellCount > 0) {
+        uint8_t batteryPercentageRemaining = getBatteryChargeLevel();
 
         if (batteryPercentageRemaining == 0) {
             consumptionState = BATTERY_CRITICAL;
@@ -452,7 +470,7 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorFBUSRefresh();
 #endif
 
@@ -471,7 +489,7 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
             break;
 
         case VOLTAGE_METER_FBUS:
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (voltageSensorFBUSRead(&voltageMeter)) {
                 batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
             } else {
@@ -492,6 +510,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 
     DEBUG(BATTERY, 0, voltageMeter.sample);
     DEBUG(BATTERY, 1, batteryVoltage);
+
+#ifdef USE_SMARTFUEL
+    smartFuelUpdate();
+#endif
 }
 
 
@@ -507,7 +529,7 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     currentSensorFBUSRefresh();
 #endif
 
@@ -527,7 +549,7 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
             break;
 
         case CURRENT_METER_FBUS:
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (currentSensorFBUSRead(&currentMeter)) {
                 batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
             } else {
@@ -568,7 +590,7 @@ void batteryInit(void)
     currentSensorESCInit();
 #endif
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorFBUSInit();
     currentSensorFBUSInit();
 #endif
@@ -597,4 +619,8 @@ void batteryInit(void)
 
     // current
     consumptionState = BATTERY_OK;
+
+#ifdef USE_SMARTFUEL
+    smartFuelInit();
+#endif
 }

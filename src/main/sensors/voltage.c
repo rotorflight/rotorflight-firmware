@@ -145,7 +145,7 @@ void voltageSensorADCInit(void)
 static voltageSensorState_t voltageESCSensor;
 #endif
 
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 static voltageSensorState_t voltageFBUSSensor;
 #endif
 
@@ -216,7 +216,7 @@ void voltageSensorESCInit(void)
 
 bool voltageSensorFBUSRead(voltageMeter_t *meter)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     const voltageSensorState_t *state = &voltageFBUSSensor;
 
     meter->sample = state->sample;
@@ -230,7 +230,7 @@ bool voltageSensorFBUSRead(voltageMeter_t *meter)
 
 void voltageSensorFBUSRefresh(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorState_t *state = &voltageFBUSSensor;
     uint32_t voltageCentiVolts = 0;
 
@@ -248,7 +248,7 @@ void voltageSensorFBUSRefresh(void)
 
 void voltageSensorFBUSInit(void)
 {
-#ifdef USE_FBUS_MASTER
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     memset(&voltageFBUSSensor, 0, sizeof(voltageFBUSSensor));
     lowpassFilterInit(&voltageFBUSSensor.filter, LPF_BESSEL,
         batteryConfig()->vbatLpfHz,

@@ -52,7 +52,7 @@
 #define SUMH_MAX_CHANNEL_COUNT 8
 #define SUMH_FRAME_SIZE 21
 
-static bool sumhFrameDone = false;
+static volatile bool sumhFrameDone = false;
 
 static uint8_t sumhFrame[SUMH_FRAME_SIZE];
 static uint32_t sumhChannels[SUMH_MAX_CHANNEL_COUNT];
@@ -74,6 +74,11 @@ static void sumhDataReceive(uint16_t c, void *data)
     sumhTimeLast = sumhTime;
     if (sumhTimeInterval > 5000) {
         sumhFramePosition = 0;
+    }
+
+    if (sumhFramePosition >= SUMH_FRAME_SIZE) {
+        sumhFramePosition = 0;
+        return;
     }
 
     sumhFrame[sumhFramePosition] = (uint8_t) c;

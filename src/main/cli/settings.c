@@ -108,6 +108,7 @@
 #include "pg/freq.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
+#include "pg/sport_master.h"
 #include "pg/bus_servo.h"
 
 #include "rx/a7105_flysky.h"
@@ -512,6 +513,12 @@ const char * const lookupTableParamType[] = {
     "NONE", "TIMER1", "TIMER2", "TIMER3", "GV1", "GV2", "GV3", "GV4", "GV5", "GV6", "GV7", "GV8", "GV9"
 };
 
+#ifdef USE_SMARTFUEL
+static const char * const lookupTableSmartFuelMode[] = {
+    "OFF", "VOLTAGE", "CURRENT", "COMBINED",
+};
+#endif
+
 #define LOOKUP_TABLE_ENTRY(name) { name, ARRAYLEN(name) }
 
 const lookupTableEntry_t lookupTables[] = {
@@ -626,6 +633,9 @@ const lookupTableEntry_t lookupTables[] = {
     LOOKUP_TABLE_ENTRY(lookupTablePullMode),
     LOOKUP_TABLE_ENTRY(lookupTableEdgeMode),
     LOOKUP_TABLE_ENTRY(lookupTableParamType),
+#ifdef USE_SMARTFUEL
+    LOOKUP_TABLE_ENTRY(lookupTableSmartFuelMode),
+#endif
 };
 
 #undef LOOKUP_TABLE_ENTRY
@@ -768,6 +778,7 @@ const clivalue_t valueTable[] = {
 #if defined(USE_FREQ_SENSOR)
     { "freq_input_pull",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  .config.lookup = { TABLE_INPUT_PULL_MODE }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, pullupdn) },
     { "freq_input_edge",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP,  .config.lookup = { TABLE_INPUT_EDGE_MODE }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, polarity) },
+    { "freq_input_minhz",           VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 1, 100 }, PG_FREQ_SENSOR_CONFIG, offsetof(freqConfig_t, minhz) },
 #endif
 
 // PG_BLACKBOX_CONFIG
@@ -878,6 +889,12 @@ const clivalue_t valueTable[] = {
     { "vbat_duration_for_critical", VAR_UINT8  | MASTER_VALUE, .config.minmax = { 0, 150 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatDurationForCritical) },
     { "vbat_update_hz",             VAR_UINT16 | MASTER_VALUE, .config.minmax = { 10, 1000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatUpdateHz) },
     { "ibat_update_hz",             VAR_UINT16 | MASTER_VALUE, .config.minmax = { 10, 1000 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, ibatUpdateHz) },
+#ifdef USE_SMARTFUEL
+    { "smartfuel",                  VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_SMARTFUEL_MODE }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_mode) },
+    { "smartfuel_voltage_drop_rate", VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_VOLTAGE_DROP_RATE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_voltage_drop_rate) },
+    { "smartfuel_charge_drop_rate", VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_CHARGE_DROP_RATE_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_charge_drop_rate) },
+    { "smartfuel_sag_gain",         VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, SMARTFUEL_SAG_GAIN_MAX }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, smartfuel_sag_gain) },
+#endif
 
 //  PG_VOLTAGE_SENSOR_ADC_CONFIG
     { "vbat_scale",                 VAR_UINT16 | HARDWARE_VALUE, .config.minmaxUnsigned = { VOLTAGE_SCALE_MIN, VOLTAGE_SCALE_MAX }, PG_VOLTAGE_SENSOR_ADC_CONFIG, PG_ARRAY_ELEMENT_OFFSET(voltageSensorADCConfig_t, VOLTAGE_SENSOR_ADC_BAT, scale) },
@@ -1755,6 +1772,12 @@ const clivalue_t valueTable[] = {
     { "fbus_master_discovery_ms",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {FBUS_MASTER_DISCOVERY_TIME_MIN_MS, FBUS_MASTER_DISCOVERY_TIME_MAX_MS}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sensorDiscoveryTimeMs) },
     { "fbus_master_forwarded_sensors", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_MAX_FORWARDED_SENSORS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, forwardedSensors) },
 #endif
+
+#ifdef USE_SPORT_MASTER
+    { "sport_master_pinswap",          VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_MASTER_CONFIG, offsetof(sportMasterConfig_t, pinSwap) },
+    { "sport_master_inverted",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_MASTER_CONFIG, offsetof(sportMasterConfig_t, inverted) },
+#endif
+
 };
 
 const uint16_t valueTableEntryCount = ARRAYLEN(valueTable);

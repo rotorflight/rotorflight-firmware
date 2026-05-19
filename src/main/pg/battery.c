@@ -32,7 +32,7 @@
 #endif
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 4);
+PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 5);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .batteryProfile = 0,
@@ -56,4 +56,8 @@ PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .ibatLpfHz = 10,
     .vbatUpdateHz = VOLTAGE_TASK_FREQ_HZ,
     .ibatUpdateHz = CURRENT_TASK_FREQ_HZ,
+    .smartfuel_mode = SMARTFUEL_MODE_OFF,
+    .smartfuel_voltage_drop_rate = SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT,
+    .smartfuel_charge_drop_rate = SMARTFUEL_CHARGE_DROP_RATE_DEFAULT,
+    .smartfuel_sag_gain = SMARTFUEL_SAG_GAIN_DEFAULT,
 );
