@@ -2194,7 +2194,7 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 #define PL5_TELE_FRAME_TIMEOUT              500
 #define PL5_PARAM_FRAME_PERIOD              4
 #define PL5_PARAM_READ_TIMEOUT              100
-#define PL5_PARAM_WRITE_TIMEOUT             1200
+#define PL5_PARAM_WRITE_TIMEOUT             200
 
 #define PL5_PING_FRAME_PERIOD               480
 #define PL5_PING_TIMEOUT                    1600
