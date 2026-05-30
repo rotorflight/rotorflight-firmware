@@ -2247,6 +2247,7 @@ static bool pl5DirtyParams = false;
 static bool pl5VerifyParamsAfterWrite = false;
 static bool pl5ResetPending = false;
 static uint8_t pl5SetParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
+static uint8_t pl5ExpectedParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
 
 static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
 {
@@ -2276,7 +2277,7 @@ static bool pl5ParamCommit(uint8_t cmd)
             pl5DirtyParams = true;
             // clear cached flag, will schedule write
             pl5CachedParams = false;
-            // invalidate param payload - will be available again when params again cached (write response or re-read)
+            // invalidate param payload - will be available again after a fresh readback is cached
             paramPayloadLength = 0;
         }
 
@@ -2325,8 +2326,9 @@ static void pl5BuildNextReq(void)
     else if (pl5DirtyParams) {
         memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
         memcpy(reqbuffer, pl5WriteParamsReq, PL5_REQ_WRITEPARAMS_HEADER_LENGTH);
-        memcpy(reqbuffer + PL5_REQ_WRITEPARAMS_HEADER_LENGTH, pl5SetParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
-        memcpy(reqbuffer + PL5_REQ_WRITEPARAMS_HEADER_LENGTH + 1, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(pl5ExpectedParamsPayload, pl5SetParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+        memcpy(pl5ExpectedParamsPayload + 1, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(reqbuffer + PL5_REQ_WRITEPARAMS_HEADER_LENGTH, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
         pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
     // ...or pending device info, schedule request...
@@ -2413,19 +2415,28 @@ static bool pl5DecodeGetDevInfoResp(void)
 
 static bool pl5DecodeGetParamsResp(void)
 {
+    const uint8_t *readParamsPayload = buffer + 7;
+
+    if (pl5VerifyParamsAfterWrite) {
+        if (memcmp(readParamsPayload, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH) != 0) {
+            pl5CachedParams = false;
+            paramPayloadLength = 0;
+            pl5BuildNextReq();
+            return false;
+        }
+
+        pl5VerifyParamsAfterWrite = false;
+        pl5ResetPending = true;
+    }
+
     // Cache the writable first half of the full 0x3538 read. The OEM tool reads
     // 0x0030 registers here, but writes back only the first 0x0018 registers.
-    memcpy(pl5SetParamsPayload, buffer + 7, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+    memcpy(pl5SetParamsPayload, readParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
     memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, pl5SetParamsPayload + 1, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
     pl5CachedParams = true;
 
     // make param payload available
     paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
-
-    if (pl5VerifyParamsAfterWrite) {
-        pl5VerifyParamsAfterWrite = false;
-        pl5ResetPending = true;
-    }
 
     pl5BuildNextReq();
 
@@ -2437,9 +2448,6 @@ static bool pl5DecodeWriteParamsResp(void)
     const bool writeSuccess = (buffer[3] & PL5_ERR) == 0;
 
     if (writeSuccess) {
-        // success, cache parameters
-        memcpy(pl5SetParamsPayload, buffer + 8, PL5_SET_PARAMS_PAYLOAD_LENGTH);
-        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, pl5SetParamsPayload + 1, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
         pl5VerifyParamsAfterWrite = true;
         pl5CachedParams = false;
     }
