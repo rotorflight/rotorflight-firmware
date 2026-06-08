@@ -1757,13 +1757,13 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
  *    6-7:      Current x10mA [0-65535]
  *    8-9:      Capacity 1mAh [0-65535]
  *  10-11:      ERPM 10rpm [0-65535]
- *     12:      Throttle [0-100]
+ *     12:      Pwm [0-100]
  *     13:      ESC Temperature 1°C [-30-225]
  *     14:      MCU Temperature 1°C [-30-225]
  *     15:      Motor Temperature 1°C [-30-225]
  *     16:      BEC Voltage x100mV [0-255]
  *     17:      Status flag
- *     18:      Mode [0-255]
+ *     18:      Throttle [0-100]
  * 
  *     19:      CRC8
  *     20:      end byte (0x65)
@@ -1937,7 +1937,8 @@ static void flyDecodeTelemetryFrame(void)
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
     const int16_t motorTemp = buffer[hl + 11] - FLY_TEMP_OFFSET;
-    const uint8_t power = buffer[hl + 8];
+    const uint16_t power = buffer[hl + 8];
+    const uint16_t throttle = buffer[hl + 14];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
     const uint16_t consumption = buffer[hl + 4] << 8 | buffer[hl + 5];
@@ -1948,6 +1949,7 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 10;
     escSensorData[0].pwm = power * 10;
+    escSensorData[0].throttle = throttle * 10;
     escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
     escSensorData[0].current = applyCurrentCorrection(current * 10);
     escSensorData[0].consumption = applyConsumptionCorrection(consumption);
