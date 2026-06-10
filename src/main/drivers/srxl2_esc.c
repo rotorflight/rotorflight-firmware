@@ -969,7 +969,7 @@ static uint8_t srxl2escFrameStatus(srxl2esc_runtimeState_t *runtimeState)
     }
 
     if (!(result & SRXL2_ESC_FRAME_DROPPED)) {
-        runtimeState->lastRcFrameTimeUs = lastIdleTimestamp;
+        runtimeState->lastFrameTimeUs = lastIdleTimestamp;
     }
 
     return result;
@@ -1014,15 +1014,6 @@ static bool srxl2escProcessFrame(const srxl2esc_runtimeState_t *runtimeState)
     srxl2escTrySendPendingWriteBuffer();
 
     return (writeBufferIdx == 0);
-}
-
-static float srxl2escReadRawRC(const srxl2esc_runtimeState_t *runtimeState, uint8_t channelIdx)
-{
-    if (channelIdx >= runtimeState->channelCount) {
-        return 0;
-    }
-
-    return ((float)(runtimeState->channelData[channelIdx] >> SRXL2_ESC_CHANNEL_SHIFT) / 16) + SPEKTRUM_PULSE_OFFSET;
 }
 
 /* Provide a local frame-time helper so the SMART ESC driver does not
@@ -1221,14 +1212,13 @@ bool srxl2escInit(const srxl2esc_config_t *escConfig)
     memset(&srxl2escInternalRs, 0, sizeof(srxl2escInternalRs));
     srxl2escInternalRs.channelData      = srxl2escInternalChannelData;
     srxl2escInternalRs.channelCount     = SRXL2_ESC_MAX_CHANNELS;
-    srxl2escInternalRs.rxRefreshRate    = SRXL2_ESC_FRAME_PERIOD_US;
-    srxl2escInternalRs.rcReadRawFn      = srxl2escReadRawRC;
-    srxl2escInternalRs.rcFrameStatusFn  = srxl2escFrameStatus;
+    srxl2escInternalRs.refreshRate      = SRXL2_ESC_FRAME_PERIOD_US;
+    srxl2escInternalRs.frameStatusFn    = srxl2escFrameStatus;
     /* Provide a local frame-time helper so the SMART ESC driver does not
      * depend on the global RX subsystem. This returns the last idle
      * timestamp observed by the driver as an approximation of frame time. */
-    srxl2escInternalRs.rcFrameTimeUsFn  = srxl2escLocalFrameTimeUs;
-    srxl2escInternalRs.rcProcessFrameFn = srxl2escProcessFrame;
+    srxl2escInternalRs.frameTimeUsFn  = srxl2escLocalFrameTimeUs;
+    srxl2escInternalRs.processFrameFn = srxl2escProcessFrame;
 
     /* Point global pointer to internal runtime state */
     srxl2escRsGlobal = &srxl2escInternalRs;

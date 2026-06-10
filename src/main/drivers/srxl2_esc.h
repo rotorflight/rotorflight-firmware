@@ -49,12 +49,11 @@ typedef struct {
 typedef struct srxl2esc_runtimeState_s {
 	uint16_t                    	*channelData;      	/* channel storage */
 	uint8_t                      	channelCount;     	/* number of channels */
-	uint16_t                     	rxRefreshRate;    	/* refresh period */
-	srxl2esc_readRawDataFnPtr  		rcReadRawFn;      	/* read raw channel helper */
-	srxl2esc_frameStatusFnPtr  		rcFrameStatusFn;  	/* frame-status callback */
-	srxl2esc_processFrameFnPtr 		rcProcessFrameFn; 	/* process-frame callback */
-	srxl2esc_getFrameTimeUsFn 		*rcFrameTimeUsFn;  	/* timestamp helper */
-	timeUs_t                     	lastRcFrameTimeUs;
+	uint16_t                     	refreshRate;    	/* refresh period */
+	srxl2esc_frameStatusFnPtr  		frameStatusFn;  	/* frame-status callback */
+	srxl2esc_processFrameFnPtr 		processFrameFn; 	/* process-frame callback */
+	srxl2esc_getFrameTimeUsFn 		*frameTimeUsFn;  	/* timestamp helper */
+	timeUs_t                     	lastFrameTimeUs;
 } srxl2esc_runtimeState_t;
 
 typedef struct {
