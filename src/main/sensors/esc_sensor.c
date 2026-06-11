@@ -2194,7 +2194,7 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 #define PL5_TELE_FRAME_TIMEOUT              500
 #define PL5_PARAM_FRAME_PERIOD              4
 #define PL5_PARAM_READ_TIMEOUT              100
-#define PL5_PARAM_WRITE_TIMEOUT             100
+#define PL5_PARAM_WRITE_TIMEOUT             200
 
 #define PL5_PING_FRAME_PERIOD               480
 #define PL5_PING_TIMEOUT                    1600
@@ -2208,18 +2208,23 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 #define PL5_RESP_DEVINFO_TYPE               0x252C
 #define PL5_RESP_DEVINFO_LENGTH             73
 #define PL5_RESP_DEVINFO_PAYLOAD_LENGTH     48
-#define PL5_RESP_GETPARAMS_TYPE             0x0C30
-#define PL5_RESP_GETPARAMS_LENGTH           137
+#define PL5_RESP_RESET_TYPE                 0x022B
+#define PL5_RESP_RESET_LENGTH               10
+#define PL5_RESP_PARAMS_TYPE                0x3835
+#define PL5_RESP_GETPARAMS_LENGTH           105
 #define PL5_RESP_GETPARAMS_PAYLOAD_LENGTH   31
 #define PL5_REQ_WRITEPARAMS_LENGTH          63
-#define PL5_RESP_WRITEPARAMS_TYPE           0x3835
+#define PL5_REQ_WRITEPARAMS_HEADER_LENGTH   13
+#define PL5_SET_PARAMS_PAYLOAD_LENGTH       48
+#define PL5_RESP_WRITEPARAMS_TYPE           PL5_RESP_PARAMS_TYPE
 #define PL5_RESP_WRITEPARAMS_LENGTH         58
 #define PL5_RESP_WRITEPARAMS_ERR_LENGTH     9
 
 static uint8_t pl5Ping[] = { 0x1, 0xFD, 0x3, 0x3, 0x2C, 0x24, 0x0, 0x1, 0x60, 0x60 };
+static uint8_t pl5ResetReq[] = { 0x01, 0xFD, 0x03, 0x06, 0x2B, 0x02, 0x55, 0x00, 0xB2, 0x4F };
 static uint8_t pl5DevInfoReq[] = { 0x01, 0xFD, 0x03, 0x03, 0x2C, 0x25, 0x00, 0x20, 0xF1, 0xB8 };
-static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x30, 0xC, 0x0, 0x40, 0x27, 0xC8 };
-static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30, 0x0 };
+static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x35, 0x38, 0x0, 0x30, 0x67, 0x2E };
+static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30 };
 
 typedef struct {
     uint8_t  throttle;                  // Throttle value in %
@@ -2239,6 +2244,10 @@ typedef struct {
 static bool pl5CachedDevInfo = false;
 static bool pl5CachedParams = false;
 static bool pl5DirtyParams = false;
+static bool pl5VerifyParamsAfterWrite = false;
+static bool pl5ResetPending = false;
+static uint8_t pl5SetParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
+static uint8_t pl5ExpectedParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
 
 static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
 {
@@ -2268,7 +2277,7 @@ static bool pl5ParamCommit(uint8_t cmd)
             pl5DirtyParams = true;
             // clear cached flag, will schedule write
             pl5CachedParams = false;
-            // invalidate param payload - will be available again when params again cached (write response or re-read)
+            // invalidate param payload - will be available again after a fresh readback is cached
             paramPayloadLength = 0;
         }
 
@@ -2308,12 +2317,18 @@ static bool pl5CopySendFrame(void *req, uint8_t len, uint16_t framePeriod, uint1
 
 static void pl5BuildNextReq(void)
 {
+    // schedule pending ESC reset to apply saved settings
+    if (pl5ResetPending) {
+        pl5ResetPending = false;
+        pl5CopySendFrame(pl5ResetReq, sizeof(pl5ResetReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
+    }
     // schedule pending param write, schedule request...
-    if (pl5DirtyParams) {
+    else if (pl5DirtyParams) {
         memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
-        const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
-        memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
-        memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(reqbuffer, pl5WriteParamsReq, PL5_REQ_WRITEPARAMS_HEADER_LENGTH);
+        memcpy(pl5ExpectedParamsPayload, pl5SetParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+        memcpy(pl5ExpectedParamsPayload + 1, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(reqbuffer + PL5_REQ_WRITEPARAMS_HEADER_LENGTH, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
         pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
     // ...or pending device info, schedule request...
@@ -2400,8 +2415,24 @@ static bool pl5DecodeGetDevInfoResp(void)
 
 static bool pl5DecodeGetParamsResp(void)
 {
-    // cache parameters, payload complete
-    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+    const uint8_t *readParamsPayload = buffer + 7;
+
+    if (pl5VerifyParamsAfterWrite) {
+        if (memcmp(readParamsPayload, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH) != 0) {
+            pl5CachedParams = false;
+            paramPayloadLength = 0;
+            pl5BuildNextReq();
+            return false;
+        }
+
+        pl5VerifyParamsAfterWrite = false;
+        pl5ResetPending = true;
+    }
+
+    // Cache the writable first half of the full 0x3538 read. The OEM tool reads
+    // 0x0030 registers here, but writes back only the first 0x0018 registers.
+    memcpy(pl5SetParamsPayload, readParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, pl5SetParamsPayload + 1, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
     pl5CachedParams = true;
 
     // make param payload available
@@ -2414,18 +2445,31 @@ static bool pl5DecodeGetParamsResp(void)
 
 static bool pl5DecodeWriteParamsResp(void)
 {
-    if ((buffer[3] & PL5_ERR) == 0) {
-        // success, cache parameters
-        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
-        pl5CachedParams = true;
+    const bool writeSuccess = (buffer[3] & PL5_ERR) == 0;
+
+    if (writeSuccess) {
+        pl5VerifyParamsAfterWrite = true;
+        pl5CachedParams = false;
     }
 
-    // make param payload available
-    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+    // Do not expose the write echo through MSP as if it were a fresh ESC readback.
+    paramPayloadLength = writeSuccess ? 0 : PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
 
     // success or failure don't repeat
     pl5DirtyParams = false;
 
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodeResetResp(void)
+{
+    pl5CachedDevInfo = false;
+    pl5CachedParams = false;
+    paramPayloadLength = 0;
+
+    paramEscNeedRestart();
     pl5BuildNextReq();
 
     return true;
@@ -2447,10 +2491,10 @@ static bool pl5Decode(timeUs_t currentTimeUs)
             return pl5DecodePingResp();
         case PL5_RESP_DEVINFO_TYPE:
             return pl5DecodeGetDevInfoResp();
-        case PL5_RESP_GETPARAMS_TYPE:
-            return pl5DecodeGetParamsResp();
-        case PL5_RESP_WRITEPARAMS_TYPE:
-            return pl5DecodeWriteParamsResp();
+        case PL5_RESP_RESET_TYPE:
+            return pl5DecodeResetResp();
+        case PL5_RESP_PARAMS_TYPE:
+            return buffer[3] == 3 ? pl5DecodeGetParamsResp() : pl5DecodeWriteParamsResp();
         default:
             return false;
     }
@@ -2489,15 +2533,17 @@ static int8_t pl5Accept(uint16_t c)
                 if (buffer[3] == 3)
                     len = PL5_RESP_DEVINFO_LENGTH;
                 break;
-            case PL5_RESP_GETPARAMS_TYPE:
-                if (buffer[3] == 3)
-                    len = PL5_RESP_GETPARAMS_LENGTH;
+            case PL5_RESP_RESET_TYPE:
+                if (buffer[3] == 6)
+                    len = PL5_RESP_RESET_LENGTH;
                 break;
-            case PL5_RESP_WRITEPARAMS_TYPE:
+            case PL5_RESP_PARAMS_TYPE:
                 if (buffer[3] == 0x17)
                     len = PL5_RESP_WRITEPARAMS_LENGTH;
                 else if (buffer[3] == (PL5_ERR|0x17))
                     len = PL5_RESP_WRITEPARAMS_ERR_LENGTH;
+                else if (buffer[3] == 3)
+                    len = PL5_RESP_GETPARAMS_LENGTH;
                 break;
         }
         if (len != 0) {
