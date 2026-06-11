@@ -299,9 +299,13 @@ static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
         }
     }
 
-    if (hasEscData && fbusEscData.hasRpmConsumption) {
+    if (hasEscData && fbusEscData.hasRpm) {
         escData->id = FBUS_SENSOR_ESC;
         escData->erpm = fbusEscData.erpm;
+    }
+
+    if (hasEscData && fbusEscData.hasConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
         escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
     }
 
@@ -309,6 +313,7 @@ static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
         escData->id = FBUS_SENSOR_ESC;
         // FBUS temperature is in C, escSensorData uses 0.1C.
         escData->temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+        escData->temperature2 = (int16_t)fbusEscData.temperature2DegC * 10;
     }
 
     return true;
