@@ -110,7 +110,7 @@ void validateAndFixServoConfig(void)
         volatile servoParam_t *servo = servoParamsMutable(i);
         const bool isBusServo = (i >= BUS_SERVO_OFFSET);
         const uint16_t minSignal = isBusServo ? BUS_SERVO_MIN_SIGNAL : PWM_SERVO_PULSE_MIN;
-        const uint16_t maxSignal = isBusServo ? BUS_SERVO_MAX_SIGNAL : PWM_SERVO_PULSE_MAX;
+        const uint16_t maxSignal = isBusServo ? BUS_SERVO_MAX_SIGNAL : PWM_SERVO_PULSE_MAX + PWM_RANGE;
         
 #ifndef USE_SERVO_GEOMETRY_CORRECTION
         servo->flags &= ~SERVO_FLAG_GEO_CORR;
