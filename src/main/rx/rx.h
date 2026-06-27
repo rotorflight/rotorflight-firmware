@@ -45,7 +45,7 @@
 #define PWM_PULSE_MAX           2250      // maximum PWM pulse width which is considered valid
 
 #define PWM_SERVO_PULSE_MIN     50        // minimum PWM servo output pulse width allowed
-#define PWM_SERVO_PULSE_MAX     2250      // maximum PWM servo output pulse width allowed
+#define PWM_SERVO_PULSE_MAX     2500      // maximum PWM servo output pulse width allowed
 
 #define RXFAIL_PULSE_MIN        875
 #define RXFAIL_PULSE_MAX        2150
