@@ -1,8 +1,8 @@
-:regional_indicator_r: :regional_indicator_o: :regional_indicator_t: :regional_indicator_o: :regional_indicator_r: :regional_indicator_f: :regional_indicator_l: :regional_indicator_i: :regional_indicator_g: :regional_indicator_h: :regional_indicator_t:   :two: . :three: . :zero: - :regional_indicator_r: :regional_indicator_c: :three:
+:regional_indicator_r: :regional_indicator_o: :regional_indicator_t: :regional_indicator_o: :regional_indicator_r: :regional_indicator_f: :regional_indicator_l: :regional_indicator_i: :regional_indicator_g: :regional_indicator_h: :regional_indicator_t:   :two: . :three: . :zero:
 
-We are proud to present **Rotorflight 2.3.0 - Release Candidate 3**.
+We are proud to present **Rotorflight 2.3.0**.
 
-This RC3 build continues the final polish for Rotorflight 2.3.0, with additional new features, reliability improvements, and important bug fixes based on RC2 testing feedback.
+This is the official release of Rotorflight 2.3.0, the result of a long development cycle and extensive community testing. It brings a wealth of new features, reliability improvements, and bug fixes — a huge step forward for the project.
 
 ## Thank You
 
@@ -15,29 +15,26 @@ Rotorflight is a community-driven project, developed entirely by volunteers in t
 ### BIG THANKS also to everybody who has already donated — your generosity is truly appreciated!
 
 ## Downloads
-Rotorflight 2.3.0-RC3 can be downloaded here:
+Rotorflight 2.3.0 can be downloaded here:
 
-- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.3.0-RC3)
-- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.3.0-RC3)
-- [Rotorflight Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.3.0-RC3)
-- [Rotorflight Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.3.0-RC3)
-- [Rotorflight Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.3.0-RC3)
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases/tag/release/2.3.0)
+- [Rotorflight Blackbox](https://github.com/rotorflight/rotorflight-blackbox/releases/tag/release/2.3.0)
+- [Rotorflight Lua Scripts for EdgeTx and OpenTx](https://github.com/rotorflight/rotorflight-lua-scripts/releases/tag/release/2.3.0)
+- [Rotorflight Lua Scripts for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos/releases/tag/release/2.3.0)
+- [Rotorflight Lua Suite for FrSky Ethos](https://github.com/rotorflight/rotorflight-lua-ethos-suite/releases/tag/release/2.3.0)
 
 ## NOTE!
-This is not yet the _official_ release of 2.3 — it is a _release candidate_. The final release will follow once any remaining issues discovered during community testing have been addressed. We encourage experienced users to test this version and report any problems via our GitHub issue tracker or Discord.
+As always, please double check your configuration on the bench before flying!
 
 The firmware for 2.3 appears as **4.6.x** in the Firmware Flasher in the Configurator.
 
-## Changes since 4.6.0-RC2
-- Add SmartFuel battery charge estimator
-- Add freq_input_minhz parameter
-- Make S.Port master independent of telemetry feature
-- Move S.Port to a separate task
-- Enable flight stats by default
-- Extend servo scaling range for T-40 servos
-- Refine FBUS sensors implementation
-- Fix a potential buffer overflow in rcdevice
-- Revert SRXL receiver change that caused glitches with Spektrum
+## Changes since 4.6.0-RC3
+- Add PY25Q128HA flash ID
+- Change servo PWM pulse maximum to 2500us
+- Add input throttle parsing for FLYROTOR ESC
+- Fix IBUS2 channel decoding by requesting the channel-type table
+- Fix Hobbywing Platinum V5 ESC parameter writes
+- Faster maths approximation routines
 
 ## 4.6 Firmware Highlights
 
@@ -59,19 +56,20 @@ A new SmartFuel estimator provides a more accurate "fuel gauge" for your battery
 ### ESC Forward Programming
 Rotorflight now supports Forward Programming for a wide range of ESCs — AM32, BLHeli S/Bluejay, ZTW, OMP, and XDFly — all accessible directly from an EdgeTx or FrSky transmitter.
 
-### FlySky IBUS2 Control & Telemetry
-Full bidirectional support for FlySky IBUS2 has been added, bringing control and rich telemetry to FlySky users.
-
-### FBUS Master Out & Sensors
+### FBUS Master & Sensors
 FBUS Master Out and FBUS Master Sensors are now supported, further expanding the already comprehensive telemetry capabilities for FrSky/FBUS setups.
 
 ### S.Port Master for Sensors
 S.Port master is now supported, allowing to connect legacy S.Port sensors.
 
+### FlySky IBUS2 Control & Telemetry
+Full bidirectional support for FlySky IBUS2 has been added, bringing control and rich telemetry to FlySky users.
+
 ### New hardware support
 This release adds drivers for several new components:
 - BMI323 gyro driver
 - BMP581 barometer driver
+- Winbond W25N04KV flash support
 - GYRO_CLK support for external gyro clocking
 
 ### Native ELRS telemetry sensors
