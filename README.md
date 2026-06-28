@@ -1,12 +1,16 @@
 # Rotorflight
 
+[![Website](https://img.shields.io/badge/Website-rotorflight.org-2ea44f)](https://www.rotorflight.org/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Chat-5865F2?logo=discord&logoColor=white)](https://discord.gg/FyfMF4RwSA)
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+
 [Rotorflight](https://github.com/rotorflight) is a Flight Control software suite designed for
 single-rotor helicopters. It consists of:
 
 - Rotorflight Flight Controller Firmware (this repository)
-- Rotorflight Configurator, for flashing and configuring the flight controller
-- Rotorflight Blackbox Explorer, for analyzing blackbox flight logs
-- Rotorflight Lua Scripts, for configuring the flight controller using a transmitter
+- [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator), for flashing and configuring the flight controller
+- [Rotorflight Blackbox Explorer](https://github.com/rotorflight/rotorflight-blackbox), for analyzing blackbox flight logs
+- [Rotorflight Lua Scripts](https://github.com/rotorflight/rotorflight-lua-scripts), for configuring the flight controller using a transmitter
 
 Built on Betaflight 4.3, Rotorflight incorporates numerous advanced features specifically
 tailored for helicopters. It's important to note that Rotorflight does _not_ support multi-rotor
@@ -24,9 +28,9 @@ Tutorials, documentation, and flight videos can be found on the [Rotorflight web
 
 Rotorflight has many features:
 
-* Many receiver protocols: CRSF, S.BUS, FBUS, F.Port, SRXL2, IBUS, XBUS, EXBUS, GHOST, CPPM
+* Many receiver protocols: CRSF, S.BUS, FBUS, F.Port, SRXL2, IBUS, IBUS2, XBUS, EXBUS, GHOST, CPPM
 * Support for various telemetry protocols: CSRF, S.Port, FBUS, HoTT, etc.
-* ESC telemetry protocols: Hobbywing, Scorpion, Kontronik, Castle, OMP, ZTW, APD, YGE, XDFly, FLYROTOR
+* ESC telemetry protocols: BLHeli32, Hobbywing, Scorpion, Kontronik, Castle, OMP, ZTW, APD, YGE, XDFly, Graupner, FLYROTOR
 * Advanced PID control algorithms for helicopters
 * Stabilisation modes (6D)
 * Rotor speed governor
@@ -40,7 +44,6 @@ Rotorflight has many features:
 * Advanced gyro filtering
   - Dynamic RPM based notch filters
   - Dynamic notch filters based on FFT
-  - Dynamic LPF
 * High-speed Blackbox logging
 
 Plus lots of features inherited from Betaflight:
@@ -49,7 +52,6 @@ Plus lots of features inherited from Betaflight:
 * Rates profiles for changing the stick feel and agility
 * Multiple ESC protocols: PWM, DSHOT, Multishot, etc.
 * Multi-color RGB LEDs
-* GPS support (telemetry & logging only)
 
 And much more...
 
@@ -57,7 +59,7 @@ And much more...
 ## Hardware support
 
 The best hardware for Rotorflight is any Flight Controller especially designed for it.
-See [What board is suitable?](https://www.rotorflight.org/docs/Tutorial-Quickstart/What-Board)
+See [Rotorflight Flight Controllers](https://rotorflight.org/docs/controllers)
 
 Otherwise, Rotorflight supports all flight controller boards that are supported by Betaflight 4.3,
 assuming that the board has enough suitable I/O pins for connecting all the servos and motors required.
@@ -71,21 +73,43 @@ Rotorflight supports STM32F405, STM32F722, STM32F745 and STM32H743 MCUs from ST.
 The support for lesser MCUs like STM32G474 and STM32F411 is EOL and will be removed soon.
 
 
+## Safety
+
+Helicopters can be dangerous. Rotorflight is provided free of charge and without
+any warranty — you use it entirely at your own risk.
+
+- Always remove the main and tail rotor blades before configuring or testing on the bench.
+- Always double check your configuration before flying.
+- Keep a safe distance from the helicopter whenever the battery is connected.
+
+
 ## Installation
 
 Download and flash the Rotorflight firmware with the
 [Rotorflight Configurator](https://github.com/rotorflight/rotorflight-configurator/releases).
 
-Flashing the Rotorflight firmware with any other flashing tools is not recommended.
+Flashing the Rotorflight firmware with any other flashing tool is strictly not
+supported, and will not work.
 
-Visit the [website](https://www.rotorflight.org/) for more details on setting up and using Rotorflight.
+Visit the [website](https://www.rotorflight.org/) for more details on setting up
+and using Rotorflight.
+
+
+## Support
+
+The primary place for support, questions, and discussion is the
+[Rotorflight Discord](https://discord.gg/FyfMF4RwSA). The developers, flight
+controller manufacturers, and many experienced pilots are all active there.
+
+There is also a [Rotorflight Facebook Group](https://www.facebook.com/groups/rotorflight)
+for hanging out with other Rotorflight pilots.
 
 
 ## Contributing
 
 Rotorflight is an open-source community project. Anybody can join in and help to make it better by:
 
-* helping other users on Rotorflight Discord or other online forums
+* helping other users on [Rotorflight Discord](https://discord.gg/FyfMF4RwSA) or other online forums
 * [reporting](https://github.com/rotorflight?tab=repositories) bugs and issues, and suggesting improvements
 * testing new software versions, new features and fixes; and providing feedback
 * participating in discussions on new features
@@ -104,6 +128,15 @@ Rotorflight borrows ideas and code also from [HeliFlight3D](https://github.com/h
 Big thanks to everyone who has contributed along the journey!
 
 
+## License
+
+Rotorflight is free software licensed under the GNU General Public License v3.0 (GPLv3).
+See the [LICENSE](LICENSE) file for the full license text.
+
+
 ## Contact
 
 Team Rotorflight can be contacted by email at rotorflightfc@gmail.com.
+
+Please note that this email address is **not** for support. For help and questions,
+please use the [Support](#support) channels above.
