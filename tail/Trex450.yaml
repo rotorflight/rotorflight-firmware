@@ -1,0 +1,11 @@
+blade_angle_min: -40.0
+blade_angle_max:  40.0
+blade_grip_arm:    8.5
+blade_grip_link:   6.5
+slider_arm:        7.5
+pivot_arm:        16.0
+pivot_dist:       14.5
+pivot_angle:      90.0
+pivot_zero:        0.0
+servo_arm:         8.0
+servo_zero:        0.0

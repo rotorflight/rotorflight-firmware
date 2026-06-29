@@ -246,6 +246,9 @@ the actual values are calculated automatically (#332).
 
 `smartfuel_sag_gain` scales sag compensation from cyclic and collective stick load while airborne. Range 0..100, default 40.
 
+`tail_link_curve` is added. Array of 8 values giving the coefficients of a 7th-order polynomial that maps stabilised yaw mixer output to tail servo deflection for variable-pitch tail rotors (`tail_rotor_mode` = `VARIABLE`). Each coefficient is stored as an integer and scaled by `1/10000` in the mixer.
+With all coefficients zero the curve is disabled and yaw is passed through linearly (aside from `tail_center_trim`). The curve is not applied to motorized or bidirectional tail motors.
+
 
 ## Defaults
 
@@ -294,6 +297,8 @@ the actual values are calculated automatically (#332).
 `offset_limit` default is changed to 90,90 (#425).
 
 `stats_min_armed_time_s` default is changed to 15 (#460).
+
+`tail_link_curve` defaults to eight zeros (curve disabled).
 
 
 ## CRSF Custom Telemetry
