@@ -644,6 +644,7 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Exponential error decay rates
     pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
     pid.errorDecayRateCyclic = (pidProfile->error_decay_time_cyclic) ? (10.0f / pidProfile->error_decay_time_cyclic) : 0;
+    pid.errorDecayGainCyclic = (pidProfile->error_decay_gain_cyclic) ? (pidProfile->error_decay_gain_cyclic / 50.0f) : 0;
     pid.errorDecayRateYaw    = (pidProfile->error_decay_time_yaw)    ? (10.0f / pidProfile->error_decay_time_yaw) : 0;
 
     // Max decay speeds in degs/s (linear decay)
@@ -1183,7 +1184,8 @@ static void pidApplyCyclicMode3(uint8_t axis)
       errorDecayLimit = 3600;
     }
 
-    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate, errorDecayLimit);
+    const float errorDecayBoost = 1.0f + fabsf(setpoint) * pid.errorDecayGainCyclic;
+    const float errorDecay = limitf(pid.data[axis].axisError * errorDecayRate * errorDecayBoost, errorDecayLimit);
 
     pid.data[axis].axisError -= errorDecay * pid.dT;
 

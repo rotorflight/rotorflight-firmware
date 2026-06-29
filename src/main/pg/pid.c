@@ -52,6 +52,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .pid_mode = 3,
         .error_decay_time_ground = 25,
         .error_decay_time_cyclic = 250,
+        .error_decay_gain_cyclic = 0,
         .error_decay_time_yaw = 0,
         .error_decay_limit_cyclic = 12,
         .error_decay_limit_yaw = 0,

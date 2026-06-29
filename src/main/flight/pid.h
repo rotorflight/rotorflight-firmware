@@ -107,6 +107,7 @@ typedef struct pid_s {
 
     float errorDecayRateGround;
     float errorDecayRateCyclic;
+    float errorDecayGainCyclic;
     float errorDecayLimitCyclic;
     float errorDecayRateYaw;
     float errorDecayLimitYaw;

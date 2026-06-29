@@ -1155,6 +1155,7 @@ const clivalue_t valueTable[] = {
 
     { "error_decay_time_ground",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_ground) },
     { "error_decay_time_cyclic",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_cyclic) },
+    { "error_decay_gain_cyclic",    VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_gain_cyclic) },
     { "error_decay_time_yaw",       VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_time_yaw) },
     { "error_decay_limit_cyclic",   VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_cyclic) },
     { "error_decay_limit_yaw",      VAR_UINT8  | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, error_decay_limit_yaw) },

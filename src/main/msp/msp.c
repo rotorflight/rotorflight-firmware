@@ -1966,6 +1966,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         /* Inertia precomps */
         sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_gain);
         sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
+        /* Error decay gain cyclic */
+        sbufWriteU8(dst, currentPidProfile->error_decay_gain_cyclic);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2988,6 +2990,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 2) {
             currentPidProfile->yaw_inertia_precomp_gain = sbufReadU8(src);
             currentPidProfile->yaw_inertia_precomp_cutoff = sbufReadU8(src);
+        }
+        /* Error decay gain cyclic */
+        if (sbufBytesRemaining(src) >= 1) {
+            currentPidProfile->error_decay_gain_cyclic = sbufReadU8(src);
         }
         /* Load new values */
         pidLoadProfile(currentPidProfile);
