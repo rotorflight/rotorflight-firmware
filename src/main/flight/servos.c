@@ -43,10 +43,13 @@
 #include "flight/mixer.h"
 
 #include "pg/servos.h"
-#include "pg/bus_servo.h"
 
-#include "rx/rx.h"
-
+/*
+//서보 선형성 셋팅시 사용
+#include "pg/pg.h"
+#include "pg/pid.h"
+#include "pid.h"
+*/
 
 static FAST_DATA_ZERO_INIT uint8_t      servoCount;
 
@@ -58,6 +61,20 @@ static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
 
+// 보정 테이블
+ // 서보 선형성 보정버전
+/*static const float boostTable[3][2][4] = {
+    {{2.11f, 4.17f, 4.65f, 3.70f}, {3.13f, 4.59f, 4.59f, 3.12f}}, // i=0 (뒤:서보1)
+    {{3.57f, 3.71f, 3.80f, 2.65f}, {3.12f, 4.95f, 5.25f, 5.70f}}, // i=1 (왼쪽앞:서보2)
+    {{3.36f, 4.27f, 4.51f, 3.14f}, {3.71f, 5.00f, 4.62f, 3.12f}}// i=2 (오른쪽앞:서보3)
+};*/
+
+// 피치 선형성 보정버전
+static const float boostTable[3][2][4] = {
+    {{2.10f, 2.81f, 3.67f, 3.01f}, {2.77f, 3.54f, 3.19f, 2.63f}}, // i=0 (뒤:서보1)
+    {{4.01f, 4.25f, 4.16f, 2.14f}, {2.52f, 3.74f, 4.00f, 3.48f}}, // i=1 (왼쪽앞:서보2)
+    {{2.84f, 3.32f, 2.97f, 1.85f}, {3.73f, 4.13f, 3.68f, 2.39f}}// i=2 (오른쪽앞:서보3)
+};
 
 uint8_t getServoCount(void)
 {
@@ -329,7 +346,56 @@ void servoUpdate(void)
 
         float scale = (pos > 0) ? servo->rpos : servo->rneg;
 
-        pos = limitTravel(i, scale * pos, servo->min, servo->max);
+        // 1. 기본 목표값 계산
+        float target_pos = scale * pos;
+
+        // 3. 현재 출력 위치 및 방향 판정
+        float x = fabsf(pos) * 55.0f;
+        float boost = 0.0f;
+        // 서보 2번(i==1)만 방향 판정 뒤집기
+        int dir = (i == 1) ? ((pos >= 0.0f) ? 1 : 0) : ((pos >= 0.0f) ? 0 : 1);
+     
+        /*
+        //서보 선형성 튜닝(PID 프로파일값 활용 400이 0)
+        int tuningServoIdx = 0; // 0, 1, 2 중 선택
+        const pidProfile_t *tempProfile = pidProfiles(1);
+        
+        if (tempProfile != NULL) { // 데이터가 있을 때만 실행
+            // 양수 구간 (Roll PID)
+            boostTable[tuningServoIdx][0][0] = ((float)tempProfile->pid[PID_ROLL].P - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][0][1] = ((float)tempProfile->pid[PID_ROLL].I - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][0][2] = ((float)tempProfile->pid[PID_ROLL].D - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][0][3] = ((float)tempProfile->pid[PID_ROLL].F - 400.0f) / 100.0f;
+        
+            // 음수 구간 (Pitch PID)
+            boostTable[tuningServoIdx][1][0] = ((float)tempProfile->pid[PID_PITCH].P - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][1][1] = ((float)tempProfile->pid[PID_PITCH].I - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][1][2] = ((float)tempProfile->pid[PID_PITCH].D - 400.0f) / 100.0f;
+            boostTable[tuningServoIdx][1][3] = ((float)tempProfile->pid[PID_PITCH].F - 400.0f) / 100.0f;
+        }     
+        //서보 선형성 튜닝(PID 프로파일값 활용
+        */
+     
+        if (i < 3) {
+             if (x < 40.0f) {
+                int idx = (int)(x / 10.0f);
+                float v0 = (idx == 0) ? 0.0f : boostTable[i][dir][idx - 1];
+                float v1 = boostTable[i][dir][idx];
+                boost = lerp(v0, v1, (x - (idx * 10.0f)) / 10.0f);
+            } 
+            else if (x < 55.0f) {
+                boost = lerp(boostTable[i][dir][3], 0.0f, (x - 40.0f) / 15.0f);
+                }
+
+            // 5. 최종 출력 적용 (누락되었던 부분)
+            float final_boost = (boost / 40.0f) * scale;
+            target_pos += (pos >= 0.0f) ? final_boost : -final_boost;
+        }
+     
+        // 6. 최종 안전 범위 검사 및 출력
+        pos = limitTravel(i, target_pos, servo->min, servo->max);
+
+        //pos = limitTravel(i, scale * pos, servo->min, servo->max);
         pos = servo->mid + pos;
 
         servoSetOutput(i, pos);
