@@ -356,7 +356,7 @@ void servoUpdate(void)
         int dir = (i == 1) ? ((pos >= 0.0f) ? 1 : 0) : ((pos >= 0.0f) ? 0 : 1);
      
         /*
-        //서보 선형성 튜닝(PID 프로파일값 활용 400이 0)
+        ////서보 선형성 튜닝(PID 프로파일값 활용 400이 0)
         int tuningServoIdx = 0; // 0, 1, 2 중 선택
         const pidProfile_t *tempProfile = pidProfiles(1);
         
