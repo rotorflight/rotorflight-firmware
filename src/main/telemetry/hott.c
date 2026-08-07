@@ -250,7 +250,7 @@ void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage)
     hottGPSMessage->altitude_H = hottGpsAltitude >> 8;
 
     hottGPSMessage->home_direction = GPS_directionToHome/2;
-	hottGPSMessage->flight_direction = gpsSol.groundCourse/20;	//GPS_direction;	gpsSol.groundCourse	//gps_Msg.ground_course
+	hottGPSMessage->flight_direction = gpsSol.groundCourse/20;
 }
 #endif
 
