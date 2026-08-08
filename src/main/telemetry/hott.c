@@ -662,7 +662,7 @@ static void hottSendTelemetryData(void) {
 
 static inline bool shouldPrepareHoTTMessages(uint32_t currentMicros)
 {
-    return currentMicros - lastMessagesPreparedAt >= HOTT_MESSAGE_PREPARATION_FREQUENCY_5_HZ;
+    return currentMicros - lastMessagesPreparedAt >= HOTT_MESSAGE_PREPARATION_FREQUENCY_10_HZ;
 }
 
 static inline bool shouldCheckForHoTTRequest(void)
