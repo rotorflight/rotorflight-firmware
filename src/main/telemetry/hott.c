@@ -99,7 +99,7 @@
 
 #define HOTT_MESSAGE_PREPARATION_FREQUENCY_10_HZ ((1000 * 1000) / 10)
 #define HOTT_RX_SCHEDULE 4000
-#define HOTT_TX_DELAY_US 600
+#define HOTT_TX_DELAY_US 1000
 #define MILLISECONDS_IN_A_SECOND 1000
 
 static uint32_t rxSchedule = HOTT_RX_SCHEDULE;
@@ -218,8 +218,10 @@ void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage)
     const uint16_t encoded_climbrate = (uint16_t)(30000 + climbrate);
     hottGPSMessage->climbrate_L = (uint8_t)(encoded_climbrate & 0x00FFU);
     hottGPSMessage->climbrate_H = (uint8_t)(encoded_climbrate >> 8);
-    const uint8_t encoded_climbrate3s = (uint8_t)(3 * climbrate / 100 + HOTT_EAM_OFFSET_M3S);
-    hottGPSMessage->climbrate3s = encoded_climbrate3s;
+    uint16_t encoded_climbrate3s = (uint16_t)(3 * climbrate / 100 + HOTT_EAM_OFFSET_M3S);
+	if (encoded_climbrate3s > 255)
+		encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
+    hottGPSMessage->climbrate3s = (uint8_t)(encoded_climbrate3s);
 
     if (!STATE(GPS_FIX)) {
         hottGPSMessage->gps_fix_char = GPS_FIX_CHAR_NONE;
@@ -320,8 +322,10 @@ static inline void hottEAMUpdateClimbrate(HOTT_EAM_MSG_t *hottEAMMessage)
     const uint16_t encoded_vario = (uint16_t)(30000 + vario);
     hottEAMMessage->climbrate_L = (uint8_t)(encoded_vario & 0x00FFU);
     hottEAMMessage->climbrate_H = (uint8_t)(encoded_vario >> 8);
-    const uint8_t encoded_climbrate3s = (uint8_t)(3 * vario / 100 + HOTT_EAM_OFFSET_M3S);	
-    hottEAMMessage->climbrate3s = encoded_climbrate3s;
+    uint16_t encoded_climbrate3s = (uint16_t)(3 * vario / 100 + HOTT_EAM_OFFSET_M3S);
+    if (encoded_climbrate3s > 255)
+	    encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
+    hottEAMMessage->climbrate3s = (uint8_t)(encoded_climbrate3s);
 }
 #endif
 
