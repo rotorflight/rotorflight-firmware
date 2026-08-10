@@ -214,7 +214,11 @@ void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage)
     hottGPSMessage->gps_satelites = gpsSol.numSat;
 
     // Report climb rate regardless of GPS fix
+#ifdef USE_VARIO
     const int32_t climbrate = getEstimatedVarioCms();
+#else
+	const int32_t climbrate = 0;
+#endif
     const uint16_t encoded_climbrate = (uint16_t)(30000 + climbrate);
     hottGPSMessage->climbrate_L = (uint8_t)(encoded_climbrate & 0x00FFU);
     hottGPSMessage->climbrate_H = (uint8_t)(encoded_climbrate >> 8);
