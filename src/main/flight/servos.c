@@ -58,6 +58,8 @@ static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
 
+static FAST_DATA_ZERO_INIT bool         servoInputSet[MAX_SUPPORTED_SERVOS];
+
 
 uint8_t getServoCount(void)
 {
@@ -315,7 +317,7 @@ void servoUpdate(void)
         const servoParam_t *servo = servoParams(i);
         float pos = input[i];
 
-        if (servo->speed > 0) {
+        if (servo->speed > 0 && servoInputSet[i]) {
             if (mixerIsCyclicServo(i))
                 pos = limitRatio(servoInput[i], pos, cyclic_ratio);
             else
@@ -323,6 +325,7 @@ void servoUpdate(void)
         }
 
         servoInput[i] = pos;
+        servoInputSet[i] = true;
 
         if (servo->flags & SERVO_FLAG_REVERSED)
             pos = -pos;

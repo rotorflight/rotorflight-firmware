@@ -99,6 +99,14 @@ typedef enum {
 #define FBUS_SERVO_VOLTAGE_MASK     0x0000FF00  // Bits 8-15: Voltage (0.1V, 0~25.5V)
 #define FBUS_SERVO_TEMP_MASK        0x00FF0000  // Bits 16-23: Temperature (1°C, 0~255°C)
 
+// FrSKY RPM S.PORT sensor https://www.frsky-rc.com/product/rpm/
+typedef enum {
+    FBUS_RPM_TEMP1_BASE         = 0x0400,  // 0x0400~0x040F, Temperature
+    FBUS_RPM_TEMP2_BASE         = 0x0410,  // 0x0410~0x041F, Temperature
+    FBUS_RPM_BASE               = 0x0500,  // 0x0500~0x050F, RPM Sensor
+} fbusRpmDataId_e;
+
+
 // FBUS Sensor data structure
 typedef struct {
     uint8_t physicalId;
@@ -181,11 +189,13 @@ typedef struct {
 typedef struct {
     uint16_t voltageCentiVolts;      // Voltage in 0.01V from 0x0B50~0x0B5F (bits 0..15)
     uint16_t currentCentiAmps;       // Current in 0.01A from 0x0B50~0x0B5F (bits 16..31)
-    uint16_t erpm;                   // ERPM from 0x0B60~0x0B6F (bits 0..15)
+    uint32_t erpm;                   // ERPM from 0x0B60~0x0B6F (bits 0..15)
     uint16_t consumptionMah;         // Consumption in mAh from 0x0B60~0x0B6F (bits 16..31)
     uint8_t temperatureDegC;         // Temperature in C from 0x0B70~0x0B7F (bits 0..7)
+    uint8_t temperature2DegC;         // Temperature in C from 0x0B70~0x0B7F (bits 0..7)
     bool hasPower;
-    bool hasRpmConsumption;
+    bool hasRpm;
+    bool hasConsumption;
     bool hasTemperature;
     timeUs_t lastUpdateUs;
 } fbusEscData_t;
@@ -227,6 +237,7 @@ typedef enum {
     FBUS_DETECTED_SENSOR_FAS_150S,
     FBUS_DETECTED_SENSOR_FLVSS,
     FBUS_DETECTED_SENSOR_XACT_SERVO,
+    FBUS_DETECTED_SENSOR_RPM,
 } fbusDetectedSensorType_e;
 
 typedef enum {

@@ -78,6 +78,9 @@ PG_RESET_TEMPLATE(rcControlsConfig_t, rcControlsConfig,
     .rc_yaw_deadband = 5,
     .rc_smoothness = 50,
     .rc_threshold = { 25, 25, 25, 100 },
+    .airborne_mode = 0,
+    .airborne_gyro_threshold = 10,
+    .airborne_acc_threshold = 15,
 );
 
 extern void pgResetFn_rxFailsafeChannelConfigs(rxFailsafeChannelConfig_t *rxFailsafeChannelConfigs);

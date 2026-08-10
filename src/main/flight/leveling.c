@@ -36,6 +36,8 @@
 #include "common/axis.h"
 #include "common/filter.h"
 
+#include "drivers/time.h"
+
 #include "fc/rc_rates.h"
 #include "fc/core.h"
 #include "fc/rc.h"
@@ -44,6 +46,7 @@
 
 #include "flight/imu.h"
 #include "flight/gps_rescue.h"
+#include "flight/airborne.h"
 
 #include "sensors/acceleration.h"
 #include "sensors/gyro.h"
@@ -60,6 +63,7 @@ typedef struct {
     float Transition;
     float CutoffDegrees;
     float FactorRatio;
+    float AngleLimit;
     uint8_t TiltExpertMode;
 } horizon_t;
 
@@ -77,6 +81,7 @@ INIT_CODE void levelingInit(const pidProfile_t *pidProfile)
     horizon.TiltExpertMode = pidProfile->horizon.tilt_expert_mode;
     horizon.CutoffDegrees = (175 - pidProfile->horizon.tilt_effect) * 1.8f;
     horizon.FactorRatio = (100 - pidProfile->horizon.tilt_effect) * 0.01f;
+    horizon.AngleLimit = pidProfile->horizon.angle_limit;
 }
 
 int get_ADJUSTMENT_ANGLE_LEVEL_GAIN(void)
@@ -101,6 +106,27 @@ void set_ADJUSTMENT_HORIZON_LEVEL_GAIN(int value)
     horizon.Gain = value / 10.0f;
 }
 
+// Tracks when HORIZON_MODE was most recently activated; reset by levelingUpdate() when mode is off
+static uint32_t horizonActivationTimeMs = 0;
+#define HORIZON_ENGAGE_RAMP_MS  500.0f
+
+void levelingUpdate(void)
+{
+    if (!FLIGHT_MODE(HORIZON_MODE)) {
+        horizonActivationTimeMs = 0;
+    }
+}
+
+static float horizonActivationRamp(void)
+{
+    const uint32_t now = millis();
+    if (horizonActivationTimeMs == 0) {
+        horizonActivationTimeMs = now ? now : 1;
+        return 0.0f;
+    }
+    return constrainf((float)(now - horizonActivationTimeMs) / HORIZON_ENGAGE_RAMP_MS, 0.0f, 1.0f);
+}
+
 // calculate the stick deflection while applying level mode expo
 static inline float getLevelModeDeflection(uint8_t axis)
 {
@@ -114,15 +140,15 @@ static inline float getLevelModeDeflection(uint8_t axis)
     return deflection;
 }
 
-static float calcLevelErrorAngle(int axis)
+static float calcLevelErrorAngle(int axis, float angleLimit)
 {
     const rollAndPitchTrims_t *angleTrim = &accelerometerConfig()->accelerometerTrims;
-    float angle = level.AngleLimit * getLevelModeDeflection(axis);
+    float angle = angleLimit * getLevelModeDeflection(axis);
 
 #ifdef USE_GPS_RESCUE
     angle += gpsRescueAngle[axis] / 100.0f; // ANGLE IS IN CENTIDEGREES
 #endif
-    angle = constrainf(angle, -level.AngleLimit, level.AngleLimit);
+    angle = constrainf(angle, -angleLimit, angleLimit);
 
     float currentAngle = ((attitude.raw[axis] - angleTrim->raw[axis]) / 10.0f);
 
@@ -143,13 +169,16 @@ static float calcLevelErrorAngle(int axis)
 }
 
 // calculates strength of horizon leveling; 0 = none, 1.0 = most leveling
-static float calcHorizonLevelStrength(void)
+// Uses per-axis stick deflection with a cubic curve for a smoother feel near center.
+static float calcHorizonLevelStrength(int axis)
 {
-    // start with 1.0 at center stick, 0.0 at max stick deflection:
-    float horizonLevelStrength = 1.0f - fmaxf(fabsf(getLevelModeDeflection(FD_ROLL)), fabsf(getLevelModeDeflection(FD_PITCH)));
+    // Per-axis cubic mapping: 1.0 at center stick, 0.0 at full deflection.
+    // Cubic gives strong leveling near center with a smooth dropoff toward full throw.
+    const float deflection = fabsf(getLevelModeDeflection(axis));
+    float horizonLevelStrength = 1.0f - deflection * deflection * deflection;
 
     // 0 at level, 90 at vertical, 180 at inverted (degrees):
-    const float currentInclination = fmaxf(abs(attitude.values.roll), abs(attitude.values.pitch)) / 10.0f;
+    const float currentInclination = fmaxf(fabsf((float)attitude.values.roll), fabsf((float)attitude.values.pitch)) / 10.0f;
 
     // horizonTiltExpertMode:  0 = leveling always active when sticks centered,
     //                         1 = leveling can be totally off when inverted
@@ -202,14 +231,26 @@ static float calcHorizonLevelStrength(void)
     return constrainf(horizonLevelStrength, 0, 1);
 }
 
+#define LIFTOFF_ENGAGE_RAMP_MS  300.0f
+
+static float liftoffRampFactor(void)
+{
+    const uint32_t age = getLiftoffAgeMs();
+    if (age == 0)
+        return 0.0f;
+    return constrainf((float)age / LIFTOFF_ENGAGE_RAMP_MS, 0.0f, 1.0f);
+}
+
 float angleModeApply(int axis, float pidSetpoint)
 {
     if (axis == FD_ROLL || axis == FD_PITCH)
     {
-        float errorAngle = calcLevelErrorAngle(axis);
+        float errorAngle = calcLevelErrorAngle(axis, level.AngleLimit);
 
         if (!isAirborne())
             errorAngle *= 0.25f;
+        else
+            errorAngle *= liftoffRampFactor();
 
         pidSetpoint = errorAngle * level.Gain;
     }
@@ -221,12 +262,14 @@ float horizonModeApply(int axis, float pidSetpoint)
 {
     if (axis == FD_ROLL || axis == FD_PITCH)
     {
-        float errorAngle = calcLevelErrorAngle(axis);
+        float errorAngle = calcLevelErrorAngle(axis, horizon.AngleLimit);
 
         if (!isAirborne())
             errorAngle *= 0.25f;
+        else
+            errorAngle *= liftoffRampFactor();
 
-        pidSetpoint += errorAngle * horizon.Gain * calcHorizonLevelStrength();
+        pidSetpoint += errorAngle * horizon.Gain * calcHorizonLevelStrength(axis) * horizonActivationRamp();
     }
 
     return pidSetpoint;

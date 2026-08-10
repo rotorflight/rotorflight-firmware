@@ -130,6 +130,7 @@ void gyroSetSampleRate(gyroDev_t *gyro)
 
         case MPU_60x0_SPI:
         case ICM_42688P_SPI:
+        case ICM_42605_SPI:
 #if defined(STM32F411xE)
             gyroRateKHz = GYRO_RATE_8_kHz;
             gyroSampleRateHz = 1000;

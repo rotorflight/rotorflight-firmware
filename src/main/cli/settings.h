@@ -135,6 +135,7 @@ typedef enum {
 #ifdef USE_SMARTFUEL
     TABLE_SMARTFUEL_MODE,
 #endif
+    TABLE_AIRBORNE_MODE,
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

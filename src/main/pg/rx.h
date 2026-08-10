@@ -62,6 +62,9 @@ typedef struct rcControlsConfig_s {
     uint8_t  rc_yaw_deadband;           // A deadband around the stick center for yaw axis
     uint8_t  rc_smoothness;             // Minimum RPYC smoothing level
     uint8_t  rc_threshold[4];           // Threshold for stick activity
+    uint8_t  airborne_mode;             // 0=CONSERVATIVE (timer debounce), 1=STICK_RESPONSE (requires gyro response)
+    uint8_t  airborne_gyro_threshold;   // Gyro rate threshold for STICK_RESPONSE mode (deg/s)
+    uint8_t  airborne_acc_threshold;    // Z-acc liftoff threshold offset for STICK_RESPONSE mode (× 0.01 g, e.g. 15 → 1.15 g)
 } rcControlsConfig_t;
 
 PG_DECLARE(rcControlsConfig_t, rcControlsConfig);

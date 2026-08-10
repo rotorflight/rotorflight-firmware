@@ -15,15 +15,18 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "platform.h"
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "config/config_reset.h"
 
-bool isHandsOn(void);
-bool isAirborne(void);
-uint32_t getLiftoffAgeMs(void);
+#include "pg/pg.h"
+#include "pg/pg_ids.h"
 
-void airborneInit(void);
-void airborneUpdate(const float rc[4]);
+#include "pg/srxl2_esc.h"
 
+PG_REGISTER_WITH_RESET_TEMPLATE(srxl2esc_pgConfig_t, srxl2escConfig, PG_SRXL2_ESC_CONFIG, 0);
+
+PG_RESET_TEMPLATE(srxl2esc_pgConfig_t, srxl2escConfig,
+    .throttle_rate_hz = 250,
+    .telem_interval_frames = 7,
+);

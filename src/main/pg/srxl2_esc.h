@@ -17,13 +17,14 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "types.h"
+#include "platform.h"
 
-bool isHandsOn(void);
-bool isAirborne(void);
-uint32_t getLiftoffAgeMs(void);
+#include "pg/pg.h"
 
-void airborneInit(void);
-void airborneUpdate(const float rc[4]);
+typedef struct srxl2escConfig_s {
+    uint16_t throttle_rate_hz;        // SMART ESC channel/throttle refresh rate
+    uint8_t  telem_interval_frames;   // Telemetry request interval in frames (0 = off)
+} srxl2esc_pgConfig_t;
 
+PG_DECLARE(srxl2esc_pgConfig_t, srxl2escConfig);

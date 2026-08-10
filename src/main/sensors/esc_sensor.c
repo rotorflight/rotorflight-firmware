@@ -32,6 +32,7 @@
 
 #include "common/time.h"
 #include "common/crc.h"
+#include "drivers/time.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -52,10 +53,12 @@
 #include "drivers/fbus_master.h"
 
 #include "telemetry/sport_master.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/runtime_config.h"
 
 #include "scheduler/scheduler.h"
+
 
 #include "flight/mixer.h"
 
@@ -171,6 +174,10 @@ static bool paramMspActive = false;
 static bool is4wayEscSelected(void);
 static uint8_t escGetParamFullBufferLength(void);
 
+#ifdef USE_SRXL2_ESC
+static uint32_t srxl2escLastSeq = 0;
+#endif
+
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
@@ -205,6 +212,11 @@ bool isEscSensorActive(void)
         && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
         && isFbusEscTransportAvailable()
         && fbusSensorHasEscData()) {
+        return true;
+    }
+#endif
+#ifdef USE_SRXL2_ESC
+    if (srxl2escDriverIsReady()) {
         return true;
     }
 #endif
@@ -299,9 +311,13 @@ static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
         }
     }
 
-    if (hasEscData && fbusEscData.hasRpmConsumption) {
+    if (hasEscData && fbusEscData.hasRpm) {
         escData->id = FBUS_SENSOR_ESC;
         escData->erpm = fbusEscData.erpm;
+    }
+
+    if (hasEscData && fbusEscData.hasConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
         escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
     }
 
@@ -309,6 +325,7 @@ static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
         escData->id = FBUS_SENSOR_ESC;
         // FBUS temperature is in C, escSensorData uses 0.1C.
         escData->temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+        escData->temperature2 = (int16_t)fbusEscData.temperature2DegC * 10;
     }
 
     return true;
@@ -379,6 +396,105 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     return NULL;
 }
 
+static void checkFrameTimeout(timeUs_t currentTimeUs, timeDelta_t timeout);
+
+static void srxl2escSensorProcess(timeUs_t currentTimeUs)
+{
+#ifdef USE_SRXL2_ESC
+    if (!srxl2escDriverIsReady()) {
+        checkFrameTimeout(currentTimeUs, 500000);
+        return;
+    }
+
+    srxl2escTelemetrySnapshot_t snap;
+    uint32_t seq = 0;
+    if (srxl2escCopyLatestTelemetry(&snap, &seq) && snap.valid) {
+        if (seq != srxl2escLastSeq) {
+            srxl2escLastSeq = seq;
+
+            if (getMotorCount() > 0 && featureIsEnabled(FEATURE_ESC_SENSOR)) {
+                const int motorIndex = (snap.sensorId == 0x20) ? 0 : -1;
+
+                if (motorIndex >= 0) {
+                    escSensorData_t inj;
+                    memset(&inj, 0, sizeof(inj));
+                    inj.id = snap.sensorId;
+                    inj.age = 0;
+
+                    const uint8_t *data = snap.data;
+
+                    uint16_t rawRpm = (uint16_t)((data[0] << 8) | data[1]);
+                    if (rawRpm != 0xFFFF) {
+                        inj.erpm = (uint32_t)rawRpm * 10u;
+                    }
+
+                    uint16_t rawVolts = (uint16_t)((data[2] << 8) | data[3]);
+                    if (rawVolts != 0xFFFF) {
+                        inj.voltage = (uint32_t)rawVolts * 10u;
+                    }
+
+                    uint16_t rawTempFET = (uint16_t)((data[4] << 8) | data[5]);
+                    if (rawTempFET != 0xFFFF) {
+                        inj.temperature = (int16_t)rawTempFET;
+                    }
+
+                    uint16_t rawCurrent = (uint16_t)((data[6] << 8) | data[7]);
+                    if (rawCurrent != 0xFFFF) {
+                        inj.current = (uint32_t)rawCurrent * 10u;
+                    }
+
+                    uint16_t rawTempBEC = (uint16_t)((data[8] << 8) | data[9]);
+                    if (rawTempBEC != 0xFFFF) {
+                        inj.temperature2 = (int16_t)rawTempBEC;
+                    }
+
+                    uint8_t rawCurBEC = data[10];
+                    if (rawCurBEC != 0xFF) {
+                        inj.bec_current = (uint32_t)rawCurBEC * 100u;
+                    }
+
+                    uint8_t rawVoltsBEC = data[11];
+                    if (rawVoltsBEC != 0xFF) {
+                        inj.bec_voltage = (uint32_t)rawVoltsBEC * 50u;
+                    }
+
+                    const uint8_t raw_throttle = data[12];
+                    const uint8_t raw_power_out = data[13];
+                    if (raw_throttle != 0xFF) {
+                        inj.throttle = (uint16_t)raw_throttle * 5u;
+                    }
+                    if (raw_power_out != 0xFF) {
+                        inj.pwm = (uint16_t)raw_power_out * 5u;
+                    }
+
+                    escSensorData_t *dst = getEscSensorData((uint8_t)motorIndex);
+                    if (dst) {
+                        dst->age = 0;
+                        dst->pwm = inj.pwm;
+                        dst->throttle = inj.throttle;
+                        dst->erpm = inj.erpm;
+                        dst->voltage = applyVoltageCorrection(inj.voltage);
+                        dst->current = applyCurrentCorrection(inj.current);
+                        dst->temperature = inj.temperature;
+                        dst->temperature2 = inj.temperature2;
+                        dst->bec_voltage = inj.bec_voltage;
+                        dst->bec_current = inj.bec_current;
+                        dst->status = inj.status;
+                        dst->id = inj.id;
+
+                        combinedNeedsUpdate = true;
+                        dataUpdateUs = micros();
+                    }
+                }
+            }
+        }
+    }
+
+    checkFrameTimeout(currentTimeUs, 500000);
+#else
+    UNUSED(currentTimeUs);
+#endif
+}
 
 /*
  * Common functions
@@ -4046,12 +4162,26 @@ static int8_t xdfly_accept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig)
+static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig, bool bidirectional)
 {
-    rrfsmCrank  = xdfly_crank_unc_setup;
+    rrfsmStart = NULL;
+    rrfsmCrank = bidirectional ? xdfly_crank_unc_setup : NULL;
     rrfsmDecode = xdfly_decode;
     rrfsmAccept = xdfly_accept;
-    paramCommit = xdfly_param_commit;
+    rrfsmBootDelayMs = 0;
+    rrfsmMinFrameLength = bidirectional ? 0 : XDFLY_HEADER_LENGTH;
+    rrfsmFrameTimestamp = 0;
+    rrfsmFramePeriod = 0;
+    rrfsmFrameTimeout = 0;
+    readBytes = 0;
+    reqLength = 0;
+    readIngoreBytes = 0;
+    syncCount = 0;
+    xdfly_setup_status = XDFLY_INIT;
+    xdfly_connected = false;
+    xdfly_send_handshake = false;
+    xdfly_handshake_response_pending = false;
+    paramCommit = bidirectional ? xdfly_param_commit : NULL;
     escSig = sig;
     return rrfsmDataReceive;
 }
@@ -4232,6 +4362,11 @@ void escSensorProcess(timeUs_t currentTimeUs)
     }
 #endif // USE_4WAY_FORWARD_PROGRAMMING
 
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_SRXL2) {
+        srxl2escSensorProcess(currentTimeUs);
+        return;
+    }
+
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
@@ -4263,7 +4398,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 break;
             case ESC_SENSOR_PROTO_XDFLY:
             case ESC_SENSOR_PROTO_ZTW:
-            case ESC_SENSOR_PROTO_OMPHOBBY:            
+            case ESC_SENSOR_PROTO_OMPHOBBY:
                 rrfsmSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_FBUS:
@@ -4292,9 +4427,6 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
 {
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
-        case ESC_SENSOR_PROTO_XDFLY:
-        case ESC_SENSOR_PROTO_OMPHOBBY:
-        case ESC_SENSOR_PROTO_ZTW:     
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE
@@ -4361,13 +4493,13 @@ bool INIT_CODE escSensorInit(void)
             options |= SERIAL_PARITY_EVEN;
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
-            callback = xdflySensorInit(ESC_SIG_OMP);
+            callback = xdflySensorInit(ESC_SIG_OMP, escHalfDuplex);
             baudrate = 115200;
-            break;        
-         case ESC_SENSOR_PROTO_ZTW:
-            callback = xdflySensorInit(ESC_SIG_ZTW);
+            break;
+        case ESC_SENSOR_PROTO_ZTW:
+            callback = xdflySensorInit(ESC_SIG_ZTW, escHalfDuplex);
             baudrate = 115200;
-            break;    
+            break;
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
             break;
@@ -4388,7 +4520,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_XDFLY:
-            callback = xdflySensorInit(ESC_SIG_XDFLY);
+            callback = xdflySensorInit(ESC_SIG_XDFLY, escHalfDuplex);
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:

@@ -258,6 +258,13 @@ static fbusDetectedSensorType_e classifySensorTypeByAppId(uint16_t appId)
         return FBUS_DETECTED_SENSOR_FAS_150S;
     }
 
+    // FrSKY RPM S.PORT sensor https://www.frsky-rc.com/product/rpm/
+    if ((appId >= FBUS_RPM_TEMP1_BASE && appId <= (FBUS_RPM_TEMP1_BASE + 0x0F)) ||
+        (appId >= FBUS_RPM_TEMP2_BASE && appId <= (FBUS_RPM_TEMP2_BASE + 0x0F)) ||
+        (appId >= FBUS_RPM_BASE && appId <= (FBUS_RPM_BASE + 0x0F))) {
+        return FBUS_DETECTED_SENSOR_RPM;
+    }
+
     return FBUS_DETECTED_SENSOR_UNKNOWN;
 }
 
@@ -585,9 +592,10 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
         // ESC_R&C 0x0B60~0x0B6F:
         // bits 0..15 ERPM, bits 16..31 consumption (mAh)
         if (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) {
-            fbusEsc.erpm = (uint16_t)(data & 0xFFFFU);
+            fbusEsc.erpm = (uint32_t)(data & 0xFFFFU);
             fbusEsc.consumptionMah = (uint16_t)((data >> 16) & 0xFFFFU);
-            fbusEsc.hasRpmConsumption = true;
+            fbusEsc.hasRpm = true;
+            fbusEsc.hasConsumption = true;
             fbusEsc.lastUpdateUs = currentTimeUs;
             return true;
         }
@@ -601,6 +609,29 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
             return true;
         }
 
+        return false;
+    }
+
+    if (detectedType == FBUS_DETECTED_SENSOR_RPM) {
+        if (appId >= FBUS_RPM_TEMP1_BASE && appId <= (FBUS_RPM_TEMP1_BASE + 0x0F)) {
+            fbusEsc.temperatureDegC = (uint8_t)(data & 0xFFU);
+            fbusEsc.hasTemperature = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+        if (appId >= FBUS_RPM_TEMP2_BASE && appId <= (FBUS_RPM_TEMP2_BASE + 0x0F)) {
+            fbusEsc.temperature2DegC = (uint8_t)(data & 0xFFU);
+            fbusEsc.hasTemperature = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
+        if (appId >= FBUS_RPM_BASE && appId <= (FBUS_RPM_BASE + 0x0F)) {
+            // Sensor goes as high as 300k RPM, we need 19 bits for that.
+            fbusEsc.erpm = (uint32_t)(data & 0x7FFFFU);
+            fbusEsc.hasRpm = true;
+            fbusEsc.lastUpdateUs = currentTimeUs;
+            return true;
+        }
         return false;
     }
     
@@ -648,7 +679,8 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
 
     if (fbusEsc.lastUpdateUs > 0 && (currentTimeUs - fbusEsc.lastUpdateUs) > 1000000) {
         fbusEsc.hasPower = false;
-        fbusEsc.hasRpmConsumption = false;
+        fbusEsc.hasRpm = false;
+        fbusEsc.hasConsumption = false;
         fbusEsc.hasTemperature = false;
     }
 
@@ -790,7 +822,7 @@ bool fbusSensorHasEscData(void)
 {
     timeUs_t currentTimeUs = micros();
 
-    if ((fbusEsc.hasPower || fbusEsc.hasRpmConsumption || fbusEsc.hasTemperature)
+    if ((fbusEsc.hasPower || fbusEsc.hasRpm || fbusEsc.hasConsumption || fbusEsc.hasTemperature )
         && fbusEsc.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
             return true;
@@ -834,6 +866,8 @@ const char* fbusSensorGetName(uint8_t physicalId)
                 return "FLVSS";
             case FBUS_DETECTED_SENSOR_XACT_SERVO:
                 return "XACT_SERVO";
+            case FBUS_DETECTED_SENSOR_RPM:
+                return "RPM";
             case FBUS_DETECTED_SENSOR_UNKNOWN:
             default:
                 break;

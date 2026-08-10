@@ -78,6 +78,7 @@
 #include "flight/servos.h"
 #include "flight/governor.h"
 #include "flight/rescue.h"
+#include "flight/airborne.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -676,12 +677,12 @@ void processRxModes(timeUs_t currentTimeUs)
             DISABLE_FLIGHT_MODE(RESCUE_MODE);
         }
 
-        if (IS_RC_MODE_ACTIVE(BOXANGLE)) {
+        if (IS_RC_MODE_ACTIVE(BOXANGLE) && (!ARMING_FLAG(ARMED) || isAirborne())) {
             ENABLE_FLIGHT_MODE(ANGLE_MODE);
             DISABLE_FLIGHT_MODE(HORIZON_MODE);
             DISABLE_FLIGHT_MODE(TRAINER_MODE);
         }
-        else if (IS_RC_MODE_ACTIVE(BOXHORIZON)) {
+        else if (IS_RC_MODE_ACTIVE(BOXHORIZON) && (!ARMING_FLAG(ARMED) || isAirborne())) {
             DISABLE_FLIGHT_MODE(ANGLE_MODE);
             ENABLE_FLIGHT_MODE(HORIZON_MODE);
             DISABLE_FLIGHT_MODE(TRAINER_MODE);
