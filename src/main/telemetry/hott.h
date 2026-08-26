@@ -501,13 +501,6 @@ void initHoTTTelemetry(void);
 void configureHoTTTelemetryPort(void);
 void freeHoTTTelemetryPort(void);
 
-#if defined (USE_HOTT_TEXTMODE) && defined (USE_CMS)
-bool hottTextmodeIsAlive(void);
-void hottTextmodeGrab(void);
-void hottTextmodeExit(void);
-void hottTextmodeWriteChar(uint8_t column, uint8_t row, char c);
-#endif
-
 uint32_t getHoTTTelemetryProviderBaudRate(void);
 
 void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage);

@@ -54,19 +54,18 @@ typedef enum {
     ARMING_DISABLED_LOAD            = (1 << 11),
     ARMING_DISABLED_CALIBRATING     = (1 << 12),
     ARMING_DISABLED_CLI             = (1 << 13),
-    ARMING_DISABLED_CMS_MENU        = (1 << 14),
-    ARMING_DISABLED_BST             = (1 << 15),
-    ARMING_DISABLED_MSP             = (1 << 16),
-    ARMING_DISABLED_PARALYZE        = (1 << 17),
-    ARMING_DISABLED_GPS             = (1 << 18),
-    ARMING_DISABLED_RESC            = (1 << 19),
-    ARMING_DISABLED_RPMFILTER       = (1 << 20),
-    ARMING_DISABLED_REBOOT_REQUIRED = (1 << 21),
-    ARMING_DISABLED_DSHOT_BITBANG   = (1 << 22),
-    ARMING_DISABLED_ACC_CALIBRATION = (1 << 23),
-    ARMING_DISABLED_MOTOR_PROTOCOL  = (1 << 24),
-    ARMING_DISABLED_OVERRIDE        = (1 << 25),
-    ARMING_DISABLED_ARM_SWITCH      = (1 << 26), // Needs to be the last element, since it's always activated if one of the others is active when arming
+    ARMING_DISABLED_BST             = (1 << 14),
+    ARMING_DISABLED_MSP             = (1 << 15),
+    ARMING_DISABLED_PARALYZE        = (1 << 16),
+    ARMING_DISABLED_GPS             = (1 << 17),
+    ARMING_DISABLED_RESC            = (1 << 18),
+    ARMING_DISABLED_RPMFILTER       = (1 << 19),
+    ARMING_DISABLED_REBOOT_REQUIRED = (1 << 20),
+    ARMING_DISABLED_DSHOT_BITBANG   = (1 << 21),
+    ARMING_DISABLED_ACC_CALIBRATION = (1 << 22),
+    ARMING_DISABLED_MOTOR_PROTOCOL  = (1 << 23),
+    ARMING_DISABLED_OVERRIDE        = (1 << 24),
+    ARMING_DISABLED_ARM_SWITCH      = (1 << 25), // Needs to be the last element, since it's always activated if one of the others is active when arming
 } armingDisableFlags_e;
 
 #define ARMING_DISABLE_FLAGS_COUNT (LOG2(ARMING_DISABLED_ARM_SWITCH) + 1)

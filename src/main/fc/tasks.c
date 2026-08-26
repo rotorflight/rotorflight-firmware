@@ -28,7 +28,6 @@
 
 #include "cli/cli.h"
 
-#include "cms/cms.h"
 
 #include "common/color.h"
 #include "common/utils.h"
@@ -400,10 +399,6 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_SRXL2_ESC] = DEFINE_TASK("SRXL2_ESC", NULL, NULL, srxl2escDriverTask, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ), TASK_PRIORITY_HIGH),
 #endif
 
-#ifdef USE_CMS
-    [TASK_CMS] = DEFINE_TASK("CMS", NULL, NULL, cmsHandler, TASK_PERIOD_HZ(20), TASK_PRIORITY_LOW),
-#endif
-
 #ifdef USE_VTX_CONTROL
     [TASK_VTXCTRL] = DEFINE_TASK("VTXCTRL", NULL, NULL, vtxUpdate, TASK_PERIOD_HZ(5), TASK_PRIORITY_LOWEST),
 #endif
@@ -578,10 +573,6 @@ void tasksInit(void)
 
 #ifdef USE_PINIOBOX
     pinioBoxTaskControl();
-#endif
-
-#ifdef USE_CMS
-    setTaskEnabled(TASK_CMS, featureIsEnabled(FEATURE_CMS));
 #endif
 
 #ifdef USE_VTX_CONTROL

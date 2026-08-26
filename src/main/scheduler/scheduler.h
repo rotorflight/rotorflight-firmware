@@ -147,9 +147,6 @@ typedef enum {
 #ifdef USE_SRXL2_ESC
     TASK_SRXL2_ESC,
 #endif
-#ifdef USE_CMS
-    TASK_CMS,
-#endif
 #ifdef USE_VTX_CONTROL
     TASK_VTXCTRL,
 #endif

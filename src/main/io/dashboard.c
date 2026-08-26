@@ -39,7 +39,6 @@
 #include "drivers/display_ug2864hsweg01.h"
 #include "drivers/time.h"
 
-#include "cms/cms.h"
 
 #include "common/printf.h"
 #include "common/maths.h"
@@ -649,11 +648,9 @@ void dashboardUpdate(timeUs_t currentTimeUs)
 {
     static uint8_t previousArmedState = 0;
 
-#ifdef USE_CMS
     if (displayIsGrabbed(displayPort)) {
         return;
     }
-#endif
 
     const bool updateNow = (int32_t)(currentTimeUs - nextDisplayUpdateAt) >= 0L;
     if (!updateNow) {
@@ -735,11 +732,6 @@ void dashboardInit(void)
     delay(200);
 
     displayPort = displayPortOledInit(dev);
-#if defined(USE_CMS)
-    if (dashboardPresent) {
-        cmsDisplayPortRegister(displayPort);
-    }
-#endif
 
     memset(&pageState, 0, sizeof(pageState));
     dashboardSetPage(PAGE_WELCOME);

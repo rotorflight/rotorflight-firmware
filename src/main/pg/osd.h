@@ -64,7 +64,6 @@ typedef struct osdConfig_s {
     uint8_t     camera_frame_width;                 // The width of the box for the camera frame element
     uint8_t     camera_frame_height;                // The height of the box for the camera frame element
     uint16_t    framerate_hz;
-    uint8_t     cms_background_type;                // For supporting devices, determines whether the CMS background is transparent or opaque
     uint8_t     stat_show_cell_value;
 } osdConfig_t;
 

@@ -27,7 +27,6 @@
 
 #include "common/time.h"
 
-#include "cms/cms.h"
 
 #include "fc/rc_controls.h"
 #include "fc/runtime_config.h"
@@ -229,12 +228,6 @@ void rcdeviceSend5KeyOSDCableSimualtionEvent(rcdeviceCamSimulationKeyEvent_e key
 static void rcdevice5KeySimulationProcess(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
-
-#ifdef USE_CMS
-    if (cmsInMenu) {
-        return;
-    }
-#endif
 
     if (ARMING_FLAG(ARMED) || IS_RC_MODE_ACTIVE(BOXSTICKCOMMANDDISABLE)) {
         return;

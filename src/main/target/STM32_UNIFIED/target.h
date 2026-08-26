@@ -120,8 +120,6 @@
 
 #define USE_SERVO_GEOMETRY_CORRECTION
 
-#define USE_CMS
-
 #undef USE_CRSF_V3
 
 #undef USE_OSD

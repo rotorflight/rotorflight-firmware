@@ -42,7 +42,6 @@ bool cliMode = false;
 
 #include "cli/settings.h"
 
-#include "cms/cms.h"
 
 #include "common/axis.h"
 #include "common/color.h"
@@ -259,7 +258,7 @@ static const char * const featureNames[] = {
     [16] = "LED_STRIP",
     [17] = "DASHBOARD",
     [18] = "OSD",
-    [19] = "CMS",
+    [19] = "",
     [20] = "",
     [21] = "",
     [22] = "",

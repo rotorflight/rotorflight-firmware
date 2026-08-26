@@ -50,7 +50,7 @@ typedef enum {
     FEATURE_LED_STRIP              = BIT(16),
     FEATURE_DASHBOARD              = BIT(17),
     FEATURE_OSD                    = BIT(18),
-    FEATURE_CMS                    = BIT(19),
+    FEATURE_UNUSED_19               = BIT(19),
     FEATURE_UNUSED_20              = BIT(20),
     FEATURE_UNUSED_21              = BIT(21),
     FEATURE_UNUSED_22              = BIT(22),
@@ -72,6 +72,7 @@ typedef enum {
     FEATURE_UNUSED_8  | \
     FEATURE_UNUSED_11 | \
     FEATURE_UNUSED_12 | \
+    FEATURE_UNUSED_19 | \
     FEATURE_UNUSED_20 | \
     FEATURE_UNUSED_21 | \
     FEATURE_UNUSED_22 | \

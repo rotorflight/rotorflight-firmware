@@ -27,7 +27,6 @@
 #include "build/build_config.h"
 #include "build/version.h"
 
-#include "cms/cms.h"
 
 #include "config/config.h"
 #include "config/feature.h"
@@ -51,7 +50,6 @@
 #include "flight/position.h"
 #include "flight/governor.h"
 
-#include "io/displayport_crsf.h"
 #include "io/gps.h"
 #include "io/serial.h"
 #include "io/ledstrip.h"
@@ -939,146 +937,6 @@ void crsfProcessCommand(uint8_t *frameStart)
 #endif
 
 
-#if defined(USE_CRSF_CMS_TELEMETRY)
-
-#define CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH   50
-#define CRSF_DISPLAYPORT_BATCH_MAX          0x3F
-#define CRSF_DISPLAYPORT_FIRST_CHUNK_MASK   0x80
-#define CRSF_DISPLAYPORT_LAST_CHUNK_MASK    0x40
-#define CRSF_DISPLAYPORT_SANITIZE_MASK      0x60
-#define CRSF_RLE_CHAR_REPEATED_MASK         0x80
-#define CRSF_RLE_MAX_RUN_LENGTH             256
-#define CRSF_RLE_BATCH_SIZE                 2
-
-static uint16_t getRunLength(const void *start, const void *end)
-{
-    uint8_t *cursor = (uint8_t*)start;
-    uint8_t c = *cursor;
-    size_t runLength = 0;
-    for (; cursor != end; cursor++) {
-        if (*cursor == c) {
-            runLength++;
-        } else {
-            break;
-        }
-    }
-    return runLength;
-}
-
-static void cRleEncodeStream(sbuf_t *source, sbuf_t *dest, uint8_t maxDestLen)
-{
-    const uint8_t *destEnd = sbufPtr(dest) + maxDestLen;
-    while (sbufBytesRemaining(source) && (sbufPtr(dest) < destEnd)) {
-        const uint8_t destRemaining = destEnd - sbufPtr(dest);
-        const uint8_t *srcPtr = sbufPtr(source);
-        const uint16_t runLength = getRunLength(srcPtr, source->end);
-        uint8_t c = *srcPtr;
-        if (runLength > 1) {
-            c |=  CRSF_RLE_CHAR_REPEATED_MASK;
-            const uint8_t fullBatches = (runLength / CRSF_RLE_MAX_RUN_LENGTH);
-            const uint8_t remainder = (runLength % CRSF_RLE_MAX_RUN_LENGTH);
-            const uint8_t totalBatches = fullBatches + (remainder ? 1 : 0);
-            if (destRemaining >= totalBatches * CRSF_RLE_BATCH_SIZE) {
-                for (unsigned int i = 1; i <= totalBatches; i++) {
-                    const uint8_t batchLength = (i < totalBatches) ? CRSF_RLE_MAX_RUN_LENGTH : remainder;
-                    sbufWriteU8(dest, c);
-                    sbufWriteU8(dest, batchLength);
-                }
-                sbufAdvance(source, runLength);
-            } else {
-                break;
-            }
-        }
-        else if (destRemaining >= runLength) {
-            sbufWriteU8(dest, c);
-            sbufAdvance(source, runLength);
-        }
-    }
-}
-
-static void crsfFrameDisplayPortChunk(sbuf_t *dst, sbuf_t *src, uint8_t batchId, uint8_t idx)
-{
-    sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
-    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
-    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
-    sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_UPDATE);
-
-    uint8_t *ptr = sbufPtr(dst);
-    sbufWriteU8(dst, batchId);
-    sbufWriteU8(dst, idx);
-    cRleEncodeStream(src, dst, CRSF_DISPLAYPORT_MAX_CHUNK_LENGTH);
-
-    if (idx == 0)
-        *ptr |= CRSF_DISPLAYPORT_FIRST_CHUNK_MASK;
-    if (sbufBytesRemaining(src) == 0)
-        *ptr |= CRSF_DISPLAYPORT_LAST_CHUNK_MASK;
-}
-
-static void crsfFrameDisplayPortClear(sbuf_t *dst)
-{
-    sbufWriteU8(dst, CRSF_FRAMETYPE_DISPLAYPORT_CMD);
-    sbufWriteU8(dst, CRSF_ADDRESS_RADIO_TRANSMITTER);
-    sbufWriteU8(dst, CRSF_ADDRESS_FLIGHT_CONTROLLER);
-    sbufWriteU8(dst, CRSF_DISPLAYPORT_SUBCMD_CLEAR);
-}
-
-static bool crsfSendDisplayPortData(void)
-{
-    static uint8_t displayPortBatchId = 0;
-
-    if (crsfDisplayPortScreen()->reset) {
-        crsfDisplayPortScreen()->reset = false;
-        sbuf_t *dst = crsfInitializeSbuf();
-        crsfFrameDisplayPortClear(dst);
-        crsfTransmitSbuf(dst);
-        return true;
-    }
-
-    if (crsfDisplayPortIsReady() && crsfDisplayPortScreen()->updated)
-    {
-        crsfDisplayPortScreen()->updated = false;
-        uint16_t screenSize = crsfDisplayPortScreen()->rows * crsfDisplayPortScreen()->cols;
-        uint8_t *srcStart = (uint8_t*)crsfDisplayPortScreen()->buffer;
-        uint8_t *srcEnd = (uint8_t*)(crsfDisplayPortScreen()->buffer + screenSize);
-        sbuf_t displayPortSbuf;
-        sbuf_t *src = sbufInit(&displayPortSbuf, srcStart, srcEnd);
-        displayPortBatchId = (displayPortBatchId  + 1) % CRSF_DISPLAYPORT_BATCH_MAX;
-        for (uint8_t i = 0; sbufBytesRemaining(src); i++) {
-            sbuf_t *dst = crsfInitializeSbuf();
-            crsfFrameDisplayPortChunk(dst, src, displayPortBatchId, i);
-            crsfTransmitSbuf(dst);
-        }
-        return true;
-    }
-
-    return false;
-}
-
-void crsfProcessDisplayPortCmd(uint8_t *frameStart)
-{
-    const uint8_t cmd = frameStart[0];
-
-    switch (cmd) {
-        case CRSF_DISPLAYPORT_SUBCMD_OPEN:;
-            const uint8_t rows = frameStart[CRSF_DISPLAYPORT_OPEN_ROWS_OFFSET];
-            const uint8_t cols = frameStart[CRSF_DISPLAYPORT_OPEN_COLS_OFFSET];
-            crsfDisplayPortSetDimensions(rows, cols);
-            crsfDisplayPortMenuOpen();
-            break;
-        case CRSF_DISPLAYPORT_SUBCMD_CLOSE:
-            crsfDisplayPortMenuExit();
-            break;
-        case CRSF_DISPLAYPORT_SUBCMD_POLL:
-            crsfDisplayPortRefresh();
-            break;
-        default:
-            break;
-    }
-}
-
-#endif /* USE_CRSF_CMS_TELEMETRY */
-
-
 #if defined(USE_RX_EXPRESSLRS)
 
 static int crsfTransmitSbufBuf(sbuf_t *dst, uint8_t *frame)
@@ -1329,9 +1187,6 @@ void handleCrsfTelemetry(timeUs_t currentTimeUs)
 #if defined(USE_MSP_OVER_TELEMETRY)
             handleCrsfMspFrameBuffer(&crsfSendMspResponse) ||
 #endif
-#if defined(USE_CRSF_CMS_TELEMETRY)
-            crsfSendDisplayPortData() ||
-#endif
             crsfSendDeviceInfoData() ||
             crsfSendTelemetry() ||
             crsfSendCustomTelemetry() ||
@@ -1405,9 +1260,6 @@ void INIT_CODE initCrsfTelemetry(void)
             crsfInitCustomTelemetry();
         }
 
-#if defined(USE_CRSF_CMS_TELEMETRY)
-        crsfDisplayportRegister();
-#endif
     }
 }
 

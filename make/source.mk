@@ -145,23 +145,6 @@ COMMON_SRC = \
             blackbox/blackbox.c \
             blackbox/blackbox_encoding.c \
             blackbox/blackbox_io.c \
-            cms/cms.c \
-            cms/cms_menu_blackbox.c \
-            cms/cms_menu_failsafe.c \
-            cms/cms_menu_firmware.c \
-            cms/cms_menu_gps_rescue.c\
-            cms/cms_menu_imu.c \
-            cms/cms_menu_ledstrip.c \
-            cms/cms_menu_main.c \
-            cms/cms_menu_misc.c \
-            cms/cms_menu_osd.c \
-            cms/cms_menu_power.c \
-            cms/cms_menu_saveexit.c \
-            cms/cms_menu_vtx_common.c \
-            cms/cms_menu_vtx_rtc6705.c \
-            cms/cms_menu_vtx_smartaudio.c \
-            cms/cms_menu_vtx_tramp.c \
-            cms/cms_menu_persistent_stats.c \
             drivers/display_ug2864hsweg01.c \
             drivers/light_ws2811strip.c \
             drivers/rangefinder/rangefinder_hcsr04.c \
@@ -174,9 +157,6 @@ COMMON_SRC = \
             io/displayport_max7456.c \
             io/displayport_msp.c \
             io/displayport_oled.c \
-            io/displayport_srxl.c \
-            io/displayport_crsf.c \
-            io/displayport_hott.c \
             io/frsky_osd.c \
             io/rcdevice_cam.c \
             io/rcdevice.c \
@@ -346,23 +326,6 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             io/serial_4way_stk500v2.c \
             io/usb_cdc_hid.c \
             msp/msp_serial.c \
-            cms/cms.c \
-            cms/cms_menu_blackbox.c \
-            cms/cms_menu_failsafe.c \
-            cms/cms_menu_firmware.c \
-            cms/cms_menu_gps_rescue.c\
-            cms/cms_menu_imu.c \
-            cms/cms_menu_ledstrip.c \
-            cms/cms_menu_main.c \
-            cms/cms_menu_misc.c \
-            cms/cms_menu_osd.c \
-            cms/cms_menu_power.c \
-            cms/cms_menu_saveexit.c \
-            cms/cms_menu_vtx_common.c \
-            cms/cms_menu_vtx_rtc6705.c \
-            cms/cms_menu_vtx_smartaudio.c \
-            cms/cms_menu_vtx_tramp.c \
-            cms/cms_menu_persistent_stats.c \
             io/vtx.c \
             io/vtx_rtc6705.c \
             io/vtx_smartaudio.c \

@@ -31,8 +31,6 @@
 #include "build/debug.h"
 #include "build/debug_pin.h"
 
-#include "cms/cms.h"
-#include "cms/cms_types.h"
 
 #include "common/axis.h"
 #include "common/color.h"
@@ -888,12 +886,8 @@ void init(void)
     mspSerialInit();
 
 /*
- * CMS, display devices and OSD
+ * Display devices and OSD
  */
-#ifdef USE_CMS
-    cmsInit();
-#endif
-
 #if defined(USE_OSD)
     displayPort_t *osdDisplayPort = NULL;
     osdDisplayPortDevice_e osdDisplayPortDevice = OSD_DISPLAYPORT_DEVICE_NONE;
@@ -933,7 +927,7 @@ void init(void)
             FALLTHROUGH;
 #endif
 
-#if defined(USE_CMS) && defined(USE_MSP_DISPLAYPORT) && defined(USE_OSD_OVER_MSP_DISPLAYPORT)
+#if defined(USE_MSP_DISPLAYPORT) && defined(USE_OSD_OVER_MSP_DISPLAYPORT)
         case OSD_DISPLAYPORT_DEVICE_MSP:
             osdDisplayPort = displayPortMspInit();
             if (osdDisplayPort || device == OSD_DISPLAYPORT_DEVICE_MSP) {
@@ -950,7 +944,6 @@ void init(void)
             break;
         }
 
-        // osdInit will register with CMS by itself.
         osdInit(osdDisplayPort, osdDisplayPortDevice);
 
         if (osdDisplayPortDevice == OSD_DISPLAYPORT_DEVICE_NONE) {
@@ -959,18 +952,7 @@ void init(void)
     }
 #endif // USE_OSD
 
-#if defined(USE_CMS) && defined(USE_MSP_DISPLAYPORT)
-    // If BFOSD is not active, then register MSP_DISPLAYPORT as a CMS device.
-#if defined(USE_OSD)
-    if (!osdDisplayPort)
-#endif
-    {
-        cmsDisplayPortRegister(displayPortMspInit());
-    }
-#endif
-
 #ifdef USE_DASHBOARD
-    // Dashbord will register with CMS by itself.
     if (featureIsEnabled(FEATURE_DASHBOARD)) {
         dashboardInit();
 #ifdef USE_OLED_GPS_DEBUG_PAGE_ONLY
@@ -983,7 +965,6 @@ void init(void)
 #endif
 
 #ifdef USE_TELEMETRY
-    // Telemetry will initialise displayport and register with CMS by itself.
     if (featureIsEnabled(FEATURE_TELEMETRY)) {
         telemetryInit();
     }

@@ -40,10 +40,6 @@ void crsfScheduleMspResponse(uint8_t requestOriginID);
 int getCrsfFrame(uint8_t *frame, crsfFrameType_e frameType);
 void crsfProcessCommand(uint8_t *frameStart);
 
-#if defined(USE_CRSF_CMS_TELEMETRY)
-void crsfProcessDisplayPortCmd(uint8_t *frameStart);
-#endif
-
 #if defined(USE_MSP_OVER_TELEMETRY)
 void initCrsfMspBuffer(void);
 bool bufferCrsfMspFrame(uint8_t *frameStart, int frameLength);

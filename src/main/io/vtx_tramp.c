@@ -34,8 +34,6 @@
 #include "common/maths.h"
 #include "common/utils.h"
 
-#include "cms/cms_menu_vtx_tramp.h"
-
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
 
@@ -56,7 +54,7 @@
 #define TRAMP_MIN_REQUEST_PERIOD_US (200 * 1000) // 200ms
 #define TRAMP_STATUS_REQUEST_PERIOD_US (1000 * 1000) // 1s
 
-#if (defined(USE_CMS) || defined(USE_VTX_COMMON)) && !defined(USE_VTX_TABLE)
+#if defined(USE_VTX_COMMON) && !defined(USE_VTX_TABLE)
 const uint16_t trampPowerTable[VTX_TRAMP_POWER_COUNT] = {
     25, 100, 200, 400, 600
 };
@@ -474,10 +472,6 @@ static void vtxTrampProcess(vtxDevice_t *vtxDevice, timeUs_t currentTimeUs)
                                   ((trampConfPitMode != trampCurPitMode) ? 0x0002 : 0x0000) |
                                   (configUpdateRequired ?                  0x0001 : 0x0000));
     DEBUG_SET(DEBUG_VTX_TRAMP, 3, trampRetryCount);
-
-#ifdef USE_CMS
-    trampCmsUpdateStatusString();
-#endif
 }
 
 #ifdef USE_VTX_COMMON

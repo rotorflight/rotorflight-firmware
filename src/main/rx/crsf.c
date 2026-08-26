@@ -415,13 +415,6 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
                     break;
                 }
 #endif
-#if defined(USE_CRSF_CMS_TELEMETRY)
-                case CRSF_FRAMETYPE_DISPLAYPORT_CMD: {
-                    uint8_t *frameStart = (uint8_t *)&crsfFrame.frame.payload + CRSF_FRAME_ORIGIN_DEST_SIZE;
-                    crsfProcessDisplayPortCmd(frameStart);
-                    break;
-                }
-#endif
 #if defined(USE_CRSF_LINK_STATISTICS)
                 case CRSF_FRAMETYPE_LINK_STATISTICS: {
                     // if to FC and 10 bytes + CRSF_FRAME_ORIGIN_DEST_SIZE

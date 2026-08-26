@@ -32,7 +32,6 @@
 
 #include "cli/cli.h"
 
-#include "cms/cms.h"
 
 #include "common/axis.h"
 #include "common/filter.h"
@@ -393,8 +392,7 @@ void updateArmingStatus(void)
                     !(flags & (
                         ARMING_DISABLED_BOOT_GRACE_TIME |
                         ARMING_DISABLED_MSP |
-                        ARMING_DISABLED_CLI |
-                        ARMING_DISABLED_CMS_MENU
+                        ARMING_DISABLED_CLI
                     )))
                 {
                     const timeMs_t now = millis();
@@ -641,20 +639,13 @@ void processRxModes(timeUs_t currentTimeUs)
         disarmAt = currentTimeUs + autoDisarmDelayUs;  // extend auto-disarm timer
     }
 
-    if (!(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED))
-#ifdef USE_CMS
-        && !cmsInMenu
-#endif
-        ) {
+    if (!(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED))) {
         processRcStickPositions();
     }
 
     updateActivatedModes();
 
     if (!cliMode &&
-#ifdef USE_CMS
-        !cmsInMenu &&
-#endif
         !(IS_RC_MODE_ACTIVE(BOXPARALYZE) && !ARMING_FLAG(ARMED)))
     {
         processRcAdjustments();

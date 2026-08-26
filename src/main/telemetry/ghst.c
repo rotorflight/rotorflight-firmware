@@ -40,7 +40,6 @@
 #include "common/streambuf.h"
 #include "common/utils.h"
 
-#include "cms/cms.h"
 
 #include "drivers/nvic.h"
 

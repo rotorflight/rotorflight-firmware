@@ -28,7 +28,6 @@
 
 #include "build/version.h"
 
-#include "cms/cms.h"
 
 #include "common/crc.h"
 #include "common/streambuf.h"
@@ -46,7 +45,6 @@
 #include "flight/imu.h"
 #include "flight/mixer.h"
 
-#include "io/displayport_srxl.h"
 #include "io/gps.h"
 #include "io/serial.h"
 #include "io/vtx_smartaudio.h"
@@ -557,83 +555,6 @@ bool srxlFrameEsc(sbuf_t *dst, timeUs_t currentTimeUs)
 
 
 
-#if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
-
-// Betaflight CMS using Spektrum Tx telemetry TEXT_GEN sensor as display.
-
-#define SPEKTRUM_SRXL_DEVICE_TEXTGEN (0x0C)     // Text Generator
-
-/*
-typedef struct
-{
-    UINT8       identifier;
-    UINT8       sID;               // Secondary ID
-    UINT8       lineNumber;        // Line number to display (0 = title, 1-8 for general, 254 = Refresh backlight, 255 = Erase all text on screen)
-    char        text[13];          // 0-terminated text when < 13 chars
-} STRU_SPEKTRUM_SRXL_TEXTGEN;
-*/
-
-static char srxlTextBuff[SPEKTRUM_SRXL_TEXTGEN_ROWS][SPEKTRUM_SRXL_TEXTGEN_COLS];
-static bool lineSent[SPEKTRUM_SRXL_TEXTGEN_ROWS];
-
-//**************************************************************************
-// API Running in external client task context. E.g. in the CMS task
-int spektrumTmTextGenPutChar(uint8_t col, uint8_t row, char c)
-{
-    if (row < SPEKTRUM_SRXL_TEXTGEN_ROWS && col < SPEKTRUM_SRXL_TEXTGEN_COLS) {
-      // Only update and force a tm transmision if something has actually changed.
-        if (srxlTextBuff[row][col] != c) {
-          srxlTextBuff[row][col] = c;
-          lineSent[row] = false;
-        }
-    }
-    return 0;
-}
-//**************************************************************************
-
-#define TEXT_KEEPALIVE_TIME_OUT 2000000 // 2s
-
-bool srxlFrameText(sbuf_t *dst, timeUs_t currentTimeUs)
-{
-    static timeUs_t lastTimeSentText = 0;
-    timeUs_t keepAlive = currentTimeUs - lastTimeSentText;
-
-    static uint8_t lineNo = 0;
-    int lineCount = 0;
-
-    if (!featureIsEnabled(FEATURE_CMS)) {
-      return false;
-    }
-
-    // Skip already sent lines...
-    while (lineSent[lineNo] &&
-           lineCount < SPEKTRUM_SRXL_TEXTGEN_ROWS) {
-        lineNo = (lineNo + 1) % SPEKTRUM_SRXL_TEXTGEN_ROWS;
-        lineCount++;
-    }
-
-    if ( !(cmsInMenu && (pCurrentDisplay == &srxlDisplayPort)) ) {
-      // On timeout, force redraw of all rowss
-      if (keepAlive > TEXT_KEEPALIVE_TIME_OUT) {
-        for (int i = 0; i < SPEKTRUM_SRXL_TEXTGEN_ROWS; i++) lineSent[i] = false;
-      }
-
-      if (lineSent[lineNo]) return false;
-    }
-
-    sbufWriteU8(dst, SPEKTRUM_SRXL_DEVICE_TEXTGEN);
-    sbufWriteU8(dst, SRXL_FRAMETYPE_SID);
-    sbufWriteU8(dst, lineNo);
-    sbufWriteData(dst, srxlTextBuff[lineNo], SPEKTRUM_SRXL_TEXTGEN_COLS);
-
-    lastTimeSentText = currentTimeUs;
-    lineSent[lineNo] = true;
-    lineNo = (lineNo + 1) % SPEKTRUM_SRXL_TEXTGEN_ROWS;
-
-    return true;
-}
-#endif
-
 #if defined(USE_SPEKTRUM_VTX_TELEMETRY) && defined(USE_SPEKTRUM_VTX_CONTROL) && defined(USE_VTX_COMMON)
 
 static uint8_t vtxDeviceType;
@@ -800,19 +721,13 @@ static bool srxlFrameVTX(sbuf_t *dst, timeUs_t currentTimeUs)
 #define SRXL_GPS_STAT_COUNT 0
 #endif
 
-#if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
-#define SRXL_SCHEDULE_CMS_COUNT  1
-#else
-#define SRXL_SCHEDULE_CMS_COUNT  0
-#endif
-
 #if defined(USE_SPEKTRUM_VTX_TELEMETRY) && defined(USE_SPEKTRUM_VTX_CONTROL) && defined(USE_VTX_COMMON)
 #define SRXL_VTX_TM_COUNT        1
 #else
 #define SRXL_VTX_TM_COUNT        0
 #endif
 
-#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_ESC_COUNT + SRXL_SCHEDULE_CMS_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
+#define SRXL_SCHEDULE_USER_COUNT (SRXL_FP_MAH_COUNT + SRXL_ESC_COUNT + SRXL_VTX_TM_COUNT + SRXL_GPS_LOC_COUNT + SRXL_GPS_STAT_COUNT)
 #define SRXL_SCHEDULE_COUNT_MAX  (SRXL_SCHEDULE_MANDATORY_COUNT + 1)
 #define SRXL_TOTAL_COUNT         (SRXL_SCHEDULE_MANDATORY_COUNT + SRXL_SCHEDULE_USER_COUNT)
 
@@ -833,9 +748,6 @@ const srxlScheduleFnPtr srxlScheduleFuncs[SRXL_TOTAL_COUNT] = {
 #if defined(USE_SPEKTRUM_VTX_TELEMETRY) && defined(USE_SPEKTRUM_VTX_CONTROL) && defined(USE_VTX_COMMON)
     srxlFrameVTX,
 #endif
-#if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
-    srxlFrameText,
-#endif
 };
 
 
@@ -853,16 +765,6 @@ static void processSrxl(timeUs_t currentTimeUs)
     } else {
         srxlFnPtr = srxlScheduleFuncs[srxlScheduleIndex + srxlScheduleUserIndex];
         srxlScheduleUserIndex = (srxlScheduleUserIndex + 1) % SRXL_SCHEDULE_USER_COUNT;
-
-#if defined (USE_SPEKTRUM_CMS_TELEMETRY) && defined (USE_CMS)
-        // Boost CMS performance by sending nothing else but CMS Text frames when in a CMS menu.
-        // Sideeffect, all other reports are still not sent if user leaves CMS without a proper EXIT.
-        if (cmsInMenu &&
-            (pCurrentDisplay == &srxlDisplayPort)) {
-            srxlFnPtr = srxlFrameText;
-        }
-#endif
-
     }
 
     if (srxlFnPtr) {
@@ -891,11 +793,6 @@ void initSrxlTelemetry(void)
         srxl2 = false;
     }
 
-#if defined(USE_SPEKTRUM_CMS_TELEMETRY)
-    if (srxlTelemetryEnabled && featureIsEnabled(FEATURE_CMS)) {
-        srxlDisplayportRegister();
-    }
-#endif
  }
 
 bool checkSrxlTelemetryState(void)

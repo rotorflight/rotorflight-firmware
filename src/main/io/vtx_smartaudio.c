@@ -32,9 +32,6 @@
 
 #include "build/debug.h"
 
-#include "cms/cms.h"
-#include "cms/cms_menu_vtx_smartaudio.h"
-
 #include "common/maths.h"
 #include "common/printf.h"
 #include "common/utils.h"
@@ -388,9 +385,6 @@ static void saProcessResponse(uint8_t *buf, int len)
     }
 
     if (memcmp(&saDevice, &saDevicePrev, sizeof(smartAudioDevice_t))) {
-#ifdef USE_CMS    //if changes then trigger saCms update
-        saCmsResetOpmodel();
-#endif
 #ifdef USE_SMARTAUDIO_DPRINTF    // Debug
         saPrintSettings();
 #endif
@@ -399,12 +393,6 @@ static void saProcessResponse(uint8_t *buf, int len)
 
 #ifdef USE_VTX_COMMON
     // Todo: Update states in saVtxDevice?
-#endif
-
-#ifdef USE_CMS
-    // Export current device status for CMS
-    saCmsUpdate();
-    saUpdateStatusString();
 #endif
 }
 

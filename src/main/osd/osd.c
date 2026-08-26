@@ -42,7 +42,6 @@
 #include "build/build_config.h"
 #include "build/version.h"
 
-#include "cms/cms.h"
 
 #include "common/axis.h"
 #include "common/maths.h"
@@ -392,7 +391,6 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
 
     osdConfig->stat_show_cell_value = false;
     osdConfig->framerate_hz = OSD_FRAMERATE_DEFAULT_HZ;
-    osdConfig->cms_background_type = DISPLAY_BACKGROUND_TRANSPARENT;
 }
 
 void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)
@@ -444,11 +442,6 @@ static void osdCompleteInitialization(void)
     osdDrawLogo(3, 1);
 
     displayWrite(osdDisplayPort, 20, 6, DISPLAYPORT_ATTR_NONE, FC_VERSION_STRING);
-#ifdef USE_CMS
-    displayWrite(osdDisplayPort, 7, 8,  DISPLAYPORT_ATTR_NONE, CMS_STARTUP_HELP_TEXT1);
-    displayWrite(osdDisplayPort, 11, 9, DISPLAYPORT_ATTR_NONE, CMS_STARTUP_HELP_TEXT2);
-    displayWrite(osdDisplayPort, 11, 10, DISPLAYPORT_ATTR_NONE, CMS_STARTUP_HELP_TEXT3);
-#endif
 
 #ifdef USE_RTC_TIME
     char dateTimeBuffer[FORMATTED_DATE_TIME_BUFSIZE];
@@ -477,9 +470,6 @@ void osdInit(displayPort_t *osdDisplayPortToUse, osdDisplayPortDevice_e displayP
     }
 
     osdDisplayPort = osdDisplayPortToUse;
-#ifdef USE_CMS
-    cmsDisplayPortRegister(osdDisplayPort);
-#endif
 }
 
 static void osdResetStats(void)
@@ -1232,9 +1222,7 @@ void osdUpdate(timeUs_t currentTimeUs)
     case OSD_STATE_PROCESS_STATS3:
         osdProcessStats3();
 
-#ifdef USE_CMS
         if (!displayIsGrabbed(osdDisplayPort))
-#endif
         {
             osdState = OSD_STATE_UPDATE_ALARMS;
             break;
