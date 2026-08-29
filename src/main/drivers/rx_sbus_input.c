@@ -40,6 +40,22 @@
 #include "rx/rx.h"
 #include "rx/sbus_channels.h"
 
+// A secondary, independent SBUS receiver input used as a fallback when the main RX
+// link's signal is lost - bypasses the *staged* failsafe machinery entirely, but is
+// bounded by the main RX's own existing ~100ms signal-loss detection window
+// (rxSignalReceived/DELAY_100_MS in rx.c's rxFrameCheck()), not per-missed-frame; see
+// the comment above the takeover branch in rx.c's detectAndApplySignalLossBehaviour()
+// for why that's a deliberate choice over a feature-specific fixed threshold.
+// Electrical settings (inversion/pin swap) are its own config, pg/rx_sbus_input.h -
+// independent from the main RX's serialrx_inverted/serialrx_pinswap, since this is a
+// different physical UART.
+//
+// This intentionally does not reuse rx/sbus.c's sbusInit()/sbusDataReceive() - that
+// module keeps its frame-assembly state in function-local statics tied to the single
+// main RX instance (and touches other main-RX-only globals like rssiSource), so it
+// cannot be safely instantiated a second time. Only the reentrant channel decode in
+// rx/sbus_channels.c (sbusChannelsDecode()) is shared between the two.
+
 // Same fixed baud/framing as the primary SBUS receiver (rx/sbus.c): 100000 baud, 8E2.
 // Inversion/pin-swap are this port's own settings (pg/rx_sbus_input.h), independent
 // of the main RX's serialrx_inverted/serialrx_pinswap - different physical UART.
@@ -163,6 +179,7 @@ static FAST_CODE void sbusInputDataReceive(uint16_t c, void *data)
             // decoded, tearing adjacent 11-bit channel fields across two frames.
             memcpy(&sbusInputPendingChannels, &sbusInputFrameData.frame.frame.channels, sizeof(sbusInputPendingChannels));
             sbusInputPendingFrame = true;
+            sbusInputFrameData.position = 0;
             sbusInputFrameData.done = true;
         } else {
             sbusInputFrameData.done = false;
@@ -212,7 +229,7 @@ static void sbusInputUpdate(void)
     }
 
     for (int i = 0; i < SBUS_INPUT_MAX_CHANNEL; i++) {
-        sbusInputChannel[i] = (5.0f * (float)sbusInputChannelData[i] / 8) + 880;
+        sbusInputChannel[i] = (5.0f * (float)sbusInputChannelData[i] / 8.0f) + 880.0f;
     }
 
     sbusInputHasValidFrame = true;

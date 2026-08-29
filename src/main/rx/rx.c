@@ -911,7 +911,11 @@ void detectAndApplySignalLossBehaviour(void)
     // (300ms) before a channel is even declared failed.
     if (!rxSignalReceived && sbusInputIsActive()) {
         for (int channel = 0; channel < activeRcChannelCount; channel++) {
-            rcInput[channel] = constrainf(sbusInputGetChannel(channel), PWM_PULSE_MIN, PWM_PULSE_MAX);
+            // Same logical-to-raw rcmap lookup readRxChannels() applies to the main RX -
+            // without it, a non-default channel map would land fallback channels on the
+            // wrong flight axis or mode switch the instant a failover happens.
+            const uint8_t rawChannel = channel < RX_MAPPABLE_CHANNEL_COUNT ? rxConfig()->rcmap[channel] : channel;
+            rcInput[channel] = constrainf(sbusInputGetChannel(rawChannel), PWM_PULSE_MIN, PWM_PULSE_MAX);
         }
 
         rxFlightChannelsValid = !failsafeAuxSwitch;
