@@ -1,0 +1,34 @@
+/*
+ * This file is part of Rotorflight.
+ *
+ * Rotorflight is free software. You can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Rotorflight is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this software. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "pg/pg_ids.h"
+#include "platform.h"
+
+#include "pg/rx_sbus_input.h"
+
+#ifdef USE_RX_SBUS_INPUT
+
+PG_REGISTER_WITH_RESET_FN(sbusInputConfig_t, sbusInputConfig,
+                          PG_DRIVER_RX_SBUS_INPUT_CONFIG, 0);
+
+void pgResetFn_sbusInputConfig(sbusInputConfig_t *config)
+{
+    config->inverted = 0;
+    config->pinSwap = 0;
+}
+
+#endif

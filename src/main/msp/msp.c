@@ -66,6 +66,7 @@
 #include "drivers/motor.h"
 #include "drivers/osd.h"
 #include "drivers/pwm_output.h"
+#include "drivers/rx_sbus_input.h"
 #include "drivers/sdcard.h"
 #include "drivers/serial.h"
 #include "drivers/serial_escserial.h"
@@ -1436,6 +1437,28 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             sbufWriteU8(dst, fbusMasterConfig()->forwardedSensors[i]);
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_RX_SBUS_INPUT
+    case MSP2_GET_SBUS_INPUT_STATUS: {
+        // Read-only diagnostics for the configurator/Lua suite: is a SBUS-in fallback
+        // port configured, is it currently healthy, and is it the channel source in
+        // use right now (main RX link down, SBUS-in covering for it)?
+        const bool enabled = sbusInputIsEnabled();
+        const bool linkUp = enabled && sbusInputIsActive();
+        const bool sbusInputIsSource = linkUp && !rxIsReceivingSignal();
+        const uint8_t channelCount = sbusInputGetChannelCount();
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, enabled ? 1 : 0);
+        sbufWriteU8(dst, linkUp ? 1 : 0);
+        sbufWriteU8(dst, sbusInputIsSource ? 1 : 0); // 0 = main RX active, 1 = SBUS-in active
+        sbufWriteU8(dst, channelCount);
+        for (uint8_t i = 0; i < channelCount; i++) {
+            sbufWriteU16(dst, (uint16_t)lrintf(sbusInputGetChannel(i)));
         }
         break;
     }

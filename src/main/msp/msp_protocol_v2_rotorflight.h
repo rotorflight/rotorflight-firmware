@@ -30,8 +30,9 @@
 // reports which combo (if any) produces a valid frame.
 #define MSP2_ESC_SENSOR_TRIAL               0x5F0C
 
-// In-flight rate-loop statistics (flight/tune_advisor.c) and their reset. 0x5F10, not 0x5F0C:
-// 0x5F0C/0x5F0D are claimed by open PRs (#490, #500).
+#define MSP2_GET_SBUS_INPUT_STATUS          0x5F0D
+
+// In-flight rate-loop statistics (flight/tune_advisor.c) and their reset.
 #define MSP2_GET_TUNE_ADVISOR               0x5F10
 #define MSP2_CLEAR_TUNE_ADVISOR             0x5F11
 
