@@ -24,6 +24,11 @@
 
 #include "build/version.h"
 
+// Disable the USB HID joystick (composite CDC+HID device) to free up flash.
+// Undefined here, ahead of the USB dependency handling further down, so that
+// USE_USB_ADVANCED_PROFILES is still derived from USE_USB_MSC alone.
+#undef USE_USB_CDC_HID
+
 #if defined(USE_VTX_RTC6705_SOFTSPI)
 #define USE_VTX_RTC6705
 #endif
