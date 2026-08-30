@@ -256,6 +256,16 @@ void spektrumBind(rxConfig_t *rxConfig)
             bindPin = rxConfig->halfDuplex ? txPin : rxPin;
         }
 
+#ifdef USE_SERIAL_PINSWAP
+        if (rxConfig->pinSwap & SERIAL_PINSWAP) {
+            if (bindPin == txPin) {
+                bindPin = rxPin;
+            } else {
+                bindPin = txPin;
+            }
+        }
+#endif
+
         if (!bindPin) {
             return;
         }
