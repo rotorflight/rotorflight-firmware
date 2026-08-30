@@ -257,7 +257,7 @@ void spektrumBind(rxConfig_t *rxConfig)
         }
 
 #ifdef USE_SERIAL_PINSWAP
-        if (rxConfig->pinSwap & SERIAL_PINSWAP) {
+        if (bindPin != IO_TAG_NONE && (rxConfig->pinSwap & SERIAL_PINSWAP)) {
             if (bindPin == txPin) {
                 bindPin = rxPin;
             } else {
