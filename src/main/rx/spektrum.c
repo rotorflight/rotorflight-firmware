@@ -271,9 +271,14 @@ void spektrumBind(rxConfig_t *rxConfig)
         }
     }
 
+    // Bind window is around 20-140ms after powerup
+    // Delay to make sure all IO activity happens within bind wimdow
+    delay(50);
+
     IO_t bindIO = IOGetByTag(bindPin);
 
     IOInit(bindIO, OWNER_RX_BIND, 0);
+    // Init RX line, wil be set low
     IOConfigGPIO(bindIO, IOCFG_OUT_PP);
 
     LED1_ON;
@@ -281,11 +286,11 @@ void spektrumBind(rxConfig_t *rxConfig)
     // RX line, set high
     IOWrite(bindIO, true);
 
-    // Bind window is around 20-140ms after powerup
-    delay(60);
+    delay(10);
     LED1_OFF;
 
-    for (int i = 0; i < rxConfig->spektrum_sat_bind; i++) {
+    // Issue requested number of bindpulses adjust by -1 for initial low pulse
+    for (int i = 0; i < rxConfig->spektrum_sat_bind-1; i++) {
         LED0_OFF;
         LED2_OFF;
         // RX line, drive low for 120us
