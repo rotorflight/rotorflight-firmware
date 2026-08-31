@@ -18,15 +18,16 @@
 #include "pg/pg_ids.h"
 #include "platform.h"
 
-#include "pg/rx_sbus_input.h"
+#include "pg/rx_input_backup.h"
 
-#ifdef USE_RX_SBUS_INPUT
+#ifdef USE_RX_INPUT_BACKUP
 
-PG_REGISTER_WITH_RESET_FN(sbusInputConfig_t, sbusInputConfig,
-                          PG_DRIVER_RX_SBUS_INPUT_CONFIG, 0);
+PG_REGISTER_WITH_RESET_FN(rxInputBackupConfig_t, rxInputBackupConfig,
+                          PG_DRIVER_RX_INPUT_BACKUP_CONFIG, 0);
 
-void pgResetFn_sbusInputConfig(sbusInputConfig_t *config)
+void pgResetFn_rxInputBackupConfig(rxInputBackupConfig_t *config)
 {
+    config->provider = 0; // RX_INPUT_BACKUP_SBUS
     config->inverted = 0;
     config->pinSwap = 0;
 }

@@ -39,7 +39,7 @@
 
 #include "drivers/adc.h"
 #include "drivers/rx/rx_pwm.h"
-#include "drivers/rx_sbus_input.h"
+#include "drivers/rx_input_backup.h"
 #include "drivers/time.h"
 
 #include "fc/rc_controls.h"
@@ -808,19 +808,19 @@ void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
         }
     }
 
-#ifdef USE_RX_SBUS_INPUT
-    // While a SBUS-in fallback port is configured, calculateRxChannelsAndUpdateFailsafe()
+#ifdef USE_RX_INPUT_BACKUP
+    // While a backup RX port is configured, calculateRxChannelsAndUpdateFailsafe()
     // must run every cycle - not just once per 100ms when the main link is idle/absent, as
-    // above - so detectAndApplySignalLossBehaviour()'s sbusInputPoll() decodes each fallback
+    // above - so detectAndApplySignalLossBehaviour()'s rxInputBackupPoll() decodes each backup
     // frame promptly after it completes. Without this, decoding would only be attempted
-    // roughly once every 100ms against a fallback stream arriving every ~20ms: besides
+    // roughly once every 100ms against a backup stream arriving every ~20ms: besides
     // making reported link-up state flicker (the elapsed-since-last-frame staleness check
     // would drift past its threshold between the rare decodes), it would leave a real
-    // window for the decode to read sbusInputFrameData while the receive ISR was mid-write
-    // on a newer frame - a torn read mixing old and new bits across adjacent 11-bit channel
-    // fields. The primary RX path never has this exposure because it always decodes within
-    // one cycle of a frame completing.
-    if (sbusInputIsEnabled()) {
+    // window for the decode to read provider-owned frame state while the receive ISR was
+    // mid-write on a newer frame - a torn read mixing old and new bits across adjacent
+    // channel fields. The primary RX path never has this exposure because it always
+    // decodes within one cycle of a frame completing.
+    if (rxInputBackupIsEnabled()) {
         rxDataProcessingRequired = true;
     }
 #endif
@@ -881,22 +881,22 @@ void detectAndApplySignalLossBehaviour(void)
     const uint32_t currentTimeMs = millis();
     const bool failsafeAuxSwitch = IS_RC_MODE_ACTIVE(BOXFAILSAFE);
 
-#ifdef USE_RX_SBUS_INPUT
-    // Keep the SBUS-in decoder fresh every cycle, regardless of main-link state -
+#ifdef USE_RX_INPUT_BACKUP
+    // Keep the backup RX decoder fresh every cycle, regardless of main-link state -
     // this must not be gated behind the failover check below (short-circuiting on
     // rxSignalReceived would otherwise mean it never decodes anything at all while
     // the main link is healthy, starving both live diagnostics and the freshness of
     // the very first frame used at the instant of a real failover).
-    sbusInputPoll();
+    rxInputBackupPoll();
 
-    // SBUS-in failover: the main RX link is down this cycle, but a configured SBUS-in
+    // Backup-RX failover: the main RX link is down this cycle, but a configured backup
     // port is actively decoding valid frames. Take over ALL channels (including
     // aux/mode switches) from it, exactly as a physical backup satellite receiver would,
     // and tell failsafe this is a valid link so its staged hold/land behaviour does not
     // engage on top of it. A BOXFAILSAFE aux switch still invalidates channels here too,
-    // same as the main-RX path below. If the SBUS-in link is also down (or not
-    // configured), sbusInputIsActive() is false and this falls through unmodified to the
-    // existing staged failsafe logic below - that stays the single backstop for
+    // same as the main-RX path below. If the backup link is also down (or not
+    // configured), rxInputBackupIsActive() is false and this falls through unmodified to
+    // the existing staged failsafe logic below - that stays the single backstop for
     // "both links down".
     //
     // Bypasses the *staged* failsafe machinery (hold/land/cut) entirely, but is bounded
@@ -909,13 +909,13 @@ void detectAndApplySignalLossBehaviour(void)
     // protocol's normal frame spacing. Still far faster than doing nothing here at all -
     // rxFlightChannelsValid's own stage-1 hold otherwise runs for MAX_INVALID_PULSE_TIME_MS
     // (300ms) before a channel is even declared failed.
-    if (!rxSignalReceived && sbusInputIsActive()) {
+    if (!rxSignalReceived && rxInputBackupIsActive()) {
         for (int channel = 0; channel < activeRcChannelCount; channel++) {
             // Same logical-to-raw rcmap lookup readRxChannels() applies to the main RX -
-            // without it, a non-default channel map would land fallback channels on the
+            // without it, a non-default channel map would land backup channels on the
             // wrong flight axis or mode switch the instant a failover happens.
             const uint8_t rawChannel = channel < RX_MAPPABLE_CHANNEL_COUNT ? rxConfig()->rcmap[channel] : channel;
-            rcInput[channel] = constrainf(sbusInputGetChannel(rawChannel), PWM_PULSE_MIN, PWM_PULSE_MAX);
+            rcInput[channel] = constrainf(rxInputBackupGetChannel(rawChannel), PWM_PULSE_MIN, PWM_PULSE_MAX);
         }
 
         rxFlightChannelsValid = !failsafeAuxSwitch;

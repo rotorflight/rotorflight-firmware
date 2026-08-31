@@ -30,7 +30,7 @@
 // reports which combo (if any) produces a valid frame.
 #define MSP2_ESC_SENSOR_TRIAL               0x5F0C
 
-#define MSP2_GET_SBUS_INPUT_STATUS          0x5F0D
+#define MSP2_GET_RX_INPUT_BACKUP_STATUS     0x5F0D
 
 // In-flight rate-loop statistics (flight/tune_advisor.c) and their reset.
 #define MSP2_GET_TUNE_ADVISOR               0x5F10
