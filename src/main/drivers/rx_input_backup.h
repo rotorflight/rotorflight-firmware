@@ -51,6 +51,8 @@ typedef enum {
     RX_INPUT_BACKUP_FBUS = 2,
     RX_INPUT_BACKUP_FPORT = 3,
     RX_INPUT_BACKUP_FPORT2 = 4,
+    RX_INPUT_BACKUP_EXBUS = 5,
+    RX_INPUT_BACKUP_CRSF = 6,
 } rxInputBackupProvider_e;
 
 #define RX_INPUT_BACKUP_MAX_CHANNEL 18

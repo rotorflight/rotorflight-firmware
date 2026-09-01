@@ -42,6 +42,10 @@
 #include "drivers/rx_input_backup_fport.h"
 #endif
 
+#ifdef USE_RX_INPUT_BACKUP_EXBUS
+#include "drivers/rx_input_backup_exbus.h"
+#endif
+
 // How long without a decoded frame before the backup link is considered down.
 // ~3 missed frames at a typical ~6-14ms/frame rate - same margin the original
 // SBUS-only driver used, kept here since it's a property of "how stale is too
@@ -153,6 +157,11 @@ void rxInputBackupInit(void)
 #ifdef USE_RX_INPUT_BACKUP_FPORT
     case RX_INPUT_BACKUP_FPORT:
         providerReady = rxInputBackupFportInit(&rxInputBackupOps);
+        break;
+#endif
+#ifdef USE_RX_INPUT_BACKUP_EXBUS
+    case RX_INPUT_BACKUP_EXBUS:
+        providerReady = rxInputBackupExbusInit(&rxInputBackupOps);
         break;
 #endif
     case RX_INPUT_BACKUP_NONE:
