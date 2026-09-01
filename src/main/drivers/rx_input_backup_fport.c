@@ -203,8 +203,13 @@ static bool fportInputUpdate(float *channels, uint8_t channelCount)
         return false;
     }
 
-    sbusChannels_t *wireChannels = (sbusChannels_t *)&frame[2];
-    const uint8_t frameStatus = sbusChannelsDecode(&fportInputRxRuntimeState, wireChannels);
+    // Copied into a genuine sbusChannels_t object rather than pointer-cast
+    // straight out of the uint8_t frame buffer - see rx_input_backup_fbus.c's
+    // identical fix for why (C11 effective-type rules; matches the SBUS
+    // provider's own union-based approach).
+    sbusChannels_t wireChannels;
+    memcpy(&wireChannels, &frame[2], sizeof(wireChannels));
+    const uint8_t frameStatus = sbusChannelsDecode(&fportInputRxRuntimeState, &wireChannels);
     if (frameStatus & (RX_FRAME_DROPPED | RX_FRAME_FAILSAFE)) {
         fportInputResetParser();
         return false;

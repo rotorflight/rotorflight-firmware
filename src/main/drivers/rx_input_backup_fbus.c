@@ -212,8 +212,15 @@ static bool fbusInputUpdate(float *channels, uint8_t channelCount)
         return false;
     }
 
-    sbusChannels_t *wireChannels = (sbusChannels_t *)&frame[2];
-    const uint8_t frameStatus = sbusChannelsDecode(&fbusInputRxRuntimeState, wireChannels);
+    // Copied into a genuine sbusChannels_t object rather than pointer-cast
+    // straight out of the uint8_t frame buffer - the latter reads through a
+    // type the object was never actually created as, which is undefined
+    // behaviour under C11's effective-type rules even though it "works" with
+    // this codebase's usual compilers/flags. Matches how the SBUS provider's
+    // own sbusInputFrameBuf_t union already gets this right by construction.
+    sbusChannels_t wireChannels;
+    memcpy(&wireChannels, &frame[2], sizeof(wireChannels));
+    const uint8_t frameStatus = sbusChannelsDecode(&fbusInputRxRuntimeState, &wireChannels);
     if (frameStatus & (RX_FRAME_DROPPED | RX_FRAME_FAILSAFE)) {
         // Same rationale as the SBUS provider: a dropped/failsafe frame from the
         // satellite itself must not count as a fresh valid frame.

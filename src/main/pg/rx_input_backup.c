@@ -22,8 +22,17 @@
 
 #ifdef USE_RX_INPUT_BACKUP
 
+// Version 1: this struct's shape has changed twice since this parameter group
+// was first registered (SBUS-only inverted+pinSwap -> provider added ->
+// halfDuplex added) without ever bumping this version number, which would
+// have let an old saved record's bytes get silently reinterpreted as the
+// wrong fields on load (e.g. an old `pinSwap` byte loading into the new
+// `inverted` field). Bumped now, before this has ever shipped in a tagged
+// release, so nobody's saved config is actually affected - just closing the
+// gap for good going forward. Bump this again any time a field is added,
+// removed, or reordered.
 PG_REGISTER_WITH_RESET_FN(rxInputBackupConfig_t, rxInputBackupConfig,
-                          PG_DRIVER_RX_INPUT_BACKUP_CONFIG, 0);
+                          PG_DRIVER_RX_INPUT_BACKUP_CONFIG, 1);
 
 void pgResetFn_rxInputBackupConfig(rxInputBackupConfig_t *config)
 {
