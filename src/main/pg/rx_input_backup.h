@@ -32,11 +32,22 @@ typedef struct rxInputBackupConfig_s {
     // stay in the same order as the drivers/rx_input_backup.h enum.
     uint8_t provider;
 
-    // When OFF (0, default), the UART applies the electrical inversion normal
-    // SBUS-style wiring needs (matches primary RX's serialrx_inverted default).
+    // When OFF (0, default), the UART applies whichever electrical inversion
+    // this provider's own protocol natively needs (matches primary RX's
+    // serialrx_inverted default) - each provider's own Init function (e.g.
+    // rx_input_backup_sbus.c) translates this shared flag into the correct
+    // SERIAL_INVERTED/SERIAL_NOT_INVERTED direction for its own protocol,
+    // since that native direction differs by protocol (SBUS vs FBUS/FPort).
     // When ON, the port is treated as already inverted upstream (e.g. an
-    // external inverter) and the UART is left non-inverted.
+    // external inverter) and the UART is left in the opposite state.
     uint8_t inverted;
+
+    // Half-duplex (single-wire) operation, for receivers that only expose one
+    // shared RX/TX pin for this protocol. Off (0, default) leaves the UART in
+    // normal unidirectional RX-only mode. Like `inverted`, the exact
+    // SERIAL_BIDIR variant this maps to is protocol-specific and applied by
+    // each provider's own Init function.
+    uint8_t halfDuplex;
 
     // Swaps the UART's RX/TX pins, for boards where the backup port's natural
     // RX pin isn't the one that's actually wired.

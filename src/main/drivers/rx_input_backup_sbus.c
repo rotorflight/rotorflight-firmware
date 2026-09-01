@@ -31,7 +31,10 @@
 #include "common/utils.h"
 
 #include "drivers/nvic.h"
+#include "drivers/serial.h"
 #include "drivers/time.h"
+
+#include "pg/rx_input_backup.h"
 
 #include "rx/rx.h"
 #include "rx/sbus_channels.h"
@@ -212,8 +215,13 @@ bool rxInputBackupSbusInit(rxInputBackupOps_t *ops)
     sbusInputFrameData.done = false;
     sbusInputPendingFrame = false;
 
+    // Matches rx/sbus.c's own direction/variant exactly: SBUS's signal is
+    // natively inverted, so inverted=OFF (normal SBUS wiring) applies hardware
+    // inversion by default, and half-duplex uses plain SERIAL_BIDIR (no _PP).
     ops->baudRate = SBUS_INPUT_BAUDRATE;
-    ops->portOptions = SBUS_INPUT_PORT_OPTIONS;
+    ops->portOptions = SBUS_INPUT_PORT_OPTIONS
+        | (rxInputBackupConfig()->inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED)
+        | (rxInputBackupConfig()->halfDuplex ? SERIAL_BIDIR : SERIAL_UNIDIR);
     ops->isrFn = sbusInputDataReceive;
     ops->channelCount = RX_INPUT_BACKUP_MAX_CHANNEL;
     ops->update = sbusInputUpdate;

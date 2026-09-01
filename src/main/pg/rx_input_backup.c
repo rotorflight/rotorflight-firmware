@@ -27,8 +27,9 @@ PG_REGISTER_WITH_RESET_FN(rxInputBackupConfig_t, rxInputBackupConfig,
 
 void pgResetFn_rxInputBackupConfig(rxInputBackupConfig_t *config)
 {
-    config->provider = 0; // RX_INPUT_BACKUP_SBUS
+    config->provider = 0; // RX_INPUT_BACKUP_NONE
     config->inverted = 0;
+    config->halfDuplex = 0;
     config->pinSwap = 0;
 }
 

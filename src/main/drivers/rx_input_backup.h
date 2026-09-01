@@ -34,10 +34,23 @@
 // hand over channel data, same as a physical backup satellite receiver would.
 
 // Keep in sync with cli/settings.c's lookupTableRxInputBackupProvider[] (same
-// order) and pg/rx_input_backup.h's `provider` field width (uint8_t).
+// order) and pg/rx_input_backup.h's `provider` field width (uint8_t). Kept
+// fully populated regardless of which USE_RX_INPUT_BACKUP_xxx flags a given
+// target builds - same convention rx/rx.h's SerialRXType uses - only the
+// dispatch switch in rx_input_backup.c's Init function is #ifdef-guarded.
 typedef enum {
-    RX_INPUT_BACKUP_SBUS = 0,
-    // RX_INPUT_BACKUP_FBUS, RX_INPUT_BACKUP_FPORT, ... added here as they land.
+    // 0, matching this codebase's usual "zero-init means off/disabled"
+    // convention. A port assigned FUNCTION_RX_INPUT_BACKUP with this provider
+    // is reserved but never opened (rxInputBackupInit() treats it the same as
+    // no provider ready). Also the default for a freshly reset config
+    // (pgResetFn_rxInputBackupConfig), so assigning the port function alone
+    // no longer silently starts decoding SBUS on it before the user has
+    // actually chosen a protocol.
+    RX_INPUT_BACKUP_NONE = 0,
+    RX_INPUT_BACKUP_SBUS = 1,
+    RX_INPUT_BACKUP_FBUS = 2,
+    RX_INPUT_BACKUP_FPORT = 3,
+    RX_INPUT_BACKUP_FPORT2 = 4,
 } rxInputBackupProvider_e;
 
 #define RX_INPUT_BACKUP_MAX_CHANNEL 18
@@ -47,10 +60,17 @@ typedef enum {
 // public API the rest of the firmware uses (that's the plain functions below).
 typedef struct rxInputBackupOps_s {
     uint32_t baudRate;
-    portOptions_e portOptions;  // protocol-fixed framing/direction; electrical
-                                 // inversion/pin-swap are applied on top from
-                                 // the user's own config by rx_input_backup.c,
-                                 // uniformly across every provider.
+    // Protocol-fixed framing (stopbits/parity) PLUS this provider's own
+    // translation of the user's shared inverted/halfDuplex config into the
+    // correct SERIAL_INVERTED/SERIAL_NOT_INVERTED and SERIAL_BIDIR[_PP]
+    // direction/variant for its own protocol - these differ by protocol (SBUS
+    // is natively inverted, FBUS/FPort/FPort2 are not; SBUS uses plain
+    // SERIAL_BIDIR, FBUS/FPort use SERIAL_BIDIR|SERIAL_BIDIR_PP), exactly
+    // mirroring how rx/sbus.c and rx/fbus.c/fport.c each apply the main RX's
+    // own serialrx_inverted/halfDuplex differently for the same reason. Only
+    // pinSwap (protocol-agnostic) is still ORed in generically by
+    // rx_input_backup.c, since every protocol treats it identically.
+    portOptions_e portOptions;
     serialReceiveCallbackPtr isrFn;
     uint8_t channelCount;       // <= RX_INPUT_BACKUP_MAX_CHANNEL
 
