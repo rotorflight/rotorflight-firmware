@@ -332,11 +332,32 @@ static void rxSerialTrialReinit(void)
     serialRxInit(rxConfig(), &rxRuntimeState);
 }
 
+// CRSF and GHST both hardcode their own bidirectional framing
+// (CRSF_PORT_MODE / GHST_PORT_OPTIONS's SERIAL_BIDIR) and never read
+// rxConfig->halfDuplex at all - see rx/crsf.c's/rx/ghst.c's own openSerialPort()
+// calls. Varying that bit for these protocols can't change whether signal is
+// found, so leave it alone: applying it anyway would just retry two
+// electrically-identical combos back to back, and report a Half-Duplex value
+// in the result that had nothing to do with the outcome (confirmed on the
+// bench - CRSF kept linking with Half-Duplex forced on).
+static bool rxSerialTrialProtocolIgnoresHalfDuplex(void)
+{
+    switch (rxRuntimeState.serialrxProvider) {
+    case SERIALRX_CRSF:
+    case SERIALRX_GHST:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static void rxSerialTrialApplyCombo(uint8_t combo)
 {
     rxConfigMutable()->serialrx_inverted = (combo & (1 << 0)) ? 1 : 0;
-    rxConfigMutable()->halfDuplex        = (combo & (1 << 1)) ? 1 : 0;
-    rxConfigMutable()->pinSwap           = (combo & (1 << 2)) ? 1 : 0;
+    if (!rxSerialTrialProtocolIgnoresHalfDuplex()) {
+        rxConfigMutable()->halfDuplex = (combo & (1 << 1)) ? 1 : 0;
+    }
+    rxConfigMutable()->pinSwap = (combo & (1 << 2)) ? 1 : 0;
 
     rxSerialTrialReinit();
 
