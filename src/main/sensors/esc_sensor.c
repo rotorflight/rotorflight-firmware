@@ -4792,6 +4792,7 @@ void escSensorTrialTick(void)
 escSensorTrialStatus_t escSensorTrialGetStatus(void)
 {
     const int32_t elapsedMs = cmp32(millis(), escSensorTrial.comboStartedAt);
+    const uint32_t frameDelta = totalFrameCount - escSensorTrial.comboBaselineFrameCount;
 
     const escSensorTrialStatus_t status = {
         .state = escSensorTrial.state,
@@ -4799,6 +4800,9 @@ escSensorTrialStatus_t escSensorTrialGetStatus(void)
         .halfDuplex = escSensorConfig()->halfDuplex,
         .pinSwap = escSensorConfig()->pinSwap,
         .elapsedMs = (uint16_t)constrain(elapsedMs, 0, 0xFFFF),
+        .frameDelta = (uint16_t)MIN(frameDelta, 0xFFFFu),
+        .comboCount = escSensorTrial.comboCount,
+        .portOpen = escSensorPort != NULL,
     };
 
     escSensorTrial.lastPollAt = millis(); // watchdog keep-alive

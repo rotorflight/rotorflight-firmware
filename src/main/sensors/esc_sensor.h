@@ -85,6 +85,15 @@ typedef struct escSensorTrialStatus_s {
     uint8_t halfDuplex;
     uint8_t pinSwap;
     uint16_t elapsedMs;     // time spent on the current/last combo
+    // Bench-diagnostic fields, temporary - added to chase a report of the
+    // configurator's wizard sitting on "combination 1 of 4" indefinitely
+    // despite live telemetry apparently flowing. frameDelta lets us tell
+    // "trial genuinely never ticks" (stays 0, elapsedMs never grows) apart
+    // from "frames are arriving but not reaching MIN_FRAMES" apart from
+    // "reaching MIN_FRAMES but SUCCESS not reflected" from the wizard alone.
+    uint16_t frameDelta;    // totalFrameCount - comboBaselineFrameCount, saturated at 0xFFFF
+    uint8_t comboCount;     // actual combo count for this run (may be < 4, e.g. forced-half-duplex protocols)
+    uint8_t portOpen;       // escSensorPort != NULL, at time of this poll
 } escSensorTrialStatus_t;
 
 bool escSensorTrialStart(void);

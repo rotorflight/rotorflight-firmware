@@ -2226,6 +2226,12 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             sbufWriteU8(dst, status.halfDuplex);
             sbufWriteU8(dst, status.pinSwap);
             sbufWriteU16(dst, status.elapsedMs);
+            // Bench-diagnostic fields, temporary - appended (not inserted)
+            // so the wire format stays backward compatible with the
+            // original 6-byte response.
+            sbufWriteU16(dst, status.frameDelta);
+            sbufWriteU8(dst, status.comboCount);
+            sbufWriteU8(dst, status.portOpen);
         }
         break;
 #endif
