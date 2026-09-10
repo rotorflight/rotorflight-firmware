@@ -4569,12 +4569,14 @@ bool INIT_CODE escSensorInit(void)
 typedef struct escSensorTrialRuntime_s {
     escSensorTrialState_e state;
     uint8_t comboIndex;
+    uint8_t comboCount;
     uint8_t comboOrder[ESC_SENSOR_TRIAL_COMBO_COUNT];
     timeMs_t comboStartedAt;
     uint32_t comboBaselineFrameCount;
     timeMs_t lastPollAt;       // watchdog keep-alive, bumped by every status query
     uint8_t savedHalfDuplex;
     uint8_t savedPinSwap;
+    bool taskEnabledByTrial;
 } escSensorTrialRuntime_t;
 
 static escSensorTrialRuntime_t escSensorTrial = { .state = ESC_SENSOR_TRIAL_IDLE };
@@ -4665,15 +4667,44 @@ static void escSensorTrialRestore(void)
     escSensorTrialReinit();
 }
 
+static void escSensorTrialReleaseTask(void)
+{
+    if (!escSensorTrial.taskEnabledByTrial) {
+        return;
+    }
+
+    escSensorTrial.taskEnabledByTrial = false;
+    if (!featureIsEnabled(FEATURE_ESC_SENSOR)) {
+        if (escSensorPort) {
+            closeSerialPort(escSensorPort);
+            escSensorPort = NULL;
+        }
+        setTaskEnabled(TASK_ESC_SENSOR, false);
+    }
+}
+
 bool escSensorTrialStart(void)
 {
     if (escSensorTrial.state == ESC_SENSOR_TRIAL_RUNNING) {
         return false;
     }
 
+    if (ARMING_FLAG(ARMED)) {
+        escSensorTrial.state = ESC_SENSOR_TRIAL_REJECTED;
+        return false;
+    }
+
     if (!escSensorTrialSupported()) {
         escSensorTrial.state = ESC_SENSOR_TRIAL_REJECTED;
         return false;
+    }
+
+    taskInfo_t escTaskInfo;
+    getTaskInfo(TASK_ESC_SENSOR, &escTaskInfo);
+    escSensorTrial.taskEnabledByTrial = !escTaskInfo.isEnabled;
+    if (escSensorTrial.taskEnabledByTrial) {
+        rescheduleTask(TASK_ESC_SENSOR, TASK_PERIOD_HZ(escSensorConfig()->update_hz));
+        setTaskEnabled(TASK_ESC_SENSOR, true);
     }
 
     escSensorTrial.savedHalfDuplex = escSensorConfig()->halfDuplex;
@@ -4683,11 +4714,15 @@ bool escSensorTrialStart(void)
     // same reasoning as the RX version: most real miswiring is one bit
     // wrong, so this converges in one try for the common case instead of
     // averaging two across a flat 0..3 sweep.
-    const uint8_t current = (escSensorTrial.savedHalfDuplex ? (1 << 0) : 0)
+    const bool halfDuplexForced = escSensorTrialForcesHalfDuplex();
+    const uint8_t current = ((halfDuplexForced || escSensorTrial.savedHalfDuplex) ? (1 << 0) : 0)
         | (escSensorTrial.savedPinSwap ? (1 << 1) : 0);
     int n = 0;
     for (int distance = 0; distance <= 2; distance++) {
         for (int combo = 0; combo < ESC_SENSOR_TRIAL_COMBO_COUNT; combo++) {
+            if (halfDuplexForced && !(combo & (1 << 0))) {
+                continue;
+            }
             if ((int)BITCOUNT((uint8_t)(combo ^ current)) == distance) {
                 escSensorTrial.comboOrder[n++] = (uint8_t)combo;
             }
@@ -4695,6 +4730,7 @@ bool escSensorTrialStart(void)
     }
 
     escSensorTrial.comboIndex = 0;
+    escSensorTrial.comboCount = n;
     escSensorTrial.lastPollAt = millis();
     escSensorTrial.state = ESC_SENSOR_TRIAL_RUNNING;
     escSensorTrialApplyCombo(escSensorTrial.comboOrder[0]);
@@ -4709,6 +4745,7 @@ void escSensorTrialStop(void)
     }
 
     escSensorTrialRestore();
+    escSensorTrialReleaseTask();
     escSensorTrial.state = ESC_SENSOR_TRIAL_IDLE;
 }
 
@@ -4724,6 +4761,7 @@ void escSensorTrialTick(void)
         // The configurator stopped polling mid-scan (crash, USB unplug) -
         // don't leave the ESC(s) sitting on a random wiring combo.
         escSensorTrialRestore();
+        escSensorTrialReleaseTask();
         escSensorTrial.state = ESC_SENSOR_TRIAL_IDLE;
         return;
     }
@@ -4740,8 +4778,9 @@ void escSensorTrialTick(void)
         return;
     }
 
-    if (escSensorTrial.comboIndex + 1 >= ESC_SENSOR_TRIAL_COMBO_COUNT) {
+    if (escSensorTrial.comboIndex + 1 >= escSensorTrial.comboCount) {
         escSensorTrialRestore();
+        escSensorTrialReleaseTask();
         escSensorTrial.state = ESC_SENSOR_TRIAL_FAILED;
         return;
     }
