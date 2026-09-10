@@ -271,6 +271,7 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 typedef struct rxSerialTrialRuntime_s {
     rxSerialTrialState_e state;
     uint8_t comboIndex;
+    uint8_t comboCount;
     uint8_t comboOrder[RX_SERIAL_TRIAL_COMBO_COUNT];
     timeMs_t comboStartedAt;
     timeMs_t signalSince;      // 0 until rxIsReceivingSignal() first goes true for this combo
@@ -383,6 +384,11 @@ bool rxSerialTrialStart(void)
         return false;
     }
 
+    if (ARMING_FLAG(ARMED)) {
+        rxSerialTrial.state = RX_SERIAL_TRIAL_REJECTED;
+        return false;
+    }
+
     if (!featureIsEnabled(FEATURE_RX_SERIAL) || !findSerialPortConfig(FUNCTION_RX_SERIAL)) {
         rxSerialTrial.state = RX_SERIAL_TRIAL_REJECTED;
         return false;
@@ -407,9 +413,13 @@ bool rxSerialTrialStart(void)
     const uint8_t current = (rxSerialTrial.savedInverted ? (1 << 0) : 0)
         | (rxSerialTrial.savedHalfDuplex ? (1 << 1) : 0)
         | (rxSerialTrial.savedPinSwap ? (1 << 2) : 0);
+    const bool halfDuplexIgnored = rxSerialTrialProtocolIgnoresHalfDuplex();
     int n = 0;
     for (int distance = 0; distance <= 3; distance++) {
         for (int combo = 0; combo < RX_SERIAL_TRIAL_COMBO_COUNT; combo++) {
+            if (halfDuplexIgnored && ((combo ^ current) & (1 << 1))) {
+                continue;
+            }
             if ((int)BITCOUNT((uint8_t)(combo ^ current)) == distance) {
                 rxSerialTrial.comboOrder[n++] = (uint8_t)combo;
             }
@@ -417,6 +427,7 @@ bool rxSerialTrialStart(void)
     }
 
     rxSerialTrial.comboIndex = 0;
+    rxSerialTrial.comboCount = n;
     rxSerialTrial.lastPollAt = millis();
     rxSerialTrial.state = RX_SERIAL_TRIAL_RUNNING;
     rxSerialTrialApplyCombo(rxSerialTrial.comboOrder[0]);
@@ -468,7 +479,7 @@ static void rxSerialTrialTick(void)
         return;
     }
 
-    if (rxSerialTrial.comboIndex + 1 >= RX_SERIAL_TRIAL_COMBO_COUNT) {
+    if (rxSerialTrial.comboIndex + 1 >= rxSerialTrial.comboCount) {
         rxSerialTrialRestore();
         rxSerialTrial.state = RX_SERIAL_TRIAL_FAILED;
         return;
