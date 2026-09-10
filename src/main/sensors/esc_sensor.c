@@ -4348,6 +4348,13 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
+    // Cheap early-out when idle - see escSensorTrialTick(). Unconditional
+    // (ahead of every early-return below), same reasoning as rx.c's
+    // rxSerialTrialTick() call site: a trial in progress must keep advancing
+    // regardless of which of this function's other branches would otherwise
+    // fire this cycle.
+    escSensorTrialTick();
+
 #ifdef USE_4WAY_FORWARD_PROGRAMMING
     if (am32WritePending) {
         am32WritePending = false;
@@ -4536,6 +4543,229 @@ bool INIT_CODE escSensorInit(void)
     return (escSensorPort != NULL);
 }
 
+// ESC telemetry wiring auto-detect - mirrors rx/rx.c's rxSerialTrial*
+// mechanism (see docs/rx-wiring-autodetect-design.md) applied to this port's
+// halfDuplex/pinSwap instead. No `inverted` bit to test - escSensorInit()
+// above always opens SERIAL_NOT_INVERTED - so this is a 4-combo search.
+//
+// Detection differs from the RX version: rather than a decaying "signal
+// received" boolean (which flickered false between frames for any protocol
+// slower than ~10Hz and produced a false negative on CRSF - see that
+// mechanism's own history), this counts totalFrameCount deltas since the
+// combo was applied. It's a plain monotonic counter already incremented by
+// every protocol's own frame-decode path only on a structurally/checksum-
+// valid frame, so a combo is called successful once it has advanced by a
+// couple of frames - simpler and more robust than a time-based debounce.
+#define ESC_SENSOR_TRIAL_COMBO_COUNT 4
+#define ESC_SENSOR_TRIAL_MIN_FRAMES 2
+#define ESC_SENSOR_TRIAL_WATCHDOG_MS 3000
+#define ESC_SENSOR_TRIAL_DEFAULT_SETTLE_MS 1200
+// Protocols that go through the shared "rrfsm" (request/response) decode
+// engine (see the dispatch switch in escSensorProcess() below) poll the ESC
+// rather than just listening to a continuous stream, so the first valid
+// frame can take longer to arrive than a passive protocol's.
+#define ESC_SENSOR_TRIAL_HANDSHAKE_SETTLE_MS 2500
+
+typedef struct escSensorTrialRuntime_s {
+    escSensorTrialState_e state;
+    uint8_t comboIndex;
+    uint8_t comboOrder[ESC_SENSOR_TRIAL_COMBO_COUNT];
+    timeMs_t comboStartedAt;
+    uint32_t comboBaselineFrameCount;
+    timeMs_t lastPollAt;       // watchdog keep-alive, bumped by every status query
+    uint8_t savedHalfDuplex;
+    uint8_t savedPinSwap;
+} escSensorTrialRuntime_t;
+
+static escSensorTrialRuntime_t escSensorTrial = { .state = ESC_SENSOR_TRIAL_IDLE };
+
+static bool escSensorTrialSupported(void)
+{
+    if (isMotorProtocolCastlePWM()) {
+        return false;
+    }
+
+    switch (escSensorConfig()->protocol) {
+    case ESC_SENSOR_PROTO_NONE:
+    case ESC_SENSOR_PROTO_FBUS:
+    case ESC_SENSOR_PROTO_SRXL2:
+        // Each reads via its own dedicated port function (or, for NONE,
+        // nothing at all) - never FUNCTION_ESC_SENSOR - so there's no UART
+        // wiring here for this trial to test.
+        return false;
+    default:
+        break;
+    }
+
+    return findSerialPortConfig(FUNCTION_ESC_SENSOR) != NULL;
+}
+
+// Graupner is request/response over a single wire and requires half-duplex
+// to function at all (validateAndFixEscSensorConfig() forces it on for this
+// reason) - varying it during a trial can only ever fail half the combos for
+// no informational gain, so pin it rather than waste them.
+static bool escSensorTrialForcesHalfDuplex(void)
+{
+    return escSensorConfig()->protocol == ESC_SENSOR_PROTO_GRAUPNER;
+}
+
+static timeMs_t escSensorTrialSettleMs(void)
+{
+    switch (escSensorConfig()->protocol) {
+    case ESC_SENSOR_PROTO_HW5:
+    case ESC_SENSOR_PROTO_SCORPION:
+    case ESC_SENSOR_PROTO_OPENYGE:
+    case ESC_SENSOR_PROTO_FLY:
+    case ESC_SENSOR_PROTO_GRAUPNER:
+    case ESC_SENSOR_PROTO_XDFLY:
+    case ESC_SENSOR_PROTO_ZTW:
+    case ESC_SENSOR_PROTO_OMPHOBBY:
+        return ESC_SENSOR_TRIAL_HANDSHAKE_SETTLE_MS;
+    default:
+        return ESC_SENSOR_TRIAL_DEFAULT_SETTLE_MS;
+    }
+}
+
+// Closing the old port explicitly (rather than just calling escSensorInit()
+// again) matters here: openSerialPort() refuses to reopen an identifier
+// still marked in-use by a previous open, so calling Init() a second time
+// without this first would leave escSensorPort NULL (telemetry silently
+// disabled) instead of reconfigured.
+static void escSensorTrialReinit(void)
+{
+    const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_ESC_SENSOR);
+    if (portConfig) {
+        serialPortUsage_t *usage = findSerialPortUsageByIdentifier(portConfig->identifier);
+        if (usage && usage->serialPort) {
+            closeSerialPort(usage->serialPort);
+        }
+    }
+
+    escSensorInit();
+}
+
+static void escSensorTrialApplyCombo(uint8_t combo)
+{
+    escSensorConfigMutable()->halfDuplex = escSensorTrialForcesHalfDuplex()
+        ? 1
+        : ((combo & (1 << 0)) ? 1 : 0);
+    escSensorConfigMutable()->pinSwap = (combo & (1 << 1)) ? 1 : 0;
+
+    escSensorTrialReinit();
+
+    escSensorTrial.comboStartedAt = millis();
+    escSensorTrial.comboBaselineFrameCount = totalFrameCount;
+}
+
+static void escSensorTrialRestore(void)
+{
+    escSensorConfigMutable()->halfDuplex = escSensorTrial.savedHalfDuplex;
+    escSensorConfigMutable()->pinSwap = escSensorTrial.savedPinSwap;
+
+    escSensorTrialReinit();
+}
+
+bool escSensorTrialStart(void)
+{
+    if (escSensorTrial.state == ESC_SENSOR_TRIAL_RUNNING) {
+        return false;
+    }
+
+    if (!escSensorTrialSupported()) {
+        escSensorTrial.state = ESC_SENSOR_TRIAL_REJECTED;
+        return false;
+    }
+
+    escSensorTrial.savedHalfDuplex = escSensorConfig()->halfDuplex;
+    escSensorTrial.savedPinSwap = escSensorConfig()->pinSwap;
+
+    // Walk outward from the combo already configured, by Hamming distance -
+    // same reasoning as the RX version: most real miswiring is one bit
+    // wrong, so this converges in one try for the common case instead of
+    // averaging two across a flat 0..3 sweep.
+    const uint8_t current = (escSensorTrial.savedHalfDuplex ? (1 << 0) : 0)
+        | (escSensorTrial.savedPinSwap ? (1 << 1) : 0);
+    int n = 0;
+    for (int distance = 0; distance <= 2; distance++) {
+        for (int combo = 0; combo < ESC_SENSOR_TRIAL_COMBO_COUNT; combo++) {
+            if ((int)BITCOUNT((uint8_t)(combo ^ current)) == distance) {
+                escSensorTrial.comboOrder[n++] = (uint8_t)combo;
+            }
+        }
+    }
+
+    escSensorTrial.comboIndex = 0;
+    escSensorTrial.lastPollAt = millis();
+    escSensorTrial.state = ESC_SENSOR_TRIAL_RUNNING;
+    escSensorTrialApplyCombo(escSensorTrial.comboOrder[0]);
+
+    return true;
+}
+
+void escSensorTrialStop(void)
+{
+    if (escSensorTrial.state == ESC_SENSOR_TRIAL_IDLE) {
+        return;
+    }
+
+    escSensorTrialRestore();
+    escSensorTrial.state = ESC_SENSOR_TRIAL_IDLE;
+}
+
+void escSensorTrialTick(void)
+{
+    if (escSensorTrial.state != ESC_SENSOR_TRIAL_RUNNING) {
+        return;
+    }
+
+    const timeMs_t now = millis();
+
+    if (cmp32(now, escSensorTrial.lastPollAt) > ESC_SENSOR_TRIAL_WATCHDOG_MS) {
+        // The configurator stopped polling mid-scan (crash, USB unplug) -
+        // don't leave the ESC(s) sitting on a random wiring combo.
+        escSensorTrialRestore();
+        escSensorTrial.state = ESC_SENSOR_TRIAL_IDLE;
+        return;
+    }
+
+    if (totalFrameCount - escSensorTrial.comboBaselineFrameCount >= ESC_SENSOR_TRIAL_MIN_FRAMES) {
+        // Leave this combo live (don't restore) - the configurator lets the
+        // user confirm via live ESC telemetry values before it ever gets
+        // persisted through the normal Save flow.
+        escSensorTrial.state = ESC_SENSOR_TRIAL_SUCCESS;
+        return;
+    }
+
+    if (cmp32(now, escSensorTrial.comboStartedAt) < (int32_t)escSensorTrialSettleMs()) {
+        return;
+    }
+
+    if (escSensorTrial.comboIndex + 1 >= ESC_SENSOR_TRIAL_COMBO_COUNT) {
+        escSensorTrialRestore();
+        escSensorTrial.state = ESC_SENSOR_TRIAL_FAILED;
+        return;
+    }
+
+    escSensorTrial.comboIndex++;
+    escSensorTrialApplyCombo(escSensorTrial.comboOrder[escSensorTrial.comboIndex]);
+}
+
+escSensorTrialStatus_t escSensorTrialGetStatus(void)
+{
+    const int32_t elapsedMs = cmp32(millis(), escSensorTrial.comboStartedAt);
+
+    const escSensorTrialStatus_t status = {
+        .state = escSensorTrial.state,
+        .comboIndex = escSensorTrial.comboIndex,
+        .halfDuplex = escSensorConfig()->halfDuplex,
+        .pinSwap = escSensorConfig()->pinSwap,
+        .elapsedMs = (uint16_t)constrain(elapsedMs, 0, 0xFFFF),
+    };
+
+    escSensorTrial.lastPollAt = millis(); // watchdog keep-alive
+
+    return status;
+}
 
 static uint8_t escGetParamFullBufferLength(void)
 {

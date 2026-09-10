@@ -63,3 +63,34 @@ uint8_t escSelect4WIfById(uint8_t id);
 uint8_t *escGetParamBuffer(void);
 uint8_t *escGetParamUpdBuffer(void);
 bool escCommitParameters(void);
+
+// ESC telemetry wiring auto-detect ("trial mode") - for the already-selected
+// escSensorConfig()->protocol, cycles halfDuplex/pinSwap live (no EEPROM
+// writes, no reboot) and reports back which combo (if any) produces a valid
+// frame. No `inverted` option here - unlike serial RX, ESC telemetry always
+// opens SERIAL_NOT_INVERTED (see esc_sensor.c's escSensorInit()), so this is
+// a 4-combo search, not 8. Mirrors rx/rx.h's rxSerialTrialState_e (see
+// docs/rx-wiring-autodetect-design.md for the original design writeup).
+typedef enum {
+    ESC_SENSOR_TRIAL_IDLE = 0,
+    ESC_SENSOR_TRIAL_RUNNING,
+    ESC_SENSOR_TRIAL_SUCCESS,
+    ESC_SENSOR_TRIAL_FAILED,
+    ESC_SENSOR_TRIAL_REJECTED,   // protocol has no UART wiring to test, or no port assigned
+} escSensorTrialState_e;
+
+typedef struct escSensorTrialStatus_s {
+    uint8_t state;          // escSensorTrialState_e
+    uint8_t comboIndex;     // 0..3: combo currently (or, on FAILED, last) being tried
+    uint8_t halfDuplex;
+    uint8_t pinSwap;
+    uint16_t elapsedMs;     // time spent on the current/last combo
+} escSensorTrialStatus_t;
+
+bool escSensorTrialStart(void);
+void escSensorTrialStop(void);
+escSensorTrialStatus_t escSensorTrialGetStatus(void);
+
+// Ticked from escSensorProcess() every ESC_SENSOR_TASK_FREQ_HZ cycle - cheap
+// early-out when idle, same as rx.c's own rxSerialTrialTick().
+void escSensorTrialTick(void);
