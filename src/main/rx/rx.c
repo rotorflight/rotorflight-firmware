@@ -260,8 +260,13 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 #define RX_SERIAL_TRIAL_COMBO_COUNT 8
 #define RX_SERIAL_TRIAL_DEBOUNCE_MS 200
 #define RX_SERIAL_TRIAL_WATCHDOG_MS 3000
-#define RX_SERIAL_TRIAL_DEFAULT_SETTLE_MS 600
-#define RX_SERIAL_TRIAL_HANDSHAKE_SETTLE_MS 1400
+// Bumped up from an initial 600/1400ms guess after bench testing showed CRSF
+// (default tier) needing more headroom than that - see also the baud-forcing
+// in rxSerialTrialStart()/Restore() below, which was the bigger part of that
+// failure (a stale crsf_use_negotiated_baud cache made even the *correct*
+// wiring combo fail to produce signal within the settle window).
+#define RX_SERIAL_TRIAL_DEFAULT_SETTLE_MS 1000
+#define RX_SERIAL_TRIAL_HANDSHAKE_SETTLE_MS 2200
 
 typedef struct rxSerialTrialRuntime_s {
     rxSerialTrialState_e state;
@@ -273,6 +278,18 @@ typedef struct rxSerialTrialRuntime_s {
     uint8_t savedInverted;
     uint8_t savedHalfDuplex;
     uint8_t savedPinSwap;
+    // Alternate-baud options are orthogonal to the three wiring bits above,
+    // but each one makes a provider open the port at something other than
+    // its plain default baud - crsf_use_negotiated_baud in particular reads
+    // a *cached* baud from a previous CRSF V3 negotiation
+    // (getCrsfCachedBaudrate(), rx/crsf.c), which can be stale or simply
+    // never yet established. Forcing these off for the duration of the trial
+    // means every combo is tested at each protocol's one universally-correct
+    // baud, rather than a confound the three wiring bits can't fix - restored
+    // afterward like the wiring bits themselves.
+    uint8_t savedCrsfUseNegotiatedBaud;
+    uint8_t savedSbusBaudFast;
+    uint8_t savedSrxl2BaudFast;
 } rxSerialTrialRuntime_t;
 
 static rxSerialTrialRuntime_t rxSerialTrial = { .state = RX_SERIAL_TRIAL_IDLE };
@@ -332,6 +349,9 @@ static void rxSerialTrialRestore(void)
     rxConfigMutable()->serialrx_inverted = rxSerialTrial.savedInverted;
     rxConfigMutable()->halfDuplex        = rxSerialTrial.savedHalfDuplex;
     rxConfigMutable()->pinSwap           = rxSerialTrial.savedPinSwap;
+    rxConfigMutable()->crsf_use_negotiated_baud = rxSerialTrial.savedCrsfUseNegotiatedBaud;
+    rxConfigMutable()->sbus_baud_fast    = rxSerialTrial.savedSbusBaudFast;
+    rxConfigMutable()->srxl2_baud_fast   = rxSerialTrial.savedSrxl2BaudFast;
 
     rxSerialTrialReinit();
 }
@@ -350,6 +370,13 @@ bool rxSerialTrialStart(void)
     rxSerialTrial.savedInverted   = rxConfig()->serialrx_inverted;
     rxSerialTrial.savedHalfDuplex = rxConfig()->halfDuplex;
     rxSerialTrial.savedPinSwap    = rxConfig()->pinSwap;
+    rxSerialTrial.savedCrsfUseNegotiatedBaud = rxConfig()->crsf_use_negotiated_baud;
+    rxSerialTrial.savedSbusBaudFast = rxConfig()->sbus_baud_fast;
+    rxSerialTrial.savedSrxl2BaudFast = rxConfig()->srxl2_baud_fast;
+
+    rxConfigMutable()->crsf_use_negotiated_baud = 0;
+    rxConfigMutable()->sbus_baud_fast = 0;
+    rxConfigMutable()->srxl2_baud_fast = 0;
 
     // Walk outward from the combo already configured, by Hamming distance -
     // most real-world miswiring is "one bit wrong" (typically inverted, from
