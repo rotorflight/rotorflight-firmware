@@ -431,3 +431,9 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #define MIN_PID_PROCESS_SPEED       800
+
+// The DShot beacon (motor locator tone) is available wherever DShot is.
+// Kept as its own switch so it can be compiled out independently of DShot.
+#ifdef USE_DSHOT
+#define USE_DSHOT_BEACON
+#endif

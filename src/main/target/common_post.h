@@ -24,6 +24,9 @@
 
 #include "build/version.h"
 
+// Disable the DShot beacon (motor locator tone) to free up flash.
+#undef USE_DSHOT_BEACON
+
 #if defined(USE_VTX_RTC6705_SOFTSPI)
 #define USE_VTX_RTC6705
 #endif
@@ -325,6 +328,7 @@
 #ifndef USE_DSHOT
 #undef USE_DSHOT_TELEMETRY
 #undef USE_DSHOT_BITBANG
+#undef USE_DSHOT_BEACON
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY
