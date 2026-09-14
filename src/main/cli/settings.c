@@ -1830,7 +1830,6 @@ const clivalue_t valueTable[] = {
     { "rx_input_backup_inverted",      VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, inverted) },
     { "rx_input_backup_halfduplex",    VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, halfDuplex) },
 #endif
-
 #ifdef USE_CRSF_SENSORS
     { "crsf_sensors_timeout_ms",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { CRSF_SENSORS_TIMEOUT_MS_MIN, CRSF_SENSORS_TIMEOUT_MS_MAX }, PG_DRIVER_CRSF_SENSORS_CONFIG, offsetof(crsfSensorsConfig_t, sensorTimeoutMs) },
     { "crsf_sensors_use_baro",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_DRIVER_CRSF_SENSORS_CONFIG, offsetof(crsfSensorsConfig_t, useBaroAltitude) },
