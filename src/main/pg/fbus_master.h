@@ -22,6 +22,12 @@
 
 #define FBUS_MASTER_CHANNELS 16
 
+#define FBUS_MASTER_MAX_FORWARDED_SENSORS 8
+#define FBUS_MASTER_TELEMETRY_RATE_MIN_HZ 25
+#define FBUS_MASTER_TELEMETRY_RATE_MAX_HZ 550
+#define FBUS_MASTER_DISCOVERY_TIME_MIN_MS 100
+#define FBUS_MASTER_DISCOVERY_TIME_MAX_MS 10000
+
 typedef enum {
     FBUS_MASTER_SOURCE_NONE = 0,
     FBUS_MASTER_SOURCE_RX = 1,
@@ -56,6 +62,10 @@ typedef struct fbusMasterConfig_s {
     // When ON, the UART output is electrically inverted (F.Bus signal uses
     // inverted logic). When OFF, the output is non-inverted.
     uint8_t inverted;
+
+    uint16_t telemetryRate;
+    uint16_t sensorDiscoveryTimeMs;
+    uint8_t forwardedSensors[FBUS_MASTER_MAX_FORWARDED_SENSORS];
 
 } fbusMasterConfig_t;
 

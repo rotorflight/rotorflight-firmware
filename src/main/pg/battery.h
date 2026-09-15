@@ -28,6 +28,9 @@
 #define VBAT_CELL_VOLTAGE_DEFAULT_WARN      350
 #define VBAT_CELL_VOLTAGE_DEFAULT_ABSENT    300
 
+#define BATTERY_PROFILE_COUNT 6
+
+
 #ifndef VOLTAGE_TASK_FREQ_HZ
 #define VOLTAGE_TASK_FREQ_HZ    50
 #endif
@@ -41,6 +44,7 @@ typedef enum {
     VOLTAGE_METER_NONE = 0,
     VOLTAGE_METER_ADC,
     VOLTAGE_METER_ESC,
+    VOLTAGE_METER_FBUS,
     VOLTAGE_METER_COUNT
 } voltageMeterSource_e;
 
@@ -48,14 +52,32 @@ typedef enum {
     CURRENT_METER_NONE = 0,
     CURRENT_METER_ADC,
     CURRENT_METER_ESC,
+    CURRENT_METER_FBUS,
     CURRENT_METER_COUNT
 } currentMeterSource_e;
 
+typedef enum {
+    SMARTFUEL_MODE_OFF = 0,
+    SMARTFUEL_MODE_VOLTAGE,
+    SMARTFUEL_MODE_CURRENT,
+    SMARTFUEL_MODE_COMBINED,
+    SMARTFUEL_MODE_COUNT
+} smartFuelMode_e;
+
+#define SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT 10
+#define SMARTFUEL_VOLTAGE_DROP_RATE_MAX 250
+#define SMARTFUEL_CHARGE_DROP_RATE_DEFAULT 50
+#define SMARTFUEL_CHARGE_DROP_RATE_MAX 250
+#define SMARTFUEL_SAG_GAIN_DEFAULT 40
+#define SMARTFUEL_SAG_GAIN_MAX 100
+
 typedef struct {
 
+    uint8_t     batteryProfile;
+
     // battery size
-    uint16_t    batteryCapacity;            // mAh
     uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
+    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT]; // mAh
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used
@@ -84,6 +106,11 @@ typedef struct {
 
     uint16_t    vbatUpdateHz;               // Update rate for voltage task
     uint16_t    ibatUpdateHz;               // Update rate for current task
+
+    uint8_t     smartfuel_mode;
+    uint8_t     smartfuel_voltage_drop_rate;
+    uint8_t     smartfuel_charge_drop_rate;
+    uint8_t     smartfuel_sag_gain;
 
 } batteryConfig_t;
 

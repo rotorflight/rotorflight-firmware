@@ -22,4 +22,4 @@ TARGET_SRC = \
             drivers/accgyro/accgyro_spi_icm40609.c \
             
             
-FEATURES += ONBOARDFLASH
+FEATURES += ONBOARDFLASH SDCARD_SPI

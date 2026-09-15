@@ -28,6 +28,8 @@ enum {
     FREQ_INPUT_PULLDOWN,
 };
 
+#define FREQ_INPUT_MINHZ_DEFAULT 25
+
 enum {
     FREQ_INPUT_FALLING_EDGE,
     FREQ_INPUT_RISING_EDGE,
@@ -37,6 +39,7 @@ typedef struct freqConfig_s {
     ioTag_t ioTag[FREQ_SENSOR_PORT_COUNT];
     uint8_t pullupdn;
     uint8_t polarity;
+    uint8_t minhz;
 } freqConfig_t;
 
 PG_DECLARE(freqConfig_t, freqConfig);

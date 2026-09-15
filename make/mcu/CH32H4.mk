@@ -62,6 +62,7 @@ CMSIS_CORE_SRC  = core_riscv.c
 VCP_SRC = \
            ch32h41x_hs/usb_ch32h41x_usbhs_reg.c \
            class/cdc/usbd_cdc_acm.c \
+           class/msc/usbd_msc.c \
            core/usbd_core.c \
            board/cdc_vcp_ch32h41x.c
 
@@ -74,6 +75,7 @@ VCP_INCLUDES = \
 
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
                    $(SRC_DIR)/startup \
+                   $(SRC_DIR)/drivers \
                    $(STDPERIPH_DIR)/inc \
                    $(CMSIS_DIR)/Core \
                    $(CMSIS_DIR)/Debug \
@@ -152,6 +154,7 @@ MCU_COMMON_SRC = \
         drivers/dshot_dpwm.c \
         drivers/motor.c \
         drivers/serial_usb_vcp_ch32h4.c \
+        drivers/usb_msc_ch32h41x.c \
         drivers/persistent_ch32h41x.c \
         drivers/timer_ch32h41x.c \
         $(VCP_SRC) \
@@ -159,6 +162,16 @@ MCU_COMMON_SRC = \
         drivers/system.c \
         drivers/light_ws2811strip.c \
         drivers/light_ws2811strip_ch32h41x.c
+
+MCU_COMMON_SRC += msc/usbd_storage.c
+
+ifneq ($(filter SDCARD_SPI,$(FEATURES)),)
+MSC_SRC += drivers/usb_msc_sdcard_spi_ch32h41x.c
+endif
+
+ifneq ($(filter ONBOARDFLASH,$(FEATURES)),)
+MSC_SRC += msc/usbd_storage_emfat.c msc/emfat.c msc/emfat_file.c
+endif
 
 MCU_EXCLUDES += drivers/adc_stm32f4xx.c drivers/adc_stm32f7xx.c \
                 drivers/adc_stm32g4xx.c drivers/adc_stm32h7xx.c \

@@ -18,7 +18,6 @@
 
 #define USE_VCP
 #define USE_USB_DETECT
-#undef USE_USB_MSC
 
 #define SERIAL_PORT_COUNT 9
 #define USABLE_TIMER_CHANNEL_COUNT 6
@@ -87,12 +86,16 @@
 #define SPI2_SCK_PIN PB13  // SPI2CLK
 #define SPI2_MISO_PIN PB14 // SPI2MISO
 #define SPI2_MOSI_PIN PB15 // SPI2MOSI
-// SD CS = PE11 (SDCS) - enable USE_SDCARD when SD support is ported
+#define USE_SDCARD
+#define USE_SDCARD_SPI
+#define SDCARD_SPI_CS_PIN PE11
+#define SDCARD_SPI_INSTANCE SPI2
 
 // Onboard SPI flash (U2) on SPI4
 // for on board M25P16 flash
 #define USE_FLASHFS
 #define USE_FLASH_LOOP
+#define USE_FLASHFS_LOOP
 
 #define USE_FLASH
 #define USE_FLASH_M25P16
@@ -172,6 +175,7 @@
 #define USE_OSD
 #define USE_OSD_HD
 #define USE_MAG
+#define USE_MAG_DATA_READY_SIGNAL
 #define USE_GPS
 #define USE_GPS_UBLOX
 #define USE_GPS_RESCUE

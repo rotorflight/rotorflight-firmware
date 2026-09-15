@@ -33,12 +33,14 @@ PG_REGISTER_WITH_RESET_FN(freqConfig_t, freqConfig, PG_FREQ_SENSOR_CONFIG, 0);
 
 void pgResetFn_freqConfig(freqConfig_t *freqConfig)
 {
-    for (unsigned index = 0; index < FREQ_SENSOR_PORT_COUNT; index++) {
+    for (unsigned index = 0; index < FREQ_SENSOR_PORT_COUNT; index++)
+    {
         freqConfig->ioTag[index] = timerioTagGetByUsage(TIM_USE_FREQ, index);
     }
 
     freqConfig->pullupdn = FREQ_INPUT_PULLUP;
     freqConfig->polarity = FREQ_INPUT_FALLING_EDGE;
+    freqConfig->minhz = FREQ_INPUT_MINHZ_DEFAULT;
 }
 
 #endif

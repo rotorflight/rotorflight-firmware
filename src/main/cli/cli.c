@@ -311,13 +311,16 @@ static const char *const mixerInputNames[] = {
 #if MAX_SUPPORTED_MOTORS != 4
 #error MAX_SUPPORTED_MOTORS hardcoded to 4 in cli/cli.c
 #endif
-#if MAX_SUPPORTED_SERVOS != 8
-#error MAX_SUPPORTED_SERVOS hardcoded to 8 in cli/cli.c
+#if MAX_SUPPORTED_PWM_SERVOS != 8
+#error MAX_SUPPORTED_PWM_SERVOS hardcoded to 8 in cli/cli.c
 #endif
 
-// Mixer output names (1 + 8 + 4)
+// Mixer output names (1 + 26 servos + 4 motors)
 static const char *const mixerOutputNames[] = {
-    "-", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "M1", "M2", "M3", "M4"};
+    "-", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8",
+    "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18",
+    "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26",
+    "M1", "M2", "M3", "M4"};
 
 // sync this with rxFailsafeChannelMode_e
 static const char rxFailsafeModeCharacters[] = "ahs";

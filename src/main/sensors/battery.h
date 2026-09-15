@@ -75,7 +75,14 @@ bool isBatteryCurrentConfigured(void);
 uint16_t getBatteryCurrent(void);
 uint16_t getBatteryCurrentSample(void);
 uint16_t getLegacyBatteryCurrent(void);
+uint16_t getBatteryCapacity(void);
 uint32_t getBatteryCapacityUsed(void);
+
+bool isBatteryChargeLevelAvailable(void);
+uint8_t getBatteryChargeLevel(void);
+
+void changeBatteryProfile(uint8_t profileIndex);
+uint8_t getCurrentBatteryProfileIndex(void);
 
 uint8_t calculateBatteryPercentageRemaining(void);
 

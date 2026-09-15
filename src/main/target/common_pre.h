@@ -140,6 +140,7 @@
 #define USE_TIMER_MGMT
 #define USE_TIMER_AF
 #define USE_PERSISTENT_OBJECTS
+#define USE_USB_MSC
 #define USE_LATE_TASK_STATISTICS
 #define USE_TELEMETRY_SBUS2
 #define USE_TELEMETRY_CASTLE
@@ -279,6 +280,10 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 #define USE_SBUS_OUTPUT         // SBus Output feature
 #define USE_FBUS_MASTER         // FBUS Master feature
+#define USE_SPORT_MASTER        // S.Port master feature
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+#define USE_BUS_SERVO
+#endif
 
 
 #if (TARGET_FLASH_SIZE > 256)
@@ -293,6 +298,7 @@ extern uint8_t _dmaram_end__;
 #endif
 
 #if (TARGET_FLASH_SIZE > 64)
+#define USE_ACRO_TRAINER
 #define USE_BLACKBOX
 #define USE_CLI_BATCH
 #define USE_RESOURCE_MGMT
@@ -307,6 +313,7 @@ extern uint8_t _dmaram_end__;
 #define USE_DSHOT_DMAR
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_SERIALRX_FBUS       // FrSky FBUS/FPORT2
+#define USE_SMARTFUEL
 #define USE_TELEMETRY_CRSF
 #define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL

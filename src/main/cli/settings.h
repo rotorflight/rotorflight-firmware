@@ -132,6 +132,9 @@ typedef enum {
     TABLE_INPUT_PULL_MODE,
     TABLE_INPUT_EDGE_MODE,
     TABLE_PARAM_TYPE,
+#ifdef USE_SMARTFUEL
+    TABLE_SMARTFUEL_MODE,
+#endif
 
     LOOKUP_TABLE_COUNT
 } lookupTableIndex_e;

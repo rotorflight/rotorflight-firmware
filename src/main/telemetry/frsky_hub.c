@@ -83,54 +83,54 @@ static portSharing_e frSkyHubPortSharing;
 
 static frSkyHubWriteByteFn *frSkyHubWriteByte = NULL;
 
-#define FRSKY_HUB_CYCLETIME_US    125000
+#define FRSKY_HUB_CYCLETIME_US 125000
 
-#define PROTOCOL_HEADER       0x5E
-#define PROTOCOL_TAIL         0x5E
+#define PROTOCOL_HEADER 0x5E
+#define PROTOCOL_TAIL 0x5E
 
 // Data Ids  (bp = before decimal point; af = after decimal point)
 // Official data IDs
-#define ID_GPS_ALTIDUTE_BP    0x01
-#define ID_GPS_ALTIDUTE_AP    0x09
-#define ID_TEMPRATURE1        0x02
-#define ID_RPM                0x03
-#define ID_FUEL_LEVEL         0x04
-#define ID_TEMPRATURE2        0x05
-#define ID_VOLT               0x06
-#define ID_ALTITUDE_BP        0x10
-#define ID_ALTITUDE_AP        0x21
-#define ID_GPS_SPEED_BP       0x11
-#define ID_GPS_SPEED_AP       0x19
-#define ID_LONGITUDE_BP       0x12
-#define ID_LONGITUDE_AP       0x1A
-#define ID_E_W                0x22
-#define ID_LATITUDE_BP        0x13
-#define ID_LATITUDE_AP        0x1B
-#define ID_N_S                0x23
-#define ID_COURSE_BP          0x14
-#define ID_COURSE_AP          0x1C
-#define ID_DATE_MONTH         0x15
-#define ID_YEAR               0x16
-#define ID_HOUR_MINUTE        0x17
-#define ID_SECOND             0x18
-#define ID_ACC_X              0x24
-#define ID_ACC_Y              0x25
-#define ID_ACC_Z              0x26
-#define ID_VOLTAGE_AMP        0x39
-#define ID_VOLTAGE_AMP_BP     0x3A
-#define ID_VOLTAGE_AMP_AP     0x3B
-#define ID_CURRENT            0x28
+#define ID_GPS_ALTIDUTE_BP 0x01
+#define ID_GPS_ALTIDUTE_AP 0x09
+#define ID_TEMPRATURE1 0x02
+#define ID_RPM 0x03
+#define ID_FUEL_LEVEL 0x04
+#define ID_TEMPRATURE2 0x05
+#define ID_VOLT 0x06
+#define ID_ALTITUDE_BP 0x10
+#define ID_ALTITUDE_AP 0x21
+#define ID_GPS_SPEED_BP 0x11
+#define ID_GPS_SPEED_AP 0x19
+#define ID_LONGITUDE_BP 0x12
+#define ID_LONGITUDE_AP 0x1A
+#define ID_E_W 0x22
+#define ID_LATITUDE_BP 0x13
+#define ID_LATITUDE_AP 0x1B
+#define ID_N_S 0x23
+#define ID_COURSE_BP 0x14
+#define ID_COURSE_AP 0x1C
+#define ID_DATE_MONTH 0x15
+#define ID_YEAR 0x16
+#define ID_HOUR_MINUTE 0x17
+#define ID_SECOND 0x18
+#define ID_ACC_X 0x24
+#define ID_ACC_Y 0x25
+#define ID_ACC_Z 0x26
+#define ID_VOLTAGE_AMP 0x39
+#define ID_VOLTAGE_AMP_BP 0x3A
+#define ID_VOLTAGE_AMP_AP 0x3B
+#define ID_CURRENT 0x28
 // User defined data IDs
-#define ID_GYRO_X             0x40
-#define ID_GYRO_Y             0x41
-#define ID_GYRO_Z             0x42
+#define ID_GYRO_X 0x40
+#define ID_GYRO_Y 0x41
+#define ID_GYRO_Z 0x42
 
-#define ID_VERT_SPEED         0x30 // opentx vario
+#define ID_VERT_SPEED 0x30 // opentx vario
 
-#define GPS_BAD_QUALITY       300
-#define GPS_MAX_HDOP_VAL      9999
+#define GPS_BAD_QUALITY 300
+#define GPS_MAX_HDOP_VAL 9999
 #define DELAY_FOR_BARO_INITIALISATION_US 5000000
-#define BLADE_NUMBER_DIVIDER  5 // should set 12 blades in Taranis
+#define BLADE_NUMBER_DIVIDER 5 // should set 12 blades in Taranis
 
 enum
 {
@@ -144,13 +144,18 @@ static uint8_t telemetryState = TELEMETRY_STATE_UNINITIALIZED;
 static void serializeFrSkyHub(uint8_t data)
 {
     // take care of byte stuffing
-    if (data == 0x5e) {
+    if (data == 0x5e)
+    {
         frSkyHubWriteByte(0x5d);
         frSkyHubWriteByte(0x3e);
-    } else if (data == 0x5d) {
+    }
+    else if (data == 0x5d)
+    {
         frSkyHubWriteByte(0x5d);
         frSkyHubWriteByte(0x3d);
-    } else{
+    }
+    else
+    {
         frSkyHubWriteByte(data);
     }
 }
@@ -170,14 +175,15 @@ static void sendTelemetryTail(void)
 }
 
 static void frSkyHubWriteByteInternal(const char data)
- {
-   serialWrite(frSkyHubPort, data);
- }
+{
+    serialWrite(frSkyHubPort, data);
+}
 
 #if defined(USE_ACC)
 static void sendAccel(void)
 {
-    for (unsigned i = 0; i < 3; i++) {
+    for (unsigned i = 0; i < 3; i++)
+    {
         frSkyHubWriteFrame(ID_ACC_X + i, ((int16_t)(acc.accADC[i] * acc.dev.acc_1G_rec) * 1000));
     }
 }
@@ -193,11 +199,12 @@ static void sendTemperature1(void)
     int16_t data = 0;
 #if defined(USE_ESC_SENSOR_TELEMETRY)
     escSensorData_t *escData = getEscSensorData(ESC_SENSOR_COMBINED);
-    if (escData) {
-        data = (escData->age < ESC_DATA_INVALID) ? escData->temperature / 10: 0;
+    if (escData)
+    {
+        data = (escData->age < ESC_DATA_INVALID) ? escData->temperature / 10 : 0;
     }
 #elif defined(USE_BARO)
-    data = (baro.baroTemperature + 50)/ 100; // Airmamaf
+    data = (baro.baroTemperature + 50) / 100; // Airmamaf
 #else
     data = gyroGetTemperature() / 10;
 #endif
@@ -222,17 +229,20 @@ static void GPStoDDDMM_MMMM(int32_t mwiigps, gpsCoordinateDDDMMmmmm_t *result)
     int32_t absgps, deg, min;
 
     absgps = ABS(mwiigps);
-    deg    = absgps / GPS_DEGREES_DIVIDER;
-    absgps = (absgps - deg * GPS_DEGREES_DIVIDER) * 60;        // absgps = Minutes left * 10^7
-    min    = absgps / GPS_DEGREES_DIVIDER;                     // minutes left
+    deg = absgps / GPS_DEGREES_DIVIDER;
+    absgps = (absgps - deg * GPS_DEGREES_DIVIDER) * 60; // absgps = Minutes left * 10^7
+    min = absgps / GPS_DEGREES_DIVIDER;                 // minutes left
 
-    if (telemetryConfig()->frsky_coordinate_format == FRSKY_FORMAT_DMS) {
+    if (telemetryConfig()->frsky_coordinate_format == FRSKY_FORMAT_DMS)
+    {
         result->dddmm = deg * 100 + min;
-    } else {
+    }
+    else
+    {
         result->dddmm = deg * 60 + min;
     }
 
-    result->mmmm  = (absgps - min * GPS_DEGREES_DIVIDER) / 1000;
+    result->mmmm = (absgps - min * GPS_DEGREES_DIVIDER) / 1000;
 }
 
 static void sendLatLong(int32_t coord[2])
@@ -255,7 +265,8 @@ static void sendGpsAltitude(void)
     int32_t altitudeCm = gpsSol.llh.altCm;
 
     // Send real GPS altitude only if it's reliable (there's a GPS fix)
-    if (!STATE(GPS_FIX)) {
+    if (!STATE(GPS_FIX))
+    {
         altitudeCm = 0;
     }
     frSkyHubWriteFrame(ID_GPS_ALTIDUTE_BP, altitudeCm / 100); // meters: integer part, eg. 123 from 123.45m
@@ -266,16 +277,20 @@ static void sendSatalliteSignalQualityAsTemperature2(uint8_t cycleNum)
 {
     uint16_t satellite = gpsSol.numSat;
 
-    if (gpsSol.hdop > GPS_BAD_QUALITY && ( (cycleNum % 16 ) < 8)) { // Every 1s
+    if (gpsSol.hdop > GPS_BAD_QUALITY && ((cycleNum % 16) < 8))
+    { // Every 1s
         satellite = constrain(gpsSol.hdop, 0, GPS_MAX_HDOP_VAL);
     }
     int16_t data;
-    if (telemetryConfig()->frsky_unit == UNIT_IMPERIAL) {
+    if (telemetryConfig()->frsky_unit == UNIT_IMPERIAL)
+    {
         float tmp = (satellite - 32) / 1.8f;
         // Round the value
         tmp += (tmp < 0) ? -0.5f : 0.5f;
         data = tmp;
-    } else {
+    }
+    else
+    {
         data = satellite;
     }
     frSkyHubWriteFrame(ID_TEMPRATURE2, data);
@@ -283,7 +298,8 @@ static void sendSatalliteSignalQualityAsTemperature2(uint8_t cycleNum)
 
 static void sendSpeed(void)
 {
-    if (!STATE(GPS_FIX)) {
+    if (!STATE(GPS_FIX))
+    {
         return;
     }
     // Speed should be sent in knots (GPS speed is in cm/s)
@@ -295,7 +311,7 @@ static void sendSpeed(void)
 static void sendFakeLatLong(void)
 {
     // Heading is only displayed on OpenTX if non-zero lat/long is also sent
-    int32_t coord[2] = {0,0};
+    int32_t coord[2] = {0, 0};
 
     coord[GPS_LATITUDE] = ((0.01f * telemetryConfig()->gpsNoFixLatitude) * GPS_DEGREES_DIVIDER);
     coord[GPS_LONGITUDE] = ((0.01f * telemetryConfig()->gpsNoFixLongitude) * GPS_DEGREES_DIVIDER);
@@ -306,15 +322,18 @@ static void sendFakeLatLong(void)
 static void sendGPSLatLong(void)
 {
     static uint8_t gpsFixOccured = 0;
-    int32_t coord[2] = {0,0};
+    int32_t coord[2] = {0, 0};
 
-    if (STATE(GPS_FIX) || gpsFixOccured == 1) {
+    if (STATE(GPS_FIX) || gpsFixOccured == 1)
+    {
         // If we have ever had a fix, send the last known lat/long
         gpsFixOccured = 1;
         coord[GPS_LATITUDE] = gpsSol.llh.lat;
         coord[GPS_LONGITUDE] = gpsSol.llh.lon;
         sendLatLong(coord);
-    } else {
+    }
+    else
+    {
         // otherwise send fake lat/long in order to display compass value
         sendFakeLatLong();
     }
@@ -335,21 +354,24 @@ static void sendVoltageCells(void)
     uint32_t cellVoltage = 0;
     const uint8_t cellCount = getBatteryCellCount();
 
-    if (cellCount) {
+    if (cellCount)
+    {
         currentCell %= cellCount;
         /*
-        * Format for Voltage Data for single cells is like this:
-        *
-        *  llll llll cccc hhhh
-        *  l: Low voltage bits
-        *  h: High voltage bits
-        *  c: Cell number (starting at 0)
-        *
-        * The actual value sent for cell voltage has resolution of 0.002 volts
-        * Since vbat has resolution of 0.1 volts it has to be multiplied by 50
-        */
+         * Format for Voltage Data for single cells is like this:
+         *
+         *  llll llll cccc hhhh
+         *  l: Low voltage bits
+         *  h: High voltage bits
+         *  c: Cell number (starting at 0)
+         *
+         * The actual value sent for cell voltage has resolution of 0.002 volts
+         * Since vbat has resolution of 0.1 volts it has to be multiplied by 50
+         */
         cellVoltage = ((uint32_t)getBatteryVoltage() * 100 + cellCount) / (cellCount * 2);
-    } else {
+    }
+    else
+    {
         currentCell = 0;
     }
 
@@ -375,16 +397,21 @@ static void sendVoltageAmp(void)
     uint16_t voltage = getLegacyBatteryVoltage();
     const uint8_t cellCount = getBatteryCellCount();
 
-    if (telemetryConfig()->frsky_vfas_precision == FRSKY_VFAS_PRECISION_HIGH) {
+    if (telemetryConfig()->frsky_vfas_precision == FRSKY_VFAS_PRECISION_HIGH)
+    {
         // Use new ID 0x39 to send voltage directly in 0.1 volts resolution
-        if (telemetryConfig()->report_cell_voltage && cellCount) {
+        if (telemetryConfig()->report_cell_voltage && cellCount)
+        {
             voltage /= cellCount;
         }
         frSkyHubWriteFrame(ID_VOLTAGE_AMP, voltage);
-    } else {
+    }
+    else
+    {
         // send in 0.2 volts resolution
         voltage *= 110 / 21;
-        if (telemetryConfig()->report_cell_voltage && cellCount) {
+        if (telemetryConfig()->report_cell_voltage && cellCount)
+        {
             voltage /= cellCount;
         }
 
@@ -401,9 +428,12 @@ static void sendAmperage(void)
 static void sendFuelLevel(void)
 {
     int16_t data;
-    if (batteryConfig()->batteryCapacity > 0) {
+    if (getBatteryCapacity() > 0)
+    {
         data = (uint16_t)calculateBatteryPercentageRemaining();
-    } else {
+    }
+    else
+    {
         data = (uint16_t)constrain(getBatteryCapacityUsed(), 0, 0xFFFF);
     }
     frSkyHubWriteFrame(ID_FUEL_LEVEL, data);
@@ -415,8 +445,7 @@ static void sendFakeLatLongThatAllowsHeadingDisplay(void)
     // Heading is only displayed on OpenTX if non-zero lat/long is also sent
     int32_t coord[2] = {
         1 * GPS_DEGREES_DIVIDER,
-        1 * GPS_DEGREES_DIVIDER
-    };
+        1 * GPS_DEGREES_DIVIDER};
 
     sendLatLong(coord);
 }
@@ -430,9 +459,11 @@ static void sendHeading(void)
 
 bool initFrSkyHubTelemetry(void)
 {
-    if (telemetryState == TELEMETRY_STATE_UNINITIALIZED) {
+    if (telemetryState == TELEMETRY_STATE_UNINITIALIZED)
+    {
         portConfig = findSerialPortConfig(FUNCTION_TELEMETRY_FRSKY_HUB);
-        if (portConfig) {
+        if (portConfig)
+        {
             frSkyHubPortSharing = determinePortSharing(portConfig, FUNCTION_TELEMETRY_FRSKY_HUB);
 
             frSkyHubWriteByte = frSkyHubWriteByteInternal;
@@ -448,7 +479,8 @@ bool initFrSkyHubTelemetry(void)
 
 bool initFrSkyHubTelemetryExternal(frSkyHubWriteByteFn *frSkyHubWriteByteExternal)
 {
-    if (telemetryState == TELEMETRY_STATE_UNINITIALIZED) {
+    if (telemetryState == TELEMETRY_STATE_UNINITIALIZED)
+    {
         frSkyHubWriteByte = frSkyHubWriteByteExternal;
 
         telemetryState = TELEMETRY_STATE_INITIALIZED_EXTERNAL;
@@ -467,23 +499,32 @@ void freeFrSkyHubTelemetryPort(void)
 
 static void configureFrSkyHubTelemetryPort(void)
 {
-    if (portConfig) {
+    if (portConfig)
+    {
         frSkyHubPort = openSerialPort(portConfig->identifier, FUNCTION_TELEMETRY_FRSKY_HUB, NULL, NULL, FRSKY_HUB_BAUDRATE, FRSKY_HUB_INITIAL_PORT_MODE, telemetryConfig()->telemetry_inverted ? SERIAL_NOT_INVERTED : SERIAL_INVERTED);
     }
 }
 
 void checkFrSkyHubTelemetryState(void)
 {
-    if (telemetryState == TELEMETRY_STATE_INITIALIZED_SERIAL) {
-        if (telemetryCheckRxPortShared(portConfig, rxRuntimeState.serialrxProvider)) {
-            if (frSkyHubPort == NULL && telemetrySharedPort != NULL) {
+    if (telemetryState == TELEMETRY_STATE_INITIALIZED_SERIAL)
+    {
+        if (telemetryCheckRxPortShared(portConfig, rxRuntimeState.serialrxProvider))
+        {
+            if (frSkyHubPort == NULL && telemetrySharedPort != NULL)
+            {
                 frSkyHubPort = telemetrySharedPort;
             }
-        } else {
+        }
+        else
+        {
             bool enableSerialTelemetry = telemetryDetermineEnabledState(frSkyHubPortSharing);
-            if (enableSerialTelemetry && !frSkyHubPort) {
+            if (enableSerialTelemetry && !frSkyHubPort)
+            {
                 configureFrSkyHubTelemetryPort();
-            } else if (!enableSerialTelemetry && frSkyHubPort) {
+            }
+            else if (!enableSerialTelemetry && frSkyHubPort)
+            {
                 freeFrSkyHubTelemetryPort();
             }
         }
@@ -495,7 +536,8 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
     static uint32_t frSkyHubLastCycleTime = 0;
     static uint8_t cycleNum = 0;
 
-    if (cmpTimeUs(currentTimeUs, frSkyHubLastCycleTime) < FRSKY_HUB_CYCLETIME_US) {
+    if (cmpTimeUs(currentTimeUs, frSkyHubLastCycleTime) < FRSKY_HUB_CYCLETIME_US)
+    {
         return;
     }
     frSkyHubLastCycleTime = currentTimeUs;
@@ -503,30 +545,35 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
     cycleNum++;
 
 #if defined(USE_ACC)
-    if (sensors(SENSOR_ACC) && telemetryIsSensorEnabled(SENSOR_ACC_X | SENSOR_ACC_Y | SENSOR_ACC_Z)) {
+    if (sensors(SENSOR_ACC) && telemetryIsSensorEnabled(SENSOR_ACC_X | SENSOR_ACC_Y | SENSOR_ACC_Z))
+    {
         // Sent every 125ms
         sendAccel();
     }
 #endif
 
 #if defined(USE_BARO) || defined(USE_RANGEFINDER) || defined(USE_GPS)
-    if (sensors(SENSOR_BARO | SENSOR_RANGEFINDER) | sensors(SENSOR_GPS)) {
+    if (sensors(SENSOR_BARO | SENSOR_RANGEFINDER) | sensors(SENSOR_GPS))
+    {
         // Sent every 125ms
         // Send vertical speed for opentx. ID_VERT_SPEED
         // Unit is cm/s
 #ifdef USE_VARIO
-        if (telemetryIsSensorEnabled(SENSOR_VARIO)) {
+        if (telemetryIsSensorEnabled(SENSOR_VARIO))
+        {
             frSkyHubWriteFrame(ID_VERT_SPEED, getEstimatedVarioCms());
         }
 #endif
 
         // Sent every 500ms
-        if ((cycleNum % 4) == 0 && telemetryIsSensorEnabled(SENSOR_ALTITUDE)) {
+        if ((cycleNum % 4) == 0 && telemetryIsSensorEnabled(SENSOR_ALTITUDE))
+        {
             int32_t altitudeCm = getEstimatedAltitudeCm();
 
             /* Allow 5s to boot correctly othervise send zero to prevent OpenTX
              * sensor lost notifications after warm boot. */
-            if (frSkyHubLastCycleTime < DELAY_FOR_BARO_INITIALISATION_US) {
+            if (frSkyHubLastCycleTime < DELAY_FOR_BARO_INITIALISATION_US)
+            {
                 altitudeCm = 0;
             }
 
@@ -537,60 +584,76 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
 #endif
 
 #if defined(USE_MAG)
-    if (sensors(SENSOR_MAG) && telemetryIsSensorEnabled(SENSOR_HEADING)) {
+    if (sensors(SENSOR_MAG) && telemetryIsSensorEnabled(SENSOR_HEADING))
+    {
         // Sent every 500ms
-        if ((cycleNum % 4) == 0) {
+        if ((cycleNum % 4) == 0)
+        {
             sendHeading();
         }
     }
 #endif
 
     // Sent every 1s
-    if ((cycleNum % 8) == 0) {
+    if ((cycleNum % 8) == 0)
+    {
         sendTemperature1();
         sendHeadSpeed();
 
-        if (isBatteryVoltageConfigured()) {
-            if (telemetryIsSensorEnabled(SENSOR_VOLTAGE)) {
+        if (isBatteryVoltageConfigured())
+        {
+            if (telemetryIsSensorEnabled(SENSOR_VOLTAGE))
+            {
                 sendVoltageCells();
                 sendVoltageAmp();
             }
 
-            if (isBatteryCurrentConfigured()) {
-                if (telemetryIsSensorEnabled(SENSOR_CURRENT)) {
+            if (isBatteryCurrentConfigured())
+            {
+                if (telemetryIsSensorEnabled(SENSOR_CURRENT))
+                {
                     sendAmperage();
                 }
-                if (telemetryIsSensorEnabled(SENSOR_FUEL)) {
+                if (telemetryIsSensorEnabled(SENSOR_FUEL))
+                {
                     sendFuelLevel();
                 }
             }
         }
 
 #if defined(USE_GPS)
-        if (sensors(SENSOR_GPS)) {
-            if (telemetryIsSensorEnabled(SENSOR_GROUND_SPEED)) {
+        if (sensors(SENSOR_GPS))
+        {
+            if (telemetryIsSensorEnabled(SENSOR_GROUND_SPEED))
+            {
                 sendSpeed();
             }
-            if (telemetryIsSensorEnabled(SENSOR_ALTITUDE)) {
+            if (telemetryIsSensorEnabled(SENSOR_ALTITUDE))
+            {
                 sendGpsAltitude();
             }
             sendSatalliteSignalQualityAsTemperature2(cycleNum);
-            if (telemetryIsSensorEnabled(SENSOR_LAT_LONG)) {
+            if (telemetryIsSensorEnabled(SENSOR_LAT_LONG))
+            {
                 sendGPSLatLong();
             }
-        } else
+        }
+        else
 #endif
 #if defined(USE_MAG)
-        if (sensors(SENSOR_MAG)) {
+            if (sensors(SENSOR_MAG))
+        {
             sendFakeLatLongThatAllowsHeadingDisplay();
         }
 #else
-        {}
+        {
+        }
 #endif
     }
 
     // Sent every 5s
-    if (cycleNum == 40) {
+    if (cycleNum == 40)
+    {
         cycleNum = 0;
         sendTime();
     }
@@ -600,7 +663,8 @@ void processFrSkyHubTelemetry(timeUs_t currentTimeUs)
 
 void handleFrSkyHubTelemetry(timeUs_t currentTimeUs)
 {
-    if (telemetryState == TELEMETRY_STATE_INITIALIZED_SERIAL && frSkyHubPort) {
+    if (telemetryState == TELEMETRY_STATE_INITIALIZED_SERIAL && frSkyHubPort)
+    {
         processFrSkyHubTelemetry(currentTimeUs);
     }
 }

@@ -83,6 +83,7 @@ typedef struct
     bool timer32;
 
     float freq;
+    float minhz;
     float clock;
 
     uint16_t percoef;
@@ -265,7 +266,7 @@ static FAST_CODE void freqEdgeCallback16(timerCCHandlerRec_t *cbRec, captureComp
                 float freq = input->clock / (input->prescaler * period);
                 if (period > FREQ_PERIOD_MIN(input->period) && period < FREQ_PERIOD_MAX(input->period))
                 {
-                    if (freq < FREQ_RANGE_MIN)
+                    if (freq < input->minhz)
                         freq = 0;
                     if (freq < FREQ_RANGE_MAX)
                         UPDATE_FREQ_FILTER(input, freq);
@@ -325,7 +326,7 @@ static FAST_CODE void freqEdgeCallback32(timerCCHandlerRec_t *cbRec, captureComp
                 float freq = input->clock / period;
                 if (period > FREQ_PERIOD_MIN(input->period) && period < FREQ_PERIOD_MAX(input->period))
                 {
-                    if (freq < FREQ_RANGE_MIN)
+                    if (freq < input->minhz)
                         freq = 0;
                     if (freq < FREQ_RANGE_MAX)
                         UPDATE_FREQ_FILTER(input, freq);
@@ -416,6 +417,7 @@ void freqInit(const freqConfig_t *freqConfig)
             input->percoef = 1;
             input->freqcoef = 1;
             input->freq = 0;
+            input->minhz = freqConfig->minhz;
 
             input->pin = IOGetByTag(freqConfig->ioTag[port]);
             IOInit(input->pin, OWNER_FREQ, RESOURCE_INDEX(port));
