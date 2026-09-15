@@ -187,4 +187,13 @@
 #undef USE_SERIAL_4WAY_SK_BOOTLOADER
 #define USE_ESCSERIAL
 
+// External magnetic/optical RPM sensor (timer input capture).
+// The configurator Motors tab "RPM sensor" switch maps to the FREQ_SENSOR
+// feature (bit 28). Without USE_FREQ_SENSOR, validateAndFixConfig() calls
+// featureDisableImmediate(FEATURE_FREQ_SENSOR) at every boot and every
+// EEPROM write, so the toggle always reverts to disabled after Save & Reboot.
+// NOTE: still needs a TIM_USE_FREQ timer channel in target.c (RPM pad) to
+// actually measure anything; until then RPM comes from DShot bidir telemetry.
+#define USE_FREQ_SENSOR
+
 #define FLASH_PAGE_SIZE ((uint32_t)0x2000) // 8K sectors
