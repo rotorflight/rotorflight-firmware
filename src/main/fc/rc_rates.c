@@ -365,40 +365,14 @@ static float applyQuickRates(const int axis, const float rcCommandAbs)
  * ROTORFLIGHT
  */
 
-static float rfPow(const float x, const uint expo)
-{
-    // 0..100 range gives exponent ~ 2.0 .. 8.25
-    const uint bits = MIN(expo, 127u);
-
-    float y = x * x;
-    float z = x;
-
-    if (bits & BIT(4)) y *= z;
-    z *= z;
-    if (bits & BIT(5)) y *= z;
-    z *= z;
-    if (bits & BIT(6)) y *= z;
-
-    z = sqrtf(x);
-    if (bits & BIT(3)) y *= z;
-    z = sqrtf(z);
-    if (bits & BIT(2)) y *= z;
-    z = sqrtf(z);
-    if (bits & BIT(1)) y *= z;
-    z = sqrtf(z);
-    if (bits & BIT(0)) y *= z;
-
-    return y;
-}
-
 static float applyRotorflightRates(const int axis, const float rcCommandAbs)
 {
     float rcRate = currentControlRateProfile->rcRates[axis] * 5;
     float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    uint width = currentControlRateProfile->sRates[axis];
+    float shape = currentControlRateProfile->sRates[axis] / 16.0f + 2.0f;
 
     // Variable order Expo
-    float expof = rcCommandAbs * (1.0f - rcExpo) + rfPow(rcCommandAbs, width) * rcExpo;
+    float expof = rcCommandAbs * (1.0f - rcExpo) + pow_approx(rcCommandAbs, shape) * rcExpo;
 
     // Final angle rate
     float angleRate = rcRate * expof;

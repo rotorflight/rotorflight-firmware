@@ -31,11 +31,10 @@
 #include "config/feature.h"
 
 #include "drivers/adc.h"
+#include "drivers/fbus_sensor.h"
 
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
-
-#include "flight/mixer.h"
 
 #include "io/beeper.h"
 
@@ -65,16 +64,18 @@
 #define VBAT_STABLE_MAX_DELTA 200 // mV
 #define LVC_AFFECT_TIME 10000000  // 10 secs for the LVC to slowly kick in
 
-const char *const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
-    [VOLTAGE_METER_NONE] = "NONE",
-    [VOLTAGE_METER_ADC] = "ADC",
-    [VOLTAGE_METER_ESC] = "ESC",
+const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
+    [VOLTAGE_METER_NONE]    = "NONE",
+    [VOLTAGE_METER_ADC]     = "ADC",
+    [VOLTAGE_METER_ESC]     = "ESC",
+    [VOLTAGE_METER_FBUS]    = "FBUS",
 };
 
-const char *const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
-    [CURRENT_METER_NONE] = "NONE",
-    [CURRENT_METER_ADC] = "ADC",
-    [CURRENT_METER_ESC] = "ESC",
+const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
+    [CURRENT_METER_NONE]    = "NONE",
+    [CURRENT_METER_ADC]     = "ADC",
+    [CURRENT_METER_ESC]     = "ESC",
+    [CURRENT_METER_FBUS]    = "FBUS",
 };
 
 // Note: Cell count can be 0 when no battery is detected or
@@ -118,7 +119,7 @@ uint8_t getBatteryVoltageSource(void)
     return batteryConfig()->voltageMeterSource;
 }
 
-const voltageMeter_t *getBatteryVoltageMeter()
+const voltageMeter_t * getBatteryVoltageMeter(void)
 {
     return &voltageMeter;
 }
@@ -159,7 +160,7 @@ bool isBatteryCurrentConfigured(void)
     return batteryConfig()->currentMeterSource != CURRENT_METER_NONE;
 }
 
-const currentMeter_t *getBatteryCurrentMeter()
+const currentMeter_t * getBatteryCurrentMeter(void)
 {
     return &currentMeter;
 }
@@ -193,22 +194,20 @@ uint8_t getBatteryChargeLevel(void)
 {
 #ifdef USE_SMARTFUEL
     if (smartFuelIsEnabled())
-    {
         return smartFuelChargeLevel();
-    }
+    else
 #endif
-    return calculateBatteryPercentageRemaining();
+        return calculateBatteryPercentageRemaining();
 }
 
 bool isBatteryChargeLevelAvailable(void)
 {
 #ifdef USE_SMARTFUEL
     if (smartFuelIsEnabled())
-    {
         return true;
-    }
+    else
 #endif
-    return getBatteryCapacity() > 0 || getBatteryCellCount() > 0;
+        return getBatteryCapacity() > 0 || getBatteryCellCount() > 0;
 }
 
 batteryState_e getBatteryState(void)
@@ -253,10 +252,40 @@ uint8_t calculateBatteryPercentageRemaining(void)
 
 void changeBatteryProfile(uint8_t profileIndex)
 {
-    if (profileIndex < BATTERY_PROFILE_COUNT)
-    {
+    if (profileIndex < BATTERY_PROFILE_COUNT) {
         batteryConfigMutable()->batteryProfile = profileIndex;
     }
+}
+
+uint8_t getCurrentBatteryProfileIndex(void)
+{
+    return batteryConfig()->batteryProfile;
+}
+
+int get_ADJUSTMENT_BATTERY_PROFILE(void)
+{
+    return getCurrentBatteryProfileIndex() + 1;
+}
+
+void set_ADJUSTMENT_BATTERY_PROFILE(int value)
+{
+    changeBatteryProfile(value - 1);
+}
+
+
+uint8_t getCurrentBatteryProfileIndex(void)
+{
+    return batteryConfig()->batteryProfile;
+}
+
+int get_ADJUSTMENT_BATTERY_PROFILE(void)
+{
+    return getCurrentBatteryProfileIndex() + 1;
+}
+
+void set_ADJUSTMENT_BATTERY_PROFILE(int value)
+{
+    changeBatteryProfile(value - 1);
 }
 
 uint8_t getCurrentBatteryProfileIndex(void)
@@ -294,7 +323,7 @@ static void batteryUpdateAlarms(void)
 
 static bool isVoltageStable(void)
 {
-    return ABS(batteryVoltage - voltageMeter.sample) <= VBAT_STABLE_MAX_DELTA;
+    return ABS(cmp32(batteryVoltage, voltageMeter.sample)) <= VBAT_STABLE_MAX_DELTA;
 }
 
 static bool isVoltageFromBat(void)
@@ -435,9 +464,8 @@ static void batteryUpdateLVC(timeUs_t currentTimeUs)
 
 static void batteryUpdateConsumptionState(void)
 {
-    if (batteryConfig()->useConsumptionAlerts && isBatteryChargeLevelAvailable() && batteryCellCount > 0)
-    {
-        uint8_t batteryPercentageRemaining = calculateBatteryPercentageRemaining();
+    if (batteryConfig()->useConsumptionAlerts && isBatteryChargeLevelAvailable() && batteryCellCount > 0) {
+        uint8_t batteryPercentageRemaining = getBatteryChargeLevel();
 
         if (batteryPercentageRemaining == 0)
         {
@@ -492,6 +520,10 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    voltageSensorFBUSRefresh();
+#endif
+
     switch (batteryConfig()->voltageMeterSource)
     {
     case VOLTAGE_METER_ADC:
@@ -506,7 +538,26 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
             batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
         }
 #endif
-        break;
+            break;
+
+        case VOLTAGE_METER_FBUS:
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+            if (voltageSensorFBUSRead(&voltageMeter)) {
+                batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+            } else {
+                voltageMeterReset(&voltageMeter);
+                batteryVoltage = 0;
+            }
+#else
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+#endif
+            break;
+
+        default:
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+            break;
     }
 
     DEBUG(BATTERY, 0, voltageMeter.sample);
@@ -530,6 +581,10 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     }
 #endif
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    currentSensorFBUSRefresh();
+#endif
+
     switch (batteryConfig()->currentMeterSource)
     {
     case CURRENT_METER_ADC:
@@ -545,7 +600,26 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
             batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
         }
 #endif
-        break;
+            break;
+
+        case CURRENT_METER_FBUS:
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+            if (currentSensorFBUSRead(&currentMeter)) {
+                batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+            } else {
+                currentMeterReset(&currentMeter);
+                batteryCurrent = 0;
+            }
+#else
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
+#endif
+            break;
+
+        default:
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
+            break;
     }
 
     DEBUG(BATTERY, 2, currentMeter.sample);
@@ -554,6 +628,10 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 
 void batteryInit(void)
 {
+    if (batteryConfig()->batteryProfile >= BATTERY_PROFILE_COUNT) {
+        batteryConfigMutable()->batteryProfile = 0;
+    }
+
     voltageMeterReset(&voltageMeter);
     currentMeterReset(&currentMeter);
 
@@ -563,6 +641,11 @@ void batteryInit(void)
 #ifdef USE_ESC_SENSOR
     voltageSensorESCInit();
     currentSensorESCInit();
+#endif
+
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    voltageSensorFBUSInit();
+    currentSensorFBUSInit();
 #endif
 
     lowpassFilterInit(&voltageFilter, LPF_DAMPED,

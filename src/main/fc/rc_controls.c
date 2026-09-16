@@ -108,7 +108,7 @@ bool areSticksInApModePosition(uint16_t ap_mode)
     doNotRepeat = false; \
 } while (0)
 
-void processRcStickPositions()
+void processRcStickPositions(void)
 {
     // time the sticks are maintained
     static int16_t rcDelayMs;

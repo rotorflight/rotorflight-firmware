@@ -76,7 +76,6 @@ typedef enum {
     FEATURE_UNUSED_21 | \
     FEATURE_UNUSED_22 | \
     FEATURE_UNUSED_23 | \
-    FEATURE_UNUSED_24 | \
     0)
 
 void featureInit(void);

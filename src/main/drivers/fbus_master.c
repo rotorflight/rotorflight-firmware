@@ -17,25 +17,34 @@
 
  //this uses SBUS out and SPORT/FBUS_in
 
-#include "fbus_master.h"
-
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include "build/build_config.h"
-#include "common/maths.h"
-#include "common/time.h"
-#include "flight/mixer.h"
-#include "drivers/sbus_output.h"
-#include "pg/fbus_master.h"
-#include "pg/sbus_output.h"
-#include "rx/frsky_crc.h"
-#include "io/serial.h"
 #include "platform.h"
 
+#include "pg/fbus_master.h"
+#include "pg/sbus_output.h"
+#include "pg/servos.h"
+#include "pg/bus_servo.h"
+
+#include "common/maths.h"
+#include "common/time.h"
+
+#include "drivers/time.h"
+#include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
+#include "drivers/fbus_sensor.h"
+
+#include "flight/mixer.h"
+#include "flight/servos.h"
+
+#include "fc/runtime_config.h"
+#include "build/build_config.h"
+#include "rx/frsky_crc.h"
+#include "rx/fbus.h"
+#include "io/serial.h"
 #define FBUS_MASTER_BUFFER_SIZE 64
-#define GET_BIT(value, bit) ((value >> bit) & 1)
 
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
@@ -51,11 +60,8 @@ enum {
 };
 
 serialPort_t *fbusMasterPort = NULL;
+
 #define FC_COMMON_ID 0x1B
-#define FBUS_MAX_PHYS_ID 0x1B
-
-#define FBUS_MASTER_SCAN_COUNTER 3
-
 typedef enum {
     FBUS_MASTER_SCAN_PHY_ID = 0,
     FBUS_MASTER_QUERY_PHY_ID,
@@ -70,22 +76,55 @@ uint8_t phsIdList[FBUS_MAX_PHYS_ID] = {0};
 uint8_t physIdsfound = 0;
 uint8_t physIdCnt = 0;
 uint8_t currentPhysId = 0;
-uint8_t scanCounter = 0;
 uint8_t readIngoreBytes = 0;
 uint8_t readBytes = 0;
 uint8_t buffer[FBUS_MASTER_BUFFER_SIZE] = {0};
 
+static timeUs_t nextTelemetryPollTimeUs = 0;
+static timeUs_t sensorDiscoveryEndTimeUs = 0;
+
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
 
-static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
+static uint16_t fbusMasterTelemetryRateHz(void)
 {
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 1) ^ GET_BIT(*phyIDByte, 2)) << 5;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 3) ^ GET_BIT(*phyIDByte, 4)) << 6;
-    *phyIDByte |= (GET_BIT(*phyIDByte, 0) ^ GET_BIT(*phyIDByte, 2) ^ GET_BIT(*phyIDByte, 4)) << 7;
+    return constrain(fbusMasterConfig()->telemetryRate, FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ);
 }
 
-int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
+static uint16_t fbusMasterDiscoveryTimeMs(void)
+{
+    return constrain(fbusMasterConfig()->sensorDiscoveryTimeMs, FBUS_MASTER_DISCOVERY_TIME_MIN_MS, FBUS_MASTER_DISCOVERY_TIME_MAX_MS);
+}
+
+static timeDelta_t fbusMasterTelemetryPeriodUs(void)
+{
+    return 1000000 / fbusMasterTelemetryRateHz();
+}
+
+static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
+{
+    sensorDiscoveryEndTimeUs = currentTimeUs + ((timeUs_t)fbusMasterDiscoveryTimeMs() * 1000);
+}
+
+static uint8_t fbusMasterTakeNextScanPhysId(void)
+{
+    if (currentPhysId >= FBUS_MAX_PHYS_ID) {
+        currentPhysId = 0;
+    }
+
+    const uint8_t phyId = currentPhysId;
+    currentPhysId++;
+    return phyId;
+}
+
+static void smartportMasterPhyIDFillCheckBits(uint8_t *phyIDByte)
+{
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 1) ^ fbusGetBit(*phyIDByte, 2)) << 5;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 3) ^ fbusGetBit(*phyIDByte, 4)) << 6;
+    *phyIDByte |= (fbusGetBit(*phyIDByte, 0) ^ fbusGetBit(*phyIDByte, 2) ^ fbusGetBit(*phyIDByte, 4)) << 7;
+}
+
+static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
 {
     uint8_t smartportPhyID = phyID & 0x1F;
     uint8_t phyIDCheck = smartportPhyID;
@@ -93,7 +132,7 @@ int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
-void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
+static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs_t currentTimeUs)
 {
     // Clear the control.c16 structure
     memset(&frame->c16, 0, sizeof(fbusMasterFrame_t));
@@ -131,29 +170,45 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
         case FBUS_MASTER_TELEMETRY:
             memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
             frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+
+            if (cmpTimeUs(currentTimeUs, nextTelemetryPollTimeUs) < 0) {
+                frame->downlink.phyID = 0;
+                frame->downlink.prim = FBUS_FRAME_ID_NULL;
+                crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+                frame->downlink.crc = crc;
+                break;
+            }
+
+            nextTelemetryPollTimeUs = currentTimeUs + fbusMasterTelemetryPeriodUs();
+
+            if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID && cmpTimeUs(currentTimeUs, sensorDiscoveryEndTimeUs) >= 0) {
+                fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
+                physIdCnt = 0;
+            }
             
             switch (fbusMasterTelemetryState) {
                 case FBUS_MASTER_SCAN_PHY_ID:
-                    currentPhysId = currentPhysId == FC_COMMON_ID ? currentPhysId + 1 : currentPhysId;
-                    if (currentPhysId > FBUS_MAX_PHYS_ID) {
-                        currentPhysId = 0;
-                        scanCounter++;
-                        if (scanCounter >= FBUS_MASTER_SCAN_COUNTER) {
-                            scanCounter = 0;
-                            fbusMasterTelemetryState = FBUS_MASTER_QUERY_PHY_ID;
-                            break;
-                        }
-                    }
-        
-                    frame->downlink.phyID = currentPhysId;
+                    frame->downlink.phyID = fbusMasterTakeNextScanPhysId();
                     frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                    currentPhysId++;
                     break;
                 case FBUS_MASTER_QUERY_PHY_ID:
+                    if (physIdsfound == 0) {
+                        fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+                        currentPhysId = 0;
+                        fbusMasterStartDiscoveryWindow(currentTimeUs);
+                        frame->downlink.phyID = 0;
+                        frame->downlink.prim = FBUS_FRAME_ID_NULL;
+                        break;
+                    }
+
+                    if (physIdCnt >= physIdsfound) {
+                        physIdCnt = 0;
+                    }
+
                     currentPhysId = phsIdList[physIdCnt];
                     frame->downlink.phyID = currentPhysId;
                     frame->downlink.prim = FBUS_FRAME_ID_DATA;
-                    physIdCnt = physIdCnt == physIdsfound-1 ? 0 : physIdCnt + 1;
+                    physIdCnt++;
                     break;
                 
                 default:
@@ -176,13 +231,18 @@ void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels)
 
 }
 
-void processDownlinkFrame(uint8_t *data)
+static void processDownlinkFrame(uint8_t *data)
 {
     fbusMasterDownlink_t downlink;
     memcpy(&downlink, data, sizeof(downlink));
     uint8_t chkSum = frskyCheckSum((uint8_t *)&downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
     if (chkSum == downlink.crc) {
-        downlink.phyID = smartportMasterStripPhyIDCheckBits(downlink.phyID);
+        const int8_t decodedPhyId = smartportMasterStripPhyIDCheckBits(downlink.phyID);
+        if (decodedPhyId < 0) {
+            return;
+        }
+
+        downlink.phyID = decodedPhyId;
         if (fbusMasterTelemetryState == FBUS_MASTER_SCAN_PHY_ID) {
             bool alreadyInList = false;
             for (uint8_t i = 0; i < physIdsfound; i++) {
@@ -191,11 +251,19 @@ void processDownlinkFrame(uint8_t *data)
                     break;
                 }
             }
-            if (!alreadyInList) {
+            if (!alreadyInList && physIdsfound < ARRAYLEN(phsIdList)) {
                 phsIdList[physIdsfound++] = downlink.phyID;
             }
         }
-    }    
+        // Process sensor data for observation tracking and forwarding
+        // Only process if it's a data frame (not null/poll frames)
+        if (downlink.prim == FBUS_FRAME_ID_DATA && downlink.phyID != FC_COMMON_ID) {
+            // Convert 4-byte array to uint32_t (little-endian)
+            uint32_t sensorData = downlink.data[0] | (downlink.data[1] << 8) |
+                                  (downlink.data[2] << 16) | (downlink.data[3] << 24);
+            fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
+        }
+    }
 }
 
 static FAST_CODE void dataReceive(uint16_t c, void *data)
@@ -221,45 +289,34 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     }
 }
 
-float fbusMasterGetChannelValue(uint8_t channel)
+static float fbusMasterGetChannelValue(uint8_t channel)
 {
-    const sbusOutSourceType_e source_type =
-        fbusMasterConfig()->sourceType[channel];
-    const uint8_t source_index = fbusMasterConfig()->sourceIndex[channel];
+    const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
     switch (source_type) {
-        case SBUS_OUT_SOURCE_NONE:
-            return 0;
-        case SBUS_OUT_SOURCE_RX:
-            return sbusOutGetRX(source_index);
-        case SBUS_OUT_SOURCE_MIXER:
-            return sbusOutGetValueMixer(source_index);
-        case SBUS_OUT_SOURCE_SERVO:
-            return sbusOutGetServo(source_index);
-        case SBUS_OUT_SOURCE_MOTOR:
-            return sbusOutGetMotor(source_index);
+        case BUS_SERVO_SOURCE_RX:
+            return sbusOutGetRX(channel);
+        case BUS_SERVO_SOURCE_MIXER:
+            // Use the same servo-parameter-aware function
+            return sbusOutGetValueMixer(channel);
     }
     return 0;
 }
 
-uint16_t fbusMasterConvertToSbus(uint8_t channel, float pwm)
+static uint16_t fbusMasterConvertToSbus(float value)
 {
-    const int16_t low  = fbusMasterConfig()->sourceRangeLow[channel];
-    const int16_t high = fbusMasterConfig()->sourceRangeHigh[channel];
-
-    // round and bound values
-    if (channel >= 16) {
-        const float value = scaleRangef(pwm, low, high, 0, 1);
-        return constrain(nearbyintf(value), 0, 1);
-    }
-    const float value = scaleRangef(pwm, low, high, 192, 1792);
-    return constrain(nearbyintf(value), 0, (1 << 11) - 1);
+    // For analog channels (0-15), convert microseconds to SBUS range (192-1792)
+    // Bus servo range: (1000 -> BUS_SERVO_MIN_SIGNAL) to (2000 -> BUS_SERVO_MAX_SIGNAL) -> SBUS 192-1792
+    const float scaledValue = scaleRangef(value, BUS_SERVO_MIN_SIGNAL, BUS_SERVO_MAX_SIGNAL, 192, 1792);
+    return constrain(nearbyintf(scaledValue), FBUS_MIN, FBUS_MAX);
 }
 
 void fbusMasterUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
     if (!fbusMasterPort)
         return;
+
+    // Keep derived FBUS sensor states (timeouts/GPS mirrors) updated.
+    fbusSensorUpdate(currentTimeUs);
 
     // Check TX Buff is free
     if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
@@ -271,9 +328,12 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     uint16_t channels[FBUS_MASTER_CHANNELS];
     for (int ch = 0; ch < FBUS_MASTER_CHANNELS; ch++) {
         float value = fbusMasterGetChannelValue(ch);
-        channels[ch] = fbusMasterConvertToSbus(ch, value);
+        channels[ch] = fbusMasterConvertToSbus(value);
+        
+        // Store the output value for getServoOutput() to retrieve
+        setBusServoOutput(ch, value);
     }
-    fbusMasterPrepareFrame(&frame, channels);
+    fbusMasterPrepareFrame(&frame, channels, currentTimeUs);
 
     // serial output
     serialWriteBuf(fbusMasterPort, (const uint8_t *)&frame, sizeof(frame));
@@ -296,6 +356,13 @@ void fbusMasterInit(void)
         return;
     }
 
+    physIdsfound = 0;
+    physIdCnt = 0;
+    currentPhysId = 0;
+    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+    nextTelemetryPollTimeUs = 0;
+    fbusMasterStartDiscoveryWindow(micros());
+
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
         portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL, 460800, MODE_RXTX,
@@ -304,4 +371,3 @@ void fbusMasterInit(void)
             SERIAL_BIDIR |
             (fbusMasterConfig()->pinSwap ? SERIAL_PINSWAP : SERIAL_NOSWAP));
 }
-

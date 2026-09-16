@@ -458,7 +458,7 @@ static void showBatteryPage(void)
         i2c_OLED_set_line(dev, rowIndex++);
         i2c_OLED_send_string(dev, lineBuffer);
 
-        uint8_t batteryPercentage = calculateBatteryPercentageRemaining();
+        uint8_t batteryPercentage = getBatteryChargeLevel();
         i2c_OLED_set_line(dev, rowIndex++);
         drawHorizonalPercentageBar(SCREEN_CHARACTER_COLUMN_COUNT, batteryPercentage);
     }
@@ -473,7 +473,7 @@ static void showBatteryPage(void)
         i2c_OLED_set_line(dev, rowIndex++);
         i2c_OLED_send_string(dev, lineBuffer);
 
-        uint8_t capacityPercentage = calculateBatteryPercentageRemaining();
+        uint8_t capacityPercentage = getBatteryChargeLevel();
         i2c_OLED_set_line(dev, rowIndex++);
         drawHorizonalPercentageBar(SCREEN_CHARACTER_COLUMN_COUNT, capacityPercentage);
     }

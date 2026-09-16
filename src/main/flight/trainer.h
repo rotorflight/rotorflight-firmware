@@ -28,11 +28,13 @@
 #include "pg/pid.h"
 #include "pg/adjustments.h"
 
+#ifdef USE_ACRO_TRAINER
 
 void acroTrainerInit(const pidProfile_t *pidProfile);
-void acroTrainerReset(void);
 void acroTrainerSetState(bool state);
 
 float acroTrainerApply(int axis, float setPoint);
 
 ADJFUN_DECLARE(ACRO_TRAINER_GAIN)
+
+#endif

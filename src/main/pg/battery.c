@@ -31,31 +31,33 @@
 #define DEFAULT_VOLTAGE_METER_SOURCE VOLTAGE_METER_ADC
 #endif
 
+
 PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 5);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
-                  .batteryProfile = 0,
-                  .batteryCellCount = 0,
-                  .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
-                  .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
-                  .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
-                  .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
-                  .vbatfullcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_FULL,
-                  .vbatwarningcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_WARN,
-                  .vbatnotpresentcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_ABSENT,
-                  .vbathysteresis = 1,
-                  .lvcPercentage = 100, // Off by default at 100%
-                  .batteryCapacity = INIT_ZERO,
-                  .consumptionWarningPercentage = 35,
-                  .useVoltageAlerts = true,
-                  .useConsumptionAlerts = false,
-                  .vbatDurationForWarning = 0,
-                  .vbatDurationForCritical = 0,
-                  .vbatLpfHz = 10,
-                  .ibatLpfHz = 10,
-                  .vbatUpdateHz = VOLTAGE_TASK_FREQ_HZ,
-                  .ibatUpdateHz = CURRENT_TASK_FREQ_HZ,
-                  .smartfuel_mode = SMARTFUEL_MODE_OFF,
-                  .smartfuel_voltage_drop_rate = SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT,
-                  .smartfuel_charge_drop_rate = SMARTFUEL_CHARGE_DROP_RATE_DEFAULT,
-                  .smartfuel_sag_gain = SMARTFUEL_SAG_GAIN_DEFAULT, );
+    .batteryProfile = 0,
+    .batteryCellCount = 0,
+    .batteryCapacity = INIT_ZERO,
+    .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
+    .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
+    .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
+    .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
+    .vbatfullcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_FULL,
+    .vbatwarningcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_WARN,
+    .vbatnotpresentcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_ABSENT,
+    .vbathysteresis = 1,
+    .lvcPercentage = 100, // Off by default at 100%
+    .consumptionWarningPercentage = 35,
+    .useVoltageAlerts = true,
+    .useConsumptionAlerts = false,
+    .vbatDurationForWarning = 0,
+    .vbatDurationForCritical = 0,
+    .vbatLpfHz = 10,
+    .ibatLpfHz = 10,
+    .vbatUpdateHz = VOLTAGE_TASK_FREQ_HZ,
+    .ibatUpdateHz = CURRENT_TASK_FREQ_HZ,
+    .smartfuel_mode = SMARTFUEL_MODE_OFF,
+    .smartfuel_voltage_drop_rate = SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT,
+    .smartfuel_charge_drop_rate = SMARTFUEL_CHARGE_DROP_RATE_DEFAULT,
+    .smartfuel_sag_gain = SMARTFUEL_SAG_GAIN_DEFAULT,
+);

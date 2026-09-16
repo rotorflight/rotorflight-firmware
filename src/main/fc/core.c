@@ -78,6 +78,7 @@
 #include "flight/servos.h"
 #include "flight/governor.h"
 #include "flight/rescue.h"
+#include "flight/airborne.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -108,6 +109,10 @@
 #include "sensors/gyro.h"
 
 #include "telemetry/telemetry.h"
+#ifdef USE_SPORT_MASTER
+#include "drivers/fbus_sensor.h"
+#include "telemetry/sport_master.h"
+#endif
 
 #include "core.h"
 
@@ -162,12 +167,12 @@ static bool isCalibrating(void)
         ;
 }
 
-bool isTryingToArm()
+bool isTryingToArm(void)
 {
     return (armingDelayed != ARMING_NOT_DELAYED);
 }
 
-void resetTryingToArm()
+void resetTryingToArm(void)
 {
     armingDelayed = ARMING_NOT_DELAYED;
 }
@@ -348,6 +353,12 @@ void updateArmingStatus(void)
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
+        if (isServoOverrideActive() || isMixerOverrideActive()) {
+            setArmingDisabled(ARMING_DISABLED_OVERRIDE);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_OVERRIDE);
+        }
+
         if (!isUsingSticksForArming()) {
             /* Ignore ARMING_DISABLED_CALIBRATING if we are going to calibrate gyro on first arm */
             bool ignoreGyro = armingConfig()->gyro_cal_on_first_arm
@@ -503,10 +514,6 @@ void tryArm(void)
         armingEnabledWiggle = WIGGLE_DONE;
 
         resetMotorOverride();
-
-#ifdef USE_ACRO_TRAINER
-        acroTrainerReset();
-#endif
 
         if (isModeActivationConditionPresent(BOXPREARM)) {
             ENABLE_ARMING_FLAG(WAS_ARMED_WITH_PREARM);
@@ -670,12 +677,12 @@ void processRxModes(timeUs_t currentTimeUs)
             DISABLE_FLIGHT_MODE(RESCUE_MODE);
         }
 
-        if (IS_RC_MODE_ACTIVE(BOXANGLE)) {
+        if (IS_RC_MODE_ACTIVE(BOXANGLE) && (!ARMING_FLAG(ARMED) || isAirborne())) {
             ENABLE_FLIGHT_MODE(ANGLE_MODE);
             DISABLE_FLIGHT_MODE(HORIZON_MODE);
             DISABLE_FLIGHT_MODE(TRAINER_MODE);
         }
-        else if (IS_RC_MODE_ACTIVE(BOXHORIZON)) {
+        else if (IS_RC_MODE_ACTIVE(BOXHORIZON) && (!ARMING_FLAG(ARMED) || isAirborne())) {
             DISABLE_FLIGHT_MODE(ANGLE_MODE);
             ENABLE_FLIGHT_MODE(HORIZON_MODE);
             DISABLE_FLIGHT_MODE(TRAINER_MODE);
@@ -734,6 +741,10 @@ void processRxModes(timeUs_t currentTimeUs)
 void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 {
     static timeUs_t lastGyroTempTimeUs = 0;
+
+#if defined(USE_SPORT_MASTER) && !defined(USE_FBUS_MASTER)
+    fbusSensorUpdate(currentTimeUs);
+#endif
 
     if (cmpTimeUs(currentTimeUs, lastGyroTempTimeUs) >= GYRO_TEMP_READ_DELAY_US) {
         // Read out gyro temperature if used for telemmetry
@@ -1050,4 +1061,3 @@ timeUs_t getLastDisarmTimeUs(void)
 {
     return lastDisarmTimeUs;
 }
-

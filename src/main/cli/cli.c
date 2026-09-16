@@ -76,7 +76,11 @@ bool cliMode = false;
 #include "drivers/flash.h"
 #include "drivers/inverter.h"
 #include "drivers/io.h"
+#include "drivers/sbus_output.h"
+#include "drivers/fbus_master.h"
 #include "drivers/io_impl.h"
+
+#include "pg/bus_servo.h"
 #include "drivers/light_led.h"
 #include "drivers/motor.h"
 #include "drivers/rangefinder/rangefinder_hcsr04.h"
@@ -94,6 +98,8 @@ bool cliMode = false;
 #include "drivers/vtx_common.h"
 #include "drivers/vtx_table.h"
 #include "drivers/freq.h"
+#include "drivers/fbus_sensor.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/board_info.h"
 #include "fc/rc_rates.h"
@@ -311,16 +317,11 @@ static const char *const mixerInputNames[] = {
 #if MAX_SUPPORTED_MOTORS != 4
 #error MAX_SUPPORTED_MOTORS hardcoded to 4 in cli/cli.c
 #endif
-#if MAX_SUPPORTED_PWM_SERVOS != 8
-#error MAX_SUPPORTED_PWM_SERVOS hardcoded to 8 in cli/cli.c
-#endif
 
-// Mixer output names (1 + 26 servos + 4 motors)
+// Mixer output names (1 + 26 + 4)
 static const char *const mixerOutputNames[] = {
-    "-", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8",
-    "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18",
-    "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26",
-    "M1", "M2", "M3", "M4"};
+    "-", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10", "S11", "S12", "S13", "S14", "S15", "S16", "S17", "S18",
+    "S19", "S20", "S21", "S22", "S23", "S24", "S25", "S26", "M1", "M2", "M3", "M4"};
 
 // sync this with rxFailsafeChannelMode_e
 static const char rxFailsafeModeCharacters[] = "ahs";
@@ -414,7 +415,7 @@ static void cliPrintInternal(bufWriter_t *writer, const char *str)
     }
 }
 
-static void cliWriterFlush()
+static void cliWriterFlush(void)
 {
     cliWriterFlushInternal(cliWriter);
 }
@@ -816,13 +817,13 @@ static void restoreConfigs(uint16_t notToRestoreGroupId)
 }
 
 #if defined(USE_RESOURCE_MGMT) || defined(USE_TIMER_MGMT)
-static bool isReadingConfigFromCopy()
+static bool isReadingConfigFromCopy(void)
 {
     return configIsInCopy;
 }
 #endif
 
-static bool isWritingConfigToCopy()
+static bool isWritingConfigToCopy(void)
 {
     return configIsInCopy
 #if defined(USE_CUSTOM_DEFAULTS)
@@ -855,12 +856,12 @@ static void backupAndResetConfigs(const bool useCustomDefaults)
 #endif
 }
 
-static uint8_t getPidProfileIndexToUse()
+static uint8_t getPidProfileIndexToUse(void)
 {
     return pidProfileIndexToUse == CURRENT_PROFILE_INDEX ? getCurrentPidProfileIndex() : pidProfileIndexToUse;
 }
 
-static uint8_t getRateProfileIndexToUse()
+static uint8_t getRateProfileIndexToUse(void)
 {
     return rateProfileIndexToUse == CURRENT_PROFILE_INDEX ? getCurrentControlRateProfileIndex() : rateProfileIndexToUse;
 }
@@ -2212,14 +2213,56 @@ static void cliModeColor(const char *cmdName, char *cmdline)
 #endif
 
 #ifdef USE_SERVOS
-static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const char *headingStr)
+static bool serialConfigHasBusServos(const serialConfig_t *config)
+{
+    if (!config)
+    {
+        return false;
+    }
+
+    for (int i = 0; i < SERIAL_PORT_COUNT; i++)
+    {
+        if (config->portConfigs[i].functionMask & (FUNCTION_SBUS_OUT | FUNCTION_FBUS_MASTER))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool shouldPrintBusServos(const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault)
+{
+    const bool hasBusServos = serialConfigHasBusServos(serialConfigCurrent) || serialConfigHasBusServos(serialConfigDefault);
+
+    if (hasBusServos || !defaultServoParams)
+    {
+        return hasBusServos;
+    }
+
+    for (int i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++)
+    {
+        if (memcmp(&servoParams[i], &defaultServoParams[i], sizeof(servoParams[i])) != 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, const servoParam_t *defaultServoParams, const serialConfig_t *serialConfigCurrent, const serialConfig_t *serialConfigDefault, const char *headingStr)
 {
     const char *format = "servo %u %u %d %d %u %u %u %u %u";
-    const uint8_t servoCount = getServoCount();
+    const uint8_t pwmServoCount = getServoCount();
+    const bool printBusServos = shouldPrintBusServos(servoParams, defaultServoParams, serialConfigCurrent, serialConfigDefault);
 
     headingStr = cliPrintSectionHeading(dumpMask, false, headingStr);
-
-    for (uint32_t i = 0; i < servoCount; i++)
+    if (pwmServoCount > 0)
+    {
+        cliPrintLine("# PWM Servos");
+    }
+    for (uint32_t i = 0; i < pwmServoCount; i++)
     {
         const servoParam_t *servoConf = &servoParams[i];
         bool equalsDefault = false;
@@ -2250,26 +2293,98 @@ static void printServo(dumpFlags_t dumpMask, const servoParam_t *servoParams, co
                           servoConf->speed,
                           servoConf->flags);
     }
+
+    // Print Bus servos
+    if (printBusServos)
+    {
+        for (uint32_t i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++)
+        {
+            const servoParam_t *servoConf = &servoParams[i];
+            bool equalsDefault = false;
+            if (defaultServoParams)
+            {
+                const servoParam_t *defaultServoConf = &defaultServoParams[i];
+                equalsDefault = !memcmp(servoConf, defaultServoConf, sizeof(*servoConf));
+                headingStr = cliPrintSectionHeading(dumpMask, !equalsDefault, headingStr);
+                cliDefaultPrintLinef(dumpMask, equalsDefault, format,
+                                     i + 1,
+                                     defaultServoConf->mid,
+                                     defaultServoConf->min,
+                                     defaultServoConf->max,
+                                     defaultServoConf->rneg,
+                                     defaultServoConf->rpos,
+                                     defaultServoConf->rate,
+                                     defaultServoConf->speed,
+                                     defaultServoConf->flags);
+            }
+            cliDumpPrintLinef(dumpMask, equalsDefault, format,
+                              i + 1,
+                              servoConf->mid,
+                              servoConf->min,
+                              servoConf->max,
+                              servoConf->rneg,
+                              servoConf->rpos,
+                              servoConf->rate,
+                              servoConf->speed,
+                              servoConf->flags);
+        }
+    }
 }
 
 static void printServoStatus(uint8_t index)
 {
-    if (hasServoOverride(index))
-        cliPrintLinef("servo %d: %4dus %3d OVERRIDE", index + 1,
-                      getServoOutput(index),
-                      getServoOverride(index));
+    const bool hasBusServos = hasBusServosConfigured();
+    const bool isBusServo = hasBusServos && index >= BUS_SERVO_OFFSET;
+
+    if (isBusServo)
+    {
+        // Bus servos: S9-S26 (indices 8-25) displayed as S1-S18
+        const int busServoNum = index - BUS_SERVO_OFFSET + 1;
+        if (hasServoOverride(index))
+            cliPrintLinef("servo %d (S%d): %4dus %3d OVERRIDE", index + 1, busServoNum,
+                          getServoOutput(index),
+                          getServoOverride(index));
+        else
+            cliPrintLinef("servo %d (S%d): %4dus %3d", index + 1, busServoNum,
+                          getServoOutput(index),
+                          lrintf(mixerGetServoOutput(index) * 1000));
+    }
     else
-        cliPrintLinef("servo %d: %4dus %3d", index + 1,
-                      getServoOutput(index),
-                      lrintf(mixerGetServoOutput(index) * 1000));
+    {
+        // PWM servos: S1-S8 (indices 0-7)
+        if (hasServoOverride(index))
+            cliPrintLinef("servo %d: %4dus %3d OVERRIDE", index + 1,
+                          getServoOutput(index),
+                          getServoOverride(index));
+        else
+            cliPrintLinef("servo %d: %4dus %3d", index + 1,
+                          getServoOutput(index),
+                          lrintf(mixerGetServoOutput(index) * 1000));
+    }
 }
 
 static void printServoOverride(uint8_t index)
 {
-    if (hasServoOverride(index))
-        cliPrintLinef("servo override %d %d", index + 1, getServoOverride(index));
+    const bool hasBusServos = hasBusServosConfigured();
+    const bool isBusServo = hasBusServos && index >= BUS_SERVO_OFFSET;
+
+    if (isBusServo)
+    {
+        // Bus servos: S9-S26 (indices 8-25) displayed as S1-S18
+        const int busServoNum = index - BUS_SERVO_OFFSET + 1;
+        if (hasServoOverride(index))
+            cliPrintLinef("servo override %d (S%d) %d", index + 1, busServoNum, getServoOverride(index));
+        else
+            cliPrintLinef("servo override %d (S%d) off", index + 1, busServoNum);
+    }
     else
-        cliPrintLinef("servo override %d off", index + 1);
+    {
+        // PWM servos
+        if (hasServoOverride(index))
+            cliPrintLinef("servo override %d %d", index + 1, getServoOverride(index));
+        else
+            cliPrintLinef("servo override %d off", index + 1);
+    }
 }
 
 static void cliServo(const char *cmdName, char *cmdline)
@@ -2283,7 +2398,10 @@ static void cliServo(const char *cmdName, char *cmdline)
     char *saveptr, *ptr;
     int count = 0;
 
-    const int servoCount = getServoCount();
+    // Show PWM servos + bus servos if SBUS/FBUS is enabled
+    const int pwmServoCount = getServoCount();
+    const bool hasBusServos = hasBusServosConfigured();
+    const int servoCount = hasBusServos ? MAX_SUPPORTED_SERVOS : pwmServoCount;
 
     ptr = strtok_r(cmdline, " ", &saveptr);
     while (ptr && count < ARGS_MAX)
@@ -2294,22 +2412,46 @@ static void cliServo(const char *cmdName, char *cmdline)
 
     if (count == 0)
     {
-        printServo(DUMP_MASTER, servoParams(0), NULL, NULL);
+        printServo(DUMP_MASTER, servoParams(0), NULL, serialConfig(), NULL, NULL);
     }
     else if (strcasecmp(args[FUNC], "status") == 0)
     {
-        for (int i = 0; i < servoCount; i++)
+        if (pwmServoCount > 0)
         {
-            printServoStatus(i);
+            cliPrintLine("# PWM Servos");
+            for (int i = 0; i < pwmServoCount; i++)
+            {
+                printServoStatus(i);
+            }
+        }
+        if (hasBusServos)
+        {
+            cliPrintLine("# Bus Servos");
+            for (int i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++)
+            {
+                printServoStatus(i);
+            }
         }
     }
     else if (strcasecmp(args[FUNC], "override") == 0)
     {
         if (count == 1)
         {
-            for (int i = 0; i < servoCount; i++)
+            if (pwmServoCount > 0)
             {
-                printServoOverride(i);
+                cliPrintLine("# PWM Servos");
+                for (int i = 0; i < pwmServoCount; i++)
+                {
+                    printServoOverride(i);
+                }
+            }
+            if (hasBusServos)
+            {
+                cliPrintLine("# Bus Servos");
+                for (int i = BUS_SERVO_OFFSET; i < MAX_SUPPORTED_SERVOS; i++)
+                {
+                    printServoOverride(i);
+                }
             }
         }
         else if (count == 2)
@@ -3944,6 +4086,19 @@ static void printName(dumpFlags_t dumpMask, const pilotConfig_t *pilotConfig)
 
 #define ERROR_MESSAGE "%s CANNOT BE CHANGED. CURRENT VALUE: '%s'"
 
+static void incompatibleConfigError(const char *cmdName, const char *fieldName,
+                                    const char *currentValue, const char *newValue)
+{
+    cliPrintErrorLinef(cmdName, "INCOMPATIBLE CONFIGURATION");
+    cliPrintErrorLinef(cmdName, "%s cannot be changed from '%s' to '%s' after it has been set.",
+                       fieldName, currentValue, newValue);
+    cliPrintErrorLinef(cmdName, "This is probably from loading a dump file from an incompatible flight controller.");
+    cliPrintErrorLinef(cmdName, "The configuration is bound to the hardware type, and cannot be changed.");
+    cliPrintErrorLinef(cmdName, "System halted.");
+
+    failureMode(FAILURE_INCOMPATIBLE_CONFIG);
+}
+
 static void printBoardName(dumpFlags_t dumpMask)
 {
     if (!(dumpMask & DO_DIFF) || strlen(getBoardName()))
@@ -3958,7 +4113,7 @@ static void cliBoardName(const char *cmdName, char *cmdline)
     const char *boardName = getBoardName();
     if (len > 0 && strlen(boardName) != 0 && boardInformationIsSet() && (len != strlen(boardName) || strncmp(boardName, cmdline, len)))
     {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_NAME", boardName);
+        incompatibleConfigError(cmdName, "board_name", boardName, cmdline);
     }
     else
     {
@@ -3986,7 +4141,7 @@ static void cliBoardDesign(const char *cmdName, char *cmdline)
     const char *boardDesign = getBoardDesign();
     if (len > 0 && strlen(boardDesign) != 0 && boardInformationIsSet() && (len != strlen(boardDesign) || strncmp(boardDesign, cmdline, len)))
     {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "BOARD_DESIGN", boardDesign);
+        incompatibleConfigError(cmdName, "board_design", boardDesign, cmdline);
     }
     else
     {
@@ -4014,7 +4169,7 @@ static void cliManufacturerId(const char *cmdName, char *cmdline)
     const char *manufacturerId = getManufacturerId();
     if (len > 0 && boardInformationIsSet() && strlen(manufacturerId) != 0 && (len != strlen(manufacturerId) || strncmp(manufacturerId, cmdline, len)))
     {
-        cliPrintErrorLinef(cmdName, ERROR_MESSAGE, "MANUFACTURER_ID", manufacturerId);
+        incompatibleConfigError(cmdName, "manufacturer_id", manufacturerId, cmdline);
     }
     else
     {
@@ -5782,6 +5937,137 @@ static void cliStatus(const char *cmdName, char *cmdline)
     cliPrintLinefeed();
 }
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static void cliFbusSensors(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+
+    if (!isEmpty(cmdline) && strncasecmp(cmdline, "clear", 5) == 0)
+    {
+        fbusSensorClearObserved();
+        cliPrintLine("Observed FBUS/S.Port sensors cleared");
+        return;
+    }
+
+    const uint8_t count = fbusSensorGetObservedCount();
+
+    if (count == 0)
+    {
+        cliPrintLine("No FBUS/S.Port sensors observed yet");
+        return;
+    }
+
+    cliPrintLinefeed();
+    cliPrintLine("Observed FBUS/S.Port Sensors:");
+    cliPrintLine("Physical ID | Source | Sensor Name       | Forwarded | App IDs                                   | Packets");
+    cliPrintLine("----------- | ------ | ----------------- | --------- | ----------------------------------------- | -------");
+
+    for (uint8_t i = 0; i < count; i++)
+    {
+        const fbusObservedSensor_t *sensor = fbusSensorGetObserved(i);
+        if (!sensor)
+        {
+            break;
+        }
+
+        // Print physical ID and sensor name
+        const char *sensorName = fbusSensorGetName(sensor->physicalId);
+        // For unknown sensors, display as "ID_XXX" instead of "UNKNOWN"
+        char nameBuffer[17];
+        if (strcmp(sensorName, "UNKNOWN") == 0)
+        {
+            tfp_sprintf(nameBuffer, "ID_%u", sensor->physicalId);
+            sensorName = nameBuffer;
+        }
+        // Print physical ID in a fixed-width column
+        cliPrintf("    %3u     | ", sensor->physicalId);
+
+        const char *sourceName = fbusSensorGetSourceName(sensor->source);
+        cliPrintf("%s", sourceName);
+        const int sourceNameLen = (int)strlen(sourceName);
+        for (int k = sourceNameLen; k < 6; k++)
+        {
+            cliPrint(" ");
+        }
+        cliPrint(" | ");
+
+        // Print sensor name in a fixed-width column
+        cliPrintf("%s", sensorName);
+        const int sensorNameLen = (int)strlen(sensorName);
+        for (int k = sensorNameLen; k < 17; k++)
+        {
+            cliPrint(" ");
+        }
+        cliPrint(" | ");
+
+        // Print forwarded status in a fixed-width column
+        const char *forwardedStatus = fbusSensorIsForwarded(sensor->physicalId) ? "yes" : "no";
+        cliPrintf("%s", forwardedStatus);
+        const int forwardedStatusLen = (int)strlen(forwardedStatus);
+        for (int k = forwardedStatusLen; k < 9; k++)
+        {
+            cliPrint(" ");
+        }
+
+        // Build app ID list and align to a fixed-width column
+        char appIdList[96];
+        int appIdPos = 0;
+        appIdList[0] = '\0';
+        for (uint8_t j = 0; j < sensor->appIdCount; j++)
+        {
+            int remaining = (int)sizeof(appIdList) - appIdPos;
+
+            // Reserve room for digits plus the trailing '\0' that tfp_sprintf writes.
+            uint16_t appIdValue = sensor->appIds[j];
+            int neededDigits = 1;
+            while (appIdValue >= 10)
+            {
+                appIdValue /= 10;
+                neededDigits++;
+            }
+            if (remaining <= neededDigits)
+            {
+                break;
+            }
+
+            const int written = tfp_sprintf(&appIdList[appIdPos], "%u", sensor->appIds[j]);
+            if (written <= 0 || written >= remaining)
+            {
+                break;
+            }
+            appIdPos += written;
+            if (j < sensor->appIdCount - 1)
+            {
+                remaining = (int)sizeof(appIdList) - appIdPos;
+                // Need space for ", ", plus terminating '\0'.
+                if (remaining <= 2)
+                {
+                    break;
+                }
+                appIdList[appIdPos++] = ',';
+                appIdList[appIdPos++] = ' ';
+                appIdList[appIdPos] = '\0';
+            }
+        }
+
+        cliPrint(" | ");
+        cliPrintf("%s", appIdList);
+        const int appIdLen = (int)strlen(appIdList);
+        for (int k = appIdLen; k < 41; k++)
+        {
+            cliPrint(" ");
+        }
+
+        // Print packet count
+        cliPrintf(" | %7u", sensor->packetCount);
+
+        cliPrintLinefeed();
+    }
+
+    cliPrintLinefeed();
+}
+#endif
+
 static void cliTasks(const char *cmdName, char *cmdline)
 {
     UNUSED(cmdName);
@@ -7347,7 +7633,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
             printSerial(dumpMask, &serialConfig_Copy, serialConfig(), "serial");
 
 #ifdef USE_SERVOS
-            printServo(dumpMask, servoParams_CopyArray, servoParams(0), "servo");
+            printServo(dumpMask, servoParams_CopyArray, servoParams(0), &serialConfig_Copy, serialConfig(), "servo");
 #endif
 
             printMixerInputs(dumpMask, mixerInputs_CopyArray, mixerInputs(0), "mixer input");
@@ -7535,6 +7821,66 @@ typedef struct
 
 static void cliHelp(const char *cmdName, char *cmdline);
 
+#ifdef USE_SRXL2_ESC
+static void cliSrxl2Esc(const char *cmdName, char *cmdline)
+{
+    if (cmdline)
+    {
+        while (*cmdline == ' ')
+            cmdline++;
+        if (*cmdline)
+        {
+            if (strncasecmp(cmdline, "telem", 5) == 0 &&
+                (cmdline[5] == '\0' || isspace((unsigned char)cmdline[5])))
+            {
+                char *p = cmdline + 5;
+                while (*p == ' ')
+                    p++;
+                if (*p)
+                {
+                    char *end = NULL;
+                    long interval = strtol(p, &end, 10);
+                    if (*end != '\0' || interval < 0 || interval > UINT8_MAX)
+                    {
+                        cliPrintErrorLinef(cmdName, "INTERVAL MUST BE BETWEEN 0 AND 255 FRAMES");
+                    }
+                    else
+                    {
+                        srxl2escSetTelemetryIntervalFrames((uint8_t)interval);
+                        if (interval == 0)
+                        {
+                            cliPrintLine("Telemetry polling disabled");
+                        }
+                        else
+                        {
+                            cliPrintLinef("Telemetry requested every %u frame(s)", (unsigned)interval);
+                        }
+                    }
+                }
+                else
+                {
+                    cliPrintLinef("Telemetry interval: %u frame(s)",
+                                  (unsigned)srxl2escGetTelemetryIntervalFrames());
+                }
+                return;
+            }
+            cliShowParseError(cmdName);
+            return;
+        }
+    }
+
+    /* Print concise status: throttle refresh and telemetry rates */
+    {
+        const unsigned int throttleHz = srxl2escGetThrottleRateHz();
+        const unsigned int telemInterval = srxl2escGetTelemetryIntervalFrames();
+        const unsigned int telemHz = (telemInterval > 0) ? (throttleHz / (uint32_t)telemInterval) : 0;
+        cliPrintLinef("SRXL2 ESC driver ready: %s", srxl2escDriverIsReady() ? "YES" : "NO");
+        cliPrintLinef("Throttle refresh: %u Hz", (unsigned)throttleHz);
+        cliPrintLinef("Telemetry interval: %u frame(s) -> %u Hz", (unsigned)telemInterval, (unsigned)telemHz);
+    }
+}
+#endif
+
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjfunc", "configure adjustment functions", "<index> <func> <enable channel> <start> <end> <value channel> <dec start> <dec end> <inc start> <inc end> <step size> <value min> <value max>", cliAdjustmentRange),
@@ -7597,6 +7943,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("escprog", "passthrough esc to serial", "<mode [sk/bl/ki/cc]> <index>", cliEscPassthrough),
 #endif
     CLI_COMMAND_DEF("exit", NULL, NULL, cliExit),
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    CLI_COMMAND_DEF("fbus_sensors", "show observed FBUS sensors", "[clear]", cliFbusSensors),
+#endif
     CLI_COMMAND_DEF("feature", "configure features",
                     "list\r\n"
                     "\t<->[name]",
@@ -7702,6 +8051,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("set", "change setting", "[<name>=<value>]", cliSet),
 #if defined(USE_SIGNATURE)
     CLI_COMMAND_DEF("signature", "get / set the board type signature", "[signature]", cliSignature),
+#endif
+#ifdef USE_SRXL2_ESC
+    CLI_COMMAND_DEF("srxl2esc", "show SRXL2 ESC status / telemetry interval", "[telem [interval_frames]]", cliSrxl2Esc),
 #endif
     CLI_COMMAND_DEF("status", "show status", NULL, cliStatus),
     CLI_COMMAND_DEF("tasks", "show task stats", NULL, cliTasks),

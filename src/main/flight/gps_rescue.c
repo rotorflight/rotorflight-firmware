@@ -155,18 +155,18 @@ void rescueNewGpsData(void)
     newGPSData = true;
 }
 
-static void rescueStart()
+static void rescueStart(void)
 {
     rescueState.phase = RESCUE_INITIALIZE;
 }
 
-static void rescueStop()
+static void rescueStop(void)
 {
     rescueState.phase = RESCUE_IDLE;
 }
 
 // Things that need to run regardless of GPS rescue mode being enabled or not
-static void idleTasks()
+static void idleTasks(void)
 {
     // Do not calculate any of the idle task values when we are not flying
     if (!ARMING_FLAG(ARMED)) {
@@ -225,7 +225,7 @@ static void setBearing(int16_t desiredHeading)
     rescueYaw = -constrainf(errorAngle / GPS_RESCUE_RATE_SCALE_DEGREES * GPS_RESCUE_MAX_YAW_RATE, -GPS_RESCUE_MAX_YAW_RATE, GPS_RESCUE_MAX_YAW_RATE);
 }
 
-static void rescueAttainPosition()
+static void rescueAttainPosition(void)
 {
     // Speed and altitude controller internal variables
     static int16_t previousSpeedError = 0;
@@ -324,7 +324,7 @@ static void rescueAttainPosition()
     DEBUG_SET(DEBUG_GPS_RESCUE_THROTTLE_PID, 3, rescueState.sensor.zVelocity);
 }
 
-static void performSanityChecks()
+static void performSanityChecks(void)
 {
     static uint32_t previousTimeUs = 0; // Last time Stalled/LowSat was checked
     static int8_t secondsStalled = 0; // Stalled movement detection
@@ -401,7 +401,7 @@ static void performSanityChecks()
     }
 }
 
-static void sensorUpdate()
+static void sensorUpdate(void)
 {
     rescueState.sensor.currentAltitudeCm = getEstimatedAltitudeCm();
     rescueState.sensor.healthy = gpsIsHealthy();

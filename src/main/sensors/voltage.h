@@ -46,6 +46,9 @@ void voltageSensorESCRefresh(void);
 bool voltageSensorESCReadTotal(voltageMeter_t *voltageMeter);
 bool voltageSensorESCReadMotor(uint8_t motor, voltageMeter_t *voltageMeter);
 
+void voltageSensorFBUSInit(void);
+void voltageSensorFBUSRefresh(void);
+bool voltageSensorFBUSRead(voltageMeter_t *voltageMeter);
 
 //
 // Voltage Meter API

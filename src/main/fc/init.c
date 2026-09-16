@@ -65,6 +65,7 @@
 #include "drivers/pin_pull_up_down.h"
 #include "drivers/pwm_output.h"
 #include "drivers/rx/rx_pwm.h"
+#include "drivers/fbus_sensor.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/sensor.h"
@@ -74,6 +75,7 @@
 #include "drivers/sdcard.h"
 #include "drivers/sdio.h"
 #include "drivers/sound_beeper.h"
+#include "drivers/srxl2_esc.h"
 #include "drivers/system.h"
 #include "drivers/time.h"
 #include "drivers/timer.h"
@@ -169,6 +171,9 @@
 #include "sensors/initialisation.h"
 
 #include "telemetry/telemetry.h"
+#ifdef USE_SPORT_MASTER
+#include "telemetry/sport_master.h"
+#endif
 
 #ifdef USE_HARDWARE_REVISION_DETECTION
 #include "hardware_revision.h"
@@ -235,7 +240,7 @@ static void configureSPIAndQuadSPI(void)
 }
 
 #ifdef USE_SDCARD
-static void sdCardAndFSInit()
+static void sdCardAndFSInit(void)
 {
     sdcard_init(sdcardConfig());
     afatfs_init();
@@ -589,6 +594,14 @@ void init(void)
     initInverters(serialPinConfig());
 #endif
 
+/* Initialize SRXL2 ESC driver immediately after serial ports are ready
+ * so it can open its port and begin handshake as early as possible
+ * (matching SRXL2 RX behavior which opens during rxInit). This ensures
+ * the FC starts communicating within the ESC's 250ms listening window. */
+#ifdef USE_SRXL2_ESC
+    srxl2escDriverInit();
+#endif
+
 #ifdef TARGET_BUS_INIT
     targetBusInit();
 
@@ -738,6 +751,10 @@ void init(void)
 
 #ifdef USE_SBUS_OUTPUT
     sbusOutInit();
+#endif
+
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    fbusSensorInit();
 #endif
 
 #ifdef USE_FBUS_MASTER
@@ -1032,6 +1049,11 @@ void init(void)
     {
         telemetryInit();
     }
+#endif
+
+#ifdef USE_SPORT_MASTER
+    // Allow SPORT master transport for non-telemetry use-cases (e.g. ESC sensor bridge).
+    initSportMaster();
 #endif
 
     setArmingDisabled(ARMING_DISABLED_BOOT_GRACE_TIME);

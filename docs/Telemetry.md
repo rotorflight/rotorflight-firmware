@@ -228,6 +228,39 @@ Notes:
 * This has been tested with Flip32 and SPracingF3 boards and FrSky X8R and X4R receivers
 * To discover all sensors board has to be armed, and when GPS is connected, it needs to have a proper 3D fix. When not armed, values like ***Vfas*** or GPS coordinates may not sent.
 
+## S.Port master sensor input
+
+Rotorflight can also poll external FrSky S.Port sensors directly on a dedicated bidirectional serial port. This is separate from `FUNCTION_TELEMETRY_SMARTPORT`, which sends flight controller telemetry out to the receiver or radio. `FUNCTION_SPORT_MASTER` makes the flight controller act as the S.Port bus master so external sensors can be read into the shared FBUS sensor cache.
+
+### Configuration
+
+1. Enable telemetry:
+
+```
+feature TELEMETRY
+```
+
+2. Assign a spare bidirectional serial port to `S.Port master` in Configurator. When using the `serial` CLI command directly, the function bit is `FUNCTION_SPORT_MASTER = 1048576`.
+3. Connect the S.Port signal line to the selected UART on a target that supports bidirectional serial on that port. The bus runs at `57600`.
+4. Adjust the line options if the selected UART needs different hardware settings:
+
+```
+set sport_master_inverted = ON
+set sport_master_pinswap = ON
+```
+
+Both settings default to `ON`. Set `sport_master_inverted = OFF` when the selected port should use a non-inverted signal. Set `sport_master_pinswap = OFF` when the selected port should keep its normal TX/RX pin mapping.
+
+### Observed sensor CLI
+
+Use the `fbus_sensors` CLI command to inspect discovered sensors. The command now reports both FBUS and S.Port devices in the same table. The `Source` column shows `FBUS` or `SPORT`, and the same physical ID can appear once per source because the observed sensor cache is keyed by `(physical ID, source)`.
+
+Use `fbus_sensors clear` to clear the observed sensor cache for both transports.
+
+### Data consumers
+
+Sensor data received through S.Port master feeds the same FBUS-backed consumers used elsewhere in the firmware, including `GPS_FBUS`, FBUS-backed voltage and current sensing, and `ESC_SENSOR_PROTO_FBUS`.
+
 
 ## Ibus telemetry
 

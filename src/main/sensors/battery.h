@@ -22,8 +22,10 @@
 
 #include "sensors/current.h"
 #include "sensors/voltage.h"
+#include "sensors/smartfuel.h"
 
 #include "pg/battery.h"
+#include "pg/adjustments.h"
 
 
 #define VBAT_CELL_VOTAGE_RANGE_MIN          100
@@ -56,8 +58,8 @@ batteryState_e getBatteryState(void);
 batteryState_e getVoltageState(void);
 batteryState_e getConsumptionState(void);
 
-const voltageMeter_t * getBatteryVoltageMeter();
-const currentMeter_t * getBatteryCurrentMeter();
+const voltageMeter_t * getBatteryVoltageMeter(void);
+const currentMeter_t * getBatteryCurrentMeter(void);
 
 const char * getBatteryStateString(void);
 
@@ -81,12 +83,14 @@ uint32_t getBatteryCapacityUsed(void);
 bool isBatteryChargeLevelAvailable(void);
 uint8_t getBatteryChargeLevel(void);
 
+uint8_t calculateBatteryPercentageRemaining(void);
+
 void changeBatteryProfile(uint8_t profileIndex);
 uint8_t getCurrentBatteryProfileIndex(void);
-
-uint8_t calculateBatteryPercentageRemaining(void);
 
 const lowVoltageCutoff_t *getLowVoltageCutoff(void);
 
 extern const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT];
 extern const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT];
+
+ADJFUN_DECLARE(BATTERY_PROFILE)

@@ -56,9 +56,9 @@ void cmsSetExternKey(cms_key_e extKey);
 void inhibitSaveMenu(void);
 void cmsAddMenuEntry(OSD_Entry *menuEntry, char *text, uint16_t flags, CMSEntryFuncPtr func, void *data);
 
-#define CMS_STARTUP_HELP_TEXT1 "MENU:THR MID"
+#define CMS_STARTUP_HELP_TEXT1     "CMS: THR MID"
 #define CMS_STARTUP_HELP_TEXT2     "+ YAW LEFT"
-#define CMS_STARTUP_HELP_TEXT3     "+ PITCH UP"
+#define CMS_STARTUP_HELP_TEXT3     "+ PITCH FWD"
 
 // cmsMenuExit special ptr values
 #define CMS_EXIT             (0)

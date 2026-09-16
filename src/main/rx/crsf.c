@@ -393,6 +393,10 @@ STATIC_UNIT_TESTED void crsfDataReceive(uint16_t c, void *data)
 #endif
                 switch (crsfFrame.frame.type) {
                 case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
+                    if (crsfFrame.frame.frameLength != (CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC)) {
+                        break;
+                    }
+                    FALLTHROUGH;
                 case CRSF_FRAMETYPE_SUBSET_RC_CHANNELS_PACKED:
                     if (crsfFrame.frame.deviceAddress == CRSF_ADDRESS_FLIGHT_CONTROLLER) {
                         rxRuntimeState->lastRcFrameTimeUs = currentTimeUs;
@@ -490,6 +494,10 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
         // unpack the RC channels
         if (crsfChannelDataFrame.frame.type == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {
+            if (crsfChannelDataFrame.frame.frameLength != (CRSF_FRAME_RC_CHANNELS_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC)) {
+                return RX_FRAME_DROPPED;
+            }
+
             // use ordinary RC frame structure (0x16)
             const crsfPayloadRcChannelsPacked_t* const rcChannels = (crsfPayloadRcChannelsPacked_t*)&crsfChannelDataFrame.frame.payload;
             channelScale = CRSF_RC_CHANNEL_SCALE_LEGACY;
@@ -555,6 +563,11 @@ STATIC_UNIT_TESTED uint8_t crsfFrameStatus(rxRuntimeState_t *rxRuntimeState)
 
             // calculate the number of channels packed
             uint8_t numOfChannels = ((crsfChannelDataFrame.frame.frameLength - CRSF_FRAME_LENGTH_TYPE_CRC - 1) * 8) / channelBits;
+            if (startChannel >= CRSF_MAX_CHANNEL) {
+                return RX_FRAME_DROPPED;
+            }
+
+            numOfChannels = MIN(numOfChannels, CRSF_MAX_CHANNEL - startChannel);
 
             // unpack the channel data
             uint8_t bitsMerged = 0;

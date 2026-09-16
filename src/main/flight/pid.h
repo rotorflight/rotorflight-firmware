@@ -107,6 +107,7 @@ typedef struct pid_s {
 
     float errorDecayRateGround;
     float errorDecayRateCyclic;
+    float errorDecayGainCyclic;
     float errorDecayLimitCyclic;
     float errorDecayRateYaw;
     float errorDecayLimitYaw;
@@ -155,13 +156,13 @@ void pidChangeProfile(const pidProfile_t *pidProfile);
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
-float pidGetDT();
-float pidGetPidFrequency();
+float pidGetDT(void);
+float pidGetPidFrequency(void);
 
 float pidGetSetpoint(int axis);
 float pidGetOutput(int axis);
 
-float pidGetCollective();
+float pidGetCollective(void);
 
 const pidAxisData_t * pidGetAxisData(void);
 

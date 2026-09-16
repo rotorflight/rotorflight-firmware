@@ -310,20 +310,23 @@ rx_sumd_unittest_SRC := \
 #scheduler_unittest_DEFINES := \
 #		USE_OSD=
 
-# This test is disabled due to build errors.
-#sensor_gyro_unittest_SRC := \
-#		$(USER_DIR)/sensors/gyro.c \
-#		$(USER_DIR)/sensors/gyro_init.c \
-#		$(USER_DIR)/sensors/boardalignment.c \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/sensor_alignment.c \
-#		$(USER_DIR)/drivers/accgyro/accgyro_fake.c \
-#		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/pg/gyrodev.c
+sensor_gyro_unittest_SRC := \
+		$(USER_DIR)/sensors/gyro.c \
+		$(USER_DIR)/sensors/gyro_init.c \
+		$(USER_DIR)/sensors/boardalignment.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/sensor_alignment.c \
+		$(USER_DIR)/drivers/accgyro/accgyro_fake.c \
+		$(USER_DIR)/drivers/accgyro/gyro_sync.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/pg/gyro.c \
+		$(USER_DIR)/pg/gyrodev.c \
+		$(USER_DIR)/build/debug.c
+
+sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_LPF=
 #
 #telemetry_crsf_unittest_SRC := \
 #		$(USER_DIR)/rx/crsf.c \
@@ -422,6 +425,19 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/pg/mixer.c \
 		$(USER_DIR)/pg/rates.c
 
+trainer_unittest_SRC := \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/flight/trainer.c \
+		$(USER_DIR)/pg/accel.c \
+		$(USER_DIR)/pg/pid.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+trainer_unittest_DEFINES := \
+		USE_ACRO_TRAINER=
+
 #vtx_unittest_SRC := \
 #		$(USER_DIR)/fc/core.c \
 #		$(USER_DIR)/fc/dispatch.c \
@@ -477,13 +493,6 @@ rx_spi_spektrum_unittest_DEFINES := \
 #		USE_GPS= \
 #		USE_MSP_OVER_TELEMETRY=
 #		USE_RX_EXPRESSLRS= \
-
-sbus_output_unittest_SRC := \
-		$(USER_DIR)/drivers/sbus_output.c \
-		$(USER_DIR)/pg/sbus_output.c
-
-sbus_output_unittest_DEFINES := \
-        USE_SBUS_OUTPUT=
 
 emfat_unittest_SRC := \
 		$(USER_DIR)/msc/emfat.c

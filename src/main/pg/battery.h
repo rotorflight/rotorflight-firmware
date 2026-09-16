@@ -30,7 +30,6 @@
 
 #define BATTERY_PROFILE_COUNT 6
 
-
 #ifndef VOLTAGE_TASK_FREQ_HZ
 #define VOLTAGE_TASK_FREQ_HZ    50
 #endif
@@ -38,7 +37,6 @@
 #ifndef CURRENT_TASK_FREQ_HZ
 #define CURRENT_TASK_FREQ_HZ    50
 #endif
-
 
 typedef enum {
     VOLTAGE_METER_NONE = 0,
@@ -64,20 +62,21 @@ typedef enum {
     SMARTFUEL_MODE_COUNT
 } smartFuelMode_e;
 
-#define SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT 10
-#define SMARTFUEL_VOLTAGE_DROP_RATE_MAX 250
-#define SMARTFUEL_CHARGE_DROP_RATE_DEFAULT 50
-#define SMARTFUEL_CHARGE_DROP_RATE_MAX 250
-#define SMARTFUEL_SAG_GAIN_DEFAULT 40
-#define SMARTFUEL_SAG_GAIN_MAX 100
+#define SMARTFUEL_VOLTAGE_DROP_RATE_DEFAULT     10
+#define SMARTFUEL_VOLTAGE_DROP_RATE_MAX         250
+#define SMARTFUEL_CHARGE_DROP_RATE_DEFAULT      50
+#define SMARTFUEL_CHARGE_DROP_RATE_MAX          250
+#define SMARTFUEL_SAG_GAIN_DEFAULT              40
+#define SMARTFUEL_SAG_GAIN_MAX                  100
+
 
 typedef struct {
 
-    uint8_t     batteryProfile;
+    uint8_t     batteryProfile;             // battery profile index
 
     // battery size
     uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
-    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT]; // mAh
+    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT];    // mAh for the 6 battery profiles
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used

@@ -127,8 +127,9 @@ static void wiggleActionReady(timeUs_t currentTimeUs)
         case 1:
         {
             const float angle = wiggleStateTime(currentTimeUs) * M_2PIf / circle_period;
-            wgl.axis[FD_ROLL] = sin_approx(angle) * wgl.strength;
-            wgl.axis[FD_PITCH] = cos_approx(angle) * wgl.strength;
+            sincosf_t sincos = sincos_approx(angle);
+            wgl.axis[FD_ROLL] = sincos.sin * wgl.strength;
+            wgl.axis[FD_PITCH] = sincos.cos * wgl.strength;
             wgl.axis[FD_COLL] = level;
             wiggleNextStateAfter(currentTimeUs, circle_period);
             break;

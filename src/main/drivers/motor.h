@@ -37,6 +37,7 @@ typedef enum {
     PWM_TYPE_DSHOT600,
     PWM_TYPE_PROSHOT1000,
     PWM_TYPE_CASTLE_LINK,
+    PWM_TYPE_SRXL2,
     PWM_TYPE_DISABLED,
     PWM_TYPE_MAX
 } motorPwmProtocolTypes_e;
@@ -68,12 +69,12 @@ typedef struct motorDevice_s {
 } motorDevice_t;
 
 
-void motorPostInitNull();
+void motorPostInitNull(void);
 void motorWriteNull(uint8_t index, uint8_t mode, float value);
 bool motorUpdateStartNull(void);
 void motorUpdateCompleteNull(void);
 
-void motorPostInit();
+void motorPostInit(void);
 void motorWriteAll(float *values);
 
 void motorDevInit(const struct motorDevConfig_s *motorConfig, uint8_t motorCount);
@@ -88,6 +89,7 @@ bool checkMotorProtocolDshot(const motorDevConfig_t *motorDevConfig);
 bool isMotorProtocolDshot(void);
 bool isMotorProtocolEnabled(void);
 bool isMotorProtocolCastlePWM(void);
+bool isMotorProtocolSrxl2(void);
 
 void motorDisable(void);
 void motorEnable(void);

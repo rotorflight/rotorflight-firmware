@@ -45,7 +45,7 @@ enum {
     EXBUS_STATE_PROCESSED
 };
 
-extern uint8_t jetiExBusRequestState;
+extern volatile uint8_t jetiExBusRequestState;
 extern uint32_t jetiTimeStampRequest;
 extern uint8_t jetiExBusRequestFrame[EXBUS_MAX_REQUEST_FRAME_SIZE];
 struct serialPort_s;

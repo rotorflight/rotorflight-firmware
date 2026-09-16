@@ -28,6 +28,7 @@
 #include "pg/adjustments.h"
 
 void levelingInit(const pidProfile_t *pidProfile);
+void levelingUpdate(void);
 
 float angleModeApply(int axis, float pidSetpoint);
 float horizonModeApply(int axis, float pidSetpoint);

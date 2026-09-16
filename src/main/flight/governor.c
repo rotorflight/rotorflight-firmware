@@ -96,6 +96,9 @@ typedef struct {
     // Headspeed PID spoolup active
     bool            pidSpoolupActive;
 
+    // Bypass throttle level reached
+    bool            bypassActive;
+
     // Output throttle
     float           throttleOutput;
 
@@ -232,7 +235,7 @@ static FAST_DATA_ZERO_INIT govData_t gov;
 //// Prototypes
 
 static void govInitTTA(const pidProfile_t *pidProfile);
-static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle);
+static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle, float maxRate);
 
 
 //// Access functions
@@ -370,7 +373,7 @@ static void govDebugUpdate(void)
 
 static inline bool isGovBypass(void)
 {
-    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS);
+    return IS_RC_MODE_ACTIVE(BOXGOVBYPASS) && gov.throttleInput > gov.handoverThrottle;
 }
 
 static inline bool isGovSuspend(void)
@@ -392,8 +395,10 @@ static void govChangeState(govState_e newState)
 {
     if (gov.state != newState) {
         gov.state = newState;
-        gov.stateResetReq = true;
         gov.stateEntryTime = millis();
+        gov.stateResetReq = true;
+        gov.pidSpoolupActive = false;
+        gov.bypassActive = false;
     }
 }
 
@@ -713,7 +718,7 @@ static void govUpdateDirectThrottle(void)
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
         case GOV_STATE_BYPASS:
-            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle);
+            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle, gov.throttleRecoveryRate);
             break;
         default:
             break;
@@ -867,11 +872,6 @@ static void govUpdateDirectState(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
-static void govSpoolupInit(void)
-{
-    gov.pidSpoolupActive = false;
-}
-
 static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRate)
 {
     if (gov.pidSpoolupActive)
@@ -1009,16 +1009,30 @@ static void govRecoveryInit(void)
     }
 }
 
-static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle)
+static void govThrottleBypass(const float *throttleCurve, float minThrottle, float maxThrottle, float maxRate)
 {
     if (gov.throttleInputOff) {
         gov.targetHeadSpeed = 0;
         gov.throttleOutput = 0;
         gov.throttleSlew = 0;
+        gov.bypassActive = false;
     }
     else {
-        // Limit value range
-        gov.throttleOutput = gov.throttleSlew = govGetMappedThrottle(throttleCurve, minThrottle, maxThrottle);
+        minThrottle = fmaxf(minThrottle, 1e-6f); // Prevent throttle from going down to 0
+
+        const float throttle = govGetMappedThrottle(throttleCurve, minThrottle, maxThrottle);
+
+        if (!gov.bypassActive) {
+            // Limit change speed
+            gov.throttleOutput = gov.throttleSlew = slewLimit(gov.throttleSlew, throttle, maxRate);
+
+            // Bypass level reached
+            if (gov.throttleOutput == throttle)
+                gov.bypassActive = true;
+        }
+        else {
+            gov.throttleOutput = gov.throttleSlew = throttle;
+        }
 
         // Update headspeed target
         gov.targetHeadSpeed = gov.currentHeadSpeed;
@@ -1054,17 +1068,11 @@ static void govUpdateGovernedThrottle(void)
             govThrottleSlewControl(gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.throttleRecoveryRate, gov.throttleRecoveryRate);
             break;
         case GOV_STATE_BYPASS:
-            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle);
+            govThrottleBypass(gov.throttleCurve, gov.idleThrottle, gov.maxThrottle, gov.throttleRecoveryRate);
             break;
         default:
             break;
     }
-}
-
-static void govEnterSpoolupState(void)
-{
-    govChangeState(GOV_STATE_SPOOLUP);
-    govSpoolupInit();
 }
 
 static void govEnterRecoveryState(void)
@@ -1105,7 +1113,7 @@ static void govUpdateGovernedState(void)
                 if (gov.throttleInputOff)
                     govChangeState(GOV_STATE_THROTTLE_OFF);
                 else if (gov.throttleInput > gov.handoverThrottle && gov.motorRPMGood)
-                    govEnterSpoolupState();
+                    govChangeState(GOV_STATE_SPOOLUP);
                 break;
 
             // Throttle is moved from high to off. If it is a mistake, give a chance to recover
@@ -1252,6 +1260,9 @@ static void govUpdateGovernedState(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
+static void validateAndSetIdleAutoThrottle(uint8_t idleThrottle, uint8_t autoThrottle);
+static void validateAndSetMinMaxThrottle(uint8_t minThrottle, uint8_t maxThrottle);
+
 int get_ADJUSTMENT_GOV_GAIN(void)
 {
     return currentPidProfile->governor.gain;
@@ -1347,8 +1358,9 @@ int get_ADJUSTMENT_GOV_IDLE_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_IDLE_THROTTLE(int value)
 {
-    governorConfigMutable()->gov_idle_throttle = value;
-    gov.idleThrottle = value / 1000.0f;
+    validateAndSetIdleAutoThrottle(value, governorConfig()->gov_auto_throttle);
+    gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
+    gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
     gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
@@ -1359,8 +1371,10 @@ int get_ADJUSTMENT_GOV_AUTO_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_AUTO_THROTTLE(int value)
 {
-    governorConfigMutable()->gov_auto_throttle = value;
-    gov.autoThrottle = value / 1000.0f;
+    validateAndSetIdleAutoThrottle(governorConfig()->gov_idle_throttle, value);
+    gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
+    gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
+    gov.minSpoolupThrottle = gov.idleThrottle;
 }
 
 int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
@@ -1370,9 +1384,9 @@ int get_ADJUSTMENT_GOV_MAX_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_MAX_THROTTLE(int value)
 {
-    currentPidProfile->governor.max_throttle = value;
-    gov.maxThrottle = fmaxf(currentPidProfile->governor.max_throttle / 100.0f, gov.handoverThrottle);
-    gov.minActiveThrottle = fminf(currentPidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+    validateAndSetMinMaxThrottle(currentPidProfile->governor.min_throttle, value);
+    gov.maxThrottle = currentPidProfile->governor.max_throttle / 100.0f;
+    gov.minActiveThrottle = currentPidProfile->governor.min_throttle / 100.0f;
     gov.maxSpoolupThrottle = gov.maxThrottle;
 }
 
@@ -1383,8 +1397,8 @@ int get_ADJUSTMENT_GOV_MIN_THROTTLE(void)
 
 void set_ADJUSTMENT_GOV_MIN_THROTTLE(int value)
 {
-    currentPidProfile->governor.min_throttle = value;
-    gov.minActiveThrottle = fminf(currentPidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+    validateAndSetMinMaxThrottle(value, currentPidProfile->governor.max_throttle);
+    gov.minActiveThrottle = currentPidProfile->governor.min_throttle / 100.0f;
 }
 
 int get_ADJUSTMENT_GOV_HEADSPEED(void)
@@ -1451,6 +1465,26 @@ void governorUpdate(void)
  **
  ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** **/
 
+static void validateAndSetIdleAutoThrottle(uint8_t idleThrottle, uint8_t autoThrottle)
+{
+    const int maxIdle = constrain(governorConfig()->gov_handover_throttle * 10 - 1, 0, 250);
+
+    idleThrottle = constrain(idleThrottle, 0, maxIdle);
+    autoThrottle = constrain(autoThrottle, idleThrottle, maxIdle);
+
+    governorConfigMutable()->gov_idle_throttle = idleThrottle;
+    governorConfigMutable()->gov_auto_throttle = autoThrottle;
+}
+
+static void validateAndSetMinMaxThrottle(uint8_t minThrottle, uint8_t maxThrottle)
+{
+    maxThrottle = constrain(maxThrottle, governorConfig()->gov_handover_throttle, 100);
+    minThrottle = constrain(minThrottle, 10, maxThrottle);
+
+    currentPidProfile->governor.min_throttle = minThrottle;
+    currentPidProfile->governor.max_throttle = maxThrottle;
+}
+
 void INIT_CODE validateAndFixGovernorConfig(void)
 {
     if (governorConfig()->gov_mode < GOV_MODE_ELECTRIC) {
@@ -1459,9 +1493,13 @@ void INIT_CODE validateAndFixGovernorConfig(void)
         }
     }
 
-    if (governorConfig()->gov_auto_throttle < governorConfig()->gov_idle_throttle) {
-        governorConfigMutable()->gov_auto_throttle = governorConfig()->gov_idle_throttle;
-    }
+    governorConfigMutable()->gov_handover_throttle =
+        constrain(governorConfig()->gov_handover_throttle, 10, 100);
+
+    validateAndSetIdleAutoThrottle(
+        governorConfig()->gov_idle_throttle,
+        governorConfig()->gov_auto_throttle
+    );
 }
 
 void INIT_CODE validateAndFixGovernorProfile(void)
@@ -1475,6 +1513,11 @@ void INIT_CODE validateAndFixGovernorProfile(void)
             BIT(GOV_FLAG_PID_SPOOLUP) |
             BIT(GOV_FLAG_DYN_MIN_THROTTLE));
     }
+
+    validateAndSetMinMaxThrottle(
+        pidProfile->governor.min_throttle,
+        pidProfile->governor.max_throttle
+    );
 }
 
 static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
@@ -1529,8 +1572,8 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
         gov.minD = -gov.maxD;
         gov.minF = 0;
 
-        gov.maxThrottle = fmaxf(pidProfile->governor.max_throttle / 100.0f, gov.handoverThrottle);
-        gov.minActiveThrottle = fminf(pidProfile->governor.min_throttle / 100.0f, gov.maxThrottle);
+        gov.maxThrottle = pidProfile->governor.max_throttle / 100.0f;
+        gov.minActiveThrottle = pidProfile->governor.min_throttle / 100.0f;
 
         gov.minSpoolupThrottle = gov.idleThrottle;
         gov.maxSpoolupThrottle = gov.maxThrottle;
@@ -1610,7 +1653,7 @@ void INIT_CODE governorInit(const pidProfile_t *pidProfile)
             gov.idleThrottle = governorConfig()->gov_idle_throttle / 1000.0f;
             gov.autoThrottle = governorConfig()->gov_auto_throttle / 1000.0f;
 
-            gov.handoverThrottle = constrain(governorConfig()->gov_handover_throttle, 1, 100) / 100.0f;
+            gov.handoverThrottle = governorConfig()->gov_handover_throttle / 100.0f;
 
             for (int i=0; i<GOV_THROTTLE_CURVE_POINTS; i++)
                 gov.throttleCurve[i] = governorConfig()->gov_bypass_throttle[i] / 200.0f;

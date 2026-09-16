@@ -43,6 +43,9 @@
 #include "flight/mixer.h"
 
 #include "pg/servos.h"
+#include "pg/bus_servo.h"
+
+#include "rx/rx.h"
 
 
 static FAST_DATA_ZERO_INIT uint8_t      servoCount;
@@ -55,6 +58,8 @@ static FAST_DATA_ZERO_INIT int16_t      servoOverride[MAX_SUPPORTED_SERVOS];
 
 static FAST_DATA_ZERO_INIT timerChannel_t servoChannel[MAX_SUPPORTED_SERVOS];
 
+static FAST_DATA_ZERO_INIT bool         servoInputSet[MAX_SUPPORTED_SERVOS];
+
 
 uint8_t getServoCount(void)
 {
@@ -63,6 +68,17 @@ uint8_t getServoCount(void)
 
 uint16_t getServoOutput(uint8_t servo)
 {
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
+    // Check if this is a bus servo (SBUS/FBUS)
+    if (servo >= BUS_SERVO_OFFSET && servo < BUS_SERVO_OFFSET + BUS_SERVO_CHANNELS) {
+        const uint8_t busServoIndex = servo - BUS_SERVO_OFFSET;
+        return getBusServoOutput(busServoIndex);
+    }
+#endif
+    // PWM servo
+    if (servo >= MAX_SUPPORTED_SERVOS) {
+        return 0;
+    }
     return lrintf(servoOutput[servo]);
 }
 
@@ -81,12 +97,44 @@ int16_t setServoOverride(uint8_t servo, int16_t val)
     return servoOverride[servo] = val;
 }
 
+bool isServoOverrideActive(void)
+{
+    for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        if (hasServoOverride(i))
+            return true;
+    }
+    return false;
+}
+
 void validateAndFixServoConfig(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        volatile servoParam_t *servo = servoParamsMutable(i);
+        const bool isBusServo = (i >= BUS_SERVO_OFFSET);
+        const uint16_t minSignal = isBusServo ? BUS_SERVO_MIN_SIGNAL : PWM_SERVO_PULSE_MIN;
+        const uint16_t maxSignal = isBusServo ? BUS_SERVO_MAX_SIGNAL : PWM_SERVO_PULSE_MAX;
+        
 #ifndef USE_SERVO_GEOMETRY_CORRECTION
-        servoParamsMutable(i)->flags &= ~SERVO_FLAG_GEO_CORR;
+        servo->flags &= ~SERVO_FLAG_GEO_CORR;
 #endif
+
+        // Constrain midpoint to the valid signal range.
+        servo->mid = constrain(servo->mid, minSignal, maxSignal);
+
+        // Constrain travel to valid offset limits first.
+        servo->min = constrain(servo->min, SERVO_LIMIT_MIN, 0);
+        servo->max = constrain(servo->max, 0, SERVO_LIMIT_MAX);
+
+        // Ensure the resulting absolute signal stays within allowed range.
+        const int16_t minAllowed = (int16_t)minSignal - (int16_t)servo->mid;
+        const int16_t maxAllowed = (int16_t)maxSignal - (int16_t)servo->mid;
+
+        if (servo->min < minAllowed) {
+            servo->min = minAllowed;
+        }
+        if (servo->max > maxAllowed) {
+            servo->max = maxAllowed;
+        }
     }
 }
 
@@ -225,7 +273,7 @@ static inline float limitSpeed(float old, float new, float speed)
  }
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
-static float geometryCorrection(float pos)
+float geometryCorrection(float pos)
 {
     // 1.0 == 50° without correction
     float height = constrainf(pos * 0.7660444431f, -1, 1);
@@ -269,7 +317,7 @@ void servoUpdate(void)
         const servoParam_t *servo = servoParams(i);
         float pos = input[i];
 
-        if (servo->speed > 0) {
+        if (servo->speed > 0 && servoInputSet[i]) {
             if (mixerIsCyclicServo(i))
                 pos = limitRatio(servoInput[i], pos, cyclic_ratio);
             else
@@ -277,6 +325,7 @@ void servoUpdate(void)
         }
 
         servoInput[i] = pos;
+        servoInputSet[i] = true;
 
         if (servo->flags & SERVO_FLAG_REVERSED)
             pos = -pos;

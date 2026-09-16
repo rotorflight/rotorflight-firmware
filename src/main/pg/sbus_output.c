@@ -24,21 +24,12 @@
 
 // The config struct is quite large. A ResetFn is smaller than a ResetTemplate.
 PG_REGISTER_WITH_RESET_FN(sbusOutConfig_t, sbusOutConfig,
-                          PG_DRIVER_SBUS_OUT_CONFIG, 1);
+                          PG_DRIVER_SBUS_OUT_CONFIG, 2);
 
 void pgResetFn_sbusOutConfig(sbusOutConfig_t *config) {
-    for (int i = 0; i < SBUS_OUT_CHANNELS; i++) {
-        config->sourceType[i] = SBUS_OUT_SOURCE_RX;
-        config->sourceIndex[i] = i;
-        config->sourceRangeLow[i] = 1000;
-        config->sourceRangeHigh[i] = 2000;
-    }
     config->frameRate = 50;
-
     config->pinSwap = 0;
-
-    config->inverted = 1;    
-
+    config->inverted = 1;
 }
 
 #endif

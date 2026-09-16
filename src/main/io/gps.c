@@ -280,7 +280,7 @@ static void shiftPacketLog(void)
     }
 }
 
-static bool isConfiguratorConnected() {
+static bool isConfiguratorConnected(void) {
     return (getArmingDisableFlags() & ARMING_DISABLED_MSP);
 }
 
@@ -303,6 +303,20 @@ static void gpsSetState(gpsState_e state)
     gpsData.ackState = UBLOX_ACK_IDLE;
 }
 
+bool gpsUsesFbusTransport(void)
+{
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    if (gpsConfig()->provider != GPS_FBUS) {
+        return false;
+    }
+
+    return findSerialPortConfig(FUNCTION_FBUS_MASTER) != NULL
+        || findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
+#else
+    return false;
+#endif
+}
+
 void gpsInit(void)
 {
     gpsData.baudrateIndex = 0;
@@ -316,7 +330,7 @@ void gpsInit(void)
 
     gpsData.lastMessage = millis();
 
-    if (gpsConfig()->provider == GPS_MSP) { // no serial ports used when GPS_MSP is configured
+    if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) { // no serial port is used when GPS is fed by MSP or FBUS
         gpsSetState(GPS_STATE_INITIALIZED);
         return;
     }
@@ -509,7 +523,7 @@ static void ubloxSetNavRate(uint16_t measRate, uint16_t navRate, uint16_t timeRe
     ubloxSendConfigMessage(&tx_buffer, MSG_CFG_RATE, sizeof(ubx_cfg_rate));
 }
 
-static void ubloxSetSbas() {
+static void ubloxSetSbas(void) {
     ubx_message tx_buffer;
 
     //NOTE: default ublox config for sbas mode is: UBLOX_MODE_ENABLED, test is disabled
@@ -765,9 +779,17 @@ void gpsUpdate(timeUs_t currentTimeUs)
         }
         // Restore default task rate
         rescheduleTask(TASK_SELF, TASK_PERIOD_HZ(TASK_GPS_RATE));
-   } else if (GPS_update & GPS_MSP_UPDATE) { // GPS data received via MSP
-        gpsSetState(GPS_STATE_RECEIVING_DATA);
-        onGpsNewData();
+    }
+
+    // GPS data received via MSP or FBUS
+    if (GPS_update & GPS_MSP_UPDATE) {
+        if (gpsConfig()->provider == GPS_MSP || gpsUsesFbusTransport()) {
+            gpsSetState(GPS_STATE_RECEIVING_DATA);
+            if (gpsUsesFbusTransport()) {
+                sensorsSet(SENSOR_GPS);
+            }
+            onGpsNewData();
+        }
         GPS_update &= ~GPS_MSP_UPDATE;
     }
 
@@ -785,7 +807,10 @@ void gpsUpdate(timeUs_t currentTimeUs)
         case GPS_STATE_INITIALIZING:
         case GPS_STATE_CHANGE_BAUD:
         case GPS_STATE_CONFIGURE:
-            gpsInitHardware();
+            // Skip hardware initialization for MSP and FBUS GPS (no serial port)
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
+                gpsInitHardware();
+            }
             break;
 
         case GPS_STATE_LOST_COMMUNICATION:
@@ -797,49 +822,55 @@ void gpsUpdate(timeUs_t currentTimeUs)
             }
             gpsSol.numSat = 0;
             DISABLE_STATE(GPS_FIX);
-            gpsSetState(GPS_STATE_INITIALIZING);
+            // Don't try to reinitialize MSP/FBUS GPS on timeout
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
+                gpsSetState(GPS_STATE_INITIALIZING);
+            }
             break;
 
         case GPS_STATE_RECEIVING_DATA:
             // check for no data/gps timeout/cable disconnection etc
-            if (millis() - gpsData.lastMessage > GPS_TIMEOUT) {
-                gpsSetState(GPS_STATE_LOST_COMMUNICATION);
+            // Skip timeout check for MSP/FBUS GPS (data comes from other sources)
+            if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
+                if (millis() - gpsData.lastMessage > GPS_TIMEOUT) {
+                    gpsSetState(GPS_STATE_LOST_COMMUNICATION);
 #ifdef USE_GPS_UBLOX
-            } else {
-                if (gpsConfig()->autoConfig == GPS_AUTOCONFIG_ON) { // Only if autoconfig is enabled
-                    switch (gpsData.state_position) {
-                        case 0:
-                            if (!isConfiguratorConnected()) {
-                                if (gpsData.ubloxUseSAT) {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 0); // disable SAT MSG
-                                } else {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 0); // disable SVINFO MSG
+                } else {
+                    if (gpsConfig()->autoConfig == GPS_AUTOCONFIG_ON) { // Only if autoconfig is enabled
+                        switch (gpsData.state_position) {
+                            case 0:
+                                if (!isConfiguratorConnected()) {
+                                    if (gpsData.ubloxUseSAT) {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 0); // disable SAT MSG
+                                    } else {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 0); // disable SVINFO MSG
+                                    }
+                                    gpsData.state_position = 1;
                                 }
-                                gpsData.state_position = 1;
-                            }
-                            break;
-                        case 1:
-                            if (STATE(GPS_FIX) && (gpsConfig()->gps_ublox_mode == UBLOX_DYNAMIC)) {
-                                ubloxSendNAV5Message(true);
-                                gpsData.state_position = 2;
-                            }
-                            if (isConfiguratorConnected()) {
-                                gpsData.state_position = 2;
-                            }
-                            break;
-                        case 2:
-                            if (isConfiguratorConnected()) {
-                                if (gpsData.ubloxUseSAT) {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 5); // set SAT MSG rate (every 5 cycles)
-                                } else {
-                                    ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 5); // set SVINFO MSG rate (every 5 cycles)
+                                break;
+                            case 1:
+                                if (STATE(GPS_FIX) && (gpsConfig()->gps_ublox_mode == UBLOX_DYNAMIC)) {
+                                    ubloxSendNAV5Message(true);
+                                    gpsData.state_position = 2;
                                 }
-                                gpsData.state_position = 0;
-                            }
-                            break;
+                                if (isConfiguratorConnected()) {
+                                    gpsData.state_position = 2;
+                                }
+                                break;
+                            case 2:
+                                if (isConfiguratorConnected()) {
+                                    if (gpsData.ubloxUseSAT) {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SAT, 5); // set SAT MSG rate (every 5 cycles)
+                                    } else {
+                                        ubloxSetMessageRate(CLASS_NAV, MSG_SVINFO, 5); // set SVINFO MSG rate (every 5 cycles)
+                                    }
+                                    gpsData.state_position = 0;
+                                }
+                                break;
+                        }
                     }
-                }
 #endif //USE_GPS_UBLOX
+                }
             }
             break;
     }
@@ -921,7 +952,7 @@ bool gpsNewFrame(uint8_t c)
 }
 
 // Check for healthy communications
-bool gpsIsHealthy()
+bool gpsIsHealthy(void)
 {
     return (gpsData.state == GPS_STATE_RECEIVING_DATA);
 }
@@ -1491,7 +1522,7 @@ static bool UBLOX_parse_gps(void)
         _new_position = true;
         gpsSol.numSat = _buffer.pvt.numSV;
         gpsSol.hdop = _buffer.pvt.pDOP;
-        gpsSol.speed3d = (uint16_t) sqrtf(powf(_buffer.pvt.gSpeed / 10, 2.0f) + powf(_buffer.pvt.velD / 10, 2.0f));
+        gpsSol.speed3d = (uint16_t) sqrtf(sqf(_buffer.pvt.gSpeed / 10.0f) + sqf(_buffer.pvt.velD / 10.0f));
         gpsSol.groundSpeed = _buffer.pvt.gSpeed / 10;    // cm/s
         gpsSol.groundCourse = (uint16_t) (_buffer.pvt.headMot / 10000);     // Heading 2D deg * 100000 rescaled to deg * 10
         _new_speed = true;
@@ -1772,7 +1803,7 @@ static void GPS_calculateDistanceFlownVerticalSpeed(bool initialize)
                 int32_t dir;
                 GPS_distance_cm_bearing(&gpsSol.llh.lat, &gpsSol.llh.lon, &lastCoord[GPS_LATITUDE], &lastCoord[GPS_LONGITUDE], &dist, &dir);
                 if (gpsConfig()->gps_use_3d_speed) {
-                    dist = sqrtf(powf(gpsSol.llh.altCm - lastAlt, 2.0f) + powf(dist, 2.0f));
+                    dist = sqrtf(sqf(gpsSol.llh.altCm - lastAlt) + sqf(dist));
                 }
                 GPS_distanceFlownInCm += dist;
             }

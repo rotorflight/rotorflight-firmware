@@ -43,6 +43,7 @@ COMMON_SRC = \
             drivers/serial_uart.c \
             drivers/serial_uart_pinconfig.c \
             drivers/sound_beeper.c \
+            drivers/srxl2_esc.c \
             drivers/stack_check.c \
             drivers/system.c \
             drivers/timer_common.c \
@@ -79,6 +80,7 @@ COMMON_SRC = \
             drivers/pwm_output.c \
             drivers/sbus_output.c \
             drivers/fbus_master.c \
+            drivers/fbus_sensor.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -105,10 +107,13 @@ COMMON_SRC = \
             flight/rescue.c \
             flight/setpoint.c \
             flight/wiggle.c \
+            flight/airborne.c \
             io/serial_4way.c \
             io/serial_4way_avrootloader.c \
             io/serial_4way_stk500v2.c \
             rx/ibus.c \
+            rx/ibus2.c \
+            rx/ibus2_telemetry.c \
             rx/jetiexbus.c \
             rx/msp.c \
             rx/pwm.c \
@@ -192,6 +197,7 @@ COMMON_SRC = \
             telemetry/sbus2.c \
             telemetry/sbus2_sensors.c \
             telemetry/smartport.c \
+            telemetry/sport_master.c \
             telemetry/ltm.c \
             telemetry/mavlink.c \
             telemetry/msp_shared.c \
@@ -237,6 +243,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_mpu3050.c \
             drivers/accgyro/accgyro_spi_bmi160.c \
             drivers/accgyro/accgyro_spi_bmi270.c \
+            drivers/accgyro/accgyro_spi_bmi323.c \
             drivers/accgyro/accgyro_spi_bmi088.c \
             drivers/accgyro/accgyro_spi_lsm6dso.c \
             drivers/accgyro_legacy/accgyro_adxl345.c \
@@ -270,6 +277,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             flight/pid.c \
             flight/rpm_filter.c \
             rx/ibus.c \
+            rx/ibus2.c \
             rx/rx.c \
             rx/rx_spi.c \
             rx/crsf.c \

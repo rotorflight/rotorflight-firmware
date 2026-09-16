@@ -273,7 +273,7 @@ CFLAGS     += $(ARCH_FLAGS) \
               -std=gnu17 \
               -Wall -Wextra -Werror \
               -Wno-error=unused-function \
-			  $(if $(findstring CH32H4,$(TARGET_MCU)),,-Wpedantic -Wunsafe-loop-optimizations -Wdouble-promotion) \
+			  $(if $(findstring CH32H4,$(TARGET_MCU)),,-Wpedantic -Wunsafe-loop-optimizations -Wdouble-promotion -Wstrict-prototypes) \
               -ffunction-sections \
               -fdata-sections \
               -fno-common \

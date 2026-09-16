@@ -69,6 +69,7 @@ typedef struct {
     uint8_t transition;
     uint8_t tilt_effect;           // inclination factor for Horizon mode
     uint8_t tilt_expert_mode;      // OFF or ON
+    uint8_t angle_limit;           // Max angle in degrees in horizon mode
 } pidHorizonMode_t;
 
 typedef struct {
@@ -111,6 +112,7 @@ typedef struct pidProfile_s {
 
     uint8_t             error_decay_time_ground;
     uint8_t             error_decay_time_cyclic;
+    uint8_t             error_decay_gain_cyclic;
     uint8_t             error_decay_time_yaw;
     uint8_t             error_decay_limit_cyclic;
     uint8_t             error_decay_limit_yaw;
@@ -129,13 +131,10 @@ typedef struct pidProfile_s {
     uint8_t             bterm_cutoff[PID_AXIS_COUNT];
     uint8_t             gyro_cutoff[PID_AXIS_COUNT];
 
-    uint8_t             gyro_filter_type;
-
     uint8_t             yaw_cw_stop_gain;
     uint8_t             yaw_ccw_stop_gain;
 
     uint8_t             yaw_precomp_cutoff;
-    uint8_t             yaw_precomp_filter_type;
 
     uint8_t             yaw_cyclic_ff_gain;
     uint8_t             yaw_collective_ff_gain;

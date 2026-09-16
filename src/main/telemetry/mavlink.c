@@ -227,7 +227,7 @@ void mavlinkSendSystemStatus(void)
     if (getBatteryState() < BATTERY_NOT_PRESENT) {
         batteryVoltage = isBatteryVoltageConfigured() ? getBatteryVoltage() * 10 : batteryVoltage;
         batteryAmperage = isBatteryCurrentConfigured() ? getBatteryCurrent() : batteryAmperage;
-        batteryRemaining = isBatteryVoltageConfigured() ? calculateBatteryPercentageRemaining() : batteryRemaining;
+        batteryRemaining = isBatteryChargeLevelAvailable() ? getBatteryChargeLevel() : batteryRemaining;
     }
 
     mavlink_msg_sys_status_pack(0, 200, &mavMsg,

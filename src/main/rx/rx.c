@@ -68,6 +68,7 @@
 #include "rx/msp.h"
 #include "rx/xbus.h"
 #include "rx/ibus.h"
+#include "rx/ibus2.h"
 #include "rx/jetiexbus.h"
 #include "rx/crsf.h"
 #include "rx/ghst.h"
@@ -211,6 +212,11 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
         enabled = ibusInit(rxConfig, rxRuntimeState);
         break;
 #endif
+#ifdef USE_SERIALRX_IBUS2
+    case SERIALRX_IBUS2:
+        enabled = ibus2Init(rxConfig, rxRuntimeState);
+        break;
+#endif
 #ifdef USE_SERIALRX_JETIEXBUS
     case SERIALRX_JETIEXBUS:
         enabled = jetiExBusInit(rxConfig, rxRuntimeState);
@@ -252,7 +258,7 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 }
 #endif
 
-void validateAndFixRxConfig()
+void validateAndFixRxConfig(void)
 {
 #ifdef USE_SERIAL_RX
     if (featureIsEnabled(FEATURE_RX_SERIAL)) {

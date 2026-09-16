@@ -39,6 +39,7 @@
 #define USE_SERIALRX_SPEKTRUM   // DSM2 and DSMX protocol
 #define USE_SERIALRX_SBUS       // Frsky and Futaba receivers
 #define USE_SERIALRX_IBUS       // FlySky and Turnigy receivers
+#define USE_SERIALRX_IBUS2      // FlySky AFHDS3 receivers
 #define USE_SERIALRX_JETIEXBUS
 #define USE_SERIALRX_SUMD       // Graupner Hott protocol
 #define USE_SERIALRX_SUMH       // Graupner legacy protocol
@@ -82,4 +83,3 @@
 #define TARGET_IO_PORTA         0xffff
 #define TARGET_IO_PORTB         0xffff
 #define TARGET_IO_PORTC         0xffff
-

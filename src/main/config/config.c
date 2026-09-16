@@ -40,6 +40,7 @@
 #include "drivers/dshot_command.h"
 #include "drivers/motor.h"
 #include "drivers/system.h"
+#include "drivers/srxl2_esc.h"
 
 #include "fc/rc_rates.h"
 #include "fc/core.h"
@@ -72,6 +73,7 @@
 #include "pg/beeper.h"
 #include "pg/beeper_dev.h"
 #include "pg/displayport_profiles.h"
+#include "pg/esc_sensor.h"
 #include "pg/gyrodev.h"
 #include "pg/motor.h"
 #include "pg/pg.h"
@@ -96,6 +98,7 @@
 #endif
 #include "sensors/compass.h"
 #include "sensors/gyro.h"
+#include "sensors/esc_sensor.h"
 
 #include "config.h"
 
@@ -209,14 +212,23 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_GPS)
     const serialPortConfig_t *gpsSerial = findSerialPortConfig(FUNCTION_GPS);
-    if (gpsConfig()->provider == GPS_MSP && gpsSerial)
-    {
+    const bool gpsUsesFbus = gpsUsesFbusTransport();
+    const bool gpsHasValidTransport =
+        gpsConfig()->provider == GPS_MSP ||
+        gpsSerial != NULL ||
+        gpsUsesFbus;
+
+    if (gpsConfig()->provider == GPS_MSP && gpsSerial) {
+        serialRemovePort(gpsSerial->identifier);
+    }
+    if (gpsUsesFbus && gpsSerial) {
         serialRemovePort(gpsSerial->identifier);
     }
 #endif
     if (
 #if defined(USE_GPS)
-        gpsConfig()->provider != GPS_MSP && !gpsSerial &&
+        !gpsHasValidTransport
+        &&
 #endif
         true)
     {
@@ -345,8 +357,26 @@ static void validateAndFixConfig(void)
     }
 
 #if defined(USE_ESC_SENSOR)
-    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM())
-    {
+    // Enable ESC_SENSOR when FBUS transport is available either from FBUS master
+    // or from standalone S.Port master.
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    const serialPortConfig_t *fbusMasterSerialForEsc = findSerialPortConfig(FUNCTION_FBUS_MASTER);
+    const bool hasSportMasterForEsc = findSerialPortConfig(FUNCTION_SPORT_MASTER) != NULL;
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
+        && (fbusMasterSerialForEsc || hasSportMasterForEsc)) {
+        if (!featureIsConfigured(FEATURE_ESC_SENSOR)) {
+            featureEnableImmediate(FEATURE_ESC_SENSOR);
+        }
+    } else
+#endif
+    /* If there is no dedicated ESC_SENSOR serial port and we're not using
+     * Castle PWM, normally disable the ESC sensor feature. However, allow
+     * the feature to remain configured when SRXL2 ESC is configured or
+     * when a SRXL2 ESC serial port is present (SRXL2 ESC provides telemetry
+     * over its own path).
+     */
+    if (!findSerialPortConfig(FUNCTION_ESC_SENSOR) && !isMotorProtocolCastlePWM()
+        && !findSerialPortConfig(FUNCTION_SRXL2_ESC)) {
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
 
@@ -354,6 +384,12 @@ static void validateAndFixConfig(void)
     {
         validateAndFixEscSensorConfig();
     }
+#endif
+
+#if defined(USE_SRXL2_ESC)
+    if (findSerialPortConfig(FUNCTION_SRXL2_ESC)) {
+        validateAndFixSrxl2escConfig();
+    } 
 #endif
 
     for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++)
@@ -566,7 +602,7 @@ static void validateAndFixConfig(void)
     }
 #endif
 
-    validateAndFixRatesSettings(); // constrain the various rates settings to limits imposed by the rates type
+    validateAndFixRatesSettings();  // constrain the various rates settings to limits imposed by the rates type
 
 #ifdef USE_SMARTFUEL
     validateAndFixSmartFuelConfig();
@@ -710,10 +746,19 @@ void validateAndFixGyroConfig(void)
         }
 
         // Fix gyro filter limits
-        uint16_t decimation_limit = lrintf(0.5f * gyro.sampleRateHz / pidDenom);
+        if (gyroConfig()->gyro_decimation_hz) {
+            // 4th order Bessel uses 1.6 * cutoff on the first SOS
+            // Make sure the resulting cutoff is below Nyquist
+            const uint16_t decimation_max = lrintf(0.3f * gyro.sampleRateHz);
+            const uint16_t decimation_min = 100;
+
+            gyroConfigMutable()->gyro_decimation_hz = constrain(
+                gyroConfigMutable()->gyro_decimation_hz,
+                decimation_min, decimation_max);
+        }
+
         uint16_t cutoff_limit = lrintf(0.45f * gyro.sampleRateHz / filtDenom);
 
-        adjustFilterLimit(&gyroConfigMutable()->gyro_decimation_hz, decimation_limit, decimation_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf1_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_lpf2_static_hz, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_1, cutoff_limit, cutoff_limit);

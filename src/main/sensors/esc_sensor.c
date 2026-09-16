@@ -32,6 +32,7 @@
 
 #include "common/time.h"
 #include "common/crc.h"
+#include "drivers/time.h"
 
 #include "pg/pg.h"
 #include "pg/pg_ids.h"
@@ -48,13 +49,25 @@
 #include "drivers/dshot_dpwm.h"
 #include "drivers/serial.h"
 #include "drivers/serial_uart.h"
+#include "drivers/fbus_sensor.h"
+#include "drivers/fbus_master.h"
+
+#include "telemetry/sport_master.h"
+#include "drivers/srxl2_esc.h"
+
+#include "fc/runtime_config.h"
+
+#include "scheduler/scheduler.h"
+
 
 #include "flight/mixer.h"
 
 #include "io/serial.h"
+#include "io/serial_4way.h"
 
 #include "esc_sensor.h"
 
+#include "drivers/time.h"
 
 enum {
     DEBUG_ESC_1_RPM = 0,
@@ -90,7 +103,7 @@ enum {
 
 #define TELEMETRY_BUFFER_SIZE    140
 #define REQUEST_BUFFER_SIZE      64
-#define PARAM_BUFFER_SIZE        96
+#define PARAM_BUFFER_SIZE        128
 #define PARAM_HEADER_SIZE        2
 #define PARAM_HEADER_SIG         0
 #define PARAM_HEADER_VER         1
@@ -113,6 +126,8 @@ enum {
 #define ESC_SIG_XDFLY             0xA6
 #define ESC_SIG_FLY               0x73
 #define ESC_SIG_GRAUPNER          0xC0
+#define ESC_SIG_BLHELI_S          0xC1
+#define ESC_SIG_AM32              0xC2
 #define ESC_SIG_CASTLE            0xCC
 #define ESC_SIG_RESTART           0xFF
 
@@ -156,6 +171,13 @@ static uint8_t *paramUpdPayload = paramUpdBuffer + PARAM_HEADER_SIZE;
 static uint8_t paramVer = 0;
 static bool paramMspActive = false;
 
+static bool is4wayEscSelected(void);
+static uint8_t escGetParamFullBufferLength(void);
+
+#ifdef USE_SRXL2_ESC
+static uint32_t srxl2escLastSeq = 0;
+#endif
+
 // called on MSP_SET_ESC_PARAMETERS when paramUpdPayload / paramUpdBuffer ready
 typedef bool (*paramCommitCallbackPtr)(uint8_t cmd);
 static paramCommitCallbackPtr paramCommit = NULL;
@@ -166,15 +188,45 @@ static void paramEscNeedRestart(void)
     escSensorData[0].id = ESC_SIG_RESTART;
 }
 
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static bool isFbusEscTransportAvailable(void)
+{
+#ifdef USE_FBUS_MASTER
+    if (fbusMasterIsEnabled()) {
+        return true;
+    }
+#endif
+#ifdef USE_SPORT_MASTER
+    if (sportMasterIsEnabled()) {
+        return true;
+    }
+#endif
+    return false;
+}
+#endif
 
 bool isEscSensorActive(void)
 {
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+    if (featureIsEnabled(FEATURE_ESC_SENSOR)
+        && escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS
+        && isFbusEscTransportAvailable()
+        && fbusSensorHasEscData()) {
+        return true;
+    }
+#endif
+#ifdef USE_SRXL2_ESC
+    if (srxl2escDriverIsReady()) {
+        return true;
+    }
+#endif
     return escSensorPort != NULL || isMotorProtocolCastlePWM();
 }
 
 uint32_t getEscSensorRPM(uint8_t motorNumber)
 {
-    return (escSensorData[motorNumber].age <= ESC_BATTERY_AGE_MAX) ? escSensorData[motorNumber].erpm : 0;
+    escSensorData_t *data = getEscSensorData(motorNumber);
+    return data ? data->erpm : 0;
 }
 
 static uint32_t applyVoltageCorrection(uint32_t voltage)
@@ -200,6 +252,85 @@ static uint32_t applyConsumptionCorrection(uint32_t consumption)
 
     return (consumption * (100 + escSensorConfig()->consumption_correction)) / 100;
 }
+
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+static bool getFbusCombinedEscSensorData(escSensorData_t *escData)
+{
+    if (!escData) {
+        return false;
+    }
+
+    const bool hasCurrentData = fbusSensorHasCurrentData();
+    const bool hasEscData = fbusSensorHasEscData();
+
+    if (!hasCurrentData && !hasEscData) {
+        return false;
+    }
+
+    fbusCurrentData_t fbusCurrentData;
+    fbusEscData_t fbusEscData;
+    bool hasVoltage = false;
+    bool hasCurrent = false;
+
+    fbusSensorGetCurrentData(&fbusCurrentData);
+    fbusSensorGetEscData(&fbusEscData);
+    memset(escData, 0, sizeof(*escData));
+
+    escData->age = 0;
+    escData->id = hasCurrentData ? FBUS_SENSOR_CURRENT : FBUS_SENSOR_ESC;
+
+    if (hasCurrentData && fbusCurrentData.hasVoltage) {
+        escData->voltage = applyVoltageCorrection((uint32_t)fbusCurrentData.voltageCentiVolts * 10U);
+        escData->bec_voltage = escData->voltage;
+        hasVoltage = true;
+    }
+
+    if (hasCurrentData) {
+        if (fbusCurrentData.hasHighPrecisionCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentMilliAmps);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        } else if (fbusCurrentData.hasCurrent) {
+            escData->current = applyCurrentCorrection(fbusCurrentData.currentDeciAmps * 100U);
+            escData->bec_current = escData->current;
+            hasCurrent = true;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasPower) {
+        escData->id = FBUS_SENSOR_ESC;
+
+        if (!hasVoltage) {
+            escData->voltage = applyVoltageCorrection((uint32_t)fbusEscData.voltageCentiVolts * 10U);
+            escData->bec_voltage = escData->voltage;
+        }
+
+        if (!hasCurrent) {
+            escData->current = applyCurrentCorrection((uint32_t)fbusEscData.currentCentiAmps * 10U);
+            escData->bec_current = escData->current;
+        }
+    }
+
+    if (hasEscData && fbusEscData.hasRpm) {
+        escData->id = FBUS_SENSOR_ESC;
+        escData->erpm = fbusEscData.erpm;
+    }
+
+    if (hasEscData && fbusEscData.hasConsumption) {
+        escData->id = FBUS_SENSOR_ESC;
+        escData->consumption = applyConsumptionCorrection(fbusEscData.consumptionMah);
+    }
+
+    if (hasEscData && fbusEscData.hasTemperature) {
+        escData->id = FBUS_SENSOR_ESC;
+        // FBUS temperature is in C, escSensorData uses 0.1C.
+        escData->temperature = (int16_t)fbusEscData.temperatureDegC * 10;
+        escData->temperature2 = (int16_t)fbusEscData.temperature2DegC * 10;
+    }
+
+    return true;
+}
+#endif
 
 static void combinedDataUpdate(void)
 {
@@ -246,6 +377,16 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
                 return &escSensorDataCombined;
             }
         }
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+#if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
+            if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED) {
+                static escSensorData_t fbusEscSensorData;
+                if (getFbusCombinedEscSensorData(&fbusEscSensorData)) {
+                    return &fbusEscSensorData;
+                }
+            }
+#endif
+        }
         else {
             if (motorNumber == 0 || motorNumber == ESC_SENSOR_COMBINED)
                 return &escSensorData[0];
@@ -255,6 +396,105 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
     return NULL;
 }
 
+static void checkFrameTimeout(timeUs_t currentTimeUs, timeDelta_t timeout);
+
+static void srxl2escSensorProcess(timeUs_t currentTimeUs)
+{
+#ifdef USE_SRXL2_ESC
+    if (!srxl2escDriverIsReady()) {
+        checkFrameTimeout(currentTimeUs, 500000);
+        return;
+    }
+
+    srxl2escTelemetrySnapshot_t snap;
+    uint32_t seq = 0;
+    if (srxl2escCopyLatestTelemetry(&snap, &seq) && snap.valid) {
+        if (seq != srxl2escLastSeq) {
+            srxl2escLastSeq = seq;
+
+            if (getMotorCount() > 0 && featureIsEnabled(FEATURE_ESC_SENSOR)) {
+                const int motorIndex = (snap.sensorId == 0x20) ? 0 : -1;
+
+                if (motorIndex >= 0) {
+                    escSensorData_t inj;
+                    memset(&inj, 0, sizeof(inj));
+                    inj.id = snap.sensorId;
+                    inj.age = 0;
+
+                    const uint8_t *data = snap.data;
+
+                    uint16_t rawRpm = (uint16_t)((data[0] << 8) | data[1]);
+                    if (rawRpm != 0xFFFF) {
+                        inj.erpm = (uint32_t)rawRpm * 10u;
+                    }
+
+                    uint16_t rawVolts = (uint16_t)((data[2] << 8) | data[3]);
+                    if (rawVolts != 0xFFFF) {
+                        inj.voltage = (uint32_t)rawVolts * 10u;
+                    }
+
+                    uint16_t rawTempFET = (uint16_t)((data[4] << 8) | data[5]);
+                    if (rawTempFET != 0xFFFF) {
+                        inj.temperature = (int16_t)rawTempFET;
+                    }
+
+                    uint16_t rawCurrent = (uint16_t)((data[6] << 8) | data[7]);
+                    if (rawCurrent != 0xFFFF) {
+                        inj.current = (uint32_t)rawCurrent * 10u;
+                    }
+
+                    uint16_t rawTempBEC = (uint16_t)((data[8] << 8) | data[9]);
+                    if (rawTempBEC != 0xFFFF) {
+                        inj.temperature2 = (int16_t)rawTempBEC;
+                    }
+
+                    uint8_t rawCurBEC = data[10];
+                    if (rawCurBEC != 0xFF) {
+                        inj.bec_current = (uint32_t)rawCurBEC * 100u;
+                    }
+
+                    uint8_t rawVoltsBEC = data[11];
+                    if (rawVoltsBEC != 0xFF) {
+                        inj.bec_voltage = (uint32_t)rawVoltsBEC * 50u;
+                    }
+
+                    const uint8_t raw_throttle = data[12];
+                    const uint8_t raw_power_out = data[13];
+                    if (raw_throttle != 0xFF) {
+                        inj.throttle = (uint16_t)raw_throttle * 5u;
+                    }
+                    if (raw_power_out != 0xFF) {
+                        inj.pwm = (uint16_t)raw_power_out * 5u;
+                    }
+
+                    escSensorData_t *dst = getEscSensorData((uint8_t)motorIndex);
+                    if (dst) {
+                        dst->age = 0;
+                        dst->pwm = inj.pwm;
+                        dst->throttle = inj.throttle;
+                        dst->erpm = inj.erpm;
+                        dst->voltage = applyVoltageCorrection(inj.voltage);
+                        dst->current = applyCurrentCorrection(inj.current);
+                        dst->temperature = inj.temperature;
+                        dst->temperature2 = inj.temperature2;
+                        dst->bec_voltage = inj.bec_voltage;
+                        dst->bec_current = inj.bec_current;
+                        dst->status = inj.status;
+                        dst->id = inj.id;
+
+                        combinedNeedsUpdate = true;
+                        dataUpdateUs = micros();
+                    }
+                }
+            }
+        }
+    }
+
+    checkFrameTimeout(currentTimeUs, 500000);
+#else
+    UNUSED(currentTimeUs);
+#endif
+}
 
 /*
  * Common functions
@@ -309,7 +549,385 @@ static void updateConsumption(timeUs_t currentTimeUs)
     escSensorData[0].consumption = applyConsumptionCorrection(lrintf(totalConsumption));
 }
 
+/*
+ * Mapping to 4wayif
+ */
 
+#if defined(USE_AM32_FORWARD_PROGRAMMING) || defined(USE_BLHELI_FORWARD_PROGRAMMING)
+#define USE_4WAY_FORWARD_PROGRAMMING
+#endif
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+ // true = ok, false = error
+#define AM32_SIG_G071_2KB              0x2b
+#define AM32_G071_2KB_EEPROM_ADDR      0x7E00
+#define AM32_SIG_F0_1KB                0x1f
+#define AM32_F0_1KB_EEPROM_ADDR        0x7C00
+#define AM32_SIG_F3_2KB                0x35
+#define AM32_F3_2KB_EEPROM_ADDR        0xF800
+#define AM32_NUM_EEPROM_BYTES          48
+#define AM32_ESC_NAME_LENGTH           32
+#define AM32_PARAM_PROTOCOL_VERSION    0
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+
+#define BLHELI_S_SIG_EFM8BB10          0xE8B1
+#define BLHELI_S_SIG_EFM8BB21          0xE8B2
+#define BLHELI_S_SIG_EFM8BB51          0xE8B5
+#define BLHELI_S_EEPROM_ADDR_SMALL     0x1A00
+#define BLHELI_S_EEPROM_ADDR_LARGE     0x3000
+#define BLHELI_S_PAGE_SIZE_SMALL       512
+#define BLHELI_S_PAGE_SIZE_LARGE       2048
+#define BLHELI_S_PAGE_MULTIPLIER_SMALL 1
+#define BLHELI_S_PAGE_MULTIPLIER_LARGE 4
+#define BLHELI_S_NUM_EEPROM_BYTES      0x70
+#define BLHELI_S_MSP_NUM_EEPROM_BYTES  0x40
+#define BLHELI_S_PARAM_PROTOCOL_VERSION 0
+#endif
+
+#define ESC_INIT_DELAY 2500
+#define ESC_DEINIT_DELAY 100
+#define FWIF_RETRY_DELAY 5
+#define FWIF_INIT_FLASH_TIMEOUT 500
+#define FWIF_READ_DELAY 250
+#define FWIF_WRITE_TIMEOUT 100
+#define FWIF_POST_WRITE_SETTLE_DELAY 1000
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+#define FWIF_MAX_EEPROM_BYTES BLHELI_S_NUM_EEPROM_BYTES
+#else
+#define FWIF_MAX_EEPROM_BYTES AM32_NUM_EEPROM_BYTES
+#endif
+static uint8_t escID = MAX_SUPPORTED_MOTORS + 1;
+
+static bool fwifParamCached[MAX_SUPPORTED_MOTORS] = {false};
+static bool fwifParamWritten[MAX_SUPPORTED_MOTORS] = {false};
+static uint8_t fwifParamSig[MAX_SUPPORTED_MOTORS] = {0};
+static uint8_t fwifParamLength[MAX_SUPPORTED_MOTORS] = {0};
+static uint8_t fwifParamBuffers[MAX_SUPPORTED_MOTORS][FWIF_MAX_EEPROM_BYTES];
+static uint8_t paramBufferEscID = 0xFF;  // Track which ESC's data is in paramBuffer
+static bool am32WritePending = false;
+static bool am32WriteTaskEnabledByUs = false;
+static uint8_t am32WriteEscId = MAX_SUPPORTED_MOTORS;
+static bool fourwayProgrammingActive = false;
+static uint8_t fourwayEscCount = 0;
+static timeMs_t fourwayLastWriteTimeMs = 0;
+
+static void fourwayWaitForWriteSettle(void)
+{
+    if (fourwayLastWriteTimeMs == 0) {
+        return;
+    }
+
+    while (millis() - fourwayLastWriteTimeMs < FWIF_POST_WRITE_SETTLE_DELAY);
+    fourwayLastWriteTimeMs = 0;
+}
+
+static uint8_32_u *fwifWaitForDeviceInitFlash(uint8_t escID)
+{
+    uint32_t start = millis();
+    uint8_32_u *devInfo = NULL;
+
+    do {
+        devInfo = fwifCmdDeviceInitFlash(escID);
+        if (devInfo != NULL) {
+            return devInfo;
+        }
+
+        delay(FWIF_RETRY_DELAY);
+    } while (millis() - start < FWIF_INIT_FLASH_TIMEOUT);
+
+    return NULL;
+}
+
+static void fourwayResetAllEscs(void)
+{
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    for (uint8_t i = 0; i < fourwayEscCount && i < MAX_SUPPORTED_MOTORS; i++) {
+        if (!pwmMotors[i].enabled || pwmMotors[i].io == IO_NONE) {
+            continue;
+        }
+
+        if (fwifWaitForDeviceInitFlash(i) != NULL) {
+            fwifCmdDeviceReset(false);
+        }
+    }
+}
+
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+static uint32_t fwifGetAm32EepromAddress(const uint8_32_u *devInfo)
+{
+    if (devInfo->bytes[1] == AM32_SIG_F0_1KB) {
+        return AM32_F0_1KB_EEPROM_ADDR;
+    } else if (devInfo->bytes[1] == AM32_SIG_F3_2KB) {
+        return AM32_F3_2KB_EEPROM_ADDR;
+    } else if (devInfo->bytes[1] == AM32_SIG_G071_2KB) {
+        return AM32_G071_2KB_EEPROM_ADDR;
+    }
+
+    return 0;
+}
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+static uint32_t fwifGetBlheliSEepromAddress(const uint8_32_u *devInfo)
+{
+    switch (devInfo->words[0]) {
+        case BLHELI_S_SIG_EFM8BB10:
+        case BLHELI_S_SIG_EFM8BB21:
+            return BLHELI_S_EEPROM_ADDR_SMALL;
+        case BLHELI_S_SIG_EFM8BB51:
+            return BLHELI_S_EEPROM_ADDR_LARGE;
+        default:
+            return 0;
+    }
+}
+
+static uint8_t fwifGetBlheliSPageEraseIndex(const uint8_32_u *devInfo)
+{
+    switch (devInfo->words[0]) {
+        case BLHELI_S_SIG_EFM8BB10:
+        case BLHELI_S_SIG_EFM8BB21:
+            return (uint8_t)(BLHELI_S_EEPROM_ADDR_SMALL / BLHELI_S_PAGE_SIZE_SMALL * BLHELI_S_PAGE_MULTIPLIER_SMALL);
+        case BLHELI_S_SIG_EFM8BB51:
+            return (uint8_t)(BLHELI_S_EEPROM_ADDR_LARGE / BLHELI_S_PAGE_SIZE_LARGE * BLHELI_S_PAGE_MULTIPLIER_LARGE);
+        default:
+            return 0xFF;
+    }
+}
+#endif
+
+static uint32_t fwifGetEepromAddress(const uint8_32_u *devInfo, uint8_t *detectedSig, uint8_t *payloadLength, uint8_t *pageErase)
+{
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+    const uint32_t am32EepromAddr = fwifGetAm32EepromAddress(devInfo);
+    if (am32EepromAddr != 0) {
+        *detectedSig = ESC_SIG_AM32;
+        *payloadLength = AM32_NUM_EEPROM_BYTES;
+        *pageErase = 0xFF;
+        return am32EepromAddr;
+    }
+#endif
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    const uint32_t blheliSEepromAddr = fwifGetBlheliSEepromAddress(devInfo);
+    if (blheliSEepromAddr != 0) {
+        *detectedSig = ESC_SIG_BLHELI_S;
+        *payloadLength = BLHELI_S_NUM_EEPROM_BYTES;
+        *pageErase = fwifGetBlheliSPageEraseIndex(devInfo);
+        return blheliSEepromAddr;
+    }
+#endif
+
+    *detectedSig = ESC_SIG_NONE;
+    *payloadLength = 0;
+    *pageErase = 0xFF;
+    return 0;
+}
+
+static void fourwayEnterProgrammingMode(void)
+{
+    if (fourwayProgrammingActive) {
+        return;
+    }
+
+    fourwayEscCount = esc4wayInit();
+    uint32_t initStart = millis();
+    while (millis() < initStart + ESC_INIT_DELAY);
+
+    fourwayProgrammingActive = true;
+}
+
+static void fourwayExitProgrammingMode(void)
+{
+    if (!fourwayProgrammingActive) {
+        return;
+    }
+
+    fourwayResetAllEscs();
+
+    esc4wayDeinit();
+
+    fourwayWaitForWriteSettle();
+
+    uint32_t start = millis();
+    while (millis() < start + ESC_DEINIT_DELAY);
+
+    esc4wayRelease();
+
+    fourwayProgrammingActive = false;
+    fourwayEscCount = 0;
+}
+
+static bool fourwayIfFetchData(uint8_t escID)
+{
+    bool retVal = false;
+
+    if (ARMING_FLAG(ARMED)) {
+        return false;
+    }
+
+    if (!fourwayProgrammingActive) {
+        return false;
+    }
+
+    if (fwifParamCached[escID]) {
+        memcpy(paramPayload, fwifParamBuffers[escID], fwifParamLength[escID]);
+        paramPayloadLength = fwifParamLength[escID];
+        paramBufferEscID = escID;
+        escSig = fwifParamSig[escID];
+        return true;
+    }
+
+    paramPayloadLength = 0;
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    if (pwmMotors[escID].enabled && escID < fourwayEscCount) {
+        if (pwmMotors[escID].io != IO_NONE) {
+            uint8_32_u *devInfo = fwifWaitForDeviceInitFlash(escID);
+
+            if (devInfo != NULL) {
+                uint8_t detectedSig = ESC_SIG_NONE;
+                uint8_t payloadLength = 0;
+                uint8_t pageErase = 0xFF;
+                const uint32_t matchedEepromAddr = fwifGetEepromAddress(devInfo, &detectedSig, &payloadLength, &pageErase);
+                UNUSED(pageErase);
+
+                if (matchedEepromAddr != 0) {
+                    delay(FWIF_READ_DELAY);
+                    if (fwifCmdDeviceRead(payloadLength, paramPayload, matchedEepromAddr)) {
+                        retVal = true;
+                        escSig = detectedSig;
+                        memcpy(fwifParamBuffers[escID], paramPayload, payloadLength);
+                        fwifParamCached[escID] = true;
+                        fwifParamWritten[escID] = false;
+                        fwifParamSig[escID] = detectedSig;
+                        fwifParamLength[escID] = payloadLength;
+                        paramPayloadLength = payloadLength;
+                        paramBufferEscID = escID;
+                    }
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+static bool fourwayIfWriteData(uint8_t escID)
+{
+    bool retVal = false;
+
+    if (ARMING_FLAG(ARMED)) {
+        return false;
+    }
+
+    if (!fourwayProgrammingActive) {
+        return false;
+    }
+
+    if (fwifParamWritten[escID]) {
+        return true;
+    }
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+
+    if (pwmMotors[escID].enabled && escID < fourwayEscCount) {
+        if (pwmMotors[escID].io != IO_NONE) {
+            uint8_32_u *devInfo = fwifWaitForDeviceInitFlash(escID);
+
+            if (devInfo != NULL) {
+                uint8_t detectedSig = ESC_SIG_NONE;
+                uint8_t payloadLength = 0;
+                uint8_t pageErase = 0xFF;
+                const uint32_t matchedEepromAddr = fwifGetEepromAddress(devInfo, &detectedSig, &payloadLength, &pageErase);
+
+                if (matchedEepromAddr != 0 && detectedSig == paramBuffer[PARAM_HEADER_SIG]) {
+                    uint8_t verifyBuffer[FWIF_MAX_EEPROM_BYTES];
+                    uint32_t writeStart = millis();
+                    do {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+                        if (detectedSig == ESC_SIG_BLHELI_S &&
+                            (pageErase == 0xFF || !fwifCmdDevicePageErase(pageErase))) {
+                            delay(FWIF_RETRY_DELAY);
+                            continue;
+                        }
+#endif
+
+                        if (fwifCmdDeviceWrite(payloadLength, paramUpdPayload, matchedEepromAddr)) {
+                            delay(FWIF_READ_DELAY);
+                            if (fwifCmdDeviceRead(payloadLength, verifyBuffer, matchedEepromAddr) &&
+                                memcmp(verifyBuffer, paramUpdPayload, payloadLength) == 0) {
+                                retVal = true;
+                                fwifParamCached[escID] = false;
+                                fwifParamWritten[escID] = true;
+                                fourwayLastWriteTimeMs = millis();
+                                break;
+                            }
+                        }
+
+                        delay(FWIF_RETRY_DELAY);
+                    } while (millis() - writeStart < FWIF_WRITE_TIMEOUT);
+                }
+            }
+        }
+    }
+
+    return retVal;
+}
+
+static bool scheduleAm32Write(uint8_t id)
+{
+    taskInfo_t escTaskInfo;
+
+    /* Guard against race: don't accept a new write if one is already pending */
+    if (am32WritePending) {
+        return false;
+    }
+
+    am32WriteEscId = id;
+    am32WritePending = true;
+
+    getTaskInfo(TASK_ESC_SENSOR, &escTaskInfo);
+    if (!escTaskInfo.isEnabled) {
+        am32WriteTaskEnabledByUs = true;
+        rescheduleTask(TASK_ESC_SENSOR, TASK_PERIOD_MS(1));
+        setTaskEnabled(TASK_ESC_SENSOR, true);
+    } else {
+        am32WriteTaskEnabledByUs = false;
+    }
+
+    return true;
+}
+
+static void fourwayFlushPendingWrite(void)
+{
+    if (!am32WritePending) {
+        return;
+    }
+
+    const uint8_t pendingEscId = am32WriteEscId;
+    am32WritePending = false;
+
+    if (pendingEscId < MAX_SUPPORTED_MOTORS) {
+        fourwayIfWriteData(pendingEscId);
+    }
+
+    if (am32WriteTaskEnabledByUs) {
+        am32WriteTaskEnabledByUs = false;
+        if (!featureIsEnabled(FEATURE_ESC_SENSOR) && escSensorPort == NULL) {
+            setTaskEnabled(TASK_ESC_SENSOR, false);
+        }
+    }
+}
+
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+ 
+ 
 /*
  * BLHeli32 / KISS Telemetry Protocol
  *
@@ -1255,13 +1873,13 @@ static void rrfsmSensorProcess(timeUs_t currentTimeUs)
  *    6-7:      Current x10mA [0-65535]
  *    8-9:      Capacity 1mAh [0-65535]
  *  10-11:      ERPM 10rpm [0-65535]
- *     12:      Throttle [0-100]
+ *     12:      Pwm [0-100]
  *     13:      ESC Temperature 1°C [-30-225]
  *     14:      MCU Temperature 1°C [-30-225]
  *     15:      Motor Temperature 1°C [-30-225]
  *     16:      BEC Voltage x100mV [0-255]
  *     17:      Status flag
- *     18:      Mode [0-255]
+ *     18:      Throttle [0-100]
  * 
  *     19:      CRC8
  *     20:      end byte (0x65)
@@ -1435,7 +2053,8 @@ static void flyDecodeTelemetryFrame(void)
     const uint16_t rpm = buffer[hl + 6] << 8 | buffer[hl + 7];
     const int16_t temp = buffer[hl + 9] - FLY_TEMP_OFFSET;
     const int16_t motorTemp = buffer[hl + 11] - FLY_TEMP_OFFSET;
-    const uint8_t power = buffer[hl + 8];
+    const uint16_t power = buffer[hl + 8];
+    const uint16_t throttle = buffer[hl + 14];
     const uint16_t voltage = buffer[hl + 0] << 8 | buffer[hl + 1];
     const uint16_t current = buffer[hl + 2] << 8 | buffer[hl + 3];
     const uint16_t consumption = buffer[hl + 4] << 8 | buffer[hl + 5];
@@ -1446,6 +2065,7 @@ static void flyDecodeTelemetryFrame(void)
     escSensorData[0].age = 0;
     escSensorData[0].erpm = rpm * 10;
     escSensorData[0].pwm = power * 10;
+    escSensorData[0].throttle = throttle * 10;
     escSensorData[0].voltage = applyVoltageCorrection(voltage * 10);
     escSensorData[0].current = applyCurrentCorrection(current * 10);
     escSensorData[0].consumption = applyConsumptionCorrection(consumption);
@@ -1692,7 +2312,7 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 #define PL5_TELE_FRAME_TIMEOUT              500
 #define PL5_PARAM_FRAME_PERIOD              4
 #define PL5_PARAM_READ_TIMEOUT              100
-#define PL5_PARAM_WRITE_TIMEOUT             100
+#define PL5_PARAM_WRITE_TIMEOUT             200
 
 #define PL5_PING_FRAME_PERIOD               480
 #define PL5_PING_TIMEOUT                    1600
@@ -1706,18 +2326,23 @@ static serialReceiveCallbackPtr flySensorInit(bool bidirectional)
 #define PL5_RESP_DEVINFO_TYPE               0x252C
 #define PL5_RESP_DEVINFO_LENGTH             73
 #define PL5_RESP_DEVINFO_PAYLOAD_LENGTH     48
-#define PL5_RESP_GETPARAMS_TYPE             0x0C30
-#define PL5_RESP_GETPARAMS_LENGTH           137
+#define PL5_RESP_RESET_TYPE                 0x022B
+#define PL5_RESP_RESET_LENGTH               10
+#define PL5_RESP_PARAMS_TYPE                0x3835
+#define PL5_RESP_GETPARAMS_LENGTH           105
 #define PL5_RESP_GETPARAMS_PAYLOAD_LENGTH   31
 #define PL5_REQ_WRITEPARAMS_LENGTH          63
-#define PL5_RESP_WRITEPARAMS_TYPE           0x3835
+#define PL5_REQ_WRITEPARAMS_HEADER_LENGTH   13
+#define PL5_SET_PARAMS_PAYLOAD_LENGTH       48
+#define PL5_RESP_WRITEPARAMS_TYPE           PL5_RESP_PARAMS_TYPE
 #define PL5_RESP_WRITEPARAMS_LENGTH         58
 #define PL5_RESP_WRITEPARAMS_ERR_LENGTH     9
 
 static uint8_t pl5Ping[] = { 0x1, 0xFD, 0x3, 0x3, 0x2C, 0x24, 0x0, 0x1, 0x60, 0x60 };
+static uint8_t pl5ResetReq[] = { 0x01, 0xFD, 0x03, 0x06, 0x2B, 0x02, 0x55, 0x00, 0xB2, 0x4F };
 static uint8_t pl5DevInfoReq[] = { 0x01, 0xFD, 0x03, 0x03, 0x2C, 0x25, 0x00, 0x20, 0xF1, 0xB8 };
-static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x30, 0xC, 0x0, 0x40, 0x27, 0xC8 };
-static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30, 0x0 };
+static uint8_t pl5GetParamsReq[] = { 0x1, 0xFD, 0x3, 0x3, 0x35, 0x38, 0x0, 0x30, 0x67, 0x2E };
+static uint8_t pl5WriteParamsReq[] = { 0x1, 0xFD, 0x3, 0x17, 0x35, 0x38, 0x0, 0x18, 0x35, 0x38, 0x0, 0x18, 0x30 };
 
 typedef struct {
     uint8_t  throttle;                  // Throttle value in %
@@ -1737,6 +2362,10 @@ typedef struct {
 static bool pl5CachedDevInfo = false;
 static bool pl5CachedParams = false;
 static bool pl5DirtyParams = false;
+static bool pl5VerifyParamsAfterWrite = false;
+static bool pl5ResetPending = false;
+static uint8_t pl5SetParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
+static uint8_t pl5ExpectedParamsPayload[PL5_SET_PARAMS_PAYLOAD_LENGTH];
 
 static uint16_t calculateCRC16_MODBUS(const uint8_t *ptr, size_t len)
 {
@@ -1766,7 +2395,7 @@ static bool pl5ParamCommit(uint8_t cmd)
             pl5DirtyParams = true;
             // clear cached flag, will schedule write
             pl5CachedParams = false;
-            // invalidate param payload - will be available again when params again cached (write response or re-read)
+            // invalidate param payload - will be available again after a fresh readback is cached
             paramPayloadLength = 0;
         }
 
@@ -1806,12 +2435,18 @@ static bool pl5CopySendFrame(void *req, uint8_t len, uint16_t framePeriod, uint1
 
 static void pl5BuildNextReq(void)
 {
+    // schedule pending ESC reset to apply saved settings
+    if (pl5ResetPending) {
+        pl5ResetPending = false;
+        pl5CopySendFrame(pl5ResetReq, sizeof(pl5ResetReq), PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
+    }
     // schedule pending param write, schedule request...
-    if (pl5DirtyParams) {
+    else if (pl5DirtyParams) {
         memset(reqbuffer, 0, PL5_REQ_WRITEPARAMS_LENGTH);
-        const uint8_t hdrlen = sizeof(pl5WriteParamsReq);
-        memcpy(reqbuffer, pl5WriteParamsReq, hdrlen);
-        memcpy(reqbuffer + hdrlen, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(reqbuffer, pl5WriteParamsReq, PL5_REQ_WRITEPARAMS_HEADER_LENGTH);
+        memcpy(pl5ExpectedParamsPayload, pl5SetParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+        memcpy(pl5ExpectedParamsPayload + 1, paramUpdPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+        memcpy(reqbuffer + PL5_REQ_WRITEPARAMS_HEADER_LENGTH, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
         pl5SignSendFrame(PL5_REQ_WRITEPARAMS_LENGTH, PL5_PARAM_FRAME_PERIOD, PL5_PARAM_WRITE_TIMEOUT);
     }
     // ...or pending device info, schedule request...
@@ -1898,8 +2533,24 @@ static bool pl5DecodeGetDevInfoResp(void)
 
 static bool pl5DecodeGetParamsResp(void)
 {
-    // cache parameters, payload complete
-    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 8, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
+    const uint8_t *readParamsPayload = buffer + 7;
+
+    if (pl5VerifyParamsAfterWrite) {
+        if (memcmp(readParamsPayload, pl5ExpectedParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH) != 0) {
+            pl5CachedParams = false;
+            paramPayloadLength = 0;
+            pl5BuildNextReq();
+            return false;
+        }
+
+        pl5VerifyParamsAfterWrite = false;
+        pl5ResetPending = true;
+    }
+
+    // Cache the writable first half of the full 0x3538 read. The OEM tool reads
+    // 0x0030 registers here, but writes back only the first 0x0018 registers.
+    memcpy(pl5SetParamsPayload, readParamsPayload, PL5_SET_PARAMS_PAYLOAD_LENGTH);
+    memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, pl5SetParamsPayload + 1, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
     pl5CachedParams = true;
 
     // make param payload available
@@ -1912,18 +2563,31 @@ static bool pl5DecodeGetParamsResp(void)
 
 static bool pl5DecodeWriteParamsResp(void)
 {
-    if ((buffer[3] & PL5_ERR) == 0) {
-        // success, cache parameters
-        memcpy(paramPayload + PL5_RESP_DEVINFO_PAYLOAD_LENGTH, buffer + 9, PL5_RESP_GETPARAMS_PAYLOAD_LENGTH);
-        pl5CachedParams = true;
+    const bool writeSuccess = (buffer[3] & PL5_ERR) == 0;
+
+    if (writeSuccess) {
+        pl5VerifyParamsAfterWrite = true;
+        pl5CachedParams = false;
     }
 
-    // make param payload available
-    paramPayloadLength = PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
+    // Do not expose the write echo through MSP as if it were a fresh ESC readback.
+    paramPayloadLength = writeSuccess ? 0 : PL5_RESP_DEVINFO_PAYLOAD_LENGTH + PL5_RESP_GETPARAMS_PAYLOAD_LENGTH;
 
     // success or failure don't repeat
     pl5DirtyParams = false;
 
+    pl5BuildNextReq();
+
+    return true;
+}
+
+static bool pl5DecodeResetResp(void)
+{
+    pl5CachedDevInfo = false;
+    pl5CachedParams = false;
+    paramPayloadLength = 0;
+
+    paramEscNeedRestart();
     pl5BuildNextReq();
 
     return true;
@@ -1945,10 +2609,10 @@ static bool pl5Decode(timeUs_t currentTimeUs)
             return pl5DecodePingResp();
         case PL5_RESP_DEVINFO_TYPE:
             return pl5DecodeGetDevInfoResp();
-        case PL5_RESP_GETPARAMS_TYPE:
-            return pl5DecodeGetParamsResp();
-        case PL5_RESP_WRITEPARAMS_TYPE:
-            return pl5DecodeWriteParamsResp();
+        case PL5_RESP_RESET_TYPE:
+            return pl5DecodeResetResp();
+        case PL5_RESP_PARAMS_TYPE:
+            return buffer[3] == 3 ? pl5DecodeGetParamsResp() : pl5DecodeWriteParamsResp();
         default:
             return false;
     }
@@ -1987,15 +2651,17 @@ static int8_t pl5Accept(uint16_t c)
                 if (buffer[3] == 3)
                     len = PL5_RESP_DEVINFO_LENGTH;
                 break;
-            case PL5_RESP_GETPARAMS_TYPE:
-                if (buffer[3] == 3)
-                    len = PL5_RESP_GETPARAMS_LENGTH;
+            case PL5_RESP_RESET_TYPE:
+                if (buffer[3] == 6)
+                    len = PL5_RESP_RESET_LENGTH;
                 break;
-            case PL5_RESP_WRITEPARAMS_TYPE:
+            case PL5_RESP_PARAMS_TYPE:
                 if (buffer[3] == 0x17)
                     len = PL5_RESP_WRITEPARAMS_LENGTH;
                 else if (buffer[3] == (PL5_ERR|0x17))
                     len = PL5_RESP_WRITEPARAMS_ERR_LENGTH;
+                else if (buffer[3] == 3)
+                    len = PL5_RESP_GETPARAMS_LENGTH;
                 break;
         }
         if (len != 0) {
@@ -2195,7 +2861,7 @@ static void tribInvalidateParams(void)
     tribInvalidParams = ~(~1U << (ARRAYLEN(tribParamAddrLen) - 1));
 }
 
-static uint8_t tribCalcParamBufferLength()
+static uint8_t tribCalcParamBufferLength(void)
 {
     uint8_t len = 0;
     for (uint8_t j = 0; j < ARRAYLEN(tribParamAddrLen); j++)
@@ -2808,7 +3474,7 @@ static void oygeDecodeTelemetryFrame(void)
     DEBUG(ESC_SENSOR_DATA, DEBUG_DATA_AGE, 0);
 }
 
-static const OpenYGEHeader_t *oygeGetHeaderWithCrcCheck()
+static const OpenYGEHeader_t *oygeGetHeaderWithCrcCheck(void)
 {
     // get header (w/ paranoid buffer access)
     const OpenYGEHeader_t *hdr = (OpenYGEHeader_t*)buffer;
@@ -3496,12 +4162,26 @@ static int8_t xdfly_accept(uint16_t c)
     return 0;
 }
 
-static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig)
+static serialReceiveCallbackPtr xdflySensorInit(uint8_t sig, bool bidirectional)
 {
-    rrfsmCrank  = xdfly_crank_unc_setup;
+    rrfsmStart = NULL;
+    rrfsmCrank = bidirectional ? xdfly_crank_unc_setup : NULL;
     rrfsmDecode = xdfly_decode;
     rrfsmAccept = xdfly_accept;
-    paramCommit = xdfly_param_commit;
+    rrfsmBootDelayMs = 0;
+    rrfsmMinFrameLength = bidirectional ? 0 : XDFLY_HEADER_LENGTH;
+    rrfsmFrameTimestamp = 0;
+    rrfsmFramePeriod = 0;
+    rrfsmFrameTimeout = 0;
+    readBytes = 0;
+    reqLength = 0;
+    readIngoreBytes = 0;
+    syncCount = 0;
+    xdfly_setup_status = XDFLY_INIT;
+    xdfly_connected = false;
+    xdfly_send_handshake = false;
+    xdfly_handshake_response_pending = false;
+    paramCommit = bidirectional ? xdfly_param_commit : NULL;
     escSig = sig;
     return rrfsmDataReceive;
 }
@@ -3668,6 +4348,25 @@ static void castleSensorProcess(timeUs_t currentTimeUs)
 
 void escSensorProcess(timeUs_t currentTimeUs)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (am32WritePending) {
+        am32WritePending = false;
+        fourwayIfWriteData(am32WriteEscId);
+        if (am32WriteTaskEnabledByUs) {
+            am32WriteTaskEnabledByUs = false;
+            if (!featureIsEnabled(FEATURE_ESC_SENSOR) && escSensorPort == NULL) {
+                setTaskEnabled(TASK_ESC_SENSOR, false);
+                return;
+            }
+        }
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_SRXL2) {
+        srxl2escSensorProcess(currentTimeUs);
+        return;
+    }
+
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
@@ -3699,8 +4398,10 @@ void escSensorProcess(timeUs_t currentTimeUs)
                 break;
             case ESC_SENSOR_PROTO_XDFLY:
             case ESC_SENSOR_PROTO_ZTW:
-            case ESC_SENSOR_PROTO_OMPHOBBY:            
+            case ESC_SENSOR_PROTO_OMPHOBBY:
                 rrfsmSensorProcess(currentTimeUs);
+                break;
+            case ESC_SENSOR_PROTO_FBUS:
                 break;
             case ESC_SENSOR_PROTO_RECORD:
                 recordSensorProcess(currentTimeUs);
@@ -3726,9 +4427,6 @@ void INIT_CODE validateAndFixEscSensorConfig(void)
 {
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_GRAUPNER:
-        case ESC_SENSOR_PROTO_XDFLY:
-        case ESC_SENSOR_PROTO_OMPHOBBY:
-        case ESC_SENSOR_PROTO_ZTW:     
             escSensorConfigMutable()->halfDuplex = true;
             break;
 #ifdef USE_TELEMETRY_CASTLE
@@ -3764,6 +4462,10 @@ bool INIT_CODE escSensorInit(void)
         escSensorCommonInit();
         return true;
     }
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+        escSensorCommonInit();
+        return true;
+    }
     if (!portConfig) {
         return false;
     }
@@ -3791,13 +4493,13 @@ bool INIT_CODE escSensorInit(void)
             options |= SERIAL_PARITY_EVEN;
             break;
         case ESC_SENSOR_PROTO_OMPHOBBY:
-            callback = xdflySensorInit(ESC_SIG_OMP);
+            callback = xdflySensorInit(ESC_SIG_OMP, escHalfDuplex);
             baudrate = 115200;
-            break;        
-         case ESC_SENSOR_PROTO_ZTW:
-            callback = xdflySensorInit(ESC_SIG_ZTW);
+            break;
+        case ESC_SENSOR_PROTO_ZTW:
+            callback = xdflySensorInit(ESC_SIG_ZTW, escHalfDuplex);
             baudrate = 115200;
-            break;    
+            break;
         case ESC_SENSOR_PROTO_APD:
             baudrate = 115200;
             break;
@@ -3818,7 +4520,7 @@ bool INIT_CODE escSensorInit(void)
             baudrate = 19200;
             break;
         case ESC_SENSOR_PROTO_XDFLY:
-            callback = xdflySensorInit(ESC_SIG_XDFLY);
+            callback = xdflySensorInit(ESC_SIG_XDFLY, escHalfDuplex);
             baudrate = 115200;
             break;
         case ESC_SENSOR_PROTO_RECORD:
@@ -3835,29 +4537,212 @@ bool INIT_CODE escSensorInit(void)
 }
 
 
-uint8_t escGetParamBufferLength(void)
+static uint8_t escGetParamFullBufferLength(void)
 {
     paramMspActive = true;
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if(escID < MAX_SUPPORTED_MOTORS) {
+        //if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        //first call will fail, since we need to switch the ESCs to BL mode first
+        fourwayIfFetchData(escID);
+    }
+#endif
     return paramPayloadLength != 0 ? PARAM_HEADER_SIZE + paramPayloadLength : 0;
+}
+
+uint8_t escGetParamBufferLength(void)
+{
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength == 0) {
+        return 0;
+    }
+
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    if (is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        return PARAM_HEADER_SIZE + BLHELI_S_MSP_NUM_EEPROM_BYTES;
+    }
+#endif
+
+    return fullLength;
+}
+
+static bool is4wayEscSelected(void)
+{
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    return escID < MAX_SUPPORTED_MOTORS;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+    return false;
+}
+
+static bool escParametersWritable(void)
+{
+    if (is4wayEscSelected()) {
+        return !ARMING_FLAG(ARMED);
+    }
+
+    return paramCommit != NULL;
+}
+
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+static bool is4wayParamBufferValid(uint8_t id)
+{
+    if (paramBufferEscID != id) {
+        return false;
+    }
+
+    if (paramBuffer[PARAM_HEADER_SIG] != paramUpdBuffer[PARAM_HEADER_SIG]) {
+        return false;
+    }
+
+    if ((paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) != 0 ||
+        (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK) != 0) {
+        return false;
+    }
+
+    switch (paramBuffer[PARAM_HEADER_SIG]) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+        case ESC_SIG_AM32:
+            return paramPayloadLength == AM32_NUM_EEPROM_BYTES &&
+                (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION &&
+                (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == AM32_PARAM_PROTOCOL_VERSION;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+        case ESC_SIG_BLHELI_S:
+            return paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES &&
+                (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION &&
+                (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == BLHELI_S_PARAM_PROTOCOL_VERSION;
+#endif
+        default:
+            return false;
+    }
+}
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
+uint8_t escSelect4WIfById(uint8_t id)
+{
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    fourwayFlushPendingWrite();
+
+    /* Accept valid ESC ids 0..MAX_SUPPORTED_MOTORS-1. */
+    /* Support 0xFF as a sentinel to deselect 4WIF (set to out-of-range). */
+    if (ARMING_FLAG(ARMED)) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 1;
+    }
+
+    if (id >= MAX_SUPPORTED_MOTORS) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 0;
+    }
+
+    fourwayEnterProgrammingMode();
+
+    pwmOutputPort_t *pwmMotors = pwmGetMotors();
+    if (id >= fourwayEscCount || !pwmMotors[id].enabled || pwmMotors[id].io == IO_NONE) {
+        escID = MAX_SUPPORTED_MOTORS;
+        paramPayloadLength = 0;
+        escSig = ESC_SIG_NONE;
+        paramBufferEscID = 0xFF;
+        fourwayExitProgrammingMode();
+        return 1;
+    }
+
+    escID = id;
+    paramPayloadLength = 0;
+    escSig = ESC_SIG_NONE;
+    paramBufferEscID = 0xFF;
+    return 0;
+#else
+    UNUSED(id);
+    return 0;
+#endif // USE_4WAY_FORWARD_PROGRAMMING
 }
 
 uint8_t *escGetParamBuffer(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (is4wayEscSelected()) {
+        uint8_t protocolVersion = 0;
+
+        switch (escSig) {
+#ifdef USE_AM32_FORWARD_PROGRAMMING
+            case ESC_SIG_AM32:
+                protocolVersion = AM32_PARAM_PROTOCOL_VERSION;
+                break;
+#endif
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+            case ESC_SIG_BLHELI_S:
+                protocolVersion = BLHELI_S_PARAM_PROTOCOL_VERSION;
+                break;
+#endif
+            default:
+                protocolVersion = 0;
+                break;
+        }
+
+        paramBuffer[PARAM_HEADER_SIG] = escSig;
+        paramBuffer[PARAM_HEADER_VER] = (protocolVersion & PARAM_HEADER_VER_MASK) |
+            (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
+        return paramBuffer;
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
+
     paramBuffer[PARAM_HEADER_SIG] = escSig;
-    paramBuffer[PARAM_HEADER_VER] = paramVer | (paramCommit == NULL ? PARAM_HEADER_RDONLY : 0);
+    paramBuffer[PARAM_HEADER_VER] = (paramVer & (PARAM_HEADER_VER_MASK | PARAM_HEADER_USER)) |
+        (escParametersWritable() ? 0 : PARAM_HEADER_RDONLY);
     return paramBuffer;
 }
 
 uint8_t *escGetParamUpdBuffer(void)
 {
+#ifdef USE_BLHELI_FORWARD_PROGRAMMING
+    const uint8_t fullLength = escGetParamFullBufferLength();
+
+    if (fullLength != 0 &&
+        is4wayEscSelected() &&
+        escSig == ESC_SIG_BLHELI_S &&
+        paramPayloadLength == BLHELI_S_NUM_EEPROM_BYTES) {
+        memcpy(paramUpdBuffer, paramBuffer, fullLength);
+    }
+#endif
+
     return paramUpdBuffer;
 }
 
 bool escCommitParameters(void)
 {
+#ifdef USE_4WAY_FORWARD_PROGRAMMING
+    if (is4wayEscSelected()) {
+        if (!is4wayParamBufferValid(escID)) {
+            return false;
+        }
+
+        // if escID is >= MAX_SUPPORTED_MOTORS, 4WIF is deselected
+        // Avoid performing 4WIF write ops while armed which would disable motors
+        if (ARMING_FLAG(ARMED)) {
+            return false;
+        }
+
+        fwifParamWritten[escID] = false;
+        fwifParamCached[escID] = false;
+        return scheduleAm32Write(escID);
+    }
+#endif // USE_4WAY_FORWARD_PROGRAMMING
     return paramUpdBuffer[PARAM_HEADER_SIG] == paramBuffer[PARAM_HEADER_SIG] &&
         (paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) == (paramBuffer[PARAM_HEADER_VER] & PARAM_HEADER_VER_MASK) &&
-        paramCommit != NULL && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
+        escParametersWritable() && paramCommit(paramUpdBuffer[PARAM_HEADER_VER] & PARAM_HEADER_CMD_MASK);
 }
 
 #endif
