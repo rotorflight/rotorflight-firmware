@@ -53,7 +53,6 @@ SECTIONS
 		/* Core flight control modules */
 		obj/main/CH32H41*/flight/*.o(.text .text.*)
 		obj/main/CH32H41*/fc/*.o(.text .text.*)
-		obj/main/CH32H41*/io/*.o(.text .text.*)
 		obj/main/CH32H41*/config/*.o(.text .text.*)
 		obj/main/CH32H41*/pg/*.o(.text .text.*) 
 		obj/main/CH32H41*/build/*.o(.text .text.*)

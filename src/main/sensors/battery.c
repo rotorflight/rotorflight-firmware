@@ -271,28 +271,6 @@ void set_ADJUSTMENT_BATTERY_PROFILE(int value)
 {
     changeBatteryProfile(value - 1);
 }
-
-
-uint8_t getCurrentBatteryProfileIndex(void)
-{
-    return batteryConfig()->batteryProfile;
-}
-
-int get_ADJUSTMENT_BATTERY_PROFILE(void)
-{
-    return getCurrentBatteryProfileIndex() + 1;
-}
-
-void set_ADJUSTMENT_BATTERY_PROFILE(int value)
-{
-    changeBatteryProfile(value - 1);
-}
-
-uint8_t getCurrentBatteryProfileIndex(void)
-{
-    return batteryConfig()->batteryProfile;
-}
-
 /** Internal functions **/
 
 static void updateBatteryBeeperAlert(void)

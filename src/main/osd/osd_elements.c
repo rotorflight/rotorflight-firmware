@@ -1259,7 +1259,6 @@ static void osdElementMainBatteryUsage(osdElementParms_t *element)
 #define MAIN_BATT_USAGE_STEPS 11 // Use an odd number so the bar can be centered.
 
     const int usedCapacity = getBatteryCapacityUsed();
-    const int batteryCapacity = getBatteryCapacity();
     int displayBasis = usedCapacity;
     const uint16_t battery_capacity = getBatteryCapacity();
 

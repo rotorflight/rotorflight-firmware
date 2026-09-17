@@ -85,8 +85,6 @@ typedef struct
     float freq;
     float minhz;
     float clock;
-
-    float minhz;
     float maxhz;
 
     uint16_t percoef;
