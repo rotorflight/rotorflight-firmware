@@ -134,9 +134,17 @@ The `batteryProfile` field is added. (#415)
 
 The `batteryCapacity` array is added. (#415)
 
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added, one value
+per battery profile. The legacy single-value fields report the active profile.
+
 ### MSP_SET_BATTERY_CONFIG
 
 The `batteryCapacity` array is added. (#415)
+
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added (optional).
+The legacy single-value fields are stored into the active profile.
 
 ### MSP_BATTERY_PROFILE
 
@@ -233,6 +241,12 @@ the actual values are calculated automatically (#332).
 `bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
 
 `bat_profile` parameter added. Value in 0-5, selects the active battery profile.
+
+`battery_cell_count`, `vbat_max_cell_voltage`, `vbat_full_cell_voltage`,
+`vbat_min_cell_voltage` and `vbat_warning_cell_voltage` changed from a single
+value to an array of 6 values (one for each battery profile). This allows
+profiles with different cell counts (e.g. 3S and 4S) and chemistries
+(e.g. LiPo and LiHV). A single value in an old `diff` only sets profile 0.
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 

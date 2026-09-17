@@ -4843,7 +4843,10 @@ STATIC_UNIT_TESTED void cliSet(const char *cmdName, char *cmdline)
                     }
 
                     // find next comma (or end of string)
-                    valPtr = strchr(valPtr, ',') + 1;
+                    valPtr = strchr(valPtr, ',');
+                    if (valPtr) {
+                        valPtr++;
+                    }
 
                     i++;
                 }

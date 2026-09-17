@@ -65,12 +65,19 @@ Configure min/max cell voltages using the following CLI setting:
 
 `vbat_duration_for_critical` - Period voltage has to sustain before the battery state is set to battery-critical, in 0.1 s, i.e. 21 = 2.1 seconds
 
+`battery_cell_count` - Number of cells in the battery, 0 for auto-detection
+
+The cell count and the `vbat_*_cell_voltage` settings are arrays with one value per battery profile (see `bat_profile`).
+This allows e.g. a 3S LiPo and a 4S LiHV battery to be used on the same model.
+When the battery profile is changed, the cell count and alarm thresholds are re-evaluated as soon as the model is disarmed.
+
 e.g.
 ```
 set vbat_scale = 110
-set vbat_max_cell_voltage = 430
-set vbat_min_cell_voltage = 330
-set vbat_warning_cell_voltage = 340
+set battery_cell_count = 3,4,0,0,0,0
+set vbat_max_cell_voltage = 430,440,430,430,430,430
+set vbat_min_cell_voltage = 330,330,330,330,330,330
+set vbat_warning_cell_voltage = 340,350,340,340,340,340
 set vbat_hysteresis = 1
 set vbat_duration_for_warning = 60
 set vbat_duration_for_critical = 20

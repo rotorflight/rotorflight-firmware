@@ -894,18 +894,30 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
-        sbufWriteU8(dst, batteryConfig()->batteryCellCount);
+        // Legacy fields: values of the active battery profile
+        sbufWriteU16(dst, getBatteryCapacity());
+        sbufWriteU8(dst, getBatteryProfileCellCount());
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
-        sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
+        sbufWriteU16(dst, getBatteryMinCellVoltage());
+        sbufWriteU16(dst, getBatteryMaxCellVoltage());
+        sbufWriteU16(dst, getBatteryFullCellVoltage());
+        sbufWriteU16(dst, getBatteryWarningCellVoltage());
         sbufWriteU8(dst, batteryConfig()->lvcPercentage);
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
+        // All battery profiles
         for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
-            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
+            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU8(dst, batteryConfig()->batteryCellCount[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage[i]);
         break;
 
     case MSP_BATTERY_PROFILE:
@@ -3932,22 +3944,38 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         break;
     }
 
-    case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
-        batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
+    case MSP_SET_BATTERY_CONFIG: {
+        // Legacy fields: values of the active battery profile
+        const uint8_t profile = batteryConfig()->batteryProfile;
+        batteryConfigMutable()->batteryCapacity[profile] = sbufReadU16(src);
+        batteryConfigMutable()->batteryCellCount[profile] = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
-        batteryConfigMutable()->vbatmincellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatmaxcellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatfullcellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->vbatmincellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatmaxcellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatfullcellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatwarningcellvoltage[profile] = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
+        // All battery profiles
         if (sbufBytesRemaining(src) >= 2 * BATTERY_PROFILE_COUNT) {
             for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 9 * BATTERY_PROFILE_COUNT) {
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->batteryCellCount[i] = sbufReadU8(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatmincellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatmaxcellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatfullcellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatwarningcellvoltage[i] = sbufReadU16(src);
+        }
         break;
+    }
 
 #ifdef USE_SMARTFUEL
     case MSP2_SET_SMARTFUEL_CONFIG:
