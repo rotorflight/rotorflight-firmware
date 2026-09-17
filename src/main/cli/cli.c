@@ -5547,6 +5547,25 @@ static void resourceCheck(uint8_t resourceIndex, uint8_t index, ioTag_t newTag)
     }
 }
 
+// List resources assigned to a pin in the config that have not claimed it,
+// e.g. because the owning feature is disabled.
+static void printConfiguredResources(ioTag_t ioTag)
+{
+    const char *separator = " (not active: ";
+    for (int r = 0; r < (int)ARRAYLEN(resourceTable); r++) {
+        for (int i = 0; i < RESOURCE_VALUE_MAX_INDEX(resourceTable[r].maxIndex); i++) {
+            if (*getIoTag(resourceTable[r], i) == ioTag) {
+                cliPrint(separator);
+                printResourceOwner(r, i);
+                separator = ", ";
+            }
+        }
+    }
+    if (separator[0] == ',') {
+        cliPrint(")");
+    }
+}
+
 static bool strToPin(char *ptr, ioTag_t *tag)
 {
     if (strcasecmp(ptr, "NONE") == 0) {
@@ -6308,11 +6327,14 @@ static void cliResource(const char *cmdName, char *cmdline)
             if (ioRecs[i].index > 0) {
                 cliPrintf(" %d", ioRecs[i].index);
             }
+            if (ioRecs[i].owner == OWNER_FREE) {
+                printConfiguredResources(DEFIO_TAG_MAKE(IO_GPIOPortIdx(ioRecs + i), IO_GPIOPinIdx(ioRecs + i)));
+            }
             cliPrintLinefeed();
         }
 
         pch = strtok_r(NULL, " ", &saveptr);
-        if (strcasecmp(pch, "all") == 0) {
+        if (pch && strcasecmp(pch, "all") == 0) {
 #if defined(USE_TIMER_MGMT)
             cliTimer(cmdName, "show");
 #endif
