@@ -102,6 +102,7 @@ static batteryState_e batteryState;
 static batteryState_e voltageState;
 static batteryState_e consumptionState;
 
+static uint8_t pendingBatteryProfile;
 static bool batteryProfileChanged;
 
 
@@ -250,12 +251,31 @@ uint8_t calculateBatteryPercentageRemaining(void)
     return constrain(batteryPercentage, 0, 100);
 }
 
+static void applyBatteryProfile(void)
+{
+    batteryConfigMutable()->batteryProfile = pendingBatteryProfile;
+    batteryProfileChanged = false;
+
+    // Force cell count and thresholds to be re-evaluated for the new profile
+    if (voltageState != BATTERY_NOT_PRESENT) {
+        voltageState = BATTERY_INIT;
+    }
+#ifdef USE_SMARTFUEL
+    smartFuelInit();
+#endif
+}
+
 void changeBatteryProfile(uint8_t profileIndex)
 {
-    if (profileIndex < BATTERY_PROFILE_COUNT && profileIndex != batteryConfig()->batteryProfile) {
-        batteryConfigMutable()->batteryProfile = profileIndex;
-        // Cell count and voltage thresholds are re-evaluated when disarmed
+    if (profileIndex < BATTERY_PROFILE_COUNT && profileIndex != pendingBatteryProfile) {
+        pendingBatteryProfile = profileIndex;
         batteryProfileChanged = true;
+        // Switching profiles in flight would run the new cell count and cell
+        // voltages against the alarm thresholds cached for the old profile,
+        // so the change is applied once the model is disarmed
+        if (!ARMING_FLAG(ARMED)) {
+            applyBatteryProfile();
+        }
     }
 }
 
@@ -266,7 +286,9 @@ uint8_t getCurrentBatteryProfileIndex(void)
 
 int get_ADJUSTMENT_BATTERY_PROFILE(void)
 {
-    return getCurrentBatteryProfileIndex() + 1;
+    // Report the requested profile, so that a change made in flight is not
+    // repeatedly re-applied by the adjustment while it is still pending
+    return pendingBatteryProfile + 1;
 }
 
 void set_ADJUSTMENT_BATTERY_PROFILE(int value)
@@ -317,13 +339,17 @@ void validateAndFixBatteryConfig(void)
             config->vbatmincellvoltage[i] = VBAT_CELL_VOLTAGE_DEFAULT_MIN;
             config->vbatmaxcellvoltage[i] = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
         }
-        if (config->vbatfullcellvoltage[i] < VBAT_CELL_VOTAGE_RANGE_MIN ||
-            config->vbatfullcellvoltage[i] > VBAT_CELL_VOTAGE_RANGE_MAX) {
-            config->vbatfullcellvoltage[i] = VBAT_CELL_VOLTAGE_DEFAULT_FULL;
+        // The thresholds must be ordered min <= warning <= full <= max, or the
+        // charge level and the warning alarm are evaluated against each other
+        if (config->vbatfullcellvoltage[i] < config->vbatmincellvoltage[i] ||
+            config->vbatfullcellvoltage[i] > config->vbatmaxcellvoltage[i]) {
+            config->vbatfullcellvoltage[i] = constrain(VBAT_CELL_VOLTAGE_DEFAULT_FULL,
+                config->vbatmincellvoltage[i], config->vbatmaxcellvoltage[i]);
         }
-        if (config->vbatwarningcellvoltage[i] < VBAT_CELL_VOTAGE_RANGE_MIN ||
-            config->vbatwarningcellvoltage[i] > VBAT_CELL_VOTAGE_RANGE_MAX) {
-            config->vbatwarningcellvoltage[i] = VBAT_CELL_VOLTAGE_DEFAULT_WARN;
+        if (config->vbatwarningcellvoltage[i] < config->vbatmincellvoltage[i] ||
+            config->vbatwarningcellvoltage[i] > config->vbatfullcellvoltage[i]) {
+            config->vbatwarningcellvoltage[i] = constrain(VBAT_CELL_VOLTAGE_DEFAULT_WARN,
+                config->vbatmincellvoltage[i], config->vbatfullcellvoltage[i]);
         }
     }
 }
@@ -506,14 +532,7 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
 {
     if (!ARMING_FLAG(ARMED)) {
         if (batteryProfileChanged) {
-            // Force cell count and thresholds to be re-evaluated for the new profile
-            batteryProfileChanged = false;
-            if (voltageState != BATTERY_NOT_PRESENT) {
-                voltageState = BATTERY_INIT;
-            }
-#ifdef USE_SMARTFUEL
-            smartFuelInit();
-#endif
+            applyBatteryProfile();
         }
         // the battery *might* fall out in flight, but if that happens the FC will likely be off too unless the user has battery backup.
         batteryUpdatePresence();
@@ -643,6 +662,9 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 
 void batteryInit(void)
 {
+    pendingBatteryProfile = batteryConfig()->batteryProfile;
+    batteryProfileChanged = false;
+
     voltageMeterReset(&voltageMeter);
     currentMeterReset(&currentMeter);
 

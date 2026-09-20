@@ -247,6 +247,8 @@ the actual values are calculated automatically (#332).
 value to an array of 6 values (one for each battery profile). This allows
 profiles with different cell counts (e.g. 3S and 4S) and chemistries
 (e.g. LiPo and LiHV). A single value in an old `diff` only sets profile 0.
+Each profile must be ordered `min` <= `warning` <= `full` <= `max`; a profile
+that is not ordered is reset to the defaults.
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 
