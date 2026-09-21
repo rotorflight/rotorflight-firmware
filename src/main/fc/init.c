@@ -536,6 +536,7 @@ void init(void)
     uartPinConfigure(serialPinConfig());
 #endif
 
+#if defined(CH32H4) || defined(CH32H41x)
 #ifdef USE_VCP
     /* Initialize USB VCP early so the host can enumerate the device even if
      * later init stages (gyro detection, etc.) hang.  usbVcpInit() has its
@@ -544,6 +545,7 @@ void init(void)
      * This matches betaflight's init order (main.c → usbVcpInit before
      * initPhase3 → serial open). */
     usbVcpInit();
+#endif
 #endif
 
 #if defined(AVOID_UART1_FOR_PWM_PPM)
