@@ -357,4 +357,9 @@ void rpmFilterUpdate(void)
     }
 }
 
+bool isRpmFilterActive(void)
+{
+    return totalBankCount > 0;
+}
+
 #endif

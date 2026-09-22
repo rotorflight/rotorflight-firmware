@@ -96,6 +96,7 @@
 #include "fc/stats.h"
 #include "fc/tasks.h"
 
+#include "flight/dyn_notch_filter.h"
 #include "flight/failsafe.h"
 #include "flight/position.h"
 #include "flight/imu.h"
@@ -805,6 +806,24 @@ void init(void)
 #ifdef USE_DYN_NOTCH_FILTER
     if (featureIsEnabled(FEATURE_DYN_NOTCH)) {
         dynNotchInit(dynNotchConfig());
+    }
+#endif
+
+#if defined(USE_RPM_FILTER) || defined(USE_DYN_NOTCH_FILTER)
+    // Flying with zero gyro vibration filtering active is dangerous. Block
+    // arming if neither mechanism ended up engaged, rather than silently
+    // leaving the gyro signal unfiltered.
+    {
+        bool hasActiveGyroFilter = false;
+#ifdef USE_RPM_FILTER
+        hasActiveGyroFilter = hasActiveGyroFilter || isRpmFilterActive();
+#endif
+#ifdef USE_DYN_NOTCH_FILTER
+        hasActiveGyroFilter = hasActiveGyroFilter || isDynNotchActive();
+#endif
+        if (!hasActiveGyroFilter) {
+            setArmingDisabled(ARMING_DISABLED_NO_NOTCH_FILTER);
+        }
     }
 #endif
 
