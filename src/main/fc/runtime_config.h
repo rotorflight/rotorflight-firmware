@@ -66,7 +66,8 @@ typedef enum {
     ARMING_DISABLED_ACC_CALIBRATION = (1 << 23),
     ARMING_DISABLED_MOTOR_PROTOCOL  = (1 << 24),
     ARMING_DISABLED_OVERRIDE        = (1 << 25),
-    ARMING_DISABLED_ARM_SWITCH      = (1 << 26), // Needs to be the last element, since it's always activated if one of the others is active when arming
+    ARMING_DISABLED_NO_NOTCH_FILTER = (1 << 26), // Neither RPM Filter nor Dynamic Notch is actively filtering the gyro
+    ARMING_DISABLED_ARM_SWITCH      = (1 << 27), // Needs to be the last element, since it's always activated if one of the others is active when arming
 } armingDisableFlags_e;
 
 #define ARMING_DISABLE_FLAGS_COUNT (LOG2(ARMING_DISABLED_ARM_SWITCH) + 1)
