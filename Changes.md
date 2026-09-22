@@ -424,3 +424,44 @@ Support for the IBUS2 protocol for control link and basic telemetry using the ib
 
 The attitiude sensors where found to be out by a factor of 10.  The scaling
 in the firmware has been adjusted to set these correctly. (#313)
+
+### NaN/Inf can no longer reach the servo output or the mixer
+
+A NaN reaching a comparison-based clamp (`if (x > max) ... else if (x < min)
+... else x`) fails every comparison and falls through untouched, since NaN is
+"unordered" -- this pattern was used, unguarded, at the servo hardware
+boundary (`servoSetOutput()`'s `lrintf(pos * resolution)`, written straight
+into a timer compare register -- `lrintf()` of a NaN/Inf is undefined
+behaviour), in the mixer's per-input clamp (`mixerApplyInputLimit()`), and in
+the shared `constrainf()`/`limitf()` helpers used throughout the codebase.
+Once a NaN reached a speed-limited servo's own slew/cyclic-ratio state
+(`servoInput[]`, `sbusServoInput[]`), it stayed there permanently.
+
+This is defense in depth rather than a currently-reachable flight-time bug
+via any first-party input path, with one exception: `MSP_SET_RC_CONFIG`
+writes `rc_deflection`/`rc_deadband` with no cross-validation at all (unlike
+the CLI's own independent range checks on each), and applies live on the next
+`MSP_EEPROM_WRITE` with no reboot required. A deadband at or beyond deflection
+zeroed or inverted `rc.range[]` in `initRcProcessing()`
+(`src/main/fc/rc.c`), and `data / rc.range[axis]` in `updateRcCommands()`
+could then divide by zero (a 0/0 is a NaN) or go negative. `rc.range[]` is
+now floored to a minimum of 1.
+
+Fixed by adding `isfinitef()` to `common/maths.h` -- checking the IEEE-754
+exponent bits directly, since this firmware is built with `-ffast-math`
+(`OPTIMISATION_BASE` in the Makefile), which lets the compiler assume every
+float is finite and fold `isnan()`/`isfinite()`/the `x != x` idiom away as
+dead code returning a constant (verified against this project's actual
+arm-none-eabi-gcc invocation -- a naive `isnan()`/`isfinite()` guard would
+silently compile to nothing). `constrainf()` and `limitf()` now use it, and
+the same pattern is applied at each hand-rolled equivalent: `limitTravel()`,
+`servoSetOutput()` and the input stage of `servoUpdate()` in `servos.c`;
+`sbusLimitTravel()` and the input stage of `sbusOutGetValueMixer()`/
+`sbusOutCalculateCyclicRatio()` in `sbus_output.c`; and
+`mixerApplyInputLimit()` and `mixerUpdateRules()` in `mixer.c`. Existing
+`+-Inf` clamping (already correct, since ordered comparisons are unaffected
+by `-ffast-math`) is unchanged; only the NaN fallthrough is now defined,
+resolving to the clamp's low bound or, at the servo/mixer state-protecting
+boundaries, to zero. Cyclic-servo speed-limit coupling (`mixerIsCyclicServo()`)
+is untouched -- correct, intended behaviour for helicopter swashplate control.
+No MSP or CLI changes.
