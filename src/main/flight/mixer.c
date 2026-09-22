@@ -525,6 +525,10 @@ static void mixerUpdateRules(void)
                     mixer.output[dst] *= out;
                     break;
             }
+
+            // Rule operations can produce non-finite accumulated output.
+            if (!isfinitef(mixer.output[dst]))
+                mixer.output[dst] = 0;
         }
     }
 }
