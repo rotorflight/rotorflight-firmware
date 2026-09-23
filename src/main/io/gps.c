@@ -108,6 +108,16 @@ uint8_t GPS_svinfo_cno[GPS_SV_MAXSATS_M8N];
 
 static serialPort_t *gpsPort;
 
+// MSP-fed GPS (gpsConfig()->provider == GPS_MSP) never runs through
+// gpsNewData()/gpsPort, so unlike UBLOX/NMEA it never engages the
+// GPS_STATE_RECEIVING_DATA communication-lost watchdog below (explicitly
+// skipped for it, same as FBUS/CRSF). It relies entirely on the
+// controlling MSP client to keep sending MSP_SET_RAW_GPS -- if that client
+// stops (crash, disconnect) there's nothing else to notice, so track
+// staleness here ourselves. See gpsMspDataReceived() and its call site in
+// gpsUpdate().
+static uint32_t mspGpsLastUpdateMs;
+
 typedef struct gpsInitData_s {
     uint8_t index;
     uint8_t baudrateIndex; // see baudRate_e
@@ -791,6 +801,13 @@ void gpsUpdate(timeUs_t currentTimeUs)
             onGpsNewData();
         }
         GPS_update &= ~GPS_MSP_UPDATE;
+    }
+
+    if (gpsConfig()->provider == GPS_MSP && mspGpsLastUpdateMs &&
+        millis() - mspGpsLastUpdateMs > GPS_TIMEOUT) {
+        gpsSol.numSat = 0;
+        gpsSetFixState(false);
+        mspGpsLastUpdateMs = 0; // fire once; wait for fresh data before checking again
     }
 
 #if DEBUG_UBLOX_INIT
@@ -1895,5 +1912,11 @@ void gpsSetFixState(bool state)
     } else {
         DISABLE_STATE(GPS_FIX);
     }
+}
+
+// Called from msp.c's MSP_SET_RAW_GPS handler on every message received.
+void gpsMspDataReceived(void)
+{
+    mspGpsLastUpdateMs = millis();
 }
 #endif
