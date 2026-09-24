@@ -530,7 +530,7 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 #endif
 
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
-    currentSensorFBUSRefresh();
+    currentSensorFBUSRefresh(currentTimeUs);
 #endif
 
     switch (batteryConfig()->currentMeterSource) {
