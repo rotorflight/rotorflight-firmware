@@ -46,7 +46,7 @@ bool currentSensorESCReadTotal(currentMeter_t *meter);
 bool currentSensorESCReadMotor(uint8_t motorNumber, currentMeter_t *meter);
 
 void currentSensorFBUSInit(void);
-void currentSensorFBUSRefresh(void);
+void currentSensorFBUSRefresh(timeUs_t currentTimeUs);
 bool currentSensorFBUSRead(currentMeter_t *meter);
 
 //
