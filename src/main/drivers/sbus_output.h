@@ -58,9 +58,23 @@ bool sbusOutIsEnabled(void);
 // Init function
 void sbusOutInit(void);
 
+// Speed-limit state for one bus output (SBUS or F.Bus). Each output keeps its
+// own, so the limit steps once per that output's frame, by the real time
+// since its previous frame.
+typedef struct {
+    float pos[SBUS_OUT_CHANNELS];   // last speed-limited position per channel
+    float cyclicRatio;              // swashplate ratio limit for this frame
+    float dt;                       // seconds since this output's previous frame
+    timeUs_t lastFrameUs;
+} sbusOutSpeedState_t;
+
+// Start an output frame: works out dt and the cyclic ratio for this output.
+// frameRateHz is the output's configured rate, used for the first frame.
+void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float frameRateHz);
+
 // Channel value getters
 float sbusOutGetRX(uint8_t channel);
-float sbusOutGetValueMixer(uint8_t channel);
+float sbusOutGetValueMixer(uint8_t channel, sbusOutSpeedState_t *state);
 
 // Process all mixer channels (called internally by sbusOutUpdate, but can be called externally)
-void sbusOutProcessMixerChannels(float output[SBUS_OUT_CHANNELS]);
+void sbusOutProcessMixerChannels(float output[SBUS_OUT_CHANNELS], sbusOutSpeedState_t *state);
