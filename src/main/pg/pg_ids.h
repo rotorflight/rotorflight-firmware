@@ -166,6 +166,7 @@
 #define PG_BUS_SERVO_CONFIG          1007
 #define PG_DRIVER_SPORT_MASTER_CONFIG 1008
 #define PG_SRXL2_ESC_CONFIG          1009
+#define PG_DRIVER_CRSF_SENSORS_CONFIG 1010
 
 // OSD configuration (subject to change)
 #define PG_OSD_FONT_CONFIG 2047

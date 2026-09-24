@@ -267,6 +267,13 @@ void baroSetGroundLevel(void)
     baroSetCalibrationCycles(SET_GROUND_LEVEL_BARO_CYCLES);
 }
 
+void baroSetExternalAltitude(int32_t altitudeCm)
+{
+    baro.baroAltitude = altitudeCm;
+    baroReady = true;
+    calibCycles = 0;
+}
+
 void performBaroCalibrationCycle(void)
 {
     if (currentCycle++ < calibCycles) {

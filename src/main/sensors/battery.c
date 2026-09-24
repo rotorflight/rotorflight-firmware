@@ -68,6 +68,7 @@ const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
     [VOLTAGE_METER_ADC]     = "ADC",
     [VOLTAGE_METER_ESC]     = "ESC",
     [VOLTAGE_METER_FBUS]    = "FBUS",
+    [VOLTAGE_METER_CRSF]    = "CRSF",
 };
 
 const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
@@ -75,6 +76,7 @@ const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
     [CURRENT_METER_ADC]     = "ADC",
     [CURRENT_METER_ESC]     = "ESC",
     [CURRENT_METER_FBUS]    = "FBUS",
+    [CURRENT_METER_CRSF]    = "CRSF",
 };
 
 
@@ -473,6 +475,9 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     voltageSensorFBUSRefresh();
 #endif
+#ifdef USE_CRSF_SENSORS
+    voltageSensorCRSFRefresh();
+#endif
 
     switch (batteryConfig()->voltageMeterSource) {
         case VOLTAGE_METER_ADC:
@@ -491,6 +496,20 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
         case VOLTAGE_METER_FBUS:
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (voltageSensorFBUSRead(&voltageMeter)) {
+                batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+            } else {
+                voltageMeterReset(&voltageMeter);
+                batteryVoltage = 0;
+            }
+#else
+            voltageMeterReset(&voltageMeter);
+            batteryVoltage = 0;
+#endif
+            break;
+
+        case VOLTAGE_METER_CRSF:
+#ifdef USE_CRSF_SENSORS
+            if (voltageSensorCRSFRead(&voltageMeter)) {
                 batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
             } else {
                 voltageMeterReset(&voltageMeter);
@@ -532,6 +551,9 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     currentSensorFBUSRefresh(currentTimeUs);
 #endif
+#ifdef USE_CRSF_SENSORS
+    currentSensorCRSFRefresh();
+#endif
 
     switch (batteryConfig()->currentMeterSource) {
         case CURRENT_METER_ADC:
@@ -551,6 +573,20 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
         case CURRENT_METER_FBUS:
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
             if (currentSensorFBUSRead(&currentMeter)) {
+                batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+            } else {
+                currentMeterReset(&currentMeter);
+                batteryCurrent = 0;
+            }
+#else
+            currentMeterReset(&currentMeter);
+            batteryCurrent = 0;
+#endif
+            break;
+
+        case CURRENT_METER_CRSF:
+#ifdef USE_CRSF_SENSORS
+            if (currentSensorCRSFRead(&currentMeter)) {
                 batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
             } else {
                 currentMeterReset(&currentMeter);

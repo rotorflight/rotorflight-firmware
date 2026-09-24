@@ -32,12 +32,14 @@
 
 #include "drivers/adc.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
 
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/adcinternal.h"
 
 #include "pg/voltage.h"
+#include "pg/crsf_sensors.h"
 
 #include "voltage.h"
 
@@ -251,6 +253,95 @@ void voltageSensorFBUSInit(void)
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
     memset(&voltageFBUSSensor, 0, sizeof(voltageFBUSSensor));
     lowpassFilterInit(&voltageFBUSSensor.filter, LPF_BESSEL,
+        batteryConfig()->vbatLpfHz,
+        batteryConfig()->vbatUpdateHz, 0);
+#endif
+}
+
+
+/** Voltage CRSF Sensors **/
+
+#ifdef USE_CRSF_SENSORS
+static voltageSensorState_t voltageCRSFSensor;
+#endif
+
+bool voltageSensorCRSFRead(voltageMeter_t *meter)
+{
+#ifdef USE_CRSF_SENSORS
+    const voltageSensorState_t *state = &voltageCRSFSensor;
+
+    meter->sample = state->sample;
+    meter->voltage = state->voltage;
+    return state->enabled;
+#else
+    voltageMeterReset(meter);
+    return false;
+#endif
+}
+
+void voltageSensorCRSFRefresh(void)
+{
+#ifdef USE_CRSF_SENSORS
+    voltageSensorState_t *state = &voltageCRSFSensor;
+    crsfSensorsBatteryData_t battery;
+    crsfSensorsCellsData_t cells;
+    const uint8_t source = crsfSensorsConfig()->batterySource;
+
+    // crsf_sensors_battery_source picks which decoded frame feeds this:
+    //   AUTO    - prefer the aggregate Battery Sensor frame (0x08); fall
+    //             back to summed per-cell voltages (0x0E) if it isn't
+    //             present, since some sensors only ever send one or the
+    //             other.
+    //   CURRENT - Battery Sensor frame (0x08) only, no fallback.
+    //   VOLTAGE - summed Cells frame (0x0E) only, even if a Battery Sensor
+    //             frame is also present.
+    bool haveReading = false;
+    uint32_t sampleMv = 0;
+
+    switch (source) {
+        case CRSF_SENSORS_BATTERY_SOURCE_CURRENT:
+            if (crsfSensorsGetBatteryData(&battery)) {
+                sampleMv = battery.voltageMv;
+                haveReading = true;
+            }
+            break;
+
+        case CRSF_SENSORS_BATTERY_SOURCE_VOLTAGE:
+            if (crsfSensorsGetCellsData(&cells)) {
+                sampleMv = cells.totalVoltageMv;
+                haveReading = true;
+            }
+            break;
+
+        case CRSF_SENSORS_BATTERY_SOURCE_AUTO:
+        default:
+            if (crsfSensorsGetBatteryData(&battery)) {
+                sampleMv = battery.voltageMv;
+                haveReading = true;
+            } else if (crsfSensorsGetCellsData(&cells)) {
+                sampleMv = cells.totalVoltageMv;
+                haveReading = true;
+            }
+            break;
+    }
+
+    if (haveReading) {
+        state->sample = sampleMv;
+        state->voltage = filterApply(&state->filter, state->sample);
+        state->enabled = true;
+    } else {
+        state->sample = 0;
+        state->voltage = 0;
+        state->enabled = false;
+    }
+#endif
+}
+
+void voltageSensorCRSFInit(void)
+{
+#ifdef USE_CRSF_SENSORS
+    memset(&voltageCRSFSensor, 0, sizeof(voltageCRSFSensor));
+    lowpassFilterInit(&voltageCRSFSensor.filter, LPF_BESSEL,
         batteryConfig()->vbatLpfHz,
         batteryConfig()->vbatUpdateHz, 0);
 #endif

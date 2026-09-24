@@ -188,6 +188,10 @@ typedef enum {
 #ifdef USE_SPORT_MASTER
     TASK_SPORT_MASTER,
 #endif
+
+#ifdef USE_CRSF_SENSORS
+    TASK_CRSF_SENSORS,
+#endif
     /* Count of real tasks */
     TASK_COUNT,
 

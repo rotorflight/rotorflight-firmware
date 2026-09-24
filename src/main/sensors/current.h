@@ -49,6 +49,10 @@ void currentSensorFBUSInit(void);
 void currentSensorFBUSRefresh(timeUs_t currentTimeUs);
 bool currentSensorFBUSRead(currentMeter_t *meter);
 
+void currentSensorCRSFInit(void);
+void currentSensorCRSFRefresh(void);
+bool currentSensorCRSFRead(currentMeter_t *meter);
+
 //
 // Current Meter API
 //
