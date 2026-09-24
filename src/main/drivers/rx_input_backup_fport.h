@@ -15,15 +15,14 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define MSP2_GET_SMARTFUEL_CONFIG           0x4000
-#define MSP2_SET_SMARTFUEL_CONFIG           0x4001
+#pragma once
 
-#define MSP2_GET_FBUS_SENSORS               0x5F07
-#define MSP2_CLEAR_FBUS_SENSORS             0x5F08
-#define MSP2_GET_FBUS_MASTER_CONFIG         0x5F09
-#define MSP2_SET_FBUS_MASTER_CONFIG         0x5F0A
+#include <stdbool.h>
 
-#define MSP2_GET_RX_INPUT_BACKUP_STATUS     0x5F0B
-#define MSP2_GET_RX_INPUT_BACKUP_CONFIG     0x5F0C
-#define MSP2_SET_RX_INPUT_BACKUP_CONFIG     0x5F0D
+#include "drivers/rx_input_backup.h"
 
+// FPort provider for the generic backup-RX framework (rx_input_backup.c).
+// Genuinely different framing from FBUS/FPort2 (see rx_input_backup_fbus.h) -
+// FPort uses HDLC-style byte-stuffing (0x7E/0x7D), not simple length-prefixing.
+
+bool rxInputBackupFportInit(rxInputBackupOps_t *ops);

@@ -15,15 +15,19 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#define MSP2_GET_SMARTFUEL_CONFIG           0x4000
-#define MSP2_SET_SMARTFUEL_CONFIG           0x4001
+#pragma once
 
-#define MSP2_GET_FBUS_SENSORS               0x5F07
-#define MSP2_CLEAR_FBUS_SENSORS             0x5F08
-#define MSP2_GET_FBUS_MASTER_CONFIG         0x5F09
-#define MSP2_SET_FBUS_MASTER_CONFIG         0x5F0A
+#include <stdbool.h>
 
-#define MSP2_GET_RX_INPUT_BACKUP_STATUS     0x5F0B
-#define MSP2_GET_RX_INPUT_BACKUP_CONFIG     0x5F0C
-#define MSP2_SET_RX_INPUT_BACKUP_CONFIG     0x5F0D
+#include "drivers/rx_input_backup.h"
 
+// SBUS provider for the generic backup-RX framework (rx_input_backup.c). Only
+// included/called by that file, guarded by USE_RX_INPUT_BACKUP_SBUS - this is
+// the template a future FBUS/FPort provider (rx_input_backup_fbus.c, etc.)
+// would follow: same *Init(rxInputBackupOps_t *ops) shape, own private frame
+// struct/ISR/decode, no telemetry.
+
+// Fills *ops and returns true. (Always succeeds today - only fails to compile
+// in when USE_RX_INPUT_BACKUP_SBUS isn't built, same as the dispatch switch in
+// rx_input_backup.c guards each case.)
+bool rxInputBackupSbusInit(rxInputBackupOps_t *ops);

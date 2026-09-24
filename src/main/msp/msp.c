@@ -64,6 +64,7 @@
 #include "drivers/motor.h"
 #include "drivers/osd.h"
 #include "drivers/pwm_output.h"
+#include "drivers/rx_input_backup.h"
 #include "drivers/sdcard.h"
 #include "drivers/serial.h"
 #include "drivers/serial_escserial.h"
@@ -123,6 +124,7 @@
 #include "pg/gyrodev.h"
 #include "pg/motor.h"
 #include "pg/rx.h"
+#include "pg/rx_input_backup.h"
 #include "pg/rx_spi.h"
 #include "pg/stats.h"
 #include "pg/usb.h"
@@ -1408,6 +1410,64 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             sbufWriteU8(dst, fbusMasterConfig()->forwardedSensors[i]);
         }
+        break;
+    }
+#endif
+
+#ifdef USE_RX_INPUT_BACKUP
+    case MSP2_GET_RX_INPUT_BACKUP_STATUS: {
+        // Read-only diagnostics for the configurator/Lua suite: is a backup RX
+        // port configured (and with which protocol), is it currently healthy, and
+        // is it the channel source in use right now (main RX link down, backup
+        // covering for it)?
+        //
+        // Payload version 2: adds the `provider` byte (right after `enabled`, since
+        // it's static config known even while disabled) now that this feature is no
+        // longer SBUS-only. Both the configurator's and Lua suite's decoders now
+        // actually branch on this byte (version < 2 => no provider field present,
+        // assume SBUS) rather than reading-and-discarding it as v1's clients did -
+        // that dead-code version check is exactly what let this field get added at
+        // all without also minting a new command id.
+        //
+        // Payload version 3: adds `mainLinkUp` (right after `enabled`) - the main
+        // RX's own live signal-received state, previously only inferable indirectly
+        // via `activeSource` (which only flips to "backup" once the backup is BOTH
+        // linked AND actually needed, so it can't distinguish "main is fine" from
+        // "main is down but backup isn't up either"). This command already computed
+        // rxIsReceivingSignal() internally for that purpose; surfacing it directly
+        // lets the configurator show a genuine main-link status badge, not just a
+        // backup one - unconditional, not gated on `enabled`, since it's meaningful
+        // whether or not a backup port is even configured.
+        const bool enabled = rxInputBackupIsEnabled();
+        const bool mainLinkUp = rxIsReceivingSignal();
+        const bool linkUp = enabled && rxInputBackupIsActive();
+        const bool rxInputBackupIsSource = linkUp && !mainLinkUp;
+        const uint8_t channelCount = rxInputBackupGetChannelCount();
+
+        sbufWriteU8(dst, 3); // payload version
+        sbufWriteU8(dst, enabled ? 1 : 0);
+        sbufWriteU8(dst, mainLinkUp ? 1 : 0);
+        sbufWriteU8(dst, enabled ? rxInputBackupGetProvider() : 0); // 0 = SBUS
+        sbufWriteU8(dst, linkUp ? 1 : 0);
+        sbufWriteU8(dst, rxInputBackupIsSource ? 1 : 0); // 0 = main RX active, 1 = backup active
+        sbufWriteU8(dst, channelCount);
+        for (uint8_t i = 0; i < channelCount; i++) {
+            sbufWriteU16(dst, (uint16_t)lrintf(rxInputBackupGetChannel(i)));
+        }
+        break;
+    }
+
+    case MSP2_GET_RX_INPUT_BACKUP_CONFIG: {
+        // Read-only from the configurator's point of view except via the SET_
+        // variant below - reboot is required for a changed provider/inverted/
+        // halfDuplex/pinSwap to take effect (rxInputBackupInit() only
+        // (re-)opens the port at boot), same as any other serial-port
+        // function/config change.
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, rxInputBackupConfig()->provider);
+        sbufWriteU8(dst, rxInputBackupConfig()->inverted);
+        sbufWriteU8(dst, rxInputBackupConfig()->halfDuplex);
+        sbufWriteU8(dst, rxInputBackupConfig()->pinSwap);
         break;
     }
 #endif
@@ -3971,6 +4031,20 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         // Forwarding buffers are only loaded from config at boot -- reload
         // them now so the change is live immediately, without a reboot.
         fbusSensorInitForwarding();
+        break;
+#endif
+
+#ifdef USE_RX_INPUT_BACKUP
+    case MSP2_SET_RX_INPUT_BACKUP_CONFIG:
+        sbufReadU8(src); // payload version, unused for now
+        rxInputBackupConfigMutable()->provider = sbufReadU8(src);
+        rxInputBackupConfigMutable()->inverted = sbufReadU8(src);
+        rxInputBackupConfigMutable()->halfDuplex = sbufReadU8(src);
+        rxInputBackupConfigMutable()->pinSwap = sbufReadU8(src);
+        // Unlike MSP2_SET_FBUS_MASTER_CONFIG above, there's no live-reload
+        // here - rxInputBackupInit() only (re-)opens the port at boot, so this
+        // needs the same save-and-reboot flow every other serial-port function/
+        // config change already goes through.
         break;
 #endif
 
