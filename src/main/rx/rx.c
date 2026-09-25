@@ -256,6 +256,256 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
     }
     return enabled;
 }
+
+#define RX_SERIAL_TRIAL_COMBO_COUNT 8
+#define RX_SERIAL_TRIAL_DEBOUNCE_MS 200
+#define RX_SERIAL_TRIAL_WATCHDOG_MS 3000
+// Bumped up from an initial 600/1400ms guess after bench testing showed CRSF
+// (default tier) needing more headroom than that - see also the baud-forcing
+// in rxSerialTrialStart()/Restore() below, which was the bigger part of that
+// failure (a stale crsf_use_negotiated_baud cache made even the *correct*
+// wiring combo fail to produce signal within the settle window).
+#define RX_SERIAL_TRIAL_DEFAULT_SETTLE_MS 1000
+#define RX_SERIAL_TRIAL_HANDSHAKE_SETTLE_MS 2200
+
+typedef struct rxSerialTrialRuntime_s {
+    rxSerialTrialState_e state;
+    uint8_t comboIndex;
+    uint8_t comboCount;
+    uint8_t comboOrder[RX_SERIAL_TRIAL_COMBO_COUNT];
+    timeMs_t comboStartedAt;
+    timeMs_t signalSince;      // 0 until rxIsReceivingSignal() first goes true for this combo
+    timeMs_t lastPollAt;       // watchdog keep-alive, bumped by every status query
+    uint8_t savedInverted;
+    uint8_t savedHalfDuplex;
+    uint8_t savedPinSwap;
+    // Alternate-baud options are orthogonal to the three wiring bits above,
+    // but each one makes a provider open the port at something other than
+    // its plain default baud - crsf_use_negotiated_baud in particular reads
+    // a *cached* baud from a previous CRSF V3 negotiation
+    // (getCrsfCachedBaudrate(), rx/crsf.c), which can be stale or simply
+    // never yet established. Forcing these off for the duration of the trial
+    // means every combo is tested at each protocol's one universally-correct
+    // baud, rather than a confound the three wiring bits can't fix - restored
+    // afterward like the wiring bits themselves.
+    uint8_t savedCrsfUseNegotiatedBaud;
+    uint8_t savedSbusBaudFast;
+    uint8_t savedSrxl2BaudFast;
+} rxSerialTrialRuntime_t;
+
+static rxSerialTrialRuntime_t rxSerialTrial = { .state = RX_SERIAL_TRIAL_IDLE };
+
+static timeMs_t rxSerialTrialSettleMs(void)
+{
+    // Streaming protocols lock on within a frame or two; handshake/bind-based
+    // ones need materially longer before anything valid shows up. These are
+    // starting points, not measured values - tune from bench testing with
+    // real receivers.
+    switch (rxRuntimeState.serialrxProvider) {
+    case SERIALRX_SRXL2:
+    case SERIALRX_SRXL:
+    case SERIALRX_SPEKTRUM1024:
+    case SERIALRX_SPEKTRUM2048:
+    case SERIALRX_JETIEXBUS:
+        return RX_SERIAL_TRIAL_HANDSHAKE_SETTLE_MS;
+    default:
+        return RX_SERIAL_TRIAL_DEFAULT_SETTLE_MS;
+    }
+}
+
+// Releases whatever the current combo (or the normal boot init) opened and
+// reopens the RX serial port from scratch via the same provider dispatch
+// rxInit() itself uses. Every provider's own init (sbusInit(), crsfRxInit(),
+// ...) builds its port options straight from rxConfig()->serialrx_inverted/
+// halfDuplex/pinSwap and reopens unconditionally, so nothing provider-specific
+// needs to know a trial is even happening - just mutate those three fields in
+// the live (RAM-only) config and re-run the dispatch.
+static void rxSerialTrialReinit(void)
+{
+    const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_RX_SERIAL);
+    if (portConfig) {
+        serialPortUsage_t *usage = findSerialPortUsageByIdentifier(portConfig->identifier);
+        if (usage && usage->serialPort) {
+            closeSerialPort(usage->serialPort);
+        }
+    }
+
+    serialRxInit(rxConfig(), &rxRuntimeState);
+}
+
+// CRSF and GHST both hardcode their own bidirectional framing
+// (CRSF_PORT_MODE / GHST_PORT_OPTIONS's SERIAL_BIDIR) and never read
+// rxConfig->halfDuplex at all - see rx/crsf.c's/rx/ghst.c's own openSerialPort()
+// calls. Varying that bit for these protocols can't change whether signal is
+// found, so leave it alone: applying it anyway would just retry two
+// electrically-identical combos back to back, and report a Half-Duplex value
+// in the result that had nothing to do with the outcome (confirmed on the
+// bench - CRSF kept linking with Half-Duplex forced on).
+static bool rxSerialTrialProtocolIgnoresHalfDuplex(void)
+{
+    switch (rxRuntimeState.serialrxProvider) {
+    case SERIALRX_CRSF:
+    case SERIALRX_GHST:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void rxSerialTrialApplyCombo(uint8_t combo)
+{
+    rxConfigMutable()->serialrx_inverted = (combo & (1 << 0)) ? 1 : 0;
+    if (!rxSerialTrialProtocolIgnoresHalfDuplex()) {
+        rxConfigMutable()->halfDuplex = (combo & (1 << 1)) ? 1 : 0;
+    }
+    rxConfigMutable()->pinSwap = (combo & (1 << 2)) ? 1 : 0;
+
+    rxSerialTrialReinit();
+
+    rxSerialTrial.comboStartedAt = millis();
+    rxSerialTrial.signalSince = 0;
+}
+
+static void rxSerialTrialRestore(void)
+{
+    rxConfigMutable()->serialrx_inverted = rxSerialTrial.savedInverted;
+    rxConfigMutable()->halfDuplex        = rxSerialTrial.savedHalfDuplex;
+    rxConfigMutable()->pinSwap           = rxSerialTrial.savedPinSwap;
+    rxConfigMutable()->crsf_use_negotiated_baud = rxSerialTrial.savedCrsfUseNegotiatedBaud;
+    rxConfigMutable()->sbus_baud_fast    = rxSerialTrial.savedSbusBaudFast;
+    rxConfigMutable()->srxl2_baud_fast   = rxSerialTrial.savedSrxl2BaudFast;
+
+    rxSerialTrialReinit();
+}
+
+bool rxSerialTrialStart(void)
+{
+    if (rxSerialTrial.state == RX_SERIAL_TRIAL_RUNNING) {
+        return false;
+    }
+
+    if (ARMING_FLAG(ARMED)) {
+        rxSerialTrial.state = RX_SERIAL_TRIAL_REJECTED;
+        return false;
+    }
+
+    if (!featureIsEnabled(FEATURE_RX_SERIAL) || !findSerialPortConfig(FUNCTION_RX_SERIAL)) {
+        rxSerialTrial.state = RX_SERIAL_TRIAL_REJECTED;
+        return false;
+    }
+
+    rxSerialTrial.savedInverted   = rxConfig()->serialrx_inverted;
+    rxSerialTrial.savedHalfDuplex = rxConfig()->halfDuplex;
+    rxSerialTrial.savedPinSwap    = rxConfig()->pinSwap;
+    rxSerialTrial.savedCrsfUseNegotiatedBaud = rxConfig()->crsf_use_negotiated_baud;
+    rxSerialTrial.savedSbusBaudFast = rxConfig()->sbus_baud_fast;
+    rxSerialTrial.savedSrxl2BaudFast = rxConfig()->srxl2_baud_fast;
+
+    rxConfigMutable()->crsf_use_negotiated_baud = 0;
+    rxConfigMutable()->sbus_baud_fast = 0;
+    rxConfigMutable()->srxl2_baud_fast = 0;
+
+    // Walk outward from the combo already configured, by Hamming distance -
+    // most real-world miswiring is "one bit wrong" (typically inverted, from
+    // a board with/without a hardware inverter), so this converges in one
+    // try for the common case instead of averaging four across a flat 0..7
+    // sweep.
+    const uint8_t current = (rxSerialTrial.savedInverted ? (1 << 0) : 0)
+        | (rxSerialTrial.savedHalfDuplex ? (1 << 1) : 0)
+        | (rxSerialTrial.savedPinSwap ? (1 << 2) : 0);
+    const bool halfDuplexIgnored = rxSerialTrialProtocolIgnoresHalfDuplex();
+    int n = 0;
+    for (int distance = 0; distance <= 3; distance++) {
+        for (int combo = 0; combo < RX_SERIAL_TRIAL_COMBO_COUNT; combo++) {
+            if (halfDuplexIgnored && ((combo ^ current) & (1 << 1))) {
+                continue;
+            }
+            if ((int)BITCOUNT((uint8_t)(combo ^ current)) == distance) {
+                rxSerialTrial.comboOrder[n++] = (uint8_t)combo;
+            }
+        }
+    }
+
+    rxSerialTrial.comboIndex = 0;
+    rxSerialTrial.comboCount = n;
+    rxSerialTrial.lastPollAt = millis();
+    rxSerialTrial.state = RX_SERIAL_TRIAL_RUNNING;
+    rxSerialTrialApplyCombo(rxSerialTrial.comboOrder[0]);
+
+    return true;
+}
+
+void rxSerialTrialStop(void)
+{
+    if (rxSerialTrial.state == RX_SERIAL_TRIAL_IDLE) {
+        return;
+    }
+
+    rxSerialTrialRestore();
+    rxSerialTrial.state = RX_SERIAL_TRIAL_IDLE;
+}
+
+static void rxSerialTrialTick(void)
+{
+    if (rxSerialTrial.state != RX_SERIAL_TRIAL_RUNNING) {
+        return;
+    }
+
+    const timeMs_t now = millis();
+
+    if (cmp32(now, rxSerialTrial.lastPollAt) > RX_SERIAL_TRIAL_WATCHDOG_MS) {
+        // The configurator stopped polling mid-scan (crash, USB unplug) -
+        // don't leave the aircraft sitting on a random wiring combo.
+        rxSerialTrialRestore();
+        rxSerialTrial.state = RX_SERIAL_TRIAL_IDLE;
+        return;
+    }
+
+    if (rxIsReceivingSignal()) {
+        if (rxSerialTrial.signalSince == 0) {
+            rxSerialTrial.signalSince = now;
+        } else if (cmp32(now, rxSerialTrial.signalSince) >= RX_SERIAL_TRIAL_DEBOUNCE_MS) {
+            // Leave this combo live (don't restore) - the configurator has
+            // the user confirm via visibly moving channel bars before it
+            // ever gets persisted through the normal Save flow.
+            rxSerialTrial.state = RX_SERIAL_TRIAL_SUCCESS;
+        }
+        return;
+    }
+
+    rxSerialTrial.signalSince = 0;
+
+    if (cmp32(now, rxSerialTrial.comboStartedAt) < (int32_t)rxSerialTrialSettleMs()) {
+        return;
+    }
+
+    if (rxSerialTrial.comboIndex + 1 >= rxSerialTrial.comboCount) {
+        rxSerialTrialRestore();
+        rxSerialTrial.state = RX_SERIAL_TRIAL_FAILED;
+        return;
+    }
+
+    rxSerialTrial.comboIndex++;
+    rxSerialTrialApplyCombo(rxSerialTrial.comboOrder[rxSerialTrial.comboIndex]);
+}
+
+rxSerialTrialStatus_t rxSerialTrialGetStatus(void)
+{
+    const int32_t elapsedMs = cmp32(millis(), rxSerialTrial.comboStartedAt);
+
+    const rxSerialTrialStatus_t status = {
+        .state = rxSerialTrial.state,
+        .comboIndex = rxSerialTrial.comboIndex,
+        .inverted = rxConfig()->serialrx_inverted,
+        .halfDuplex = rxConfig()->halfDuplex,
+        .pinSwap = rxConfig()->pinSwap,
+        .elapsedMs = (uint16_t)constrain(elapsedMs, 0, 0xFFFF),
+    };
+
+    rxSerialTrial.lastPollAt = millis(); // watchdog keep-alive
+
+    return status;
+}
 #endif
 
 void validateAndFixRxConfig(void)
@@ -558,6 +808,11 @@ void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
     }
 
     DEBUG_SET(DEBUG_RX_SIGNAL_LOSS, 0, rxSignalReceived);
+
+#ifdef USE_SERIAL_RX
+    // Cheap early-out when idle (the common case) - see rxSerialTrialTick().
+    rxSerialTrialTick();
+#endif
 }
 
 static uint16_t getRxfailValue(uint8_t channel)
