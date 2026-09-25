@@ -3461,6 +3461,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         gpsSol.llh.lon = sbufReadU32(src);
         gpsSol.llh.altCm = sbufReadU16(src) * 100; // alt changed from 1m to 0.01m per lsb since MSP API 1.39 by RTH. Received MSP altitudes in 1m per lsb have to upscaled.
         gpsSol.groundSpeed = sbufReadU16(src);
+        gpsMspDataReceived();                // mark data fresh so gpsUpdate() doesn't consider it stale
         GPS_update |= GPS_MSP_UPDATE;        // MSP data signalisation to GPS functions
         break;
 #endif // USE_GPS

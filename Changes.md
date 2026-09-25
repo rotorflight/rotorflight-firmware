@@ -427,6 +427,23 @@ the SmartFuel estimate instead of the legacy capacity-based percentage,
 and the value is always reported as available regardless of whether
 `bat_capacity` is configured.
 
+### RPM Filter is disabled when no RPM source is configured
+
+`RPM_FILTER` requires a real-time RPM source (a frequency sensor or
+bidirectional DSHOT telemetry) to engage; ESC telemetry is too slow.
+Enabling the feature without one previously left the aircraft unable to
+arm, with no clear indication why. The feature is now automatically
+disabled instead, at config validation time, if no usable source is
+configured.
+
+### No active gyro vibration filter disables arming
+
+Flying with neither the RPM Filter nor the Dynamic Notch Filter actively
+engaged leaves the gyro signal unfiltered, which is unsafe. A new arming
+disable flag, `NO_NOTCH_FILTER`, is set if neither filter ends up active.
+This adds a new bit to `arming_disable_flags` (MSP_STATUS) and shifts
+`ARMING_DISABLED_ARM_SWITCH` up by one bit.
+
 ## Receiver Protocols
 
 ### IBUS 2 Support (#424)
