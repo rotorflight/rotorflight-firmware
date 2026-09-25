@@ -23,3 +23,10 @@
 #define MSP2_GET_FBUS_MASTER_CONFIG         0x5F09
 #define MSP2_SET_FBUS_MASTER_CONFIG         0x5F0A
 
+// 0x5F0C, not 0x5F0B - that's claimed by the (separate, sibling) RX serial
+// wiring auto-detect branch's MSP2_RX_SERIAL_TRIAL, cut from master
+// independently. action: 0 = poll only, 1 = (re)start a scan, 2 = stop -
+// cycles ESC telemetry halfDuplex/pinSwap live for the already-configured
+// protocol and reports which combo (if any) produces a valid frame.
+#define MSP2_ESC_SENSOR_TRIAL               0x5F0C
+

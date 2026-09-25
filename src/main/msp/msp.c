@@ -2205,6 +2205,37 @@ void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
     switch (cmdMSP) {
+#ifdef USE_ESC_SENSOR
+    case MSP2_ESC_SENSOR_TRIAL:
+        // action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel. No
+        // `inverted` field here (ESC telemetry never inverts) - just
+        // halfDuplex/pinSwap.
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                escSensorTrialStart();
+            } else if (action == 2) {
+                escSensorTrialStop();
+            }
+        }
+
+        {
+            const escSensorTrialStatus_t status = escSensorTrialGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteU8(dst, status.comboIndex);
+            sbufWriteU8(dst, status.halfDuplex);
+            sbufWriteU8(dst, status.pinSwap);
+            sbufWriteU16(dst, status.elapsedMs);
+            // Bench-diagnostic fields, temporary - appended (not inserted)
+            // so the wire format stays backward compatible with the
+            // original 6-byte response.
+            sbufWriteU16(dst, status.frameDelta);
+            sbufWriteU8(dst, status.comboCount);
+            sbufWriteU8(dst, status.portOpen);
+        }
+        break;
+#endif
+
 #ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1) {
