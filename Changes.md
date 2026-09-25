@@ -3,6 +3,21 @@
 This file is collecting the changes in the firmware that are affecting
 the APIs or flight performance.
 
+# 4.7.0
+
+## Features
+
+## Bug Fixes
+
+## Flight Performance
+
+## MSP Changes
+
+## CLI Changes
+
+## Defaults
+
+# 4.6.0
 
 ## Flight Performance
 
