@@ -35,6 +35,7 @@
 #include "build/build_config.h"
 
 #include "common/utils.h"
+#include "drivers/time.h"
 
 #include "drivers/dma.h"
 #include "drivers/dma_reqmap.h"
@@ -265,18 +266,8 @@ static uint8_t uartRead(serialPort_t *instance)
     return ch;
 }
 
-static void uartWrite(serialPort_t *instance, uint8_t ch)
+static void uartStartTxHardware(uartPort_t *uartPort)
 {
-    uartPort_t *uartPort = (uartPort_t *)instance;
-
-    uartPort->port.txBuffer[uartPort->port.txBufferHead] = ch;
-
-    if (uartPort->port.txBufferHead + 1 >= uartPort->port.txBufferSize) {
-        uartPort->port.txBufferHead = 0;
-    } else {
-        uartPort->port.txBufferHead++;
-    }
-
 #ifdef USE_DMA
     if (uartPort->txDMAResource) {
         uartTryStartTxDMA(uartPort);
@@ -291,6 +282,99 @@ static void uartWrite(serialPort_t *instance, uint8_t ch)
     }
 }
 
+static void uartDisableTxInterrupts(uartPort_t *uartPort)
+{
+#ifdef USE_DMA
+    if (!uartPort->txDMAResource)
+#endif
+    {
+#ifdef USE_HAL_DRIVER
+        __HAL_UART_DISABLE_IT(&uartPort->Handle, UART_IT_TXE);
+#else
+        USART_ITConfig(uartPort->USARTx, USART_IT_TXE, DISABLE);
+#endif
+    }
+}
+
+static void uartWrite(serialPort_t *instance, uint8_t ch)
+{
+    uartPort_t *uartPort = (uartPort_t *)instance;
+
+    uartPort->port.txBuffer[uartPort->port.txBufferHead] = ch;
+
+    if (uartPort->port.txBufferHead + 1 >= uartPort->port.txBufferSize) {
+        uartPort->port.txBufferHead = 0;
+    } else {
+        uartPort->port.txBufferHead++;
+    }
+
+    if (!uartPort->isBulkWrite) {
+        uartStartTxHardware(uartPort);
+    }
+}
+
+static void uartWriteBuf(serialPort_t *instance, const void *data, int count)
+{
+    uartPort_t *uartPort = (uartPort_t *)instance;
+    const uint8_t *p = (const uint8_t *)data;
+    int txBufferSize = uartPort->port.txBufferSize;
+
+    while (count > 0) {
+        int freeSpace = uartTotalTxBytesFree(instance);
+
+        if (freeSpace == 0) {
+            // Start hardware and spin infinitely until space is available.
+            // That aligns with old fallback implementation but could lead to a locked FC
+            // if hardware fails to drain data for whatever reason!
+            uartStartTxHardware(uartPort);
+            while ((freeSpace = uartTotalTxBytesFree(instance)) == 0) {
+                // Spin
+            }
+        }
+
+        int txBufferHead = uartPort->port.txBufferHead;
+        int spaceUntilWrap = txBufferSize - txBufferHead;
+        
+        // We can only copy up to what's free, AND what's contiguous before the buffer wraps
+        int chunk = count;
+        if (chunk > freeSpace) {
+            chunk = freeSpace;
+        }
+        if (chunk > spaceUntilWrap) {
+            chunk = spaceUntilWrap;
+        }
+        
+        memcpy((void *)&uartPort->port.txBuffer[txBufferHead], p, chunk);
+        
+        txBufferHead += chunk;
+        if (txBufferHead >= txBufferSize) {
+            txBufferHead = 0;
+        }
+        uartPort->port.txBufferHead = txBufferHead;
+        
+        p += chunk;
+        count -= chunk;
+    }
+
+    if (!uartPort->isBulkWrite) {
+        uartStartTxHardware(uartPort);
+    }
+}
+
+static void uartBeginWrite(serialPort_t *instance)
+{
+    uartPort_t *uartPort = (uartPort_t *)instance;
+    uartPort->isBulkWrite = true;
+    uartDisableTxInterrupts(uartPort);
+}
+
+static void uartEndWrite(serialPort_t *instance)
+{
+    uartPort_t *uartPort = (uartPort_t *)instance;
+    uartPort->isBulkWrite = false;
+    uartStartTxHardware(uartPort);
+}
+
 const struct serialPortVTable uartVTable[] = {
     {
         .serialWrite = uartWrite,
@@ -302,9 +386,9 @@ const struct serialPortVTable uartVTable[] = {
         .setMode = uartSetMode,
         .setCtrlLineStateCb = NULL,
         .setBaudRateCb = NULL,
-        .writeBuf = NULL,
-        .beginWrite = NULL,
-        .endWrite = NULL,
+        .writeBuf = uartWriteBuf,
+        .beginWrite = uartBeginWrite,
+        .endWrite = uartEndWrite,
     }
 };
 
