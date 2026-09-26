@@ -59,6 +59,7 @@
 #include "drivers/dshot.h"
 #include "drivers/dshot_command.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/fbus_xact.h"
 #include "drivers/flash.h"
 #include "drivers/io.h"
 #include "drivers/motor.h"
@@ -2179,6 +2180,42 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, governorConfig()->gov_bypass_throttle[i]);
         break;
 
+#ifdef USE_FBUS_MASTER
+    case MSP_XACT_SERVO_LIST:
+        // List every XACT servo discovered since the last MSP_SET_XACT_SCAN. The firmware
+        // reads every discovered servo's parameters in the background (not just whichever one
+        // gets selected -- see fbusXactTrackServo()/xactAdvanceReadField() in fbus_xact.c), so
+        // Channel is usually already available here without the GUI needing to select a servo
+        // first.
+        // Response format: count, then count * (phyID, appIdOffset, conflict, duplicateAppId,
+        //                  ready, channel)
+        // appIdOffset/channel read as 0 until ready is 1 -- see
+        // fbusXactRequestParamsRead()/fbusXactIsServoParamsReady() in fbus_xact.h.
+        // conflict is 1 if this Physical ID has answered with more than one App ID, meaning
+        // two servos most likely share it and are colliding on the bus (see fbus_xact.h).
+        // duplicateAppId is 1 if another discovered servo (a different Physical ID) shares
+        // this one's App ID -- writes to either are refused until this is resolved, see
+        // fbusXactHasDuplicateAppId() in fbus_xact.h.
+        {
+            const uint8_t count = fbusMasterIsEnabled() ? fbusXactGetDiscoveredServoCount() : 0;
+            sbufWriteU8(dst, count);
+            for (uint8_t i = 0; i < count; i++) {
+                const uint8_t phyID = fbusXactGetDiscoveredServoPhyID(i);
+                xactServoParams_t params;
+                memset(&params, 0, sizeof(params));
+                fbusXactGetServoParams(phyID, &params);
+                sbufWriteU8(dst, phyID);
+                sbufWriteU8(dst, params.appIdOffset);
+                sbufWriteU8(dst, fbusXactHasServoConflict(phyID) ? 1 : 0);
+                sbufWriteU8(dst, fbusXactHasDuplicateAppId(phyID) ? 1 : 0);
+                sbufWriteU8(dst, fbusXactIsServoParamsReady(phyID) ? 1 : 0);
+                sbufWriteU8(dst, params.channel);
+            }
+        }
+
+        break;
+#endif
+
     default:
         unsupportedCommand = true;
     }
@@ -2497,6 +2534,61 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
 
         break;
+
+#ifdef USE_FBUS_MASTER
+    case MSP_XACT_PARAMS:
+        // GET all parameters of one discovered XACT servo, selected by physical ID -- pick
+        // one from MSP_XACT_SERVO_LIST first. Kicks off a fresh read for it if none has
+        // completed yet, so the caller should keep polling this until "ready" comes back 1.
+        // Field set mirrors FrSky's own "XAct" ETHOS Device Config Lua script.
+        // Request format: phyID
+        // Response format: ready, conflict, duplicateAppId, phyID, appIdOffset, firmwareVersion,
+        //                  dataRate, range, direction, pulseType, channel, center(signed),
+        //                  holdingStrength, operationSmoothing, deadband, hasExtendedParams,
+        //                  workingMode, maxAngle
+        // duplicateAppId is 1 if another discovered servo shares this one's App ID -- see
+        // fbusXactHasDuplicateAppId() in fbus_xact.h. Saving is refused while this is true,
+        // unless the save is itself changing App ID to something now-unique.
+        {
+            xactServoParams_t params;
+            memset(&params, 0, sizeof(params));
+            bool ready = false;
+            bool conflict = false;
+            bool duplicateAppId = false;
+
+            if (fbusMasterIsEnabled() && sbufBytesRemaining(src) >= 1) {
+                const uint8_t phyID = sbufReadU8(src);
+                if (fbusXactGetServoParams(phyID, &params)) {
+                    ready = fbusXactIsServoParamsReady(phyID);
+                    conflict = fbusXactHasServoConflict(phyID);
+                    duplicateAppId = fbusXactHasDuplicateAppId(phyID);
+                    if (!ready) {
+                        fbusXactRequestParamsRead(phyID);
+                    }
+                }
+            }
+
+            sbufWriteU8(dst, ready ? 1 : 0);
+            sbufWriteU8(dst, conflict ? 1 : 0);
+            sbufWriteU8(dst, duplicateAppId ? 1 : 0);
+            sbufWriteU8(dst, params.physicalId);          // 0x00
+            sbufWriteU8(dst, params.appIdOffset);         // 0x01
+            sbufWriteU8(dst, params.firmwareVersion);     // 0xFE, read-only
+            sbufWriteU16(dst, params.dataRate);           // 0x02
+            sbufWriteU8(dst, params.range);               // 0x04
+            sbufWriteU8(dst, params.direction);           // 0x05
+            sbufWriteU8(dst, params.pulseType);           // 0x06
+            sbufWriteU8(dst, params.channel);             // 0x07
+            sbufWriteU8(dst, (uint8_t)params.center);     // 0x08, signed -125..125
+            sbufWriteU8(dst, params.holdingStrength);     // 0x11
+            sbufWriteU8(dst, params.operationSmoothing);  // 0x13
+            sbufWriteU8(dst, params.deadband);            // 0x21
+            sbufWriteU8(dst, params.hasExtendedParams ? 1 : 0);
+            sbufWriteU8(dst, params.workingMode);         // 0x40, only if hasExtendedParams
+            sbufWriteU16(dst, params.maxAngle);           // 0x41, only if hasExtendedParams
+        }
+        break;
+#endif
     default:
         return MSP_RESULT_CMD_UNKNOWN;
     }
@@ -3787,6 +3879,63 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         setRssiMsp(sbufReadU8(src));
 
         break;
+
+#ifdef USE_FBUS_MASTER
+    case MSP_SET_XACT_SCAN:
+        // Start a new sensor discovery phase on the FBUS master link. Not while armed: a
+        // rescan drops the discovered telemetry sensors until they are found again.
+        if (!fbusMasterIsEnabled() || ARMING_FLAG(ARMED)) {
+            return MSP_RESULT_ERROR;
+        }
+        fbusXactStartSensorDiscovery();
+
+        break;
+
+    case MSP_SET_XACT_PARAMS:
+        // SET all servo parameters for one discovered servo - collect from GUI, compare with
+        // cache, write only differences. Field set mirrors FrSky's own "XAct" ETHOS Device
+        // Config Lua script; workingMode/maxAngle are ignored unless the servo has already
+        // reported (via a prior GET) that it supports them.
+        // Request format: targetPhyID, then physicalId, appIdOffset, dataRate, range, direction,
+        // pulseType, channel, center(signed), holdingStrength, operationSmoothing, deadband,
+        // workingMode, maxAngle. targetPhyID selects which discovered servo to write to; the
+        // "physicalId" value right after it is the new value to write into that servo's own
+        // Physical ID field, and may differ from targetPhyID if the user is deliberately
+        // re-addressing the servo. Refused while armed, so a servo's direction, center or
+        // channel can't change in flight.
+        if (fbusMasterIsEnabled() && !ARMING_FLAG(ARMED) && sbufBytesRemaining(src) >= 16) {
+            const uint8_t phyID = sbufReadU8(src);
+            xactServoParams_t params;
+
+            if (fbusXactGetServoParams(phyID, &params)) {
+                xactServoParams_t newParams;
+                newParams.physicalId = sbufReadU8(src);
+                newParams.appIdOffset = sbufReadU8(src);
+                newParams.dataRate = sbufReadU16(src);
+                newParams.range = sbufReadU8(src);
+                newParams.direction = sbufReadU8(src);
+                newParams.pulseType = sbufReadU8(src);
+                newParams.channel = sbufReadU8(src);
+                newParams.center = (int8_t)sbufReadU8(src);
+                newParams.holdingStrength = sbufReadU8(src);
+                newParams.operationSmoothing = sbufReadU8(src);
+                newParams.deadband = sbufReadU8(src);
+                newParams.workingMode = sbufReadU8(src);
+                newParams.maxAngle = sbufReadU16(src);
+
+                // Compare with cache and write only differences
+                if (!fbusXactCompareAndWriteParams(phyID, FBUS_SERVO_DATA_BASE + params.appIdOffset, &newParams)) {
+                    return MSP_RESULT_ERROR;
+                }
+            } else {
+                return MSP_RESULT_ERROR;
+            }
+        } else {
+            return MSP_RESULT_ERROR;
+        }
+
+        break;
+#endif
 
 #if defined(USE_BOARD_INFO)
     case MSP_SET_BOARD_INFO:

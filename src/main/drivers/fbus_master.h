@@ -105,3 +105,6 @@ bool fbusMasterIsEnabled(void);
 
 // Init function
 void fbusMasterInit(void);
+
+// Restarts sensor discovery (used by XACT servo programming before a scan)
+void fbusMasterStartDiscovery(void);
