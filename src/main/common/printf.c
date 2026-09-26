@@ -15,7 +15,7 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
- /*
+/*
  * Copyright (c) 2004,2012 Kustaa Nyholm / SpareTimeLabs
  *
  * All rights reserved.
@@ -61,8 +61,8 @@
 
 #define REQUIRE_PRINTF_LONG_SUPPORT
 
-static putc_f   stdout_putf = NULL;
-static void *   stdout_putp = NULL;
+static putc_f stdout_putf = NULL;
+static void *stdout_putp = NULL;
 
 // print bf, padded from left to at least n characters.
 // padding is zero ('0') if z!=0, space (' ') otherwise
@@ -74,11 +74,15 @@ static int putchw(void *putp, putc_f putf, int n, char z, char *bf)
     char *p = bf;
     while (*p++ && n > 0)
         n--;
-    while (n-- > 0) {
-        putf(putp, fc); written++;
+    while (n-- > 0)
+    {
+        putf(putp, fc);
+        written++;
     }
-    while ((ch = *bf++)) {
-        putf(putp, ch); written++;
+    while ((ch = *bf++))
+    {
+        putf(putp, ch);
+        written++;
     }
     return written;
 }
@@ -89,85 +93,94 @@ int tfp_format(void *putp, putc_f putf, const char *fmt, va_list va)
     char bf[21];
     char ch;
 
-    while ((ch = *(fmt++))) {
-        if (ch != '%') {
+    while ((ch = *(fmt++)))
+    {
+        if (ch != '%')
+        {
             putf(putp, ch);
             written++;
-        } else {
+        }
+        else
+        {
             char lz = 0;
-#ifdef  REQUIRE_PRINTF_LONG_SUPPORT
+#ifdef REQUIRE_PRINTF_LONG_SUPPORT
             char lng = 0;
 #endif
             int w = 0;
             ch = *(fmt++);
-            if (ch == '0') {
+            if (ch == '0')
+            {
                 ch = *(fmt++);
                 lz = 1;
             }
-            if (ch >= '0' && ch <= '9') {
+            if (ch >= '0' && ch <= '9')
+            {
                 ch = a2i(ch, &fmt, 10, &w);
             }
-#ifdef  REQUIRE_PRINTF_LONG_SUPPORT
-            if (ch == 'l') {
+#ifdef REQUIRE_PRINTF_LONG_SUPPORT
+            if (ch == 'l')
+            {
                 ch = *(fmt++);
                 lng = 1;
             }
 #endif
-            switch (ch) {
-                case 0:
-                    goto abort;
-                case 'u':
-#ifdef  REQUIRE_PRINTF_LONG_SUPPORT
-                    if (lng)
-                        uli2a(va_arg(va, unsigned long int), 10, 0, bf);
-                    else
+            switch (ch)
+            {
+            case 0:
+                goto abort;
+            case 'u':
+#ifdef REQUIRE_PRINTF_LONG_SUPPORT
+                if (lng)
+                    uli2a(va_arg(va, unsigned long int), 10, 0, bf);
+                else
 #endif
-                        ui2a(va_arg(va, unsigned int), 10, 0, bf);
-                    written += putchw(putp, putf, w, lz, bf);
-                    break;
-                case 'd':
-#ifdef  REQUIRE_PRINTF_LONG_SUPPORT
-                    if (lng)
-                        li2a(va_arg(va, long int), bf);
-                    else
+                    ui2a(va_arg(va, unsigned int), 10, 0, bf);
+                written += putchw(putp, putf, w, lz, bf);
+                break;
+            case 'd':
+#ifdef REQUIRE_PRINTF_LONG_SUPPORT
+                if (lng)
+                    li2a(va_arg(va, long int), bf);
+                else
 #endif
-                        i2a(va_arg(va, int), bf);
-                    written += putchw(putp, putf, w, lz, bf);
-                    break;
-                case 'x':
-                case 'X':
-#ifdef  REQUIRE_PRINTF_LONG_SUPPORT
-                    if (lng)
-                        uli2a(va_arg(va, unsigned long int), 16, (ch == 'X'), bf);
-                    else
+                    i2a(va_arg(va, int), bf);
+                written += putchw(putp, putf, w, lz, bf);
+                break;
+            case 'x':
+            case 'X':
+#ifdef REQUIRE_PRINTF_LONG_SUPPORT
+                if (lng)
+                    uli2a(va_arg(va, unsigned long int), 16, (ch == 'X'), bf);
+                else
 #endif
-                        ui2a(va_arg(va, unsigned int), 16, (ch == 'X'), bf);
-                    written += putchw(putp, putf, w, lz, bf);
-                    break;
-                case 'c':
-                    putf(putp, (char) (va_arg(va, int))); written++;
-                    break;
-                case 's':
-                    {
-                        char *str = va_arg(va, char *);
-                        written += putchw(putp, putf, w, 0, str ? str : "(null)");
-                    }
-                    break;
-                case '%':
-                    putf(putp, ch); written++;
-                    break;
-                case 'n':
-                    *va_arg(va, int*) = written;
-                    break;
-                default:
-                    break;
+                    ui2a(va_arg(va, unsigned int), 16, (ch == 'X'), bf);
+                written += putchw(putp, putf, w, lz, bf);
+                break;
+            case 'c':
+                putf(putp, (char)(va_arg(va, int)));
+                written++;
+                break;
+            case 's':
+            {
+                char *str = va_arg(va, char *);
+                written += putchw(putp, putf, w, 0, str ? str : "(null)");
+            }
+            break;
+            case '%':
+                putf(putp, ch);
+                written++;
+                break;
+            case 'n':
+                *va_arg(va, int *) = written;
+                break;
+            default:
+                break;
             }
         }
     }
 abort:
     return written;
 }
-
 
 static void str_putc(void *p, char c)
 {
@@ -178,7 +191,8 @@ int tfp_sprintf(char *s, const char *fmt, ...)
 {
     int written = 0;
 
-    if (s) {
+    if (s)
+    {
         va_list va;
         va_start(va, fmt);
         written = tfp_format(&s, str_putc, fmt, va);
@@ -200,6 +214,7 @@ void printfSerialInit(serialPortIdentifier_e port, uint32_t baudRate, portOption
     stdout_putf = serial_putc;
 }
 
+#if !defined(CH32H41x) || !defined(CH32H4)
 static void itm_putc(void *p, char c)
 {
     UNUSED(p);
@@ -211,12 +226,18 @@ void printfITMInit(void)
     stdout_putp = ITM;
     stdout_putf = itm_putc;
 }
+#else
+void printfITMInit(void)
+{
+}
+#endif
 
 int tfp_printf(const char *fmt, ...)
 {
     int written = 0;
 
-    if (stdout_putf && stdout_putp) {
+    if (stdout_putf && stdout_putp)
+    {
         va_list va;
         va_start(va, fmt);
         written = tfp_format(stdout_putp, stdout_putf, fmt, va);
@@ -225,4 +246,3 @@ int tfp_printf(const char *fmt, ...)
 
     return written;
 }
-

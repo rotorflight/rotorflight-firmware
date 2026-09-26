@@ -43,7 +43,9 @@
 #include "scheduler/scheduler.h"
 
 #include "sensors/battery.h"
-
+#ifdef USE_SMARTFUEL
+#include "sensors/smartfuel.h"
+#endif
 
 /**
  * terminology: meter vs sensors
@@ -59,9 +61,8 @@
  *
  */
 
-#define VBAT_STABLE_MAX_DELTA           200         // mV
-#define LVC_AFFECT_TIME                 10000000    // 10 secs for the LVC to slowly kick in
-
+#define VBAT_STABLE_MAX_DELTA 200 // mV
+#define LVC_AFFECT_TIME 10000000  // 10 secs for the LVC to slowly kick in
 
 const char * const batteryVoltageSourceNames[VOLTAGE_METER_COUNT] = {
     [VOLTAGE_METER_NONE]    = "NONE",
@@ -76,7 +77,6 @@ const char * const batteryCurrentSourceNames[CURRENT_METER_COUNT] = {
     [CURRENT_METER_ESC]     = "ESC",
     [CURRENT_METER_FBUS]    = "FBUS",
 };
-
 
 // Note: Cell count can be 0 when no battery is detected or
 //       when the battery voltage sensor is missing or disabled
@@ -101,7 +101,6 @@ static uint16_t batteryCriticalHysteresisVoltage;
 static batteryState_e batteryState;
 static batteryState_e voltageState;
 static batteryState_e consumptionState;
-
 
 /** Access function **/
 
@@ -166,7 +165,8 @@ const currentMeter_t * getBatteryCurrentMeter(void)
     return &currentMeter;
 }
 
-uint16_t getBatteryCurrent(void) {
+uint16_t getBatteryCurrent(void)
+{
     return batteryCurrent / 10;
 }
 
@@ -225,24 +225,26 @@ batteryState_e getConsumptionState(void)
     return consumptionState;
 }
 
-static const char * const batteryStateStrings[] = { "OK", "WARNING", "CRITICAL", "NOT PRESENT", "INIT" };
+static const char *const batteryStateStrings[] = {"OK", "WARNING", "CRITICAL", "NOT PRESENT", "INIT"};
 
-const char * getBatteryStateString(void)
+const char *getBatteryStateString(void)
 {
     return batteryStateStrings[getBatteryState()];
 }
-
 
 uint8_t calculateBatteryPercentageRemaining(void)
 {
     int batteryPercentage = 0;
     int batteryCapacity = getBatteryCapacity();
 
-    if (batteryCapacity > 0) {
+    if (batteryCapacity > 0)
+    {
         batteryPercentage = 100 * (batteryCapacity - (int)currentMeter.capacity) / batteryCapacity;
-    } else if (batteryCellCount > 0) {
+    }
+    else if (batteryCellCount > 0)
+    {
         batteryPercentage = 100 * ((int)getBatteryAverageCellVoltage() - (int)batteryConfig()->vbatmincellvoltage) /
-            (batteryConfig()->vbatmaxcellvoltage - batteryConfig()->vbatmincellvoltage);
+                            (batteryConfig()->vbatmaxcellvoltage - batteryConfig()->vbatmincellvoltage);
     }
 
     return constrain(batteryPercentage, 0, 100);
@@ -269,30 +271,30 @@ void set_ADJUSTMENT_BATTERY_PROFILE(int value)
 {
     changeBatteryProfile(value - 1);
 }
-
-
 /** Internal functions **/
 
 static void updateBatteryBeeperAlert(void)
 {
-    switch (getBatteryState()) {
-        case BATTERY_WARNING:
-            beeper(BEEPER_BAT_LOW);
-            break;
-        case BATTERY_CRITICAL:
-            beeper(BEEPER_BAT_CRIT_LOW);
-            break;
-        case BATTERY_OK:
-        case BATTERY_NOT_PRESENT:
-        case BATTERY_INIT:
-            break;
+    switch (getBatteryState())
+    {
+    case BATTERY_WARNING:
+        beeper(BEEPER_BAT_LOW);
+        break;
+    case BATTERY_CRITICAL:
+        beeper(BEEPER_BAT_CRIT_LOW);
+        break;
+    case BATTERY_OK:
+    case BATTERY_NOT_PRESENT:
+    case BATTERY_INIT:
+        break;
     }
 }
 
 static void batteryUpdateAlarms(void)
 {
     // use the state to trigger beeper alerts
-    if (batteryConfig()->useVoltageAlerts) {
+    if (batteryConfig()->useVoltageAlerts)
+    {
         updateBatteryBeeperAlert();
     }
 }
@@ -307,28 +309,33 @@ static bool isVoltageFromBat(void)
     const uint32_t voltage = getBatteryVoltage();
 
     // We want to disable battery getting detected around USB voltage or 0V
-    return (voltage >= batteryConfig()->vbatnotpresentcellvoltage         // Above ~0V
-            && voltage <= batteryConfig()->vbatmaxcellvoltage)            // 1s max cell voltage check
-            || voltage > batteryConfig()->vbatnotpresentcellvoltage * 2;  // USB voltage - 2s or more check
+    return (voltage >= batteryConfig()->vbatnotpresentcellvoltage       // Above ~0V
+            && voltage <= batteryConfig()->vbatmaxcellvoltage)          // 1s max cell voltage check
+           || voltage > batteryConfig()->vbatnotpresentcellvoltage * 2; // USB voltage - 2s or more check
 }
 
 void batteryUpdatePresence(void)
 {
-    if ((voltageState == BATTERY_NOT_PRESENT || voltageState == BATTERY_INIT) && isVoltageFromBat() && isVoltageStable()) {
+    if ((voltageState == BATTERY_NOT_PRESENT || voltageState == BATTERY_INIT) && isVoltageFromBat() && isVoltageStable())
+    {
         // Battery has just been connected - calculate cells, warning voltages and reset state
         consumptionState = voltageState = BATTERY_OK;
 
-        if (batteryConfig()->batteryCellCount != 0) {
+        if (batteryConfig()->batteryCellCount != 0)
+        {
             batteryCellCount = batteryConfig()->batteryCellCount;
         }
-        else {
-            static const unsigned auto_cells[] = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 12 };
+        else
+        {
+            static const unsigned auto_cells[] = {1, 2, 3, 4, 5, 6, 7, 8, 10, 12};
             unsigned voltage = getBatteryVoltage();
             batteryCellCount = 1;
 
-            for (unsigned index = 0; index < ARRAYLEN(auto_cells); index++) {
+            for (unsigned index = 0; index < ARRAYLEN(auto_cells); index++)
+            {
                 if (voltage >= auto_cells[index] * batteryConfig()->vbatmincellvoltage &&
-                    voltage <= auto_cells[index] * batteryConfig()->vbatmaxcellvoltage) {
+                    voltage <= auto_cells[index] * batteryConfig()->vbatmaxcellvoltage)
+                {
                     batteryCellCount = auto_cells[index];
                     break;
                 }
@@ -342,7 +349,8 @@ void batteryUpdatePresence(void)
         lowVoltageCutoff.percentage = 100;
         lowVoltageCutoff.startTime = 0;
     }
-    else if (voltageState != BATTERY_NOT_PRESENT && isVoltageStable() && !isVoltageFromBat()) {
+    else if (voltageState != BATTERY_NOT_PRESENT && isVoltageStable() && !isVoltageFromBat())
+    {
         // battery has been disconnected - can take a while for filter cap to disharge so we use a threshold of batteryConfig()->vbatnotpresentcellvoltage
         consumptionState = voltageState = BATTERY_NOT_PRESENT;
 
@@ -361,56 +369,71 @@ static void batteryUpdateVoltageState(void)
 
     const uint32_t voltage = getBatteryVoltage();
 
-    switch (voltageState) {
-        case BATTERY_OK:
-            if (voltage <= batteryWarningHysteresisVoltage) {
-                if (cmp32(millis(), lastVoltageChangeMs) >= batteryConfig()->vbatDurationForWarning * 100) {
-                    voltageState = BATTERY_WARNING;
-                }
-            } else {
-                lastVoltageChangeMs = millis();
-            }
-            break;
-
-        case BATTERY_WARNING:
-            if (voltage <= batteryCriticalHysteresisVoltage) {
-                if (cmp32(millis(), lastVoltageChangeMs) >= batteryConfig()->vbatDurationForCritical * 100) {
-                    voltageState = BATTERY_CRITICAL;
-                }
-            } else {
-                if (voltage > batteryWarningVoltage) {
-                    voltageState = BATTERY_OK;
-                }
-                lastVoltageChangeMs = millis();
-            }
-            break;
-
-        case BATTERY_CRITICAL:
-            if (voltage > batteryCriticalVoltage) {
+    switch (voltageState)
+    {
+    case BATTERY_OK:
+        if (voltage <= batteryWarningHysteresisVoltage)
+        {
+            if (cmp32(millis(), lastVoltageChangeMs) >= batteryConfig()->vbatDurationForWarning * 100)
+            {
                 voltageState = BATTERY_WARNING;
-                lastVoltageChangeMs = millis();
             }
-            break;
+        }
+        else
+        {
+            lastVoltageChangeMs = millis();
+        }
+        break;
 
-        default:
-            break;
+    case BATTERY_WARNING:
+        if (voltage <= batteryCriticalHysteresisVoltage)
+        {
+            if (cmp32(millis(), lastVoltageChangeMs) >= batteryConfig()->vbatDurationForCritical * 100)
+            {
+                voltageState = BATTERY_CRITICAL;
+            }
+        }
+        else
+        {
+            if (voltage > batteryWarningVoltage)
+            {
+                voltageState = BATTERY_OK;
+            }
+            lastVoltageChangeMs = millis();
+        }
+        break;
+
+    case BATTERY_CRITICAL:
+        if (voltage > batteryCriticalVoltage)
+        {
+            voltageState = BATTERY_WARNING;
+            lastVoltageChangeMs = millis();
+        }
+        break;
+
+    default:
+        break;
     }
-
 }
 
 static void batteryUpdateLVC(timeUs_t currentTimeUs)
 {
-    if (batteryConfig()->lvcPercentage < 100) {
-        if (voltageState == BATTERY_CRITICAL && !lowVoltageCutoff.enabled) {
+    if (batteryConfig()->lvcPercentage < 100)
+    {
+        if (voltageState == BATTERY_CRITICAL && !lowVoltageCutoff.enabled)
+        {
             lowVoltageCutoff.enabled = true;
             lowVoltageCutoff.startTime = currentTimeUs;
             lowVoltageCutoff.percentage = 100;
         }
-        if (lowVoltageCutoff.enabled) {
-            if (cmp32(currentTimeUs,lowVoltageCutoff.startTime) < LVC_AFFECT_TIME) {
-                lowVoltageCutoff.percentage = 100 - (cmp32(currentTimeUs,lowVoltageCutoff.startTime) * (100 - batteryConfig()->lvcPercentage) / LVC_AFFECT_TIME);
+        if (lowVoltageCutoff.enabled)
+        {
+            if (cmp32(currentTimeUs, lowVoltageCutoff.startTime) < LVC_AFFECT_TIME)
+            {
+                lowVoltageCutoff.percentage = 100 - (cmp32(currentTimeUs, lowVoltageCutoff.startTime) * (100 - batteryConfig()->lvcPercentage) / LVC_AFFECT_TIME);
             }
-            else {
+            else
+            {
                 lowVoltageCutoff.percentage = batteryConfig()->lvcPercentage;
             }
         }
@@ -422,11 +445,16 @@ static void batteryUpdateConsumptionState(void)
     if (batteryConfig()->useConsumptionAlerts && isBatteryChargeLevelAvailable() && batteryCellCount > 0) {
         uint8_t batteryPercentageRemaining = getBatteryChargeLevel();
 
-        if (batteryPercentageRemaining == 0) {
+        if (batteryPercentageRemaining == 0)
+        {
             consumptionState = BATTERY_CRITICAL;
-        } else if (batteryPercentageRemaining <= batteryConfig()->consumptionWarningPercentage) {
+        }
+        else if (batteryPercentageRemaining <= batteryConfig()->consumptionWarningPercentage)
+        {
             consumptionState = BATTERY_WARNING;
-        } else {
+        }
+        else
+        {
             consumptionState = BATTERY_OK;
         }
     }
@@ -441,12 +469,12 @@ static void batteryUpdateStates(timeUs_t currentTimeUs)
     batteryState = MAX(voltageState, consumptionState);
 }
 
-
 /** Battery Alert Task **/
 
 void taskBatteryAlerts(timeUs_t currentTimeUs)
 {
-    if (!ARMING_FLAG(ARMED)) {
+    if (!ARMING_FLAG(ARMED))
+    {
         // the battery *might* fall out in flight, but if that happens the FC will likely be off too unless the user has battery backup.
         batteryUpdatePresence();
     }
@@ -454,7 +482,6 @@ void taskBatteryAlerts(timeUs_t currentTimeUs)
     batteryUpdateStates(currentTimeUs);
     batteryUpdateAlarms();
 }
-
 
 /** Battery Voltage Task **/
 
@@ -465,7 +492,8 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     voltageSensorADCRefresh();
 
 #ifdef USE_ESC_SENSOR
-    if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
+    if (featureIsEnabled(FEATURE_ESC_SENSOR))
+    {
         voltageSensorESCRefresh();
     }
 #endif
@@ -474,17 +502,19 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
     voltageSensorFBUSRefresh();
 #endif
 
-    switch (batteryConfig()->voltageMeterSource) {
-        case VOLTAGE_METER_ADC:
-            voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BAT, &voltageMeter);
-            batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
-            break;
-        case VOLTAGE_METER_ESC:
+    switch (batteryConfig()->voltageMeterSource)
+    {
+    case VOLTAGE_METER_ADC:
+        voltageSensorADCRead(VOLTAGE_SENSOR_ADC_BAT, &voltageMeter);
+        batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+        break;
+    case VOLTAGE_METER_ESC:
 #ifdef USE_ESC_SENSOR
-            if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-                voltageSensorESCReadTotal(&voltageMeter);
-                batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
-            }
+        if (featureIsEnabled(FEATURE_ESC_SENSOR))
+        {
+            voltageSensorESCReadTotal(&voltageMeter);
+            batteryVoltage = filterApply(&voltageFilter, voltageMeter.sample);
+        }
 #endif
             break;
 
@@ -516,7 +546,6 @@ void taskBatteryVoltageUpdate(timeUs_t currentTimeUs)
 #endif
 }
 
-
 /** Battery Current Task **/
 
 void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
@@ -524,7 +553,8 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     currentSensorADCRefresh(currentTimeUs);
 
 #ifdef USE_ESC_SENSOR
-    if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
+    if (featureIsEnabled(FEATURE_ESC_SENSOR))
+    {
         currentSensorESCRefresh();
     }
 #endif
@@ -533,18 +563,20 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     currentSensorFBUSRefresh(currentTimeUs);
 #endif
 
-    switch (batteryConfig()->currentMeterSource) {
-        case CURRENT_METER_ADC:
-            currentSensorADCRead(CURRENT_SENSOR_ADC_BAT, &currentMeter);
-            batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
-            break;
+    switch (batteryConfig()->currentMeterSource)
+    {
+    case CURRENT_METER_ADC:
+        currentSensorADCRead(CURRENT_SENSOR_ADC_BAT, &currentMeter);
+        batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+        break;
 
-        case CURRENT_METER_ESC:
+    case CURRENT_METER_ESC:
 #ifdef USE_ESC_SENSOR
-            if (featureIsEnabled(FEATURE_ESC_SENSOR)) {
-                currentSensorESCReadTotal(&currentMeter);
-                batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
-            }
+        if (featureIsEnabled(FEATURE_ESC_SENSOR))
+        {
+            currentSensorESCReadTotal(&currentMeter);
+            batteryCurrent = filterApply(&currentFilter, currentMeter.sample);
+        }
 #endif
             break;
 
@@ -572,7 +604,6 @@ void taskBatteryCurrentUpdate(timeUs_t currentTimeUs)
     DEBUG(BATTERY, 3, batteryCurrent);
 }
 
-
 void batteryInit(void)
 {
     if (batteryConfig()->batteryProfile >= BATTERY_PROFILE_COUNT) {
@@ -596,12 +627,12 @@ void batteryInit(void)
 #endif
 
     lowpassFilterInit(&voltageFilter, LPF_DAMPED,
-        batteryConfig()->vbatLpfHz,
-        batteryConfig()->vbatUpdateHz, 0);
+                      batteryConfig()->vbatLpfHz,
+                      batteryConfig()->vbatUpdateHz, 0);
 
     lowpassFilterInit(&currentFilter, LPF_DAMPED,
-        batteryConfig()->ibatLpfHz,
-        batteryConfig()->ibatUpdateHz, 0);
+                      batteryConfig()->ibatLpfHz,
+                      batteryConfig()->ibatUpdateHz, 0);
 
     // presence
     batteryState = BATTERY_INIT;

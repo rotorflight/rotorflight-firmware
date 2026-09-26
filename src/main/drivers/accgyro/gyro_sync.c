@@ -42,10 +42,13 @@
 bool gyroSyncCheckUpdate(gyroDev_t *gyro)
 {
     bool ret;
-    if (gyro->dataReady) {
+    if (gyro->dataReady)
+    {
         ret = true;
-        gyro->dataReady= false;
-    } else {
+        gyro->dataReady = false;
+    }
+    else
+    {
         ret = false;
     }
     return ret;
@@ -58,107 +61,122 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     uint16_t gyroSampleRateHz = 0;
     uint16_t accSampleRateHz = 0;
 
-    switch (gyro->mpuDetectionResult.sensor) {
+    switch (gyro->mpuDetectionResult.sensor)
+    {
 #ifdef USE_ACCGYRO_LSM6DSO
-        case LSM6DSO_SPI:
-            gyroRateKHz = GYRO_RATE_6664_Hz;
-            gyroSampleRateHz = 6664;   // Rounds to 150us and 6.67KHz
-            accSampleRateHz = 833;
-            break;
+    case LSM6DSO_SPI:
+        gyroRateKHz = GYRO_RATE_6664_Hz;
+        gyroSampleRateHz = 6664; // Rounds to 150us and 6.67KHz
+        accSampleRateHz = 833;
+        break;
 #endif
 
-        case BMI_160_SPI:
-            gyro->gyroRateKHz = GYRO_RATE_3200_Hz;
+    case BMI_160_SPI:
+        gyro->gyroRateKHz = GYRO_RATE_3200_Hz;
+        gyroSampleRateHz = 3200;
+        accSampleRateHz = 800;
+        break;
+
+    case BMI_270_SPI:
+#ifdef USE_GYRO_DLPF_EXPERIMENTAL
+        if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL)
+        {
+            // 6.4KHz sampling used when DLPF is disabled
+            gyroRateKHz = GYRO_RATE_6400_Hz;
+            gyroSampleRateHz = 6400;
+        }
+        else
+#endif
+        {
+            gyroRateKHz = GYRO_RATE_3200_Hz;
             gyroSampleRateHz = 3200;
-            accSampleRateHz = 800;
-            break;
+        }
+        accSampleRateHz = 800;
+        break;
 
-        case BMI_270_SPI:
+    case BMI_088_SPI:
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
-            if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL) {
-                // 6.4KHz sampling used when DLPF is disabled
-                gyroRateKHz = GYRO_RATE_6400_Hz;
-                gyroSampleRateHz = 6400;
-            } else
-#endif
-            {
-                gyroRateKHz = GYRO_RATE_3200_Hz;
-                gyroSampleRateHz = 3200;
-            }
-            accSampleRateHz = 800;
-            break;
-
-        case BMI_088_SPI:
-#ifdef USE_GYRO_DLPF_EXPERIMENTAL
-            if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL) {
-                gyroRateKHz = GYRO_RATE_1_kHz;
-                gyroSampleRateHz = 1000;
-            } else
-#endif
-            {
-                gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
-                gyroSampleRateHz = 2000;
-            }
-            accSampleRateHz = 800;
-            break;
-
-        case ICM_20649_SPI:
-#if defined(STM32H7)
-            gyroRateKHz = GYRO_RATE_9_kHz;
-            gyroSampleRateHz = 9000;
-            accSampleRateHz = 1125;
-#else
-            gyroRateKHz = GYRO_RATE_1100_Hz;
-            gyroSampleRateHz = 1125;
-            accSampleRateHz = 1125;
-#endif
-            break;
-
-        case MPU_65xx_SPI:
-        case MPU_9250_SPI:
-        case ICM_20689_SPI:
-#if defined(STM32H7)
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 8000;
-            accSampleRateHz = 1000;
-#else
+        if (gyro->hardware_lpf == GYRO_HARDWARE_LPF_EXPERIMENTAL)
+        {
             gyroRateKHz = GYRO_RATE_1_kHz;
             gyroSampleRateHz = 1000;
-            accSampleRateHz = 1000;
+        }
+        else
 #endif
-            break;
+        {
+            gyro->gyroRateKHz = GYRO_RATE_2000_Hz;
+            gyroSampleRateHz = 2000;
+        }
+        accSampleRateHz = 800;
+        break;
+
+    case ICM_20649_SPI:
+#if defined(STM32H7)
+        gyroRateKHz = GYRO_RATE_9_kHz;
+        gyroSampleRateHz = 9000;
+        accSampleRateHz = 1125;
+#else
+        gyroRateKHz = GYRO_RATE_1100_Hz;
+        gyroSampleRateHz = 1125;
+        accSampleRateHz = 1125;
+#endif
+        break;
+    case ICM_40608_SPI:
+#if defined(CH32H41x) || defined(CH32H4)
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 8000;
+        accSampleRateHz = 1000;
+#else
+        gyroRateKHz = GYRO_RATE_1_kHz;
+        gyroSampleRateHz = 1000;
+        accSampleRateHz = 1000;
+#endif
+
+        break;
+    case MPU_65xx_SPI:
+    case MPU_9250_SPI:
+    case ICM_20689_SPI:
+#if defined(STM32H7)
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 8000;
+        accSampleRateHz = 1000;
+#else
+        gyroRateKHz = GYRO_RATE_1_kHz;
+        gyroSampleRateHz = 1000;
+        accSampleRateHz = 1000;
+#endif
+        break;
 
         case MPU_60x0_SPI:
         case ICM_42688P_SPI:
         case ICM_42605_SPI:
 #if defined(STM32F411xE)
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 1000;
-            accSampleRateHz = 1000;
-            gyroDivider = 8;
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 1000;
+        accSampleRateHz = 1000;
+        gyroDivider = 8;
 #elif defined(STM32G4)
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 2000;
-            accSampleRateHz = 1000;
-            gyroDivider = 4;
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 2000;
+        accSampleRateHz = 1000;
+        gyroDivider = 4;
 #elif defined(STM32F4) || defined(STM32F7)
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 4000;
-            accSampleRateHz = 1000;
-            gyroDivider = 2;
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 4000;
+        accSampleRateHz = 1000;
+        gyroDivider = 2;
 #else
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 8000;
-            accSampleRateHz = 1000;
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 8000;
+        accSampleRateHz = 1000;
 #endif
-            break;
+        break;
 
-        default:
-            gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 8000;
-            accSampleRateHz = 1000;
-            break;
-
+    default:
+        gyroRateKHz = GYRO_RATE_8_kHz;
+        gyroSampleRateHz = 8000;
+        accSampleRateHz = 1000;
+        break;
     }
 
     gyro->gyroRateKHz = gyroRateKHz;
@@ -166,7 +184,6 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     gyro->gyroSampleRateHz = gyroSampleRateHz;
     gyro->accSampleRateHz = accSampleRateHz;
 }
-
 
 #if defined(USE_GYRO_CLK)
 
@@ -176,19 +193,22 @@ bool gyroExternalClockInit(const extDevice_t *dev, uint32_t clockFreq)
 {
     const int cfg = 0; // Only on 1st gyro
 
-    if (&gyro.gyroSensor1.gyroDev.dev != dev) {
+    if (&gyro.gyroSensor1.gyroDev.dev != dev)
+    {
         return false;
     }
 
     const ioTag_t tag = gyroDeviceConfig(cfg)->clkInTag;
     const IO_t io = IOGetByTag(tag);
-    if (pwmGyroClk.enabled) {
-       // pwm is already taken, but test for shared clkIn pin
-       return pwmGyroClk.io == io;
+    if (pwmGyroClk.enabled)
+    {
+        // pwm is already taken, but test for shared clkIn pin
+        return pwmGyroClk.io == io;
     }
 
     const timerHardware_t *timer = timerAllocate(tag, OWNER_GYRO_CLK, RESOURCE_INDEX(cfg));
-    if (!timer) {
+    if (!timer)
+    {
         return false;
     }
 

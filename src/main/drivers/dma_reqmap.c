@@ -34,20 +34,22 @@
 
 #include "dma_reqmap.h"
 
-typedef struct dmaPeripheralMapping_s {
+typedef struct dmaPeripheralMapping_s
+{
     dmaPeripheral_e device;
     uint8_t index;
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
     uint8_t dmaRequest;
 #else
     dmaChannelSpec_t channelSpec[MAX_PERIPHERAL_DMA_OPTIONS];
 #endif
 } dmaPeripheralMapping_t;
 
-typedef struct dmaTimerMapping_s {
+typedef struct dmaTimerMapping_s
+{
     TIM_TypeDef *tim;
     uint8_t channel;
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
     uint8_t dmaRequest;
 #else
     dmaChannelSpec_t channelSpec[MAX_TIMER_DMA_OPTIONS];
@@ -56,10 +58,10 @@ typedef struct dmaTimerMapping_s {
 
 #if defined(STM32G4)
 
-#define REQMAP_SGL(periph) { DMA_PERIPH_ ## periph, 0, DMA_REQUEST_ ## periph }
-#define REQMAP(periph, device) { DMA_PERIPH_ ## periph, periph ## DEV_ ## device, DMA_REQUEST_ ## periph ## device }
-#define REQMAP_DIR(periph, device, dir) { DMA_PERIPH_ ## periph ## _ ## dir, periph ## DEV_ ## device, DMA_REQUEST_ ## periph ## device ## _ ## dir }
-#define REQMAP_TIMUP(periph, timno) { DMA_PERIPH_TIMUP, timno - 1, DMA_REQUEST_ ## TIM ## timno ## _UP }
+#define REQMAP_SGL(periph) {DMA_PERIPH_##periph, 0, DMA_REQUEST_##periph}
+#define REQMAP(periph, device) {DMA_PERIPH_##periph, periph##DEV_##device, DMA_REQUEST_##periph##device}
+#define REQMAP_DIR(periph, device, dir) {DMA_PERIPH_##periph##_##dir, periph##DEV_##device, DMA_REQUEST_##periph##device##_##dir}
+#define REQMAP_TIMUP(periph, timno) {DMA_PERIPH_TIMUP, timno - 1, DMA_REQUEST_##TIM##timno##_UP}
 
 // Resolve UART/USART mess
 #define DMA_REQUEST_UART1_RX DMA_REQUEST_USART1_RX
@@ -111,13 +113,13 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
     REQMAP_DIR(UART, 5, TX),
     REQMAP_DIR(UART, 5, RX),
 #ifdef USE_LPUART1
-    { DMA_PERIPH_UART_TX, LPUARTDEV_1, DMA_REQUEST_LPUART1_TX },
-    { DMA_PERIPH_UART_RX, LPUARTDEV_1, DMA_REQUEST_LPUART1_RX },
+    {DMA_PERIPH_UART_TX, LPUARTDEV_1, DMA_REQUEST_LPUART1_TX},
+    {DMA_PERIPH_UART_RX, LPUARTDEV_1, DMA_REQUEST_LPUART1_RX},
 #endif
 #endif
 
 #ifdef USE_TIMER
-// Pseudo peripheral for TIMx_UP channel
+    // Pseudo peripheral for TIMx_UP channel
     REQMAP_TIMUP(TIMUP, 1),
     REQMAP_TIMUP(TIMUP, 2),
     REQMAP_TIMUP(TIMUP, 3),
@@ -138,9 +140,9 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
 #undef REQMAP_SGL
 #undef REQMAP_DIR
 
-#define TC(chan) DEF_TIM_CHANNEL(CH_ ## chan)
+#define TC(chan) DEF_TIM_CHANNEL(CH_##chan)
 
-#define REQMAP_TIM(tim, chan) { tim, TC(chan), DMA_REQUEST_ ## tim ## _ ## chan }
+#define REQMAP_TIM(tim, chan) {tim, TC(chan), DMA_REQUEST_##tim##_##chan}
 
 static const dmaTimerMapping_t dmaTimerMapping[] = {
     REQMAP_TIM(TIM1, CH1),
@@ -179,7 +181,198 @@ static const dmaTimerMapping_t dmaTimerMapping[] = {
 #undef TC
 #undef REQMAP_TIM
 
-#define DMA(d, c) { DMA_CODE(d, c, 0), (dmaResource_t *)DMA ## d ## _Channel ## c, 0 }
+#define DMA(d, c) {DMA_CODE(d, c, 0), (dmaResource_t *)DMA##d##_Channel##c, 0}
+
+static dmaChannelSpec_t dmaChannelSpec[MAX_PERIPHERAL_DMA_OPTIONS] = {
+    DMA(1, 1),
+    DMA(1, 2),
+    DMA(1, 3),
+    DMA(1, 4),
+    DMA(1, 5),
+    DMA(1, 6),
+    DMA(1, 7),
+    DMA(1, 8),
+    DMA(2, 1),
+    DMA(2, 2),
+    DMA(2, 3),
+    DMA(2, 4),
+    DMA(2, 5),
+    DMA(2, 6),
+    DMA(2, 7),
+    DMA(2, 8),
+};
+
+#undef DMA
+
+#elif defined(CH32H4) || defined(CH32H41x)
+
+#define REQMAP_SGL(periph) {DMA_PERIPH_##periph, 0, DMA_REQUEST_##periph}
+#define REQMAP(periph, device) {DMA_PERIPH_##periph, periph##DEV_##device, DMA_REQUEST_##periph##device}
+#define REQMAP_DIR(periph, device, dir) {DMA_PERIPH_##periph##_##dir, periph##DEV_##device, DMA_REQUEST_##periph##device##_##dir}
+#define REQMAP_TIMUP(periph, timno) {DMA_PERIPH_TIMUP, timno - 1, DMA_REQUEST_TIM##timno##_UP}
+
+// UART
+#define DMA_REQUEST_UART1_RX DMAMUX_DMAREQ_ID_USART1_RX
+#define DMA_REQUEST_UART1_TX DMAMUX_DMAREQ_ID_USART1_TX
+#define DMA_REQUEST_UART2_RX DMAMUX_DMAREQ_ID_USART2_RX
+#define DMA_REQUEST_UART2_TX DMAMUX_DMAREQ_ID_USART2_TX
+#define DMA_REQUEST_UART3_RX DMAMUX_DMAREQ_ID_USART3_RX
+#define DMA_REQUEST_UART3_TX DMAMUX_DMAREQ_ID_USART3_TX
+#define DMA_REQUEST_UART4_RX DMAMUX_DMAREQ_ID_USART4_RX
+#define DMA_REQUEST_UART4_TX DMAMUX_DMAREQ_ID_USART4_TX
+#define DMA_REQUEST_UART5_RX DMAMUX_DMAREQ_ID_USART5_RX
+#define DMA_REQUEST_UART5_TX DMAMUX_DMAREQ_ID_USART5_TX
+#define DMA_REQUEST_UART6_RX DMAMUX_DMAREQ_ID_USART6_RX
+#define DMA_REQUEST_UART6_TX DMAMUX_DMAREQ_ID_USART6_TX
+
+// SPI (use MOSI/MISO, not SDO/SDI)
+#define DMA_REQUEST_SPI1_MOSI DMAMUX_DMAREQ_ID_SPI1_TX
+#define DMA_REQUEST_SPI1_MISO DMAMUX_DMAREQ_ID_SPI1_RX
+#define DMA_REQUEST_SPI2_MOSI DMAMUX_DMAREQ_ID_SPI2_TX
+#define DMA_REQUEST_SPI2_MISO DMAMUX_DMAREQ_ID_SPI2_RX
+#define DMA_REQUEST_SPI3_MOSI DMAMUX_DMAREQ_ID_SPI3_TX
+#define DMA_REQUEST_SPI3_MISO DMAMUX_DMAREQ_ID_SPI3_RX
+#define DMA_REQUEST_SPI4_MOSI DMAMUX_DMAREQ_ID_SPI4_TX
+#define DMA_REQUEST_SPI4_MISO DMAMUX_DMAREQ_ID_SPI4_RX
+
+// ADC
+#define DMA_REQUEST_ADC1 DMAMUX_DMAREQ_ID_ADC1
+#define DMA_REQUEST_ADC2 DMAMUX_DMAREQ_ID_ADC2
+
+// TIM UP
+#define DMA_REQUEST_TIM1_UP DMAMUX_DMAREQ_ID_TIM1_UP
+#define DMA_REQUEST_TIM2_UP DMAMUX_DMAREQ_ID_TIM2_UP
+#define DMA_REQUEST_TIM3_UP DMAMUX_DMAREQ_ID_TIM3_UP
+#define DMA_REQUEST_TIM4_UP DMAMUX_DMAREQ_ID_TIM4_UP
+#define DMA_REQUEST_TIM5_UP DMAMUX_DMAREQ_ID_TIM5_UP
+#define DMA_REQUEST_TIM6_UP DMAMUX_DMAREQ_ID_TIM6_UP
+#define DMA_REQUEST_TIM7_UP DMAMUX_DMAREQ_ID_TIM7_UP
+#define DMA_REQUEST_TIM8_UP DMAMUX_DMAREQ_ID_TIM8_UP
+
+// TIM CHx
+#define DMA_REQUEST_TIM1_CH1 DMAMUX_DMAREQ_ID_TIM1_CH1
+#define DMA_REQUEST_TIM1_CH2 DMAMUX_DMAREQ_ID_TIM1_CH2
+#define DMA_REQUEST_TIM1_CH3 DMAMUX_DMAREQ_ID_TIM1_CH3
+#define DMA_REQUEST_TIM1_CH4 DMAMUX_DMAREQ_ID_TIM1_CH4
+#define DMA_REQUEST_TIM2_CH1 DMAMUX_DMAREQ_ID_TIM2_CH1
+#define DMA_REQUEST_TIM2_CH2 DMAMUX_DMAREQ_ID_TIM2_CH2
+#define DMA_REQUEST_TIM2_CH3 DMAMUX_DMAREQ_ID_TIM2_CH3
+#define DMA_REQUEST_TIM2_CH4 DMAMUX_DMAREQ_ID_TIM2_CH4
+#define DMA_REQUEST_TIM3_CH1 DMAMUX_DMAREQ_ID_TIM3_CH1
+#define DMA_REQUEST_TIM3_CH2 DMAMUX_DMAREQ_ID_TIM3_CH2
+#define DMA_REQUEST_TIM3_CH3 DMAMUX_DMAREQ_ID_TIM3_CH3
+#define DMA_REQUEST_TIM3_CH4 DMAMUX_DMAREQ_ID_TIM3_CH4
+#define DMA_REQUEST_TIM4_CH1 DMAMUX_DMAREQ_ID_TIM4_CH1
+#define DMA_REQUEST_TIM4_CH2 DMAMUX_DMAREQ_ID_TIM4_CH2
+#define DMA_REQUEST_TIM4_CH3 DMAMUX_DMAREQ_ID_TIM4_CH3
+#define DMA_REQUEST_TIM4_CH4 DMAMUX_DMAREQ_ID_TIM4_CH4
+#define DMA_REQUEST_TIM5_CH1 DMAMUX_DMAREQ_ID_TIM5_CH1
+#define DMA_REQUEST_TIM5_CH2 DMAMUX_DMAREQ_ID_TIM5_CH2
+#define DMA_REQUEST_TIM5_CH3 DMAMUX_DMAREQ_ID_TIM5_CH3
+#define DMA_REQUEST_TIM5_CH4 DMAMUX_DMAREQ_ID_TIM5_CH4
+#define DMA_REQUEST_TIM8_CH1 DMAMUX_DMAREQ_ID_TIM8_CH1
+#define DMA_REQUEST_TIM8_CH2 DMAMUX_DMAREQ_ID_TIM8_CH2
+#define DMA_REQUEST_TIM8_CH3 DMAMUX_DMAREQ_ID_TIM8_CH3
+#define DMA_REQUEST_TIM8_CH4 DMAMUX_DMAREQ_ID_TIM8_CH4
+
+static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
+#ifdef USE_SPI
+    REQMAP_DIR(SPI, 1, MOSI),
+    REQMAP_DIR(SPI, 1, MISO),
+    REQMAP_DIR(SPI, 2, MOSI),
+    REQMAP_DIR(SPI, 2, MISO),
+    REQMAP_DIR(SPI, 3, MOSI),
+    REQMAP_DIR(SPI, 3, MISO),
+    REQMAP_DIR(SPI, 4, MOSI),
+    REQMAP_DIR(SPI, 4, MISO),
+#endif
+
+#ifdef USE_ADC
+    REQMAP(ADC, 1),
+    REQMAP(ADC, 2),
+#endif
+
+#ifdef USE_UART1
+    REQMAP_DIR(UART, 1, TX),
+    REQMAP_DIR(UART, 1, RX),
+#endif
+#ifdef USE_UART2
+    REQMAP_DIR(UART, 2, TX),
+    REQMAP_DIR(UART, 2, RX),
+#endif
+#ifdef USE_UART3
+    REQMAP_DIR(UART, 3, TX),
+    REQMAP_DIR(UART, 3, RX),
+#endif
+#ifdef USE_UART4
+    REQMAP_DIR(UART, 4, TX),
+    REQMAP_DIR(UART, 4, RX),
+#endif
+#ifdef USE_UART5
+    REQMAP_DIR(UART, 5, TX),
+    REQMAP_DIR(UART, 5, RX),
+#endif
+#ifdef USE_UART6
+    REQMAP_DIR(UART, 6, TX),
+    REQMAP_DIR(UART, 6, RX),
+#endif
+
+#ifdef USE_TIMER
+    REQMAP_TIMUP(TIMUP, 1),
+    REQMAP_TIMUP(TIMUP, 2),
+    REQMAP_TIMUP(TIMUP, 3),
+    REQMAP_TIMUP(TIMUP, 4),
+    REQMAP_TIMUP(TIMUP, 5),
+    REQMAP_TIMUP(TIMUP, 6),
+    REQMAP_TIMUP(TIMUP, 7),
+    REQMAP_TIMUP(TIMUP, 8),
+#endif
+};
+
+#undef REQMAP_TIMUP
+#undef REQMAP
+#undef REQMAP_SGL
+#undef REQMAP_DIR
+
+#define TC(chan) DEF_TIM_CHANNEL(CH_##chan)
+#define REQMAP_TIM(tim, chan) {tim, TC(chan), DMA_REQUEST_##tim##_##chan}
+
+static const dmaTimerMapping_t dmaTimerMapping[] = {
+    REQMAP_TIM(TIM1, CH1),
+    REQMAP_TIM(TIM1, CH2),
+    REQMAP_TIM(TIM1, CH3),
+    REQMAP_TIM(TIM1, CH4),
+    REQMAP_TIM(TIM2, CH1),
+    REQMAP_TIM(TIM2, CH2),
+    REQMAP_TIM(TIM2, CH3),
+    REQMAP_TIM(TIM2, CH4),
+    REQMAP_TIM(TIM3, CH1),
+    REQMAP_TIM(TIM3, CH2),
+    REQMAP_TIM(TIM3, CH3),
+    REQMAP_TIM(TIM3, CH4),
+    REQMAP_TIM(TIM4, CH1),
+    REQMAP_TIM(TIM4, CH2),
+    REQMAP_TIM(TIM4, CH3),
+    REQMAP_TIM(TIM4, CH4),
+    REQMAP_TIM(TIM5, CH1),
+    REQMAP_TIM(TIM5, CH2),
+    REQMAP_TIM(TIM5, CH3),
+    REQMAP_TIM(TIM5, CH4),
+    REQMAP_TIM(TIM8, CH1),
+    REQMAP_TIM(TIM8, CH2),
+    REQMAP_TIM(TIM8, CH3),
+    REQMAP_TIM(TIM8, CH4),
+    // REQMAP_TIM(TIM20, CH1),
+    // REQMAP_TIM(TIM20, CH2),
+    // REQMAP_TIM(TIM20, CH3),
+    // REQMAP_TIM(TIM20, CH4),
+    // XXX Check non-CH1 for TIM15,16,17 and 20
+};
+
+#undef TC
+#undef REQMAP_TIM
+
+#define DMA(d, c) {DMA_CODE(d, c, 0), (dmaResource_t *)DMA##d##_Channel##c, 0}
 
 static dmaChannelSpec_t dmaChannelSpec[MAX_PERIPHERAL_DMA_OPTIONS] = {
     DMA(1, 1),
@@ -204,10 +397,10 @@ static dmaChannelSpec_t dmaChannelSpec[MAX_PERIPHERAL_DMA_OPTIONS] = {
 
 #elif defined(STM32H7)
 
-#define REQMAP_SGL(periph) { DMA_PERIPH_ ## periph, 0, DMA_REQUEST_ ## periph }
-#define REQMAP(periph, device) { DMA_PERIPH_ ## periph, periph ## DEV_ ## device, DMA_REQUEST_ ## periph ## device }
-#define REQMAP_DIR(periph, device, dir) { DMA_PERIPH_ ## periph ## _ ## dir, periph ## DEV_ ## device, DMA_REQUEST_ ## periph ## device ## _ ## dir }
-#define REQMAP_TIMUP(periph, timno) { DMA_PERIPH_TIMUP, timno - 1, DMA_REQUEST_ ## TIM ## timno ## _UP }
+#define REQMAP_SGL(periph) {DMA_PERIPH_##periph, 0, DMA_REQUEST_##periph}
+#define REQMAP(periph, device) {DMA_PERIPH_##periph, periph##DEV_##device, DMA_REQUEST_##periph##device}
+#define REQMAP_DIR(periph, device, dir) {DMA_PERIPH_##periph##_##dir, periph##DEV_##device, DMA_REQUEST_##periph##device##_##dir}
+#define REQMAP_TIMUP(periph, timno) {DMA_PERIPH_TIMUP, timno - 1, DMA_REQUEST_##TIM##timno##_UP}
 
 // Resolve UART/USART mess
 #define DMA_REQUEST_UART1_RX DMA_REQUEST_USART1_RX
@@ -245,8 +438,8 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
     REQMAP_DIR(SPI, 4, MISO),
     REQMAP_DIR(SPI, 5, MOSI), // Not available in smaller packages
     REQMAP_DIR(SPI, 5, MISO), // ditto
-    // REQMAP_DIR(SPI, 6, MOSI), // SPI6 is on BDMA (todo)
-    // REQMAP_DIR(SPI, 6, MOSI), // ditto
+// REQMAP_DIR(SPI, 6, MOSI), // SPI6 is on BDMA (todo)
+// REQMAP_DIR(SPI, 6, MOSI), // ditto
 #endif // USE_SPI
 
 #ifdef USE_ADC
@@ -281,13 +474,13 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
     REQMAP_DIR(UART, 10, RX),
 #endif
 #ifdef USE_LPUART1
-    { DMA_PERIPH_UART_TX, LPUARTDEV_1, BDMA_REQUEST_LPUART1_TX },
-    { DMA_PERIPH_UART_RX, LPUARTDEV_1, BDMA_REQUEST_LPUART1_RX },
+    {DMA_PERIPH_UART_TX, LPUARTDEV_1, BDMA_REQUEST_LPUART1_TX},
+    {DMA_PERIPH_UART_RX, LPUARTDEV_1, BDMA_REQUEST_LPUART1_RX},
 #endif
 #endif
 
 #ifdef USE_TIMER
-// Pseudo peripheral for TIMx_UP channel
+    // Pseudo peripheral for TIMx_UP channel
     REQMAP_TIMUP(TIMUP, 1),
     REQMAP_TIMUP(TIMUP, 2),
     REQMAP_TIMUP(TIMUP, 3),
@@ -307,9 +500,9 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
 #undef REQMAP_SGL
 #undef REQMAP_DIR
 
-#define TC(chan) DEF_TIM_CHANNEL(CH_ ## chan)
+#define TC(chan) DEF_TIM_CHANNEL(CH_##chan)
 
-#define REQMAP_TIM(tim, chan) { tim, TC(chan), DMA_REQUEST_ ## tim ## _ ## chan }
+#define REQMAP_TIM(tim, chan) {tim, TC(chan), DMA_REQUEST_##tim##_##chan}
 
 static const dmaTimerMapping_t dmaTimerMapping[] = {
     REQMAP_TIM(TIM1, CH1),
@@ -343,7 +536,7 @@ static const dmaTimerMapping_t dmaTimerMapping[] = {
 #undef TC
 #undef REQMAP_TIM
 
-#define DMA(d, s) { DMA_CODE(d, s, 0), (dmaResource_t *)DMA ## d ## _Stream ## s, 0 }
+#define DMA(d, s) {DMA_CODE(d, s, 0), (dmaResource_t *)DMA##d##_Stream##s, 0}
 
 static dmaChannelSpec_t dmaChannelSpec[MAX_PERIPHERAL_DMA_OPTIONS] = {
     DMA(1, 0),
@@ -369,100 +562,100 @@ static dmaChannelSpec_t dmaChannelSpec[MAX_PERIPHERAL_DMA_OPTIONS] = {
 #elif defined(STM32F4) || defined(STM32F7)
 
 #if defined(STM32F4)
-#define DMA(d, s, c) { DMA_CODE(d, s, c), (dmaResource_t *)DMA ## d ## _Stream ## s, DMA_Channel_ ## c }
+#define DMA(d, s, c) {DMA_CODE(d, s, c), (dmaResource_t *)DMA##d##_Stream##s, DMA_Channel_##c}
 #elif defined(STM32F7)
-#define DMA(d, s, c) { DMA_CODE(d, s, c), (dmaResource_t *)DMA ## d ## _Stream ## s, DMA_CHANNEL_ ## c }
+#define DMA(d, s, c) {DMA_CODE(d, s, c), (dmaResource_t *)DMA##d##_Stream##s, DMA_CHANNEL_##c}
 #endif
 
 static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
 #ifdef USE_SPI
-    // Everything including F405 and F446
+// Everything including F405 and F446
 #if defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx)
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_1,  { DMA(2, 5, 3), DMA(2, 3, 3) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_1,  { DMA(2, 2, 3), DMA(2, 0, 3) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_1, {DMA(2, 5, 3), DMA(2, 3, 3)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_1, {DMA(2, 2, 3), DMA(2, 0, 3)}},
 #else
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_1,  { DMA(2, 3, 3), DMA(2, 5, 3) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_1,  { DMA(2, 0, 3), DMA(2, 2, 3) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_1, {DMA(2, 3, 3), DMA(2, 5, 3)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_1, {DMA(2, 0, 3), DMA(2, 2, 3)}},
 #endif
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_2,  { DMA(1, 4, 0) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_2,  { DMA(1, 3, 0) } },
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_3,  { DMA(1, 5, 0), DMA(1, 7, 0) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_3,  { DMA(1, 0, 0), DMA(1, 2, 0) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_2, {DMA(1, 4, 0)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_2, {DMA(1, 3, 0)}},
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_3, {DMA(1, 5, 0), DMA(1, 7, 0)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_3, {DMA(1, 0, 0), DMA(1, 2, 0)}},
 
 #if defined(STM32F411xE) || defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx) || defined(STM32F722xx)
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_4,  { DMA(2, 1, 4), DMA(2, 4, 5) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_4,  { DMA(2, 0, 4), DMA(2, 3, 5) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_4, {DMA(2, 1, 4), DMA(2, 4, 5)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_4, {DMA(2, 0, 4), DMA(2, 3, 5)}},
 
 #ifdef USE_EXTENDED_SPI_DEVICE
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_5,  { DMA(2, 6, 7) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_5,  { DMA(2, 5, 7) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_5, {DMA(2, 6, 7)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_5, {DMA(2, 5, 7)}},
 
 #if !defined(STM32F722xx)
-    { DMA_PERIPH_SPI_MOSI,  SPIDEV_6,  { DMA(2, 5, 1) } },
-    { DMA_PERIPH_SPI_MISO,  SPIDEV_6,  { DMA(2, 6, 1) } },
+    {DMA_PERIPH_SPI_MOSI, SPIDEV_6, {DMA(2, 5, 1)}},
+    {DMA_PERIPH_SPI_MISO, SPIDEV_6, {DMA(2, 6, 1)}},
 #endif
 #endif // USE_EXTENDED_SPI_DEVICE
 #endif
 #endif // USE_SPI
 
 #ifdef USE_ADC
-    { DMA_PERIPH_ADC,     ADCDEV_1,  { DMA(2, 0, 0), DMA(2, 4, 0) } },
-    { DMA_PERIPH_ADC,     ADCDEV_2,  { DMA(2, 2, 1), DMA(2, 3, 1) } },
-    { DMA_PERIPH_ADC,     ADCDEV_3,  { DMA(2, 0, 2), DMA(2, 1, 2) } },
+    {DMA_PERIPH_ADC, ADCDEV_1, {DMA(2, 0, 0), DMA(2, 4, 0)}},
+    {DMA_PERIPH_ADC, ADCDEV_2, {DMA(2, 2, 1), DMA(2, 3, 1)}},
+    {DMA_PERIPH_ADC, ADCDEV_3, {DMA(2, 0, 2), DMA(2, 1, 2)}},
 #endif
 
 #ifdef USE_SDCARD_SDIO
-    { DMA_PERIPH_SDIO,    0,         { DMA(2, 3, 4), DMA(2, 6, 4) } },
+    {DMA_PERIPH_SDIO, 0, {DMA(2, 3, 4), DMA(2, 6, 4)}},
 #endif
 
 #ifdef USE_UART
-    { DMA_PERIPH_UART_TX, UARTDEV_1, { DMA(2, 7, 4) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_1, { DMA(2, 5, 4), DMA(2, 2, 4) } },
-    { DMA_PERIPH_UART_TX, UARTDEV_2, { DMA(1, 6, 4) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_2, { DMA(1, 5, 4) } },
-    { DMA_PERIPH_UART_TX, UARTDEV_3, { DMA(1, 3, 4) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_3, { DMA(1, 1, 4) } },
-    { DMA_PERIPH_UART_TX, UARTDEV_4, { DMA(1, 4, 4) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_4, { DMA(1, 2, 4) } },
-    { DMA_PERIPH_UART_TX, UARTDEV_5, { DMA(1, 7, 4) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_5, { DMA(1, 0, 4) } },
-    { DMA_PERIPH_UART_TX, UARTDEV_6, { DMA(2, 6, 5), DMA(2, 7, 5) } },
-    { DMA_PERIPH_UART_RX, UARTDEV_6, { DMA(2, 1, 5), DMA(2, 2, 5) } },
+    {DMA_PERIPH_UART_TX, UARTDEV_1, {DMA(2, 7, 4)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_1, {DMA(2, 5, 4), DMA(2, 2, 4)}},
+    {DMA_PERIPH_UART_TX, UARTDEV_2, {DMA(1, 6, 4)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_2, {DMA(1, 5, 4)}},
+    {DMA_PERIPH_UART_TX, UARTDEV_3, {DMA(1, 3, 4)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_3, {DMA(1, 1, 4)}},
+    {DMA_PERIPH_UART_TX, UARTDEV_4, {DMA(1, 4, 4)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_4, {DMA(1, 2, 4)}},
+    {DMA_PERIPH_UART_TX, UARTDEV_5, {DMA(1, 7, 4)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_5, {DMA(1, 0, 4)}},
+    {DMA_PERIPH_UART_TX, UARTDEV_6, {DMA(2, 6, 5), DMA(2, 7, 5)}},
+    {DMA_PERIPH_UART_RX, UARTDEV_6, {DMA(2, 1, 5), DMA(2, 2, 5)}},
 #endif
 };
 
-#define TC(chan) DEF_TIM_CHANNEL(CH_ ## chan)
+#define TC(chan) DEF_TIM_CHANNEL(CH_##chan)
 
 static const dmaTimerMapping_t dmaTimerMapping[] = {
     // Generated from 'timer_def.h'
-    { TIM1, TC(CH1), { DMA(2, 6, 0), DMA(2, 1, 6), DMA(2, 3, 6) } },
-    { TIM1, TC(CH2), { DMA(2, 6, 0), DMA(2, 2, 6) } },
-    { TIM1, TC(CH3), { DMA(2, 6, 0), DMA(2, 6, 6) } },
-    { TIM1, TC(CH4), { DMA(2, 4, 6) } },
+    {TIM1, TC(CH1), {DMA(2, 6, 0), DMA(2, 1, 6), DMA(2, 3, 6)}},
+    {TIM1, TC(CH2), {DMA(2, 6, 0), DMA(2, 2, 6)}},
+    {TIM1, TC(CH3), {DMA(2, 6, 0), DMA(2, 6, 6)}},
+    {TIM1, TC(CH4), {DMA(2, 4, 6)}},
 
-    { TIM2, TC(CH1), { DMA(1, 5, 3) } },
-    { TIM2, TC(CH2), { DMA(1, 6, 3) } },
-    { TIM2, TC(CH3), { DMA(1, 1, 3) } },
-    { TIM2, TC(CH4), { DMA(1, 7, 3), DMA(1, 6, 3) } },
+    {TIM2, TC(CH1), {DMA(1, 5, 3)}},
+    {TIM2, TC(CH2), {DMA(1, 6, 3)}},
+    {TIM2, TC(CH3), {DMA(1, 1, 3)}},
+    {TIM2, TC(CH4), {DMA(1, 7, 3), DMA(1, 6, 3)}},
 
-    { TIM3, TC(CH1), { DMA(1, 4, 5) } },
-    { TIM3, TC(CH2), { DMA(1, 5, 5) } },
-    { TIM3, TC(CH3), { DMA(1, 7, 5) } },
-    { TIM3, TC(CH4), { DMA(1, 2, 5) } },
+    {TIM3, TC(CH1), {DMA(1, 4, 5)}},
+    {TIM3, TC(CH2), {DMA(1, 5, 5)}},
+    {TIM3, TC(CH3), {DMA(1, 7, 5)}},
+    {TIM3, TC(CH4), {DMA(1, 2, 5)}},
 
-    { TIM4, TC(CH1), { DMA(1, 0, 2) } },
-    { TIM4, TC(CH2), { DMA(1, 3, 2) } },
-    { TIM4, TC(CH3), { DMA(1, 7, 2) } },
+    {TIM4, TC(CH1), {DMA(1, 0, 2)}},
+    {TIM4, TC(CH2), {DMA(1, 3, 2)}},
+    {TIM4, TC(CH3), {DMA(1, 7, 2)}},
 
-    { TIM5, TC(CH1), { DMA(1, 2, 6) } },
-    { TIM5, TC(CH2), { DMA(1, 4, 6) } },
-    { TIM5, TC(CH3), { DMA(1, 0, 6) } },
-    { TIM5, TC(CH4), { DMA(1, 1, 6), DMA(1, 3, 6) } },
+    {TIM5, TC(CH1), {DMA(1, 2, 6)}},
+    {TIM5, TC(CH2), {DMA(1, 4, 6)}},
+    {TIM5, TC(CH3), {DMA(1, 0, 6)}},
+    {TIM5, TC(CH4), {DMA(1, 1, 6), DMA(1, 3, 6)}},
 
-    { TIM8, TC(CH1), { DMA(2, 2, 0), DMA(2, 2, 7) } },
-    { TIM8, TC(CH2), { DMA(2, 2, 0), DMA(2, 3, 7) } },
-    { TIM8, TC(CH3), { DMA(2, 2, 0), DMA(2, 4, 7) } },
-    { TIM8, TC(CH4), { DMA(2, 7, 7) } },
+    {TIM8, TC(CH1), {DMA(2, 2, 0), DMA(2, 2, 7)}},
+    {TIM8, TC(CH2), {DMA(2, 2, 0), DMA(2, 3, 7)}},
+    {TIM8, TC(CH3), {DMA(2, 2, 0), DMA(2, 4, 7)}},
+    {TIM8, TC(CH4), {DMA(2, 7, 7)}},
 };
 #undef TC
 #undef DMA
@@ -480,22 +673,40 @@ static void dmaSetupRequest(dmaChannelSpec_t *dmaSpec, uint8_t request)
 }
 #endif
 
+#if defined(CH32H4) || defined(CH32H41x)
+static void dmaSetupRequest(dmaChannelSpec_t *dmaSpec, uint8_t request)
+{
+    // Store the DMAMUX request ID in the channel field
+    dmaSpec->channel = request;
+
+    // Update the code with the new request
+    dmaCode_t code = dmaSpec->code;
+    dmaSpec->code = DMA_CODE(DMA_CODE_CONTROLLER(code),
+                             DMA_CODE_STREAM(code),
+                             dmaSpec->channel);
+}
+#endif
+
 const dmaChannelSpec_t *dmaGetChannelSpecByPeripheral(dmaPeripheral_e device, uint8_t index, int8_t opt)
 {
-    if (opt < 0 || opt >= MAX_PERIPHERAL_DMA_OPTIONS) {
+    if (opt < 0 || opt >= MAX_PERIPHERAL_DMA_OPTIONS)
+    {
         return NULL;
     }
 
-    for (unsigned i = 0 ; i < ARRAYLEN(dmaPeripheralMapping) ; i++) {
+    for (unsigned i = 0; i < ARRAYLEN(dmaPeripheralMapping); i++)
+    {
         const dmaPeripheralMapping_t *periph = &dmaPeripheralMapping[i];
-#if defined(STM32H7) || defined(STM32G4)
-        if (periph->device == device && periph->index == index) {
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
+        if (periph->device == device && periph->index == index)
+        {
             dmaChannelSpec_t *dmaSpec = &dmaChannelSpec[opt];
             dmaSetupRequest(dmaSpec, periph->dmaRequest);
             return dmaSpec;
         }
 #else
-        if (periph->device == device && periph->index == index && periph->channelSpec[opt].ref) {
+        if (periph->device == device && periph->index == index && periph->channelSpec[opt].ref)
+        {
             return &periph->channelSpec[opt];
         }
 #endif
@@ -507,8 +718,10 @@ const dmaChannelSpec_t *dmaGetChannelSpecByPeripheral(dmaPeripheral_e device, ui
 dmaoptValue_t dmaoptByTag(ioTag_t ioTag)
 {
 #ifdef USE_TIMER_MGMT
-    for (unsigned i = 0; i < MAX_TIMER_PINMAP_COUNT; i++) {
-        if (timerIOConfig(i)->ioTag == ioTag) {
+    for (unsigned i = 0; i < MAX_TIMER_PINMAP_COUNT; i++)
+    {
+        if (timerIOConfig(i)->ioTag == ioTag)
+        {
             return timerIOConfig(i)->dmaopt;
         }
     }
@@ -521,20 +734,24 @@ dmaoptValue_t dmaoptByTag(ioTag_t ioTag)
 
 const dmaChannelSpec_t *dmaGetChannelSpecByTimerValue(TIM_TypeDef *tim, uint8_t channel, dmaoptValue_t dmaopt)
 {
-    if (dmaopt < 0 || dmaopt >= MAX_TIMER_DMA_OPTIONS) {
+    if (dmaopt < 0 || dmaopt >= MAX_TIMER_DMA_OPTIONS)
+    {
         return NULL;
     }
 
-    for (unsigned i = 0 ; i < ARRAYLEN(dmaTimerMapping) ; i++) {
+    for (unsigned i = 0; i < ARRAYLEN(dmaTimerMapping); i++)
+    {
         const dmaTimerMapping_t *timerMapping = &dmaTimerMapping[i];
-#if defined(STM32H7) || defined(STM32G4)
-        if (timerMapping->tim == tim && timerMapping->channel == channel) {
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
+        if (timerMapping->tim == tim && timerMapping->channel == channel)
+        {
             dmaChannelSpec_t *dmaSpec = &dmaChannelSpec[dmaopt];
             dmaSetupRequest(dmaSpec, timerMapping->dmaRequest);
             return dmaSpec;
         }
 #else
-        if (timerMapping->tim == tim && timerMapping->channel == channel && timerMapping->channelSpec[dmaopt].ref) {
+        if (timerMapping->tim == tim && timerMapping->channel == channel && timerMapping->channelSpec[dmaopt].ref)
+        {
             return &timerMapping->channelSpec[dmaopt];
         }
 #endif
@@ -545,7 +762,8 @@ const dmaChannelSpec_t *dmaGetChannelSpecByTimerValue(TIM_TypeDef *tim, uint8_t 
 
 const dmaChannelSpec_t *dmaGetChannelSpecByTimer(const timerHardware_t *timer)
 {
-    if (!timer) {
+    if (!timer)
+    {
         return NULL;
     }
 
@@ -557,23 +775,29 @@ const dmaChannelSpec_t *dmaGetChannelSpecByTimer(const timerHardware_t *timer)
 
 dmaoptValue_t dmaGetOptionByTimer(const timerHardware_t *timer)
 {
-#if defined(STM32H7) || defined(STM32G4)
-    for (unsigned opt = 0; opt < ARRAYLEN(dmaChannelSpec); opt++) {
-        if (timer->dmaRefConfigured == dmaChannelSpec[opt].ref) {
-                return (dmaoptValue_t)opt;
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
+    for (unsigned opt = 0; opt < ARRAYLEN(dmaChannelSpec); opt++)
+    {
+        if (timer->dmaRefConfigured == dmaChannelSpec[opt].ref)
+        {
+            return (dmaoptValue_t)opt;
         }
     }
 #else
-    for (unsigned i = 0 ; i < ARRAYLEN(dmaTimerMapping); i++) {
+    for (unsigned i = 0; i < ARRAYLEN(dmaTimerMapping); i++)
+    {
         const dmaTimerMapping_t *timerMapping = &dmaTimerMapping[i];
-        if (timerMapping->tim == timer->tim && timerMapping->channel == timer->channel) {
-            for (unsigned j = 0; j < MAX_TIMER_DMA_OPTIONS; j++) {
+        if (timerMapping->tim == timer->tim && timerMapping->channel == timer->channel)
+        {
+            for (unsigned j = 0; j < MAX_TIMER_DMA_OPTIONS; j++)
+            {
                 const dmaChannelSpec_t *dma = &timerMapping->channelSpec[j];
                 if (dma->ref == timer->dmaRefConfigured
 #if defined(STM32F4) || defined(STM32F7)
                     && dma->channel == timer->dmaChannelConfigured
 #endif
-                    ) {
+                )
+                {
                     return j;
                 }
             }
@@ -584,13 +808,15 @@ dmaoptValue_t dmaGetOptionByTimer(const timerHardware_t *timer)
     return DMA_OPT_UNUSED;
 }
 
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
 // A variant of dmaGetOptionByTimer that looks for matching dmaTimUPRef
 dmaoptValue_t dmaGetUpOptionByTimer(const timerHardware_t *timer)
 {
-    for (unsigned opt = 0; opt < ARRAYLEN(dmaChannelSpec); opt++) {
-        if (timer->dmaTimUPRef == dmaChannelSpec[opt].ref) {
-                return (dmaoptValue_t)opt;
+    for (unsigned opt = 0; opt < ARRAYLEN(dmaChannelSpec); opt++)
+    {
+        if (timer->dmaTimUPRef == dmaChannelSpec[opt].ref)
+        {
+            return (dmaoptValue_t)opt;
         }
     }
 

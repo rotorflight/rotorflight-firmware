@@ -24,6 +24,7 @@ UNIFIED_TARGETS := \
 
 # Legacy targets are targets that have been replaced by Unified Target configurations
 LEGACY_TARGETS := \
+    CH32H417 \
     DEVEBOXH743 \
     MATEKF405 \
     MATEKF411 \

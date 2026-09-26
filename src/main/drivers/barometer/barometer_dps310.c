@@ -49,70 +49,75 @@
 
 #if defined(USE_BARO) && defined(USE_BARO_DPS310)
 
-#define DPS310_I2C_ADDR             0x76
+#define DPS310_I2C_ADDR 0x76
 
-#define DPS310_REG_PSR_B2           0x00
-#define DPS310_REG_PSR_B1           0x01
-#define DPS310_REG_PSR_B0           0x02
-#define DPS310_REG_TMP_B2           0x03
-#define DPS310_REG_TMP_B1           0x04
-#define DPS310_REG_TMP_B0           0x05
-#define DPS310_REG_PRS_CFG          0x06
-#define DPS310_REG_TMP_CFG          0x07
-#define DPS310_REG_MEAS_CFG         0x08
-#define DPS310_REG_CFG_REG          0x09
+#define DPS310_REG_PSR_B2 0x00
+#define DPS310_REG_PSR_B1 0x01
+#define DPS310_REG_PSR_B0 0x02
+#define DPS310_REG_TMP_B2 0x03
+#define DPS310_REG_TMP_B1 0x04
+#define DPS310_REG_TMP_B0 0x05
+#define DPS310_REG_PRS_CFG 0x06
+#define DPS310_REG_TMP_CFG 0x07
+#define DPS310_REG_MEAS_CFG 0x08
+#define DPS310_REG_CFG_REG 0x09
 
-#define DPS310_REG_RESET            0x0C
-#define DPS310_REG_ID               0x0D
+#define DPS310_REG_RESET 0x0C
+#define DPS310_REG_ID 0x0D
 
-#define DPS310_REG_COEF             0x10
-#define DPS310_REG_COEF_SRCE        0x28
+#define DPS310_REG_COEF 0x10
+#define DPS310_REG_COEF_SRCE 0x28
 
+#define DPS310_ID_REV_AND_PROD_ID (0x10)
+#define SPA06_003_ID_REV_AND_PROD_ID (0x11)
 
-#define DPS310_ID_REV_AND_PROD_ID       (0x10)
+#define DPS310_RESET_BIT_SOFT_RST (0x09) // 0b1001
 
-#define DPS310_RESET_BIT_SOFT_RST       (0x09)    // 0b1001
+#define DPS310_MEAS_CFG_COEF_RDY (1 << 7)
+#define DPS310_MEAS_CFG_SENSOR_RDY (1 << 6)
+#define DPS310_MEAS_CFG_TMP_RDY (1 << 5)
+#define DPS310_MEAS_CFG_PRS_RDY (1 << 4)
+#define DPS310_MEAS_CFG_MEAS_CTRL_CONT (0x7)
 
-#define DPS310_MEAS_CFG_COEF_RDY        (1 << 7)
-#define DPS310_MEAS_CFG_SENSOR_RDY      (1 << 6)
-#define DPS310_MEAS_CFG_TMP_RDY         (1 << 5)
-#define DPS310_MEAS_CFG_PRS_RDY         (1 << 4)
-#define DPS310_MEAS_CFG_MEAS_CTRL_CONT  (0x7)
+#define DPS310_PRS_CFG_BIT_PM_RATE_32HZ (0x50) //  101 - 32 measurements pr. sec.
+#define DPS310_PRS_CFG_BIT_PM_PRC_16 (0x04)    // 0100 - 16 times (Standard).
 
-#define DPS310_PRS_CFG_BIT_PM_RATE_32HZ (0x50)      //  101 - 32 measurements pr. sec.
-#define DPS310_PRS_CFG_BIT_PM_PRC_16    (0x04)      // 0100 - 16 times (Standard).
+#define DPS310_TMP_CFG_BIT_TMP_EXT (0x80)       //
+#define DPS310_TMP_CFG_BIT_TMP_RATE_32HZ (0x50) //  101 - 32 measurements pr. sec.
+#define DPS310_TMP_CFG_BIT_TMP_PRC_16 (0x04)    // 0100 - 16 times (Standard).
 
-#define DPS310_TMP_CFG_BIT_TMP_EXT          (0x80)  //
-#define DPS310_TMP_CFG_BIT_TMP_RATE_32HZ    (0x50)  //  101 - 32 measurements pr. sec.
-#define DPS310_TMP_CFG_BIT_TMP_PRC_16       (0x04)  // 0100 - 16 times (Standard).
+#define DPS310_CFG_REG_BIT_P_SHIFT (0x04)
+#define DPS310_CFG_REG_BIT_T_SHIFT (0x08)
 
-#define DPS310_CFG_REG_BIT_P_SHIFT          (0x04)
-#define DPS310_CFG_REG_BIT_T_SHIFT          (0x08)
+#define DPS310_COEF_SRCE_BIT_TMP_COEF_SRCE (0x80)
 
-#define DPS310_COEF_SRCE_BIT_TMP_COEF_SRCE  (0x80)
-
-typedef struct {
-    int16_t c0;     // 12bit
-    int16_t c1;     // 12bit
-    int32_t c00;    // 20bit
-    int32_t c10;    // 20bit
-    int16_t c01;    // 16bit
-    int16_t c11;    // 16bit
-    int16_t c20;    // 16bit
-    int16_t c21;    // 16bit
-    int16_t c30;    // 16bit
+typedef struct
+{
+    int16_t c0;  // 12bit
+    int16_t c1;  // 12bit
+    int32_t c00; // 20bit
+    int32_t c10; // 20bit
+    int16_t c01; // 16bit
+    int16_t c11; // 16bit
+    int16_t c20; // 16bit
+    int16_t c21; // 16bit
+    int16_t c30; // 16bit
+    int16_t c31; // 12bit (SPA06_003 only)
+    int16_t c40; // 12bit (SPA06_003 only)
 } calibrationCoefficients_t;
 
-typedef struct {
-    calibrationCoefficients_t   calib;
-    float                       pressure;       // Pa
-    float                       temperature;    // DegC
+typedef struct
+{
+    calibrationCoefficients_t calib;
+    bool isSpa06_003;
+    float pressure;    // Pa
+    float temperature; // DegC
 } baroState_t;
 
-static baroState_t  baroState;
+static baroState_t baroState;
 
 #define busReadBuf busReadRegisterBuffer
-#define busWrite   busWriteRegister
+#define busWrite busWriteRegister
 
 static uint8_t buf[6];
 
@@ -131,7 +136,8 @@ static void registerSetBits(const extDevice_t *dev, uint8_t reg, uint8_t setbits
 {
     uint8_t val = registerRead(dev, reg);
 
-    if ((val & setbits) != setbits) {
+    if ((val & setbits) != setbits)
+    {
         val |= setbits;
         registerWrite(dev, reg, val);
     }
@@ -139,10 +145,12 @@ static void registerSetBits(const extDevice_t *dev, uint8_t reg, uint8_t setbits
 
 static int32_t getTwosComplement(uint32_t raw, uint8_t length)
 {
-    if (raw & ((int)1 << (length - 1))) {
+    if (raw & ((int)1 << (length - 1)))
+    {
         return ((int32_t)raw) - ((int32_t)1 << length);
     }
-    else {
+    else
+    {
         return raw;
     }
 }
@@ -158,26 +166,30 @@ static bool deviceConfigure(const extDevice_t *dev)
     uint8_t status = registerRead(dev, DPS310_REG_MEAS_CFG);
 
     // Check if coefficients are available
-    if ((status & DPS310_MEAS_CFG_COEF_RDY) == 0) {
+    if ((status & DPS310_MEAS_CFG_COEF_RDY) == 0)
+    {
         return false;
     }
 
     // Check if sensor initialization is complete
-    if ((status & DPS310_MEAS_CFG_SENSOR_RDY) == 0) {
+    if ((status & DPS310_MEAS_CFG_SENSOR_RDY) == 0)
+    {
         return false;
     }
 
     // 1. Read the pressure calibration coefficients (c00, c10, c20, c30, c01, c11, and c21) from the Calibration Coefficient register.
     //   Note: The coefficients read from the coefficient register are 2's complement numbers.
     // Do the read of the coefficients in multiple parts, as the chip will return a read failure when trying to read all at once over I2C.
-#define COEFFICIENT_LENGTH 18
-#define READ_LENGTH (COEFFICIENT_LENGTH / 2)
+    const uint8_t coefficientLength = baroState.isSpa06_003 ? 21 : 18;
+#define READ_LENGTH (18 / 2)
 
-    uint8_t coef[COEFFICIENT_LENGTH];
-    if (!busReadBuf(dev, DPS310_REG_COEF, coef, READ_LENGTH)) {
+    uint8_t coef[21];
+    if (!busReadBuf(dev, DPS310_REG_COEF, coef, READ_LENGTH))
+    {
         return false;
     }
-     if (!busReadBuf(dev, DPS310_REG_COEF + READ_LENGTH, coef + READ_LENGTH, COEFFICIENT_LENGTH - READ_LENGTH)) {
+    if (!busReadBuf(dev, DPS310_REG_COEF + READ_LENGTH, coef + READ_LENGTH, coefficientLength - READ_LENGTH))
+    {
         return false;
     }
 
@@ -210,6 +222,17 @@ static bool deviceConfigure(const extDevice_t *dev)
     // 0x20 c30 [15:8] + 0x21 c30 [7:0]
     baroState.calib.c30 = getTwosComplement(((uint32_t)coef[16] << 8) | (uint32_t)coef[17], 16);
 
+    if (baroState.isSpa06_003)
+    {
+        // 0x22 c31 [11:4] + 0x23 c31 [3:0]
+        baroState.calib.c31 = getTwosComplement(((uint32_t)coef[18] << 4) | (((uint32_t)coef[19] >> 4) & 0x0F), 12);
+
+        // 0x23 c40 [11:8] + 0x24 c40 [7:0]
+        baroState.calib.c40 = getTwosComplement((((uint32_t)coef[19] & 0x0F) << 8) | (uint32_t)coef[20], 12);
+    }
+
+    //
+
     // PRS_CFG: pressure measurement rate (32 Hz) and oversampling (16 time standard)
     registerSetBits(dev, DPS310_REG_PRS_CFG, DPS310_PRS_CFG_BIT_PM_RATE_32HZ | DPS310_PRS_CFG_BIT_PM_PRC_16);
 
@@ -228,14 +251,15 @@ static bool deviceConfigure(const extDevice_t *dev)
 
 static bool dps310ReadUP(baroDev_t *baro)
 {
-    if (busBusy(&baro->dev, NULL)) {
+    if (busBusy(&baro->dev, NULL))
+    {
         return false;
     }
 
     // 1. Kick off read
     // No need to poll for data ready as the conversion rate is 32Hz and this is sampling at 20Hz
     // Read PSR_B2, PSR_B1, PSR_B0, TMP_B2, TMP_B1, TMP_B0
-     busReadRegisterBufferStart(&baro->dev, DPS310_REG_PSR_B2, buf, 6);
+    busReadRegisterBufferStart(&baro->dev, DPS310_REG_PSR_B2, buf, 6);
 
     return true;
 }
@@ -267,42 +291,63 @@ static bool dps310GetUP(baroDev_t *baro)
     const float c21 = baroState.calib.c21;
     const float c30 = baroState.calib.c30;
 
-    // See section 4.9.1, How to Calculate Compensated Pressure Values, of datasheet
-    baroState.pressure = c00 + Praw_sc * (c10 + Praw_sc * (c20 + Praw_sc * c30)) + Traw_sc * c01 + Traw_sc * Praw_sc * (c11 + Praw_sc * c21);
-
     const float c0 = baroState.calib.c0;
     const float c1 = baroState.calib.c1;
 
     // See section 4.9.2, How to Calculate Compensated Temperature Values, of datasheet
     baroState.temperature = c0 * 0.5f + c1 * Traw_sc;
 
+    if (baroState.isSpa06_003)
+    {
+        const float c31 = baroState.calib.c31;
+        const float c40 = baroState.calib.c40;
+
+        // SPA06_003: Pcomp(Pa) = c00 + c10*Praw_sc + c20*Praw_sc^2 + c30*Praw_sc^3 + c40*Praw_sc^4
+        //                        + Traw_sc * (c01 + c11*Praw_sc + c21*Praw_sc^2 + c31*Praw_sc^3)
+        baroState.pressure = c00 + Praw_sc * (c10 + Praw_sc * (c20 + Praw_sc * (c30 + Praw_sc * c40))) + Traw_sc * (c01 + Praw_sc * (c11 + Praw_sc * (c21 + Praw_sc * c31)));
+    }
+    else
+    {
+        // See section 4.9.1, How to Calculate Compensated Pressure Values, of datasheet
+        baroState.pressure = c00 + Praw_sc * (c10 + Praw_sc * (c20 + Praw_sc * c30)) + Traw_sc * c01 + Traw_sc * Praw_sc * (c11 + Praw_sc * c21);
+    }
+
     return true;
 }
 
 static void deviceCalculate(int32_t *pressure, int32_t *temperature)
 {
-    if (pressure) {
-        *pressure = baroState.pressure; 
+    if (pressure)
+    {
+        *pressure = baroState.pressure;
     }
 
-    if (temperature) {
-        *temperature = (baroState.temperature * 100);   // to centidegrees
+    if (temperature)
+    {
+        *temperature = (baroState.temperature * 100); // to centidegrees
     }
 }
 
-
-
-#define DETECTION_MAX_RETRY_COUNT   5
+#define DETECTION_MAX_RETRY_COUNT 5
 static bool deviceDetect(const extDevice_t *dev)
 {
-    for (int retry = 0; retry < DETECTION_MAX_RETRY_COUNT; retry++) {
+    for (int retry = 0; retry < DETECTION_MAX_RETRY_COUNT; retry++)
+    {
         uint8_t chipId[1];
 
         delay(100);
 
         bool ack = busReadBuf(dev, DPS310_REG_ID, chipId, 1);
 
-        if (ack && chipId[0] == DPS310_ID_REV_AND_PROD_ID) {
+        if (ack && chipId[0] == DPS310_ID_REV_AND_PROD_ID)
+        {
+            baroState.isSpa06_003 = false;
+            return true;
+        }
+
+        if (ack && chipId[0] == SPA06_003_ID_REV_AND_PROD_ID)
+        {
+            baroState.isSpa06_003 = true;
             return true;
         }
     };
@@ -337,7 +382,8 @@ static void dps310StartUP(baroDev_t *baro)
 static void deviceInit(const extDevice_t *dev, resourceOwner_e owner)
 {
 #ifdef USE_BARO_SPI_DPS310
-    if (dev->bus->busType == BUS_TYPE_SPI) {
+    if (dev->bus->busType == BUS_TYPE_SPI)
+    {
         IOHi(dev->busType_u.spi.csnPin); // Disable
         IOInit(dev->busType_u.spi.csnPin, owner, 0);
         IOConfigGPIO(dev->busType_u.spi.csnPin, IOCFG_OUT_PP);
@@ -352,7 +398,8 @@ static void deviceInit(const extDevice_t *dev, resourceOwner_e owner)
 static void deviceDeInit(const extDevice_t *dev)
 {
 #ifdef USE_BARO_SPI_DPS310
-    if (dev->bus->busType == BUS_TYPE_SPI) {
+    if (dev->bus->busType == BUS_TYPE_SPI)
+    {
         spiPreinitByIO(dev->busType_u.spi.csnPin);
     }
 #else
@@ -367,21 +414,25 @@ bool baroDPS310Detect(baroDev_t *baro)
 
     deviceInit(&baro->dev, OWNER_BARO_CS);
 
-    if ((dev->bus->busType == BUS_TYPE_I2C) && (dev->busType_u.i2c.address == 0)) {
+    if ((dev->bus->busType == BUS_TYPE_I2C) && (dev->busType_u.i2c.address == 0))
+    {
         // Default address for BMP280
         dev->busType_u.i2c.address = DPS310_I2C_ADDR;
         defaultAddressApplied = true;
     }
 
-    if (!deviceDetect(dev)) {
+    if (!deviceDetect(dev))
+    {
         deviceDeInit(dev);
-        if (defaultAddressApplied) {
+        if (defaultAddressApplied)
+        {
             dev->busType_u.i2c.address = 0;
         }
         return false;
     }
 
-    if (!deviceConfigure(dev)) {
+    if (!deviceConfigure(dev))
+    {
         deviceDeInit(dev);
         return false;
     }

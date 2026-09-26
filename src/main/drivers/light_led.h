@@ -57,4 +57,10 @@ void ledInit(const statusLedConfig_t *statusLedConfig);
 void ledToggle(int led);
 void ledSet(int led, bool state);
 
+// Debug helpers: blink the status LED (PC4) to locate where code is stuck.
+// These self-initialize the pin so they work even before ledInit() runs.
+void debugLedInit(void);
+void debugLedBlink(int pattern);   // pattern = number of quick blinks, then pause
+void debugLedBlinkForever(int pattern); // never returns; loops the pattern
+
 #endif

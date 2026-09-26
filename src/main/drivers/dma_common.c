@@ -28,6 +28,10 @@
 
 dmaIdentifier_e dmaAllocate(dmaIdentifier_e identifier, resourceOwner_e owner, uint8_t resourceIndex)
 {
+    if (identifier == DMA_NONE)
+    {
+        return DMA_NONE;
+    }
     if (dmaGetOwner(identifier)->owner != OWNER_FREE) {
         return DMA_NONE;
     }
@@ -41,6 +45,11 @@ dmaIdentifier_e dmaAllocate(dmaIdentifier_e identifier, resourceOwner_e owner, u
 
 const resourceOwner_t *dmaGetOwner(dmaIdentifier_e identifier)
 {
+    if (identifier == DMA_NONE)
+    {
+        static const resourceOwner_t freeOwner = {.owner = OWNER_FREE, .resourceIndex = 0};
+        return &freeOwner;    
+    }
     return &dmaDescriptors[DMA_IDENTIFIER_TO_INDEX(identifier)].owner;
 }
 

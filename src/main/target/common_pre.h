@@ -124,7 +124,29 @@
 #define USE_TELEMETRY_CASTLE
 #endif
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#ifdef CH32H4
+#define USE_ITCM_RAM
+#define ITCM_RAM_OPTIMISATION "-O2", "-freorder-blocks-algorithm=simple"
+#define USE_FAST_DATA
+#define USE_DSHOT
+#define USE_DSHOT_BITBANG
+#define USE_DSHOT_TELEMETRY
+#define USE_DSHOT_TELEMETRY_STATS
+#define USE_RPM_FILTER
+#define USE_DYN_NOTCH_FILTER
+#define USE_ADC_INTERNAL
+#define ADC_VOLTAGE_REFERENCE_MV  3300
+#define USE_DMA_SPEC
+#define USE_TIMER_MGMT
+#define USE_TIMER_AF
+#define USE_PERSISTENT_OBJECTS
+#define USE_USB_MSC
+#define USE_LATE_TASK_STATISTICS
+#define USE_TELEMETRY_SBUS2
+#define USE_TELEMETRY_CASTLE
+#endif // CH32H4
+
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4)
 #define TASK_GYROPID_DESIRED_PERIOD     125 // 125us = 8kHz
 #define SCHEDULER_DELAY_LIMIT           10
 #else
@@ -140,7 +162,7 @@
 #define DEFAULT_CPU_OVERCLOCK 0
 #endif
 
-#if defined(STM32H7) || defined(STM32F7)
+#if defined(STM32H7) || defined(STM32F7) || defined(CH32H4)
 // Move ISRs to fast ram to avoid flash latency.
 #define FAST_IRQ_HANDLER FAST_CODE
 #else
@@ -189,10 +211,15 @@
 #define DMA_DATA
 #define STATIC_DMA_DATA_AUTO        static
 #elif defined (STM32F7)
-// F7 has no cache coherency issues DMAing to/from DTCM, otherwise buffers must be cache aligned
+// F7 has no cache coherency issues DMAing to/from DTCM...
 #define DMA_DATA_ZERO_INIT          FAST_DATA_ZERO_INIT
 #define DMA_DATA                    FAST_DATA
 #define STATIC_DMA_DATA_AUTO        static DMA_DATA
+#elif defined(CH32H4)
+// CH32H4: DMA can access all memory, use aligned attributes
+#define DMA_DATA_ZERO_INIT          __attribute__((aligned(32)))
+#define DMA_DATA                    __attribute__((aligned(32)))
+#define STATIC_DMA_DATA_AUTO        __attribute__((aligned(32))) static
 #else
 // DMA to/from any memory
 #define DMA_DATA_ZERO_INIT          __attribute__ ((section(".dmaram_bss"), aligned(32)))
@@ -200,7 +227,7 @@
 #define STATIC_DMA_DATA_AUTO        static DMA_DATA
 #endif
 
-#if defined(STM32F4) || defined (STM32H7)
+#if defined(STM32F4) || defined (STM32H7) || defined(CH32H4)
 // Data in RAM which is guaranteed to not be reset on hot reboot
 #define PERSISTENT                  __attribute__ ((section(".persistent_data"), aligned(4)))
 #endif
@@ -215,6 +242,12 @@ extern uint8_t _dmaram_end__;
 #define DMA_RAM_R __attribute__((section(".DMA_RAM_R")))
 #define DMA_RAM_W __attribute__((section(".DMA_RAM_W")))
 #define DMA_RAM_RW __attribute__((section(".DMA_RAM_RW")))
+#elif defined(CH32H4)
+#define DMA_RAM      __attribute__((aligned(32)))
+#define DMA_RW_AXI
+#define DMA_RAM_R
+#define DMA_RAM_W
+#define DMA_RAM_RW
 #endif
 #else
 #define DMA_RAM
@@ -425,6 +458,8 @@ extern uint8_t _dmaram_end__;
 #elif defined(STM32F7)
 #define MAX_PID_PROCESS_SPEED       4000
 #elif defined(STM32H7)
+#define MAX_PID_PROCESS_SPEED       8000
+#elif defined(CH32H4)
 #define MAX_PID_PROCESS_SPEED       8000
 #else
 #define MAX_PID_PROCESS_SPEED       1000

@@ -27,28 +27,35 @@
 
 // Maximum page size of all supported SPI flash devices.
 // Used to detect flashfs allocation size being too small.
-#define FLASH_MAX_PAGE_SIZE       2048
+#define FLASH_MAX_PAGE_SIZE 2048
 
 #define SPIFLASH_INSTRUCTION_RDID 0x9F
 
-typedef enum {
+typedef enum
+{
     FLASH_TYPE_NOR = 0,
     FLASH_TYPE_NAND
 } flashType_e;
 
 typedef uint16_t flashSector_t;
 
-typedef struct flashGeometry_s {
+typedef struct flashGeometry_s
+{
     flashSector_t sectors; // Count of the number of erasable blocks on the device
-    uint16_t pageSize; // In bytes
-    uint32_t sectorSize; // This is just pagesPerSector * pageSize
-    uint32_t totalSize;  // This is just sectorSize * sectors
+    uint16_t pageSize;     // In bytes
+    uint32_t sectorSize;   // This is just pagesPerSector * pageSize
+    uint32_t totalSize;    // This is just sectorSize * sectors
     uint16_t pagesPerSector;
     flashType_e flashType;
 } flashGeometry_t;
 
 void flashPreInit(const flashConfig_t *flashConfig);
 bool flashInit(const flashConfig_t *flashConfig);
+
+// Raw JEDEC ID read during detection (even if the flash was not recognised).
+// Returns 0 if no flash is fitted / not probed, or 0xFFFFFF if the chip did
+// not respond to RDID (no pull on MISO / not populated).
+uint32_t flashGetJedecId(void);
 
 bool flashIsReady(void);
 bool flashWaitForReady(void);
@@ -71,7 +78,8 @@ const flashGeometry_t *flashGetGeometry(void);
 // flash partitioning api
 //
 
-typedef struct flashPartition_s {
+typedef struct flashPartition_s
+{
     uint8_t type;
     flashSector_t startSector;
     flashSector_t endSector;
@@ -81,7 +89,8 @@ typedef struct flashPartition_s {
 
 // Must be in sync with flashPartitionTypeNames[]
 // Should not be deleted or reordered once the code is writing a table to a flash.
-typedef enum {
+typedef enum
+{
     FLASH_PARTITION_TYPE_UNKNOWN = 0,
     FLASH_PARTITION_TYPE_PARTITION_TABLE,
     FLASH_PARTITION_TYPE_FLASHFS,
@@ -91,7 +100,8 @@ typedef enum {
     FLASH_MAX_PARTITIONS
 } flashPartitionType_e;
 
-typedef struct flashPartitionTable_s {
+typedef struct flashPartitionTable_s
+{
     flashPartition_t partitions[FLASH_MAX_PARTITIONS];
 } flashPartitionTable_t;
 

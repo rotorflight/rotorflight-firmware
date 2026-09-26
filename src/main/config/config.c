@@ -93,6 +93,9 @@
 
 #include "sensors/acceleration.h"
 #include "sensors/battery.h"
+#ifdef USE_SMARTFUEL
+#include "sensors/smartfuel.h"
+#endif
 #include "sensors/compass.h"
 #include "sensors/gyro.h"
 #include "sensors/esc_sensor.h"
@@ -103,7 +106,7 @@
 
 static bool configIsDirty; /* someone indicated that the config is modified and it is not yet saved */
 
-static bool rebootRequired = false;  // set if a config change requires a reboot to take effect
+static bool rebootRequired = false; // set if a config change requires a reboot to take effect
 
 static bool eepromWriteInProgress = false;
 
@@ -176,16 +179,19 @@ static void activateConfig(void)
 
 static void adjustFilterLimit(uint16_t *parm, uint16_t maxValue, uint16_t resetValue)
 {
-    if (*parm > maxValue) {
+    if (*parm > maxValue)
+    {
         *parm = resetValue;
     }
 }
 
 static void validateAndFixRatesSettings(void)
 {
-    for (unsigned profileIndex = 0; profileIndex < CONTROL_RATE_PROFILE_COUNT; profileIndex++) {
+    for (unsigned profileIndex = 0; profileIndex < CONTROL_RATE_PROFILE_COUNT; profileIndex++)
+    {
         const ratesType_e ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
-        for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++) {
+        for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++)
+        {
             controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, ratesSettingLimits[ratesType].rc_rate_limit);
             controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
             controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, ratesSettingLimits[ratesType].expo_limit);
@@ -195,12 +201,12 @@ static void validateAndFixRatesSettings(void)
 
 static void validateAndFixPositionConfig(void)
 {
-
 }
 
 static void validateAndFixConfig(void)
 {
-    if (!isSerialConfigValid(serialConfig())) {
+    if (!isSerialConfigValid(serialConfig()))
+    {
         pgResetFn_serialConfig(serialConfigMutable());
     }
 
@@ -224,22 +230,30 @@ static void validateAndFixConfig(void)
         !gpsHasValidTransport
         &&
 #endif
-        true) {
+        true)
+    {
         featureDisableImmediate(FEATURE_GPS);
     }
 
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD ||
-            motorConfig()->dev.motorPwmProtocol == PWM_TYPE_CASTLE_LINK) {
-        if (!motorConfig()->dev.useUnsyncedPwm) {
+        motorConfig()->dev.motorPwmProtocol == PWM_TYPE_CASTLE_LINK)
+    {
+        if (!motorConfig()->dev.useUnsyncedPwm)
+        {
             motorConfigMutable()->dev.useUnsyncedPwm = true;
         }
-        if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD) {
-            if (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE) {
+        if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_STANDARD)
+        {
+            if (motorConfig()->dev.motorPwmRate > MOTORS_MAX_PWM_RATE)
+            {
                 motorConfigMutable()->dev.motorPwmRate = MOTORS_MAX_PWM_RATE;
             }
-        } else {
+        }
+        else
+        {
 #ifdef USE_TELEMETRY_CASTLE
-            if (motorConfig()->dev.motorPwmRate > CASTLE_PWM_HZ_MAX) {
+            if (motorConfig()->dev.motorPwmRate > CASTLE_PWM_HZ_MAX)
+            {
                 motorConfigMutable()->dev.motorPwmRate = CASTLE_PWM_HZ_MAX;
             }
 #endif
@@ -256,48 +270,68 @@ static void validateAndFixConfig(void)
     buildAlignmentFromStandardAlignment(&gyroDeviceConfigMutable(1)->customAlignment, gyroDeviceConfig(1)->alignment);
 #endif
 
-    if (!(featureIsConfigured(FEATURE_RX_PARALLEL_PWM) || featureIsConfigured(FEATURE_RX_PPM) || featureIsConfigured(FEATURE_RX_SERIAL) || featureIsConfigured(FEATURE_RX_MSP) || featureIsConfigured(FEATURE_RX_SPI))) {
+// #ifdef USE_ACC
+//     if (accelerometerConfig()->accZero.values.roll != 0 ||
+//         accelerometerConfig()->accZero.values.pitch != 0 ||
+//         accelerometerConfig()->accZero.values.yaw != 0)
+//     {
+//         accelerometerConfigMutable()->accZero.values.calibrationCompleted = 1;
+//     }
+// #endif // USE_ACC
+
+    if (!(featureIsConfigured(FEATURE_RX_PARALLEL_PWM) || featureIsConfigured(FEATURE_RX_PPM) || featureIsConfigured(FEATURE_RX_SERIAL) || featureIsConfigured(FEATURE_RX_MSP) || featureIsConfigured(FEATURE_RX_SPI)))
+    {
         featureEnableImmediate(DEFAULT_RX_FEATURE);
     }
 
-    if (featureIsConfigured(FEATURE_RX_PPM)) {
+    if (featureIsConfigured(FEATURE_RX_PPM))
+    {
         featureDisableImmediate(FEATURE_RX_SERIAL | FEATURE_RX_PARALLEL_PWM | FEATURE_RX_MSP | FEATURE_RX_SPI);
     }
 
-    if (featureIsConfigured(FEATURE_RX_MSP)) {
+    if (featureIsConfigured(FEATURE_RX_MSP))
+    {
         featureDisableImmediate(FEATURE_RX_SERIAL | FEATURE_RX_PARALLEL_PWM | FEATURE_RX_PPM | FEATURE_RX_SPI);
     }
 
-    if (featureIsConfigured(FEATURE_RX_SERIAL)) {
+    if (featureIsConfigured(FEATURE_RX_SERIAL))
+    {
         featureDisableImmediate(FEATURE_RX_PARALLEL_PWM | FEATURE_RX_MSP | FEATURE_RX_PPM | FEATURE_RX_SPI);
     }
 
 #ifdef USE_RX_SPI
-    if (featureIsConfigured(FEATURE_RX_SPI)) {
+    if (featureIsConfigured(FEATURE_RX_SPI))
+    {
         featureDisableImmediate(FEATURE_RX_SERIAL | FEATURE_RX_PARALLEL_PWM | FEATURE_RX_PPM | FEATURE_RX_MSP);
     }
 #endif // USE_RX_SPI
 
-    if (featureIsConfigured(FEATURE_RX_PARALLEL_PWM)) {
+    if (featureIsConfigured(FEATURE_RX_PARALLEL_PWM))
+    {
         featureDisableImmediate(FEATURE_RX_SERIAL | FEATURE_RX_MSP | FEATURE_RX_PPM | FEATURE_RX_SPI);
     }
 
 #if defined(USE_ADC)
-    if (featureIsConfigured(FEATURE_RSSI_ADC)) {
+    if (featureIsConfigured(FEATURE_RSSI_ADC))
+    {
         rxConfigMutable()->rssi_channel = 0;
         rxConfigMutable()->rssi_src_frame_errors = false;
-    } else
+    }
+    else
 #endif
-    if (rxConfigMutable()->rssi_channel
+        if (rxConfigMutable()->rssi_channel
 #if defined(USE_PWM) || defined(USE_PPM)
-        || featureIsConfigured(FEATURE_RX_PPM) || featureIsConfigured(FEATURE_RX_PARALLEL_PWM)
+            || featureIsConfigured(FEATURE_RX_PPM) || featureIsConfigured(FEATURE_RX_PARALLEL_PWM)
 #endif
-        ) {
+        )
+    {
         rxConfigMutable()->rssi_src_frame_errors = false;
     }
 
-    if (rcControlsConfig()->rc_max_throttle && rcControlsConfig()->rc_min_throttle) {
-        if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10) {
+    if (rcControlsConfig()->rc_max_throttle && rcControlsConfig()->rc_min_throttle)
+    {
+        if (rcControlsConfig()->rc_max_throttle < rcControlsConfig()->rc_min_throttle + 10)
+        {
             rcControlsConfigMutable()->rc_max_throttle = rcControlsConfig()->rc_min_throttle + 10;
         }
     }
@@ -306,15 +340,18 @@ static void validateAndFixConfig(void)
 #if !defined(USE_GPS) || !defined(USE_GPS_RESCUE)
         || true
 #endif
-        ) {
+    )
+    {
 
 #ifdef USE_GPS_RESCUE
-        if (failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE) {
+        if (failsafeConfig()->failsafe_procedure == FAILSAFE_PROCEDURE_GPS_RESCUE)
+        {
             failsafeConfigMutable()->failsafe_procedure = FAILSAFE_PROCEDURE_DROP_IT;
         }
 #endif
 
-        if (isModeActivationConditionPresent(BOXGPSRESCUE)) {
+        if (isModeActivationConditionPresent(BOXGPSRESCUE))
+        {
             removeModeActivationCondition(BOXGPSRESCUE);
         }
     }
@@ -343,7 +380,8 @@ static void validateAndFixConfig(void)
         featureDisableImmediate(FEATURE_ESC_SENSOR);
     }
 
-    if (featureIsConfigured(FEATURE_ESC_SENSOR)) {
+    if (featureIsConfigured(FEATURE_ESC_SENSOR))
+    {
         validateAndFixEscSensorConfig();
     }
 #endif
@@ -354,11 +392,14 @@ static void validateAndFixConfig(void)
     } 
 #endif
 
-    for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++) {
+    for (int i = 0; i < MAX_MODE_ACTIVATION_CONDITION_COUNT; i++)
+    {
         const modeActivationCondition_t *mac = modeActivationConditions(i);
 
-        if (mac->linkedTo) {
-            if (mac->modeId == BOXARM || isModeActivationConditionLinked(mac->linkedTo)) {
+        if (mac->linkedTo)
+        {
+            if (mac->modeId == BOXARM || isModeActivationConditionLinked(mac->linkedTo))
+            {
                 removeModeActivationCondition(mac->modeId);
             }
         }
@@ -366,7 +407,8 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_DSHOT_TELEMETRY) && defined(USE_DSHOT_BITBANG)
     if (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_PROSHOT1000 && motorConfig()->dev.useDshotTelemetry &&
-        motorConfig()->dev.useDshotBitbang == DSHOT_BITBANG_ON) {
+        motorConfig()->dev.useDshotBitbang == DSHOT_BITBANG_ON)
+    {
         motorConfigMutable()->dev.useDshotBitbang = DSHOT_BITBANG_AUTO;
     }
 #endif
@@ -385,21 +427,19 @@ static void validateAndFixConfig(void)
 #ifdef USE_RX_SPI
     // The FrSky D SPI RX sends RSSI_ADC_PIN (if configured) as A2
     adcConfigMutable()->rssi.enabled |= (featureIsEnabled(FEATURE_RX_SPI) &&
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D);
+                                         rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D);
 
     // The FrSky D and X SPI RX sends EXT_ADC_PIN (if configured) as A1
-    adcConfigMutable()->vext.enabled |= (featureIsEnabled(FEATURE_RX_SPI) && (
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D ||
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X ||
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_V2 ||
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_LBT ||
-        rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_LBT_V2));
+    adcConfigMutable()->vext.enabled |= (featureIsEnabled(FEATURE_RX_SPI) && (rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_D ||
+                                                                              rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X ||
+                                                                              rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_V2 ||
+                                                                              rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_LBT ||
+                                                                              rxSpiConfig()->rx_spi_protocol == RX_SPI_FRSKY_X_LBT_V2));
 #endif
 #endif // USE_ADC
 
-
-// clear features that are not supported.
-// I have kept them all here in one place, some could be moved to sections of code above.
+    // clear features that are not supported.
+    // I have kept them all here in one place, some could be moved to sections of code above.
 
     featureDisableImmediate(UNUSED_FEATURES);
 
@@ -473,22 +513,25 @@ static void validateAndFixConfig(void)
 
 #if defined(USE_BEEPER)
 #ifdef USE_TIMER
-    if (beeperDevConfig()->frequency && !timerGetConfiguredByTag(beeperDevConfig()->ioTag)) {
+    if (beeperDevConfig()->frequency && !timerGetConfiguredByTag(beeperDevConfig()->ioTag))
+    {
         beeperDevConfigMutable()->frequency = 0;
     }
 #endif
 
-    if (beeperConfig()->beeper_off_flags & ~BEEPER_ALLOWED_MODES) {
+    if (beeperConfig()->beeper_off_flags & ~BEEPER_ALLOWED_MODES)
+    {
         beeperConfigMutable()->beeper_off_flags = 0;
     }
 
 #ifdef USE_DSHOT
-    if (beeperConfig()->dshotBeaconOffFlags & ~DSHOT_BEACON_ALLOWED_MODES) {
+    if (beeperConfig()->dshotBeaconOffFlags & ~DSHOT_BEACON_ALLOWED_MODES)
+    {
         beeperConfigMutable()->dshotBeaconOffFlags = 0;
     }
 
-    if (beeperConfig()->dshotBeaconTone < DSHOT_CMD_BEACON1
-        || beeperConfig()->dshotBeaconTone > DSHOT_CMD_BEACON5) {
+    if (beeperConfig()->dshotBeaconTone < DSHOT_CMD_BEACON1 || beeperConfig()->dshotBeaconTone > DSHOT_CMD_BEACON5)
+    {
         beeperConfigMutable()->dshotBeaconTone = DSHOT_CMD_BEACON1;
     }
 #endif
@@ -497,17 +540,21 @@ static void validateAndFixConfig(void)
     bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
 #if defined(USE_DSHOT)
     // If using DSHOT protocol disable unsynched PWM as it's meaningless
-    if (configuredMotorProtocolDshot) {
+    if (configuredMotorProtocolDshot)
+    {
         motorConfigMutable()->dev.useUnsyncedPwm = false;
     }
 
 #if defined(USE_DSHOT_TELEMETRY)
     bool nChannelTimerUsed = false;
-    for (unsigned i = 0; i < getMotorCount(); i++) {
+    for (unsigned i = 0; i < getMotorCount(); i++)
+    {
         const ioTag_t tag = motorConfig()->dev.ioTags[i];
-        if (tag) {
+        if (tag)
+        {
             const timerHardware_t *timer = timerGetConfiguredByTag(tag);
-            if (timer && timer->output & TIMER_OUTPUT_N_CHANNEL) {
+            if (timer && timer->output & TIMER_OUTPUT_N_CHANNEL)
+            {
                 nChannelTimerUsed = true;
 
                 break;
@@ -515,35 +562,42 @@ static void validateAndFixConfig(void)
         }
     }
 
-    if ((!configuredMotorProtocolDshot || (motorConfig()->dev.useDshotBitbang == DSHOT_BITBANG_OFF && (motorConfig()->dev.useBurstDshot == DSHOT_DMAR_ON || nChannelTimerUsed))) && motorConfig()->dev.useDshotTelemetry) {
+    if ((!configuredMotorProtocolDshot || (motorConfig()->dev.useDshotBitbang == DSHOT_BITBANG_OFF && (motorConfig()->dev.useBurstDshot == DSHOT_DMAR_ON || nChannelTimerUsed))) && motorConfig()->dev.useDshotTelemetry)
+    {
         motorConfigMutable()->dev.useDshotTelemetry = false;
     }
 #endif // USE_DSHOT_TELEMETRY
 #endif // USE_DSHOT
 
 #if defined(USE_OSD)
-    for (int i = 0; i < OSD_TIMER_COUNT; i++) {
-         const uint16_t t = osdConfig()->timers[i];
-         if (OSD_TIMER_SRC(t) >= OSD_TIMER_SRC_COUNT ||
-                 OSD_TIMER_PRECISION(t) >= OSD_TIMER_PREC_COUNT) {
-             osdConfigMutable()->timers[i] = osdTimerDefault[i];
-         }
-     }
+    for (int i = 0; i < OSD_TIMER_COUNT; i++)
+    {
+        const uint16_t t = osdConfig()->timers[i];
+        if (OSD_TIMER_SRC(t) >= OSD_TIMER_SRC_COUNT ||
+            OSD_TIMER_PRECISION(t) >= OSD_TIMER_PREC_COUNT)
+        {
+            osdConfigMutable()->timers[i] = osdTimerDefault[i];
+        }
+    }
 #endif
 
 #if defined(USE_VTX_COMMON) && defined(USE_VTX_TABLE)
     // reset vtx band, channel, power if outside range specified by vtxtable
-    if (vtxSettingsConfig()->channel > vtxTableConfig()->channels) {
+    if (vtxSettingsConfig()->channel > vtxTableConfig()->channels)
+    {
         vtxSettingsConfigMutable()->channel = 0;
-        if (vtxSettingsConfig()->band > 0) {
+        if (vtxSettingsConfig()->band > 0)
+        {
             vtxSettingsConfigMutable()->freq = 0; // band/channel determined frequency can't be valid anymore
         }
     }
-    if (vtxSettingsConfig()->band > vtxTableConfig()->bands) {
+    if (vtxSettingsConfig()->band > vtxTableConfig()->bands)
+    {
         vtxSettingsConfigMutable()->band = 0;
         vtxSettingsConfigMutable()->freq = 0; // band/channel determined frequency can't be valid anymore
     }
-    if (vtxSettingsConfig()->power > vtxTableConfig()->powerLevels) {
+    if (vtxSettingsConfig()->power > vtxTableConfig()->powerLevels)
+    {
         vtxSettingsConfigMutable()->power = 0;
     }
 #endif
@@ -556,20 +610,23 @@ static void validateAndFixConfig(void)
 
     // validate that the minimum battery cell voltage is less than the maximum cell voltage
     // reset to defaults if not
-    if (batteryConfig()->vbatmincellvoltage >=  batteryConfig()->vbatmaxcellvoltage) {
+    if (batteryConfig()->vbatmincellvoltage >= batteryConfig()->vbatmaxcellvoltage)
+    {
         batteryConfigMutable()->vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN;
         batteryConfigMutable()->vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
     }
 
 #ifdef USE_MSP_DISPLAYPORT
     // validate that displayport_msp_serial is referencing a valid UART that actually has MSP enabled
-    if (displayPortProfileMsp()->displayPortSerial != SERIAL_PORT_NONE) {
+    if (displayPortProfileMsp()->displayPortSerial != SERIAL_PORT_NONE)
+    {
         const serialPortConfig_t *portConfig = serialFindPortConfiguration(displayPortProfileMsp()->displayPortSerial);
         if (!portConfig || !(portConfig->functionMask & FUNCTION_MSP)
 #ifndef USE_MSP_PUSH_OVER_VCP
             || (portConfig->identifier == SERIAL_PORT_USB_VCP)
 #endif
-            ) {
+        )
+        {
             displayPortProfileMspMutable()->displayPortSerial = SERIAL_PORT_NONE;
         }
     }
@@ -600,58 +657,69 @@ void validateAndFixGyroConfig(void)
         /* If bidirectional DSHOT is being used on an F411 then force DSHOT300. The motor update restrictions then applied
          * will automatically consider the loop time and adjust pid_process_denom appropriately
          */
-        if (motorConfig()->dev.useDshotTelemetry && (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_DSHOT600)) {
+        if (motorConfig()->dev.useDshotTelemetry && (motorConfig()->dev.motorPwmProtocol == PWM_TYPE_DSHOT600))
+        {
             motorConfigMutable()->dev.motorPwmProtocol = PWM_TYPE_DSHOT300;
         }
 #endif
 
-        switch (motorConfig()->dev.motorPwmProtocol) {
-            case PWM_TYPE_STANDARD:
-            case PWM_TYPE_CASTLE_LINK:
-                motorUpdateRestriction = MOTORS_MAX_PWM_RATE;
-                break;
-            case PWM_TYPE_ONESHOT125:
-                motorUpdateRestriction = 2000;
-                break;
-            case PWM_TYPE_ONESHOT42:
-                motorUpdateRestriction = 10000;
-                break;
-            case PWM_TYPE_MULTISHOT:
-                motorUpdateRestriction = 32000;
-                break;
-            case PWM_TYPE_DSHOT150:
-                motorUpdateRestriction = 4000;
-                break;
-            case PWM_TYPE_DSHOT300:
-                motorUpdateRestriction = 10000;
-                break;
-            case PWM_TYPE_DSHOT600:
-            case PWM_TYPE_PROSHOT1000:
-                motorUpdateRestriction = 32000;
-                break;
+        switch (motorConfig()->dev.motorPwmProtocol)
+        {
+        case PWM_TYPE_STANDARD:
+        case PWM_TYPE_CASTLE_LINK:
+            motorUpdateRestriction = MOTORS_MAX_PWM_RATE;
+            break;
+        case PWM_TYPE_ONESHOT125:
+            motorUpdateRestriction = 2000;
+            break;
+        case PWM_TYPE_ONESHOT42:
+            motorUpdateRestriction = 10000;
+            break;
+        case PWM_TYPE_MULTISHOT:
+            motorUpdateRestriction = 32000;
+            break;
+        case PWM_TYPE_DSHOT150:
+            motorUpdateRestriction = 4000;
+            break;
+        case PWM_TYPE_DSHOT300:
+            motorUpdateRestriction = 10000;
+            break;
+        case PWM_TYPE_DSHOT600:
+        case PWM_TYPE_PROSHOT1000:
+            motorUpdateRestriction = 32000;
+            break;
         }
 
-        if (motorUpdateRestriction) {
-            if (motorConfig()->dev.useUnsyncedPwm) {
-                if (!checkMotorProtocolDshot(&motorConfig()->dev)) {
+        if (motorUpdateRestriction)
+        {
+            if (motorConfig()->dev.useUnsyncedPwm)
+            {
+                if (!checkMotorProtocolDshot(&motorConfig()->dev))
+                {
                     motorConfigMutable()->dev.motorPwmRate = MIN(motorConfig()->dev.motorPwmRate, motorUpdateRestriction);
                 }
-            } else {
-                if (motorConfig()->dev.useDshotTelemetry) {
+            }
+            else
+            {
+                if (motorConfig()->dev.useDshotTelemetry)
+                {
                     motorUpdateRestriction /= 2;
                 }
-                while (gyro.sampleRateHz / pidDenom > motorUpdateRestriction && pidDenom < MAX_PID_PROCESS_DENOM) {
+                while (gyro.sampleRateHz / pidDenom > motorUpdateRestriction && pidDenom < MAX_PID_PROCESS_DENOM)
+                {
                     pidDenom++;
                 }
             }
         }
 
         // Maximum PID loop speed
-        while (gyro.sampleRateHz / pidDenom > MAX_PID_PROCESS_SPEED && pidDenom < MAX_PID_PROCESS_DENOM) {
+        while (gyro.sampleRateHz / pidDenom > MAX_PID_PROCESS_SPEED && pidDenom < MAX_PID_PROCESS_DENOM)
+        {
             pidDenom++;
         }
         // Minimum PID loop speed
-        while (gyro.sampleRateHz / pidDenom < MIN_PID_PROCESS_SPEED && pidDenom > 1) {
+        while (gyro.sampleRateHz / pidDenom < MIN_PID_PROCESS_SPEED && pidDenom > 1)
+        {
             pidDenom--;
         }
 
@@ -659,15 +727,21 @@ void validateAndFixGyroConfig(void)
         pidConfigMutable()->pid_process_denom = pidDenom;
 
         // Check filter denom
-        if (filtDenom > 0) {
-            if (filtDenom < pidDenom) {
-                while (pidDenom % filtDenom) filtDenom++;
-            } else {
+        if (filtDenom > 0)
+        {
+            if (filtDenom < pidDenom)
+            {
+                while (pidDenom % filtDenom)
+                    filtDenom++;
+            }
+            else
+            {
                 filtDenom = pidDenom;
             }
             pidConfigMutable()->filter_process_denom = filtDenom;
         }
-        else {
+        else
+        {
             filtDenom = pidDenom;
         }
 
@@ -692,46 +766,55 @@ void validateAndFixGyroConfig(void)
         adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_hz_2, cutoff_limit, cutoff_limit);
         adjustFilterLimit(&gyroConfigMutable()->gyro_soft_notch_cutoff_2, cutoff_limit, 0);
 
-        if (gyroConfig()->gyro_lpf1_static_hz == 0) {
+        if (gyroConfig()->gyro_lpf1_static_hz == 0)
+        {
             gyroConfigMutable()->gyro_lpf1_type = LPF_NONE;
         }
-        if (gyroConfig()->gyro_lpf2_static_hz == 0) {
+        if (gyroConfig()->gyro_lpf2_static_hz == 0)
+        {
             gyroConfigMutable()->gyro_lpf2_type = LPF_NONE;
         }
 
 #ifdef USE_DYN_LPF
         // Prevent invalid dynamic lowpass filter
-        if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_dyn_max_hz) {
+        if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_dyn_max_hz)
+        {
             gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
             gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
         }
-        else if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_static_hz) {
+        else if (gyroConfig()->gyro_lpf1_dyn_min_hz > gyroConfig()->gyro_lpf1_static_hz)
+        {
             gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
             gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
         }
-        else if (gyroConfig()->gyro_lpf1_dyn_max_hz < gyroConfig()->gyro_lpf1_static_hz) {
+        else if (gyroConfig()->gyro_lpf1_dyn_max_hz < gyroConfig()->gyro_lpf1_static_hz)
+        {
             gyroConfigMutable()->gyro_lpf1_dyn_min_hz = 0;
             gyroConfigMutable()->gyro_lpf1_dyn_max_hz = 0;
         }
 #endif
 
         // Prevent invalid notch cutoff
-        if (gyroConfig()->gyro_soft_notch_cutoff_1 >= gyroConfig()->gyro_soft_notch_hz_1) {
+        if (gyroConfig()->gyro_soft_notch_cutoff_1 >= gyroConfig()->gyro_soft_notch_hz_1)
+        {
             gyroConfigMutable()->gyro_soft_notch_hz_1 = 0;
         }
-        if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2) {
+        if (gyroConfig()->gyro_soft_notch_cutoff_2 >= gyroConfig()->gyro_soft_notch_hz_2)
+        {
             gyroConfigMutable()->gyro_soft_notch_hz_2 = 0;
         }
     }
 
 #ifdef USE_BLACKBOX
 #ifndef USE_FLASHFS
-    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH) {
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH)
+    {
         blackboxConfigMutable()->device = BLACKBOX_DEVICE_NONE;
     }
 #endif // USE_FLASHFS
 
-    if (blackboxConfig()->device == BLACKBOX_DEVICE_SDCARD) {
+    if (blackboxConfig()->device == BLACKBOX_DEVICE_SDCARD)
+    {
 #if defined(USE_SDCARD)
         if (!sdcardConfig()->mode)
 #endif
@@ -741,12 +824,14 @@ void validateAndFixGyroConfig(void)
     }
 #endif // USE_BLACKBOX
 
-    if (systemConfig()->activeRateProfile >= CONTROL_RATE_PROFILE_COUNT) {
+    if (systemConfig()->activeRateProfile >= CONTROL_RATE_PROFILE_COUNT)
+    {
         systemConfigMutable()->activeRateProfile = 0;
     }
     loadControlRateProfile();
 
-    if (systemConfig()->pidProfileIndex >= PID_PROFILE_COUNT) {
+    if (systemConfig()->pidProfileIndex >= PID_PROFILE_COUNT)
+    {
         systemConfigMutable()->pidProfileIndex = 0;
     }
     loadPidProfile();
@@ -792,7 +877,7 @@ void writeEEPROM(void)
     writeUnmodifiedConfigToEEPROM();
 }
 
-void dispatchConfigWrite(struct dispatchEntry_s* self)
+void dispatchConfigWrite(struct dispatchEntry_s *self)
 {
     UNUSED(self);
 
@@ -801,9 +886,8 @@ void dispatchConfigWrite(struct dispatchEntry_s* self)
 }
 
 dispatchEntry_t writeConfigEntry =
-{
-    dispatchConfigWrite, 0, NULL, false
-};
+    {
+        dispatchConfigWrite, 0, NULL, false};
 
 void writeEEPROMDelayed(int delayUs)
 {
@@ -815,11 +899,14 @@ bool resetEEPROM(bool useCustomDefaults)
 #if !defined(USE_CUSTOM_DEFAULTS)
     UNUSED(useCustomDefaults);
 #else
-    if (useCustomDefaults) {
-        if (!resetConfigToCustomDefaults()) {
+    if (useCustomDefaults)
+    {
+        if (!resetConfigToCustomDefaults())
+        {
             return false;
         }
-    } else
+    }
+    else
 #endif
     {
         resetConfig();
@@ -855,7 +942,8 @@ void changePidProfile(uint8_t pidProfileIndex)
     // The config switch will cause a big enough delay in the current task to upset the scheduler
     schedulerIgnoreTaskExecTime();
 
-    if (pidProfileIndex < PID_PROFILE_COUNT) {
+    if (pidProfileIndex < PID_PROFILE_COUNT)
+    {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
         pidChangeProfile(currentPidProfile);

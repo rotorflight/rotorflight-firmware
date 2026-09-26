@@ -22,7 +22,9 @@
 
 #pragma once
 
-#ifdef USE_HAL_DRIVER
+#if defined(CH32H41x)
+#include "usbd_msc_mem.h"
+#elif defined(USE_HAL_DRIVER)
 #include "usbd_msc.h"
 #else
 #include "usbd_msc_mem.h"
@@ -31,7 +33,15 @@
 
 #include "common/time.h"
 
-#ifdef USE_HAL_DRIVER
+#if defined(CH32H41x)
+extern USBD_STORAGE_cb_TypeDef *USBD_STORAGE_fops;
+#ifdef USE_SDCARD_SPI
+extern USBD_STORAGE_cb_TypeDef USBD_MSC_MICRO_SD_SPI_fops;
+#endif
+#ifdef USE_FLASHFS
+extern USBD_STORAGE_cb_TypeDef USBD_MSC_EMFAT_fops;
+#endif
+#elif defined(USE_HAL_DRIVER)
 extern USBD_StorageTypeDef *USBD_STORAGE_fops;
 #ifdef USE_SDCARD_SDIO
 extern USBD_StorageTypeDef USBD_MSC_MICRO_SDIO_fops;
@@ -53,4 +63,4 @@ extern USBD_STORAGE_cb_TypeDef USBD_MSC_MICRO_SD_SPI_fops;
 #ifdef USE_FLASHFS
 extern USBD_STORAGE_cb_TypeDef USBD_MSC_EMFAT_fops;
 #endif
-#endif // USE_HAL_DRIVER
+#endif

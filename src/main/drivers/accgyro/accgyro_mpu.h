@@ -25,7 +25,7 @@
 #include "drivers/sensor.h"
 
 #if defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU6000) ||  defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_SPI_ICM20649) \
- || defined(USE_GYRO_SPI_ICM20689)
+ || defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_SPI_ICM40608)
 #define GYRO_USES_SPI
 #endif
 
@@ -45,6 +45,7 @@
 #define ICM20689_WHO_AM_I_CONST             (0x98)
 #define ICM42605_WHO_AM_I_CONST             (0x42)
 #define ICM42688P_WHO_AM_I_CONST            (0x47)
+#define ICM40608_WHO_AM_I_CONST             (0x39)
 
 // RA = Register Address
 
@@ -56,7 +57,7 @@
 #define MPU_RA_Z_FINE_GAIN      0x05    //[7:0] Z_FINE_GAIN
 #define MPU_RA_XA_OFFS_H        0x06    //[15:0] XA_OFFS
 #define MPU_RA_XA_OFFS_L_TC     0x07
-#define MPU_RA_YA_OFFS_H        0x08    //[15:0] YA_OFFS
+#define MPU_RA_YA_OFFS_H        0x08    //[15:0] YA_OFFSGYRO_USES_SPI
 #define MPU_RA_YA_OFFS_L_TC     0x09
 #define MPU_RA_ZA_OFFS_H        0x0A    //[15:0] ZA_OFFS
 #define MPU_RA_ZA_OFFS_L_TC     0x0B
@@ -200,6 +201,7 @@ typedef enum {
     ICM_20689_SPI,
     ICM_42605_SPI,
     ICM_42688P_SPI,
+    ICM_40608_SPI,
     BMI_160_SPI,
     BMI_270_SPI,
     BMI_323_SPI,
