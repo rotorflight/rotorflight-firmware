@@ -36,8 +36,12 @@
 // XACT module state
 static bool xactInitialized = false;
 
-// XACT servo programming queue
-#define XACT_QUEUE_SIZE 8
+// XACT servo programming queue. One save queues at most every writable field (13), the
+// Holding Strength companion and the two-step flash save: 16 writes. A save is only queued
+// when all of it fits, so its flash save is never dropped. Room for two saves lets a second
+// one queue while the first is still being sent.
+#define XACT_SAVE_MAX_WRITES 16
+#define XACT_QUEUE_SIZE (2 * XACT_SAVE_MAX_WRITES)
 static xactServoParam_t xactQueue[XACT_QUEUE_SIZE];
 static uint8_t xactQueueHead = 0;
 static uint8_t xactQueueTail = 0;
@@ -586,6 +590,12 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServ
         return false;
     }
 
+    // Only start when the whole save fits in the queue. A partly queued save would lose its
+    // flash save at the end, while the cache below already claims the new values.
+    if (XACT_QUEUE_SIZE - xactQueueCount < XACT_SAVE_MAX_WRITES) {
+        return false;
+    }
+
     // Get cached parameters
     xactServoParams_t *cachedParams = &xactServoParams[servoIndex];
 
@@ -739,7 +749,8 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServ
         fbusXactWriteUplinkFramePhyID(currentPhyID, XACT_FIELD_WRITE_FLASH, currentAppId, 0);
     }
 
-    return hasChanges;
+    // Nothing to change is not an error: the servo already has these values
+    return true;
 }
 
 // Check if XACT is currently busy (reading or writing)
