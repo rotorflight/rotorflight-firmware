@@ -327,7 +327,7 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
         return;
     }
 
-    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterConfig()->frameRate);
+    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterConfig()->frameRate, FBUS_MASTER_CHANNELS);
 
     // Start sending.
     fbusMasterFrame_t frame;

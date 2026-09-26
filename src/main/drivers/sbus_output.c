@@ -82,15 +82,55 @@ float sbusOutGetRX(uint8_t channel)
     return 0;
 }
 
-// Helper function similar to limitTravel in servos.c
-static inline float sbusLimitTravel(uint8_t channel, float pos, float min, float max)
+// Mixer servo output a bus channel follows. Bus channels read the mixer by
+// channel number, so S9-S16 mirror S1-S8 and cyclic servos can sit on the bus.
+// Input, cyclic detection and saturation must all use this same index.
+static inline uint8_t sbusOutMixerIndex(uint8_t channel)
+{
+    return channel;
+}
+
+static inline bool sbusOutIsMixerChannel(uint8_t channel)
+{
+    return busServoConfig()->sourceType[channel] == BUS_SERVO_SOURCE_MIXER;
+}
+
+// Normalized mixer output (-1.0 to 1.0) for a bus channel, or the servo
+// override when disarmed
+static float sbusOutGetInput(uint8_t channel, const servoParam_t *servo)
 {
     const uint8_t servoIndex = BUS_SERVO_OFFSET + channel;
+    float input;
+
+    if (!ARMING_FLAG(ARMED) && hasServoOverride(servoIndex))
+        input = getServoOverride(servoIndex) / 1000.0f;
+    else
+        input = mixerGetServoOutput(sbusOutMixerIndex(channel));
+
+#ifdef USE_SERVO_GEOMETRY_CORRECTION
+    // Apply geometry correction if enabled for this servo
+    if (servo->flags & SERVO_FLAG_GEO_CORR)
+        input = geometryCorrection(input);
+#else
+    UNUSED(servo);
+#endif
+
+    return input;
+}
+
+// Helper function similar to limitTravel in servos.c. Saturation goes to the
+// mixer output the channel follows, so a mirrored servo at its travel limit
+// stops I-term windup like the PWM servo does. Channels not sent from the
+// mixer don't saturate it.
+static inline float sbusLimitTravel(uint8_t channel, float pos, float min, float max)
+{
     if (pos > max) {
-        mixerSaturateServoOutput(servoIndex);
+        if (sbusOutIsMixerChannel(channel))
+            mixerSaturateServoOutput(sbusOutMixerIndex(channel));
         return max;
     } else if (pos < min) {
-        mixerSaturateServoOutput(servoIndex);
+        if (sbusOutIsMixerChannel(channel))
+            mixerSaturateServoOutput(sbusOutMixerIndex(channel));
         return min;
     }
     return pos;
@@ -118,35 +158,25 @@ static inline float sbusLimitRatio(float old, float new, float ratio)
     return old + (new - old) * ratio;
 }
 
-// Calculate cyclic ratio for all channels (called once per output frame)
-static void sbusOutCalculateCyclicRatio(sbusOutSpeedState_t *state)
+// Calculate cyclic ratio for the output's channels (called once per output frame).
+// Only channels this output sends from the mixer count: others don't update
+// state->pos, and a stale position would hold the ratio down.
+static void sbusOutCalculateCyclicRatio(sbusOutSpeedState_t *state, uint8_t channelCount)
 {
     float cyclic_ratio = 1.0f;
-    
-    for (int ch = 0; ch < SBUS_OUT_CHANNELS; ch++)
+
+    for (int ch = 0; ch < channelCount; ch++)
     {
         const uint8_t servoIndex = BUS_SERVO_OFFSET + ch;
-        
-        if (servoIndex >= MAX_SUPPORTED_SERVOS)
+
+        if (servoIndex >= MAX_SUPPORTED_SERVOS || !sbusOutIsMixerChannel(ch))
             continue;
 
         const servoParam_t *servo = servoParams(servoIndex);
 
-        // Get normalized mixer output (-1.0 to 1.0), or servo override when disarmed
-        float input;
-        if (!ARMING_FLAG(ARMED) && hasServoOverride(servoIndex))
-            input = getServoOverride(servoIndex) / 1000.0f;
-        else
-            input = mixerGetServoOutput(servoIndex);
-
-#ifdef USE_SERVO_GEOMETRY_CORRECTION
-        // Apply geometry correction if enabled for this servo
-        if (servo->flags & SERVO_FLAG_GEO_CORR)
-            input = geometryCorrection(input);
-#endif
-
         // Calculate cyclic ratio for speed limiting (if this is a cyclic servo)
-        if (servo->speed && mixerIsCyclicServo(servoIndex)) {
+        if (servo->speed && mixerIsCyclicServo(sbusOutMixerIndex(ch))) {
+            const float input = sbusOutGetInput(ch, servo);
             const float limit = 1200 * state->dt / servo->speed;
             const float speed = fabsf(input - state->pos[ch]);
             if (speed > limit)
@@ -157,7 +187,7 @@ static void sbusOutCalculateCyclicRatio(sbusOutSpeedState_t *state)
     state->cyclicRatio = cyclic_ratio;
 }
 
-void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float frameRateHz)
+void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float frameRateHz, uint8_t channelCount)
 {
     // Time since this output's previous frame. The first frame assumes the
     // configured frame rate; a long gap is capped at 100ms.
@@ -166,7 +196,7 @@ void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float
         1.0f / frameRateHz;
     state->lastFrameUs = currentTimeUs;
 
-    sbusOutCalculateCyclicRatio(state);
+    sbusOutCalculateCyclicRatio(state, MIN(channelCount, SBUS_OUT_CHANNELS));
 }
 
 // Process a single SBUS mixer channel with same logic as servoUpdate()
@@ -184,24 +214,11 @@ float sbusOutGetValueMixer(uint8_t channel, sbusOutSpeedState_t *state)
 
     const servoParam_t *servo = servoParams(servoIndex);
 
-    // Get normalized mixer output (-1.0 to 1.0), or servo override when disarmed
-    float input;
-    if (!ARMING_FLAG(ARMED) && hasServoOverride(servoIndex))
-        input = getServoOverride(servoIndex) / 1000.0f;
-    else
-        input = mixerGetServoOutput(servoIndex - BUS_SERVO_OFFSET);
-
-#ifdef USE_SERVO_GEOMETRY_CORRECTION
-    // Apply geometry correction if enabled for this servo
-    if (servo->flags & SERVO_FLAG_GEO_CORR)
-        input = geometryCorrection(input);
-#endif
-
-    float pos = input;
+    float pos = sbusOutGetInput(channel, servo);
 
     // Apply speed limiting
     if (servo->speed > 0) {
-        if (mixerIsCyclicServo(servoIndex)) {
+        if (mixerIsCyclicServo(sbusOutMixerIndex(channel))) {
             // Cyclic ratio worked out for this frame by sbusOutBeginFrame()
             pos = sbusLimitRatio(state->pos[channel], pos, state->cyclicRatio);
         }
@@ -274,7 +291,7 @@ void sbusOutUpdate(timeUs_t currentTimeUs)
     if (serialTxBytesFree(sbusOutPort) <= sizeof(sbusOutFrame_t))
         return;
 
-    sbusOutBeginFrame(&sbusOutSpeedState, currentTimeUs, sbusOutConfig()->frameRate);
+    sbusOutBeginFrame(&sbusOutSpeedState, currentTimeUs, sbusOutConfig()->frameRate, SBUS_OUT_CHANNELS);
 
     // Process all mixer channels with servoUpdate() logic
     float mixerOutputs[SBUS_OUT_CHANNELS];
