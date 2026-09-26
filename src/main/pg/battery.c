@@ -31,19 +31,23 @@
 #define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_NONE
 #endif
 
+STATIC_ASSERT(BATTERY_PROFILE_COUNT == 6, battery_profile_count_changed);
 
-PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 5);
+#define BATTERY_PROFILE_VALUE(value)    { (value), (value), (value), (value), (value), (value) }
+
+
+PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 6);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .batteryProfile = 0,
-    .batteryCellCount = 0,
+    .batteryCellCount = INIT_ZERO,
     .batteryCapacity = INIT_ZERO,
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
-    .vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX,
-    .vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN,
-    .vbatfullcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_FULL,
-    .vbatwarningcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_WARN,
+    .vbatmaxcellvoltage = BATTERY_PROFILE_VALUE(VBAT_CELL_VOLTAGE_DEFAULT_MAX),
+    .vbatmincellvoltage = BATTERY_PROFILE_VALUE(VBAT_CELL_VOLTAGE_DEFAULT_MIN),
+    .vbatfullcellvoltage = BATTERY_PROFILE_VALUE(VBAT_CELL_VOLTAGE_DEFAULT_FULL),
+    .vbatwarningcellvoltage = BATTERY_PROFILE_VALUE(VBAT_CELL_VOLTAGE_DEFAULT_WARN),
     .vbatnotpresentcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_ABSENT,
     .vbathysteresis = 1,
     .lvcPercentage = 100, // Off by default at 100%
