@@ -289,6 +289,10 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     }
 }
 
+// Speed-limit state for F.Bus output, separate from SBUS output's so each
+// output steps only on its own frames.
+static sbusOutSpeedState_t fbusMasterSpeedState;
+
 static float fbusMasterGetChannelValue(uint8_t channel)
 {
     const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
@@ -297,7 +301,7 @@ static float fbusMasterGetChannelValue(uint8_t channel)
             return sbusOutGetRX(channel);
         case BUS_SERVO_SOURCE_MIXER:
             // Use the same servo-parameter-aware function
-            return sbusOutGetValueMixer(channel);
+            return sbusOutGetValueMixer(channel, &fbusMasterSpeedState);
     }
     return 0;
 }
@@ -322,6 +326,8 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
         return;
     }
+
+    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterConfig()->frameRate);
 
     // Start sending.
     fbusMasterFrame_t frame;
