@@ -43,7 +43,8 @@ written, followed by a save to the servo's flash. Payload: U8 targetPhyID, U8 ph
 U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
 U8 operationSmoothing, U8 deadband, U8 workingMode, U16 maxAngle.
 Returns an error if F.Bus master is not enabled, the system is armed, the servo is unknown, another
-servo shares its App ID, or no field differs from the last read. No XACT traffic is sent while armed.
+servo shares its App ID, or earlier saves are still being sent. Succeeds without writing if no field
+differs from the last read. No XACT traffic is sent while armed.
 
 ## CLI Changes
 
