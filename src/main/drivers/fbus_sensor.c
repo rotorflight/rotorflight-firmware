@@ -36,6 +36,10 @@
 #include "drivers/fbus_sensor.h"
 #include "sensors/sensors.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_xact.h"
+#endif
+
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 
 static const char* const fbusSensorNames[] = {
@@ -513,6 +517,13 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
     
     if (detectedType == FBUS_DETECTED_SENSOR_XACT_SERVO) {
         if (appId >= FBUS_SERVO_DATA_BASE && appId <= (FBUS_SERVO_DATA_BASE + 0x0F)) {
+#ifdef USE_FBUS_MASTER
+            // Only the FBUS master link can send XACT read/write frames, so servo
+            // programming tracking is scoped to sensors observed on that source.
+            if (source == FBUS_SENSOR_SOURCE_FBUS) {
+                fbusXactTrackServo(physicalId, appId, currentTimeUs);
+            }
+#endif
             fbusServoConvertData(data, &fbusServo.currentDeciAmps,
                                 &fbusServo.voltageDeciVolts,
                                 &fbusServo.temperatureDegC);
