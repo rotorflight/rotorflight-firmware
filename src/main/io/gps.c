@@ -105,6 +105,10 @@ uint8_t GPS_svinfo_cno[GPS_SV_MAXSATS_M8N];
 #define GPS_BAUDRATE_CHANGE_DELAY (200)
 // Timeout for waiting ACK/NAK in GPS task cycles (0.25s at 100Hz)
 #define UBLOX_ACK_TIMEOUT_MAX_COUNT (25)
+// After this many consecutive failed init cycles, stop re-initialising the
+// serial port continuously and only retry every GPS_LOST_COMM_RETRY_DELAY.
+#define GPS_LOST_COMM_FAST_RETRIES (2 * GPS_INIT_ENTRIES)
+#define GPS_LOST_COMM_RETRY_DELAY (30000)
 
 static serialPort_t *gpsPort;
 
@@ -292,6 +296,14 @@ static bool gpsNewFrameNMEA(char c);
 static bool gpsNewFrameUBLOX(uint8_t data);
 #endif
 
+// Only reconfigure the UART if the baud rate actually changes
+static void gpsSetBaudRate(uint32_t baudRate)
+{
+    if (serialGetBaudRate(gpsPort) != baudRate) {
+        serialSetBaudRate(gpsPort, baudRate);
+    }
+}
+
 static void gpsSetState(gpsState_e state)
 {
     gpsData.lastMessage = millis();
@@ -322,6 +334,7 @@ void gpsInit(void)
     gpsData.baudrateIndex = 0;
     gpsData.errors = 0;
     gpsData.timeouts = 0;
+    gpsData.lostCommCount = 0;
 
     memset(gpsPacketLog, 0x00, sizeof(gpsPacketLog));
 
@@ -380,7 +393,7 @@ void gpsInitNmea(void)
            }
            gpsData.state_ts = now;
            if (gpsData.state_position < 1) {
-               serialSetBaudRate(gpsPort, 4800);
+               gpsSetBaudRate(4800);
                gpsData.state_position++;
            } else if (gpsData.state_position < 2) {
                // print our FIXED init string for the baudrate we want to be at
@@ -400,7 +413,7 @@ void gpsInitNmea(void)
            }
            gpsData.state_ts = now;
            if (gpsData.state_position < 1) {
-               serialSetBaudRate(gpsPort, baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
+               gpsSetBaudRate(baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
                gpsData.state_position++;
            } else if (gpsData.state_position < 2) {
                serialPrint(gpsPort, "$PSRF103,00,6,00,0*23\r\n");
@@ -408,7 +421,7 @@ void gpsInitNmea(void)
            } else
 #else
            {
-               serialSetBaudRate(gpsPort, baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
+               gpsSetBaudRate(baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
            }
 #endif
                gpsSetState(GPS_STATE_RECEIVING_DATA);
@@ -604,7 +617,7 @@ void gpsInitUblox(void)
             break;
 
         case GPS_STATE_CHANGE_BAUD:
-            serialSetBaudRate(gpsPort, baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
+            gpsSetBaudRate(baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex]);
 #if DEBUG_SERIAL_BAUD
             debug[0] = baudRates[gpsInitData[gpsData.baudrateIndex].baudrateIndex] / 100;
 #endif
@@ -814,14 +827,22 @@ void gpsUpdate(timeUs_t currentTimeUs)
             break;
 
         case GPS_STATE_LOST_COMMUNICATION:
+            gpsSol.numSat = 0;
+            DISABLE_STATE(GPS_FIX);
+            // No module answering - back off instead of re-initialising the UART forever
+            if (gpsData.lostCommCount >= GPS_LOST_COMM_FAST_RETRIES &&
+                millis() - gpsData.state_ts < GPS_LOST_COMM_RETRY_DELAY) {
+                break;
+            }
+            if (gpsData.lostCommCount < UINT8_MAX) {
+                gpsData.lostCommCount++;
+            }
             gpsData.timeouts++;
             if (gpsConfig()->autoBaud) {
                 // try another rate
                 gpsData.baudrateIndex++;
                 gpsData.baudrateIndex %= GPS_INIT_ENTRIES;
             }
-            gpsSol.numSat = 0;
-            DISABLE_STATE(GPS_FIX);
             // Don't try to reinitialize MSP/FBUS GPS on timeout
             if (gpsConfig()->provider != GPS_MSP && !gpsUsesFbusTransport()) {
                 gpsSetState(GPS_STATE_INITIALIZING);
@@ -920,6 +941,7 @@ static void gpsNewData(uint16_t c)
         // new data received and parsed, we're in business
         gpsData.lastLastMessage = gpsData.lastMessage;
         gpsData.lastMessage = millis();
+        gpsData.lostCommCount = 0;
         sensorsSet(SENSOR_GPS);
     }
 
