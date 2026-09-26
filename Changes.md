@@ -19,6 +19,7 @@ the APIs or flight performance.
 - CMS compiled out on all targets (#492)
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
 - Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
+- FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
 
 ## Bug Fixes
 
@@ -42,7 +43,7 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 ## MSP Changes
 
-- API version 12.10 (#484)
+- API version 12.11 (#484, #518)
 
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
@@ -75,6 +76,33 @@ Bus servos with a `speed` set previously moved much slower than configured
   `U16 releases, U16 bigRebounds, S16 meanRebound, S16 meanOvershoot, S16 meanCounter,
   S16 meanIterm` (meanCounter is P+I+D+B, so tail and pitch precomp do not count).
   Ratios are x1000, counts saturate at 65535.
+
+### MSP_SET_XACT_SCAN
+
+New MSP command (161) to restart discovery of XACT servos on the F.Bus master link. No payload.
+Returns an error if F.Bus master is not enabled or the system is armed (#518).
+
+### MSP_XACT_SERVO_LIST
+
+New MSP command (165) to list the XACT servos discovered since the last scan (#518).
+Returns: U8 count, then per servo: U8 phyID, U8 appIdOffset, U8 conflict, U8 duplicateAppId, U8 ready, U8 channel.
+
+### MSP_XACT_PARAMS
+
+New MSP command (162) to read all parameters of one discovered XACT servo (#518). Payload: U8 phyID.
+Starts a background read if none has completed yet; repeat until `ready` is 1.
+Returns: U8 ready, U8 conflict, U8 duplicateAppId, U8 physicalId, U8 appIdOffset, U8 firmwareVersion,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 hasExtendedParams, U8 workingMode, U16 maxAngle.
+
+### MSP_SET_XACT_PARAMS
+
+New MSP command (163) to write the parameters of one discovered XACT servo (#518). Only changed fields are
+written, followed by a save to the servo's flash. Payload: U8 targetPhyID, U8 physicalId, U8 appIdOffset,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 workingMode, U16 maxAngle.
+Returns an error if F.Bus master is not enabled, the system is armed, the servo is unknown, another
+servo shares its App ID, or no field differs from the last read. No XACT traffic is sent while armed.
 
 ## CLI Changes
 
