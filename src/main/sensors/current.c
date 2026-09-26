@@ -219,13 +219,18 @@ bool currentSensorFBUSRead(currentMeter_t *meter)
 
     meter->sample = state->sample;
     meter->current = state->current;
-    meter->capacity = state->capacity;
+    meter->capacity = state->capacity / 3600000000u;
 
     return state->enabled;
 }
 
-void currentSensorFBUSRefresh(void)
+void currentSensorFBUSRefresh(timeUs_t currentTimeUs)
 {
+    static timeUs_t lastServiced = 0;
+
+    const timeDelta_t updateDelta = cmp32(currentTimeUs, lastServiced);
+    lastServiced = currentTimeUs;
+
     currentSensorState_t *state = &currentFBUSSensor;
     fbusCurrentData_t fbusCurrent;
 
@@ -238,12 +243,11 @@ void currentSensorFBUSRefresh(void)
 
         state->sample = current;
         state->current = filterApply(&state->filter, current);
-        state->capacity = 0;
+        state->capacity += (uint64_t)current * updateDelta;
         state->enabled = true;
     } else {
         state->sample = 0;
         state->current = 0;
-        state->capacity = 0;
         state->enabled = false;
     }
 }

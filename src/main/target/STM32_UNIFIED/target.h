@@ -148,6 +148,11 @@
 #undef USE_RX_SX1280
 #undef USE_RX_SX127X
 
+#undef USE_SERIALRX_GHST
+#undef USE_TELEMETRY_GHST
+#undef USE_PPM
+#undef USE_PWM
+
 
 /*
  * STM32F405
