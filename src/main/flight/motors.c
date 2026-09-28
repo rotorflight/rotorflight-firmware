@@ -44,6 +44,8 @@
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
 
+#include "drivers/crsf_sensors.h"
+
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 #include "fc/rc_modes.h"
@@ -309,8 +311,22 @@ void motorUpdate(timeUs_t currentTimeUs)
     motorWriteAll(motorOutput);
 
     for (int i = 0; i < motorCount; i++) {
-        motorRpmRaw[i] = getSensorRPMf(i);
-        motorRpm[i] = fmaxf(filterApply(&motorRpmFilter[i], motorRpmRaw[i]), 0);
+#ifdef USE_CRSF_SENSORS
+        // Simple override, same shape as crsf_sensors_use_baro: when on and
+        // this motor index has a CRSF-decoded reading, use it directly in
+        // place of whatever motorRpmSource[i] would otherwise provide - no
+        // pole/gear erpm math or filtering, since (like the baro override)
+        // this is already a final reading, not a raw sensor signal.
+        crsfSensorsRpmData_t crsfRpm;
+        if (crsfSensorsGetRpmUse() && crsfSensorsGetRpmData(&crsfRpm) && i < crsfRpm.rpmCount) {
+            motorRpmRaw[i] = (float)crsfRpm.rpmValues[i];
+            motorRpm[i] = fmaxf(motorRpmRaw[i], 0);
+        } else
+#endif
+        {
+            motorRpmRaw[i] = getSensorRPMf(i);
+            motorRpm[i] = fmaxf(filterApply(&motorRpmFilter[i], motorRpmRaw[i]), 0);
+        }
         DEBUG(RPM_SOURCE, i, motorRpmRaw[i]);
     }
 

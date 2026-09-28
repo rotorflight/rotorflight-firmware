@@ -249,6 +249,7 @@ extern uint8_t _dmaram_end__;
 #define USE_SBUS_OUTPUT         // SBus Output feature
 #define USE_FBUS_MASTER         // FBUS Master feature
 #define USE_SPORT_MASTER        // S.Port master feature
+#define USE_CRSF_SENSORS        // CRSF sensor input feature
 #if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
 #define USE_BUS_SERVO
 #endif

@@ -59,6 +59,7 @@
 #include "drivers/dshot.h"
 #include "drivers/dshot_command.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
 #include "drivers/flash.h"
 #include "drivers/io.h"
 #include "drivers/motor.h"
@@ -1407,6 +1408,72 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             sbufWriteU8(dst, fbusMasterConfig()->forwardedSensors[i]);
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_CRSF_SENSORS
+    case MSP2_GET_CRSF_SENSORS_STATUS: {
+        // Read-only diagnostics for the configurator's CRSF Sensors debug page
+        // (mirrors MSP2_GET_FBUS_SENSORS' role for the FBUS/S.Port bus): link
+        // health counters plus the latest decoded value from every frame type
+        // this driver understands.
+        crsfSensorsDebugStats_t stats;
+        crsfSensorsGetDebugStats(&stats);
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, crsfSensorsIsEnabled() ? 1 : 0);
+        sbufWriteU32(dst, stats.rxByteCount);
+        sbufWriteU32(dst, stats.rxSyncCount);
+        sbufWriteU32(dst, stats.rxCrcOkCount);
+        sbufWriteU32(dst, stats.rxCrcFailCount);
+        sbufWriteU8(dst, stats.lastFrameType);
+        sbufWriteU8(dst, stats.lastFrameLength);
+
+        crsfSensorsGpsData_t gps;
+        const bool hasGps = crsfSensorsGetGpsData(&gps);
+        sbufWriteU8(dst, hasGps ? 1 : 0);
+        sbufWriteS32(dst, hasGps ? gps.latitude : 0);
+        sbufWriteS32(dst, hasGps ? gps.longitude : 0);
+        sbufWriteU16(dst, hasGps ? gps.groundspeedCmS : 0);
+        sbufWriteU16(dst, hasGps ? gps.headingDeg10 : 0);
+        sbufWriteS32(dst, hasGps ? gps.altitudeCm : 0);
+        sbufWriteU8(dst, hasGps ? gps.satellites : 0);
+
+        crsfSensorsBatteryData_t battery;
+        const bool hasBattery = crsfSensorsGetBatteryData(&battery);
+        sbufWriteU8(dst, hasBattery ? 1 : 0);
+        sbufWriteU32(dst, hasBattery ? battery.voltageMv : 0);
+        sbufWriteU32(dst, hasBattery ? battery.currentMa : 0);
+        sbufWriteU32(dst, hasBattery ? battery.capacityMah : 0);
+        sbufWriteU8(dst, hasBattery ? battery.remainingPct : 0);
+
+        crsfSensorsBaroData_t baro;
+        const bool hasBaro = crsfSensorsGetBaroData(&baro);
+        sbufWriteU8(dst, hasBaro ? 1 : 0);
+        sbufWriteS32(dst, hasBaro ? baro.altitudeCm : 0);
+        sbufWriteS16(dst, hasBaro ? baro.verticalSpeedCmS : 0);
+
+        crsfSensorsCellsData_t cells;
+        const bool hasCells = crsfSensorsGetCellsData(&cells);
+        sbufWriteU8(dst, hasCells ? 1 : 0);
+        sbufWriteU8(dst, hasCells ? cells.cellCount : 0);
+        if (hasCells) {
+            for (uint8_t i = 0; i < cells.cellCount; i++) {
+                sbufWriteU16(dst, cells.cellVoltageMv[i]);
+            }
+        }
+        sbufWriteU32(dst, hasCells ? cells.totalVoltageMv : 0);
+
+        crsfSensorsRpmData_t rpm;
+        const bool hasRpm = crsfSensorsGetRpmData(&rpm);
+        sbufWriteU8(dst, hasRpm ? 1 : 0);
+        sbufWriteU8(dst, hasRpm ? rpm.rpmCount : 0);
+        if (hasRpm) {
+            for (uint8_t i = 0; i < rpm.rpmCount; i++) {
+                sbufWriteS32(dst, rpm.rpmValues[i]);
+            }
         }
         break;
     }
