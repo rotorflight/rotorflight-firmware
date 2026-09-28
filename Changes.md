@@ -7,15 +7,73 @@ the APIs or flight performance.
 
 ## Features
 
+- Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
+- Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
+- Spektrum bind supports pin swap; initial bind glitch fixed (#496)
+- FrSky RPM and temperature sensor via FBUS/S.Port (#461)
+- XDFLY/ZTW/OMPHOBBY ESC telemetry works in both half duplex (bidirectional) and receive-only mode (#478)
+- Alternative takeoff detection based on stick response and Z-acceleration (#480)
+- Separate angle limit for Horizon mode (#479)
+- Speed-dependent cyclic I-term decay to prevent wind-up on cyclic input (#457)
+- Deadband on continuous adjustment channels stops values from toggling on pot noise (#507)
+- CMS compiled out on all targets (#492)
+- GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
+
 ## Bug Fixes
+
+- ICM42605 gyro uses the correct ODR (#475)
+- Servos are no longer set to midpoint at startup (#466)
+- Forwarding of S.Port master sensors fixed (#481)
+- FBUS/S.Port current sensor accumulates consumed capacity (#513)
+- Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
+- `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
 
 ## Flight Performance
 
+Horizon mode uses a per-axis cubic leveling curve, ramps in over 500ms
+on activation, and has its own `horizon_angle_limit` (#479).
+
+Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
+(#457). Disabled by default.
+
+Bus servos with a `speed` set previously moved much slower than configured
+(about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
 ## MSP Changes
+
+- API version 12.10 (#484)
+
+### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
+
+- added `error_decay_gain_cyclic` (#457)
+
+### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
+
+- `SRXL2` inserted in the motor and ESC sensor protocol lists; `DISABLED` and `RECORD` values are shifted by one (#421)
+
+### MSP2_GET_FBUS_SENSORS / MSP2_CLEAR_FBUS_SENSORS
+
+- new commands (0x5F07, 0x5F08) to list and clear observed FBUS/S.Port sensors (#482)
+
+### MSP2_GET_FBUS_MASTER_CONFIG / MSP2_SET_FBUS_MASTER_CONFIG
+
+- new commands (0x5F09, 0x5F0A) to get/set forwarded sensors; applied without reboot (#482)
 
 ## CLI Changes
 
+- added `airborne_mode`, `airborne_gyro_threshold`, `airborne_acc_threshold` (#480)
+- added `horizon_angle_limit` (#479)
+- added `error_decay_gain_cyclic` (#457)
+- added `srxl2esc` command (#421)
+- `SRXL2` added to `motor_pwm_protocol` and `esc_sensor_protocol` (#421)
+- new serial function `FUNCTION_SRXL2_ESC` (2097152) (#421)
+
 ## Defaults
+
+- `airborne_mode = CONSERVATIVE`, `airborne_gyro_threshold = 10`, `airborne_acc_threshold = 15` (#480)
+- `horizon_angle_limit = 55` (#479)
+- `error_decay_gain_cyclic = 0` (#457)
+- Bus servo scale (`rneg`/`rpos`) changed from 1000 to 500, matching PWM servos; saved configs are unchanged (#515)
 
 # 4.6.0
 
