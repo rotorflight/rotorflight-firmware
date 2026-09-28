@@ -157,10 +157,11 @@ bool fbusXactHasDuplicateAppId(uint8_t phyID);
 bool fbusXactSetServoParam(uint8_t phyID, uint8_t fieldId, uint16_t appId, uint16_t data);
 
 // Compare and write all parameters if different from cache. Returns false (no writes sent)
-// without changing anything if the servo is unknown, fbusXactHasDuplicateAppId(phyID) is true,
-// or the write queue has no room for a whole save. Returns true otherwise, also when no
-// parameter differs and nothing is written.
-bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServoParams_t *newParams);
+// without changing anything if the servo is unknown, its parameter read has not completed
+// (fbusXactIsServoParamsReady), fbusXactHasDuplicateAppId(phyID) is true, or the write queue has
+// no room for a whole save. Returns true otherwise, also when no parameter differs and nothing
+// is written. Writes are addressed to the App ID the servo reports in telemetry.
+bool fbusXactCompareAndWriteParams(uint8_t phyID, const xactServoParams_t *newParams);
 
 // Check if XACT module is initialized
 bool fbusXactIsInitialized(void);

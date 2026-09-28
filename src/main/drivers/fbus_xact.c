@@ -176,6 +176,7 @@ void fbusXactInit(void)
 void fbusXactClearDiscoveredServos(void)
 {
     memset(xactServos, 0, sizeof(xactServos));
+    memset(xactServoParams, 0, sizeof(xactServoParams));
     xactServoCount = 0;
     xactReadState = XACT_READ_STATE_IDLE;
 
@@ -571,7 +572,7 @@ bool fbusXactSetServoParam(uint8_t phyID, uint8_t fieldId, uint16_t appId, uint1
 }
 
 // Compare and write all parameters if different from cache
-bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServoParams_t *newParams)
+bool fbusXactCompareAndWriteParams(uint8_t phyID, const xactServoParams_t *newParams)
 {
     if (!xactInitialized || newParams == NULL) {
         return false;
@@ -586,7 +587,9 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServ
         }
     }
 
-    if (servoIndex < 0) {
+    // The cache is only compared against once a full read has completed. Before that it holds
+    // zeros, so every field would count as changed.
+    if (servoIndex < 0 || !xactServos[servoIndex].paramsReady) {
         return false;
     }
 
@@ -620,9 +623,11 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, uint16_t appId, const xactServ
 
     bool hasChanges = false;
 
-    // Track current phyID and appId - these may be updated if PHYSICAL_ID or APP_ID_BASE change
+    // Track current phyID and appId - these may be updated if PHYSICAL_ID or APP_ID_BASE change.
+    // Address the writes to the App ID the servo reports in telemetry, the same one the
+    // duplicate check above tested.
     uint8_t currentPhyID = phyID;
-    uint16_t currentAppId = appId;
+    uint16_t currentAppId = xactServos[servoIndex].appId;
 
     // Compare each parameter and queue writes for differences
     if (cachedParams->physicalId != newParams->physicalId) {

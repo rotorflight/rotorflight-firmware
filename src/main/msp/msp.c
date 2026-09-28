@@ -4063,7 +4063,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 newParams.maxAngle = sbufReadU16(src);
 
                 // Compare with cache and write only differences
-                if (!fbusXactCompareAndWriteParams(phyID, FBUS_SERVO_DATA_BASE + params.appIdOffset, &newParams)) {
+                if (!fbusXactCompareAndWriteParams(phyID, &newParams)) {
                     return MSP_RESULT_ERROR;
                 }
             } else {
