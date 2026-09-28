@@ -90,7 +90,8 @@ Returns: U8 count, then per servo: U8 phyID, U8 appIdOffset, U8 conflict, U8 dup
 ### MSP_XACT_PARAMS
 
 New MSP command (162) to read all parameters of one discovered XACT servo (#518). Payload: U8 phyID.
-Starts a background read if none has completed yet; repeat until `ready` is 1.
+Starts a read if none has completed yet; repeat until `ready` is 1. `ready` stays 0 while any field
+except the firmware version is unanswered, and the next request retries the read.
 Returns: U8 ready, U8 conflict, U8 duplicateAppId, U8 physicalId, U8 appIdOffset, U8 firmwareVersion,
 U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
 U8 operationSmoothing, U8 deadband, U8 hasExtendedParams, U8 workingMode, U16 maxAngle.

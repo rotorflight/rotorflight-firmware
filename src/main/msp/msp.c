@@ -2679,6 +2679,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         // GET all parameters of one discovered XACT servo, selected by physical ID -- pick
         // one from MSP_XACT_SERVO_LIST first. Kicks off a fresh read for it if none has
         // completed yet, so the caller should keep polling this until "ready" comes back 1.
+        // A read with an unanswered field stays not ready and is retried by the next request.
         // Field set mirrors FrSky's own "XAct" ETHOS Device Config Lua script.
         // Request format: phyID
         // Response format: ready, conflict, duplicateAppId, phyID, appIdOffset, firmwareVersion,

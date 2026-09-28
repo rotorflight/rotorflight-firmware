@@ -76,7 +76,11 @@ typedef struct {
     uint8_t phyID;
     uint16_t appId;
     timeUs_t lastSeenUs;
-    bool paramsReady;      // true once a full parameter read has completed for this servo
+    bool paramsReady;      // true once a parameter read has completed with every required
+                            // field answered (see xactFinishRead() in fbus_xact.c)
+    bool paramsReadFailed; // true if the last read ended with a required field unanswered. Not
+                            // retried in the background, only by fbusXactRequestParamsRead()
+    uint16_t answeredFields; // bit per read position, set when that field answered this read
     bool appIdConflict;    // true if frames for this Physical ID have reported more than one
                             // App ID -- almost certainly two servos sharing the same Physical
                             // ID and colliding on the bus, not one servo
@@ -130,10 +134,10 @@ uint8_t fbusXactGetDiscoveredServoPhyID(uint8_t index);
 // Get servo parameters for a specific physical ID
 bool fbusXactGetServoParams(uint8_t phyID, xactServoParams_t *params);
 
-// Check whether a full parameter read has completed for a discovered servo. When multiple
-// servos are discovered, only the first one is read automatically -- callers that want to
-// look at (or write to) any other discovered servo should call fbusXactRequestParamsRead()
-// for it first, then poll this until it returns true.
+// Check whether a parameter read has completed for a discovered servo, with every field
+// answered except Firmware Version (older servos don't answer it). Servos are read in the
+// background after discovery; a read with an unanswered field leaves the servo not ready until
+// fbusXactRequestParamsRead() retries it. Callers should call that, then poll this.
 bool fbusXactIsServoParamsReady(uint8_t phyID);
 
 // (Re)start a full parameter read for an already-discovered servo. Safe to call repeatedly;
