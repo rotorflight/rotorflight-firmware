@@ -18,6 +18,7 @@ the APIs or flight performance.
 - Deadband on continuous adjustment channels stops values from toggling on pot noise (#507)
 - CMS compiled out on all targets (#492)
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
+- Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio
 
 ## Bug Fixes
 
@@ -58,6 +59,22 @@ Bus servos with a `speed` set previously moved much slower than configured
 ### MSP2_GET_FBUS_MASTER_CONFIG / MSP2_SET_FBUS_MASTER_CONFIG
 
 - new commands (0x5F09, 0x5F0A) to get/set forwarded sensors; applied without reboot (#482)
+
+### MSP2_GET_TUNE_ADVISOR / MSP2_CLEAR_TUNE_ADVISOR
+
+- new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them.
+  Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
+  tune changes (checked on arming). New commands only, the API version is unchanged.
+- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (67 bytes), payload v1:
+  `U8 version, U8 collecting, U16 seconds, U8 axis`,
+  `U16 P, U16 F, U16 B, U8 iterm_relax_cutoff, U8 rates_type, U8 rc_rate, U8 s_rate`,
+  `U16 ffCount, S16 ffGain, S16 ffCorr, U16 ffLagMs` (ffGain = gyro / setpoint at the best delay),
+  3 x `S16 gain, U16 count` by request (40-100, 100-200, 200+ deg/s),
+  3 x `S16 gain, U16 count` by |collective| (<25%, 25-50%, 50%+),
+  `U16 fullCount, U16 fullSatCount, S16 fullRatio, U16 fullMaxRate`,
+  `U16 releases, U16 bigRebounds, S16 meanRebound, S16 meanOvershoot, S16 meanCounter,
+  S16 meanIterm` (meanCounter is P+I+D+B, so tail and pitch precomp do not count).
+  Ratios are x1000, counts saturate at 65535.
 
 ## CLI Changes
 
