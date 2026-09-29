@@ -121,21 +121,34 @@ void validateAndFixServoConfig(void)
         // Constrain midpoint to the valid signal range.
         servo->mid = constrain(servo->mid, minSignal, maxSignal);
 
-        // Constrain travel to valid offset limits first.
+        // Constrain travel to valid offset limits. The signal range is not
+        // applied here: min/max keep what was set, and servoTravelMin/Max()
+        // limit them against the center when the output is worked out, so
+        // moving the center back gives the full travel again.
         servo->min = constrain(servo->min, SERVO_LIMIT_MIN, 0);
         servo->max = constrain(servo->max, 0, SERVO_LIMIT_MAX);
-
-        // Ensure the resulting absolute signal stays within allowed range.
-        const int16_t minAllowed = (int16_t)minSignal - (int16_t)servo->mid;
-        const int16_t maxAllowed = (int16_t)maxSignal - (int16_t)servo->mid;
-
-        if (servo->min < minAllowed) {
-            servo->min = minAllowed;
-        }
-        if (servo->max > maxAllowed) {
-            servo->max = maxAllowed;
-        }
     }
+}
+
+static bool isBusServoIndex(uint8_t index)
+{
+    return index >= BUS_SERVO_OFFSET;
+}
+
+// Travel below center that keeps mid + min at or above the signal minimum.
+int servoTravelMin(uint8_t index)
+{
+    const servoParam_t *servo = servoParams(index);
+    const int minSignal = isBusServoIndex(index) ? BUS_SERVO_MIN_SIGNAL : PWM_SERVO_PULSE_MIN;
+    return MAX(servo->min, minSignal - servo->mid);
+}
+
+// Travel above center that keeps mid + max at or below the signal maximum.
+int servoTravelMax(uint8_t index)
+{
+    const servoParam_t *servo = servoParams(index);
+    const int maxSignal = isBusServoIndex(index) ? BUS_SERVO_MAX_SIGNAL : PWM_SERVO_PULSE_MAX;
+    return MIN(servo->max, maxSignal - servo->mid);
 }
 
 void servoInit(void)
@@ -173,7 +186,7 @@ void servoInit(void)
 
         for (jndex = 0; jndex < servoCount; jndex++) {
             if (timer[index]->tim == timer[jndex]->tim) {
-                uint32_t maxpulse = servoParams(jndex)->mid + servoParams(jndex)->max;
+                uint32_t maxpulse = servoParams(jndex)->mid + servoTravelMax(jndex);
                 uint32_t maxrate = MIN(servoParams(jndex)->rate, 950000 / maxpulse);  // 1000000 / (maxpulse +5%)
                 if (maxrate < update_rate)
                     update_rate = maxrate;
@@ -332,7 +345,7 @@ void servoUpdate(void)
 
         float scale = (pos > 0) ? servo->rpos : servo->rneg;
 
-        pos = limitTravel(i, scale * pos, servo->min, servo->max);
+        pos = limitTravel(i, scale * pos, servoTravelMin(i), servoTravelMax(i));
         pos = servo->mid + pos;
 
         servoSetOutput(i, pos);
