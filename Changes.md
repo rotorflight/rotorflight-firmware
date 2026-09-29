@@ -18,7 +18,7 @@ the APIs or flight performance.
 - Deadband on continuous adjustment channels stops values from toggling on pot noise (#507)
 - CMS compiled out on all targets (#492)
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
-- Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio
+- Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
 
 ## Bug Fixes
 
@@ -62,7 +62,7 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 ### MSP2_GET_TUNE_ADVISOR / MSP2_CLEAR_TUNE_ADVISOR
 
-- new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them.
+- new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
   Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
   tune changes (checked on arming). New commands only, the API version is unchanged.
 - request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (67 bytes), payload v1:
