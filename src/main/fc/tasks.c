@@ -48,6 +48,7 @@
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
 
 #include "config/config.h"
 #include "fc/core.h"
@@ -249,9 +250,27 @@ static void taskUpdateRxMain(timeUs_t currentTimeUs)
 #ifdef USE_BARO
 static void taskUpdateBaro(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
-
     if (sensors(SENSOR_BARO)) {
+#if defined(USE_CRSF_SENSORS)
+        static bool usingCrsfBaroAltitude = false;
+        crsfSensorsBaroData_t crsfBaro;
+        if (crsfSensorsGetBaroUse() && crsfSensorsGetBaroData(&crsfBaro)) {
+            usingCrsfBaroAltitude = true;
+            baroSetExternalAltitude(crsfBaro.altitudeCm);
+            return;
+        }
+        if (usingCrsfBaroAltitude) {
+            // CRSF altitude just stopped (timeout, sensor unplugged, or the
+            // override was turned off). baroSetExternalAltitude() marks the
+            // physical barometer's calibration as complete without ever
+            // establishing its ground-level reference, so falling back to
+            // baroUpdate() now would report an altitude relative to an
+            // uninitialized baroGroundAltitude. Recalibrate before trusting
+            // the physical sensor again.
+            usingCrsfBaroAltitude = false;
+            baroStartCalibration();
+        }
+#endif
         const uint32_t newDeadline = baroUpdate(currentTimeUs);
         if (newDeadline != 0) {
             rescheduleTask(TASK_SELF, newDeadline);
@@ -449,6 +468,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #ifdef USE_SPORT_MASTER
     [TASK_SPORT_MASTER] = DEFINE_TASK("SPORT_MASTER", NULL, NULL, taskSportMaster, TASK_PERIOD_MS(12), TASK_PRIORITY_MEDIUM),
 #endif
+
+#ifdef USE_CRSF_SENSORS
+    [TASK_CRSF_SENSORS] = DEFINE_TASK("CRSF_SENSORS", NULL, NULL, crsfSensorsUpdate, TASK_PERIOD_HZ(100), TASK_PRIORITY_MEDIUM),
+#endif
 };
 
 task_t *getTask(unsigned taskId)
@@ -621,6 +644,10 @@ void tasksInit(void)
 #ifdef USE_SPORT_MASTER
     rescheduleTask(TASK_SPORT_MASTER, TASK_PERIOD_MS(12));
     setTaskEnabled(TASK_SPORT_MASTER, sportMasterIsEnabled());
+#endif
+
+#ifdef USE_CRSF_SENSORS
+    setTaskEnabled(TASK_CRSF_SENSORS, crsfSensorsIsEnabled());
 #endif
 
 }

@@ -23,10 +23,15 @@
 #define MSP2_GET_FBUS_MASTER_CONFIG         0x5F09
 #define MSP2_SET_FBUS_MASTER_CONFIG         0x5F0A
 
-// 0x5F0C, not 0x5F0B - that's claimed by the (separate, sibling) RX serial
-// wiring auto-detect branch's MSP2_RX_SERIAL_TRIAL, cut from master
-// independently. action: 0 = poll only, 1 = (re)start a scan, 2 = stop -
-// cycles ESC telemetry halfDuplex/pinSwap live for the already-configured
-// protocol and reports which combo (if any) produces a valid frame.
+#define MSP2_GET_CRSF_SENSORS_STATUS        0x5F0B
+
+// action: 0 = poll only, 1 = (re)start a scan, 2 = stop - cycles ESC
+// telemetry halfDuplex/pinSwap live for the already-configured protocol and
+// reports which combo (if any) produces a valid frame.
 #define MSP2_ESC_SENSOR_TRIAL               0x5F0C
+
+// In-flight rate-loop statistics (flight/tune_advisor.c) and their reset. 0x5F10, not 0x5F0C:
+// 0x5F0C/0x5F0D are claimed by open PRs (#490, #500).
+#define MSP2_GET_TUNE_ADVISOR               0x5F10
+#define MSP2_CLEAR_TUNE_ADVISOR             0x5F11
 

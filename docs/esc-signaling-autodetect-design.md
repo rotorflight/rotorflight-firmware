@@ -43,11 +43,7 @@ uncovered and fixed). This note only covers what's different here.
 
 ## MSP
 
-One new command, `MSP2_ESC_SENSOR_TRIAL` (`0x5F0C` - `0x5F0B` is claimed by
-the RX wiring auto-detect branch's `MSP2_RX_SERIAL_TRIAL`, deliberately
-skipped rather than colliding, since both branches were cut from `master`
-independently and each just grabbed the next free slot from its own
-starting point), defined in `msp_protocol_v2_rotorflight.h` alongside the
+One new command, `MSP2_ESC_SENSOR_TRIAL` (`0x5F0C`), defined in `msp_protocol_v2_rotorflight.h` alongside the
 other rotorflight-specific MSP2 extensions. Same start/poll/stop
 action-byte shape as the RX version. Response layout is one field shorter
 than the RX version's (no `inverted` byte), plus a few bench-diagnostic
