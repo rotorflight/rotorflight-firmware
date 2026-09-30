@@ -59,6 +59,7 @@
 #include "drivers/dshot.h"
 #include "drivers/dshot_command.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
 #include "drivers/flash.h"
 #include "drivers/io.h"
 #include "drivers/motor.h"
@@ -92,6 +93,7 @@
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/tune_advisor.h"
 #include "flight/governor.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
@@ -1037,6 +1039,19 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     return true;
 }
 
+#ifdef USE_TUNE_ADVISOR
+static uint16_t mspSatU16(uint32_t value)
+{
+    return MIN(value, (uint32_t)UINT16_MAX);
+}
+
+// Ratio x1000 as a signed 16-bit value on the wire
+static uint16_t mspRatio(float value)
+{
+    return (uint16_t)(int16_t)constrain(lrintf(value * 1000), INT16_MIN, INT16_MAX);
+}
+#endif
+
 static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 {
     bool unsupportedCommand = false;
@@ -1407,6 +1422,72 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             sbufWriteU8(dst, fbusMasterConfig()->forwardedSensors[i]);
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_CRSF_SENSORS
+    case MSP2_GET_CRSF_SENSORS_STATUS: {
+        // Read-only diagnostics for the configurator's CRSF Sensors debug page
+        // (mirrors MSP2_GET_FBUS_SENSORS' role for the FBUS/S.Port bus): link
+        // health counters plus the latest decoded value from every frame type
+        // this driver understands.
+        crsfSensorsDebugStats_t stats;
+        crsfSensorsGetDebugStats(&stats);
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, crsfSensorsIsEnabled() ? 1 : 0);
+        sbufWriteU32(dst, stats.rxByteCount);
+        sbufWriteU32(dst, stats.rxSyncCount);
+        sbufWriteU32(dst, stats.rxCrcOkCount);
+        sbufWriteU32(dst, stats.rxCrcFailCount);
+        sbufWriteU8(dst, stats.lastFrameType);
+        sbufWriteU8(dst, stats.lastFrameLength);
+
+        crsfSensorsGpsData_t gps;
+        const bool hasGps = crsfSensorsGetGpsData(&gps);
+        sbufWriteU8(dst, hasGps ? 1 : 0);
+        sbufWriteS32(dst, hasGps ? gps.latitude : 0);
+        sbufWriteS32(dst, hasGps ? gps.longitude : 0);
+        sbufWriteU16(dst, hasGps ? gps.groundspeedCmS : 0);
+        sbufWriteU16(dst, hasGps ? gps.headingDeg10 : 0);
+        sbufWriteS32(dst, hasGps ? gps.altitudeCm : 0);
+        sbufWriteU8(dst, hasGps ? gps.satellites : 0);
+
+        crsfSensorsBatteryData_t battery;
+        const bool hasBattery = crsfSensorsGetBatteryData(&battery);
+        sbufWriteU8(dst, hasBattery ? 1 : 0);
+        sbufWriteU32(dst, hasBattery ? battery.voltageMv : 0);
+        sbufWriteU32(dst, hasBattery ? battery.currentMa : 0);
+        sbufWriteU32(dst, hasBattery ? battery.capacityMah : 0);
+        sbufWriteU8(dst, hasBattery ? battery.remainingPct : 0);
+
+        crsfSensorsBaroData_t baro;
+        const bool hasBaro = crsfSensorsGetBaroData(&baro);
+        sbufWriteU8(dst, hasBaro ? 1 : 0);
+        sbufWriteS32(dst, hasBaro ? baro.altitudeCm : 0);
+        sbufWriteS16(dst, hasBaro ? baro.verticalSpeedCmS : 0);
+
+        crsfSensorsCellsData_t cells;
+        const bool hasCells = crsfSensorsGetCellsData(&cells);
+        sbufWriteU8(dst, hasCells ? 1 : 0);
+        sbufWriteU8(dst, hasCells ? cells.cellCount : 0);
+        if (hasCells) {
+            for (uint8_t i = 0; i < cells.cellCount; i++) {
+                sbufWriteU16(dst, cells.cellVoltageMv[i]);
+            }
+        }
+        sbufWriteU32(dst, hasCells ? cells.totalVoltageMv : 0);
+
+        crsfSensorsRpmData_t rpm;
+        const bool hasRpm = crsfSensorsGetRpmData(&rpm);
+        sbufWriteU8(dst, hasRpm ? 1 : 0);
+        sbufWriteU8(dst, hasRpm ? rpm.rpmCount : 0);
+        if (hasRpm) {
+            for (uint8_t i = 0; i < rpm.rpmCount; i++) {
+                sbufWriteS32(dst, rpm.rpmValues[i]);
+            }
         }
         break;
     }
@@ -2252,6 +2333,64 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
         break;
 #endif
+#ifdef USE_TUNE_ADVISOR
+    case MSP2_GET_TUNE_ADVISOR: {
+        // One axis per request (U8 axis: 0 roll, 1 pitch, 2 yaw) so the reply, 67 bytes, fits
+        // MSP over telemetry. Ratios are x1000 (signed), counts saturate at 65535 (about 11 min
+        // of 100 Hz samples).
+        if (sbufBytesRemaining(src) != 1) {
+            return MSP_RESULT_ERROR;
+        }
+        const uint8_t axis = sbufReadU8(src);
+        if (axis >= XYZ_AXIS_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+
+        tuneAdvisorAxis_t ta;
+        tuneAdvisorGetAxis(axis, &ta);
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, tuneAdvisorIsCollecting() ? 1 : 0);
+        sbufWriteU16(dst, mspSatU16(tuneAdvisorGetValidSamples() / TA_SAMPLE_HZ));
+        sbufWriteU8(dst, axis);
+
+        // The tune these numbers belong to, so a client can suggest new values
+        sbufWriteU16(dst, currentPidProfile->pid[axis].P);
+        sbufWriteU16(dst, currentPidProfile->pid[axis].F);
+        sbufWriteU16(dst, currentPidProfile->pid[axis].B);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[axis]);
+        sbufWriteU8(dst, currentControlRateProfile->rates_type);
+        sbufWriteU8(dst, currentControlRateProfile->rcRates[axis]);
+        sbufWriteU8(dst, currentControlRateProfile->sRates[axis]);
+
+        sbufWriteU16(dst, mspSatU16(ta.ffCount));
+        sbufWriteU16(dst, mspRatio(ta.ffGain));
+        sbufWriteU16(dst, mspRatio(ta.ffCorr));
+        sbufWriteU16(dst, ta.ffLagMs);
+        for (int i = 0; i < TA_SP_BAND_COUNT; i++) {
+            sbufWriteU16(dst, mspRatio(ta.spBand[i].gain));
+            sbufWriteU16(dst, mspSatU16(ta.spBand[i].count));
+        }
+        for (int i = 0; i < TA_COLL_BAND_COUNT; i++) {
+            sbufWriteU16(dst, mspRatio(ta.collBand[i].gain));
+            sbufWriteU16(dst, mspSatU16(ta.collBand[i].count));
+        }
+
+        sbufWriteU16(dst, mspSatU16(ta.fullCount));
+        sbufWriteU16(dst, mspSatU16(ta.fullSatCount));
+        sbufWriteU16(dst, mspRatio(ta.fullRatio));
+        sbufWriteU16(dst, mspSatU16(lrintf(ta.fullMaxRate)));
+
+        sbufWriteU16(dst, ta.releases);
+        sbufWriteU16(dst, ta.bigRebounds);
+        sbufWriteU16(dst, mspRatio(ta.meanRebound));
+        sbufWriteU16(dst, mspRatio(ta.meanOvershoot));
+        sbufWriteU16(dst, mspRatio(ta.meanCounter));
+        sbufWriteU16(dst, mspRatio(ta.meanIterm));
+        break;
+    }
+#endif
+
     case MSP_GET_MIXER_INPUT:
         {
             const int rem = sbufBytesRemaining(src);
@@ -2561,7 +2700,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         else if (value == 1) {
             copyControlRateProfile(dstProfileIndex, srcProfileIndex);
-            if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentPidProfileIndex()) {
+            if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentControlRateProfileIndex()) {
               changeControlRateProfile(dstProfileIndex);
             }
         }
@@ -3956,6 +4095,12 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->smartfuel_charge_drop_rate = sbufReadU8(src);
         batteryConfigMutable()->smartfuel_sag_gain = sbufReadU8(src);
         smartFuelInit();
+        break;
+#endif
+
+#ifdef USE_TUNE_ADVISOR
+    case MSP2_CLEAR_TUNE_ADVISOR:
+        tuneAdvisorReset();
         break;
 #endif
 
