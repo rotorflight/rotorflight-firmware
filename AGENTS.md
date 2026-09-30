@@ -30,10 +30,9 @@ so they are covered by the release bump and the Configurator can pick them up.
 
 Parameter groups are the exception: bump the PG version (last argument of `PG_REGISTER*`, e.g.
 `PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 3)`) in the same change whenever the
-memory layout of its struct changes: fields added, removed, reordered or resized, or array lengths changed. This
-makes stored settings from older builds reset to defaults instead of being misread. Do not bump it for changes to
-default values, widened ranges or CLI names that leave the layout unchanged. Bump it for a narrowed range unless
-every restored value is validated or clamped before use. The version is 4 bits (0–15).
+parameter group changes: fields added, removed, reordered or resized, array lengths, default values or value ranges
+changed. This makes stored settings from older builds reset to the current defaults instead of being misread or
+keeping stale defaults. The version is 4 bits (0–15).
 
 ### Mixer, Governor and PID Work Is Safety-Critical
 
