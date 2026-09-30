@@ -35,6 +35,7 @@
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/fbus_xact.h"
 
 #include "flight/mixer.h"
 #include "flight/servos.h"
@@ -106,6 +107,17 @@ static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
     sensorDiscoveryEndTimeUs = currentTimeUs + ((timeUs_t)fbusMasterDiscoveryTimeMs() * 1000);
 }
 
+// Resets phy-ID scanning state and re-arms the discovery window. Exposed so XACT servo
+// programming can force a fresh scan (e.g. after a servo's physical ID has been reprogrammed).
+void fbusMasterStartDiscovery(void)
+{
+    physIdsfound = 0;
+    physIdCnt = 0;
+    currentPhysId = 0;
+    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+    fbusMasterStartDiscoveryWindow(micros());
+}
+
 static uint8_t fbusMasterTakeNextScanPhysId(void)
 {
     if (currentPhysId >= FBUS_MAX_PHYS_ID) {
@@ -170,6 +182,15 @@ static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels,
         case FBUS_MASTER_TELEMETRY:
             memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
             frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+
+            // XACT servo programming (read/write) takes priority over telemetry polling and
+            // is not subject to the telemetry rate throttle below, so reads/writes complete quickly.
+            if (fbusXactIsBusy() && fbusXactProcessQueue(&frame->downlink)) {
+                smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
+                crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+                frame->downlink.crc = crc;
+                break;
+            }
 
             if (cmpTimeUs(currentTimeUs, nextTelemetryPollTimeUs) < 0) {
                 frame->downlink.phyID = 0;
@@ -262,6 +283,16 @@ static void processDownlinkFrame(uint8_t *data)
             uint32_t sensorData = downlink.data[0] | (downlink.data[1] << 8) |
                                   (downlink.data[2] << 16) | (downlink.data[3] << 24);
             fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
+        }
+        // XACT servo programming response frame:
+        // appId = App ID (16-bit), data[0] = FIELDID, data[1..2] = DATA1 (little-endian)
+        else if (downlink.prim == FBUS_FRAME_ID_RESPONSE) {
+            uint16_t appId = downlink.appId;
+            uint8_t fieldId = downlink.data[0];
+            uint16_t dataValue = (uint16_t)downlink.data[1] | ((uint16_t)downlink.data[2] << 8);
+
+            fbusXactSetServoParam(downlink.phyID, fieldId, appId, dataValue);
+            fbusXactNotifyResponse(downlink.phyID, fieldId);
         }
     }
 }
@@ -362,12 +393,11 @@ void fbusMasterInit(void)
         return;
     }
 
-    physIdsfound = 0;
-    physIdCnt = 0;
-    currentPhysId = 0;
-    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
     nextTelemetryPollTimeUs = 0;
-    fbusMasterStartDiscoveryWindow(micros());
+    fbusMasterStartDiscovery();
+
+    // Initialize XACT servo programming module
+    fbusXactInit();
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
