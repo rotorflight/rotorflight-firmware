@@ -43,7 +43,7 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 ## MSP Changes
 
-- API version 12.11 (#484, #518)
+- API version 12.10 (#484)
 
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
