@@ -282,6 +282,7 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_SERIALRX_FBUS       // FrSky FBUS/FPORT2
 #define USE_SMARTFUEL
+#define USE_TUNE_ADVISOR        // In-flight FF / bounce statistics over MSP (flight/tune_advisor.c)
 #define USE_TELEMETRY_CRSF
 #define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL
