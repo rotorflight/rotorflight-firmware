@@ -297,10 +297,10 @@ static bool gpsNewFrameUBLOX(uint8_t data);
 #endif
 
 // Only reconfigure the UART if the baud rate actually changes
-static void gpsSetBaudRate(uint32_t baudRate)
+static void gpsSetBaudRate(const uint32_t baud_rate)
 {
-    if (serialGetBaudRate(gpsPort) != baudRate) {
-        serialSetBaudRate(gpsPort, baudRate);
+    if (serialGetBaudRate(gpsPort) != baud_rate) {
+        serialSetBaudRate(gpsPort, baud_rate);
     }
 }
 
@@ -334,7 +334,7 @@ void gpsInit(void)
     gpsData.baudrateIndex = 0;
     gpsData.errors = 0;
     gpsData.timeouts = 0;
-    gpsData.lostCommCount = 0;
+    gpsData.lost_comm_count = 0;
 
     memset(gpsPacketLog, 0x00, sizeof(gpsPacketLog));
 
@@ -830,12 +830,12 @@ void gpsUpdate(timeUs_t currentTimeUs)
             gpsSol.numSat = 0;
             DISABLE_STATE(GPS_FIX);
             // No module answering - back off instead of re-initialising the UART forever
-            if (gpsData.lostCommCount >= GPS_LOST_COMM_FAST_RETRIES &&
+            if (gpsData.lost_comm_count >= GPS_LOST_COMM_FAST_RETRIES &&
                 millis() - gpsData.state_ts < GPS_LOST_COMM_RETRY_DELAY) {
                 break;
             }
-            if (gpsData.lostCommCount < UINT8_MAX) {
-                gpsData.lostCommCount++;
+            if (gpsData.lost_comm_count < UINT8_MAX) {
+                gpsData.lost_comm_count++;
             }
             gpsData.timeouts++;
             if (gpsConfig()->autoBaud) {
@@ -941,7 +941,7 @@ static void gpsNewData(uint16_t c)
         // new data received and parsed, we're in business
         gpsData.lastLastMessage = gpsData.lastMessage;
         gpsData.lastMessage = millis();
-        gpsData.lostCommCount = 0;
+        gpsData.lost_comm_count = 0;
         sensorsSet(SENSOR_GPS);
     }
 
