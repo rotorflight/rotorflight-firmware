@@ -70,7 +70,8 @@ typedef struct {
 
 // Start an output frame: works out dt and the cyclic ratio for this output.
 // frameRateHz is the output's configured rate, used for the first frame.
-void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float frameRateHz);
+// channelCount is the number of channels the output sends.
+void sbusOutBeginFrame(sbusOutSpeedState_t *state, timeUs_t currentTimeUs, float frameRateHz, uint8_t channelCount);
 
 // Channel value getters
 float sbusOutGetRX(uint8_t channel);
