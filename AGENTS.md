@@ -15,18 +15,18 @@ Reference: [README.md](README.md)
 - Preserve MSP and CLI backward compatibility where possible. MSP changes must stay in step with
   [rotorflight-configurator](https://github.com/rotorflight/rotorflight-configurator) and the Lua scripts.
 
-### Version Numbers Change Only at Release
+### Never Bump the MSP API or Firmware Version
 
-Keep version churn to a minimum. Feature and fix PRs never bump these:
+Agents must not change these. The maintainers bump them manually when a new version is released, which keeps
+version changes to a minimum:
 
 - MSP API version: `API_VERSION_MAJOR` / `API_VERSION_MINOR` in
   [src/main/msp/msp_protocol.h](src/main/msp/msp_protocol.h).
 - Firmware version: `FC_VERSION_MAJOR` / `FC_VERSION_MINOR` / `FC_VERSION_PATCH_LEVEL` in
   [src/main/build/version.h](src/main/build/version.h).
 
-Both are bumped once per release in a dedicated commit (e.g. "Increment firmware and MSP version"). MSP changes
-made between releases belong to the upcoming API version; note them in the PR under **Compatibility** so the
-release bump and the Configurator can pick them up.
+MSP changes made between releases belong to the upcoming API version. List them in the PR under **Compatibility**
+so they are covered by the release bump and the Configurator can pick them up.
 
 Parameter groups are the exception: bump the PG version (last argument of `PG_REGISTER*`, e.g.
 `PG_REGISTER_WITH_RESET_TEMPLATE(pidConfig_t, pidConfig, PG_PID_CONFIG, 3)`) in the same change whenever the
