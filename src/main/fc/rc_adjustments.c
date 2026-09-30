@@ -72,6 +72,15 @@
 // No consegutive changes closer than this milliseconds
 #define REPEAT_DELAY     200
 
+// Continuous ("Absolute") adjustments map the channel straight to a value, so a pot
+// that isn't perfectly still (ADC/RX noise, or resting right on a value boundary)
+// flips the result by +-1 every tick, and every flip is a config write plus a
+// blackbox event. The channel has to move more than this many us away from the last
+// position that was acted on before the mapping is re-evaluated; slower drift still
+// gets through because the reference only moves when it is exceeded. On a wide
+// range (e.g. 975 values over 1250us) this costs about two counts of resolution.
+#define CONTINUOUS_CHANNEL_DEADBAND 3
+
 // Timeout for the last changed adjustment (report for telemetry)
 #define ADJUSTMENT_LATENCY_MS 3000
 
@@ -340,11 +349,20 @@ void processRcAdjustments(void)
                     const int rangeWidth = rangeUpper - rangeLower;
                     const int valueWidth = adjRange->adjMax - adjRange->adjMin;
 
+                    // Hold the channel reading steady inside the deadband so a noisy pot
+                    // doesn't make the mapped value wander. adjState->chValue is only used
+                    // by stepped mode otherwise, and an adjRange is one mode or the other.
+                    // (Starts at 0 after a reset, so the first reading is always taken.)
+                    if (abs(chValue - adjState->chValue) > CONTINUOUS_CHANNEL_DEADBAND) {
+                        adjState->chValue = chValue;
+                    }
+                    const int heldValue = adjState->chValue;
+
                     if (rangeWidth > 0 && valueWidth > 0) {
                         const int rangeMargin = MAX(5, rangeWidth / (valueWidth * 2));
-                        if (chValue > rangeLower - rangeMargin && chValue < rangeUpper + rangeMargin) {
+                        if (heldValue > rangeLower - rangeMargin && heldValue < rangeUpper + rangeMargin) {
                             const int offset = rangeWidth / 2;
-                            adjval = adjRange->adjMin + ((chValue - rangeLower) * valueWidth + offset) / rangeWidth;
+                            adjval = adjRange->adjMin + ((heldValue - rangeLower) * valueWidth + offset) / rangeWidth;
                         }
                     }
                 }

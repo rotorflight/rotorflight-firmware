@@ -69,6 +69,7 @@
 #include "drivers/fbus_sensor.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
+#include "drivers/crsf_sensors.h"
 #include "drivers/sensor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_softserial.h"
@@ -157,6 +158,7 @@
 
 #include "rx/rx.h"
 #include "rx/spektrum.h"
+#include "rx/srxl2.h"
 
 #include "scheduler/scheduler.h"
 
@@ -540,6 +542,10 @@ void init(void)
     printfSerialInit(PRINTF_SERIAL_PORT, PRINTF_SERIAL_SPEED, PRINTF_SERIAL_OPTIONS);
 #endif
 
+#ifdef USE_SERIALRX_SRXL2
+    srxl2RxEarlyInit(rxConfig());
+#endif
+
     mixerInit();
 
 #ifdef USE_MOTOR
@@ -718,6 +724,9 @@ void init(void)
 
 #ifdef USE_FBUS_MASTER
     fbusMasterInit();
+#endif
+#ifdef USE_CRSF_SENSORS
+    crsfSensorsInit();
 #endif
 
 #ifdef USE_PINIO

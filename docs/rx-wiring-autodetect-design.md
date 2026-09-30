@@ -149,7 +149,7 @@ rotorflight-specific MSP2 extensions:
 
 | Command | ID | Request | Response |
 |---|---|---|---|
-| `MSP2_RX_SERIAL_TRIAL` | `0x5F0B` | `U8 action` (0 = poll, 1 = start, 2 = stop) | `U8 state`, `U8 comboIndex`, `U8 inverted`, `U8 halfDuplex`, `U8 pinSwap`, `U16 elapsedMs` |
+| `MSP2_RX_SERIAL_TRIAL` | `0x5F12` | `U8 action` (0 = poll, 1 = start, 2 = stop) | `U8 state`, `U8 comboIndex`, `U8 inverted`, `U8 halfDuplex`, `U8 pinSwap`, `U16 elapsedMs` |
 
 Single command for start/poll/stop (action byte), rather than three
 separate commands — every poll response also serves as the watchdog

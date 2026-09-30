@@ -125,10 +125,34 @@ static void uartConfigurePinSwap(uartPort_t *uartPort)
 }
 #endif
 
+static void uartDisableIrqSources(uartPort_t *uartPort)
+{
+    CLEAR_BIT(uartPort->USARTx->CR1, USART_CR1_PEIE | USART_CR1_RXNEIE | USART_CR1_IDLEIE | USART_CR1_TXEIE | USART_CR1_TCIE);
+    CLEAR_BIT(uartPort->USARTx->CR3, USART_CR3_EIE);
+}
+
 // XXX uartReconfigure does not handle resource management properly.
 
 void uartReconfigure(uartPort_t *uartPort)
 {
+    // Quiesce the USART interrupt while the peripheral is torn down and
+    // re-initialised, so a pending IRQ can't run against half-reset registers.
+    const uartDevice_t *uartDevice = uartFindDevice(uartPort);
+    const IRQn_Type irqn = uartDevice ? (IRQn_Type)uartDevice->hardware->rxIrq : (IRQn_Type)0;
+    const bool irqWasEnabled = uartDevice && NVIC_GetEnableIRQ(irqn);
+
+    if (uartDevice) {
+        HAL_NVIC_DisableIRQ(irqn);
+    }
+    uartDisableIrqSources(uartPort);
+    if (uartDevice) {
+        HAL_NVIC_ClearPendingIRQ(irqn);
+    }
+    __DSB();
+    __ISB();
+
+    bool irqNeeded = irqWasEnabled;
+
     HAL_UART_DeInit(&uartPort->Handle);
     uartPort->Handle.Init.BaudRate = uartPort->port.baudRate;
     // according to the stm32 documentation wordlen has to be 9 for parity bits
@@ -250,15 +274,19 @@ void uartReconfigure(uartPort_t *uartPort)
 
             HAL_DMA_DeInit(&uartPort->txDMAHandle);
             HAL_StatusTypeDef status = HAL_DMA_Init(&uartPort->txDMAHandle);
-            if (status != HAL_OK)
-            {
-                while (1);
-            }
-            /* Associate the initialized DMA handle to the UART handle */
-            __HAL_LINKDMA(&uartPort->Handle, hdmatx, uartPort->txDMAHandle);
+            if (status == HAL_OK) {
+                /* Associate the initialized DMA handle to the UART handle */
+                __HAL_LINKDMA(&uartPort->Handle, hdmatx, uartPort->txDMAHandle);
 
-            __HAL_DMA_SET_COUNTER(&uartPort->txDMAHandle, 0);
-        } else
+                __HAL_DMA_SET_COUNTER(&uartPort->txDMAHandle, 0);
+            } else {
+                // Don't hang the FC - fall back to interrupt driven transmit
+                uartPort->txDMAResource = NULL;
+                irqNeeded = true;
+            }
+        }
+
+        if (!uartPort->txDMAResource)
 #endif
         {
 
@@ -266,7 +294,14 @@ void uartReconfigure(uartPort_t *uartPort)
             SET_BIT(uartPort->USARTx->CR1, USART_CR1_TXEIE);
         }
     }
-    return;
+
+    if (uartDevice && irqNeeded) {
+        if (!irqWasEnabled) {
+            HAL_NVIC_SetPriority(irqn, NVIC_PRIORITY_BASE(uartDevice->hardware->rxPriority), NVIC_PRIORITY_SUB(uartDevice->hardware->rxPriority));
+        }
+        HAL_NVIC_ClearPendingIRQ(irqn);
+        HAL_NVIC_EnableIRQ(irqn);
+    }
 }
 
 #ifdef USE_DMA
@@ -338,8 +373,15 @@ void uartDmaIrqHandler(dmaChannelDescriptor_t* descriptor)
 FAST_IRQ_HANDLER void uartIrqHandler(uartPort_t *s)
 {
     UART_HandleTypeDef *huart = &s->Handle;
+
+    // __HAL_UART_GET_IT() only checks the status flag, so gate the data and
+    // TX sources on their interrupt enable bit too. A stale flag (TC is set
+    // whenever the transmitter is idle) must not be serviced unless enabled.
+    // Error flags are always cleared, as ORE also interrupts via RXNEIE.
+    const uint32_t cr1 = huart->Instance->CR1;
+
     /* UART in mode Receiver ---------------------------------------------------*/
-    if ((__HAL_UART_GET_IT(huart, UART_IT_RXNE) != RESET)) {
+    if ((cr1 & USART_CR1_RXNEIE) && (__HAL_UART_GET_IT(huart, UART_IT_RXNE) != RESET)) {
         uint8_t rbyte = (uint8_t)(huart->Instance->RDR & (uint8_t) 0xff);
 
         if (s->port.rxCallback) {
@@ -382,7 +424,7 @@ FAST_IRQ_HANDLER void uartIrqHandler(uartPort_t *s)
 #ifdef USE_DMA
         !s->txDMAResource &&
 #endif
-        (__HAL_UART_GET_IT(huart, UART_IT_TXE) != RESET)) {
+        (cr1 & USART_CR1_TXEIE) && (__HAL_UART_GET_IT(huart, UART_IT_TXE) != RESET)) {
         /* Check that a Tx process is ongoing */
         if (huart->gState != HAL_UART_STATE_BUSY_TX) {
             if (s->port.txBufferTail == s->port.txBufferHead) {
@@ -402,7 +444,7 @@ FAST_IRQ_HANDLER void uartIrqHandler(uartPort_t *s)
 
     // UART transmitter in DMA mode, transmission completed
 
-    if ((__HAL_UART_GET_IT(huart, UART_IT_TC) != RESET)) {
+    if ((cr1 & USART_CR1_TCIE) && (__HAL_UART_GET_IT(huart, UART_IT_TC) != RESET)) {
         HAL_UART_IRQHandler(huart);
 #ifdef USE_DMA
         if (s->txDMAResource) {
@@ -413,7 +455,7 @@ FAST_IRQ_HANDLER void uartIrqHandler(uartPort_t *s)
 
     // UART reception idle detected
 
-    if (__HAL_UART_GET_IT(huart, UART_IT_IDLE)) {
+    if ((cr1 & USART_CR1_IDLEIE) && __HAL_UART_GET_IT(huart, UART_IT_IDLE)) {
         if (s->port.idleCallback) {
             s->port.idleCallback();
         }
