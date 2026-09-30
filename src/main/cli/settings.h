@@ -44,6 +44,9 @@ typedef enum {
 #endif
     TABLE_CURRENT_METER,
     TABLE_VOLTAGE_METER,
+#ifdef USE_CRSF_SENSORS
+    TABLE_CRSF_SENSORS_BATTERY_SOURCE,
+#endif
 #ifdef USE_SERIAL_RX
     TABLE_SERIAL_RX,
 #endif

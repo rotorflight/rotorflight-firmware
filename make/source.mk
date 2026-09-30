@@ -81,6 +81,8 @@ COMMON_SRC = \
             drivers/sbus_output.c \
             drivers/fbus_master.c \
             drivers/fbus_sensor.c \
+            drivers/crsf_sensors.c \
+            drivers/fbus_xact.c \
             drivers/rx/rx_spi.c \
             drivers/rx/rx_xn297.c \
             drivers/rx/rx_pwm.c \
@@ -98,6 +100,7 @@ COMMON_SRC = \
             flight/imu.c \
             flight/mixer.c \
             flight/pid.c \
+            flight/tune_advisor.c \
             flight/rpm_filter.c \
             flight/motors.c \
             flight/servos.c \
@@ -275,6 +278,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             flight/imu.c \
             flight/mixer.c \
             flight/pid.c \
+            flight/tune_advisor.c \
             flight/rpm_filter.c \
             rx/ibus.c \
             rx/ibus2.c \
