@@ -124,7 +124,8 @@ Other devices can be added starting from id 50.
 | FUNCTION_FBUS_MASTER         | 524288 |
 | FUNCTION_SPORT_MASTER        | 1048576 |
 | FUNCTION_SRXL2_ESC           | 2097152 |
-| FUNCTION_RX_INPUT_BACKUP     | 4194304 |
+| FUNCTION_CRSF_SENSORS        | 4194304 |
+| FUNCTION_RX_INPUT_BACKUP     | 8388608 |
 
 Note: values above `FUNCTION_LIDAR_TF` require more than 16 bits. `FUNCTION_SPORT_MASTER` = `(1<<20)` requires 21 bits.
 

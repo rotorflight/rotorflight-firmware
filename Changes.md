@@ -3,6 +3,127 @@
 This file is collecting the changes in the firmware that are affecting
 the APIs or flight performance.
 
+# 4.7.0
+
+## Features
+
+- Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
+- Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
+- Spektrum bind supports pin swap; initial bind glitch fixed (#496)
+- FrSky RPM and temperature sensor via FBUS/S.Port (#461)
+- XDFLY/ZTW/OMPHOBBY ESC telemetry works in both half duplex (bidirectional) and receive-only mode (#478)
+- Alternative takeoff detection based on stick response and Z-acceleration (#480)
+- Separate angle limit for Horizon mode (#479)
+- Speed-dependent cyclic I-term decay to prevent wind-up on cyclic input (#457)
+- Deadband on continuous adjustment channels stops values from toggling on pot noise (#507)
+- CMS compiled out on all targets (#492)
+- GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
+- Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
+- FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
+
+## Bug Fixes
+
+- ICM42605 gyro uses the correct ODR (#475)
+- Servos are no longer set to midpoint at startup (#466)
+- Forwarding of S.Port master sensors fixed (#481)
+- FBUS/S.Port current sensor accumulates consumed capacity (#513)
+- Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
+- `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
+
+## Flight Performance
+
+Horizon mode uses a per-axis cubic leveling curve, ramps in over 500ms
+on activation, and has its own `horizon_angle_limit` (#479).
+
+Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
+(#457). Disabled by default.
+
+Bus servos with a `speed` set previously moved much slower than configured
+(about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
+## MSP Changes
+
+- API version 12.10 (#484)
+
+### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
+
+- added `error_decay_gain_cyclic` (#457)
+
+### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
+
+- `SRXL2` inserted in the motor and ESC sensor protocol lists; `DISABLED` and `RECORD` values are shifted by one (#421)
+
+### MSP2_GET_FBUS_SENSORS / MSP2_CLEAR_FBUS_SENSORS
+
+- new commands (0x5F07, 0x5F08) to list and clear observed FBUS/S.Port sensors (#482)
+
+### MSP2_GET_FBUS_MASTER_CONFIG / MSP2_SET_FBUS_MASTER_CONFIG
+
+- new commands (0x5F09, 0x5F0A) to get/set forwarded sensors; applied without reboot (#482)
+
+### MSP2_GET_TUNE_ADVISOR / MSP2_CLEAR_TUNE_ADVISOR
+
+- new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
+  Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
+  tune changes (checked on arming). New commands only, the API version is unchanged.
+- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (67 bytes), payload v1:
+  `U8 version, U8 collecting, U16 seconds, U8 axis`,
+  `U16 P, U16 F, U16 B, U8 iterm_relax_cutoff, U8 rates_type, U8 rc_rate, U8 s_rate`,
+  `U16 ffCount, S16 ffGain, S16 ffCorr, U16 ffLagMs` (ffGain = gyro / setpoint at the best delay),
+  3 x `S16 gain, U16 count` by request (40-100, 100-200, 200+ deg/s),
+  3 x `S16 gain, U16 count` by |collective| (<25%, 25-50%, 50%+),
+  `U16 fullCount, U16 fullSatCount, S16 fullRatio, U16 fullMaxRate`,
+  `U16 releases, U16 bigRebounds, S16 meanRebound, S16 meanOvershoot, S16 meanCounter,
+  S16 meanIterm` (meanCounter is P+I+D+B, so tail and pitch precomp do not count).
+  Ratios are x1000, counts saturate at 65535.
+
+### MSP_SET_XACT_SCAN
+
+New MSP command (161) to restart discovery of XACT servos on the F.Bus master link. No payload.
+Returns an error if F.Bus master is not enabled or the system is armed (#518).
+
+### MSP_XACT_SERVO_LIST
+
+New MSP command (165) to list the XACT servos discovered since the last scan (#518).
+Returns: U8 count, then per servo: U8 phyID, U8 appIdOffset, U8 conflict, U8 duplicateAppId, U8 ready, U8 channel.
+
+### MSP_XACT_PARAMS
+
+New MSP command (162) to read all parameters of one discovered XACT servo (#518). Payload: U8 phyID.
+Starts a read if none has completed yet; repeat until `ready` is 1. `ready` stays 0 while any field
+except the firmware version is unanswered, and the next request retries the read.
+Returns: U8 ready, U8 conflict, U8 duplicateAppId, U8 physicalId, U8 appIdOffset, U8 firmwareVersion,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 hasExtendedParams, U8 workingMode, U16 maxAngle.
+
+### MSP_SET_XACT_PARAMS
+
+New MSP command (163) to write the parameters of one discovered XACT servo (#518). Only changed fields are
+written, followed by a save to the servo's flash. Payload: U8 targetPhyID, U8 physicalId, U8 appIdOffset,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 workingMode, U16 maxAngle.
+Returns an error if F.Bus master is not enabled, the system is armed, the servo is unknown, its
+parameters have not been read yet, physicalId is above 26 or appIdOffset above 15, another servo
+shares its App ID (unless the write changes it to an unused one), or earlier saves are still being sent. Succeeds without writing if no field
+differs from the last read. No XACT traffic is sent while armed.
+
+## CLI Changes
+
+- added `airborne_mode`, `airborne_gyro_threshold`, `airborne_acc_threshold` (#480)
+- added `horizon_angle_limit` (#479)
+- added `error_decay_gain_cyclic` (#457)
+- added `srxl2esc` command (#421)
+- `SRXL2` added to `motor_pwm_protocol` and `esc_sensor_protocol` (#421)
+- new serial function `FUNCTION_SRXL2_ESC` (2097152) (#421)
+
+## Defaults
+
+- `airborne_mode = CONSERVATIVE`, `airborne_gyro_threshold = 10`, `airborne_acc_threshold = 15` (#480)
+- `horizon_angle_limit = 55` (#479)
+- `error_decay_gain_cyclic = 0` (#457)
+- Bus servo scale (`rneg`/`rpos`) changed from 1000 to 500, matching PWM servos; saved configs are unchanged (#515)
+
+# 4.6.0
 
 ## Flight Performance
 

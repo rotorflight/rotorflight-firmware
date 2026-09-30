@@ -77,6 +77,7 @@
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/tune_advisor.h"
 #include "flight/governor.h"
 #include "flight/rescue.h"
 #include "flight/airborne.h"
@@ -806,6 +807,9 @@ static void subTaskPidController(timeUs_t currentTimeUs)
 
     pidController(currentPidProfile, currentTimeUs);
 
+#ifdef USE_TUNE_ADVISOR
+    tuneAdvisorUpdate(pidGetDT());
+#endif
 }
 
 static void subTaskMixerUpdate(timeUs_t currentTimeUs)

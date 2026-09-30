@@ -255,6 +255,7 @@ extern uint8_t _dmaram_end__;
 #define USE_RX_INPUT_BACKUP_FPORT // FPort provider for USE_RX_INPUT_BACKUP
 #define USE_RX_INPUT_BACKUP_EXBUS // Jeti EX Bus provider for USE_RX_INPUT_BACKUP
 #define USE_RX_INPUT_BACKUP_CRSF // CRSF provider for USE_RX_INPUT_BACKUP
+#define USE_CRSF_SENSORS        // CRSF sensor input feature
 #if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER)
 #define USE_BUS_SERVO
 #endif
@@ -287,6 +288,7 @@ extern uint8_t _dmaram_end__;
 #define USE_SERIALRX_FPORT      // FrSky FPort
 #define USE_SERIALRX_FBUS       // FrSky FBUS/FPORT2
 #define USE_SMARTFUEL
+#define USE_TUNE_ADVISOR        // In-flight FF / bounce statistics over MSP (flight/tune_advisor.c)
 #define USE_TELEMETRY_CRSF
 #define USE_TELEMETRY_GHST
 #define USE_TELEMETRY_SRXL

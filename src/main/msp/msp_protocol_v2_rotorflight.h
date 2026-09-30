@@ -23,7 +23,14 @@
 #define MSP2_GET_FBUS_MASTER_CONFIG         0x5F09
 #define MSP2_SET_FBUS_MASTER_CONFIG         0x5F0A
 
-#define MSP2_GET_RX_INPUT_BACKUP_STATUS     0x5F0B
-#define MSP2_GET_RX_INPUT_BACKUP_CONFIG     0x5F0C
-#define MSP2_SET_RX_INPUT_BACKUP_CONFIG     0x5F0D
+#define MSP2_GET_CRSF_SENSORS_STATUS        0x5F0B
+
+// 0x5F0C is claimed by the ESC telemetry wiring trial (#500).
+#define MSP2_GET_RX_INPUT_BACKUP_STATUS     0x5F0D
+#define MSP2_GET_RX_INPUT_BACKUP_CONFIG     0x5F0E
+#define MSP2_SET_RX_INPUT_BACKUP_CONFIG     0x5F0F
+
+// In-flight rate-loop statistics (flight/tune_advisor.c) and their reset.
+#define MSP2_GET_TUNE_ADVISOR               0x5F10
+#define MSP2_CLEAR_TUNE_ADVISOR             0x5F11
 
