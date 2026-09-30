@@ -230,6 +230,15 @@ void fbusXactTrackServo(uint8_t phyID, uint16_t appId, timeUs_t currentTimeUs)
         }
     }
 
+    // The master keeps polling a renamed servo's old Physical ID until the next scan, and the
+    // servo answers there until the rename reaches it. Those frames must not add a second entry
+    // with the same App ID, which would block every later save as a duplicate.
+    for (uint8_t i = 0; i < xactServoCount; i++) {
+        if (xactServos[i].renamed && xactServos[i].previousPhyID == phyID) {
+            return;
+        }
+    }
+
     // Add new servo if space available
     if (xactServoCount < XACT_MAX_SERVOS) {
         xactServos[xactServoCount].phyID = phyID;
@@ -239,6 +248,7 @@ void fbusXactTrackServo(uint8_t phyID, uint16_t appId, timeUs_t currentTimeUs)
         xactServos[xactServoCount].paramsReadFailed = false;
         xactServos[xactServoCount].answeredFields = 0;
         xactServos[xactServoCount].appIdConflict = false;
+        xactServos[xactServoCount].renamed = false;
         const uint8_t newServoIndex = xactServoCount;
         xactServoCount++;
 
@@ -604,6 +614,14 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, const xactServoParams_t *newPa
         return false;
     }
 
+    // Refuse values outside the ranges the servo accepts. A Physical ID above 31 would overlap
+    // the check bits of the address byte, and an App ID offset above 15 moves the servo out of
+    // the XACT App ID range.
+    if (newParams->physicalId > XACT_PHYSICAL_ID_MAX ||
+        newParams->appIdOffset > FBUS_SERVO_DATA_END - FBUS_SERVO_DATA_BASE) {
+        return false;
+    }
+
     // Find the servo by physical ID
     int8_t servoIndex = -1;
     for (uint8_t i = 0; i < xactServoCount; i++) {
@@ -679,6 +697,10 @@ bool fbusXactCompareAndWriteParams(uint8_t phyID, const xactServoParams_t *newPa
             // under its old Physical ID until the next full rescan, and further reads/writes
             // addressed to the new one won't find it.
             currentPhyID = newParams->physicalId;
+            if (!xactServos[servoIndex].renamed) {
+                xactServos[servoIndex].renamed = true;
+                xactServos[servoIndex].previousPhyID = phyID;
+            }
             xactServos[servoIndex].phyID = newParams->physicalId;
             hasChanges = true;
         }

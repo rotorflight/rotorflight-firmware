@@ -55,6 +55,9 @@
 #define XACT_FIELD_MAX_ANGLE      0x41  // Max angle, degrees (0-359, series 65+ only)
 #define XACT_FIELD_WRITE_FLASH    0x30  // Save changes to flash (commit step; see SAVE_PRIME above)
 
+// Highest value the servo accepts for XACT_FIELD_PHYSICAL_ID
+#define XACT_PHYSICAL_ID_MAX      26
+
 // XACT servo data ID range (from fbus_sensor.h)
 #define FBUS_SERVO_DATA_BASE 0x6800
 #define FBUS_SERVO_DATA_END  0x680F
@@ -84,6 +87,9 @@ typedef struct {
     bool appIdConflict;    // true if frames for this Physical ID have reported more than one
                             // App ID -- almost certainly two servos sharing the same Physical
                             // ID and colliding on the bus, not one servo
+    bool renamed;          // true once a Physical ID rename was queued for this servo
+    uint8_t previousPhyID; // Physical ID before that rename. Telemetry from it still belongs to
+                            // this servo until the next scan
 } xactServo_t;
 
 // XACT servo parameter storage. Field set/names/ranges mirror FrSky's own "XAct" ETHOS Device
