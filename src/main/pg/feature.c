@@ -23,8 +23,15 @@
 
 #include "config/feature.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 1);
+// Telemetry is on by default on every target: the Rotorflight radio Lua suites depend on it.
+#ifdef USE_TELEMETRY
+#define DEFAULT_TELEMETRY_FEATURE   FEATURE_TELEMETRY
+#else
+#define DEFAULT_TELEMETRY_FEATURE   0
+#endif
+
+PG_REGISTER_WITH_RESET_TEMPLATE(featureConfig_t, featureConfig, PG_FEATURE_CONFIG, 2);
 
 PG_RESET_TEMPLATE(featureConfig_t, featureConfig,
-    .enabledFeatures = DEFAULT_FEATURES | DEFAULT_RX_FEATURE,
+    .enabledFeatures = DEFAULT_FEATURES | DEFAULT_RX_FEATURE | DEFAULT_TELEMETRY_FEATURE,
 );
