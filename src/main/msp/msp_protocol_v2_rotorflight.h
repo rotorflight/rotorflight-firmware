@@ -30,3 +30,8 @@
 #define MSP2_GET_TUNE_ADVISOR               0x5F10
 #define MSP2_CLEAR_TUNE_ADVISOR             0x5F11
 
+// action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel - cycles
+// serialrx_inverted/halfDuplex/pinSwap live for the already-configured
+// serialrx_provider and reports which combo (if any) produces signal.
+#define MSP2_RX_SERIAL_TRIAL                0x5F12
+
