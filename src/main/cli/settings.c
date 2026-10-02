@@ -108,6 +108,7 @@
 #include "pg/freq.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
+#include "pg/rx_input_backup.h"
 #include "pg/sport_master.h"
 #include "pg/bus_servo.h"
 #include "pg/crsf_sensors.h"
@@ -244,6 +245,19 @@ static const char * const lookupTableSerialRX[] = {
     "FBUS",
     "XB-A",
     "IBUS2",
+};
+#endif
+
+#ifdef USE_RX_INPUT_BACKUP
+// Keep in sync with drivers/rx_input_backup.h's rxInputBackupProvider_e (same order).
+static const char * const lookupTableRxInputBackupProvider[] = {
+    "NONE",
+    "SBUS",
+    "FBUS",
+    "FPORT",
+    "FPORT2",
+    "EXBUS",
+    "CRSF",
 };
 #endif
 
@@ -561,6 +575,9 @@ const lookupTableEntry_t lookupTables[] = {
 #endif
 #ifdef USE_SERIAL_RX
     LOOKUP_TABLE_ENTRY(lookupTableSerialRX),
+#endif
+#ifdef USE_RX_INPUT_BACKUP
+    LOOKUP_TABLE_ENTRY(lookupTableRxInputBackupProvider),
 #endif
 #ifdef USE_RX_SPI
     LOOKUP_TABLE_ENTRY(lookupTableRxSpi),
@@ -1803,6 +1820,12 @@ const clivalue_t valueTable[] = {
     { "sport_master_inverted",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_SPORT_MASTER_CONFIG, offsetof(sportMasterConfig_t, inverted) },
 #endif
 
+#ifdef USE_RX_INPUT_BACKUP
+    { "rx_input_backup_provider",      VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_RX_INPUT_BACKUP_PROVIDER}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, provider) },
+    { "rx_input_backup_pinswap",       VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, pinSwap) },
+    { "rx_input_backup_inverted",      VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, inverted) },
+    { "rx_input_backup_halfduplex",    VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_RX_INPUT_BACKUP_CONFIG, offsetof(rxInputBackupConfig_t, halfDuplex) },
+#endif
 #ifdef USE_CRSF_SENSORS
     { "crsf_sensors_timeout_ms",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { CRSF_SENSORS_TIMEOUT_MS_MIN, CRSF_SENSORS_TIMEOUT_MS_MAX }, PG_DRIVER_CRSF_SENSORS_CONFIG, offsetof(crsfSensorsConfig_t, sensorTimeoutMs) },
     { "crsf_sensors_use_baro",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_DRIVER_CRSF_SENSORS_CONFIG, offsetof(crsfSensorsConfig_t, useBaroAltitude) },
