@@ -86,6 +86,64 @@
 #endif
 
 
+// Individual receiver protocols can be removed from any target with
+// make <target> OPTIONS="<option> ...". Telemetry that only runs over
+// the removed receiver link is dropped by the dependency handling below.
+//   DISABLE_CRSF_RX      CRSF / ExpressLRS
+//   DISABLE_SBUS_RX      SBUS (and SBUS2 telemetry)
+//   DISABLE_FPORT_RX     FrSky FPort / FBUS
+//   DISABLE_GHOST_RX     ImmersionRC Ghost
+//   DISABLE_IBUS_RX      FlySky iBUS / iBUS2
+//   DISABLE_SPEKTRUM_RX  Spektrum DSM / SRXL / SRXL2
+//   DISABLE_SUMD_RX      Graupner SUMD / SUMH
+//   DISABLE_JETI_RX      Jeti EX Bus
+//   DISABLE_XBUS_RX      JR XBUS
+//   DISABLE_PPM_RX       PPM / PWM receivers
+#if defined(DISABLE_CRSF_RX)
+#undef USE_SERIALRX_CRSF
+#endif
+
+#if defined(DISABLE_SBUS_RX)
+#undef USE_SERIALRX_SBUS
+#endif
+
+#if defined(DISABLE_FPORT_RX)
+#undef USE_SERIALRX_FPORT
+#undef USE_SERIALRX_FBUS
+#endif
+
+#if defined(DISABLE_GHOST_RX)
+#undef USE_SERIALRX_GHST
+#endif
+
+#if defined(DISABLE_IBUS_RX)
+#undef USE_SERIALRX_IBUS
+#undef USE_SERIALRX_IBUS2
+#endif
+
+#if defined(DISABLE_SPEKTRUM_RX)
+#undef USE_SERIALRX_SPEKTRUM
+#undef USE_SERIALRX_SRXL2
+#endif
+
+#if defined(DISABLE_SUMD_RX)
+#undef USE_SERIALRX_SUMD
+#undef USE_SERIALRX_SUMH
+#endif
+
+#if defined(DISABLE_JETI_RX)
+#undef USE_SERIALRX_JETIEXBUS
+#endif
+
+#if defined(DISABLE_XBUS_RX)
+#undef USE_SERIALRX_XBUS
+#endif
+
+#if defined(DISABLE_PPM_RX)
+#undef USE_PPM
+#undef USE_PWM
+#endif
+
 #if !defined(USE_SERIAL_RX)
 #undef USE_SERIALRX_CRSF
 #undef USE_SERIALRX_IBUS
@@ -148,15 +206,13 @@
 #undef USE_TELEMETRY_IBUS2
 #endif
 
-// Spektrum support can be removed from any target with:
-//   make <target> OPTIONS=DISABLE_SPEKTRUM_RX         (DSM/SRXL/SRXL2 receivers and their telemetry)
-//   make <target> OPTIONS=DISABLE_SPEKTRUM_TELEMETRY  (SRXL telemetry only, receivers still work)
-// The SRXL2 ESC (USE_SRXL2_ESC) is not affected by either option.
-#if defined(DISABLE_SPEKTRUM_RX)
-#undef USE_SERIALRX_SPEKTRUM
-#undef USE_SERIALRX_SRXL2
+#if !defined(USE_SERIALRX_SBUS)
+#undef USE_TELEMETRY_SBUS2
 #endif
 
+// Spektrum SRXL telemetry can be removed, leaving the receivers working, with:
+//   make <target> OPTIONS=DISABLE_SPEKTRUM_TELEMETRY
+// The SRXL2 ESC (USE_SRXL2_ESC) is not affected by this or DISABLE_SPEKTRUM_RX.
 #if defined(DISABLE_SPEKTRUM_TELEMETRY)
 #undef USE_TELEMETRY_SRXL
 #endif
