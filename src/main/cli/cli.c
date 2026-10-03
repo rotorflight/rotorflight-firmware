@@ -518,6 +518,16 @@ static void cliPrintErrorVa(const char *cmdName, const char *format, va_list va)
     if (cliErrorWriter) {
         cliPrintInternal(cliErrorWriter, "###ERROR IN ");
         cliPrintInternal(cliErrorWriter, cmdName);
+#if defined(USE_CUSTOM_DEFAULTS)
+        // Custom-defaults replay (see cliProcessCustomDefaults()) runs with
+        // cliWriter suppressed, so a failing line's own command echo never
+        // appears -- only this error does, with nothing to say where it came
+        // from. Tag it so it doesn't look like it fired out of context (e.g.
+        // right after typing `defaults`, with no obvious connection to it).
+        if (processingCustomDefaults) {
+            cliPrintInternal(cliErrorWriter, " (custom defaults)");
+        }
+#endif
         cliPrintInternal(cliErrorWriter, ": ");
 
         tfp_format(cliErrorWriter, cliPutp, format, va);
