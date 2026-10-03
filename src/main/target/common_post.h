@@ -148,6 +148,23 @@
 #undef USE_TELEMETRY_IBUS2
 #endif
 
+// Spektrum support can be removed from any target with:
+//   make <target> OPTIONS=DISABLE_SPEKTRUM_RX         (DSM/SRXL/SRXL2 receivers and their telemetry)
+//   make <target> OPTIONS=DISABLE_SPEKTRUM_TELEMETRY  (SRXL telemetry only, receivers still work)
+// The SRXL2 ESC (USE_SRXL2_ESC) is not affected by either option.
+#if defined(DISABLE_SPEKTRUM_RX)
+#undef USE_SERIALRX_SPEKTRUM
+#undef USE_SERIALRX_SRXL2
+#endif
+
+#if defined(DISABLE_SPEKTRUM_TELEMETRY)
+#undef USE_TELEMETRY_SRXL
+#endif
+
+#ifndef USE_TELEMETRY_SRXL
+#undef USE_SPEKTRUM_VTX_TELEMETRY
+#endif
+
 // If USE_SERIALRX_SPEKTRUM was dropped by a target, drop all related options
 #ifndef USE_SERIALRX_SPEKTRUM
 #undef USE_SPEKTRUM_BIND
