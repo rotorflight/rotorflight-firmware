@@ -144,6 +144,28 @@
 #undef USE_PWM
 #endif
 
+// Servo bus features can be removed from any target with
+// make <target> OPTIONS="<option> ...":
+//   DISABLE_SBUS_OUTPUT  SBUS servo output
+//   DISABLE_FBUS_MASTER  FrSky FBUS master (bus servos and sensors)
+//   DISABLE_SPORT_MASTER S.Port sensors on the FC
+#if defined(DISABLE_SBUS_OUTPUT)
+#undef USE_SBUS_OUTPUT
+#endif
+
+#if defined(DISABLE_FBUS_MASTER)
+#undef USE_FBUS_MASTER
+#endif
+
+#if defined(DISABLE_SPORT_MASTER)
+#undef USE_SPORT_MASTER
+#endif
+
+// USE_BUS_SERVO is derived in common_pre.h, before the options above apply
+#if !defined(USE_SBUS_OUTPUT) && !defined(USE_FBUS_MASTER)
+#undef USE_BUS_SERVO
+#endif
+
 #if !defined(USE_SERIAL_RX)
 #undef USE_SERIALRX_CRSF
 #undef USE_SERIALRX_IBUS
