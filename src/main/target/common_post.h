@@ -322,6 +322,11 @@
 #undef USE_SERIAL_4WAY_BLHELI_INTERFACE // implementation requires USE_PWM_OUTPUT to find motor outputs.
 #endif
 
+// LED strip support can be removed from any target with: make <target> OPTIONS=DISABLE_LED_STRIP
+#if defined(DISABLE_LED_STRIP)
+#undef USE_LED_STRIP
+#endif
+
 #if !defined(USE_LED_STRIP)
 #undef USE_LED_STRIP_STATUS_MODE
 #endif
