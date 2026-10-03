@@ -113,6 +113,7 @@ void ghstFramePackTelemetry(sbuf_t *dst)
     sbufWriteU8(dst, 0x00);                     // tbd3
 }
 
+#ifdef USE_GPS
 // GPS data, primary, positional data
 void ghstFrameGpsPrimaryTelemetry(sbuf_t *dst)
 {
@@ -155,6 +156,7 @@ void ghstFrameGpsSecondaryTelemetry(sbuf_t *dst)
     }
     sbufWriteU8(dst, gpsFlags);
 }
+#endif
 
 // Mag, Baro (and Vario) data
 void ghstFrameMagBaro(sbuf_t *dst)

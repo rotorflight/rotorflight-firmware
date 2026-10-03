@@ -256,8 +256,17 @@
 #undef USE_RX_LINK_UPLINK_POWER
 #endif
 
-#if defined(USE_GPS_RESCUE)
-#define USE_GPS
+// GPS support can be removed from any target with: make <target> OPTIONS=DISABLE_GPS
+#if defined(DISABLE_GPS)
+#undef USE_GPS
+#endif
+
+#if !defined(USE_GPS)
+#undef USE_GPS_NMEA
+#undef USE_GPS_UBLOX
+#undef USE_GPS_RESCUE
+#undef USE_GPS_PLUS_CODES
+#undef USE_CMS_GPS_RESCUE_MENU
 #endif
 
 // Generate USE_SPI_GYRO or USE_I2C_GYRO
@@ -417,10 +426,6 @@ extern uint8_t __config_end;
 
 #if defined(USE_RX_SPI) || defined (USE_SERIALRX_SRXL2)
 #define USE_RX_BIND
-#endif
-
-#ifndef USE_GPS
-#undef USE_GPS_PLUS_CODES
 #endif
 
 #ifdef USE_SERIAL_PRINTF

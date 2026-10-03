@@ -94,6 +94,7 @@ static void smartPortSensorEncodeAttitude(__unused telemetrySensor_t *sensor, sm
     payload->data = roll | pitch << 16;
 }
 
+#ifdef USE_GPS
 static void smartPortSensorEncodeKnots(__unused telemetrySensor_t *sensor, smartPortPayload_t *payload)
 {
     const uint32_t mknots = gpsSol.groundSpeed * 19438UL / 1000;
@@ -127,6 +128,7 @@ static void smartPortSensorEncodeHeading(__unused telemetrySensor_t *sensor, sma
 
     payload->data = cdeg;
 }
+#endif
 
 static void smartPortSensorEncodeAdjFunc(__unused telemetrySensor_t *sensor, smartPortPayload_t *payload)
 {
@@ -218,12 +220,14 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(ACCEL_Y,                 0x0710,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(ACCEL_Z,                 0x0720,   100,  3000,   1,  10,   0,    INT),
 
+#ifdef USE_GPS
     TLM_SENSOR(GPS_SATS,                0x0860,   500,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(GPS_COORD,               0x0800,   100,  3000,   1,  10,   0,    Lat),
     TLM_SENSOR(GPS_COORD,               0x0800,   100,  3000,   1,  10,   0,    Lon),
     TLM_SENSOR(GPS_ALTITUDE,            0x0820,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(GPS_HEADING,             0x0840,   100,  3000,   1,  10,   0,    Heading),
     TLM_SENSOR(GPS_GROUNDSPEED,         0x0830,   100,  3000,   1,  10,   0,    Knots),
+#endif
 
     TLM_SENSOR(CPU_LOAD,                0x51D0,   200,  3000,   1,  10,   10,   INT),
     TLM_SENSOR(SYS_LOAD,                0x51D1,   200,  3000,   1,  10,   10,   INT),

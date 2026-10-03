@@ -300,6 +300,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ACCEL_Z:
             return lrintf(acc.accADC[2] * acc.dev.acc_1G_rec * 1000);
 
+#ifdef USE_GPS
         case TELEM_GPS:
             return millis();
         case TELEM_GPS_SATS:
@@ -324,6 +325,7 @@ int telemetrySensorValue(sensor_id_e id)
             return GPS_directionToHome;
         case TELEM_GPS_DATE_TIME:
             return 0;
+#endif
 
         case TELEM_LOAD:
             return millis();
@@ -527,7 +529,11 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_GPS_GROUNDSPEED:
         case TELEM_GPS_HOME_DISTANCE:
         case TELEM_GPS_HOME_DIRECTION:
+#ifdef USE_GPS
             return true;
+#else
+            return false;
+#endif
 
         case TELEM_GPS_PDOP:
         case TELEM_GPS_VDOP:

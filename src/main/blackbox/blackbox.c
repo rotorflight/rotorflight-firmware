@@ -485,7 +485,9 @@ static uint32_t blackboxSInterval = 0;
 static uint32_t blackboxGInterval = 0;
 
 static uint32_t blackboxSlowFrameSkipCounter;
+#ifdef USE_GPS
 static uint32_t blackboxGPSHomeFrameSkipCounter;
+#endif
 
 static bool blackboxLoggedAnyFrames;
 
