@@ -281,6 +281,25 @@
 #undef USE_ADC_INTERNAL
 #endif
 
+// Blackbox logging can be removed from any target with: make <target> OPTIONS=DISABLE_BLACKBOX
+// The onboard flash and SD card are only used for blackbox logs, so their
+// drivers go too (USB mass storage is dropped by the handling below).
+#if defined(DISABLE_BLACKBOX)
+#undef USE_BLACKBOX
+#undef USE_FLASHFS
+#undef USE_FLASHFS_LOOP
+#undef USE_FLASH_TOOLS
+#undef USE_FLASH_M25P16
+#undef USE_FLASH_W25N01G
+#undef USE_FLASH_W25M
+#undef USE_FLASH_W25M512
+#undef USE_FLASH_W25M02G
+#undef USE_FLASH_W25Q128FV
+#undef USE_SDCARD
+#undef USE_SDCARD_SPI
+#undef USE_SDCARD_SDIO
+#endif
+
 #if defined(USE_FLASH_W25M512)
 #define USE_FLASH_W25M
 #define USE_FLASH_M25P16

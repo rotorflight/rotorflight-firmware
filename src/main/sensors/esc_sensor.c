@@ -4201,7 +4201,9 @@ static void recordSensorProcess(timeUs_t currentTimeUs)
     }
 
     if (readBytes > 0) {
+#ifdef USE_BLACKBOX
         blackboxLogCustomData(buffer, readBytes);
+#endif
         totalFrameCount++;
         readBytes = 0;
     }
