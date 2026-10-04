@@ -24,13 +24,16 @@
 
 #include "build/version.h"
 
-// Disable the on-screen Configuration Menu System to free up flash.
+// The on-screen Configuration Menu System is disabled by default to free up flash.
+// It can be added back to any target with: make <target> OPTIONS=ENABLE_CMS
 // USE_CRSF_CMS_TELEMETRY, USE_SPEKTRUM_CMS_TELEMETRY and USE_CMS_FAILSAFE_MENU
 // are undefined by the dependency handling further down; the two below are not
 // derived from USE_CMS anywhere, so they have to be undefined here.
+#if !defined(ENABLE_CMS)
 #undef USE_CMS
 #undef USE_EXTENDED_CMS_MENUS
 #undef USE_HOTT_TEXTMODE
+#endif
 
 #if defined(USE_VTX_RTC6705_SOFTSPI)
 #define USE_VTX_RTC6705
