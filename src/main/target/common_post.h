@@ -166,6 +166,34 @@
 #undef USE_BUS_SERVO
 #endif
 
+// Standalone telemetry links can be removed from any target with
+// make <target> OPTIONS="<option> ...":
+//   DISABLE_FRSKY_TELEMETRY       FrSky S.Port / Hub telemetry
+//   DISABLE_SBUS2_TELEMETRY       Futaba SBUS2 telemetry
+//   DISABLE_MAVLINK_TELEMETRY     MAVLink / LTM telemetry
+//   DISABLE_MSP_OVER_TELEMETRY    Transmitter Lua scripts (MSP over CRSF/S.Port/FPort)
+#if defined(DISABLE_FRSKY_TELEMETRY)
+#undef USE_TELEMETRY_FRSKY_HUB
+// FPort and FBUS receivers send their own telemetry through the S.Port code,
+// and S.Port master is built on it too
+#if !defined(USE_SERIALRX_FPORT) && !defined(USE_SERIALRX_FBUS) && !defined(USE_SPORT_MASTER)
+#undef USE_TELEMETRY_SMARTPORT
+#endif
+#endif
+
+#if defined(DISABLE_SBUS2_TELEMETRY)
+#undef USE_TELEMETRY_SBUS2
+#endif
+
+#if defined(DISABLE_MAVLINK_TELEMETRY)
+#undef USE_TELEMETRY_MAVLINK
+#undef USE_TELEMETRY_LTM
+#endif
+
+#if defined(DISABLE_MSP_OVER_TELEMETRY)
+#undef USE_MSP_OVER_TELEMETRY
+#endif
+
 #if !defined(USE_SERIAL_RX)
 #undef USE_SERIALRX_CRSF
 #undef USE_SERIALRX_IBUS
