@@ -27,6 +27,9 @@ void freqUpdate(void);
 float getFreqSensorFreq(uint8_t port);
 uint32_t getFreqSensorRPM(uint8_t port);
 
+uint16_t getFreqSensorEdgeCount(uint8_t port);
+bool getFreqSensorPinState(uint8_t port);
+
 bool isFreqSensorPortInitialized(uint8_t port);
 bool isFreqSensorInitialized(void);
 

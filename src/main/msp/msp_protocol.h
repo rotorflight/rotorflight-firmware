@@ -221,6 +221,7 @@
 #define MSP_XACT_SERVO_LIST                  165
 #define MSP_GPSSTATISTICS                    166
 #define MSP_GET_ADJUSTMENT_FUNCTION_IDS      167
+#define MSP_FREQ_SENSOR_STATUS               168  // Edge counts and pin levels of the RPM (frequency) sensor inputs
 
 #define MSP_MIXER_INPUTS                     170
 #define MSP_SET_MIXER_INPUT                  171

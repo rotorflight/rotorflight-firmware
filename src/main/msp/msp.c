@@ -1355,6 +1355,27 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_FREQ_SENSOR_STATUS:
+        // Lets the RPM sensor wiring be checked by turning the shaft by hand,
+        // below the frequency the RPM reading starts at
+#ifdef USE_FREQ_SENSOR
+        sbufWriteU8(dst, FREQ_SENSOR_PORT_COUNT);
+        for (int i = 0; i < FREQ_SENSOR_PORT_COUNT; i++) {
+            const bool active = featureIsEnabled(FEATURE_FREQ_SENSOR) && isFreqSensorPortInitialized(i);
+            uint8_t flags = 0;
+            if (active) {
+                flags |= BIT(0);
+                if (getFreqSensorPinState(i))
+                    flags |= BIT(1);
+            }
+            sbufWriteU8(dst, flags);
+            sbufWriteU16(dst, active ? getFreqSensorEdgeCount(i) : 0);
+        }
+#else
+        sbufWriteU8(dst, 0);
+#endif
+        break;
+
 #ifdef USE_VTX_COMMON
     case MSP2_GET_VTX_DEVICE_STATUS:
         {
