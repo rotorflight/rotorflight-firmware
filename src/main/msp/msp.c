@@ -921,6 +921,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
             sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage[i]);
         for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
             sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->batteryFlights[i]);
         break;
 
     case MSP_BATTERY_PROFILE:
@@ -4262,6 +4264,10 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
                 batteryConfigMutable()->vbatfullcellvoltage[i] = sbufReadU16(src);
             for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
                 batteryConfigMutable()->vbatwarningcellvoltage[i] = sbufReadU16(src);
+        }
+        if (sbufBytesRemaining(src) >= 2 * BATTERY_PROFILE_COUNT) {
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->batteryFlights[i] = sbufReadU16(src);
         }
         break;
     }

@@ -117,6 +117,8 @@ Configure the current meter type using the `amperage_meter_type` settings here:
 Configure capacity using the `bat_capacity` setting, in mAh units. This is an array of values for different battery profiles.
 Use `bat_profile` to select the active battery profile.
 
+`bat_flights` counts the flights done with each battery profile. A flight is counted for the active profile on disarm, using the same rules as `stats_total_flights` (`stats_min_armed_time_s`). The counters can be edited to match the age of the pack.
+
 If you're using an OSD that expects the multiwii current meter output value, then set `multiwii_amperage_meter_output` to `ON` (this multiplies amperage sent to MSP by 10 and truncates negative values)).
 
 ### ADC Sensor

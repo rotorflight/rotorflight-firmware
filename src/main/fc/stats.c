@@ -32,6 +32,7 @@
 #include "io/beeper.h"
 #include "io/gps.h"
 
+#include "pg/battery.h"
 #include "pg/stats.h"
 
 
@@ -64,6 +65,12 @@ bool statsOnDisarm(void)
             statsConfigMutable()->stats_total_flights += 1;    // arm / flight counter
             statsConfigMutable()->stats_total_time_s += dtS;
             statsConfigMutable()->stats_total_dist_m += (DISTANCE_FLOWN_CM - arm_distance_cm) / 100;
+
+            // flight counter of the battery profile used for this flight
+            uint16_t *batteryFlights = &batteryConfigMutable()->batteryFlights[batteryConfig()->batteryProfile];
+            if (*batteryFlights < UINT16_MAX) {
+                *batteryFlights += 1;
+            }
 
             return true;
         }

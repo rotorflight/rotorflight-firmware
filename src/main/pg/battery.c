@@ -36,12 +36,13 @@ STATIC_ASSERT(BATTERY_PROFILE_COUNT == 6, battery_profile_count_changed);
 #define BATTERY_PROFILE_VALUE(value)    { (value), (value), (value), (value), (value), (value) }
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 6);
+PG_REGISTER_WITH_RESET_TEMPLATE(batteryConfig_t, batteryConfig, PG_BATTERY_CONFIG, 7);
 
 PG_RESET_TEMPLATE(batteryConfig_t, batteryConfig,
     .batteryProfile = 0,
     .batteryCellCount = INIT_ZERO,
     .batteryCapacity = INIT_ZERO,
+    .batteryFlights = INIT_ZERO,
     .voltageMeterSource = DEFAULT_VOLTAGE_METER_SOURCE,
     .currentMeterSource = DEFAULT_CURRENT_METER_SOURCE,
     .vbatmaxcellvoltage = BATTERY_PROFILE_VALUE(VBAT_CELL_VOLTAGE_DEFAULT_MAX),

@@ -79,6 +79,7 @@ typedef struct {
     // battery size (per battery profile)
     uint8_t     batteryCellCount[BATTERY_PROFILE_COUNT];   // Number of cells in battery, zero for autodetection
     uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT];    // mAh
+    uint16_t    batteryFlights[BATTERY_PROFILE_COUNT];     // Number of flights, counted like stats_total_flights
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used

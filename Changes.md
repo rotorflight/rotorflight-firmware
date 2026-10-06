@@ -107,8 +107,13 @@ parameters have not been read yet, physicalId is above 26 or appIdOffset above 1
 shares its App ID (unless the write changes it to an unused one), or earlier saves are still being sent. Succeeds without writing if no field
 differs from the last read. No XACT traffic is sent while armed.
 
+### MSP_BATTERY_CONFIG / MSP_SET_BATTERY_CONFIG
+
+- added `batteryFlights` array (U16 per battery profile), appended after `vbatwarningcellvoltage`; optional in the set command
+
 ## CLI Changes
 
+- added `bat_flights`: flight counter per battery profile, counted with the same rules as `stats_total_flights`
 - added `airborne_mode`, `airborne_gyro_threshold`, `airborne_acc_threshold` (#480)
 - added `horizon_angle_limit` (#479)
 - added `error_decay_gain_cyclic` (#457)

@@ -890,6 +890,7 @@ const clivalue_t valueTable[] = {
 
     { "bat_profile",                VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, BATTERY_PROFILE_COUNT - 1 }, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryProfile) },
     { "bat_capacity",               VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryCapacity) },
+    { "bat_flights",                VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, batteryFlights) },
     { "vbat_max_cell_voltage",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmaxcellvoltage) },
     { "vbat_full_cell_voltage",     VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatfullcellvoltage) },
     { "vbat_min_cell_voltage",      VAR_UINT16 | MASTER_VALUE | MODE_ARRAY, .config.array.length = BATTERY_PROFILE_COUNT, PG_BATTERY_CONFIG, offsetof(batteryConfig_t, vbatmincellvoltage) },
