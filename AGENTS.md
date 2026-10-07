@@ -7,6 +7,28 @@ support multirotors or airplanes.
 
 Reference: [README.md](README.md)
 
+## Project Components
+
+Rotorflight is split across several repositories under <https://github.com/rotorflight>:
+
+| Repository | Purpose |
+| --- | --- |
+| [rotorflight-firmware](https://github.com/rotorflight/rotorflight-firmware) | Flight controller firmware (this repository) |
+| [rotorflight-targets](https://github.com/rotorflight/rotorflight-targets) | Board configurations (custom defaults) applied on top of the unified targets |
+| [rotorflight-configurator](https://github.com/rotorflight/rotorflight-configurator) | Desktop/web app for flashing and configuring the FC over MSP |
+| [rotorflight-blackbox](https://github.com/rotorflight/rotorflight-blackbox) | Blackbox Explorer for analysing flight logs |
+| [rotorflight-lua-scripts](https://github.com/rotorflight/rotorflight-lua-scripts) | Transmitter Lua scripts for EdgeTX |
+| [rotorflight-lua-edgetx-suite](https://github.com/rotorflight/rotorflight-lua-edgetx-suite) | Lua suite for EdgeTX |
+| [rotorflight-lua-ethos](https://github.com/rotorflight/rotorflight-lua-ethos) | Transmitter Lua scripts for FrSky Ethos |
+| [rotorflight-lua-ethos-suite](https://github.com/rotorflight/rotorflight-lua-ethos-suite) | Lua suite for FrSky Ethos |
+| [rotorflight-presets](https://github.com/rotorflight/rotorflight-presets) | Parameter presets loaded by the Configurator |
+| [rotorflight-artifacts](https://github.com/rotorflight/rotorflight-artifacts) | Firmware builds mirrored for the web configurator |
+| [rotorflight-docs](https://github.com/rotorflight/rotorflight-docs) | Documentation website (<https://www.rotorflight.org/>) |
+| [rotorflight-ref-design](https://github.com/rotorflight/rotorflight-ref-design) | Flight controller reference hardware designs |
+| [rotorflight](https://github.com/rotorflight/rotorflight) | Wiki material, media, changelogs and example files |
+
+The Configurator and all Lua scripts talk to the firmware over MSP, so MSP changes here affect all of them.
+
 ## Guidance for Agents
 
 ### Keep Stable Interfaces Stable
@@ -49,10 +71,20 @@ keeping stale defaults. The version is 4 bits (0–15).
 
 ## Build and Test
 
+The ARM toolchain does not need to be installed by hand: `make arm_sdk_install` downloads the version the
+Makefile expects into `tools/`.
+
+Rotorflight builds **unified targets**, one firmware per MCU family: `STM32F405`, `STM32F411`, `STM32F7X2`,
+`STM32F745`, `STM32G47X`, `STM32H743` (see [make/targets_list.mk](make/targets_list.mk)). Board-specific pin
+mappings and defaults are not in this repository; they live in
+[rotorflight-targets](https://github.com/rotorflight/rotorflight-targets) and are applied as a config on top of
+the unified firmware.
+
+Prefer `STM32F7X2` for test builds.
+
 ```
 make arm_sdk_install          # once: installs the ARM toolchain under tools/
-make TARGET=STM32F7X2         # one unified target, or `make unified` for all
-make test                     # unit tests in src/test/unit
+make TARGET=STM32F7X2         # preferred test target; `make unified` builds all
 ```
 
 `make help` lists the options. Extra defines go in `OPTIONS="USE_SOMETHING"`. CI runs the GitHub Actions
