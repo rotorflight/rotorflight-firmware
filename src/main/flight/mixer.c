@@ -86,6 +86,11 @@ typedef struct {
 
 static FAST_DATA_ZERO_INIT mixerData_t mixer;
 
+// Telemetry only: set while any stabilized cyclic/yaw/collective input is saturated, cleared by
+// mixerTakeStabilizedSaturation(). The per-input countdown lasts a few mixer cycles, far
+// shorter than a telemetry interval, so the reader needs a latch to see it at all.
+static bool stabilizedSaturationLatch;
+
 
 #ifdef USE_MIXER_HISTORY
 
@@ -140,6 +145,13 @@ bool mixerSaturated(uint8_t index)
 void mixerSaturateInput(uint8_t index)
 {
     mixer.saturation[index] = MIXER_SATURATION_TIME;
+}
+
+bool mixerTakeStabilizedSaturation(void)
+{
+    const bool saturated = stabilizedSaturationLatch;
+    stabilizedSaturationLatch = false;
+    return saturated;
 }
 
 void mixerSaturateOutput(uint8_t index)
@@ -555,6 +567,13 @@ static void mixerUpdateInputs(void)
 
 void mixerUpdate(timeUs_t currentTimeUs)
 {
+    if (mixer.saturation[MIXER_IN_STABILIZED_ROLL] ||
+        mixer.saturation[MIXER_IN_STABILIZED_PITCH] ||
+        mixer.saturation[MIXER_IN_STABILIZED_YAW] ||
+        mixer.saturation[MIXER_IN_STABILIZED_COLLECTIVE]) {
+        stabilizedSaturationLatch = true;
+    }
+
     // Reset saturation
     for (int i = 0; i < MIXER_INPUT_COUNT; i++) {
         if (mixer.saturation[i])

@@ -241,6 +241,9 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(LED_PROFILE,             0x5132,   200,  3000,   1,   1,   0,    INT),
     TLM_SENSOR(BATTERY_PROFILE,         0x5133,   200,  3000,   1,   1,   0,    INT),
 
+    TLM_SENSOR(SYSTEM_STATUS,           0x5140,   100,  3000,   1,   1,   0,    INT),
+    TLM_SENSOR(SYSTEM_CONFIG,           0x5141,   500,  3000,   1,   1,   0,    INT),
+
     TLM_SENSOR(ADJFUNC,                 0x5110,   200,  3000,   1,   1,   0,    AdjFunc),
     TLM_SENSOR(ADJFUNC,                 0x5111,   200,  3000,   1,   1,   0,    AdjValue),
 
