@@ -20,6 +20,7 @@ the APIs or flight performance.
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
 - Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
 - FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
+- New `SYSTEM_STATUS` (120; S.Port `0x5140`, CRSF `0x1230`) and `SYSTEM_CONFIG` (121; S.Port `0x5141`, CRSF `0x1231`) telemetry sensors pack FC status, governor and rescue state, profiles and config flags into two bitfields for radio dashboards; layout in `src/main/telemetry/status.h`. Existing sensors are unchanged. Both are added to the default `telemetry_sensors` (`PG_TELEMETRY_CONFIG` v8)
 
 ## Bug Fixes
 

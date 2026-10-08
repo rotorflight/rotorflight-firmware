@@ -28,7 +28,7 @@
 
 #include "telemetry/sensors.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 7);
+PG_REGISTER_WITH_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig, PG_TELEMETRY_CONFIG, 8);
 
 PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
     .telemetry_inverted = false,
@@ -71,6 +71,8 @@ PG_RESET_TEMPLATE(telemetryConfig_t, telemetryConfig,
         TELEM_RATES_PROFILE,            // 96
         TELEM_BATTERY_PROFILE,          // 97
         TELEM_ADJFUNC,                  // 99
+        TELEM_SYSTEM_STATUS,            // 120
+        TELEM_SYSTEM_CONFIG,            // 121
     },
     .telemetry_interval = INIT_ZERO,
 );

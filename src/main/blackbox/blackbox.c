@@ -2021,6 +2021,13 @@ void blackboxErase(void)
 #endif
 }
 
+bool blackboxIsLogging(void)
+{
+    // The grace period after disarm still writes frames (see blackboxUpdate()).
+    return blackboxState == BLACKBOX_STATE_RUNNING ||
+           blackboxState == BLACKBOX_STATE_GRACE_PERIOD;
+}
+
 bool isBlackboxErased(void)
 {
     return isBlackboxDeviceReady();
