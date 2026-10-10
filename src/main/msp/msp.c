@@ -1430,7 +1430,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
     }
+#endif
 
+#ifdef USE_FBUS_MASTER
     case MSP2_GET_FBUS_MASTER_CONFIG: {
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
@@ -4286,7 +4288,9 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
     case MSP2_CLEAR_FBUS_SENSORS:
         fbusSensorClearObserved();
         break;
+#endif
 
+#ifdef USE_FBUS_MASTER
     case MSP2_SET_FBUS_MASTER_CONFIG:
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             fbusMasterConfigMutable()->forwardedSensors[i] = sbufReadU8(src);

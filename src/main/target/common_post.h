@@ -24,13 +24,16 @@
 
 #include "build/version.h"
 
-// Disable the on-screen Configuration Menu System to free up flash.
+// The on-screen Configuration Menu System is disabled by default to free up flash.
+// It can be added back to any target with: make <target> OPTIONS=ENABLE_CMS
 // USE_CRSF_CMS_TELEMETRY, USE_SPEKTRUM_CMS_TELEMETRY and USE_CMS_FAILSAFE_MENU
 // are undefined by the dependency handling further down; the two below are not
 // derived from USE_CMS anywhere, so they have to be undefined here.
+#if !defined(ENABLE_CMS)
 #undef USE_CMS
 #undef USE_EXTENDED_CMS_MENUS
 #undef USE_HOTT_TEXTMODE
+#endif
 
 #if defined(USE_VTX_RTC6705_SOFTSPI)
 #define USE_VTX_RTC6705
@@ -85,6 +88,114 @@
 #define BARO_EOC_PIN NONE
 #endif
 
+
+// Individual receiver protocols can be removed from any target with
+// make <target> OPTIONS="<option> ...". Telemetry that only runs over
+// the removed receiver link is dropped by the dependency handling below.
+//   DISABLE_CRSF_RX      CRSF / ExpressLRS
+//   DISABLE_SBUS_RX      SBUS (and SBUS2 telemetry)
+//   DISABLE_FPORT_RX     FrSky FPort / FBUS
+//   DISABLE_GHOST_RX     ImmersionRC Ghost
+//   DISABLE_IBUS_RX      FlySky iBUS / iBUS2
+//   DISABLE_SPEKTRUM_RX  Spektrum DSM / SRXL / SRXL2
+//   DISABLE_SUMD_RX      Graupner SUMD / SUMH
+//   DISABLE_JETI_RX      Jeti EX Bus
+//   DISABLE_XBUS_RX      JR XBUS
+//   DISABLE_PPM_RX       PPM / PWM receivers
+#if defined(DISABLE_CRSF_RX)
+#undef USE_SERIALRX_CRSF
+#endif
+
+#if defined(DISABLE_SBUS_RX)
+#undef USE_SERIALRX_SBUS
+#endif
+
+#if defined(DISABLE_FPORT_RX)
+#undef USE_SERIALRX_FPORT
+#undef USE_SERIALRX_FBUS
+#endif
+
+#if defined(DISABLE_GHOST_RX)
+#undef USE_SERIALRX_GHST
+#endif
+
+#if defined(DISABLE_IBUS_RX)
+#undef USE_SERIALRX_IBUS
+#undef USE_SERIALRX_IBUS2
+#endif
+
+#if defined(DISABLE_SPEKTRUM_RX)
+#undef USE_SERIALRX_SPEKTRUM
+#undef USE_SERIALRX_SRXL2
+#endif
+
+#if defined(DISABLE_SUMD_RX)
+#undef USE_SERIALRX_SUMD
+#undef USE_SERIALRX_SUMH
+#endif
+
+#if defined(DISABLE_JETI_RX)
+#undef USE_SERIALRX_JETIEXBUS
+#endif
+
+#if defined(DISABLE_XBUS_RX)
+#undef USE_SERIALRX_XBUS
+#endif
+
+#if defined(DISABLE_PPM_RX)
+#undef USE_PPM
+#undef USE_PWM
+#endif
+
+// Servo bus features can be removed from any target with
+// make <target> OPTIONS="<option> ...":
+//   DISABLE_SBUS_OUTPUT  SBUS servo output
+//   DISABLE_FBUS_MASTER  FrSky FBUS master (bus servos and sensors)
+//   DISABLE_SPORT_MASTER S.Port sensors on the FC
+#if defined(DISABLE_SBUS_OUTPUT)
+#undef USE_SBUS_OUTPUT
+#endif
+
+#if defined(DISABLE_FBUS_MASTER)
+#undef USE_FBUS_MASTER
+#endif
+
+#if defined(DISABLE_SPORT_MASTER)
+#undef USE_SPORT_MASTER
+#endif
+
+// USE_BUS_SERVO is derived in common_pre.h, before the options above apply
+#if !defined(USE_SBUS_OUTPUT) && !defined(USE_FBUS_MASTER)
+#undef USE_BUS_SERVO
+#endif
+
+// Standalone telemetry links can be removed from any target with
+// make <target> OPTIONS="<option> ...":
+//   DISABLE_FRSKY_TELEMETRY       FrSky S.Port / Hub telemetry
+//   DISABLE_SBUS2_TELEMETRY       Futaba SBUS2 telemetry
+//   DISABLE_MAVLINK_TELEMETRY     MAVLink / LTM telemetry
+//   DISABLE_MSP_OVER_TELEMETRY    Transmitter Lua scripts (MSP over CRSF/S.Port/FPort)
+#if defined(DISABLE_FRSKY_TELEMETRY)
+#undef USE_TELEMETRY_FRSKY_HUB
+// FPort and FBUS receivers send their own telemetry through the S.Port code,
+// and S.Port master is built on it too
+#if !defined(USE_SERIALRX_FPORT) && !defined(USE_SERIALRX_FBUS) && !defined(USE_SPORT_MASTER)
+#undef USE_TELEMETRY_SMARTPORT
+#endif
+#endif
+
+#if defined(DISABLE_SBUS2_TELEMETRY)
+#undef USE_TELEMETRY_SBUS2
+#endif
+
+#if defined(DISABLE_MAVLINK_TELEMETRY)
+#undef USE_TELEMETRY_MAVLINK
+#undef USE_TELEMETRY_LTM
+#endif
+
+#if defined(DISABLE_MSP_OVER_TELEMETRY)
+#undef USE_MSP_OVER_TELEMETRY
+#endif
 
 #if !defined(USE_SERIAL_RX)
 #undef USE_SERIALRX_CRSF
@@ -148,6 +259,21 @@
 #undef USE_TELEMETRY_IBUS2
 #endif
 
+#if !defined(USE_SERIALRX_SBUS)
+#undef USE_TELEMETRY_SBUS2
+#endif
+
+// Spektrum SRXL telemetry can be removed, leaving the receivers working, with:
+//   make <target> OPTIONS=DISABLE_SPEKTRUM_TELEMETRY
+// The SRXL2 ESC (USE_SRXL2_ESC) is not affected by this or DISABLE_SPEKTRUM_RX.
+#if defined(DISABLE_SPEKTRUM_TELEMETRY)
+#undef USE_TELEMETRY_SRXL
+#endif
+
+#ifndef USE_TELEMETRY_SRXL
+#undef USE_SPEKTRUM_VTX_TELEMETRY
+#endif
+
 // If USE_SERIALRX_SPEKTRUM was dropped by a target, drop all related options
 #ifndef USE_SERIALRX_SPEKTRUM
 #undef USE_SPEKTRUM_BIND
@@ -208,6 +334,25 @@
 #undef USE_ADC_INTERNAL
 #endif
 
+// Blackbox logging can be removed from any target with: make <target> OPTIONS=DISABLE_BLACKBOX
+// The onboard flash and SD card are only used for blackbox logs, so their
+// drivers go too (USB mass storage is dropped by the handling below).
+#if defined(DISABLE_BLACKBOX)
+#undef USE_BLACKBOX
+#undef USE_FLASHFS
+#undef USE_FLASHFS_LOOP
+#undef USE_FLASH_TOOLS
+#undef USE_FLASH_M25P16
+#undef USE_FLASH_W25N01G
+#undef USE_FLASH_W25M
+#undef USE_FLASH_W25M512
+#undef USE_FLASH_W25M02G
+#undef USE_FLASH_W25Q128FV
+#undef USE_SDCARD
+#undef USE_SDCARD_SPI
+#undef USE_SDCARD_SDIO
+#endif
+
 #if defined(USE_FLASH_W25M512)
 #define USE_FLASH_W25M
 #define USE_FLASH_M25P16
@@ -256,8 +401,17 @@
 #undef USE_RX_LINK_UPLINK_POWER
 #endif
 
-#if defined(USE_GPS_RESCUE)
-#define USE_GPS
+// GPS support can be removed from any target with: make <target> OPTIONS=DISABLE_GPS
+#if defined(DISABLE_GPS)
+#undef USE_GPS
+#endif
+
+#if !defined(USE_GPS)
+#undef USE_GPS_NMEA
+#undef USE_GPS_UBLOX
+#undef USE_GPS_RESCUE
+#undef USE_GPS_PLUS_CODES
+#undef USE_CMS_GPS_RESCUE_MENU
 #endif
 
 // Generate USE_SPI_GYRO or USE_I2C_GYRO
@@ -311,6 +465,11 @@
 
 #if !defined(USE_PWM_OUTPUT)
 #undef USE_SERIAL_4WAY_BLHELI_INTERFACE // implementation requires USE_PWM_OUTPUT to find motor outputs.
+#endif
+
+// LED strip support can be removed from any target with: make <target> OPTIONS=DISABLE_LED_STRIP
+#if defined(DISABLE_LED_STRIP)
+#undef USE_LED_STRIP
 #endif
 
 #if !defined(USE_LED_STRIP)
@@ -417,10 +576,6 @@ extern uint8_t __config_end;
 
 #if defined(USE_RX_SPI) || defined (USE_SERIALRX_SRXL2)
 #define USE_RX_BIND
-#endif
-
-#ifndef USE_GPS
-#undef USE_GPS_PLUS_CODES
 #endif
 
 #ifdef USE_SERIAL_PRINTF

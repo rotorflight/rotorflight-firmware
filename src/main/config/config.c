@@ -331,6 +331,11 @@ static void validateAndFixConfig(void)
             featureEnableImmediate(FEATURE_ESC_SENSOR);
         }
     } else
+#else
+    // The FBUS ESC protocol needs FBUS or S.Port master, which this build doesn't have
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+        escSensorConfigMutable()->protocol = ESC_SENSOR_PROTO_NONE;
+    }
 #endif
     /* If there is no dedicated ESC_SENSOR serial port and we're not using
      * Castle PWM, normally disable the ESC sensor feature. However, allow

@@ -170,6 +170,8 @@ STATIC_UNIT_TESTED bool isPulseValid(uint16_t pulseDuration)
 #ifdef USE_SERIAL_RX
 static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState)
 {
+    UNUSED(rxConfig); // all serial RX protocols may be compiled out
+
     bool enabled = false;
     switch (rxRuntimeState->serialrxProvider) {
 #ifdef USE_SERIALRX_SRXL2
@@ -258,10 +260,96 @@ static bool serialRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntime
 }
 #endif
 
+#ifdef USE_SERIAL_RX
+// Must match the protocols handled by serialRxInit()
+static bool isSerialRxProviderSupported(uint8_t provider)
+{
+    // default comes first so the switch stays valid with every protocol compiled out
+    switch (provider) {
+    default:
+        return false;
+#ifdef USE_SERIALRX_SRXL2
+    case SERIALRX_SRXL2:
+#endif
+#ifdef USE_SERIALRX_SPEKTRUM
+    case SERIALRX_SRXL:
+    case SERIALRX_SPEKTRUM1024:
+    case SERIALRX_SPEKTRUM2048:
+#endif
+#ifdef USE_SERIALRX_SBUS
+    case SERIALRX_SBUS:
+    case SERIALRX_SBUS2:
+#endif
+#ifdef USE_SERIALRX_SUMD
+    case SERIALRX_SUMD:
+#endif
+#ifdef USE_SERIALRX_SUMH
+    case SERIALRX_SUMH:
+#endif
+#ifdef USE_SERIALRX_XBUS
+    case SERIALRX_XBUS_MODE_A:
+    case SERIALRX_XBUS_MODE_B:
+    case SERIALRX_XBUS_MODE_B_RJ01:
+#endif
+#ifdef USE_SERIALRX_IBUS
+    case SERIALRX_IBUS:
+#endif
+#ifdef USE_SERIALRX_IBUS2
+    case SERIALRX_IBUS2:
+#endif
+#ifdef USE_SERIALRX_JETIEXBUS
+    case SERIALRX_JETIEXBUS:
+#endif
+#ifdef USE_SERIALRX_CRSF
+    case SERIALRX_CRSF:
+#endif
+#ifdef USE_SERIALRX_GHST
+    case SERIALRX_GHST:
+#endif
+#ifdef USE_SERIALRX_TARGET_CUSTOM
+    case SERIALRX_TARGET_CUSTOM:
+#endif
+#ifdef USE_SERIALRX_FPORT
+    case SERIALRX_FPORT:
+#endif
+#ifdef USE_SERIALRX_FBUS
+    case SERIALRX_FPORT2:
+    case SERIALRX_FBUS:
+#endif
+        return true;
+    }
+}
+
+// Replace a provider that has been compiled out of this build, so that
+// selecting it (in the Configurator or CLI) reverts on save, like features do.
+static void validateAndFixSerialRxProvider(void)
+{
+    if (isSerialRxProviderSupported(rxConfig()->serialrx_provider)) {
+        return;
+    }
+
+    // Prefer CRSF, otherwise the first supported provider. If no serial
+    // protocols are built in at all, leave the setting unchanged.
+    if (isSerialRxProviderSupported(SERIALRX_CRSF)) {
+        rxConfigMutable()->serialrx_provider = SERIALRX_CRSF;
+        return;
+    }
+
+    for (unsigned provider = 0; provider <= SERIALRX_IBUS2; provider++) {  // SERIALRX_IBUS2 is the last SerialRXType
+        if (isSerialRxProviderSupported(provider)) {
+            rxConfigMutable()->serialrx_provider = provider;
+            return;
+        }
+    }
+}
+#endif
+
 void validateAndFixRxConfig(void)
 {
 #ifdef USE_SERIAL_RX
     if (featureIsEnabled(FEATURE_RX_SERIAL)) {
+
+      validateAndFixSerialRxProvider();
 
       switch (rxConfig()->serialrx_provider) {
 #ifdef USE_SERIALRX_SRXL2
