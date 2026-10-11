@@ -24,9 +24,10 @@
 
 #include "pg/srxl2_esc.h"
 
-PG_REGISTER_WITH_RESET_TEMPLATE(srxl2esc_pgConfig_t, srxl2escConfig, PG_SRXL2_ESC_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(srxl2esc_pgConfig_t, srxl2escConfig, PG_SRXL2_ESC_CONFIG, 1);
 
 PG_RESET_TEMPLATE(srxl2esc_pgConfig_t, srxl2escConfig,
     .throttle_rate_hz = 250,
     .telem_interval_frames = 7,
+    .motor2_channel = 0,
 );
