@@ -58,7 +58,6 @@
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
 #include "drivers/accgyro/accgyro_spi_l3gd20.h"
-#include "drivers/accgyro/accgyro_spi_icm40608.h"
 #include "drivers/accgyro/accgyro_mpu.h"
 
 #include "pg/pg.h"
@@ -368,9 +367,6 @@ static gyroSpiDetectFn_t gyroSpiDetectFnTable[] = {
 #endif
 #ifdef USE_ACCGYRO_SPI_BMI088
     bmi088SpiDetect,
-#endif
-#ifdef USE_GYRO_SPI_ICM40608
-    icm40608SpiDetect,
 #endif
 #if defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P)
     icm426xxSpiDetect,
