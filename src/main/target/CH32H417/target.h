@@ -56,7 +56,7 @@
 #define USE_BARO_MS5611
 #define USE_BARO_BMP085
 #define USE_BARO_DPS310
-// Board barometer is an SPA06-003 (U3) - register compatible with DPS310.
+// Board barometer is an SPL06-003 (U12) - register compatible with DPS310.
 // DEFAULT_BARO_DPS310 selects I2C2 (BARO_I2C_INSTANCE) as the baro bus type,
 // otherwise baro_busType defaults to BUS_TYPE_NONE and the baro is never probed.
 #define DEFAULT_BARO_DPS310
@@ -146,8 +146,6 @@
 #define USE_ACC_SPI_ICM42688P
 #define USE_GYRO_SPI_ICM40608
 #define USE_ACC_SPI_ICM40608
-#define USE_ACCGYRO_ICM40609D
-#define USE_ICM40608_AS_ICM40609D
 
 #define USE_I2C
 #define USE_I2C_DEVICE_1

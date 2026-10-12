@@ -15,17 +15,6 @@
  * along with this software. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * This driver needs exactly 5 things, always, for any SPI IMU in this codebase:
-1. A detect function (icm40608SpiDetect) — reset the chip, read WHO_AM_I, confirm it's the right part.
-2. A gyro detect + init (icm40608SpiGyroDetect, icm40608GyroInit) — check mpuDetectionResult.sensor, set scale factor, hand off init/read function pointers.
-3. An accel detect + init (icm40608SpiAccDetect, icm40608AccInit) — check mpuDetectionResult.sensor, set scale factor, hand off init/read function pointers.
-4. A gyro read function (icm40608GyroReadSPI) — burst-read the 6 data bytes over SPI.
-5. An accel read function (icm40608AccRead) — burst-read the 6 data bytes over SPI.
-Register #defines in the header for every address/bit you touch.
- *
- */
-
 #pragma once
 
 #include "drivers/bus.h"
