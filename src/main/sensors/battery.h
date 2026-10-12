@@ -31,6 +31,8 @@
 #define VBAT_CELL_VOTAGE_RANGE_MIN          100
 #define VBAT_CELL_VOTAGE_RANGE_MAX          500
 
+#define BATTERY_CELL_COUNT_MAX              24
+
 #define GET_BATTERY_LPF_FREQUENCY(period) (10.0f / period)
 
 
@@ -87,6 +89,14 @@ uint8_t calculateBatteryPercentageRemaining(void);
 
 void changeBatteryProfile(uint8_t profileIndex);
 uint8_t getCurrentBatteryProfileIndex(void);
+
+uint8_t getBatteryProfileCellCount(void);
+uint16_t getBatteryMaxCellVoltage(void);
+uint16_t getBatteryMinCellVoltage(void);
+uint16_t getBatteryFullCellVoltage(void);
+uint16_t getBatteryWarningCellVoltage(void);
+
+void validateAndFixBatteryConfig(void);
 
 const lowVoltageCutoff_t *getLowVoltageCutoff(void);
 

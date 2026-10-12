@@ -173,6 +173,12 @@ typedef enum
     TELEM_FBUS_SENSOR_6                 = 115,
     TELEM_FBUS_SENSOR_7                 = 116,
     TELEM_FBUS_SENSOR_8                 = 117,
+
+    // 118, 119 unused: 120 and 121 match the same sensors in Wingflight
+
+    TELEM_SYSTEM_STATUS                 = 120,  // packed live state, see telemetry/status.h
+    TELEM_SYSTEM_CONFIG                 = 121,  // packed profiles and config state, see telemetry/status.h
+
     TELEM_SENSOR_COUNT
 } sensor_id_e;
 

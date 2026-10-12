@@ -34,8 +34,10 @@
 
 #include "drivers/adc.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
 
 #include "pg/current.h"
+#include "pg/crsf_sensors.h"
 
 #include "sensors/adcinternal.h"
 #include "sensors/battery.h"
@@ -219,13 +221,18 @@ bool currentSensorFBUSRead(currentMeter_t *meter)
 
     meter->sample = state->sample;
     meter->current = state->current;
-    meter->capacity = state->capacity;
+    meter->capacity = state->capacity / 3600000000u;
 
     return state->enabled;
 }
 
-void currentSensorFBUSRefresh(void)
+void currentSensorFBUSRefresh(timeUs_t currentTimeUs)
 {
+    static timeUs_t lastServiced = 0;
+
+    const timeDelta_t updateDelta = cmp32(currentTimeUs, lastServiced);
+    lastServiced = currentTimeUs;
+
     currentSensorState_t *state = &currentFBUSSensor;
     fbusCurrentData_t fbusCurrent;
 
@@ -238,12 +245,11 @@ void currentSensorFBUSRefresh(void)
 
         state->sample = current;
         state->current = filterApply(&state->filter, current);
-        state->capacity = 0;
+        state->capacity += (uint64_t)current * updateDelta;
         state->enabled = true;
     } else {
         state->sample = 0;
         state->current = 0;
-        state->capacity = 0;
         state->enabled = false;
     }
 }
@@ -253,6 +259,53 @@ void currentSensorFBUSInit(void)
     memset(&currentFBUSSensor, 0, sizeof(currentFBUSSensor));
 
     lowpassFilterInit(&currentFBUSSensor.filter, LPF_BESSEL,
+        batteryConfig()->ibatLpfHz,
+        batteryConfig()->ibatUpdateHz, 0);
+}
+#endif
+
+#ifdef USE_CRSF_SENSORS
+
+static currentSensorState_t currentCRSFSensor;
+
+// Current always comes from the aggregate Battery Sensor frame (0x08) -
+// crsf_sensors_battery_source only affects which frame feeds voltage (see
+// voltageSensorCRSFRefresh()), since the Cells frame (0x0E) has no current
+// field at all for it to select between.
+bool currentSensorCRSFRead(currentMeter_t *meter)
+{
+    const currentSensorState_t *state = &currentCRSFSensor;
+
+    meter->sample = state->sample;
+    meter->current = state->current;
+    meter->capacity = state->capacity;
+
+    return state->enabled;
+}
+
+void currentSensorCRSFRefresh(void)
+{
+    currentSensorState_t *state = &currentCRSFSensor;
+    crsfSensorsBatteryData_t battery;
+
+    if (crsfSensorsGetBatteryData(&battery)) {
+        state->sample = battery.currentMa;
+        state->current = filterApply(&state->filter, state->sample);
+        state->capacity = battery.capacityMah;
+        state->enabled = true;
+    } else {
+        state->sample = 0;
+        state->current = 0;
+        state->capacity = 0;
+        state->enabled = false;
+    }
+}
+
+void currentSensorCRSFInit(void)
+{
+    memset(&currentCRSFSensor, 0, sizeof(currentCRSFSensor));
+
+    lowpassFilterInit(&currentCRSFSensor.filter, LPF_BESSEL,
         batteryConfig()->ibatLpfHz,
         batteryConfig()->ibatUpdateHz, 0);
 }
