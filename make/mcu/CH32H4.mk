@@ -119,8 +119,6 @@ DOUBLE_PROMOTION        := no
 # Disable LTO for now (can enable later once everything compiles)
 LTO                     := no
 OPTIMISATION_BASE := -ffast-math -fmerge-all-constants
-# Override the ARM_SDK_PREFIX to use WCH RISC-V toolchain
-ARM_SDK_PREFIX := riscv-wch-elf-
 
 # MCU-specific common source files
 # These will be created in Parts 2-5. For now, list only what exists.
