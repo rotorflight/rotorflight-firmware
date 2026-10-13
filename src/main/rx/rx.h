@@ -187,6 +187,33 @@ bool rxUpdateCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs);
 void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs);
 bool rxIsReceivingSignal(void);
 bool rxAreFlightChannelsValid(void);
+
+#ifdef USE_SERIAL_RX
+// RX serial wiring auto-detect ("trial mode") - for the already-selected
+// serialrx_provider, cycles serialrx_inverted/halfDuplex/pinSwap live (no
+// EEPROM writes, no reboot) and reports back which combo (if any) produces
+// signal. See docs/rx-wiring-autodetect-design.md.
+typedef enum {
+    RX_SERIAL_TRIAL_IDLE = 0,
+    RX_SERIAL_TRIAL_RUNNING,
+    RX_SERIAL_TRIAL_SUCCESS,
+    RX_SERIAL_TRIAL_FAILED,
+    RX_SERIAL_TRIAL_REJECTED,   // no FEATURE_RX_SERIAL / no port assigned / already running
+} rxSerialTrialState_e;
+
+typedef struct rxSerialTrialStatus_s {
+    uint8_t state;          // rxSerialTrialState_e
+    uint8_t comboIndex;     // 0..7: combo currently (or, on FAILED, last) being tried
+    uint8_t inverted;
+    uint8_t halfDuplex;
+    uint8_t pinSwap;
+    uint16_t elapsedMs;     // time spent on the current/last combo
+} rxSerialTrialStatus_t;
+
+bool rxSerialTrialStart(void);
+void rxSerialTrialStop(void);
+rxSerialTrialStatus_t rxSerialTrialGetStatus(void);
+#endif
 bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs);
 
 struct rxConfig_s;
