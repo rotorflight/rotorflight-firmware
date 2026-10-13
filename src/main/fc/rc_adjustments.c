@@ -192,6 +192,9 @@ static const adjustmentConfig_t adjustmentConfigs[ADJUSTMENT_FUNCTION_COUNT] =
     ADJ_ENTRY(PITCH_O_GAIN,                 0, PID_GAIN_MAX),
     ADJ_ENTRY(ROLL_O_GAIN,                  0, PID_GAIN_MAX),
 
+    ADJ_ENTRY(CYCLIC_MASTER_GAIN,           MASTER_GAIN_MIN, MASTER_GAIN_MAX),
+    ADJ_ENTRY(YAW_MASTER_GAIN,              MASTER_GAIN_MIN, MASTER_GAIN_MAX),
+
     ADJ_ENTRY(YAW_CW_GAIN,                  25, 250),
     ADJ_ENTRY(YAW_CCW_GAIN,                 25, 250),
     ADJ_ENTRY(YAW_CYCLIC_FF,                0, 250),
