@@ -192,7 +192,7 @@ bool rxAreFlightChannelsValid(void);
 // RX serial wiring auto-detect ("trial mode") - for the already-selected
 // serialrx_provider, cycles serialrx_inverted/halfDuplex/pinSwap live (no
 // EEPROM writes, no reboot) and reports back which combo (if any) produces
-// signal. See docs/rx-wiring-autodetect-design.md.
+// signal.
 typedef enum {
     RX_SERIAL_TRIAL_IDLE = 0,
     RX_SERIAL_TRIAL_RUNNING,
