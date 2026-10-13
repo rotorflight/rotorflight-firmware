@@ -554,12 +554,8 @@ static void validateAndFixConfig(void)
     validateAndFixSmartFuelConfig();
 #endif
 
-    // validate that the minimum battery cell voltage is less than the maximum cell voltage
-    // reset to defaults if not
-    if (batteryConfig()->vbatmincellvoltage >=  batteryConfig()->vbatmaxcellvoltage) {
-        batteryConfigMutable()->vbatmincellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MIN;
-        batteryConfigMutable()->vbatmaxcellvoltage = VBAT_CELL_VOLTAGE_DEFAULT_MAX;
-    }
+    // validate the battery profiles (cell count, cell voltage ranges)
+    validateAndFixBatteryConfig();
 
 #ifdef USE_MSP_DISPLAYPORT
     // validate that displayport_msp_serial is referencing a valid UART that actually has MSP enabled
