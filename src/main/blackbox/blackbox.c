@@ -1621,9 +1621,9 @@ static bool blackboxWriteSysinfo(void)
             }
             );
 
-        BLACKBOX_PRINT_HEADER_LINE("vbatcellvoltage", "%u,%u,%u",           batteryConfig()->vbatmincellvoltage,
-                                                                            batteryConfig()->vbatwarningcellvoltage,
-                                                                            batteryConfig()->vbatmaxcellvoltage);
+        BLACKBOX_PRINT_HEADER_LINE("vbatcellvoltage", "%u,%u,%u",           getBatteryMinCellVoltage(),
+                                                                            getBatteryWarningCellVoltage(),
+                                                                            getBatteryMaxCellVoltage());
         BLACKBOX_PRINT_HEADER_LINE("vbatref", "%u",                         vbatReference);
 
         BLACKBOX_PRINT_HEADER_CUSTOM(
@@ -2019,6 +2019,13 @@ void blackboxErase(void)
         blackboxSetState(BLACKBOX_STATE_START_ERASE);
     }
 #endif
+}
+
+bool blackboxIsLogging(void)
+{
+    // The grace period after disarm still writes frames (see blackboxUpdate()).
+    return blackboxState == BLACKBOX_STATE_RUNNING ||
+           blackboxState == BLACKBOX_STATE_GRACE_PERIOD;
 }
 
 bool isBlackboxErased(void)

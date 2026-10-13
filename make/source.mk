@@ -207,6 +207,7 @@ COMMON_SRC = \
             telemetry/ibus.c \
             telemetry/ibus_shared.c \
             telemetry/sensors.c \
+            telemetry/status.c \
             sensors/esc_sensor.c \
             io/vtx.c \
             io/vtx_rtc6705.c \

@@ -20,6 +20,7 @@ the APIs or flight performance.
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
 - Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
 - FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
+- New `SYSTEM_STATUS` (120; S.Port `0x5140`, CRSF `0x1230`) and `SYSTEM_CONFIG` (121; S.Port `0x5141`, CRSF `0x1231`) telemetry sensors pack FC status, governor and rescue state, profiles and config flags into two bitfields for radio dashboards; layout in `src/main/telemetry/status.h`. Existing sensors are unchanged. Both are added to the default `telemetry_sensors` (`PG_TELEMETRY_CONFIG` v8)
 
 ## Bug Fixes
 
@@ -255,9 +256,17 @@ The `batteryProfile` field is added. (#415)
 
 The `batteryCapacity` array is added. (#415)
 
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added, one value
+per battery profile. The legacy single-value fields report the active profile.
+
 ### MSP_SET_BATTERY_CONFIG
 
 The `batteryCapacity` array is added. (#415)
+
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added (optional).
+The legacy single-value fields are stored into the active profile.
 
 ### MSP_BATTERY_PROFILE
 
@@ -354,6 +363,14 @@ the actual values are calculated automatically (#332).
 `bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
 
 `bat_profile` parameter added. Value in 0-5, selects the active battery profile.
+
+`battery_cell_count`, `vbat_max_cell_voltage`, `vbat_full_cell_voltage`,
+`vbat_min_cell_voltage` and `vbat_warning_cell_voltage` changed from a single
+value to an array of 6 values (one for each battery profile). This allows
+profiles with different cell counts (e.g. 3S and 4S) and chemistries
+(e.g. LiPo and LiHV). A single value in an old `diff` only sets profile 0.
+Each profile must be ordered `min` <= `warning` <= `full` <= `max`; a profile
+that is not ordered is reset to the defaults.
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 

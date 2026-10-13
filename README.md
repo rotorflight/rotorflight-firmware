@@ -21,7 +21,8 @@ This version of Rotorflight is also known as **Rotorflight 2** or **RF2**.
 
 ## Information
 
-Tutorials, documentation, and flight videos can be found on the [Rotorflight website](https://www.rotorflight.org/).
+Documentation can be found at [doc.rotorflight.org](https://doc.rotorflight.org/), and tutorials and flight videos
+on the [Rotorflight website](https://www.rotorflight.org/).
 
 
 ## Features
@@ -59,7 +60,7 @@ And much more...
 ## Hardware support
 
 The best hardware for Rotorflight is any Flight Controller especially designed for it.
-See [Rotorflight Flight Controllers](https://rotorflight.org/docs/controllers)
+See [Rotorflight Flight Controllers](https://doc.rotorflight.org/hardware/)
 
 Otherwise, Rotorflight supports all flight controller boards that are supported by Betaflight 4.3,
 assuming that the board has enough suitable I/O pins for connecting all the servos and motors required.
@@ -91,7 +92,7 @@ Download and flash the Rotorflight firmware with the
 Flashing the Rotorflight firmware with any other flashing tool is strictly not
 supported, and will not work.
 
-Visit the [website](https://www.rotorflight.org/) for more details on setting up
+Visit the [documentation](https://doc.rotorflight.org/) for more details on setting up
 and using Rotorflight.
 
 
@@ -113,9 +114,9 @@ Rotorflight is an open-source community project. Anybody can join in and help to
 * [reporting](https://github.com/rotorflight?tab=repositories) bugs and issues, and suggesting improvements
 * testing new software versions, new features and fixes; and providing feedback
 * participating in discussions on new features
-* create or update content on the [Website](https://www.rotorflight.org)
-* [contributing](https://www.rotorflight.org/docs/Contributing/intro) to the software development - fixing bugs, implementing new features and improvements
-* [translating](https://www.rotorflight.org/docs/Contributing/intro#translations) Rotorflight Configurator into a new language, or helping to maintain an existing translation
+* create or update content on the [documentation website](https://doc.rotorflight.org/contributing/editing-the-docs/)
+* [contributing](https://doc.rotorflight.org/contributing/developers/) to the software development - fixing bugs, implementing new features and improvements
+* [translating](https://doc.rotorflight.org/contributing/) Rotorflight Configurator into a new language, or helping to maintain an existing translation
 
 
 ## Origins

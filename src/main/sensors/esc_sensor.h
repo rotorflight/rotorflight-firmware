@@ -69,8 +69,7 @@ bool escCommitParameters(void);
 // writes, no reboot) and reports back which combo (if any) produces a valid
 // frame. No `inverted` option here - unlike serial RX, ESC telemetry always
 // opens SERIAL_NOT_INVERTED (see esc_sensor.c's escSensorInit()), so this is
-// a 4-combo search, not 8. Mirrors rx/rx.h's rxSerialTrialState_e (see
-// docs/rx-wiring-autodetect-design.md for the original design writeup).
+// a 4-combo search, not 8. Mirrors rx/rx.h's rxSerialTrialState_e.
 typedef enum {
     ESC_SENSOR_TRIAL_IDLE = 0,
     ESC_SENSOR_TRIAL_RUNNING,

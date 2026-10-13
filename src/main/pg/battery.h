@@ -76,19 +76,21 @@ typedef struct {
 
     uint8_t     batteryProfile;             // battery profile index
 
-    // battery size
-    uint8_t     batteryCellCount;           // Number of cells in battery, zero for autodetection
-    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT];    // mAh for the 6 battery profiles
+    // battery size (per battery profile)
+    uint8_t     batteryCellCount[BATTERY_PROFILE_COUNT];   // Number of cells in battery, zero for autodetection
+    uint16_t    batteryCapacity[BATTERY_PROFILE_COUNT];    // mAh
 
     // sources
     uint8_t     currentMeterSource;         // source of battery current meter used
     uint8_t     voltageMeterSource;         // source of battery voltage meter used
 
+    // cell voltages (per battery profile)
+    uint16_t    vbatmaxcellvoltage[BATTERY_PROFILE_COUNT];      // maximum voltage per cell, used for auto-detecting battery voltage in 0.01V units, default is 430 (4.30V)
+    uint16_t    vbatmincellvoltage[BATTERY_PROFILE_COUNT];      // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.30V)
+    uint16_t    vbatfullcellvoltage[BATTERY_PROFILE_COUNT];     // Cell voltage at which the battery is deemed to be "full" 0.01V units, default is 410 (4.1V)
+    uint16_t    vbatwarningcellvoltage[BATTERY_PROFILE_COUNT];  // warning voltage per cell, this triggers battery warning alarm, in 0.01V units, default is 350 (3.50V)
+
     // voltages
-    uint16_t    vbatmaxcellvoltage;         // maximum voltage per cell, used for auto-detecting battery voltage in 0.01V units, default is 430 (4.30V)
-    uint16_t    vbatmincellvoltage;         // minimum voltage per cell, this triggers battery critical alarm, in 0.01V units, default is 330 (3.30V)
-    uint16_t    vbatfullcellvoltage;        // Cell voltage at which the battery is deemed to be "full" 0.01V units, default is 410 (4.1V)
-    uint16_t    vbatwarningcellvoltage;     // warning voltage per cell, this triggers battery warning alarm, in 0.01V units, default is 350 (3.50V)
     uint16_t    vbatnotpresentcellvoltage;  // Between vbatmaxcellvoltage and 2*this is considered to be USB powered. Below this it is notpresent
     uint8_t     vbathysteresis;             // hysteresis for alarm in 0.01V units, default 1 = 0.01V
     uint8_t     lvcPercentage;              // Percentage of throttle when lvc is triggered
