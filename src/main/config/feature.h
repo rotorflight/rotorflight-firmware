@@ -80,6 +80,7 @@ typedef enum {
 
 void featureInit(void);
 bool featureIsEnabled(const uint32_t mask);
+uint32_t featureRuntimeMask(void);
 bool featureIsConfigured(const uint32_t mask);
 void featureEnableImmediate(const uint32_t mask);
 void featureDisableImmediate(const uint32_t mask);

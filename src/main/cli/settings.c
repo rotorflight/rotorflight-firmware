@@ -220,6 +220,10 @@ static const char * const lookupTableBlackboxDevice[] = {
 static const char * const lookupTableBlackboxMode[] = {
     "OFF", "NORMAL", "ARMED", "SWITCH"
 };
+
+static const char * const lookupTableBlackboxParams[] = {
+    "OFF", "CHANGES", "FULL"
+};
 #endif
 
 #ifdef USE_SERIAL_RX
@@ -553,6 +557,7 @@ const lookupTableEntry_t lookupTables[] = {
 #ifdef USE_BLACKBOX
     LOOKUP_TABLE_ENTRY(lookupTableBlackboxDevice),
     LOOKUP_TABLE_ENTRY(lookupTableBlackboxMode),
+    LOOKUP_TABLE_ENTRY(lookupTableBlackboxParams),
 #endif
     LOOKUP_TABLE_ENTRY(batteryCurrentSourceNames),
     LOOKUP_TABLE_ENTRY(batteryVoltageSourceNames),
@@ -842,6 +847,7 @@ const clivalue_t valueTable[] = {
     { "blackbox_rolling_erase",     VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, rollingErase) },
 #endif
     { "blackbox_grace_period",      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60 }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, gracePeriod) },
+    { "blackbox_params",            VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_BLACKBOX_PARAMS }, PG_BLACKBOX_CONFIG, offsetof(blackboxConfig_t, params) },
 #endif
 
 // PG_MOTOR_CONFIG

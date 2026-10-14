@@ -36,7 +36,7 @@
 #endif
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 2);
+PG_REGISTER_WITH_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 3);
 
 PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
     .device = DEFAULT_BLACKBOX_DEVICE,
@@ -63,6 +63,7 @@ PG_RESET_TEMPLATE(blackboxConfig_t, blackboxConfig,
     .initialEraseFreeSpaceKiB = 0,
     .rollingErase = 1,
     .gracePeriod = 5,
+    .params = BLACKBOX_PARAMS_FULL,
 );
 
 #endif

@@ -31,6 +31,7 @@
 #include "blackbox_fielddefs.h"
 #include "blackbox_io.h"
 #include "blackbox.h"
+#include "blackbox_params.h"
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -337,8 +338,17 @@ static const blackboxSimpleFieldDefinition_t blackboxSlowFields[] = {
 
     {"failsafePhase",         -1, UNSIGNED, PREDICT(0),      ENCODING(TAG2_3S32)},
     {"rxSignalReceived",      -1, UNSIGNED, PREDICT(0),      ENCODING(TAG2_3S32)},
-    {"rxFlightChannelsValid", -1, UNSIGNED, PREDICT(0),      ENCODING(TAG2_3S32)}
+    {"rxFlightChannelsValid", -1, UNSIGNED, PREDICT(0),      ENCODING(TAG2_3S32)},
+
+    // Parameter log: written unless blackbox_params is OFF
+    {"pidProfile",            -1, UNSIGNED, PREDICT(0),      ENCODING(UNSIGNED_VB)},
+    {"rateProfile",           -1, UNSIGNED, PREDICT(0),      ENCODING(UNSIGNED_VB)},
+    {"armed",                 -1, UNSIGNED, PREDICT(0),      ENCODING(UNSIGNED_VB)},
+    {"paramSeq",              -1, UNSIGNED, PREDICT(0),      ENCODING(UNSIGNED_VB)}
 };
+
+// Slow fields of a log with blackbox_params = OFF (the 4.6.0 format)
+#define BLACKBOX_SLOW_FIELD_COUNT_BASIC 5
 
 typedef enum BlackboxState {
     BLACKBOX_STATE_DISABLED = 0,
@@ -445,6 +455,10 @@ typedef struct blackboxSlowState_s {
     uint8_t failsafePhase;
     bool rxSignalReceived;
     bool rxFlightChannelsValid;
+    uint8_t pidProfile;
+    uint8_t rateProfile;
+    uint8_t armed;
+    uint32_t paramSeq;
 } __attribute__((__packed__)) blackboxSlowState_t; // We pack this struct so that padding doesn't interfere with memcmp()
 
 //From rc_controls.c
@@ -453,6 +467,9 @@ extern boxBitmask_t rcModeActivationMask;
 static BlackboxState blackboxState = BLACKBOX_STATE_DISABLED;
 
 static bool blackboxStarted = false;
+
+// The S-frames of this log carry the parameter log fields
+static bool blackboxSlowParamFields = false;
 
 static uint32_t blackboxLastArmingBeep = 0;
 static uint32_t blackboxLastFlightModeFlags = 0; // New event tracking of flight modes
@@ -705,6 +722,12 @@ static void blackboxSetState(BlackboxState newState)
         break;
     case BLACKBOX_STATE_SHUTTING_DOWN:
         xmitState.u.startTime = millis();
+        blackboxParamsStop();
+        break;
+    case BLACKBOX_STATE_FULL:
+    case BLACKBOX_STATE_START_ERASE:
+        // The log ends without LOG_END
+        blackboxParamsStop();
         break;
     default:
         ;
@@ -1098,6 +1121,29 @@ static void writeSlowFrame(void)
     values[1] = slowHistory.rxSignalReceived ? 1 : 0;
     values[2] = slowHistory.rxFlightChannelsValid ? 1 : 0;
     blackboxWriteTag2_3S32(values);
+
+    if (blackboxSlowParamFields) {
+        blackboxWriteUnsignedVB(slowHistory.pidProfile);
+        blackboxWriteUnsignedVB(slowHistory.rateProfile);
+        blackboxWriteUnsignedVB(slowHistory.armed);
+        blackboxWriteUnsignedVB(slowHistory.paramSeq);
+    }
+}
+
+/*
+ * The 100 ms wait before the header is for a UART logger (OpenLog). The flash and the SD card are ready when
+ * the state machine gets to SEND_HEADER. A log with the parameter section skips the wait for them, because
+ * the longer header makes the time from arming to the first frame longer.
+ */
+static bool blackboxSkipUartWait(void)
+{
+    return blackboxSlowParamFields &&
+        (blackboxConfig()->device == BLACKBOX_DEVICE_FLASH || blackboxConfig()->device == BLACKBOX_DEVICE_SDCARD);
+}
+
+static int blackboxSlowFieldCount(void)
+{
+    return blackboxSlowParamFields ? ARRAYLEN(blackboxSlowFields) : BLACKBOX_SLOW_FIELD_COUNT_BASIC;
 }
 
 /**
@@ -1110,6 +1156,20 @@ static void loadSlowState(blackboxSlowState_t *slow)
     slow->failsafePhase = failsafePhase();
     slow->rxSignalReceived = rxIsReceivingSignal();
     slow->rxFlightChannelsValid = rxAreFlightChannelsValid();
+
+    if (blackboxSlowParamFields) {
+        // The profiles in use: the controllers take the pointers, not the indices in systemConfig
+        slow->pidProfile = currentPidProfile - pidProfiles(0);
+        slow->rateProfile = currentControlRateProfile - controlRateProfiles(0);
+        slow->armed = ARMING_FLAG(ARMED) ? 1 : 0;
+        slow->paramSeq = blackboxParamsSeq();
+    } else {
+        // Constant, so that a change cannot force an S-frame that 4.6.0 would not write
+        slow->pidProfile = 0;
+        slow->rateProfile = 0;
+        slow->armed = 0;
+        slow->paramSeq = 0;
+    }
 }
 
 /**
@@ -1177,6 +1237,8 @@ static void blackboxStart(void)
 
     blackboxStarted = true;
 
+    blackboxSlowParamFields = (blackboxConfig()->params != BLACKBOX_PARAMS_OFF);
+
     memset(&gpsHistory, 0, sizeof(gpsHistory));
 
     blackboxHistory[0] = &blackboxHistoryRing[0];
@@ -1205,6 +1267,8 @@ static void blackboxStart(void)
     blackboxLastGovState = getGovernorState();
     blackboxLastRescueState = getRescueState();
     blackboxLastAirborneState = isAirborne();
+
+    blackboxParamsStart();
 
     blackboxSetState(BLACKBOX_STATE_WAIT_FOR_READY);
 }
@@ -1241,6 +1305,11 @@ void blackboxCheckEnabler(timeUs_t currentTimeUs)
             // if grace period passed:
             FALLTHROUGH;
         case BLACKBOX_STATE_PAUSED:
+            // The parameter journal can hold the end of the log for 100 ms, while records wait
+            if (blackboxState != BLACKBOX_STATE_PAUSED && blackboxParamsHoldLogEnd()) {
+                break;
+            }
+            blackboxParamsEnd();
             blackboxLogEvent(FLIGHT_LOG_EVENT_LOG_END, NULL);
             FALLTHROUGH;
         default:
@@ -1778,6 +1847,14 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_AXIS, "%d",             debugAxis);
         BLACKBOX_PRINT_HEADER_LINE("fields_mask", "%d",                     blackboxConfig()->fields);
 
+        BLACKBOX_PRINT_HEADER_CUSTOM(
+            // The parameter section: in each call, at most 64 B. Nothing when blackbox_params is OFF.
+            if (blackboxParamsWriteHeader()) {
+                return true;
+            }
+            xmitState.headerIndex--;
+        );
+
         default:
             return true;
     }
@@ -1843,8 +1920,7 @@ void blackboxLogEvent(FlightLogEvent event, flightLogEventData_t *data)
     case FLIGHT_LOG_EVENT_CUSTOM_STRING:
         length = strlen(data->string.buffer);
         blackboxWrite(length);
-        for (int i = 0; i < length; i++)
-            blackboxWrite(data->string.buffer[i]);
+        blackboxWriteString(data->string.buffer);
         break;
     case FLIGHT_LOG_EVENT_LOGGING_RESUME:
         blackboxWriteUnsignedVB(data->loggingResume.logIteration);
@@ -1996,6 +2072,8 @@ static void blackboxLogIteration(timeUs_t currentTimeUs)
             writeIntraframe();
         else
             writeInterframe();
+
+        blackboxParamsAfterFrame();
     }
 
 #ifdef USE_GPS
@@ -2051,6 +2129,10 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 
     blackboxCheckEnabler(currentTimeUs);
 
+    if (blackboxState >= BLACKBOX_STATE_WAIT_FOR_READY && blackboxState <= BLACKBOX_STATE_CACHE_FLUSH) {
+        blackboxParamsHeaderTick();
+    }
+
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE) &&
         blackboxState > BLACKBOX_STATE_DISABLED && blackboxState < BLACKBOX_STATE_START_ERASE) {
         blackboxErase();
@@ -2087,7 +2169,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
          * Once the UART has had time to init, transmit the header in chunks so we don't overflow its transmit
          * buffer, overflow the OpenLog's buffer, or keep the main loop busy for too long.
          */
-        if (millis() > xmitState.u.startTime + 100) {
+        if (blackboxSkipUartWait() || millis() > xmitState.u.startTime + 100) {
             if (blackboxDeviceReserveBufferSpace(BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION) == BLACKBOX_RESERVE_SUCCESS) {
                 for (int i = 0; i < BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION && blackboxHeader[xmitState.headerIndex] != '\0'; i++, xmitState.headerIndex++) {
                     blackboxWrite(blackboxHeader[xmitState.headerIndex]);
@@ -2133,7 +2215,7 @@ void blackboxUpdate(timeUs_t currentTimeUs)
     case BLACKBOX_STATE_SEND_SLOW_HEADER:
         blackboxReplenishHeaderBudget();
         //On entry of this state, xmitState.headerIndex is 0 and xmitState.u.fieldIndex is -1
-        if (!sendFieldDefinition('S', 0, blackboxSlowFields, blackboxSlowFields + 1, ARRAYLEN(blackboxSlowFields),
+        if (!sendFieldDefinition('S', 0, blackboxSlowFields, blackboxSlowFields + 1, blackboxSlowFieldCount(),
                 NULL, NULL)) {
             cacheFlushNextState = BLACKBOX_STATE_SEND_SYSINFO;
             blackboxSetState(BLACKBOX_STATE_CACHE_FLUSH);
@@ -2158,6 +2240,9 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         // Flush the cache and wait until all possible entries have been written to the media
         if (blackboxDeviceFlushForceComplete()) {
             blackboxSetState(cacheFlushNextState);
+            if (blackboxState == BLACKBOX_STATE_RUNNING) {
+                blackboxParamsRunning();
+            }
         }
         break;
     case BLACKBOX_STATE_PAUSED:
@@ -2173,6 +2258,10 @@ void blackboxUpdate(timeUs_t currentTimeUs)
             blackboxSetState(BLACKBOX_STATE_RUNNING);
 
             blackboxLogIteration(currentTimeUs);
+        } else if (blackboxLoggedAnyFrames) {
+            // The parameter journal goes on while paused. Not before the first frame: a decoder drops the events
+            // before the first I-frame.
+            blackboxParamsAfterFrame();
         }
         // Keep the logging timers ticking so our log iteration continues to advance
         blackboxAdvanceIterationTimers();
@@ -2251,6 +2340,24 @@ uint8_t blackboxGetRateDenom(void)
     return blackboxPInterval;
 }
 
+uint32_t blackboxGetPInterval(void)
+{
+    return blackboxPInterval;
+}
+
+// The loopIteration of the next frame
+uint32_t blackboxGetIteration(void)
+{
+    return blackboxIteration;
+}
+
+// A log is open after its header: frames and events can be written
+bool blackboxIsLogRunning(void)
+{
+    return blackboxState == BLACKBOX_STATE_RUNNING || blackboxState == BLACKBOX_STATE_PAUSED ||
+        blackboxState == BLACKBOX_STATE_GRACE_PERIOD;
+}
+
 void blackboxFlush(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
@@ -2289,5 +2396,7 @@ void blackboxInit(void)
         blackboxSetState(BLACKBOX_STATE_STOPPED);
     else
         blackboxSetState(BLACKBOX_STATE_DISABLED);
+
+    blackboxParamsInit();
 }
 #endif

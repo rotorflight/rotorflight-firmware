@@ -26,6 +26,7 @@
 #include "platform.h"
 
 #include "blackbox/blackbox.h"
+#include "blackbox/blackbox_params.h"
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -1031,6 +1032,8 @@ void init(void)
     unusedPinsInit();
 
     tasksInit();
+
+    blackboxParamsBoot();
 
     systemState |= SYSTEM_STATE_READY;
 }

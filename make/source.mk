@@ -148,6 +148,9 @@ COMMON_SRC = \
             blackbox/blackbox.c \
             blackbox/blackbox_encoding.c \
             blackbox/blackbox_io.c \
+            blackbox/blackbox_params.c \
+            blackbox/blackbox_params_format.c \
+            blackbox/blackbox_params_tables.c \
             cms/cms.c \
             cms/cms_menu_blackbox.c \
             cms/cms_menu_failsafe.c \
@@ -303,6 +306,9 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
 
 SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             $(shell find $(SRC_DIR) -name '*_init.c') \
+            blackbox/blackbox_params.c \
+            blackbox/blackbox_params_format.c \
+            blackbox/blackbox_params_tables.c \
             bus_bst_stm32f30x.c \
             cli/cli.c \
             cli/settings.c \

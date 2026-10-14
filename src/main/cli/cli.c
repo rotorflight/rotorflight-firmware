@@ -35,6 +35,7 @@ bool cliMode = false;
 #ifdef USE_CLI
 
 #include "blackbox/blackbox.h"
+#include "blackbox/blackbox_params.h"
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -748,6 +749,8 @@ static void backupConfigs(void)
     if (configIsInCopy) {
         return;
     }
+
+    blackboxParamsShadowLost();
 
     PG_FOREACH(pg) {
         backupPgConfig(pg);

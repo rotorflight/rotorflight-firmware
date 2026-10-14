@@ -99,6 +99,88 @@ baro_ms5611_unittest_DEFINES := \
 #		$(USER_DIR)/common/typeconversion.c \
 #		$(USER_DIR)/drivers/accgyro/gyro_sync.c
 
+blackbox_params_unittest_SRC := \
+		$(USER_DIR)/blackbox/blackbox_params.c \
+		$(USER_DIR)/blackbox/blackbox_params_format.c \
+		$(USER_DIR)/blackbox/blackbox_params_tables.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/cli/settings.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/sensor_alignment.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/pg/accel.c \
+		$(USER_DIR)/pg/battery.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/boardalignment.c \
+		$(USER_DIR)/pg/current.c \
+		$(USER_DIR)/pg/dyn_notch.c \
+		$(USER_DIR)/pg/esc_sensor.c \
+		$(USER_DIR)/pg/failsafe.c \
+		$(USER_DIR)/pg/feature.c \
+		$(USER_DIR)/pg/freq.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/gyro.c \
+		$(USER_DIR)/pg/gyrodev.c \
+		$(USER_DIR)/pg/imu.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/motor.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/pg/pid.c \
+		$(USER_DIR)/pg/position.c \
+		$(USER_DIR)/pg/rates.c \
+		$(USER_DIR)/pg/rpm_filter.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/servos.c \
+		$(USER_DIR)/pg/system.c \
+		$(USER_DIR)/pg/voltage.c \
+		$(TEST_DIR)/blackbox_params_unittest_cli.c \
+		$(TEST_DIR)/blackbox_params_unittest_pg.c
+
+# The features of the parameter groups as in the STM32G47X build
+blackbox_params_unittest_DEFINES := \
+		DSHOT_BITBANG_DEFAULT=DSHOT_BITBANG_AUTO \
+		DSHOT_BITBANGED_TIMER_DEFAULT=DSHOT_BITBANGED_TIMER_AUTO \
+		ENABLE_DSHOT_DMAR=DSHOT_DMAR_OFF \
+		PID_PROFILE_COUNT=6 \
+		USE_ACRO_TRAINER= \
+		USE_DSHOT= \
+		USE_DSHOT_BITBANG= \
+		USE_DSHOT_DMAR= \
+		USE_DSHOT_TELEMETRY= \
+		USE_DYN_LPF= \
+		USE_DYN_NOTCH_FILTER= \
+		USE_ESC_SENSOR= \
+		USE_FLASHFS_LOOP= \
+		USE_FREQ_SENSOR= \
+		USE_GYRO_OVERFLOW_CHECK= \
+		USE_MOTOR= \
+		USE_OVERCLOCK= \
+		USE_PROFILE_NAMES= \
+		USE_RPM_FILTER= \
+		USE_SERIAL_PINSWAP= \
+		USE_SERIALRX_SRXL2= \
+		USE_SMARTFUEL= \
+		USE_SPEKTRUM_BIND=
+
+blackbox_params_unittest_INCLUDE_DIRS := \
+		$(OBJECT_DIR)/blackbox_params_unittest
+
+# The same test with shorter header lines: lines that do not fit, split profile lines
+blackbox_params_short_unittest_SRC := $(blackbox_params_unittest_SRC)
+
+blackbox_params_short_unittest_DEFINES := \
+		$(blackbox_params_unittest_DEFINES) \
+		BBP_LINE_MAX=128
+
+blackbox_params_short_unittest_INCLUDE_DIRS := \
+		$(OBJECT_DIR)/blackbox_params_short_unittest
+
+blackbox_params_owned_unittest_SRC := $(blackbox_params_unittest_SRC)
+blackbox_params_owned_unittest_DEFINES := $(blackbox_params_unittest_DEFINES) BLACKBOX_PARAMS_OWN_SHADOW
+blackbox_params_owned_unittest_INCLUDE_DIRS := $(OBJECT_DIR)/blackbox_params_owned_unittest
+
 blackbox_encoding_unittest_SRC :=  \
 		$(USER_DIR)/blackbox/blackbox_encoding.c \
 		$(USER_DIR)/common/encoding.c \
@@ -517,7 +599,8 @@ flashfs_unittest_SRC := \
 		$(TEST_DIR)/flashfs_unittest.include/flash_c_stub.cc
 
 flashfs_unittest_DEFINES := \
-		USE_FLASHFS_LOOP
+		USE_FLASHFS_LOOP \
+		BLACKBOX_PARAMS_PROFILE
 
 setpoint_unittest_SRC := \
         $(USER_DIR)/flight/setpoint.c \
@@ -607,6 +690,12 @@ endif
 
 ifdef USE_PTHREAD
 COMMON_FLAGS += -pthread
+endif
+
+# Optional host memory/undefined-behaviour checks. Use a separate OBJECT_DIR.
+ifneq ($(SANITIZE),)
+COMMON_FLAGS += -fsanitize=$(SANITIZE) -fno-omit-frame-pointer -fsanitize-ignorelist=$(TEST_DIR)/sanitizer.ignore
+LDFLAGS += -fsanitize=$(SANITIZE)
 endif
 
 # Flags passed to the C compiler.
@@ -890,3 +979,15 @@ target_list:
 	@echo $(foreach target,$(ALT_TARGETS),$(target)\>$(call get_base_target,$(target)))
 	@echo ========== ALT/BASE FULL MAPPING ==========
 	@echo $(foreach target,$(VALID_TARGETS),$(target)\>$(call get_base_target,$(target)))
+
+
+# blackbox_params_unittest compares the parameter log formatter with printValuePointer() of cli.c.
+# The CLI functions are static: copy them from cli.c.
+$(OBJECT_DIR)/%/cli_print_value.inc: $(USER_DIR)/cli/cli.c
+	@mkdir -p $(dir $@)
+	$(V1) sed -n -e '/^static void getMinMax(/,/^}/p' -e '/^static void printValuePointer(/,/^}/p' $< > $@
+
+$(OBJECT_DIR)/blackbox_params_unittest/blackbox_params_unittest_cli.c.o: $(OBJECT_DIR)/blackbox_params_unittest/cli_print_value.inc
+$(OBJECT_DIR)/blackbox_params_short_unittest/blackbox_params_unittest_cli.c.o: $(OBJECT_DIR)/blackbox_params_short_unittest/cli_print_value.inc
+
+$(OBJECT_DIR)/blackbox_params_owned_unittest/blackbox_params_unittest_cli.c.o: $(OBJECT_DIR)/blackbox_params_owned_unittest/cli_print_value.inc

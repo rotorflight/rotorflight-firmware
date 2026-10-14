@@ -156,6 +156,8 @@ void pidChangeProfile(const pidProfile_t *pidProfile);
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
+uint32_t pidParamFingerprint(void);
+
 float pidGetDT(void);
 float pidGetPidFrequency(void);
 

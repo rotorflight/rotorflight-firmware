@@ -50,3 +50,11 @@ void crc8_xor_sbuf_append(struct sbuf_s *dst, const void *data);
 #define FNV_OFFSET_BASIS    2166136261
 
 uint32_t fnv_update(uint32_t hash, const void *data, uint32_t length);
+
+// FNV-1 over 32-bit words, for fingerprints of runtime parameters
+static inline uint32_t fnv_update_u32(uint32_t hash, uint32_t word)
+{
+    return (hash * FNV_PRIME) ^ word;
+}
+
+uint32_t fnv_update_words(uint32_t hash, const void *data, uint32_t count);

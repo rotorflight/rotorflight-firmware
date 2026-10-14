@@ -24,6 +24,8 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "pg/feature.h"
 
 #include "feature.h"
@@ -34,6 +36,8 @@ static uint32_t runtimeFeatureMask;
 void featureInit(void)
 {
     runtimeFeatureMask = featureConfig()->enabledFeatures;
+
+    blackboxParamsApplied(BBP_LOADER_FEATURE, -1);
 }
 
 static void featureSet(const uint32_t mask, uint32_t *features)
@@ -44,6 +48,12 @@ static void featureSet(const uint32_t mask, uint32_t *features)
 static void featureClear(const uint32_t mask, uint32_t *features)
 {
     *features &= ~(mask);
+}
+
+// The runtime feature mask. It can differ from the configured mask until the next reboot.
+uint32_t featureRuntimeMask(void)
+{
+    return runtimeFeatureMask;
 }
 
 // Determines if the feature is enabled (active) in the runtime state.

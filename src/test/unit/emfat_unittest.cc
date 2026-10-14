@@ -23,7 +23,7 @@
 extern "C" {
 // C functions under test.
 uint8_t sfn_checksum(const char* short_name, const char* extension);
-void emfat_init_sfn(emfat_entry_t *entry);
+void emfat_init_sfn(emfat_entry_t *entry, int index);
 bool emfat_init_entries(emfat_entry_t *entries);
 void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32_t rel_sect);
 }
@@ -39,7 +39,7 @@ TEST(EmfatInitSfn, ShortFileNameNoDot)
         .name = "abcd",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 1);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD    ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -51,7 +51,7 @@ TEST(EmfatInitSfn, ShortFileNameWithDot)
         .name = "abcd.xyz",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 1);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD    ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "XYZ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -63,7 +63,7 @@ TEST(EmfatInitSfn, ShortDirName)
         .name = "abcd.xy",
         .attr = ATTR_DIR,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 1);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD.XY ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -75,8 +75,8 @@ TEST(EmfatInitSfn, LongFileNameNoDot)
         .name = "abcdefghi",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFGH", 8) == 0);
+    emfat_init_sfn(&entry, 1);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFG1", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -87,8 +87,8 @@ TEST(EmfatInitSfn, LongFileNameWithDot)
         .name = "abcdefghi.txt",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFGH", 8) == 0);
+    emfat_init_sfn(&entry, 1);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFG1", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "TXT", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -99,8 +99,8 @@ TEST(EmfatInitSfn, LongFileNameEntry1)
         .name = "1234567890123",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345678", 8) == 0);
+    emfat_init_sfn(&entry, 1);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345671", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -111,8 +111,8 @@ TEST(EmfatInitSfn, LongFileNameEntry2)
         .name = "1234567890123456789012.456",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345678", 8) == 0);
+    emfat_init_sfn(&entry, 1);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345671", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "456", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 3);
 }
@@ -123,8 +123,8 @@ TEST(EmfatInitSfn, LongDirName)
         .name = "abcdef.xyz",
         .attr = ATTR_DIR,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF.X", 8) == 0);
+    emfat_init_sfn(&entry, 1);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF.1", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
 }
 
@@ -158,13 +158,13 @@ TEST_F(EmfatTestBase, SFN)
     EXPECT_TRUE(memcmp(entries_[1].priv.short_name, "AUTORUN ", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[1].priv.extension, "INF", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[6].priv.short_name, "LONGFILE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[6].priv.short_name, "LONGFIL6", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[6].priv.extension, "   ", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[7].priv.short_name, "LONGDIRE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[7].priv.short_name, "LONGDIR7", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[7].priv.extension, "   ", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[8].priv.short_name, "LONGFILE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[8].priv.short_name, "LONGFIL8", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[8].priv.extension, "EXE", 3) == 0);
 }
 

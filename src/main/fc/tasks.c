@@ -26,6 +26,8 @@
 
 #include "build/debug.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "cli/cli.h"
 
 #include "cms/cms.h"
@@ -82,6 +84,7 @@
 
 #include "pg/rx.h"
 #include "pg/motor.h"
+#include "pg/srxl2_esc.h"
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
 
@@ -139,6 +142,23 @@ static void taskMain(timeUs_t currentTimeUs)
     flashfsEraseAsync();
 #endif
 }
+
+#ifdef USE_SRXL2_ESC
+static void taskSrxl2Esc(timeUs_t currentTimeUs)
+{
+    // The driver can clamp the motor rate to 250 Hz, including its zero-rate fallback at init.
+    // Bracket only possible writes, so normal service calls do not scan the configuration.
+    const unsigned rate = motorConfig()->dev.motorPwmRate;
+    const bool mayWrite = rate > 250 || (rate == 0 && srxl2escConfig()->throttle_rate_hz > 250);
+    if (mayWrite) {
+        blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_SRXL2_ESC);
+    }
+    srxl2escDriverTask(currentTimeUs);
+    if (mayWrite) {
+        blackboxParamsOpEnd();
+    }
+}
+#endif
 
 static void taskHandleSerial(timeUs_t currentTimeUs)
 {
@@ -416,7 +436,7 @@ task_attribute_t task_attributes[TASK_COUNT] = {
 #endif
 
 #ifdef USE_SRXL2_ESC
-    [TASK_SRXL2_ESC] = DEFINE_TASK("SRXL2_ESC", NULL, NULL, srxl2escDriverTask, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ), TASK_PRIORITY_HIGH),
+    [TASK_SRXL2_ESC] = DEFINE_TASK("SRXL2_ESC", NULL, NULL, taskSrxl2Esc, TASK_PERIOD_HZ(SRXL2_ESC_DRIVER_TASK_FREQ_HZ), TASK_PRIORITY_HIGH),
 #endif
 
 #ifdef USE_CMS

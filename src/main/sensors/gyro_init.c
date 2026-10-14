@@ -26,6 +26,8 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/debug.h"
 
 #include "common/axis.h"
@@ -179,6 +181,8 @@ void gyroInitFilters(void)
         gyro.filterRateHz,
         0
     );
+
+    blackboxParamsApplied(BBP_LOADER_GYRO_FILTER, -1);
 }
 
 #if defined(USE_GYRO_SLEW_LIMITER)
