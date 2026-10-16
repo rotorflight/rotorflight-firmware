@@ -44,11 +44,12 @@ static inline bool isBoardAlignmentStandard(const boardAlignment_t *boardAlignme
 
 void initBoardAlignment(const boardAlignment_t *boardAlignment)
 {
+    // May be called again at runtime (board auto-align), so reset first
+    standardBoardAlignment = true;
+
     if (isBoardAlignmentStandard(boardAlignment)) {
         return;
     }
-
-    standardBoardAlignment = false;
 
     fp_angles_t rotationAngles;
     rotationAngles.angles.roll  = degreesToRadians(boardAlignment->rollDegrees );
@@ -56,6 +57,8 @@ void initBoardAlignment(const boardAlignment_t *boardAlignment)
     rotationAngles.angles.yaw   = degreesToRadians(boardAlignment->yawDegrees  );
 
     buildRotationMatrix(&rotationAngles, &boardRotation);
+
+    standardBoardAlignment = false;
 }
 
 static inline void alignBoard(float *vec)
@@ -72,7 +75,7 @@ FAST_CODE void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* sensorRota
     }
 }
 
-FAST_CODE void alignSensorViaRotation(float *dest, uint8_t rotation)
+FAST_CODE void alignSensorRotationOnly(float *dest, uint8_t rotation)
 {
     const float x = dest[X];
     const float y = dest[Y];
@@ -121,6 +124,11 @@ FAST_CODE void alignSensorViaRotation(float *dest, uint8_t rotation)
         dest[Z] = -z;
         break;
     }
+}
+
+FAST_CODE void alignSensorViaRotation(float *dest, uint8_t rotation)
+{
+    alignSensorRotationOnly(dest, rotation);
 
     if (!standardBoardAlignment) {
         alignBoard(dest);
