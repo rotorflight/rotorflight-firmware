@@ -35,6 +35,7 @@
 
 #include "sensors/acceleration_init.h"
 #include "sensors/boardalignment.h"
+#include "sensors/boardalignment_auto.h"
 
 #include "acceleration.h"
 
@@ -66,6 +67,14 @@ void accUpdate(timeUs_t currentTimeUs, rollAndPitchTrims_t *rollAndPitchTrims)
             acc.accADC[axis] = filterApply(&accelerationRuntime.accFilter[axis], acc.accADC[axis]);
         }
     }
+
+    float sensorVector[XYZ_AXIS_COUNT] = { acc.accADC[X], acc.accADC[Y], acc.accADC[Z] };
+    if (acc.dev.accAlign == ALIGN_CUSTOM) {
+        applyMatrixRotation(sensorVector, &acc.dev.rotationMatrix);
+    } else {
+        alignSensorRotationOnly(sensorVector, acc.dev.accAlign);
+    }
+    boardAutoAlignProcessSample(sensorVector);
 
     if (acc.dev.accAlign == ALIGN_CUSTOM) {
         alignSensorViaMatrix(acc.accADC, &acc.dev.rotationMatrix);
