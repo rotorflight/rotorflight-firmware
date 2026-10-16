@@ -147,6 +147,9 @@ typedef struct pidProfile_s {
     uint8_t             cyclic_cross_coupling_ratio;
     uint8_t             cyclic_cross_coupling_cutoff;
 
+    uint8_t             cyclic_master_gain;
+    uint8_t             yaw_master_gain;
+
     pidAngleMode_t      angle;
     pidHorizonMode_t    horizon;
     pidTrainerMode_t    trainer;

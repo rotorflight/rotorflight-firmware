@@ -2110,6 +2110,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         /* Error decay gain cyclic */
         sbufWriteU8(dst, currentPidProfile->error_decay_gain_cyclic);
+        /* Master gains */
+        sbufWriteU8(dst, currentPidProfile->cyclic_master_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_master_gain);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -3365,6 +3368,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         /* Error decay gain cyclic */
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->error_decay_gain_cyclic = sbufReadU8(src);
+        }
+        /* Master gains */
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->cyclic_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
+            currentPidProfile->yaw_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
         }
         /* Load new values */
         pidLoadProfile(currentPidProfile);
