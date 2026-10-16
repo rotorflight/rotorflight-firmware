@@ -40,3 +40,8 @@
 // serialrx_provider and reports which combo (if any) produces signal.
 #define MSP2_RX_SERIAL_TRIAL                0x5F12
 
+// action: 0 = poll only, 1 = (re)start - detects the right-angle board
+// alignment from a level baseline followed by a tail lift, and applies it
+// (unsaved) on success.
+#define MSP2_BOARD_AUTO_ALIGN               0x5F13
+
