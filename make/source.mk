@@ -141,6 +141,7 @@ COMMON_SRC = \
             sensors/acceleration.c \
             sensors/acceleration_init.c \
             sensors/boardalignment.c \
+            sensors/boardalignment_auto.c \
             sensors/compass.c \
             sensors/gyro.c \
             sensors/gyro_init.c \
