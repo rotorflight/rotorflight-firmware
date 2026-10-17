@@ -1179,6 +1179,9 @@ const clivalue_t valueTable[] = {
     { "cyclic_cross_coupling_ratio",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_ratio) },
     { "cyclic_cross_coupling_cutoff", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_cutoff) },
 
+    { "cyclic_master_gain",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { MASTER_GAIN_MIN, MASTER_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_master_gain) },
+    { "yaw_master_gain",            VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { MASTER_GAIN_MIN, MASTER_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_master_gain) },
+
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
     { "offset_limit",               VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 2, PG_PID_PROFILE, offsetof(pidProfile_t, offset_limit) },
 

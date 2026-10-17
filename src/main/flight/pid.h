@@ -34,6 +34,9 @@
 
 #define PID_GAIN_MAX                1000
 
+#define MASTER_GAIN_MIN             25
+#define MASTER_GAIN_MAX             200
+
 #define ROLL_P_TERM_SCALE           0.00000666666f
 #define ROLL_I_TERM_SCALE           0.0002f
 #define ROLL_D_TERM_SCALE           0.1e-6f
@@ -120,6 +123,8 @@ typedef struct pid_s {
     float yawCWStopGain;
     float yawCCWStopGain;
 
+    float masterGain[PID_AXIS_COUNT];
+
     float cyclicCrossCouplingGain[XY_AXIS_COUNT];
 
     float collective;
@@ -203,4 +208,6 @@ ADJFUN_DECLARE(CROSS_COUPLING_CUTOFF)
 ADJFUN_DECLARE(INERTIA_PRECOMP_GAIN)
 ADJFUN_DECLARE(INERTIA_PRECOMP_CUTOFF)
 ADJFUN_DECLARE(YAW_PRECOMP_CUTOFF)
+ADJFUN_DECLARE(CYCLIC_MASTER_GAIN)
+ADJFUN_DECLARE(YAW_MASTER_GAIN)
 

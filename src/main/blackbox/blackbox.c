@@ -1759,6 +1759,8 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->cyclic_cross_coupling_cutoff);
         BLACKBOX_PRINT_HEADER_LINE("yaw_stop_gain", "%d,%d",                currentPidProfile->yaw_cw_stop_gain,
                                                                             currentPidProfile->yaw_ccw_stop_gain);
+        BLACKBOX_PRINT_HEADER_LINE("master_gain", "%d,%d",                  currentPidProfile->cyclic_master_gain,
+                                                                            currentPidProfile->yaw_master_gain);
         BLACKBOX_PRINT_HEADER_LINE("yaw_precomp", "%d,%d,%d",               currentPidProfile->yaw_precomp_cutoff,
                                                                             currentPidProfile->yaw_cyclic_ff_gain,
                                                                             currentPidProfile->yaw_collective_ff_gain);
