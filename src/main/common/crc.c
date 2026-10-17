@@ -19,6 +19,7 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 
 #include "streambuf.h"
 
@@ -138,3 +139,14 @@ uint32_t fnv_update(uint32_t hash, const void *data, uint32_t length)
     return hash;
 }
 
+uint32_t fnv_update_words(uint32_t hash, const void *data, uint32_t count)
+{
+    const uint8_t *p = data;
+
+    for (uint32_t i = 0; i < count; i++, p += sizeof(uint32_t)) {
+        uint32_t word;
+        memcpy(&word, p, sizeof(word));
+        hash = fnv_update_u32(hash, word);
+    }
+    return hash;
+}

@@ -22,6 +22,8 @@
 
 #if defined(USE_RPM_FILTER)
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/debug.h"
 
 #include "common/filter.h"
@@ -271,6 +273,7 @@ INIT_CODE void rpmFilterInit(void)
         updateBankCount = MIN(totalBankCount, RPM_UPDATE_BANK_COUNT);
     }
 
+    blackboxParamsApplied(BBP_LOADER_RPM_FILTER, -1);
     return;
 
 norpm:

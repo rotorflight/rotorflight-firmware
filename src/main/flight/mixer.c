@@ -24,6 +24,8 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/build_config.h"
 
 #include "common/axis.h"
@@ -658,6 +660,8 @@ void INIT_CODE mixerInitConfig(void)
 
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
     mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 1000.0f;
+
+    blackboxParamsApplied(BBP_LOADER_MIXER, -1);
 }
 
 static void INIT_CODE setMapping(uint8_t in, uint8_t out)

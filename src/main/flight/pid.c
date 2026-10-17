@@ -22,10 +22,13 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/build_config.h"
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/crc.h"
 #include "common/filter.h"
 
 #include "config/config_reset.h"
@@ -748,6 +751,31 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     acroTrainerInit(pidProfile);
 #endif
     rescueInitProfile(pidProfile);
+
+    blackboxParamsApplied(BBP_LOADER_PID, pidProfile - pidProfiles(0));
+}
+
+// FNV-1 of the runtime parameters that pidLoadProfile() writes. No filter and no loop state.
+uint32_t pidParamFingerprint(void)
+{
+    const float params[] = {
+        pid.errorDecayRateGround, pid.errorDecayRateCyclic, pid.errorDecayGainCyclic, pid.errorDecayLimitCyclic,
+        pid.errorDecayRateYaw, pid.errorDecayLimitYaw, pid.offsetFloodRelaxLevel,
+        pid.yawCWStopGain, pid.yawCCWStopGain,
+        pid.precomp.yawCollectiveFFGain, pid.precomp.yawCyclicFFGain, pid.precomp.yawInertiaGain,
+        pid.precomp.pitchCollectiveFFGain,
+    };
+    uint32_t hash = fnv_update_words(FNV_OFFSET_BASIS, pid.coef, ARRAYLEN(pid.coef) * (sizeof(pidAxisCoef_t) / sizeof(uint32_t)));
+    hash = fnv_update_words(hash, params, ARRAYLEN(params));
+    hash = fnv_update_words(hash, pid.offsetLimit, ARRAYLEN(pid.offsetLimit));
+    hash = fnv_update_words(hash, pid.errorLimit, ARRAYLEN(pid.errorLimit));
+    hash = fnv_update_words(hash, pid.cyclicCrossCouplingGain, ARRAYLEN(pid.cyclicCrossCouplingGain));
+    hash = fnv_update_words(hash, pid.masterGain, ARRAYLEN(pid.masterGain));
+    hash = fnv_update_u32(hash, pid.pidMode | pid.itermRelaxType << 8);
+    for (unsigned i = 0; i < ARRAYLEN(pid.itermRelaxLevel); i++) {
+        hash = fnv_update_u32(hash, pid.itermRelaxLevel[i]);
+    }
+    return hash;
 }
 
 void INIT_CODE pidChangeProfile(const pidProfile_t *pidProfile)

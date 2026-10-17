@@ -26,14 +26,17 @@ float throttle;
 
 // Dummies
 extern "C" {
+#include "blackbox/blackbox_params.h"
 #include "pg/pid.h"
 #include "sensors/gyro.h"
 
+void blackboxParamsApplied(bbpLoader_e, int) {}
 bool gyroOverflowDetected(void) { return false; }
 void beeperConfirmationBeeps(uint8_t) {}
 float getThrottle(void) { return throttle; }
 void governorInitProfile(const pidProfile_t *) {}
 void levelingInit(const pidProfile_t *) {}
+void levelingUpdate(void) {}
 void INIT_CODE rescueInitProfile(const pidProfile_t *) {}
 bool isSpooledUp(void) { return true; }
 void setpointInitProfile(void) {}
@@ -57,6 +60,9 @@ extern "C" {
 // Fixed 1000Hz
 gyro_t gyro = {.targetLooptime = 1000000 / 1000};
 pidProfile_t *mockPidProfile = pidProfilesMutable(0);
+pidProfile_t *currentPidProfile = pidProfilesMutable(0);
+uint8_t getCurrentPidProfileIndex(void) { return 0; }
+void changePidProfile(uint8_t) {}
 
 float getSetpoint(int axis) { return g_mock->getDeflection(axis) * 360; }
 float getDeflection(int axis) { return g_mock->getDeflection(axis); }
@@ -104,12 +110,28 @@ class PIDTestBase : public ::testing::Test {
     StrictMock<MockInterface> mock;
 };
 
+TEST_F(PIDTestBase, FingerprintTracksAppliedCyclicDecayGain)
+{
+    mockPidProfile->error_decay_gain_cyclic = 0;
+    pidLoadProfile(mockPidProfile);
+    const uint32_t before = pidParamFingerprint();
+    mockPidProfile->error_decay_gain_cyclic = 50;
+    EXPECT_EQ(before, pidParamFingerprint());
+    pidLoadProfile(mockPidProfile);
+    EXPECT_NE(before, pidParamFingerprint());
+    mockPidProfile->error_decay_gain_cyclic = 0;
+    pidLoadProfile(mockPidProfile);
+    EXPECT_EQ(before, pidParamFingerprint());
+    set_ADJUSTMENT_CYCLIC_MASTER_GAIN(150);
+    EXPECT_NE(before, pidParamFingerprint());
+}
+
 TEST_F(PIDTestBase, Mode0)
 // Mode 0 sanity check
 {
     mockPidProfile->pid_mode = 0;
     mockPidProfile->pid[0].F = 1;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
     PIDIO input;
     for (int i = 0; i < 100; i++) {
@@ -148,7 +170,7 @@ TEST_F(PIDFBTest, B)
     mockPidProfile->pid[0].F = 0;
     mockPidProfile->pid[0].B = 100;
     mockPidProfile->bterm_cutoff[0] = 30;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
     PIDIO input;
     for (int i = 0; i < 500; i++) {

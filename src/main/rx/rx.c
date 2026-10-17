@@ -29,6 +29,8 @@
 #include "build/build_config.h"
 #include "build/debug.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "common/maths.h"
 #include "common/utils.h"
 #include "common/filter.h"
@@ -354,6 +356,7 @@ static bool rxSerialTrialProtocolIgnoresHalfDuplex(void)
 
 static void rxSerialTrialApplyCombo(uint8_t combo)
 {
+    blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_RX_SERIAL_TRIAL);
     rxConfigMutable()->serialrx_inverted = (combo & (1 << 0)) ? 1 : 0;
     if (!rxSerialTrialProtocolIgnoresHalfDuplex()) {
         rxConfigMutable()->halfDuplex = (combo & (1 << 1)) ? 1 : 0;
@@ -361,6 +364,7 @@ static void rxSerialTrialApplyCombo(uint8_t combo)
     rxConfigMutable()->pinSwap = (combo & (1 << 2)) ? 1 : 0;
 
     rxSerialTrialReinit();
+    blackboxParamsOpEnd();
 
     rxSerialTrial.comboStartedAt = millis();
     rxSerialTrial.signalSince = 0;
@@ -368,6 +372,7 @@ static void rxSerialTrialApplyCombo(uint8_t combo)
 
 static void rxSerialTrialRestore(void)
 {
+    blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_RX_SERIAL_TRIAL);
     rxConfigMutable()->serialrx_inverted = rxSerialTrial.savedInverted;
     rxConfigMutable()->halfDuplex        = rxSerialTrial.savedHalfDuplex;
     rxConfigMutable()->pinSwap           = rxSerialTrial.savedPinSwap;
@@ -376,6 +381,7 @@ static void rxSerialTrialRestore(void)
     rxConfigMutable()->srxl2_baud_fast   = rxSerialTrial.savedSrxl2BaudFast;
 
     rxSerialTrialReinit();
+    blackboxParamsOpEnd();
 }
 
 bool rxSerialTrialStart(void)

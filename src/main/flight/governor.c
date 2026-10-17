@@ -22,9 +22,12 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/build_config.h"
 #include "build/debug.h"
 
+#include "common/crc.h"
 #include "common/filter.h"
 #include "common/maths.h"
 
@@ -243,6 +246,33 @@ static void govThrottleBypass(const float *throttleCurve, float minThrottle, flo
 int getGovernorState(void)
 {
     return gov.state;
+}
+
+int getGovernorMode(void)
+{
+    return gov.govMode;
+}
+
+// FNV-1 of the runtime parameters that governorInitProfile() writes, and the idle and auto throttle.
+// Not the requested headspeed, and no loop state.
+uint32_t governorParamFingerprint(void)
+{
+    const float params[] = {
+        gov.fallbackRatio, gov.maxThrottle, gov.idleThrottle, gov.autoThrottle,
+        gov.minSpoolupThrottle, gov.maxSpoolupThrottle, gov.minActiveThrottle,
+        gov.fullHeadSpeed, gov.motorRPMGlitchDelta, gov.motorRPMGlitchLimit, gov.dynMinThrottle,
+        gov.K, gov.Kp, gov.Ki, gov.Kd, gov.Kf,
+        gov.maxP, gov.minP, gov.maxI, gov.minI, gov.maxD, gov.minD, gov.minF, gov.maxF,
+        gov.yawWeight, gov.cyclicWeight, gov.collectiveWeight, gov.ttaGain, gov.ttaLimit,
+    };
+    const uint32_t flags =
+        gov.useFallbackPrecomp << 0 | gov.useHsAdjustment << 1 | gov.usePidSpoolup << 2 |
+        gov.useVoltageComp << 3 | gov.useDynMinThrottle << 4 | gov.useElectricMotor << 5 |
+        gov.useTorqueAssist << 6 | gov.useAutorotation << 7;
+
+    uint32_t hash = fnv_update_words(FNV_OFFSET_BASIS, params, ARRAYLEN(params));
+    hash = fnv_update_u32(hash, flags);
+    return fnv_update_u32(hash, gov.collectiveCurve);
 }
 
 float getGovernorOutput(void)
@@ -1597,6 +1627,8 @@ void INIT_CODE governorInitProfile(const pidProfile_t *pidProfile)
         gov.motorRPMGlitchLimit = (gov.fullHeadSpeed / gov.mainGearRatio) * GOV_HS_GLITCH_LIMIT;
 
         govInitTTA(pidProfile);
+
+        blackboxParamsApplied(BBP_LOADER_GOVERNOR, pidProfile - pidProfiles(0));
     }
 }
 

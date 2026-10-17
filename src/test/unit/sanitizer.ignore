@@ -1,0 +1,9 @@
+# Existing PG reset ABI: a void* registry callback is invoked through a typed PG reset function.
+# Exclude only the function-type check at this stock call site, retaining all memory and other UB checks.
+[function]
+fun:pgResetInstance
+
+# Linker-collected PG registry entries must remain contiguous (pg.ld/PG_FOREACH).
+# ASan redzones between descriptors alter the test ABI; PG payloads and journal buffers stay instrumented.
+[address]
+global:*_Registry

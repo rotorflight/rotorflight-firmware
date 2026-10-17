@@ -20,6 +20,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "common/utils.h"
+
 #define USE_PARAMETER_GROUPS
 
 #define U_ID_0 0
@@ -40,8 +42,12 @@
 
 #define	__unused	__attribute__((__unused__))
 
+#ifndef PID_PROFILE_COUNT
 #define PID_PROFILE_COUNT 3
+#endif
+#ifndef CONTROL_RATE_PROFILE_COUNT
 #define CONTROL_RATE_PROFILE_COUNT  6
+#endif
 #define USE_MAG
 #define USE_BARO
 #define USE_GPS
@@ -123,3 +129,7 @@ typedef struct
 #include "target.h"
 
 #include "target/common_defaults_post.h"
+
+// Cortex-M trace output has no peripheral in the host test process.
+#define ITM ((void *)0)
+static inline void ITM_SendChar(unsigned int ch) { (void)ch; }

@@ -28,6 +28,8 @@
 
 #include "build/debug.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "blackbox/blackbox.h"
 
 #include "common/time.h"
@@ -4647,12 +4649,14 @@ static void escSensorTrialReinit(void)
 
 static void escSensorTrialApplyCombo(uint8_t combo)
 {
+    blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_ESC_SENSOR_TRIAL);
     escSensorConfigMutable()->halfDuplex = escSensorTrialForcesHalfDuplex()
         ? 1
         : ((combo & (1 << 0)) ? 1 : 0);
     escSensorConfigMutable()->pinSwap = (combo & (1 << 1)) ? 1 : 0;
 
     escSensorTrialReinit();
+    blackboxParamsOpEnd();
 
     escSensorTrial.comboStartedAt = millis();
     escSensorTrial.comboBaselineFrameCount = totalFrameCount;
@@ -4660,10 +4664,12 @@ static void escSensorTrialApplyCombo(uint8_t combo)
 
 static void escSensorTrialRestore(void)
 {
+    blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_ESC_SENSOR_TRIAL);
     escSensorConfigMutable()->halfDuplex = escSensorTrial.savedHalfDuplex;
     escSensorConfigMutable()->pinSwap = escSensorTrial.savedPinSwap;
 
     escSensorTrialReinit();
+    blackboxParamsOpEnd();
 }
 
 static void escSensorTrialReleaseTask(void)
