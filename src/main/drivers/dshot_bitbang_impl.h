@@ -33,43 +33,43 @@
 #define DSHOT_BITBANG_TELEMETRY_OVER_SAMPLE 3
 
 #define DSHOT_BITBANG_DIRECTION_OUTPUT 0
-#define DSHOT_BITBANG_DIRECTION_INPUT  1
+#define DSHOT_BITBANG_DIRECTION_INPUT 1
 
-#define DSHOT_BITBANG_INVERTED         true
-#define DSHOT_BITBANG_NONINVERTED      false
+#define DSHOT_BITBANG_INVERTED true
+#define DSHOT_BITBANG_NONINVERTED false
 
 // XXX MOTOR_xSHOTyyyy_HZ is not usable as generic frequency for timers.
 // XXX Trying to fiddle with constants here.
 
 // Symbol rate [symbol/sec]
-#define MOTOR_DSHOT600_SYMBOL_RATE     (600 * 1000)
-#define MOTOR_DSHOT300_SYMBOL_RATE     (300 * 1000)
-#define MOTOR_DSHOT150_SYMBOL_RATE     (150 * 1000)
+#define MOTOR_DSHOT600_SYMBOL_RATE (600 * 1000)
+#define MOTOR_DSHOT300_SYMBOL_RATE (300 * 1000)
+#define MOTOR_DSHOT150_SYMBOL_RATE (150 * 1000)
 
-#define MOTOR_DSHOT_SYMBOL_TIME_NS(rate)  (1000000000 / (rate))
+#define MOTOR_DSHOT_SYMBOL_TIME_NS(rate) (1000000000 / (rate))
 
-#define MOTOR_DSHOT_BIT_PER_SYMBOL         1
+#define MOTOR_DSHOT_BIT_PER_SYMBOL 1
 
-#define MOTOR_DSHOT_STATE_PER_SYMBOL       3  // Initial high, 0/1, low
-#define MOTOR_DSHOT_BIT_HOLD_STATES        3  // 3 extra states at the end of transmission required to allow ESC to sample the last bit correctly.
+#define MOTOR_DSHOT_STATE_PER_SYMBOL 3 // Initial high, 0/1, low
+#define MOTOR_DSHOT_BIT_HOLD_STATES 3  // 3 extra states at the end of transmission required to allow ESC to sample the last bit correctly.
 
-#define MOTOR_DSHOT_FRAME_BITS             16
+#define MOTOR_DSHOT_FRAME_BITS 16
 
-#define MOTOR_DSHOT_FRAME_TIME_NS(rate)    ((MOTOR_DSHOT_FRAME_BITS / MOTOR_DSHOT_BIT_PER_SYMBOL) * MOTOR_DSHOT_SYMBOL_TIME_NS(rate))
+#define MOTOR_DSHOT_FRAME_TIME_NS(rate) ((MOTOR_DSHOT_FRAME_BITS / MOTOR_DSHOT_BIT_PER_SYMBOL) * MOTOR_DSHOT_SYMBOL_TIME_NS(rate))
 
-#define MOTOR_DSHOT_TELEMETRY_WINDOW_US    (30000 + MOTOR_DSHOT_FRAME_TIME_NS(rate) * (1.1)) / 1000
+#define MOTOR_DSHOT_TELEMETRY_WINDOW_US (30000 + MOTOR_DSHOT_FRAME_TIME_NS(rate) * (1.1)) / 1000
 
 #define MOTOR_DSHOT_CHANGE_INTERVAL_NS(rate) (MOTOR_DSHOT_SYMBOL_TIME_NS(rate) / MOTOR_DSHOT_STATE_PER_SYMBOL)
 
 #define MOTOR_DSHOT_GCR_CHANGE_INTERVAL_NS(rate) (MOTOR_DSHOT_CHANGE_INTERVAL_NS(rate) * 5 / 4)
 
-#define MOTOR_DSHOT_BUF_LENGTH            (((MOTOR_DSHOT_FRAME_BITS / MOTOR_DSHOT_BIT_PER_SYMBOL) * MOTOR_DSHOT_STATE_PER_SYMBOL) + MOTOR_DSHOT_BIT_HOLD_STATES)
+#define MOTOR_DSHOT_BUF_LENGTH (((MOTOR_DSHOT_FRAME_BITS / MOTOR_DSHOT_BIT_PER_SYMBOL) * MOTOR_DSHOT_STATE_PER_SYMBOL) + MOTOR_DSHOT_BIT_HOLD_STATES)
 #ifdef USE_DSHOT_CACHE_MGMT
 // MOTOR_DSHOT_BUF_LENGTH is multiples of uint32_t
 // Number of bytes required for buffer
-#define MOTOR_DSHOT_BUF_BYTES              (MOTOR_DSHOT_BUF_LENGTH * sizeof(uint32_t))
+#define MOTOR_DSHOT_BUF_BYTES (MOTOR_DSHOT_BUF_LENGTH * sizeof(uint32_t))
 // Number of bytes required to cache align buffer
-#define MOTOR_DSHOT_BUF_CACHE_ALIGN_BYTES  ((MOTOR_DSHOT_BUF_BYTES + 0x20) & ~0x1f)
+#define MOTOR_DSHOT_BUF_CACHE_ALIGN_BYTES ((MOTOR_DSHOT_BUF_BYTES + 0x20) & ~0x1f)
 // Size of array to create a cache aligned buffer
 #define MOTOR_DSHOT_BUF_CACHE_ALIGN_LENGTH (MOTOR_DSHOT_BUF_CACHE_ALIGN_BYTES / sizeof(uint32_t))
 #else
@@ -78,20 +78,30 @@
 
 #ifdef USE_HAL_DRIVER
 #define BB_GPIO_PULLDOWN GPIO_PULLDOWN
-#define BB_GPIO_PULLUP   GPIO_PULLUP
+#define BB_GPIO_PULLUP GPIO_PULLUP
+#elif defined(CH32H4) || defined(CH32H41x)
+#define BB_GPIO_PULLDOWN GPIO_PULL_DOWN
+#define BB_GPIO_PULLUP GPIO_PULL_UP
 #else
 #define BB_GPIO_PULLDOWN GPIO_PuPd_DOWN
-#define BB_GPIO_PULLUP   GPIO_PuPd_UP
+#define BB_GPIO_PULLUP GPIO_PuPd_UP
 #endif
 
 #ifdef USE_DMA_REGISTER_CACHE
-typedef struct dmaRegCache_s {
+typedef struct dmaRegCache_s
+{
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
     uint32_t CR;
     uint32_t FCR;
     uint32_t NDTR;
     uint32_t PAR;
     uint32_t M0AR;
+#elif defined(CH32H4) || defined(CH32H41x)
+    uint32_t CFGR;
+    uint32_t CNTR;
+    uint32_t PADDR;
+    uint32_t MADDR;
+    uint32_t M1ADDR;
 #elif defined(STM32G4)
     uint32_t CCR;
     uint32_t CNDTR;
@@ -105,14 +115,16 @@ typedef struct dmaRegCache_s {
 
 // Per pacer timer
 
-typedef struct bbPacer_s {
+typedef struct bbPacer_s
+{
     TIM_TypeDef *tim;
     uint16_t dmaSources;
 } bbPacer_t;
 
 // Per GPIO port and timer channel
 
-typedef struct bbPort_s {
+typedef struct bbPort_s
+{
     int portIndex;
     GPIO_TypeDef *gpio;
     const timerHardware_t *timhw;
@@ -132,12 +144,12 @@ typedef struct bbPort_s {
     dmaRegCache_t dmaRegOutput;
     dmaRegCache_t dmaRegInput;
 #endif
-
-    // For direct manipulation of GPIO_MODER register
+    // For CH32H41x: 2-bit-per-pin mask/mode values stored here, expanded to
+    // 4-bit-per-pin for CFGLR/CFGHR at runtime in bbSwitchToOutput/bbSwitchToInput.
+    // For STM32: direct manipulation of GPIO_MODER register (2-bit-per-pin).
     uint32_t gpioModeMask;
     uint32_t gpioModeInput;
     uint32_t gpioModeOutput;
-
     // Idle value
     uint32_t gpioIdleBSRR;
 
@@ -178,11 +190,12 @@ typedef struct bbPort_s {
 
 // Per motor output
 
-typedef struct bbMotor_s {
+typedef struct bbMotor_s
+{
     dshotProtocolControl_t protocolControl;
-    int pinIndex;            // pinIndex of this motor output within a group that bbPort points to
+    int pinIndex; // pinIndex of this motor output within a group that bbPort points to
     int portIndex;
-    IO_t io;                 // IO_t for this output
+    IO_t io; // IO_t for this output
     uint8_t output;
     uint32_t iocfg;
     bbPort_t *bbPort;
@@ -190,8 +203,8 @@ typedef struct bbMotor_s {
     bool enabled;
 } bbMotor_t;
 
-#define MAX_MOTOR_PACERS  4
-extern FAST_DATA_ZERO_INIT bbPacer_t bbPacers[MAX_MOTOR_PACERS];  // TIM1 or TIM8
+#define MAX_MOTOR_PACERS 4
+extern FAST_DATA_ZERO_INIT bbPacer_t bbPacers[MAX_MOTOR_PACERS]; // TIM1 or TIM8
 extern FAST_DATA_ZERO_INIT int usedMotorPacers;
 
 extern FAST_DATA_ZERO_INIT bbPort_t bbPorts[MAX_SUPPORTED_MOTOR_PORTS];
@@ -222,9 +235,9 @@ extern uint32_t bbOutputBuffer[MOTOR_DSHOT_BUF_CACHE_ALIGN_LENGTH * MAX_SUPPORTE
 #ifdef USE_DSHOT_CACHE_MGMT
 // Each sample is a uint16_t
 // Number of bytes required for buffer
-#define DSHOT_BB_PORT_IP_BUF_BYTES              (DSHOT_BB_PORT_IP_BUF_LENGTH * sizeof(uint16_t))
+#define DSHOT_BB_PORT_IP_BUF_BYTES (DSHOT_BB_PORT_IP_BUF_LENGTH * sizeof(uint16_t))
 // Number of bytes required to cache align buffer
-#define DSHOT_BB_PORT_IP_BUF_CACHE_ALIGN_BYTES  ((DSHOT_BB_PORT_IP_BUF_BYTES + 0x20) & ~0x1f)
+#define DSHOT_BB_PORT_IP_BUF_CACHE_ALIGN_BYTES ((DSHOT_BB_PORT_IP_BUF_BYTES + 0x20) & ~0x1f)
 // Size of array to create a cache aligned buffer
 #define DSHOT_BB_PORT_IP_BUF_CACHE_ALIGN_LENGTH (DSHOT_BB_PORT_IP_BUF_CACHE_ALIGN_BYTES / sizeof(uint16_t))
 #else
@@ -236,11 +249,11 @@ void bbGpioSetup(bbMotor_t *bbMotor);
 void bbTimerChannelInit(bbPort_t *bbPort);
 void bbDMAPreconfigure(bbPort_t *bbPort, uint8_t direction);
 void bbDMAIrqHandler(dmaChannelDescriptor_t *descriptor);
-void bbSwitchToOutput(bbPort_t * bbPort);
-void bbSwitchToInput(bbPort_t * bbPort);
+void bbSwitchToOutput(bbPort_t *bbPort);
+void bbSwitchToInput(bbPort_t *bbPort);
 
 void bbTIM_TimeBaseInit(bbPort_t *bbPort, uint16_t period);
-void bbTIM_DMACmd(TIM_TypeDef* TIMx, uint16_t TIM_DMASource, FunctionalState NewState);
+void bbTIM_DMACmd(TIM_TypeDef *TIMx, uint16_t TIM_DMASource, FunctionalState NewState);
 void bbDMA_ITConfig(bbPort_t *bbPort);
 void bbDMA_Cmd(bbPort_t *bbPort, FunctionalState NewState);
-int  bbDMA_Count(bbPort_t *bbPort);
+int bbDMA_Count(bbPort_t *bbPort);

@@ -258,7 +258,62 @@ zip_clean:
 # Set up paths to tools
 #
 ##############################
+# Set up CH32 RISC-V WCH SDK
+CH32_SDK_VERSION := 12.2.0
+CH32_SDK_URL_BASE := https://github.com/TianpeiLee/riscv-gun-toolchain-12.2.0
+ifeq ($(OSFAMILY), windows)
+	CH32_SDK_URL := $(CH32_SDK_URL_BASE)-x86_64-w64-mingw32-riscv-wch-elf/archive/refs/tags/12.2.0.tar.gz
+else
+	CH32_SDK_URL := $(CH32_SDK_URL_BASE)-x86_64-linux-riscv-wch-elf/archive/refs/tags/12.2.0.tar.gz
+endif
+CH32_SDK_FILE := $(notdir $(CH32_SDK_URL))
+CH32_SDK_DIR := $(TOOLS_DIR)/riscv-wch-elf-$(CH32_SDK_VERSION)
+CH32_SDK_BIN := $(CH32_SDK_DIR)/bin
+CH32_SDK_GCC := $(CH32_SDK_BIN)/riscv-wch-elf-gcc
+ifeq ($(OSFAMILY), windows)
+	CH32_SDK_GCC := $(CH32_SDK_GCC).exe
+endif
 
+# Resolve WCH RISC-V compiler: prefer local install, fall back to PATH
+ifneq ($(wildcard $(CH32_SDK_GCC)),)
+  CH32_SDK_PREFIX := $(CH32_SDK_BIN)/riscv-wch-elf-
+else
+  CH32_SDK_PREFIX := riscv-wch-elf-
+endif
+CH32_SDK_CC := $(CH32_SDK_PREFIX)gcc
+
+## ch32_sdk_install    : Install WCH RISC-V toolchain
+.PHONY: ch32_sdk_install
+ch32_sdk_install: | $(DL_DIR) $(TOOLS_DIR)
+ch32_sdk_install: $(CH32_SDK_DIR)/.installed
+
+$(CH32_SDK_DIR)/.installed: $(DL_DIR)/$(CH32_SDK_FILE)
+	@echo " EXTRACT      $(CH32_SDK_FILE)"
+	$(V1) mkdir -p $(CH32_SDK_DIR)
+	$(V1) tar -C $(CH32_SDK_DIR) --strip-components=1 -xzf "$<"
+	$(V1) touch $@
+	@echo "CH32 WCH toolchain installed: $(CH32_SDK_DIR)"
+
+$(DL_DIR)/$(CH32_SDK_FILE):
+	@echo " DOWNLOAD     $(CH32_SDK_URL)"
+	$(V1) curl -L -k --retry 5 --retry-delay 2 --retry-all-errors -o "$@" $(if $(wildcard $@),-z "$@",) "$(CH32_SDK_URL)"
+
+## ch32_sdk_clean      : Remove WCH RISC-V toolchain
+.PHONY: ch32_sdk_clean
+ch32_sdk_clean:
+	@echo " CLEAN        $(CH32_SDK_DIR)"
+	$(V1) [ ! -d "$(CH32_SDK_DIR)" ] || $(RM) -rf $(CH32_SDK_DIR)
+	$(V1) $(RM) -f $(DL_DIR)/$(CH32_SDK_FILE)
+
+# CH32 RISC-V: use the WCH toolchain and skip ARM toolchain checks.
+ifneq ($(findstring CH32,$(TARGET)),)
+  ARM_SDK_PREFIX := $(CH32_SDK_PREFIX)
+  ifeq (,$(findstring _install,$(MAKECMDGOALS)))
+    ifeq ($(shell $(CH32_SDK_CC) --version >/dev/null 2>&1; echo $$?),1)
+      $(error **ERROR** CH32 toolchain not found. Run 'make ch32_sdk_install' or add riscv-wch-elf-gcc to the PATH)
+    endif
+  endif
+else
 ifeq ($(shell [ -d "$(ARM_SDK_DIR)" ] && echo "exists"), exists)
   ARM_SDK_PREFIX := $(ARM_SDK_DIR)/bin/arm-none-eabi-
 else ifeq (,$(findstring _install,$(MAKECMDGOALS)))
@@ -271,6 +326,7 @@ else ifeq (,$(findstring _install,$(MAKECMDGOALS)))
 
   # ARM tookchain is in the path, and the version is what's required.
   ARM_SDK_PREFIX ?= arm-none-eabi-
+endif
 endif
 
 ifeq ($(shell [ -d "$(ZIP_DIR)" ] && echo "exists"), exists)

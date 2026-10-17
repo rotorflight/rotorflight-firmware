@@ -38,18 +38,24 @@ PG_REGISTER_WITH_RESET_FN(boardConfig_t, boardConfig, PG_BOARD_CONFIG, 0);
 void pgResetFn_boardConfig(boardConfig_t *boardConfig)
 {
     if (boardInformationIsSet()) {
-        strncpy(boardConfig->manufacturerId, getManufacturerId(), MAX_MANUFACTURER_ID_LENGTH + 1);
-        strncpy(boardConfig->boardName, getBoardName(), MAX_BOARD_NAME_LENGTH + 1);
-        strncpy(boardConfig->boardDesign, getBoardDesign(), MAX_BOARD_DESIGN_LENGTH + 1);
+        strncpy(boardConfig->manufacturerId, getManufacturerId(), sizeof(boardConfig->manufacturerId) - 1);
+        boardConfig->manufacturerId[sizeof(boardConfig->manufacturerId) - 1] = 0;
+        strncpy(boardConfig->boardName, getBoardName(), sizeof(boardConfig->boardName) - 1);
+        boardConfig->boardName[sizeof(boardConfig->boardName) - 1] = 0;
+        strncpy(boardConfig->boardDesign, getBoardDesign(), sizeof(boardConfig->boardDesign) - 1);
+        boardConfig->boardDesign[sizeof(boardConfig->boardDesign) - 1] = 0;
         boardConfig->boardInformationSet = true;
     } else {
 #if !defined(USE_UNIFIED_TARGET)
-        strncpy(boardConfig->boardName, targetName, MAX_BOARD_NAME_LENGTH + 1);
+        strncpy(boardConfig->boardName, targetName, sizeof(boardConfig->boardName) - 1);
+        boardConfig->boardName[sizeof(boardConfig->boardName) - 1] = 0;
 #if defined(TARGET_BOARD_DESIGN)
-        strncpy(boardConfig->boardDesign, TARGET_BOARD_DESIGN, MAX_BOARD_DESIGN_LENGTH + 1);
+        strncpy(boardConfig->boardDesign, TARGET_BOARD_DESIGN, sizeof(boardConfig->boardDesign) - 1);
+        boardConfig->boardDesign[sizeof(boardConfig->boardDesign) - 1] = 0;
 #endif
 #if defined(TARGET_MANUFACTURER_IDENTIFIER)
-        strncpy(boardConfig->manufacturerId, TARGET_MANUFACTURER_IDENTIFIER, MAX_MANUFACTURER_ID_LENGTH + 1);
+        strncpy(boardConfig->manufacturerId, TARGET_MANUFACTURER_IDENTIFIER, sizeof(boardConfig->manufacturerId) - 1);
+        boardConfig->manufacturerId[sizeof(boardConfig->manufacturerId) - 1] = 0;
 #endif
         boardConfig->boardInformationSet = true;
 #else

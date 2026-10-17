@@ -41,10 +41,12 @@
 
 void i2cHardwareConfigure(const i2cConfig_t *i2cConfig)
 {
-    for (int index = 0 ; index < I2CDEV_COUNT ; index++) {
+    for (int index = 0; index < I2CDEV_COUNT; index++)
+    {
         const i2cHardware_t *hardware = &i2cHardware[index];
 
-        if (!hardware->reg) {
+        if (!hardware->reg)
+        {
             continue;
         }
 
@@ -53,22 +55,26 @@ void i2cHardwareConfigure(const i2cConfig_t *i2cConfig)
 
         memset(pDev, 0, sizeof(*pDev));
 
-        for (int pindex = 0 ; pindex < I2C_PIN_SEL_MAX ; pindex++) {
-            if (i2cConfig[device].ioTagScl == hardware->sclPins[pindex].ioTag) {
+        for (int pindex = 0; pindex < I2C_PIN_SEL_MAX; pindex++)
+        {
+            if (i2cConfig[device].ioTagScl == hardware->sclPins[pindex].ioTag)
+            {
                 pDev->scl = IOGetByTag(i2cConfig[device].ioTagScl);
-#if defined(STM32F4) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
                 pDev->sclAF = hardware->sclPins[pindex].af;
 #endif
             }
-            if (i2cConfig[device].ioTagSda == hardware->sdaPins[pindex].ioTag) {
+            if (i2cConfig[device].ioTagSda == hardware->sdaPins[pindex].ioTag)
+            {
                 pDev->sda = IOGetByTag(i2cConfig[device].ioTagSda);
-#if defined(STM32F4) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
                 pDev->sdaAF = hardware->sdaPins[pindex].af;
 #endif
             }
         }
 
-        if (pDev->scl && pDev->sda) {
+        if (pDev->scl && pDev->sda)
+        {
             pDev->hardware = hardware;
             pDev->reg = hardware->reg;
             pDev->pullUp = i2cConfig[device].pullUp;

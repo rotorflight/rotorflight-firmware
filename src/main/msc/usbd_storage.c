@@ -25,7 +25,9 @@
 #include "platform.h"
 #include "common/time.h"
 
-#ifdef USE_HAL_DRIVER
+#if defined(CH32H41x)
+#include "usbd_msc_mem.h"
+#elif defined(USE_HAL_DRIVER)
 #include "usbd_msc.h"
 #else
 #include "usbd_msc_mem.h"
@@ -34,8 +36,8 @@
 
 #include "usbd_storage.h"
 
-#ifdef USE_HAL_DRIVER
-USBD_StorageTypeDef *USBD_STORAGE_fops;
-#else
+#if defined(CH32H41x) || !defined(USE_HAL_DRIVER)
 USBD_STORAGE_cb_TypeDef *USBD_STORAGE_fops;
+#else
+USBD_StorageTypeDef *USBD_STORAGE_fops;
 #endif

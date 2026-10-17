@@ -51,6 +51,11 @@ static flashDevice_t flashDevice;
 static flashPartitionTable_t flashPartitionTable;
 static int flashPartitions = 0;
 
+// Raw JEDEC ID (manufacturer << 16 | memory type << 8 | capacity) read via RDID
+// during flashSpiInit. Kept even when detection fails, so the actual chip can
+// be identified (e.g. via the "flash_info" CLI command).
+static uint32_t flashJedecId = 0;
+
 #define FLASH_INSTRUCTION_RDID 0x9F
 
 #ifdef USE_QUADSPI
@@ -58,12 +63,18 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
 {
     bool detected = false;
 
-    enum { TRY_1LINE = 0, TRY_4LINE, BAIL};
+    enum
+    {
+        TRY_1LINE = 0,
+        TRY_4LINE,
+        BAIL
+    };
     int phase = TRY_1LINE;
 
     QUADSPI_TypeDef *hqspi = quadSpiInstanceByDevice(QUADSPI_CFG_TO_DEV(flashConfig->quadSpiDevice));
 
-    do {
+    do
+    {
         quadSpiSetDivisor(hqspi, QUADSPI_CLOCK_INITIALISATION);
 
         // 3 bytes for what we need, but some IC's need 8 dummy cycles after the instruction, so read 4 and make two attempts to
@@ -71,7 +82,8 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
         uint8_t readIdResponse[4];
 
         bool status = false;
-        switch (phase) {
+        switch (phase)
+        {
         case TRY_1LINE:
             status = quadSpiReceive1LINE(hqspi, FLASH_INSTRUCTION_RDID, 0, readIdResponse, 4);
             break;
@@ -82,7 +94,8 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
             break;
         }
 
-        if (!status) {
+        if (!status)
+        {
             phase++;
             continue;
         }
@@ -92,27 +105,32 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
 
         quadSpiSetDivisor(hqspi, QUADSPI_CLOCK_ULTRAFAST);
 
-
-        for (uint8_t offset = 0; offset <= 1 && !detected; offset++) {
+        for (uint8_t offset = 0; offset <= 1 && !detected; offset++)
+        {
 
             uint32_t chipID = (readIdResponse[offset + 0] << 16) | (readIdResponse[offset + 1] << 8) | (readIdResponse[offset + 2]);
 
-            if (offset == 0) {
+            if (offset == 0)
+            {
 #ifdef USE_FLASH_W25Q128FV
-                if (!detected && w25q128fv_detect(&flashDevice, chipID)) {
+                if (!detected && w25q128fv_detect(&flashDevice, chipID))
+                {
                     detected = true;
                 }
 #endif
             }
 
-            if (offset == 1) {
+            if (offset == 1)
+            {
 #ifdef USE_FLASH_W25N01G
-                if (!detected && w25n_detect(&flashDevice, chipID)) {
+                if (!detected && w25n_detect(&flashDevice, chipID))
+                {
                     detected = true;
                 }
 #endif
 #if defined(USE_FLASH_W25M02G)
-                if (!detected && w25m_detect(&flashDevice, chipID)) {
+                if (!detected && w25m_detect(&flashDevice, chipID))
+                {
                     detected = true;
                 }
 #endif
@@ -123,7 +141,7 @@ static bool flashQuadSpiInit(const flashConfig_t *flashConfig)
 
     return detected;
 }
-#endif  // USE_QUADSPI
+#endif // USE_QUADSPI
 
 #ifdef USE_SPI
 
@@ -137,17 +155,22 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
     // Read chip identification and send it to device detect
     dev = &devInstance;
 
-    if (flashConfig->csTag) {
+    if (flashConfig->csTag)
+    {
         dev->busType_u.spi.csnPin = IOGetByTag(flashConfig->csTag);
-    } else {
+    }
+    else
+    {
         return false;
     }
 
-    if (!IOIsFreeOrPreinit(dev->busType_u.spi.csnPin)) {
+    if (!IOIsFreeOrPreinit(dev->busType_u.spi.csnPin))
+    {
         return false;
     }
 
-    if (!spiSetBusInstance(dev, flashConfig->spiDevice)) {
+    if (!spiSetBusInstance(dev, flashConfig->spiDevice))
+    {
         return false;
     }
 
@@ -158,7 +181,7 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
     IOConfigGPIO(dev->busType_u.spi.csnPin, SPI_IO_CS_CFG);
     IOHi(dev->busType_u.spi.csnPin);
 
-    //Maximum speed for standard READ command is 20mHz, other commands tolerate 25mHz
+    // Maximum speed for standard READ command is 20mHz, other commands tolerate 25mHz
     spiSetClkDivisor(dev, spiCalculateDivider(FLASH_MAX_SPI_INIT_CLK));
 
     flashDevice.io.mode = FLASHIO_SPI;
@@ -170,21 +193,27 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
      * Some newer chips require one dummy byte to be read; we can read
      * 4 bytes for these chips while retaining backward compatibility.
      */
-    uint8_t readIdResponse[4] = { 0 };
+    uint8_t readIdResponse[4] = {0};
 
     spiReadRegBuf(dev, FLASH_INSTRUCTION_RDID, readIdResponse, sizeof(readIdResponse));
 
     // Manufacturer, memory type, and capacity
     uint32_t chipID = (readIdResponse[0] << 16) | (readIdResponse[1] << 8) | (readIdResponse[2]);
 
+    // Remember the raw JEDEC ID even if the chip is not in the detect table,
+    // so the actual part can be identified via "flash_info".
+    flashJedecId = chipID;
+
 #ifdef USE_FLASH_M25P16
-    if (m25p16_detect(&flashDevice, chipID)) {
+    if (m25p16_detect(&flashDevice, chipID))
+    {
         return true;
     }
 #endif
 
 #ifdef USE_FLASH_W25M512
-    if (w25m_detect(&flashDevice, chipID)) {
+    if (w25m_detect(&flashDevice, chipID))
+    {
         return true;
     }
 #endif
@@ -193,13 +222,15 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
     chipID = (readIdResponse[1] << 16) | (readIdResponse[2] << 8) | (readIdResponse[3]);
 
 #ifdef USE_FLASH_W25N01G
-    if (w25n_detect(&flashDevice, chipID)) {
+    if (w25n_detect(&flashDevice, chipID))
+    {
         return true;
     }
 #endif
 
 #ifdef USE_FLASH_W25M02G
-    if (w25m_detect(&flashDevice, chipID)) {
+    if (w25m_detect(&flashDevice, chipID))
+    {
         return true;
     }
 #endif
@@ -215,14 +246,16 @@ bool flashDeviceInit(const flashConfig_t *flashConfig)
 #ifdef USE_SPI
     bool useSpi = (SPI_CFG_TO_DEV(flashConfig->spiDevice) != SPIINVALID);
 
-    if (useSpi) {
+    if (useSpi)
+    {
         return flashSpiInit(flashConfig);
     }
 #endif
 
 #ifdef USE_QUADSPI
     bool useQuadSpi = (QUADSPI_CFG_TO_DEV(flashConfig->quadSpiDevice) != QUADSPIINVALID);
-    if (useQuadSpi) {
+    if (useQuadSpi)
+    {
         return flashQuadSpiInit(flashConfig);
     }
 #endif
@@ -253,7 +286,8 @@ bool flashEraseCompletelySupported(void)
 
 void flashEraseCompletely(void)
 {
-    if (flashDevice.vTable->eraseCompletely) {
+    if (flashDevice.vTable->eraseCompletely)
+    {
         flashDevice.callback = NULL;
         flashDevice.vTable->eraseCompletely(&flashDevice);
     }
@@ -271,16 +305,21 @@ uint32_t flashPageProgramContinue(const uint8_t **buffers, uint32_t *bufferSizes
 {
     uint32_t maxBytesToWrite = flashDevice.geometry.pageSize - (flashDevice.currentWriteAddress % flashDevice.geometry.pageSize);
 
-    if (bufferCount == 0) {
+    if (bufferCount == 0)
+    {
         return 0;
     }
 
-    if (bufferSizes[0] >= maxBytesToWrite) {
+    if (bufferSizes[0] >= maxBytesToWrite)
+    {
         bufferSizes[0] = maxBytesToWrite;
         bufferCount = 1;
-    } else {
+    }
+    else
+    {
         maxBytesToWrite -= bufferSizes[0];
-        if ((bufferCount == 2) && (bufferSizes[1] > maxBytesToWrite)) {
+        if ((bufferCount == 2) && (bufferSizes[1] > maxBytesToWrite))
+        {
             bufferSizes[1] = maxBytesToWrite;
         }
     }
@@ -306,7 +345,8 @@ int flashReadBytes(uint32_t address, uint8_t *buffer, uint32_t length)
 
 void flashFlush(void)
 {
-    if (flashDevice.vTable->flush) {
+    if (flashDevice.vTable->flush)
+    {
         flashDevice.vTable->flush(&flashDevice);
     }
 }
@@ -319,21 +359,24 @@ bool flashSuspendSupported(void)
 
 void flashSuspend(void)
 {
-    if (flashDevice.vTable->suspend) {
+    if (flashDevice.vTable->suspend)
+    {
         flashDevice.vTable->suspend(&flashDevice);
     }
 }
 
 void flashResume(void)
 {
-    if (flashDevice.vTable->resume) {
+    if (flashDevice.vTable->resume)
+    {
         flashDevice.vTable->resume(&flashDevice);
     }
 }
 
 bool flashIsSuspended(void)
 {
-    if (flashDevice.vTable->isSuspended) {
+    if (flashDevice.vTable->isSuspended)
+    {
         return flashDevice.vTable->isSuspended(&flashDevice);
     }
     return false;
@@ -345,7 +388,8 @@ static const flashGeometry_t noFlashGeometry = {
 
 const flashGeometry_t *flashGetGeometry(void)
 {
-    if (flashDevice.vTable && flashDevice.vTable->getGeometry) {
+    if (flashDevice.vTable && flashDevice.vTable->getGeometry)
+    {
         return flashDevice.vTable->getGeometry(&flashDevice);
     }
 
@@ -369,7 +413,8 @@ static void flashConfigurePartitions(void)
 {
 
     const flashGeometry_t *flashGeometry = flashGetGeometry();
-    if (flashGeometry->totalSize == 0) {
+    if (flashGeometry->totalSize == 0)
+    {
         return;
     }
 
@@ -377,7 +422,8 @@ static void flashConfigurePartitions(void)
     flashSector_t endSector = flashGeometry->sectors - 1; // 0 based index
 
     const flashPartition_t *badBlockPartition = flashPartitionFindByType(FLASH_PARTITION_TYPE_BADBLOCK_MANAGEMENT);
-    if (badBlockPartition) {
+    if (badBlockPartition)
+    {
         endSector = badBlockPartition->startSector - 1;
     }
 
@@ -385,7 +431,8 @@ static void flashConfigurePartitions(void)
     const uint32_t firmwareSize = (FIRMWARE_SIZE * 1024);
     flashSector_t firmwareSectors = (firmwareSize / flashGeometry->sectorSize);
 
-    if (firmwareSize % flashGeometry->sectorSize > 0) {
+    if (firmwareSize % flashGeometry->sectorSize > 0)
+    {
         firmwareSectors++; // needs a portion of a sector.
     }
 
@@ -401,7 +448,8 @@ static void flashConfigurePartitions(void)
     const uint32_t configSize = EEPROM_SIZE;
     flashSector_t configSectors = (configSize / flashGeometry->sectorSize);
 
-    if (configSize % flashGeometry->sectorSize > 0) {
+    if (configSize % flashGeometry->sectorSize > 0)
+    {
         configSectors++; // needs a portion of a sector.
     }
 
@@ -418,11 +466,13 @@ static void flashConfigurePartitions(void)
 #endif
 }
 
-flashPartition_t *flashPartitionFindByType(uint8_t type)
+flashPartition_t *flashPartitionFindByType(flashPartitionType_e type)
 {
-    for (int index = 0; index < FLASH_MAX_PARTITIONS; index++) {
+    for (int index = 0; index < FLASH_MAX_PARTITIONS; index++)
+    {
         flashPartition_t *candidate = &flashPartitionTable.partitions[index];
-        if (candidate->type == type) {
+        if (candidate->type == type)
+        {
             return candidate;
         }
     }
@@ -432,7 +482,8 @@ flashPartition_t *flashPartitionFindByType(uint8_t type)
 
 const flashPartition_t *flashPartitionFindByIndex(uint8_t index)
 {
-    if (index >= flashPartitions) {
+    if (index >= flashPartitions)
+    {
         return NULL;
     }
 
@@ -443,8 +494,10 @@ void flashPartitionSet(uint8_t type, uint32_t startSector, uint32_t endSector)
 {
     flashPartition_t *entry = flashPartitionFindByType(type);
 
-    if (!entry) {
-        if (flashPartitions == FLASH_MAX_PARTITIONS - 1) {
+    if (!entry)
+    {
+        if (flashPartitions == FLASH_MAX_PARTITIONS - 1)
+        {
             return;
         }
         entry = &flashPartitionTable.partitions[flashPartitions++];
@@ -467,11 +520,17 @@ static const char *flashPartitionNames[] = {
 
 const char *flashPartitionGetTypeName(flashPartitionType_e type)
 {
-    if (type < ARRAYLEN(flashPartitionNames)) {
+    if (type < ARRAYLEN(flashPartitionNames))
+    {
         return flashPartitionNames[type];
     }
 
     return NULL;
+}
+
+uint32_t flashGetJedecId(void)
+{
+    return flashJedecId;
 }
 
 bool flashInit(const flashConfig_t *flashConfig)
