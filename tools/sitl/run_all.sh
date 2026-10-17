@@ -47,6 +47,7 @@ if [ -n "$OTHER_ELF" ]; then
     log "using $ELF (no build)"
 else
     log "building SITL"
+    mkdir -p "$FW/obj"
     make -C "$FW" SITL ARM_SDK_DIR=/usr ARM_SDK_PREFIX= -j"$(nproc)" > "$FW/obj/sitl_build.log" 2>&1 \
         || { tail -30 "$FW/obj/sitl_build.log" >&2; exit 1; }
 fi

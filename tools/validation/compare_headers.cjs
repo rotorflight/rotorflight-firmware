@@ -10,7 +10,9 @@ function headers(file) {
     while ((i = buf.indexOf(MARK, i)) >= 0) {
         const lines = []; let p = i;
         while (buf[p] === 0x48 && buf[p + 1] === 0x20) {   // "H "
-            const e = buf.indexOf(0x0a, p); lines.push(buf.slice(p + 2, e).toString('latin1')); p = e + 1;
+            const e = buf.indexOf(0x0a, p);
+            if (e < 0) throw new Error(`${file}: truncated header line at ${p}`);
+            lines.push(buf.slice(p + 2, e).toString('latin1')); p = e + 1;
         }
         logs.push({ start: i, headerBytes: p - i, lines });
         i = p;

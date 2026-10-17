@@ -1306,7 +1306,7 @@ void blackboxCheckEnabler(timeUs_t currentTimeUs)
             FALLTHROUGH;
         case BLACKBOX_STATE_PAUSED:
             // The parameter journal can hold the end of the log for 100 ms, while records wait
-            if (blackboxState != BLACKBOX_STATE_PAUSED && blackboxParamsHoldLogEnd()) {
+            if (blackboxParamsHoldLogEnd()) {
                 break;
             }
             blackboxParamsEnd();
@@ -2248,8 +2248,9 @@ void blackboxUpdate(timeUs_t currentTimeUs)
         }
         break;
     case BLACKBOX_STATE_PAUSED:
-        // Only allow resume to occur during an I-frame iteration, so that we have an "I" base to work from
-        if (!blackboxIsLoggingPaused() && blackboxShouldLogIFrame()) {
+        // Only allow resume to occur during an I-frame iteration, so that we have an "I" base to work from.
+        // Not while logging is disabled: SWITCH logging waits here for the end of the log.
+        if (blackboxIsLoggingEnabled() && !blackboxIsLoggingPaused() && blackboxShouldLogIFrame()) {
             // Write a log entry so the decoder is aware that our large time/iteration skip is intended
             flightLogEvent_loggingResume_t resume;
 

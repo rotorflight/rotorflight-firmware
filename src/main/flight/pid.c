@@ -770,6 +770,7 @@ uint32_t pidParamFingerprint(void)
     hash = fnv_update_words(hash, pid.offsetLimit, ARRAYLEN(pid.offsetLimit));
     hash = fnv_update_words(hash, pid.errorLimit, ARRAYLEN(pid.errorLimit));
     hash = fnv_update_words(hash, pid.cyclicCrossCouplingGain, ARRAYLEN(pid.cyclicCrossCouplingGain));
+    hash = fnv_update_words(hash, pid.masterGain, ARRAYLEN(pid.masterGain));
     hash = fnv_update_u32(hash, pid.pidMode | pid.itermRelaxType << 8);
     for (unsigned i = 0; i < ARRAYLEN(pid.itermRelaxLevel); i++) {
         hash = fnv_update_u32(hash, pid.itermRelaxLevel[i]);

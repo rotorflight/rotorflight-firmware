@@ -122,6 +122,8 @@ TEST_F(PIDTestBase, FingerprintTracksAppliedCyclicDecayGain)
     mockPidProfile->error_decay_gain_cyclic = 0;
     pidLoadProfile(mockPidProfile);
     EXPECT_EQ(before, pidParamFingerprint());
+    set_ADJUSTMENT_CYCLIC_MASTER_GAIN(150);
+    EXPECT_NE(before, pidParamFingerprint());
 }
 
 TEST_F(PIDTestBase, Mode0)
