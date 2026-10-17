@@ -94,6 +94,8 @@ typedef struct {
     uint32_t timeout;
     uint32_t overflows;
 
+    uint16_t edges;
+
     timerCCHandlerRec_t edgeCb;
     timerOvrHandlerRec_t overflowCb;
 
@@ -196,6 +198,9 @@ static FAST_CODE void freqEdgeCallback16(timerCCHandlerRec_t *cbRec, captureComp
     freqInputPort_t *input = container_of(cbRec, freqInputPort_t, edgeCb);
 
     if (input->enabled) {
+        // Raw edge count, also at speeds too low for a frequency reading
+        input->edges++;
+
         if (input->capture) {
             // Must use uint16 here because of wraparound
             const uint16_t period = capture - input->capture;
@@ -249,6 +254,9 @@ static FAST_CODE void freqEdgeCallback32(timerCCHandlerRec_t *cbRec, captureComp
     freqInputPort_t *input = container_of(cbRec, freqInputPort_t, edgeCb);
 
     if (input->enabled) {
+        // Raw edge count, also at speeds too low for a frequency reading
+        input->edges++;
+
         const uint32_t capture = *timerChCCR(input->timerHardware);
         if (input->capture) {
             const uint32_t period = capture - input->capture;
@@ -410,6 +418,22 @@ uint32_t getFreqSensorRPM(uint8_t port)
         return lrintf(freqInputPorts[port].freq * 60);
     }
     return 0;
+}
+
+uint16_t getFreqSensorEdgeCount(uint8_t port)
+{
+    if (port < FREQ_SENSOR_PORT_COUNT) {
+        return freqInputPorts[port].edges;
+    }
+    return 0;
+}
+
+bool getFreqSensorPinState(uint8_t port)
+{
+    if (port < FREQ_SENSOR_PORT_COUNT && freqInputPorts[port].enabled) {
+        return IORead(freqInputPorts[port].pin);
+    }
+    return false;
 }
 
 bool isFreqSensorPortInitialized(uint8_t port)
