@@ -35,6 +35,8 @@
 #include "common/maths.h"
 #include "common/utils.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "config/config.h"
 
 #include "drivers/time.h"
@@ -242,10 +244,12 @@ void boardAutoAlignProcessSample(const float *sensorVector)
         return;
     }
 
+    blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_BOARD_AUTO_ALIGN);
     boardAlignmentMutable()->rollDegrees = roll;
     boardAlignmentMutable()->pitchDegrees = pitch;
     boardAlignmentMutable()->yawDegrees = yaw;
     initBoardAlignment(boardAlignment());
+    blackboxParamsOpEnd();
     setConfigDirty();
 
     autoAlign.status.rollDegrees = roll;

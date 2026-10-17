@@ -26,6 +26,7 @@ with tempfile.TemporaryDirectory() as tmp:
         ('rx/rx.c', 'blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_RX_SERIAL_TRIAL);', 'rxSerialTrialApplyCombo'),
         ('sensors/esc_sensor.c', 'blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_ESC_SENSOR_TRIAL);', 'escSensorTrialApplyCombo'),
         ('fc/tasks.c', 'blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_SRXL2_ESC);', 'srxl2esc_service'),
+        ('sensors/boardalignment_auto.c', 'blackboxParamsOpBegin(BBP_SRC_TASK, BBP_TASK_BOARD_AUTO_ALIGN);', 'boardAutoAlignProcessSample'),
     ]:
         writer_file = test / 'src/main' / name
         original = writer_file.read_text()

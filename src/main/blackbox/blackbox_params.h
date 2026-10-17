@@ -53,6 +53,7 @@ typedef enum {
     BBP_TASK_RX_SERIAL_TRIAL = 0,
     BBP_TASK_ESC_SENSOR_TRIAL,
     BBP_TASK_SRXL2_ESC,
+    BBP_TASK_BOARD_AUTO_ALIGN,
 } bbpTask_e;
 
 #define BBP_ARG_NONE            0xFFFF
