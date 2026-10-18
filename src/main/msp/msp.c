@@ -3207,14 +3207,19 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_SERVO_OVERRIDE:
+        // payload: U8 idx + U16 value, optional U16 timeout ms (the
+        // override lapses unless re-sent). Any other length is refused, so
+        // a stray byte can't turn a timed override into a persistent one.
+        if (dataSize != 3 && dataSize != 5) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
         {
-            // Optional U16 timeout ms: the override lapses unless re-sent.
             const int16_t value = sbufReadU16(src);
-            if (sbufBytesRemaining(src) >= 2) {
+            if (dataSize == 5) {
                 setServoOverrideTimed(i, value, sbufReadU16(src));
             } else {
                 setServoOverride(i, value);
@@ -3229,9 +3234,13 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             return MSP_RESULT_ERROR;
         }
         const uint16_t v = sbufReadU16(src);
-        const uint16_t timeoutMs = (dataSize == 4) ? sbufReadU16(src) : 0;
+        // A supplied timeout is always timed, 0 included: the setter clamps
+        // it to OVERRIDE_TIMEOUT_MIN_MS. Only the 2-byte payload is
+        // persistent.
+        const bool timed = (dataSize == 4);
+        const uint16_t timeoutMs = timed ? sbufReadU16(src) : 0;
         for (int s = 0; s < MAX_SUPPORTED_SERVOS; s++) {
-            if (timeoutMs) {
+            if (timed) {
                 setServoOverrideTimed(s, v, timeoutMs);
             } else {
                 setServoOverride(s, v);
@@ -3902,14 +3911,18 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_OVERRIDE:
+        // payload: U8 idx + U16 value, optional U16 timeout ms (the
+        // override lapses unless re-sent). Any other length is refused.
+        if (dataSize != 3 && dataSize != 5) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MIXER_INPUT_COUNT) {
             return MSP_RESULT_ERROR;
         }
         {
-            // Optional U16 timeout ms: the override lapses unless re-sent.
             const int16_t value = sbufReadU16(src);
-            if (sbufBytesRemaining(src) >= 2) {
+            if (dataSize == 5) {
                 mixerSetOverrideTimed(i, value, sbufReadU16(src));
             } else {
                 mixerSetOverride(i, value);
