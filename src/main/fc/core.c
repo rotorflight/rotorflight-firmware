@@ -71,6 +71,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/motors.h"
 #include "flight/pid.h"
 #include "flight/trainer.h"
 #include "flight/position.h"
@@ -356,6 +357,14 @@ void updateArmingStatus(void)
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
+        // A motorised tail drives MOTOR 2. Without a pin for it (the tail
+        // pin still on SERVO 4, say) the tail would never run.
+        if (mixerMotorizedTail() && getMotorCount() < 2) {
+            setArmingDisabled(ARMING_DISABLED_TAIL_MOTOR);
+        } else {
+            unsetArmingDisabled(ARMING_DISABLED_TAIL_MOTOR);
+        }
+
         if (isServoOverrideActive() || isMixerOverrideActive()) {
             setArmingDisabled(ARMING_DISABLED_OVERRIDE);
         } else {
@@ -409,6 +418,7 @@ void updateArmingStatus(void)
                             ARMING_DISABLED_REBOOT_REQUIRED |
                             ARMING_DISABLED_ACC_CALIBRATION |
                             ARMING_DISABLED_MOTOR_PROTOCOL |
+                            ARMING_DISABLED_TAIL_MOTOR |
                             ARMING_DISABLED_DSHOT_BITBANG
                         ))
                     {
