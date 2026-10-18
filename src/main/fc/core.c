@@ -351,18 +351,14 @@ void updateArmingStatus(void)
         }
 #endif
 
-        // Also when the motor outputs failed to set up: the FC would arm
-        // with no motor running, a motorised tail included.
-        if (!isMotorProtocolEnabled() || isMotorInitFailed()) {
+        // Also when the motor outputs failed to set up (the FC would arm
+        // with no motor running), and for a motorised tail without a pin
+        // for MOTOR 2 (the tail pin still on SERVO 4, say), whose tail
+        // would never run. Reported under the motor protocol reason rather
+        // than a bit of its own.
+        if (!isMotorProtocolEnabled() || isMotorInitFailed() ||
+            (mixerMotorizedTail() && getMotorCount() < 2)) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
-        }
-
-        // A motorised tail drives MOTOR 2. Without a pin for it (the tail
-        // pin still on SERVO 4, say) the tail would never run.
-        if (mixerMotorizedTail() && getMotorCount() < 2) {
-            setArmingDisabled(ARMING_DISABLED_TAIL_MOTOR);
-        } else {
-            unsetArmingDisabled(ARMING_DISABLED_TAIL_MOTOR);
         }
 
         if (isServoOverrideActive() || isMixerOverrideActive()) {
@@ -418,7 +414,6 @@ void updateArmingStatus(void)
                             ARMING_DISABLED_REBOOT_REQUIRED |
                             ARMING_DISABLED_ACC_CALIBRATION |
                             ARMING_DISABLED_MOTOR_PROTOCOL |
-                            ARMING_DISABLED_TAIL_MOTOR |
                             ARMING_DISABLED_DSHOT_BITBANG
                         ))
                     {
