@@ -34,6 +34,7 @@
 
 #include "drivers/time.h"
 #include "drivers/pwm_output.h"
+#include "drivers/timer.h"
 
 #include "sensors/gyro.h"
 
@@ -44,6 +45,7 @@
 
 #include "pg/servos.h"
 #include "pg/bus_servo.h"
+#include "pg/motor.h"
 
 #include "rx/rx.h"
 
@@ -129,6 +131,91 @@ bool isServoOverrideActive(void)
     return false;
 }
 
+#ifdef USE_MOTOR
+
+#define TAIL_SERVO_INDEX  3
+#define TAIL_MOTOR_INDEX  1
+
+tailOutput_e getTailOutput(void)
+{
+    const bool servoPin = servoConfig()->ioTags[TAIL_SERVO_INDEX] != IO_TAG_NONE;
+    const bool motorPin = motorConfig()->dev.ioTags[TAIL_MOTOR_INDEX] != IO_TAG_NONE;
+
+    if (servoPin)
+        return motorPin ? TAIL_OUTPUT_BOTH : TAIL_OUTPUT_SERVO;
+    else
+        return motorPin ? TAIL_OUTPUT_MOTOR : TAIL_OUTPUT_NONE;
+}
+
+// Whether the timer behind `tag` also drives one of `tags` other than
+// `skip`. A timer runs at one rate, so a servo and a motor can't share it.
+static bool timerSharedWith(ioTag_t tag, const ioTag_t *tags, int count, int skip)
+{
+    const timerHardware_t *timer = timerGetConfiguredByTag(tag);
+
+    for (int i = 0; i < count; i++) {
+        if (i != skip && tags[i] != IO_TAG_NONE) {
+            const timerHardware_t *other = timerGetConfiguredByTag(tags[i]);
+            if (other && other->tim == timer->tim)
+                return true;
+        }
+    }
+    return false;
+}
+
+// Moves the tail pin between SERVO 4 and MOTOR 2 in the config, like
+// `resource SERVO 4 NONE` + `resource MOTOR 2 <pin>` would. Not saved, and
+// only used after a reboot.
+tailOutputResult_e setTailOutput(tailOutput_e output)
+{
+    const tailOutput_e current = getTailOutput();
+
+    if (output != TAIL_OUTPUT_SERVO && output != TAIL_OUTPUT_MOTOR)
+        return TAIL_OUTPUT_ERR_INVALID;
+
+    if (output == current)
+        return TAIL_OUTPUT_OK;
+
+    if (current != TAIL_OUTPUT_SERVO && current != TAIL_OUTPUT_MOTOR)
+        return TAIL_OUTPUT_ERR_CUSTOM;
+
+    if (output == TAIL_OUTPUT_MOTOR) {
+        const ioTag_t tag = servoConfig()->ioTags[TAIL_SERVO_INDEX];
+
+        if (motorConfig()->dev.ioTags[0] == IO_TAG_NONE)
+            return TAIL_OUTPUT_ERR_NO_MAIN_MOTOR;
+        if (!timerGetConfiguredByTag(tag))
+            return TAIL_OUTPUT_ERR_NO_TIMER;
+        if (timerSharedWith(tag, servoConfig()->ioTags, MAX_SUPPORTED_SERVOS, TAIL_SERVO_INDEX))
+            return TAIL_OUTPUT_ERR_TIMER_SHARED;
+
+        servoConfigMutable()->ioTags[TAIL_SERVO_INDEX] = IO_TAG_NONE;
+        motorConfigMutable()->dev.ioTags[TAIL_MOTOR_INDEX] = tag;
+    }
+    else {
+        const ioTag_t tag = motorConfig()->dev.ioTags[TAIL_MOTOR_INDEX];
+
+        if (!timerGetConfiguredByTag(tag))
+            return TAIL_OUTPUT_ERR_NO_TIMER;
+        if (timerSharedWith(tag, motorConfig()->dev.ioTags, MAX_SUPPORTED_MOTORS, TAIL_MOTOR_INDEX))
+            return TAIL_OUTPUT_ERR_TIMER_SHARED;
+
+        // Motors are counted up to the first one without a pin, so MOTOR 3
+        // and on would stop with MOTOR 2 empty: leave such a setup alone.
+        for (int i = TAIL_MOTOR_INDEX + 1; i < MAX_SUPPORTED_MOTORS; i++) {
+            if (motorConfig()->dev.ioTags[i] != IO_TAG_NONE)
+                return TAIL_OUTPUT_ERR_CUSTOM;
+        }
+
+        motorConfigMutable()->dev.ioTags[TAIL_MOTOR_INDEX] = IO_TAG_NONE;
+        servoConfigMutable()->ioTags[TAIL_SERVO_INDEX] = tag;
+    }
+
+    return TAIL_OUTPUT_OK;
+}
+
+#endif // USE_MOTOR
+
 void validateAndFixServoConfig(void)
 {
     for (int i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
@@ -175,28 +262,37 @@ void servoInit(void)
         servoOverrideTimed[index] = false;
     }
 
-    for (index = 0; index < MAX_SUPPORTED_SERVOS && ioTags[index]; index++)
+    // An output without a pin is skipped, not the end of the list: SERVO 4
+    // is empty when its pin drives the tail motor, and servos 5 on must
+    // still work. Its channel stays unset, so servoSetOutput() skips it.
+    servoCount = 0;
+
+    for (index = 0; index < MAX_SUPPORTED_SERVOS; index++)
     {
         const ioTag_t tag = ioTags[index];
-        const IO_t io = IOGetByTag(tag);
 
-        timer[index] = timerAllocate(tag, OWNER_SERVO, RESOURCE_INDEX(index));
+        timer[index] = tag ? timerAllocate(tag, OWNER_SERVO, RESOURCE_INDEX(index)) : NULL;
 
         if (!timer[index])
-            break;
+            continue;
+
+        const IO_t io = IOGetByTag(tag);
 
         IOInit(io, OWNER_SERVO, RESOURCE_INDEX(index));
         IOConfigGPIOAF(io, IOCFG_AF_PP, timer[index]->alternateFunction);
-    }
 
-    servoCount = index;
+        servoCount = index + 1;
+    }
 
     for (index = 0; index < servoCount; index++)
     {
+        if (!timer[index])
+            continue;
+
         uint32_t update_rate = servoParams(index)->rate;
 
         for (jndex = 0; jndex < servoCount; jndex++) {
-            if (timer[index]->tim == timer[jndex]->tim) {
+            if (timer[jndex] && timer[index]->tim == timer[jndex]->tim) {
                 uint32_t maxpulse = servoParams(jndex)->mid + servoParams(jndex)->max;
                 uint32_t maxrate = MIN(servoParams(jndex)->rate, 950000 / maxpulse);  // 1000000 / (maxpulse +5%)
                 if (maxrate < update_rate)
@@ -209,6 +305,9 @@ void servoInit(void)
 
     for (index = 0; index < servoCount; index++)
     {
+        if (!timer[index])
+            continue;
+
         const uint32_t timer_clock = timerClock(timer[index]->tim);
         const uint32_t update_rate = rates[index];
         uint32_t timebase;

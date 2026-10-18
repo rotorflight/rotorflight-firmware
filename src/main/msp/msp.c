@@ -2398,6 +2398,28 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         break;
 #endif
 
+#if defined(USE_SERVOS) && defined(USE_MOTOR)
+    case MSP2_TAIL_MOTOR_OUTPUT:
+        {
+            tailOutputResult_e result = TAIL_OUTPUT_OK;
+
+            if (sbufBytesRemaining(src) >= 1) {
+                const uint8_t action = sbufReadU8(src);
+                if (action == 1) {
+                    result = setTailOutput(TAIL_OUTPUT_SERVO);
+                } else if (action == 2) {
+                    result = setTailOutput(TAIL_OUTPUT_MOTOR);
+                } else if (action != 0) {
+                    result = TAIL_OUTPUT_ERR_INVALID;
+                }
+            }
+
+            sbufWriteU8(dst, getTailOutput());
+            sbufWriteU8(dst, result);
+        }
+        break;
+#endif
+
 #ifdef USE_ACC
     case MSP2_BOARD_AUTO_ALIGN:
         if (sbufBytesRemaining(src) >= 1) {
