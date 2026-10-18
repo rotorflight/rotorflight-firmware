@@ -82,19 +82,42 @@ uint16_t getServoOutput(uint8_t servo)
     return lrintf(servoOutput[servo]);
 }
 
+// Lapse time of an override set with a timeout (MSP_SET_SERVO_OVERRIDE with the
+// optional timeout field). An override set without one stays until cleared.
+static timeMs_t servoOverrideExpiryMs[MAX_SUPPORTED_SERVOS];
+static bool     servoOverrideTimed[MAX_SUPPORTED_SERVOS];
+
+static int16_t servoCurrentOverride(uint8_t servo)
+{
+    if (servoOverrideTimed[servo] && OVERRIDE_EXPIRED(millis(), servoOverrideExpiryMs[servo])) {
+        servoOverride[servo] = SERVO_OVERRIDE_OFF;
+        servoOverrideTimed[servo] = false;
+    }
+    return servoOverride[servo];
+}
+
 bool hasServoOverride(uint8_t servo)
 {
-    return (servoOverride[servo] >= SERVO_OVERRIDE_MIN && servoOverride[servo] <= SERVO_OVERRIDE_MAX);
+    const int16_t ovr = servoCurrentOverride(servo);
+    return (ovr >= SERVO_OVERRIDE_MIN && ovr <= SERVO_OVERRIDE_MAX);
 }
 
 int16_t getServoOverride(uint8_t servo)
 {
-    return servoOverride[servo];
+    return servoCurrentOverride(servo);
 }
 
 int16_t setServoOverride(uint8_t servo, int16_t val)
 {
+    servoOverrideTimed[servo] = false;
     return servoOverride[servo] = val;
+}
+
+void setServoOverrideTimed(uint8_t servo, int16_t val, uint16_t timeoutMs)
+{
+    servoOverride[servo] = val;
+    servoOverrideExpiryMs[servo] = OVERRIDE_EXPIRY_MS(millis(), timeoutMs);
+    servoOverrideTimed[servo] = true;
 }
 
 bool isServoOverrideActive(void)
@@ -149,6 +172,7 @@ void servoInit(void)
     {
         servoOutput[index] = servoParams(index)->mid;
         servoOverride[index] = SERVO_OVERRIDE_OFF;
+        servoOverrideTimed[index] = false;
     }
 
     for (index = 0; index < MAX_SUPPORTED_SERVOS && ioTags[index]; index++)

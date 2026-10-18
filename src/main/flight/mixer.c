@@ -33,6 +33,8 @@
 #include "config/config.h"
 #include "config/config_reset.h"
 
+#include "drivers/time.h"
+
 #include "fc/runtime_config.h"
 #include "fc/rc_controls.h"
 #include "fc/rc_modes.h"
@@ -163,20 +165,42 @@ void mixerSaturateOutput(uint8_t index)
     }
 }
 
+// Lapse time of an override set with a timeout (MSP_SET_MIXER_OVERRIDE with the
+// optional timeout field). An override set without one stays until cleared.
+static timeMs_t mixerOverrideExpiryMs[MIXER_INPUT_COUNT];
+static bool     mixerOverrideTimed[MIXER_INPUT_COUNT];
+
+static int16_t mixerCurrentOverride(uint8_t index)
+{
+    if (mixerOverrideTimed[index] && OVERRIDE_EXPIRED(millis(), mixerOverrideExpiryMs[index])) {
+        mixer.override[index] = MIXER_OVERRIDE_OFF;
+        mixerOverrideTimed[index] = false;
+    }
+    return mixer.override[index];
+}
+
 int16_t mixerGetOverride(uint8_t index)
 {
-    return mixer.override[index];
+    return mixerCurrentOverride(index);
 }
 
 int16_t mixerSetOverride(uint8_t index, int16_t value)
 {
+    mixerOverrideTimed[index] = false;
     return mixer.override[index] = value;
+}
+
+void mixerSetOverrideTimed(uint8_t index, int16_t value, uint16_t timeoutMs)
+{
+    mixer.override[index] = value;
+    mixerOverrideExpiryMs[index] = OVERRIDE_EXPIRY_MS(millis(), timeoutMs);
+    mixerOverrideTimed[index] = true;
 }
 
 bool isMixerOverrideActive(void)
 {
     for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
-        const int16_t ovr = mixer.override[i];
+        const int16_t ovr = mixerCurrentOverride(i);
         if ((ovr >= MIXER_OVERRIDE_MIN && ovr <= MIXER_OVERRIDE_MAX) || ovr == MIXER_OVERRIDE_PASSTHROUGH)
             return true;
     }
@@ -254,10 +278,11 @@ static void mixerSetInput(int index, float value)
 {
     // Use override or wiggle only if not armed
     if (!ARMING_FLAG(ARMED)) {
-        if (mixer.override[index] >= MIXER_OVERRIDE_MIN && mixer.override[index] <= MIXER_OVERRIDE_MAX) {
-            value = mixer.override[index] / 1000.0f;
+        const int16_t ovr = mixerCurrentOverride(index);
+        if (ovr >= MIXER_OVERRIDE_MIN && ovr <= MIXER_OVERRIDE_MAX) {
+            value = ovr / 1000.0f;
         }
-        else if (mixer.override[index] == MIXER_OVERRIDE_PASSTHROUGH) {
+        else if (ovr == MIXER_OVERRIDE_PASSTHROUGH) {
             value = mixerGetPassthroughInput(index, value);
         }
         else if (wiggleActive()) {
@@ -692,6 +717,7 @@ void INIT_CODE mixerInit(void)
 
     for (int i = 1; i < MIXER_INPUT_COUNT; i++) {
         mixer.override[i] = MIXER_OVERRIDE_OFF;
+        mixerOverrideTimed[i] = false;
     }
 
     if (mixerConfig()->swash_type)

@@ -78,6 +78,7 @@ void mixerSaturateOutput(uint8_t index);
 
 int16_t mixerGetOverride(uint8_t index);
 int16_t mixerSetOverride(uint8_t index, int16_t value);
+void    mixerSetOverrideTimed(uint8_t index, int16_t value, uint16_t timeoutMs);
 bool    isMixerOverrideActive(void);
 
 bool mixerIsCyclicServo(uint8_t index);

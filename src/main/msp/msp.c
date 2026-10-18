@@ -3189,17 +3189,31 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
-        setServoOverride(i, sbufReadU16(src));
+        {
+            // Optional U16 timeout ms: the override lapses unless re-sent.
+            const int16_t value = sbufReadU16(src);
+            if (sbufBytesRemaining(src) >= 2) {
+                setServoOverrideTimed(i, value, sbufReadU16(src));
+            } else {
+                setServoOverride(i, value);
+            }
+        }
         break;
 
     case MSP_SET_SERVO_OVERRIDE_ALL: {
-        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable)
-        if (dataSize != 2) {
+        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable),
+        // optional U16 timeout ms
+        if (dataSize != 2 && dataSize != 4) {
             return MSP_RESULT_ERROR;
         }
         const uint16_t v = sbufReadU16(src);
+        const uint16_t timeoutMs = (dataSize == 4) ? sbufReadU16(src) : 0;
         for (int s = 0; s < MAX_SUPPORTED_SERVOS; s++) {
-            setServoOverride(s, v);
+            if (timeoutMs) {
+                setServoOverrideTimed(s, v, timeoutMs);
+            } else {
+                setServoOverride(s, v);
+            }
         }
         break;
     }
@@ -3870,7 +3884,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (i >= MIXER_INPUT_COUNT) {
             return MSP_RESULT_ERROR;
         }
-        mixerSetOverride(i, sbufReadU16(src));
+        {
+            // Optional U16 timeout ms: the override lapses unless re-sent.
+            const int16_t value = sbufReadU16(src);
+            if (sbufBytesRemaining(src) >= 2) {
+                mixerSetOverrideTimed(i, value, sbufReadU16(src));
+            } else {
+                mixerSetOverride(i, value);
+            }
+        }
         break;
 
     case MSP_SET_RX_CONFIG:
