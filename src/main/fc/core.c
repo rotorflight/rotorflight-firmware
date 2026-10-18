@@ -350,7 +350,9 @@ void updateArmingStatus(void)
         }
 #endif
 
-        if (!isMotorProtocolEnabled()) {
+        // Also when the motor outputs failed to set up: the FC would arm
+        // with no motor running, a motorised tail included.
+        if (!isMotorProtocolEnabled() || isMotorInitFailed()) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 

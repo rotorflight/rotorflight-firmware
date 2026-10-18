@@ -33,6 +33,8 @@
 #include "config/config_reset.h"
 
 #include "drivers/time.h"
+#include "drivers/dma_reqmap.h"
+#include "drivers/motor.h"
 #include "drivers/pwm_output.h"
 #include "drivers/timer.h"
 
@@ -163,6 +165,44 @@ static bool timerSharedWith(ioTag_t tag, const ioTag_t *tags, int count, int ski
     return false;
 }
 
+// DShot without bitbang needs a DMA stream for the pin's timer, found the
+// way dshot_dpwm.c / pwm_output_dshot.c do. Advice only: the protocol can
+// change after the pin moved, and a motor that fails to set up blocks
+// arming (isMotorInitFailed()).
+static bool tailPinLacksDshotDma(const timerHardware_t *timer)
+{
+#if defined(USE_DSHOT) && defined(USE_TIMER_DMA)
+    const motorDevConfig_t *dev = &motorConfig()->dev;
+
+    if (!checkMotorProtocolDshot(dev))
+        return false;
+#ifdef USE_DSHOT_BITBANG
+    if (isDshotBitbangActive(dev))
+        return false;
+#endif
+
+    const dmaResource_t *dmaRef = NULL;
+#ifdef USE_DSHOT_DMAR
+    if (dev->useBurstDshot == DSHOT_DMAR_ON ||
+        (dev->useBurstDshot == DSHOT_DMAR_AUTO && !dev->useDshotTelemetry)) {
+        dmaRef = timer->dmaTimUPRef;
+    } else
+#endif
+    {
+#if defined(USE_DMA_SPEC)
+        const dmaChannelSpec_t *spec = dmaGetChannelSpecByTimer(timer);
+        dmaRef = spec ? spec->ref : NULL;
+#else
+        dmaRef = timer->dmaRef;
+#endif
+    }
+    return dmaRef == NULL;
+#else
+    UNUSED(timer);
+    return false;
+#endif
+}
+
 // Moves the tail pin between SERVO 4 and MOTOR 2 in the config, like
 // `resource SERVO 4 NONE` + `resource MOTOR 2 <pin>` would. Not saved, and
 // only used after a reboot.
@@ -182,12 +222,16 @@ tailOutputResult_e setTailOutput(tailOutput_e output)
     if (output == TAIL_OUTPUT_MOTOR) {
         const ioTag_t tag = servoConfig()->ioTags[TAIL_SERVO_INDEX];
 
+        const timerHardware_t *timer = timerGetConfiguredByTag(tag);
+
         if (motorConfig()->dev.ioTags[0] == IO_TAG_NONE)
             return TAIL_OUTPUT_ERR_NO_MAIN_MOTOR;
-        if (!timerGetConfiguredByTag(tag))
+        if (!timer)
             return TAIL_OUTPUT_ERR_NO_TIMER;
         if (timerSharedWith(tag, servoConfig()->ioTags, MAX_SUPPORTED_SERVOS, TAIL_SERVO_INDEX))
             return TAIL_OUTPUT_ERR_TIMER_SHARED;
+        if (tailPinLacksDshotDma(timer))
+            return TAIL_OUTPUT_ERR_NO_DMA;
 
         servoConfigMutable()->ioTags[TAIL_SERVO_INDEX] = IO_TAG_NONE;
         motorConfigMutable()->dev.ioTags[TAIL_MOTOR_INDEX] = tag;
