@@ -825,6 +825,9 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
 
     TLM_SENSOR(ADJFUNC,                 0x1220,   200,  3000,    0,     AdjFunc),
 
+    TLM_SENSOR(SYSTEM_STATUS,           0x1230,   100,  3000,    0,     U32),
+    TLM_SENSOR(SYSTEM_CONFIG,           0x1231,   500,  3000,    0,     U32),
+
     TLM_SENSOR(DEBUG_0,                 0xDB00,   100,  3000,    0,     S32),
     TLM_SENSOR(DEBUG_1,                 0xDB01,   100,  3000,    0,     S32),
     TLM_SENSOR(DEBUG_2,                 0xDB02,   100,  3000,    0,     S32),

@@ -59,6 +59,8 @@
 #include "drivers/dshot.h"
 #include "drivers/dshot_command.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/crsf_sensors.h"
+#include "drivers/fbus_xact.h"
 #include "drivers/flash.h"
 #include "drivers/io.h"
 #include "drivers/motor.h"
@@ -92,6 +94,7 @@
 #include "flight/position.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/tune_advisor.h"
 #include "flight/governor.h"
 
 #include "io/asyncfatfs/asyncfatfs.h"
@@ -144,6 +147,7 @@
 #include "sensors/battery.h"
 #include "sensors/smartfuel.h"
 #include "sensors/boardalignment.h"
+#include "sensors/boardalignment_auto.h"
 #include "sensors/compass.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
@@ -894,18 +898,30 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
 
     case MSP_BATTERY_CONFIG:
-        sbufWriteU16(dst, getBatteryCapacity()); // Return the active battery capacity
-        sbufWriteU8(dst, batteryConfig()->batteryCellCount);
+        // Legacy fields: values of the active battery profile
+        sbufWriteU16(dst, getBatteryCapacity());
+        sbufWriteU8(dst, getBatteryProfileCellCount());
         sbufWriteU8(dst, batteryConfig()->voltageMeterSource);
         sbufWriteU8(dst, batteryConfig()->currentMeterSource);
-        sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage);
-        sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage);
+        sbufWriteU16(dst, getBatteryMinCellVoltage());
+        sbufWriteU16(dst, getBatteryMaxCellVoltage());
+        sbufWriteU16(dst, getBatteryFullCellVoltage());
+        sbufWriteU16(dst, getBatteryWarningCellVoltage());
         sbufWriteU8(dst, batteryConfig()->lvcPercentage);
         sbufWriteU8(dst, batteryConfig()->consumptionWarningPercentage);
+        // All battery profiles
         for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
-            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]); // all capacities for the battery profiles
+            sbufWriteU16(dst, batteryConfig()->batteryCapacity[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU8(dst, batteryConfig()->batteryCellCount[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatmincellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatmaxcellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatfullcellvoltage[i]);
+        for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+            sbufWriteU16(dst, batteryConfig()->vbatwarningcellvoltage[i]);
         break;
 
     case MSP_BATTERY_PROFILE:
@@ -1036,6 +1052,19 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
     }
     return true;
 }
+
+#ifdef USE_TUNE_ADVISOR
+static uint16_t mspSatU16(uint32_t value)
+{
+    return MIN(value, (uint32_t)UINT16_MAX);
+}
+
+// Ratio x1000 as a signed 16-bit value on the wire
+static uint16_t mspRatio(float value)
+{
+    return (uint16_t)(int16_t)constrain(lrintf(value * 1000), INT16_MIN, INT16_MAX);
+}
+#endif
 
 static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
 {
@@ -1407,6 +1436,72 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {
             sbufWriteU8(dst, fbusMasterConfig()->forwardedSensors[i]);
+        }
+        break;
+    }
+#endif
+
+#ifdef USE_CRSF_SENSORS
+    case MSP2_GET_CRSF_SENSORS_STATUS: {
+        // Read-only diagnostics for the configurator's CRSF Sensors debug page
+        // (mirrors MSP2_GET_FBUS_SENSORS' role for the FBUS/S.Port bus): link
+        // health counters plus the latest decoded value from every frame type
+        // this driver understands.
+        crsfSensorsDebugStats_t stats;
+        crsfSensorsGetDebugStats(&stats);
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, crsfSensorsIsEnabled() ? 1 : 0);
+        sbufWriteU32(dst, stats.rxByteCount);
+        sbufWriteU32(dst, stats.rxSyncCount);
+        sbufWriteU32(dst, stats.rxCrcOkCount);
+        sbufWriteU32(dst, stats.rxCrcFailCount);
+        sbufWriteU8(dst, stats.lastFrameType);
+        sbufWriteU8(dst, stats.lastFrameLength);
+
+        crsfSensorsGpsData_t gps;
+        const bool hasGps = crsfSensorsGetGpsData(&gps);
+        sbufWriteU8(dst, hasGps ? 1 : 0);
+        sbufWriteS32(dst, hasGps ? gps.latitude : 0);
+        sbufWriteS32(dst, hasGps ? gps.longitude : 0);
+        sbufWriteU16(dst, hasGps ? gps.groundspeedCmS : 0);
+        sbufWriteU16(dst, hasGps ? gps.headingDeg10 : 0);
+        sbufWriteS32(dst, hasGps ? gps.altitudeCm : 0);
+        sbufWriteU8(dst, hasGps ? gps.satellites : 0);
+
+        crsfSensorsBatteryData_t battery;
+        const bool hasBattery = crsfSensorsGetBatteryData(&battery);
+        sbufWriteU8(dst, hasBattery ? 1 : 0);
+        sbufWriteU32(dst, hasBattery ? battery.voltageMv : 0);
+        sbufWriteU32(dst, hasBattery ? battery.currentMa : 0);
+        sbufWriteU32(dst, hasBattery ? battery.capacityMah : 0);
+        sbufWriteU8(dst, hasBattery ? battery.remainingPct : 0);
+
+        crsfSensorsBaroData_t baro;
+        const bool hasBaro = crsfSensorsGetBaroData(&baro);
+        sbufWriteU8(dst, hasBaro ? 1 : 0);
+        sbufWriteS32(dst, hasBaro ? baro.altitudeCm : 0);
+        sbufWriteS16(dst, hasBaro ? baro.verticalSpeedCmS : 0);
+
+        crsfSensorsCellsData_t cells;
+        const bool hasCells = crsfSensorsGetCellsData(&cells);
+        sbufWriteU8(dst, hasCells ? 1 : 0);
+        sbufWriteU8(dst, hasCells ? cells.cellCount : 0);
+        if (hasCells) {
+            for (uint8_t i = 0; i < cells.cellCount; i++) {
+                sbufWriteU16(dst, cells.cellVoltageMv[i]);
+            }
+        }
+        sbufWriteU32(dst, hasCells ? cells.totalVoltageMv : 0);
+
+        crsfSensorsRpmData_t rpm;
+        const bool hasRpm = crsfSensorsGetRpmData(&rpm);
+        sbufWriteU8(dst, hasRpm ? 1 : 0);
+        sbufWriteU8(dst, hasRpm ? rpm.rpmCount : 0);
+        if (hasRpm) {
+            for (uint8_t i = 0; i < rpm.rpmCount; i++) {
+                sbufWriteS32(dst, rpm.rpmValues[i]);
+            }
         }
         break;
     }
@@ -2015,6 +2110,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         /* Error decay gain cyclic */
         sbufWriteU8(dst, currentPidProfile->error_decay_gain_cyclic);
+        /* Master gains */
+        sbufWriteU8(dst, currentPidProfile->cyclic_master_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_master_gain);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2179,6 +2277,42 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
             sbufWriteU8(dst, governorConfig()->gov_bypass_throttle[i]);
         break;
 
+#ifdef USE_FBUS_MASTER
+    case MSP_XACT_SERVO_LIST:
+        // List every XACT servo discovered since the last MSP_SET_XACT_SCAN. The firmware
+        // reads every discovered servo's parameters in the background (not just whichever one
+        // gets selected -- see fbusXactTrackServo()/xactAdvanceReadField() in fbus_xact.c), so
+        // Channel is usually already available here without the GUI needing to select a servo
+        // first.
+        // Response format: count, then count * (phyID, appIdOffset, conflict, duplicateAppId,
+        //                  ready, channel)
+        // appIdOffset/channel read as 0 until ready is 1 -- see
+        // fbusXactRequestParamsRead()/fbusXactIsServoParamsReady() in fbus_xact.h.
+        // conflict is 1 if this Physical ID has answered with more than one App ID, meaning
+        // two servos most likely share it and are colliding on the bus (see fbus_xact.h).
+        // duplicateAppId is 1 if another discovered servo (a different Physical ID) shares
+        // this one's App ID -- writes to either are refused until this is resolved, see
+        // fbusXactHasDuplicateAppId() in fbus_xact.h.
+        {
+            const uint8_t count = fbusMasterIsEnabled() ? fbusXactGetDiscoveredServoCount() : 0;
+            sbufWriteU8(dst, count);
+            for (uint8_t i = 0; i < count; i++) {
+                const uint8_t phyID = fbusXactGetDiscoveredServoPhyID(i);
+                xactServoParams_t params;
+                memset(&params, 0, sizeof(params));
+                fbusXactGetServoParams(phyID, &params);
+                sbufWriteU8(dst, phyID);
+                sbufWriteU8(dst, params.appIdOffset);
+                sbufWriteU8(dst, fbusXactHasServoConflict(phyID) ? 1 : 0);
+                sbufWriteU8(dst, fbusXactHasDuplicateAppId(phyID) ? 1 : 0);
+                sbufWriteU8(dst, fbusXactIsServoParamsReady(phyID) ? 1 : 0);
+                sbufWriteU8(dst, params.channel);
+            }
+        }
+
+        break;
+#endif
+
     default:
         unsupportedCommand = true;
     }
@@ -2205,6 +2339,85 @@ void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
     switch (cmdMSP) {
+#ifdef USE_ESC_SENSOR
+    case MSP2_ESC_SENSOR_TRIAL:
+        // action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel. No
+        // `inverted` field here (ESC telemetry never inverts) - just
+        // halfDuplex/pinSwap.
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                escSensorTrialStart();
+            } else if (action == 2) {
+                escSensorTrialStop();
+            }
+        }
+
+        {
+            const escSensorTrialStatus_t status = escSensorTrialGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteU8(dst, status.comboIndex);
+            sbufWriteU8(dst, status.halfDuplex);
+            sbufWriteU8(dst, status.pinSwap);
+            sbufWriteU16(dst, status.elapsedMs);
+            // Bench-diagnostic fields, temporary - appended (not inserted)
+            // so the wire format stays backward compatible with the
+            // original 6-byte response.
+            sbufWriteU16(dst, status.frameDelta);
+            sbufWriteU8(dst, status.comboCount);
+            sbufWriteU8(dst, status.portOpen);
+        }
+        break;
+#endif
+
+#ifdef USE_SERIAL_RX
+    case MSP2_RX_SERIAL_TRIAL:
+        // action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel - always
+        // restores the pre-trial wiring and reports the resulting status
+        // either way. Cycles serialrx_inverted/halfDuplex/pinSwap live for
+        // the already-configured serialrx_provider and reports which combo
+        // (if any) produces signal.
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                rxSerialTrialStart();
+            } else if (action == 2) {
+                rxSerialTrialStop();
+            }
+        }
+
+        {
+            const rxSerialTrialStatus_t status = rxSerialTrialGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteU8(dst, status.comboIndex);
+            sbufWriteU8(dst, status.inverted);
+            sbufWriteU8(dst, status.halfDuplex);
+            sbufWriteU8(dst, status.pinSwap);
+            sbufWriteU16(dst, status.elapsedMs);
+        }
+        break;
+#endif
+
+#ifdef USE_ACC
+    case MSP2_BOARD_AUTO_ALIGN:
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                boardAutoAlignStart();
+            }
+        }
+
+        {
+            const boardAutoAlignStatus_t status = boardAutoAlignGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteS16(dst, status.rollDegrees);
+            sbufWriteS16(dst, status.pitchDegrees);
+            sbufWriteS16(dst, status.yawDegrees);
+            sbufWriteU8(dst, status.matchedSamples);
+        }
+        break;
+#endif
+
 #ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1) {
@@ -2252,6 +2465,64 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
         break;
 #endif
+#ifdef USE_TUNE_ADVISOR
+    case MSP2_GET_TUNE_ADVISOR: {
+        // One axis per request (U8 axis: 0 roll, 1 pitch, 2 yaw) so the reply, 67 bytes, fits
+        // MSP over telemetry. Ratios are x1000 (signed), counts saturate at 65535 (about 11 min
+        // of 100 Hz samples).
+        if (sbufBytesRemaining(src) != 1) {
+            return MSP_RESULT_ERROR;
+        }
+        const uint8_t axis = sbufReadU8(src);
+        if (axis >= XYZ_AXIS_COUNT) {
+            return MSP_RESULT_ERROR;
+        }
+
+        tuneAdvisorAxis_t ta;
+        tuneAdvisorGetAxis(axis, &ta);
+
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, tuneAdvisorIsCollecting() ? 1 : 0);
+        sbufWriteU16(dst, mspSatU16(tuneAdvisorGetValidSamples() / TA_SAMPLE_HZ));
+        sbufWriteU8(dst, axis);
+
+        // The tune these numbers belong to, so a client can suggest new values
+        sbufWriteU16(dst, currentPidProfile->pid[axis].P);
+        sbufWriteU16(dst, currentPidProfile->pid[axis].F);
+        sbufWriteU16(dst, currentPidProfile->pid[axis].B);
+        sbufWriteU8(dst, currentPidProfile->iterm_relax_cutoff[axis]);
+        sbufWriteU8(dst, currentControlRateProfile->rates_type);
+        sbufWriteU8(dst, currentControlRateProfile->rcRates[axis]);
+        sbufWriteU8(dst, currentControlRateProfile->sRates[axis]);
+
+        sbufWriteU16(dst, mspSatU16(ta.ffCount));
+        sbufWriteU16(dst, mspRatio(ta.ffGain));
+        sbufWriteU16(dst, mspRatio(ta.ffCorr));
+        sbufWriteU16(dst, ta.ffLagMs);
+        for (int i = 0; i < TA_SP_BAND_COUNT; i++) {
+            sbufWriteU16(dst, mspRatio(ta.spBand[i].gain));
+            sbufWriteU16(dst, mspSatU16(ta.spBand[i].count));
+        }
+        for (int i = 0; i < TA_COLL_BAND_COUNT; i++) {
+            sbufWriteU16(dst, mspRatio(ta.collBand[i].gain));
+            sbufWriteU16(dst, mspSatU16(ta.collBand[i].count));
+        }
+
+        sbufWriteU16(dst, mspSatU16(ta.fullCount));
+        sbufWriteU16(dst, mspSatU16(ta.fullSatCount));
+        sbufWriteU16(dst, mspRatio(ta.fullRatio));
+        sbufWriteU16(dst, mspSatU16(lrintf(ta.fullMaxRate)));
+
+        sbufWriteU16(dst, ta.releases);
+        sbufWriteU16(dst, ta.bigRebounds);
+        sbufWriteU16(dst, mspRatio(ta.meanRebound));
+        sbufWriteU16(dst, mspRatio(ta.meanOvershoot));
+        sbufWriteU16(dst, mspRatio(ta.meanCounter));
+        sbufWriteU16(dst, mspRatio(ta.meanIterm));
+        break;
+    }
+#endif
+
     case MSP_GET_MIXER_INPUT:
         {
             const int rem = sbufBytesRemaining(src);
@@ -2497,6 +2768,62 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         }
 
         break;
+
+#ifdef USE_FBUS_MASTER
+    case MSP_XACT_PARAMS:
+        // GET all parameters of one discovered XACT servo, selected by physical ID -- pick
+        // one from MSP_XACT_SERVO_LIST first. Kicks off a fresh read for it if none has
+        // completed yet, so the caller should keep polling this until "ready" comes back 1.
+        // A read with an unanswered field stays not ready and is retried by the next request.
+        // Field set mirrors FrSky's own "XAct" ETHOS Device Config Lua script.
+        // Request format: phyID
+        // Response format: ready, conflict, duplicateAppId, phyID, appIdOffset, firmwareVersion,
+        //                  dataRate, range, direction, pulseType, channel, center(signed),
+        //                  holdingStrength, operationSmoothing, deadband, hasExtendedParams,
+        //                  workingMode, maxAngle
+        // duplicateAppId is 1 if another discovered servo shares this one's App ID -- see
+        // fbusXactHasDuplicateAppId() in fbus_xact.h. Saving is refused while this is true,
+        // unless the save is itself changing App ID to something now-unique.
+        {
+            xactServoParams_t params;
+            memset(&params, 0, sizeof(params));
+            bool ready = false;
+            bool conflict = false;
+            bool duplicateAppId = false;
+
+            if (fbusMasterIsEnabled() && sbufBytesRemaining(src) >= 1) {
+                const uint8_t phyID = sbufReadU8(src);
+                if (fbusXactGetServoParams(phyID, &params)) {
+                    ready = fbusXactIsServoParamsReady(phyID);
+                    conflict = fbusXactHasServoConflict(phyID);
+                    duplicateAppId = fbusXactHasDuplicateAppId(phyID);
+                    if (!ready) {
+                        fbusXactRequestParamsRead(phyID);
+                    }
+                }
+            }
+
+            sbufWriteU8(dst, ready ? 1 : 0);
+            sbufWriteU8(dst, conflict ? 1 : 0);
+            sbufWriteU8(dst, duplicateAppId ? 1 : 0);
+            sbufWriteU8(dst, params.physicalId);          // 0x00
+            sbufWriteU8(dst, params.appIdOffset);         // 0x01
+            sbufWriteU8(dst, params.firmwareVersion);     // 0xFE, read-only
+            sbufWriteU16(dst, params.dataRate);           // 0x02
+            sbufWriteU8(dst, params.range);               // 0x04
+            sbufWriteU8(dst, params.direction);           // 0x05
+            sbufWriteU8(dst, params.pulseType);           // 0x06
+            sbufWriteU8(dst, params.channel);             // 0x07
+            sbufWriteU8(dst, (uint8_t)params.center);     // 0x08, signed -125..125
+            sbufWriteU8(dst, params.holdingStrength);     // 0x11
+            sbufWriteU8(dst, params.operationSmoothing);  // 0x13
+            sbufWriteU8(dst, params.deadband);            // 0x21
+            sbufWriteU8(dst, params.hasExtendedParams ? 1 : 0);
+            sbufWriteU8(dst, params.workingMode);         // 0x40, only if hasExtendedParams
+            sbufWriteU16(dst, params.maxAngle);           // 0x41, only if hasExtendedParams
+        }
+        break;
+#endif
     default:
         return MSP_RESULT_CMD_UNKNOWN;
     }
@@ -2561,7 +2888,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         else if (value == 1) {
             copyControlRateProfile(dstProfileIndex, srcProfileIndex);
-            if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentPidProfileIndex()) {
+            if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentControlRateProfileIndex()) {
               changeControlRateProfile(dstProfileIndex);
             }
         }
@@ -3042,6 +3369,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->error_decay_gain_cyclic = sbufReadU8(src);
         }
+        /* Master gains */
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->cyclic_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
+            currentPidProfile->yaw_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
+        }
         /* Load new values */
         pidLoadProfile(currentPidProfile);
         break;
@@ -3484,6 +3816,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         boardAlignmentMutable()->rollDegrees = sbufReadU16(src);
         boardAlignmentMutable()->pitchDegrees = sbufReadU16(src);
         boardAlignmentMutable()->yawDegrees = sbufReadU16(src);
+        // Apply live so a reverted board auto-align result takes effect
+        if (!ARMING_FLAG(ARMED)) {
+            initBoardAlignment(boardAlignment());
+        }
         break;
 
     case MSP_SET_MIXER_CONFIG:
@@ -3788,6 +4124,63 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
         break;
 
+#ifdef USE_FBUS_MASTER
+    case MSP_SET_XACT_SCAN:
+        // Start a new sensor discovery phase on the FBUS master link. Not while armed: a
+        // rescan drops the discovered telemetry sensors until they are found again.
+        if (!fbusMasterIsEnabled() || ARMING_FLAG(ARMED)) {
+            return MSP_RESULT_ERROR;
+        }
+        fbusXactStartSensorDiscovery();
+
+        break;
+
+    case MSP_SET_XACT_PARAMS:
+        // SET all servo parameters for one discovered servo - collect from GUI, compare with
+        // cache, write only differences. Field set mirrors FrSky's own "XAct" ETHOS Device
+        // Config Lua script; workingMode/maxAngle are ignored unless the servo has already
+        // reported (via a prior GET) that it supports them.
+        // Request format: targetPhyID, then physicalId, appIdOffset, dataRate, range, direction,
+        // pulseType, channel, center(signed), holdingStrength, operationSmoothing, deadband,
+        // workingMode, maxAngle. targetPhyID selects which discovered servo to write to; the
+        // "physicalId" value right after it is the new value to write into that servo's own
+        // Physical ID field, and may differ from targetPhyID if the user is deliberately
+        // re-addressing the servo. Refused while armed, so a servo's direction, center or
+        // channel can't change in flight.
+        if (fbusMasterIsEnabled() && !ARMING_FLAG(ARMED) && sbufBytesRemaining(src) >= 16) {
+            const uint8_t phyID = sbufReadU8(src);
+            xactServoParams_t params;
+
+            if (fbusXactGetServoParams(phyID, &params)) {
+                xactServoParams_t newParams;
+                newParams.physicalId = sbufReadU8(src);
+                newParams.appIdOffset = sbufReadU8(src);
+                newParams.dataRate = sbufReadU16(src);
+                newParams.range = sbufReadU8(src);
+                newParams.direction = sbufReadU8(src);
+                newParams.pulseType = sbufReadU8(src);
+                newParams.channel = sbufReadU8(src);
+                newParams.center = (int8_t)sbufReadU8(src);
+                newParams.holdingStrength = sbufReadU8(src);
+                newParams.operationSmoothing = sbufReadU8(src);
+                newParams.deadband = sbufReadU8(src);
+                newParams.workingMode = sbufReadU8(src);
+                newParams.maxAngle = sbufReadU16(src);
+
+                // Compare with cache and write only differences
+                if (!fbusXactCompareAndWriteParams(phyID, &newParams)) {
+                    return MSP_RESULT_ERROR;
+                }
+            } else {
+                return MSP_RESULT_ERROR;
+            }
+        } else {
+            return MSP_RESULT_ERROR;
+        }
+
+        break;
+#endif
+
 #if defined(USE_BOARD_INFO)
     case MSP_SET_BOARD_INFO:
         if (!boardInformationIsSet()) {
@@ -3932,22 +4325,38 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         break;
     }
 
-    case MSP_SET_BATTERY_CONFIG:
-        batteryConfigMutable()->batteryCapacity[batteryConfig()->batteryProfile] = sbufReadU16(src);
-        batteryConfigMutable()->batteryCellCount = sbufReadU8(src);
+    case MSP_SET_BATTERY_CONFIG: {
+        // Legacy fields: values of the active battery profile
+        const uint8_t profile = batteryConfig()->batteryProfile;
+        batteryConfigMutable()->batteryCapacity[profile] = sbufReadU16(src);
+        batteryConfigMutable()->batteryCellCount[profile] = sbufReadU8(src);
         batteryConfigMutable()->voltageMeterSource = sbufReadU8(src);
         batteryConfigMutable()->currentMeterSource = sbufReadU8(src);
-        batteryConfigMutable()->vbatmincellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatmaxcellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatfullcellvoltage = sbufReadU16(src);
-        batteryConfigMutable()->vbatwarningcellvoltage = sbufReadU16(src);
+        batteryConfigMutable()->vbatmincellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatmaxcellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatfullcellvoltage[profile] = sbufReadU16(src);
+        batteryConfigMutable()->vbatwarningcellvoltage[profile] = sbufReadU16(src);
         batteryConfigMutable()->lvcPercentage = sbufReadU8(src);
         batteryConfigMutable()->consumptionWarningPercentage = sbufReadU8(src);
+        // All battery profiles
         if (sbufBytesRemaining(src) >= 2 * BATTERY_PROFILE_COUNT) {
             for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
                 batteryConfigMutable()->batteryCapacity[i] = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 9 * BATTERY_PROFILE_COUNT) {
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->batteryCellCount[i] = sbufReadU8(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatmincellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatmaxcellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatfullcellvoltage[i] = sbufReadU16(src);
+            for (int i = 0; i < BATTERY_PROFILE_COUNT; i++)
+                batteryConfigMutable()->vbatwarningcellvoltage[i] = sbufReadU16(src);
+        }
         break;
+    }
 
 #ifdef USE_SMARTFUEL
     case MSP2_SET_SMARTFUEL_CONFIG:
@@ -3956,6 +4365,12 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         batteryConfigMutable()->smartfuel_charge_drop_rate = sbufReadU8(src);
         batteryConfigMutable()->smartfuel_sag_gain = sbufReadU8(src);
         smartFuelInit();
+        break;
+#endif
+
+#ifdef USE_TUNE_ADVISOR
+    case MSP2_CLEAR_TUNE_ADVISOR:
+        tuneAdvisorReset();
         break;
 #endif
 

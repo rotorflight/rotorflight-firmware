@@ -425,6 +425,19 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/pg/mixer.c \
 		$(USER_DIR)/pg/rates.c
 
+tune_advisor_unittest_SRC := \
+		$(USER_DIR)/flight/tune_advisor.c
+
+tune_advisor_unittest_DEFINES := \
+		USE_TUNE_ADVISOR=
+
+telemetry_status_unittest_SRC := \
+		$(USER_DIR)/telemetry/status.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
 trainer_unittest_SRC := \
 		$(USER_DIR)/common/filter.c \
 		$(USER_DIR)/common/maths.c \
