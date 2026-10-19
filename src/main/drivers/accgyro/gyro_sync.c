@@ -59,6 +59,15 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     uint16_t accSampleRateHz = 0;
 
     switch (gyro->mpuDetectionResult.sensor) {
+#ifdef USE_ACCGYRO_LSM6DSK320X
+        case LSM6DSK320X_SPI:
+            // High-accuracy ODR mode 1, matching the driver register setup.
+            gyroRateKHz = GYRO_RATE_8_kHz;
+            gyroSampleRateHz = 8000;
+            accSampleRateHz = 1000;
+            break;
+#endif
+
 #ifdef USE_ACCGYRO_LSM6DSO
         case LSM6DSO_SPI:
             gyroRateKHz = GYRO_RATE_6664_Hz;
