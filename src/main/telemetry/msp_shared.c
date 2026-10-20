@@ -159,6 +159,13 @@ static void processMspPacket(void)
     if (mspFcProcessCommand(mspSharedDescriptor, &requestPacket, &responsePacket, &mspPostProcessFn) == MSP_RESULT_ERROR) {
         sbufWriteU8(&responsePacket.buf, TELEMETRY_MSP_ERROR);
     }
+    // A reply too big for responseBuffer lost its tail: answer with an error
+    // rather than a truncated reply the radio would decode as real data.
+    if (sbufWriteOverflowed(&responsePacket.buf)) {
+        responsePacket.buf.ptr = responseBuffer;
+        responsePacket.result = MSP_RESULT_ERROR;
+        sbufWriteU8(&responsePacket.buf, TELEMETRY_MSP_ERROR);
+    }
     if (mspPostProcessFn) {
         mspPostProcessFn(NULL);
     }
@@ -171,6 +178,8 @@ void sendMspErrorResponse(uint8_t error, int16_t cmd)
     responsePacket.cmd = cmd;
     responsePacket.result = 0;
     responsePacket.buf.ptr = responseBuffer;
+    // end may still mark the previous reply's length (sbufSwitchToReader()).
+    responsePacket.buf.end = ARRAYEND(responseBuffer);
     headerSent = false;
 
     sbufWriteU8(&responsePacket.buf, error);

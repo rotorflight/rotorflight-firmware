@@ -17,9 +17,11 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
-// simple buffer-based serializer/deserializer without implicit size check
+// simple buffer-based serializer/deserializer. Reads are not size checked;
+// writes past `end` are dropped (see sbufWriteOverflowed()).
 
 typedef struct sbuf_s {
     uint8_t *ptr;          // data pointer must be first (sbuf_t* is equivalent to uint8_t **)
@@ -99,6 +101,9 @@ void sbufReadData(sbuf_t *dst, void *data, int len);
 
 /* Space left in the buffer */
 static inline int sbufBytesRemaining(sbuf_t *buf) { return (buf->end - buf->ptr); }
+
+/* True when a writer ran past the end: the bytes past it were dropped */
+static inline bool sbufWriteOverflowed(const sbuf_t *buf) { return buf->ptr > buf->end; }
 
 /* Get buffer pointer */
 static inline uint8_t * sbufPtr(sbuf_t *buf) { return buf->ptr; }
