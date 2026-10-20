@@ -26,6 +26,7 @@
 typedef struct sbuf_s {
     uint8_t *ptr;          // data pointer must be first (sbuf_t* is equivalent to uint8_t **)
     uint8_t *end;
+    bool overflowed;       // a write did not fit; cleared by sbufInit() and sbufSwitchToReader()
 } sbuf_t;
 
 /* Init function */
@@ -102,8 +103,8 @@ void sbufReadData(sbuf_t *dst, void *data, int len);
 /* Space left in the buffer */
 static inline int sbufBytesRemaining(sbuf_t *buf) { return (buf->end - buf->ptr); }
 
-/* True when a writer ran past the end: the bytes past it were dropped */
-static inline bool sbufWriteOverflowed(const sbuf_t *buf) { return buf->ptr > buf->end; }
+/* True when a write did not fit: the bytes past the end were dropped */
+static inline bool sbufWriteOverflowed(const sbuf_t *buf) { return buf->overflowed; }
 
 /* Get buffer pointer */
 static inline uint8_t * sbufPtr(sbuf_t *buf) { return buf->ptr; }

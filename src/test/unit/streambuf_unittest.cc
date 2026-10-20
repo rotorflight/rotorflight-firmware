@@ -76,7 +76,7 @@ TEST(StreamBufTest, WritesThatFitAreUnchanged)
     EXPECT_TRUE(g.guardIntact());
 }
 
-TEST(StreamBufTest, BytesPastTheEndAreDroppedAndCounted)
+TEST(StreamBufTest, BytesPastTheEndAreDroppedAndFlagged)
 {
     Guarded g;
     for (int i = 0; i < 12; i++) {
@@ -85,7 +85,7 @@ TEST(StreamBufTest, BytesPastTheEndAreDroppedAndCounted)
 
     EXPECT_TRUE(g.guardIntact());
     EXPECT_TRUE(sbufWriteOverflowed(&g.buf));
-    EXPECT_EQ(-4, sbufBytesRemaining(&g.buf));
+    EXPECT_EQ(0, sbufBytesRemaining(&g.buf));
     EXPECT_EQ(8, g.data[7]);
 }
 
@@ -110,7 +110,8 @@ TEST(StreamBufTest, WriteDataAndFillCopyOnlyWhatFits)
 
     EXPECT_TRUE(g.guardIntact());
     EXPECT_EQ(0, memcmp(g.data, src, 8));
-    EXPECT_EQ(-4, sbufBytesRemaining(&g.buf));
+    EXPECT_EQ(0, sbufBytesRemaining(&g.buf));
+    EXPECT_TRUE(sbufWriteOverflowed(&g.buf));
 
     Guarded f;
     sbufWriteU8(&f.buf, 0);
@@ -119,24 +120,25 @@ TEST(StreamBufTest, WriteDataAndFillCopyOnlyWhatFits)
     EXPECT_EQ(0xEE, f.data[7]);
     EXPECT_TRUE(sbufWriteOverflowed(&f.buf));
 
-    // Nothing more is copied once the buffer is already past its end.
+    // Nothing more is copied once the buffer is full.
     sbufWriteData(&f.buf, src, sizeof(src));
     EXPECT_TRUE(f.guardIntact());
 }
 
-TEST(StreamBufTest, StringWritesStillConsumeTheWholeString)
+TEST(StreamBufTest, StringWritesStopAtTheEnd)
 {
     Guarded g;
     sbufWriteString(&g.buf, "0123456789AB");
 
     EXPECT_TRUE(g.guardIntact());
-    EXPECT_EQ(-4, sbufBytesRemaining(&g.buf));
+    EXPECT_EQ(0, sbufBytesRemaining(&g.buf));
     EXPECT_EQ(0, memcmp(g.data, "01234567", 8));
 
     Guarded z;
     sbufWriteStringWithZeroTerminator(&z.buf, "0123456789");
     EXPECT_TRUE(z.guardIntact());
-    EXPECT_EQ(-3, sbufBytesRemaining(&z.buf));
+    EXPECT_EQ(0, sbufBytesRemaining(&z.buf));
+    EXPECT_TRUE(sbufWriteOverflowed(&z.buf));
 }
 
 TEST(StreamBufTest, ReaderNeverReadsPastTheBuffer)
@@ -149,6 +151,7 @@ TEST(StreamBufTest, ReaderNeverReadsPastTheBuffer)
 
     EXPECT_EQ(8, sbufBytesRemaining(&g.buf));
     EXPECT_EQ(g.data + 8, g.buf.end);
+    EXPECT_FALSE(sbufWriteOverflowed(&g.buf));
 }
 
 TEST(StreamBufTest, ReaderAfterShortWriteSeesOnlyTheWrittenBytes)
@@ -160,4 +163,15 @@ TEST(StreamBufTest, ReaderAfterShortWriteSeesOnlyTheWrittenBytes)
     EXPECT_EQ(2, sbufBytesRemaining(&g.buf));
     EXPECT_EQ(1, sbufReadU8(&g.buf));
     EXPECT_EQ(2, sbufReadU8(&g.buf));
+}
+
+TEST(StreamBufTest, InitClearsTheOverflow)
+{
+    Guarded g;
+    sbufFill(&g.buf, 0, 9);
+    EXPECT_TRUE(sbufWriteOverflowed(&g.buf));
+
+    sbufInit(&g.buf, g.data, g.data + sizeof(g.data));
+    EXPECT_FALSE(sbufWriteOverflowed(&g.buf));
+    EXPECT_EQ(8, sbufBytesRemaining(&g.buf));
 }
