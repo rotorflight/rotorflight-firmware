@@ -381,9 +381,9 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             rx/rx_bind.c
 
 # Code run only from slow tasks (MSP, telemetry, GPS, LED strip, sensor decoders).
-# Not telemetry/sbus2.c: it runs from an 8 kHz slot timer.
+# Not telemetry/sbus2.c (8 kHz slot timer) or drivers/crsf_sensors.c (UART receive
+# callback, interrupt context).
 SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
-            drivers/crsf_sensors.c \
             io/gps.c \
             io/ledstrip.c \
             msp/msp.c \
