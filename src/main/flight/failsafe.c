@@ -26,6 +26,7 @@
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/utils.h"
 
 #include "pg/failsafe.h"
 #include "pg/rx.h"
@@ -182,7 +183,7 @@ void failsafeOnValidDataFailed(void)
     }
 }
 
-void failsafeCheckDataFailurePeriod(void)
+NOINLINE void failsafeCheckDataFailurePeriod(void)
 // runs directly from scheduler, every 10ms, to validate the link
 {
     if (cmp32(millis(), failsafeState.validRxDataReceivedAt) > (int32_t)failsafeState.rxDataFailurePeriod) {
@@ -198,7 +199,7 @@ uint32_t failsafeFailurePeriodMs(void)
     return failsafeState.rxDataFailurePeriod;
 }
 
-void failsafeUpdateState(void)
+NOINLINE void failsafeUpdateState(void)
 // triggered directly, and ONLY, by the cheduler, at 10ms = PERIOD_RXDATA_FAILURE - intervals
 {
     if (!failsafeIsMonitoring()) {
