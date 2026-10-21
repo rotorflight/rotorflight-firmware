@@ -23,6 +23,7 @@
 #include <stdlib.h>
 
 #include "common/color.h"
+#include "common/maths.h"
 #include "common/time.h"
 
 #include "drivers/io_types.h"
@@ -191,7 +192,7 @@ static inline uint8_t ledGetAltColor(const ledConfig_t *lcfg)      { return ((*l
 static inline bool ledGetOverlayBit(const ledConfig_t *lcfg, int id) { return ((ledGetOverlay(lcfg) >> id) & 1); }
 static inline bool ledGetDirectionBit(const ledConfig_t *lcfg, int id) { return ((ledGetDirection(lcfg) >> id) & 1); }
 
-static inline int randomInt(int min, int max) { return min + rand() % (max - min); }
+static inline int randomInt(int min, int max) { return min + (int)(randomU32() % (uint32_t)(max - min)); }
 
 bool parseColor(int index, const char *colorConfig);
 

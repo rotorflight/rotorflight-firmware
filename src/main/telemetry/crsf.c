@@ -1374,7 +1374,7 @@ static void INIT_CODE crsfInitCustomTelemetry(void)
                     if (telemetryConfig()->telemetry_interval[j])
                         sensor->fast_interval = telemetryConfig()->telemetry_interval[j];
                     if (sensor->slow_interval > 1000)
-                        sensor->slow_interval += rand() % 100;
+                        sensor->slow_interval += randomU32() % 100;
                     telemetryScheduleAdd(sensor);
                 }
             }

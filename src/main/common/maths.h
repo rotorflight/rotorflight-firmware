@@ -359,3 +359,4 @@ void buildRotationMatrix(fp_angles_t *delta, fp_rotationMatrix_t *rotation);
 void applyMatrixRotation(float *v, fp_rotationMatrix_t *rotationMatrix);
 
 
+uint32_t randomU32(void);
