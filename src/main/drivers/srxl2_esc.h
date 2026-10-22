@@ -93,4 +93,5 @@ bool srxl2escDriverIsReady(void);
 uint32_t srxl2escGetThrottleRateHz(void);
 void srxl2escSetTelemetryIntervalFrames(uint8_t frames);
 uint8_t srxl2escGetTelemetryIntervalFrames(void);
+uint8_t srxl2escMotorCount(void);
 #endif
