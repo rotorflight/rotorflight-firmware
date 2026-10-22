@@ -30,7 +30,7 @@ the APIs or flight performance.
 - FBUS/S.Port current sensor accumulates consumed capacity (#513)
 - Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
-- CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent as S24 instead of S16, so it no longer stops at 327.67 m MSL. The frame carries no per-sensor length: decoders must read three bytes for this sensor
+- CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent as S24 instead of S16, so it no longer stops at 327.67 m MSL. The frame carries no per-sensor length: decoders must read three bytes for this sensor (#549)
 
 ## Flight Performance
 
