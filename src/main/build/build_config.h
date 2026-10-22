@@ -36,7 +36,8 @@
 // MCU type IDs.
 // IDs are permanent as they have a dependency to configurator through MSP reporting
 
-typedef enum {
+typedef enum
+{
     MCU_TYPE_SIMULATOR = 0,
     MCU_TYPE_F40X,
     MCU_TYPE_F411,
@@ -46,6 +47,7 @@ typedef enum {
     MCU_TYPE_F746,
     MCU_TYPE_F765,
     MCU_TYPE_H750,
+    MCU_TYPE_CH32H417,
     MCU_TYPE_H743_REV_UNKNOWN,
     MCU_TYPE_H743_REV_Y,
     MCU_TYPE_H743_REV_X,

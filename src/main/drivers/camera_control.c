@@ -29,7 +29,7 @@
 #include "pwm_output.h"
 #include "time.h"
 
-#define CAMERA_CONTROL_PWM_RESOLUTION   128
+#define CAMERA_CONTROL_PWM_RESOLUTION 128
 #define CAMERA_CONTROL_SOFT_PWM_RESOLUTION 448
 
 #ifdef CURRENT_TARGET_CPU_VOLTAGE
@@ -50,7 +50,8 @@
 #include "osd/osd.h"
 #endif
 
-static struct {
+static struct
+{
     bool enabled;
     IO_t io;
     timerChannel_t channel;
@@ -63,18 +64,24 @@ static uint32_t endTimeMillis;
 #ifdef CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE
 static void cameraControlHi(void)
 {
-    if (cameraControlRuntime.inverted) {
+    if (cameraControlRuntime.inverted)
+    {
         IOLo(cameraControlRuntime.io);
-    } else {
+    }
+    else
+    {
         IOHi(cameraControlRuntime.io);
     }
 }
 
 static void cameraControlLo(void)
 {
-    if (cameraControlRuntime.inverted) {
+    if (cameraControlRuntime.inverted)
+    {
         IOHi(cameraControlRuntime.io);
-    } else {
+    }
+    else
+    {
         IOLo(cameraControlRuntime.io);
     }
 }
@@ -82,15 +89,21 @@ static void cameraControlLo(void)
 void TIM6_DAC_IRQHandler(void)
 {
     cameraControlHi();
-
+#if defined(CH32H4) || defined(CH32H41x)
+    TIM6->INTFR = 0; // CH32 CLEAR FLAGS
+#else
     TIM6->SR = 0;
+#endif
 }
 
 void TIM7_IRQHandler(void)
 {
     cameraControlLo();
-
+#if defined(CH32H4) || defined(CH32H41x)
+    TIM7->INTFR = 0; // CH32 CLEAR FLAGS
+#else
     TIM7->SR = 0;
+#endif
 }
 #endif
 
@@ -103,11 +116,13 @@ void cameraControlInit(void)
     cameraControlRuntime.io = IOGetByTag(cameraControlConfig()->ioTag);
     IOInit(cameraControlRuntime.io, OWNER_CAMERA_CONTROL, 0);
 
-    if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode) {
+    if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode)
+    {
 #ifdef CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE
         const timerHardware_t *timerHardware = timerAllocate(cameraControlConfig()->ioTag, OWNER_CAMERA_CONTROL, 0);
 
-        if (!timerHardware) {
+        if (!timerHardware)
+        {
             return;
         }
 
@@ -119,7 +134,9 @@ void cameraControlInit(void)
         *cameraControlRuntime.channel.ccr = cameraControlRuntime.period;
         cameraControlRuntime.enabled = true;
 #endif
-    } else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode) {
+    }
+    else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode)
+    {
 #ifdef CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE
 
         IOConfigGPIO(cameraControlRuntime.io, IOCFG_OUT_PP);
@@ -128,31 +145,49 @@ void cameraControlInit(void)
         cameraControlRuntime.period = CAMERA_CONTROL_SOFT_PWM_RESOLUTION;
         cameraControlRuntime.enabled = true;
 
+#if defined(CH32H4) || defined(CH32H41x)
+        NVIC_SetPriority(TIM6_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER));
+        NVIC_EnableIRQ(TIM6_IRQn);
+        NVIC_SetPriority(TIM7_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER));
+        NVIC_EnableIRQ(TIM7_IRQn);
+#else
         NVIC_InitTypeDef nvicTIM6 = {
-            TIM6_DAC_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER), NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER), ENABLE
-        };
+            TIM6_DAC_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER),
+            NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER), ENABLE};
         NVIC_Init(&nvicTIM6);
         NVIC_InitTypeDef nvicTIM7 = {
-            TIM7_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER), NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER), ENABLE
-        };
+            TIM7_IRQn, NVIC_PRIORITY_BASE(NVIC_PRIO_TIMER),
+            NVIC_PRIORITY_SUB(NVIC_PRIO_TIMER), ENABLE};
         NVIC_Init(&nvicTIM7);
+#endif
 
+#if defined(CH32H4) || defined(CH32H41x)
+        RCC->HBPCENR |= RCC_HB1Periph_TIM6 | RCC_HB1Periph_TIM7;
+#else
         RCC->APB1ENR |= RCC_APB1Periph_TIM6 | RCC_APB1Periph_TIM7;
+#endif
+
         TIM6->PSC = 0;
         TIM7->PSC = 0;
+
 #endif
-    } else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode) {
+    }
+    else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode)
+    {
         // @todo not yet implemented
     }
 }
 
 void cameraControlProcess(uint32_t currentTimeUs)
 {
-    if (endTimeMillis && currentTimeUs >= 1000 * endTimeMillis) {
-        if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode) {
+    if (endTimeMillis && currentTimeUs >= 1000 * endTimeMillis)
+    {
+        if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode)
+        {
             *cameraControlRuntime.channel.ccr = cameraControlRuntime.period;
-        } else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode) {
-
+        }
+        else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode)
+        {
         }
 
         endTimeMillis = 0;
@@ -185,7 +220,7 @@ void cameraControlKeyPress(cameraControlKey_e key, uint32_t holdDurationMs)
 #if defined(CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE) || defined(CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE)
     const float dutyCycle = calculatePWMDutyCycle(key);
 #else
-    (void) holdDurationMs;
+    (void)holdDurationMs;
 #endif
 
 #ifdef USE_OSD
@@ -193,52 +228,84 @@ void cameraControlKeyPress(cameraControlKey_e key, uint32_t holdDurationMs)
     resumeRefreshAt = 0;
 #endif
 
-    if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode) {
+    if (CAMERA_CONTROL_MODE_HARDWARE_PWM == cameraControlConfig()->mode)
+    {
 #ifdef CAMERA_CONTROL_HARDWARE_PWM_AVAILABLE
         *cameraControlRuntime.channel.ccr = lrintf(dutyCycle * cameraControlRuntime.period);
         endTimeMillis = millis() + cameraControlConfig()->keyDelayMs + holdDurationMs;
 #endif
-    } else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode) {
+    }
+    else if (CAMERA_CONTROL_MODE_SOFTWARE_PWM == cameraControlConfig()->mode)
+    {
 #ifdef CAMERA_CONTROL_SOFTWARE_PWM_AVAILABLE
         const uint32_t hiTime = lrintf(dutyCycle * cameraControlRuntime.period);
 
-        if (0 == hiTime) {
+        if (0 == hiTime)
+        {
             cameraControlLo();
             delay(cameraControlConfig()->keyDelayMs + holdDurationMs);
             cameraControlHi();
-        } else {
+        }
+        else
+        {
+#if defined(CH32H4) || defined(CH32H41x)
+            TIM6->CNT = hiTime;
+            TIM6->ATRLR = cameraControlRuntime.period;
+            TIM7->CNT = 0;
+            TIM7->ATRLR = cameraControlRuntime.period;
+#else
             TIM6->CNT = hiTime;
             TIM6->ARR = cameraControlRuntime.period;
 
             TIM7->CNT = 0;
             TIM7->ARR = cameraControlRuntime.period;
-
+#endif
             // Start two timers as simultaneously as possible
-            ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+            ATOMIC_BLOCK(NVIC_PRIO_TIMER)
+            {
+#if defined(CH32H4) || defined(CH32H41x)
+                TIM6->CTLR1 = TIM_CEN;
+                TIM7->CTLR1 = TIM_CEN;
+#else
                 TIM6->CR1 = TIM_CR1_CEN;
                 TIM7->CR1 = TIM_CR1_CEN;
+#endif
             }
 
-            // Enable interrupt generation
+// Enable interrupt generation
+#if defined(CH32H4) || defined(CH32H41x)
+            TIM6->DMAINTENR = TIM_IT_Update;
+            TIM7->DMAINTENR = TIM_IT_Update;
+#else
             TIM6->DIER = TIM_IT_Update;
             TIM7->DIER = TIM_IT_Update;
-
+#endif
             const uint32_t endTime = millis() + cameraControlConfig()->keyDelayMs + holdDurationMs;
 
             // Wait to give the camera a chance at registering the key press
-            while (millis() < endTime);
+            while (millis() < endTime)
+                ;
 
             // Disable timers and interrupt generation
+#if defined(CH32H4) || defined(CH32H41x)
+            TIM6->CTLR1 &= ~TIM_CEN;
+            TIM7->CTLR1 &= ~TIM_CEN;
+            TIM6->DMAINTENR = 0;
+            TIM7->DMAINTENR = 0;
+#else
             TIM6->CR1 &= ~TIM_CR1_CEN;
             TIM7->CR1 &= ~TIM_CR1_CEN;
             TIM6->DIER = 0;
             TIM7->DIER = 0;
+#endif
 
             // Reset to idle state
             IOHi(cameraControlRuntime.io);
         }
 #endif
-    } else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode) {
+    }
+    else if (CAMERA_CONTROL_MODE_DAC == cameraControlConfig()->mode)
+    {
         // @todo not yet implemented
     }
 }

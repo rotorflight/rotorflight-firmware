@@ -50,9 +50,18 @@ void bbGpioSetup(bbMotor_t *bbMotor)
     bbPort_t *bbPort = bbMotor->bbPort;
     int pinIndex = bbMotor->pinIndex;
 
+#if defined(CH32H4) || defined(CH32H41x)
+    // CH32H41x uses CFGLR/CFGHR registers (4 bits per pin) instead of MODER (2 bits per pin).
+    // We store a 2-bit-per-pin mask/mode in gpioModeMask/gpioModeInput/gpioModeOutput
+    // and expand to 4-bit-per-pin in bbSwitchToOutput/bbSwitchToInput.
+    bbPort->gpioModeMask |= (0x03 << (pinIndex * 2));
+    bbPort->gpioModeInput |= (DIR_IN << (pinIndex * 2));
+    bbPort->gpioModeOutput |= (DIR_OUT << (pinIndex * 2));
+#else
     bbPort->gpioModeMask |= (GPIO_MODER_MODER0 << (pinIndex * 2));
     bbPort->gpioModeInput |= (GPIO_Mode_IN << (pinIndex * 2));
     bbPort->gpioModeOutput |= (GPIO_Mode_OUT << (pinIndex * 2));
+#endif
 
 #ifdef USE_DSHOT_TELEMETRY
     if (useDshotTelemetry) {
@@ -72,7 +81,11 @@ void bbGpioSetup(bbMotor_t *bbMotor)
         IOWrite(bbMotor->io, 0);
     }
 
-#if defined(STM32F4)
+#if defined(CH32H4) || defined(CH32H41x)
+    // CH32H41x: GPIO configuration is handled by CFGLR/CFGHR manipulation
+    // in bbSwitchToOutput/bbSwitchToInput. No separate IOConfigGPIO call
+    // needed here (matching betaflight CH32 behavior).
+#elif defined(STM32F4)
     IOConfigGPIO(bbMotor->io, IO_CONFIG(GPIO_Mode_OUT, GPIO_Speed_50MHz, GPIO_OType_PP, bbPuPdMode));
 #else
 #error MCU dependent code required
@@ -114,6 +127,23 @@ void bbTimerChannelInit(bbPort_t *bbPort)
 
 #ifdef USE_DMA_REGISTER_CACHE
 
+#if defined(CH32H4) || defined(CH32H41x)
+static void bbLoadDMARegs(dmaResource_t *dmaResource, dmaRegCache_t *dmaRegCache)
+{
+    ((DMA_ARCH_TYPE *)dmaResource)->CFGR = dmaRegCache->CFGR;
+    ((DMA_ARCH_TYPE *)dmaResource)->CNTR = dmaRegCache->CNTR;
+    ((DMA_ARCH_TYPE *)dmaResource)->PADDR = dmaRegCache->PADDR;
+    ((DMA_ARCH_TYPE *)dmaResource)->MADDR = dmaRegCache->MADDR;
+}
+
+static void bbSaveDMARegs(dmaResource_t *dmaResource, dmaRegCache_t *dmaRegCache)
+{
+    dmaRegCache->CFGR = ((DMA_ARCH_TYPE *)dmaResource)->CFGR;
+    dmaRegCache->CNTR = ((DMA_ARCH_TYPE *)dmaResource)->CNTR;
+    dmaRegCache->PADDR = ((DMA_ARCH_TYPE *)dmaResource)->PADDR;
+    dmaRegCache->MADDR = ((DMA_ARCH_TYPE *)dmaResource)->MADDR;
+}
+#elif defined(STM32F4)
 void bbLoadDMARegs(dmaResource_t *dmaResource, dmaRegCache_t *dmaRegCache)
 {
     ((DMA_Stream_TypeDef *)dmaResource)->CR = dmaRegCache->CR;
@@ -131,7 +161,11 @@ static void bbSaveDMARegs(dmaResource_t *dmaResource, dmaRegCache_t *dmaRegCache
     dmaRegCache->PAR = ((DMA_Stream_TypeDef *)dmaResource)->PAR;
     dmaRegCache->M0AR = ((DMA_Stream_TypeDef *)dmaResource)->M0AR;
 }
+#else
+#error MCU dependent code required for DMA register cache
 #endif
+
+#endif // USE_DMA_REGISTER_CACHE
 
 void bbSwitchToOutput(bbPort_t * bbPort)
 {
@@ -141,12 +175,51 @@ void bbSwitchToOutput(bbPort_t * bbPort)
     // Normal: Use BR (higher half)
     // Inverted: Use BS (lower half)
 
+#if defined(CH32H4) || defined(CH32H41x)
+    WRITE_REG(bbPort->gpio->BSHR, bbPort->gpioIdleBSRR);
+
+    // Set GPIO to output
+    // CH32H41x uses CFGLR/CFGHR (4 bits per pin) instead of MODER (2 bits per pin).
+    // Expand the 2-bit-per-pin masks to 4-bit-per-pin for CFGLR/CFGHR manipulation.
+    ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+        uint32_t expandedMaskLow = 0, outputLow = 0;
+        uint32_t expandedMaskHigh = 0, outputHigh = 0;
+
+        for (int i = 0; i < 16; i++) {
+            uint8_t mask2bit = (bbPort->gpioModeMask >> (i * 2)) & 0x3;
+
+            if (mask2bit != 0) {
+                uint32_t mapped4bit = 0xF;
+                if (i < 8) {
+                    expandedMaskLow |= (mapped4bit << (i * 4));
+                } else {
+                    expandedMaskHigh |= (mapped4bit << ((i - 8) * 4));
+                }
+            }
+
+            uint8_t out2bit = (bbPort->gpioModeOutput >> (i * 2)) & 0x3;
+            uint32_t mappedOut4bit = 0;
+            if (out2bit != 0) {
+                mappedOut4bit = 0x3;  // Output push-pull, max speed
+            }
+
+            if (i < 8) {
+                outputLow |= (mappedOut4bit << (i * 4));
+            } else {
+                outputHigh |= (mappedOut4bit << ((i - 8) * 4));
+            }
+        }
+        MODIFY_REG(bbPort->gpio->CFGLR, expandedMaskLow, outputLow);
+        MODIFY_REG(bbPort->gpio->CFGHR, expandedMaskHigh, outputHigh);
+    }
+#else
     WRITE_REG(bbPort->gpio->BSRRL, bbPort->gpioIdleBSRR);
 
     // Set GPIO to output
     ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
         MODIFY_REG(bbPort->gpio->MODER, bbPort->gpioModeMask, bbPort->gpioModeOutput);
     }
+#endif
 
     // Reinitialize port group DMA for output
 
@@ -162,7 +235,11 @@ void bbSwitchToOutput(bbPort_t * bbPort)
 
     // Reinitialize pacer timer for output
 
+#if defined(CH32H4) || defined(CH32H41x)
+    ((TIM_TypeDef *)bbPort->timhw->tim)->ATRLR = bbPort->outputARR;
+#else
     bbPort->timhw->tim->ARR = bbPort->outputARR;
+#endif
 
     bbPort->direction = DSHOT_BITBANG_DIRECTION_OUTPUT;
 
@@ -176,9 +253,44 @@ void bbSwitchToInput(bbPort_t *bbPort)
 
     // Set GPIO to input
 
+#if defined(CH32H4) || defined(CH32H41x)
+    WRITE_REG(bbPort->gpio->BSHR, bbPort->gpioIdleBSRR);
+    ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+        uint32_t expandedMaskLow = 0, inputLow = 0;
+        uint32_t expandedMaskHigh = 0, inputHigh = 0;
+
+        for (int i = 0; i < 16; i++) {
+            uint8_t mask2bit = (bbPort->gpioModeMask >> (i * 2)) & 0x3;
+
+            if (mask2bit != 0) {
+                uint32_t mapped4bit = 0xF;
+                if (i < 8) {
+                    expandedMaskLow |= (mapped4bit << (i * 4));
+                } else {
+                    expandedMaskHigh |= (mapped4bit << ((i - 8) * 4));
+                }
+            }
+
+            uint8_t out2bit = (bbPort->gpioModeOutput >> (i * 2)) & 0x3;
+            uint32_t mappedIn4bit = 0;
+            if (out2bit != 0) {
+                mappedIn4bit = 0x8;  // Floating input mode
+            }
+
+            if (i < 8) {
+                inputLow |= (mappedIn4bit << (i * 4));
+            } else {
+                inputHigh |= (mappedIn4bit << ((i - 8) * 4));
+            }
+        }
+        MODIFY_REG(bbPort->gpio->CFGLR, expandedMaskLow, inputLow);
+        MODIFY_REG(bbPort->gpio->CFGHR, expandedMaskHigh, inputHigh);
+    }
+#else
     ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
         MODIFY_REG(bbPort->gpio->MODER, bbPort->gpioModeMask, bbPort->gpioModeInput);
     }
+#endif
 
     // Reinitialize port group DMA for input
 
@@ -194,8 +306,13 @@ void bbSwitchToInput(bbPort_t *bbPort)
 
     // Reinitialize pacer timer for input
 
+#if defined(CH32H4) || defined(CH32H41x)
+    ((TIM_TypeDef *)bbPort->timhw->tim)->CNT = 0;
+    ((TIM_TypeDef *)bbPort->timhw->tim)->ATRLR = bbPort->inputARR;
+#else
     bbPort->timhw->tim->CNT = 0;
     bbPort->timhw->tim->ARR = bbPort->inputARR;
+#endif
 
     bbDMA_Cmd(bbPort, ENABLE);
 
@@ -211,6 +328,43 @@ void bbDMAPreconfigure(bbPort_t *bbPort, uint8_t direction)
 
     DMA_StructInit(dmainit);
 
+#if defined(CH32H4) || defined(CH32H41x)
+    // CH32H41x DMA uses simpler channel-based DMA (no streams/FIFOs)
+    dmainit->DMA_Mode = DMA_Mode_Normal;
+    dmainit->DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+    dmainit->DMA_MemoryInc = DMA_MemoryInc_Enable;
+
+    if (direction == DSHOT_BITBANG_DIRECTION_OUTPUT) {
+        dmainit->DMA_Priority = DMA_Priority_VeryHigh;
+        dmainit->DMA_DIR = DMA_DIR_PeripheralDST;
+        dmainit->DMA_BufferSize = bbPort->portOutputCount;
+        dmainit->DMA_PeripheralBaseAddr = (uint32_t)&bbPort->gpio->BSHR;
+        dmainit->DMA_PeripheralDataSize = DMA_PeripheralDataSize_Word;
+        dmainit->DMA_Memory0BaseAddr = (uint32_t)bbPort->portOutputBuffer;
+        dmainit->DMA_MemoryDataSize = DMA_MemoryDataSize_Word;
+        dmainit->DMA_M2M = DMA_M2M_Disable;
+
+#ifdef USE_DMA_REGISTER_CACHE
+        xDMA_Init(bbPort->dmaResource, dmainit);
+        bbSaveDMARegs(bbPort->dmaResource, &bbPort->dmaRegOutput);
+#endif
+    } else {
+        dmainit->DMA_Priority = DMA_Priority_VeryHigh;
+        dmainit->DMA_DIR = DMA_DIR_PeripheralSRC;
+        dmainit->DMA_BufferSize = bbPort->portInputCount;
+        dmainit->DMA_PeripheralBaseAddr = (uint32_t)&bbPort->gpio->INDR;
+        dmainit->DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+        dmainit->DMA_Memory0BaseAddr = (uint32_t)bbPort->portInputBuffer;
+        dmainit->DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+        dmainit->DMA_M2M = DMA_M2M_Disable;
+
+#ifdef USE_DMA_REGISTER_CACHE
+        xDMA_Init(bbPort->dmaResource, dmainit);
+        bbSaveDMARegs(bbPort->dmaResource, &bbPort->dmaRegInput);
+#endif
+    }
+#else
+    // STM32F4 DMA with streams and FIFOs
     dmainit->DMA_Mode = DMA_Mode_Normal;
     dmainit->DMA_Channel = bbPort->dmaChannel;
     dmainit->DMA_PeripheralInc = DMA_PeripheralInc_Disable;
@@ -249,6 +403,7 @@ void bbDMAPreconfigure(bbPort_t *bbPort, uint8_t direction)
         bbSaveDMARegs(bbPort->dmaResource, &bbPort->dmaRegInput);
 #endif
     }
+#endif // CH32H4 || CH32H41x
 }
 
 void bbTIM_TimeBaseInit(bbPort_t *bbPort, uint16_t period)
