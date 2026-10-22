@@ -30,7 +30,7 @@ the APIs or flight performance.
 - FBUS/S.Port current sensor accumulates consumed capacity (#513)
 - Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
-- `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs
+- `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
 
 ## Flight Performance
 
