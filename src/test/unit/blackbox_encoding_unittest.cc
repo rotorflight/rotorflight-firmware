@@ -245,6 +245,7 @@ extern "C" {
 PG_REGISTER(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 0);
 int32_t blackboxHeaderBudget;
 void mspSerialAllocatePorts(void) {}
+serialPort_t *openSerialPort(serialPortIdentifier_e, serialPortFunction_e, serialReceiveCallbackPtr, void *, uint32_t, portMode_e, portOptions_e) { return nullptr; }
 void blackboxWrite(uint8_t value) {serialWrite(blackboxPort, value);}
 int blackboxWriteString(const char *s)
 {

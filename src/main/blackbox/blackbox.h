@@ -45,6 +45,9 @@ bool isBlackboxErased(void);
 bool blackboxIsLogging(void);
 
 void blackboxSetStartDateTime(const char *dateTime, timeMs_t timeNowMs);
+uint32_t blackboxGetPInterval(void);
+uint32_t blackboxGetIteration(void);
+bool blackboxIsLogRunning(void);
 void blackboxValidateConfig(void);
 bool blackboxMayEditConfig(void);
 

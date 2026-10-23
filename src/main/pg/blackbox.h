@@ -37,6 +37,12 @@ typedef enum {
     BLACKBOX_MODE_SWITCH,
 } BlackboxMode_e;
 
+typedef enum {
+    BLACKBOX_PARAMS_OFF = 0,
+    BLACKBOX_PARAMS_CHANGES,
+    BLACKBOX_PARAMS_FULL,
+} BlackboxParams_e;
+
 
 typedef struct blackboxConfig_s {
     uint8_t     device;
@@ -46,6 +52,7 @@ typedef struct blackboxConfig_s {
     uint16_t    initialEraseFreeSpaceKiB;
     uint8_t     rollingErase;
     uint8_t     gracePeriod;
+    uint8_t     params;         // Parameter journal mode; PG version 3 resets older Blackbox settings
 } blackboxConfig_t;
 
 PG_DECLARE(blackboxConfig_t, blackboxConfig);

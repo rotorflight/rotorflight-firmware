@@ -36,6 +36,8 @@
 
 #ifdef USE_CMS
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/build_config.h"
 #include "build/debug.h"
 #include "build/version.h"
@@ -638,7 +640,10 @@ STATIC_UNIT_TESTED const void *cmsMenuBack(displayPort_t *pDisplay)
 {
     // Let onExit function decide whether to allow exit or not.
     if (currentCtx.menu->onExit) {
+        // The onExit functions write the configuration
+        blackboxParamsOpBegin(BBP_SRC_CMS, BBP_ARG_NONE);
         const void *result = currentCtx.menu->onExit(pDisplay, pageTop + currentCtx.cursorRow);
+        blackboxParamsOpEnd();
         if (result == MENU_CHAIN_BACK) {
             return result;
         }
@@ -964,6 +969,8 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
     case CMS_EXIT_SAVEREBOOT:
     case CMS_POPUP_SAVE:
     case CMS_POPUP_SAVEREBOOT:
+        // The onExit functions write the configuration: also from the CRSF and HoTT display ports
+        blackboxParamsOpBegin(BBP_SRC_CMS, BBP_ARG_NONE);
 
         cmsTraverseGlobalExit(&cmsx_menuMain);
 
@@ -981,6 +988,8 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
         }
 
         saveConfigAndNotify();
+
+        blackboxParamsOpEnd();
         break;
 
     case CMS_EXIT:
@@ -1018,7 +1027,7 @@ const void *cmsMenuExit(displayPort_t *pDisplay, const void *ptr)
 #define BUTTON_TIME   250 // msec
 #define BUTTON_PAUSE  500 // msec
 
-STATIC_UNIT_TESTED uint16_t cmsHandleKey(displayPort_t *pDisplay, cms_key_e key)
+static uint16_t cmsHandleKeyInner(displayPort_t *pDisplay, cms_key_e key)
 {
     uint16_t res = BUTTON_TIME;
     const OSD_Entry *p;
@@ -1337,6 +1346,16 @@ STATIC_UNIT_TESTED uint16_t cmsHandleKey(displayPort_t *pDisplay, cms_key_e key)
             // Shouldn't happen
             break;
     }
+    return res;
+}
+
+// A CMS key is an operation of the parameter log: CMS menus write the configuration
+STATIC_UNIT_TESTED uint16_t cmsHandleKey(displayPort_t *pDisplay, cms_key_e key)
+{
+    blackboxParamsOpBegin(BBP_SRC_CMS, BBP_ARG_NONE);
+    const uint16_t res = cmsHandleKeyInner(pDisplay, key);
+    blackboxParamsOpEnd();
+
     return res;
 }
 

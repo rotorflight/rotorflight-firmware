@@ -88,6 +88,11 @@ static DMA_DATA_ZERO_INIT uint8_t flashWriteBuffer[FLASHFS_WRITE_BUFFER_SIZE];
 static uint16_t bufferHead = 0;
 static volatile uint16_t bufferTail = 0;
 
+#ifdef BLACKBOX_PARAMS_PROFILE
+// Bench-only count of bytes refused by the flash ring. Reset through the debugger between scenarios.
+volatile uint32_t bbpFlashfsDroppedBytes;
+#endif
+
 /* Track if there is new data to write. Until the contents of the buffer have been completely
  * written flashfsFlushAsync() will be repeatedly called. The tail pointer is only updated
  * once an asynchronous write has completed. To do so any earlier could result in data being
@@ -581,6 +586,9 @@ void flashfsWriteByte(uint8_t byte)
     }
     if (newHead == bufferTail) {
         // buffer full
+#ifdef BLACKBOX_PARAMS_PROFILE
+        bbpFlashfsDroppedBytes++;
+#endif
         return;
     }
 

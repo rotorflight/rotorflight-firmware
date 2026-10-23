@@ -659,10 +659,9 @@ int32_t blackboxGetLogNumber(void)
 }
 
 /**
- * Call once every loop iteration in order to maintain the global blackboxHeaderBudget with the number of bytes we can
- * transmit this iteration.
+ * The number of bytes that the device buffer can take now without a loss
  */
-void blackboxReplenishHeaderBudget(void)
+int32_t blackboxDeviceFreeSpace(void)
 {
     int32_t freeSpace;
 
@@ -683,6 +682,23 @@ void blackboxReplenishHeaderBudget(void)
     default:
         freeSpace = 0;
     }
+    return freeSpace;
+}
+
+// The header goes slower than BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION: a serial logger below 1 Mbaud (6000 B/s)
+bool blackboxHeaderRateLimited(void)
+{
+    return blackboxMaxHeaderBytesPerIteration < BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION;
+}
+
+/**
+ * Call once every loop iteration in order to maintain the global blackboxHeaderBudget with the number of bytes we can
+ * transmit this iteration.
+ */
+void blackboxReplenishHeaderBudget(void)
+{
+    const int32_t freeSpace = blackboxDeviceFreeSpace();
+
     blackboxHeaderBudget = MIN(MIN(freeSpace, blackboxHeaderBudget + blackboxMaxHeaderBytesPerIteration), BLACKBOX_MAX_ACCUMULATED_HEADER_BUDGET);
 }
 

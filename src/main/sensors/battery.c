@@ -23,6 +23,8 @@
 
 #include "build/debug.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "common/filter.h"
 #include "common/maths.h"
 #include "common/utils.h"
@@ -255,6 +257,7 @@ uint8_t calculateBatteryPercentageRemaining(void)
 
 static void applyBatteryProfile(void)
 {
+    blackboxParamsOpBegin(BBP_SRC_PROFILE, 0x200 | pendingBatteryProfile);
     batteryConfigMutable()->batteryProfile = pendingBatteryProfile;
     batteryProfileChanged = false;
 
@@ -265,6 +268,7 @@ static void applyBatteryProfile(void)
 #ifdef USE_SMARTFUEL
     smartFuelInit();
 #endif
+    blackboxParamsOpEnd();
 }
 
 void changeBatteryProfile(uint8_t profileIndex)

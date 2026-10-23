@@ -29,6 +29,7 @@ float getDeflection(int axis);
 
 void setpointInit(void);
 void setpointInitProfile(void);
+uint32_t setpointParamFingerprint(void);
 
 void setpointUpdateTiming(float frameTimeUs);
 

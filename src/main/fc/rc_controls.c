@@ -27,6 +27,7 @@
 #include "platform.h"
 
 #include "blackbox/blackbox.h"
+#include "blackbox/blackbox_params.h"
 
 #include "build/build_config.h"
 
@@ -373,4 +374,6 @@ void rcControlsInit(void)
     analyzeModeActivationConditions();
     isUsingStickArming = !isModeActivationConditionPresent(BOXARM) && armingConfig()->enable_stick_arming;
     isUsingStickCommands = armingConfig()->enable_stick_commands;
+
+    blackboxParamsApplied(BBP_LOADER_RC_CONTROLS, -1);
 }

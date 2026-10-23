@@ -42,6 +42,19 @@ typedef enum {
 #endif
 } flightLogDisarmReason_e;
 
+// Subtasks of the PID loop (taskMainPidLoop)
+typedef enum {
+    CORE_ST_POSITION = 0,
+    CORE_ST_SETPOINT,
+    CORE_ST_PID,
+    CORE_ST_MIXER,
+    CORE_ST_MOTORS,
+    CORE_ST_FILTER_UPDATE,
+    CORE_ST_BLACKBOX,
+    CORE_ST_BLACKBOX_FLUSH,
+    CORE_ST_COUNT
+} coreSubtask_e;
+
 void resetArmingDisabled(void);
 
 void disarm(flightLogDisarmReason_e reason);
@@ -62,4 +75,7 @@ bool isTryingToArm(void);
 void resetTryingToArm(void);
 
 void subTaskTelemetryPollSensors(timeUs_t currentTimeUs);
+
+uint8_t coreSubtaskTick(coreSubtask_e subtask);
+uint8_t getPidUpdateCounter(void);
 

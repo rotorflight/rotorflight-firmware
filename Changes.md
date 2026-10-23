@@ -7,6 +7,14 @@ the APIs or flight performance.
 
 ## Features
 
+- Blackbox parameter journal: `blackbox_params = OFF | CHANGES | FULL` (default `FULL`).
+  Each FULL log snapshots all stored PID and rate profiles; custom-string events record
+  changes and controller reloads, including radio Lua/MSP edits. Slow frames add profile,
+  arming and journal-sequence fields. Serial logging below 1 Mbaud falls back to CHANGES to limit header delay.
+  `PG_BLACKBOX_CONFIG` advances to version 3. The version mismatch resets the entire configuration
+  to defaults: back up the full configuration (`diff all`) before the update and restore it after.
+  MSP command layouts are unchanged.
+
 - Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
 - Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
 - Spektrum bind supports pin swap; initial bind glitch fixed (#496)

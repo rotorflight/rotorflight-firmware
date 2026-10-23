@@ -27,6 +27,8 @@
 
 #ifdef USE_ACC
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/debug.h"
 
 #include "common/axis.h"
@@ -413,6 +415,12 @@ void performAcclerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
 
     static int32_t a[3];
 
+    // The first cycle zeroes the trims, and the last one stores and saves them
+    const bool operation = isOnFirstAccelerationCalibrationCycle() || isOnFinalAccelerationCalibrationCycle();
+    if (operation) {
+        blackboxParamsOpBegin(BBP_SRC_ACC_CALIBRATION, BBP_ARG_NONE);
+    }
+
     for (int axis = 0; axis < 3; axis++) {
 
         // Reset a[axis] at start of calibration
@@ -440,6 +448,10 @@ void performAcclerationCalibration(rollAndPitchTrims_t *rollAndPitchTrims)
         saveConfigAndNotify();
     }
 
+    if (operation) {
+        blackboxParamsOpEnd();
+    }
+
     accelerationRuntime.calibratingA--;
 }
 
@@ -450,8 +462,10 @@ void setAccelerationTrims(flightDynamicsTrims_t *accelerationTrimsToUse)
 
 void applyAccelerometerTrimsDelta(rollAndPitchTrims_t *rollAndPitchTrimsDelta)
 {
+    blackboxParamsOpBegin(BBP_SRC_STICK_TRIM, BBP_ARG_NONE);
     accelerometerConfigMutable()->accelerometerTrims.values.roll += rollAndPitchTrimsDelta->values.roll;
     accelerometerConfigMutable()->accelerometerTrims.values.pitch += rollAndPitchTrimsDelta->values.pitch;
+    blackboxParamsOpEnd();
 }
 
 int get_ADJUSTMENT_ACC_TRIM_PITCH(void)

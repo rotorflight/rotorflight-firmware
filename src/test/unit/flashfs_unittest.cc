@@ -27,6 +27,7 @@ extern "C" {
 extern uint32_t flashfsSize;
 extern uint32_t headAddress;
 extern uint32_t tailAddress;
+extern volatile uint32_t bbpFlashfsDroppedBytes;
 void flashfsClearBuffer();
 }
 
@@ -75,6 +76,21 @@ class FlashFSTestBase : public ::testing::Test {
     uint32_t flashfs_size_;
     std::shared_ptr<FlashEmulator> flash_emulator_;
 };
+
+TEST_F(FlashFSTestBase, BenchCounterCountsRefusedBytes)
+{
+    bbpFlashfsDroppedBytes = 0;
+    for (unsigned i = 0; i < FLASHFS_WRITE_BUFFER_SIZE - 1; i++) flashfsWriteByte(0x55);
+    EXPECT_EQ(0u, bbpFlashfsDroppedBytes);
+    flashfsWriteByte(0x66);
+    EXPECT_EQ(1u, bbpFlashfsDroppedBytes);
+    const uint8_t bytes[] = {0x77, 0x88};
+    flashfsWrite(bytes, sizeof(bytes));
+    EXPECT_EQ(3u, bbpFlashfsDroppedBytes);
+    flashfsClearBuffer();
+    flashfsWriteByte(0x99);
+    EXPECT_EQ(3u, bbpFlashfsDroppedBytes);
+}
 
 TEST_F(FlashFSTestBase, flashfsInit)
 {

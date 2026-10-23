@@ -22,6 +22,8 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/build_config.h"
 #include "build/debug.h"
 
@@ -548,4 +550,6 @@ void INIT_CODE rescueInitProfile(const pidProfile_t *pidProfile)
     rescue.alt_Kp = pidProfile->rescue.alt_p_gain;
     rescue.alt_Ki = pidProfile->rescue.alt_i_gain * pidGetDT() / 10.0f;
     rescue.alt_Kd = pidProfile->rescue.alt_d_gain * -1.0f;
+
+    blackboxParamsApplied(BBP_LOADER_RESCUE, pidProfile - pidProfiles(0));
 }

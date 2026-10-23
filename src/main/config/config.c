@@ -26,6 +26,7 @@
 #include "platform.h"
 
 #include "blackbox/blackbox.h"
+#include "blackbox/blackbox_params.h"
 
 #include "build/debug.h"
 
@@ -172,6 +173,8 @@ static void activateConfig(void)
 #endif
 
     initActiveBoxIds();
+
+    blackboxParamsApplied(BBP_LOADER_ACTIVATE, -1);
 }
 
 static void adjustFilterLimit(uint16_t *parm, uint16_t maxValue, uint16_t resetValue)
@@ -750,6 +753,8 @@ void validateAndFixGyroConfig(void)
 
 bool readEEPROM(void)
 {
+    blackboxParamsOpBegin(BBP_SRC_EEPROM_LOAD, BBP_ARG_NONE);
+
     suspendRxSignal();
 
     // Sanity check, read flash
@@ -763,19 +768,29 @@ bool readEEPROM(void)
 
     resumeRxSignal();
 
+    blackboxParamsOpEnd();
+    blackboxParamsMarker(BBP_MARKER_EELOAD, 0, 0);
+
     return success;
 }
 
 void writeUnmodifiedConfigToEEPROM(void)
 {
+    blackboxParamsOpBegin(BBP_SRC_EEPROM_SAVE, BBP_ARG_NONE);
+
     validateAndFixConfig();
 
     suspendRxSignal();
     eepromWriteInProgress = true;
+    const timeUs_t writeStart = micros();
     writeConfigToEEPROM();
+    const timeUs_t writeTime = micros() - writeStart;
     eepromWriteInProgress = false;
     resumeRxSignal();
     configIsDirty = false;
+
+    blackboxParamsOpEnd();
+    blackboxParamsMarker(BBP_MARKER_EESAVE, writeTime, 0);
 }
 
 void writeEEPROM(void)
@@ -783,9 +798,13 @@ void writeEEPROM(void)
 #ifdef USE_RX_SPI
     rxSpiStop(); // some rx spi protocols use hardware timer, which needs to be stopped before writing to eeprom
 #endif
+    blackboxParamsOpBegin(BBP_SRC_EEPROM_SAVE, BBP_ARG_NONE);
+
     systemConfigMutable()->configurationState = CONFIGURATION_STATE_CONFIGURED;
 
     writeUnmodifiedConfigToEEPROM();
+
+    blackboxParamsOpEnd();
 }
 
 void dispatchConfigWrite(struct dispatchEntry_s* self)
@@ -851,11 +870,15 @@ void changePidProfile(uint8_t pidProfileIndex)
     // The config switch will cause a big enough delay in the current task to upset the scheduler
     schedulerIgnoreTaskExecTime();
 
+    blackboxParamsOpBegin(BBP_SRC_PROFILE, pidProfileIndex);
+
     if (pidProfileIndex < PID_PROFILE_COUNT) {
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
         pidChangeProfile(currentPidProfile);
     }
+
+    blackboxParamsOpEnd();
 
     beeperConfirmationBeeps(pidProfileIndex + 1);
 }

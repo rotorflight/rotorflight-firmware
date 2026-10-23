@@ -30,6 +30,7 @@
 
 #include "blackbox/blackbox.h"
 #include "blackbox/blackbox_io.h"
+#include "blackbox/blackbox_params.h"
 
 #include "build/build_config.h"
 #include "build/debug.h"
@@ -40,6 +41,7 @@
 #include "common/axis.h"
 #include "common/bitarray.h"
 #include "common/color.h"
+#include "common/crc.h"
 #include "common/huffman.h"
 #include "common/maths.h"
 #include "common/printf.h"
@@ -3492,6 +3494,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
             if (!escCommitParameters())
                 return MSP_RESULT_ERROR;
+
+            // The ESC parameters are not in the configuration: their length and hash only
+            if (blackboxParamsActive()) {
+                blackboxParamsMarker(BBP_MARKER_ESCPARAM, len, fnv_update(FNV_OFFSET_BASIS, escGetParamUpdBuffer(), len));
+            }
         }
         break;
     
@@ -4567,18 +4574,27 @@ mspResult_e mspFcProcessCommand(mspDescriptor_t srcDesc, mspPacket_t *cmd, mspPa
         ret = MSP_RESULT_ACK;
     } else if (mspProcessOutCommand(cmdMSP, dst)) {
         ret = MSP_RESULT_ACK;
-    } else if ((ret = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, src, dst, mspPostProcessFn)) != MSP_RESULT_CMD_UNKNOWN) {
-        /* ret */;
-    } else if (cmdMSP == MSP_SET_PASSTHROUGH) {
-        mspFcSetPassthroughCommand(dst, src, mspPostProcessFn);
-        ret = MSP_RESULT_ACK;
-#ifdef USE_FLASHFS
-    } else if (cmdMSP == MSP_DATAFLASH_READ) {
-        mspFcDataFlashReadCommand(dst, src);
-        ret = MSP_RESULT_ACK;
-#endif
     } else {
-        ret = mspCommonProcessInCommand(srcDesc, cmdMSP, src, mspPostProcessFn);
+        // The commands that can write the configuration: an operation of the parameter log, whatever the result
+        const bool paramsOperation = blackboxParamsMspBegin(cmdMSP);
+
+        if ((ret = mspFcProcessOutCommandWithArg(srcDesc, cmdMSP, src, dst, mspPostProcessFn)) != MSP_RESULT_CMD_UNKNOWN) {
+            /* ret */;
+        } else if (cmdMSP == MSP_SET_PASSTHROUGH) {
+            mspFcSetPassthroughCommand(dst, src, mspPostProcessFn);
+            ret = MSP_RESULT_ACK;
+#ifdef USE_FLASHFS
+        } else if (cmdMSP == MSP_DATAFLASH_READ) {
+            mspFcDataFlashReadCommand(dst, src);
+            ret = MSP_RESULT_ACK;
+#endif
+        } else {
+            ret = mspCommonProcessInCommand(srcDesc, cmdMSP, src, mspPostProcessFn);
+        }
+
+        if (paramsOperation) {
+            blackboxParamsOpEnd();
+        }
     }
     reply->result = ret;
     return ret;

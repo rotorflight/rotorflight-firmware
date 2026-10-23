@@ -142,6 +142,9 @@ int16_t magHold;
 
 static FAST_DATA_ZERO_INIT uint16_t pidUpdateCounter;
 
+// The tick (pidUpdateCounter) in which each subtask ran last, for the parameter log
+static FAST_DATA_ZERO_INIT uint8_t subtaskTick[CORE_ST_COUNT];
+
 static timeUs_t disarmAt;     // Time of automatic disarm when "Don't spin the motors when armed" is enabled and auto_disarm_delay is nonzero
 
 static int lastArmingDisabledReason = 0;
@@ -759,6 +762,8 @@ static void subTaskPosition(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
+    subtaskTick[CORE_ST_POSITION] = pidUpdateCounter;
+
     positionUpdate();
 }
 
@@ -766,12 +771,16 @@ static void subTaskSetpoint(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
 
+    subtaskTick[CORE_ST_SETPOINT] = pidUpdateCounter;
+
     setpointUpdate();
     rescueUpdate();
 }
 
 static void subTaskPidController(timeUs_t currentTimeUs)
 {
+    subtaskTick[CORE_ST_PID] = pidUpdateCounter;
+
     if (debugMode == DEBUG_CYCLETIME) {
         static uint32_t previousUpdateTime;
         uint32_t startTime = micros();
@@ -792,12 +801,16 @@ static void subTaskPidController(timeUs_t currentTimeUs)
 
 static void subTaskMixerUpdate(timeUs_t currentTimeUs)
 {
+    subtaskTick[CORE_ST_MIXER] = pidUpdateCounter;
+
     mixerUpdate(currentTimeUs);
 }
 
 static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 {
     UNUSED(currentTimeUs);
+
+    subtaskTick[CORE_ST_MOTORS] = pidUpdateCounter;
 
     if (currentTimeUs > MOTORS_GRACE_TIME_US) {
 #ifdef USE_SERVOS
@@ -811,6 +824,8 @@ static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 
 static void subTaskFilterUpdate(timeUs_t currentTimeUs)
 {
+    subtaskTick[CORE_ST_FILTER_UPDATE] = pidUpdateCounter;
+
 #ifdef USE_FREQ_SENSOR
     freqUpdate();
 #endif
@@ -831,6 +846,8 @@ static void subTaskFilterUpdate(timeUs_t currentTimeUs)
 
 static void subTaskBlackboxUpdate(timeUs_t currentTimeUs)
 {
+    subtaskTick[CORE_ST_BLACKBOX] = pidUpdateCounter;
+
 #ifdef USE_BLACKBOX
     if (!cliMode && blackboxConfig()->device) {
         blackboxUpdate(currentTimeUs);
@@ -842,6 +859,8 @@ static void subTaskBlackboxUpdate(timeUs_t currentTimeUs)
 
 static void subTaskBlackboxFlush(timeUs_t currentTimeUs)
 {
+    subtaskTick[CORE_ST_BLACKBOX_FLUSH] = pidUpdateCounter;
+
 #ifdef USE_BLACKBOX
     if (blackboxConfig()->device) {
         blackboxFlush(currentTimeUs);
@@ -1059,6 +1078,17 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
     DEBUG_TIME_END(PIDLOOP, pidUpdateCounter & 7);
 
     pidUpdateCounter = (pidUpdateCounter + 1) % activePidLoopDenom;
+}
+
+uint8_t coreSubtaskTick(coreSubtask_e subtask)
+{
+    return subtaskTick[subtask];
+}
+
+// The ticks of this PID cycle that have run, between two ticks
+uint8_t getPidUpdateCounter(void)
+{
+    return pidUpdateCounter;
 }
 
 timeUs_t getLastDisarmTimeUs(void)

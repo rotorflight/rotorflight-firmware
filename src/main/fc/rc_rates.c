@@ -22,6 +22,8 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "common/axis.h"
 #include "common/utils.h"
 #include "common/maths.h"
@@ -434,11 +436,15 @@ INIT_CODE void loadControlRateProfile(void)
 
 INIT_CODE void changeControlRateProfile(uint8_t controlRateProfileIndex)
 {
+    blackboxParamsOpBegin(BBP_SRC_PROFILE, 0x100 | controlRateProfileIndex);
+
     if (controlRateProfileIndex < CONTROL_RATE_PROFILE_COUNT) {
         systemConfigMutable()->activeRateProfile = controlRateProfileIndex;
     }
 
     loadControlRateProfile();
+
+    blackboxParamsOpEnd();
 }
 
 INIT_CODE void copyControlRateProfile(uint8_t dstControlRateProfileIndex, uint8_t srcControlRateProfileIndex)

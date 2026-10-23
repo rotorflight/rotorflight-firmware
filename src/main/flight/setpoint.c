@@ -21,9 +21,12 @@
 
 #include "platform.h"
 
+#include "blackbox/blackbox_params.h"
+
 #include "build/debug.h"
 
 #include "common/axis.h"
+#include "common/crc.h"
 #include "common/maths.h"
 
 #include "config/config.h"
@@ -243,6 +246,21 @@ INIT_CODE void setpointInitProfile(void)
         sp.ringLimit[FD_ROLL]  = 2000;
         sp.ringLimit[FD_PITCH] = 2000;
     }
+
+    blackboxParamsApplied(BBP_LOADER_SETPOINT, currentControlRateProfile - controlRateProfiles(0));
+}
+
+// FNV-1 of the runtime parameters that setpointInitProfile() writes. No filter and no loop state.
+uint32_t setpointParamFingerprint(void)
+{
+    const float gains[] = { sp.yawDynamicCeilingGain, sp.yawDynamicDeadbandGain };
+
+    uint32_t hash = fnv_update_words(FNV_OFFSET_BASIS, sp.responseFactor, ARRAYLEN(sp.responseFactor));
+    hash = fnv_update_words(hash, sp.responseAccel, ARRAYLEN(sp.responseAccel));
+    hash = fnv_update_words(hash, sp.boostGain, ARRAYLEN(sp.boostGain));
+    hash = fnv_update_words(hash, sp.ringLimit, ARRAYLEN(sp.ringLimit));
+    hash = fnv_update_words(hash, gains, ARRAYLEN(gains));
+    return fnv_update_u32(hash, sp.polarCoord);
 }
 
 INIT_CODE void setpointInit(void)

@@ -53,6 +53,8 @@ bool getGovernerEnabled(void);
 void setGovernorEnabled(bool enabled);
 
 int getGovernorState(void);
+int getGovernorMode(void);
+uint32_t governorParamFingerprint(void);
 
 float getGovernorOutput(void);
 

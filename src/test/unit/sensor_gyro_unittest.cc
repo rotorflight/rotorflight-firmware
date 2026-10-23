@@ -24,6 +24,7 @@
 extern "C" {
     #include "platform.h"
 
+    #include "blackbox/blackbox_params.h"
     #include "build/build_config.h"
     #include "build/debug.h"
     #include "common/axis.h"
@@ -170,4 +171,5 @@ void schedulerResetTaskStatistics(taskId_e) {}
 int getArmingDisableFlags(void) {return 0;}
 void writeEEPROM(void) {}
 float getFullHeadSpeedRatio(void) {return 1.0f;}
+void blackboxParamsApplied(bbpLoader_e, int) {}
 }
