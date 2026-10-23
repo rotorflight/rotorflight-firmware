@@ -7,6 +7,7 @@ the APIs or flight performance.
 
 ## Features
 
+- FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
 - Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
 - Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
 - Spektrum bind supports pin swap; initial bind glitch fixed (#496)
