@@ -380,6 +380,33 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             osd/osd_warnings.c \
             rx/rx_bind.c
 
+# Code run only from slow tasks (MSP, telemetry, GPS, LED strip, sensor decoders).
+# Not telemetry/sbus2.c (8 kHz slot timer) or drivers/crsf_sensors.c (UART receive
+# callback, interrupt context).
+SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
+            io/gps.c \
+            io/ledstrip.c \
+            msp/msp.c \
+            msp/msp_box.c \
+            sensors/esc_sensor.c \
+            telemetry/crsf.c \
+            telemetry/frsky_hub.c \
+            telemetry/ghst.c \
+            telemetry/hott.c \
+            telemetry/ibus.c \
+            telemetry/ibus_shared.c \
+            telemetry/jetiexbus.c \
+            telemetry/ltm.c \
+            telemetry/mavlink.c \
+            telemetry/msp_shared.c \
+            telemetry/sbus2_sensors.c \
+            telemetry/sensors.c \
+            telemetry/smartport.c \
+            telemetry/sport_master.c \
+            telemetry/srxl.c \
+            telemetry/status.c \
+            telemetry/telemetry.c
+
 # Gyro driver files that only contain initialization and configuration code - not runtime code
 SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_mpu6050.c \

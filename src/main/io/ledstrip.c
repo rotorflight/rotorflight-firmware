@@ -978,7 +978,7 @@ static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
         if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_FLICKER))
             continue;
 
-        if (rand() % 5 == 0) {
+        if (randomU32() % 5 == 0) {
             hsvColor_t color;
             getLedHsv(i, &color);
             color.v = randomInt(1, 256);
