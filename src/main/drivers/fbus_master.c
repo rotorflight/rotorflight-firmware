@@ -87,6 +87,12 @@ static timeUs_t sensorDiscoveryEndTimeUs = 0;
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
 
+uint16_t fbusMasterFrameRateHz(void)
+{
+    const uint16_t rate = fbusMasterConfig()->frameRate;
+    return fbusMasterConfig()->baudFast ? rate : MIN(rate, FBUS_MASTER_FRAME_RATE_MAX_SLOW_HZ);
+}
+
 static uint16_t fbusMasterTelemetryRateHz(void)
 {
     return constrain(fbusMasterConfig()->telemetryRate, FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ);
@@ -358,7 +364,7 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
         return;
     }
 
-    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterConfig()->frameRate, FBUS_MASTER_CHANNELS);
+    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterFrameRateHz(), FBUS_MASTER_CHANNELS);
 
     // Start sending.
     fbusMasterFrame_t frame;
@@ -401,7 +407,8 @@ void fbusMasterInit(void)
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
-        portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL, 460800, MODE_RXTX,
+        portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL,
+        fbusMasterConfig()->baudFast ? FBUS_MASTER_BAUD_FAST : FBUS_MASTER_BAUD_SLOW, MODE_RXTX,
         SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
             (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |
