@@ -29,8 +29,12 @@
 
 #include "config/feature.h"
 
+#include "drivers/motor.h"
+
 #include "fc/core.h"
 #include "fc/runtime_config.h"
+
+#include "pg/motor.h"
 
 #include "scheduler/scheduler.h"
 #include "sensors/esc_sensor.h"
@@ -167,6 +171,18 @@ INIT_CODE void validateAndFixRPMFilterConfig(void)
     }
     else {
         PG_RESET(rpmFilterConfig);
+    }
+
+    // The RPM Filter needs a real-time RPM source (a frequency sensor or
+    // bidirectional DSHOT telemetry) -- ESC telemetry is too slow to use.
+    // Without one, every notch bank permanently fails the source check in
+    // rpmFilterInit(), leaving the aircraft unable to arm until the config
+    // is fixed and the FC rebooted. Force the feature off instead.
+    const bool hasFastRpmSource = featureIsEnabled(FEATURE_FREQ_SENSOR) ||
+        (checkMotorProtocolDshot(&motorConfig()->dev) && motorConfig()->dev.useDshotTelemetry);
+
+    if (featureIsEnabled(FEATURE_RPM_FILTER) && !hasFastRpmSource) {
+        featureDisableImmediate(FEATURE_RPM_FILTER);
     }
 }
 
@@ -339,6 +355,11 @@ void rpmFilterUpdate(void)
                 updateAxisNumber = (updateAxisNumber + 1) % RPM_FILTER_AXIS_COUNT;
         }
     }
+}
+
+bool isRpmFilterActive(void)
+{
+    return totalBankCount > 0;
 }
 
 #endif
