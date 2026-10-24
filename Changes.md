@@ -8,6 +8,7 @@ the APIs or flight performance.
 ## Features
 
 - FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
+- FBUS/S.Port sensor readings over MSP: new read-only `MSP2_GET_FBUS_SENSORS_STATUS` (0x5F15) returns the latest decoded GPS, current (FAS), cells (FLVSS), ESC/RPM sensor and XACT servo values; each block starts with a flags byte, 0 meaning nothing fresh in the last second
 - F.Bus master speed selectable in the CLI: `fbus_master_baud_fast` (default `ON`, 460800); `OFF` runs at 115200 with the frame rate capped at 150 Hz (`PG_DRIVER_FBUS_MASTER_CONFIG` version bumped)
 - Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
 - Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
