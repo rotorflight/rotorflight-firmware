@@ -2307,6 +2307,18 @@ static void cliServo(const char *cmdName, char *cmdline)
         servo->rate = vals[RATE];
         servo->speed = vals[SPEED];
         servo->flags = vals[FLAGS];
+
+        // min/max are kept as given, but at this center the output can't
+        // use all of them: say how much it can.
+        if (servoTravelMax(index) < servo->max) {
+            cliPrintLinef("###WARNING: servo %d max %d limited to %d by center %d (output max %d us)###",
+                index + 1, servo->max, servoTravelMax(index), servo->mid, servo->mid + servoTravelMax(index));
+        }
+        if (servoTravelMin(index) > servo->min) {
+            cliPrintLinef("###WARNING: servo %d min %d limited to %d by center %d (output min %d us)###",
+                index + 1, servo->min, servoTravelMin(index), servo->mid, servo->mid + servoTravelMin(index));
+        }
+
         cliPrintLinef(format,
             index + 1,
             servo->mid,
