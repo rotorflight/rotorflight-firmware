@@ -1432,6 +1432,104 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         break;
     }
 
+    case MSP2_GET_FBUS_SENSORS_STATUS: {
+        // Latest decoded value from each sensor type the driver understands.
+        // Each block starts with a flags byte: 0 means no fresh data (nothing
+        // within the last second), and its fields are then sent as zero.
+        // Same layout as Wingflight's MSP2_WING_FBUS_SENSORS_STATUS; the GPS
+        // satellite count and second ESC temperature, which this driver does
+        // not decode, are sent as zero.
+        sbufWriteU8(dst, 1); // payload version
+
+        fbusGpsData_t gps;
+        fbusSensorGetGpsData(&gps);
+        uint8_t gpsFlags = 0;
+        if (fbusSensorHasGpsData()) {
+            gpsFlags = (gps.hasPosition ? BIT(0) : 0) |
+                       (gps.hasAltitude ? BIT(1) : 0) |
+                       (gps.hasSpeed    ? BIT(2) : 0) |
+                       (gps.hasCourse   ? BIT(3) : 0) |
+                       (gps.hasTime     ? BIT(5) : 0) |
+                       (gps.hasDate     ? BIT(6) : 0);
+        }
+        if (!gpsFlags) {
+            memset(&gps, 0, sizeof(gps));
+        }
+        sbufWriteU8(dst, gpsFlags);
+        sbufWriteS32(dst, gps.latitude);
+        sbufWriteS32(dst, gps.longitude);
+        sbufWriteS32(dst, gps.altitudeCm);
+        sbufWriteU32(dst, gps.speedMilliKnots);
+        sbufWriteU16(dst, gps.courseDeg);
+        sbufWriteU8(dst, 0); // satellites, not decoded
+        sbufWriteU8(dst, gps.time.hours);
+        sbufWriteU8(dst, gps.time.minutes);
+        sbufWriteU8(dst, gps.time.seconds);
+        sbufWriteU8(dst, gps.date.day);
+        sbufWriteU8(dst, gps.date.month);
+        sbufWriteU16(dst, gps.date.year);
+
+        fbusCurrentData_t current;
+        fbusSensorGetCurrentData(&current);
+        uint8_t currentFlags = 0;
+        if (fbusSensorHasCurrentData()) {
+            currentFlags = (current.hasCurrent              ? BIT(0) : 0) |
+                           (current.hasVoltage              ? BIT(1) : 0) |
+                           (current.hasHighPrecisionCurrent ? BIT(2) : 0);
+        }
+        if (!currentFlags) {
+            memset(&current, 0, sizeof(current));
+        }
+        sbufWriteU8(dst, currentFlags);
+        sbufWriteU32(dst, current.currentDeciAmps);
+        sbufWriteU32(dst, current.voltageCentiVolts);
+        sbufWriteU16(dst, current.currentMilliAmps);
+
+        fbusFlvssData_t flvss;
+        fbusSensorGetFlvssData(&flvss);
+        const bool hasFlvss = fbusSensorHasFlvssData();
+        const uint8_t cellCount = hasFlvss ? MIN(flvss.cellCount, FBUS_FLVSS_MAX_CELLS) : 0;
+        sbufWriteU8(dst, hasFlvss ? BIT(0) : 0);
+        sbufWriteU8(dst, cellCount);
+        for (uint8_t i = 0; i < cellCount; i++) {
+            sbufWriteU16(dst, flvss.cellVoltageCentiVolts[i]);
+        }
+        sbufWriteU32(dst, hasFlvss ? flvss.voltageCentiVolts : 0);
+
+        // Shared by FrSky ESC sensors and the FrSky RPM sensor
+        fbusEscData_t esc;
+        fbusSensorGetEscData(&esc);
+        uint8_t escFlags = 0;
+        if (fbusSensorHasEscData()) {
+            escFlags = (esc.hasPower       ? BIT(0) : 0) |
+                       (esc.hasRpm         ? BIT(1) : 0) |
+                       (esc.hasConsumption ? BIT(2) : 0) |
+                       (esc.hasTemperature ? BIT(3) : 0);
+        }
+        if (!escFlags) {
+            memset(&esc, 0, sizeof(esc));
+        }
+        sbufWriteU8(dst, escFlags);
+        sbufWriteU16(dst, esc.voltageCentiVolts);
+        sbufWriteU16(dst, esc.currentCentiAmps);
+        sbufWriteU32(dst, esc.erpm);
+        sbufWriteU16(dst, esc.consumptionMah);
+        sbufWriteU8(dst, esc.temperatureDegC);
+        sbufWriteU8(dst, 0); // second temperature, not decoded
+
+        fbusServoData_t servo;
+        fbusSensorGetServoData(&servo);
+        const bool hasServo = fbusSensorHasServoData();
+        if (!hasServo) {
+            memset(&servo, 0, sizeof(servo));
+        }
+        sbufWriteU8(dst, hasServo ? BIT(0) : 0);
+        sbufWriteU16(dst, servo.currentDeciAmps);
+        sbufWriteU16(dst, servo.voltageDeciVolts);
+        sbufWriteU16(dst, servo.temperatureDegC);
+        break;
+    }
+
     case MSP2_GET_FBUS_MASTER_CONFIG: {
         sbufWriteU8(dst, 1); // payload version -- only the forwarding slots so far
         for (int i = 0; i < FBUS_MASTER_MAX_FORWARDED_SENSORS; i++) {

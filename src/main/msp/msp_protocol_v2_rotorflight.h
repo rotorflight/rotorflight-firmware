@@ -45,3 +45,8 @@
 // (unsaved) on success.
 #define MSP2_BOARD_AUTO_ALIGN               0x5F13
 
+// Latest decoded FBUS/S.Port sensor values (drivers/fbus_sensor.c), one block per
+// sensor type, for the configurator's sensors tab. 0x5F15, not 0x5F14: that one is
+// claimed by an open PR (#541).
+#define MSP2_GET_FBUS_SENSORS_STATUS        0x5F15
+
