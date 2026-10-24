@@ -58,8 +58,33 @@ uint16_t getServoOutput(uint8_t servo);
 
 int16_t getServoOverride(uint8_t servo);
 int16_t setServoOverride(uint8_t servo, int16_t val);
+void    setServoOverrideTimed(uint8_t servo, int16_t val, uint16_t timeoutMs);
 bool    hasServoOverride(uint8_t servo);
 bool    isServoOverrideActive(void);
+
+// The tail pin (SERVO 4) drives either the tail servo or a tail motor as
+// MOTOR 2. Read and set through MSP2_TAIL_MOTOR_OUTPUT.
+typedef enum {
+    TAIL_OUTPUT_SERVO = 0,      // the pin is SERVO 4, MOTOR 2 has none
+    TAIL_OUTPUT_MOTOR = 1,      // the pin is MOTOR 2, SERVO 4 has none
+    TAIL_OUTPUT_BOTH = 2,       // MOTOR 2 has a pin of its own
+    TAIL_OUTPUT_NONE = 3,       // neither has a pin
+} tailOutput_e;
+
+typedef enum {
+    TAIL_OUTPUT_OK = 0,
+    TAIL_OUTPUT_ERR_CUSTOM = 1,         // BOTH or NONE: left alone
+    TAIL_OUTPUT_ERR_NO_MAIN_MOTOR = 2,  // MOTOR 1 has no pin, so MOTOR 2 would be unused
+    TAIL_OUTPUT_ERR_NO_TIMER = 3,       // the pin has no timer to drive an output
+    TAIL_OUTPUT_ERR_TIMER_SHARED = 4,   // its timer also drives another servo (or motor)
+    TAIL_OUTPUT_ERR_INVALID = 5,
+    TAIL_OUTPUT_ERR_NO_DMA = 6,         // DShot without bitbang, and the pin has no DMA
+} tailOutputResult_e;
+
+#ifdef USE_MOTOR
+tailOutput_e getTailOutput(void);
+tailOutputResult_e setTailOutput(tailOutput_e output);
+#endif
 
 #ifdef USE_SERVO_GEOMETRY_CORRECTION
 float geometryCorrection(float pos);

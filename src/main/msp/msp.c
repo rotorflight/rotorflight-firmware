@@ -2398,6 +2398,28 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         break;
 #endif
 
+#if defined(USE_SERVOS) && defined(USE_MOTOR)
+    case MSP2_TAIL_MOTOR_OUTPUT:
+        {
+            tailOutputResult_e result = TAIL_OUTPUT_OK;
+
+            if (sbufBytesRemaining(src) >= 1) {
+                const uint8_t action = sbufReadU8(src);
+                if (action == 1) {
+                    result = setTailOutput(TAIL_OUTPUT_SERVO);
+                } else if (action == 2) {
+                    result = setTailOutput(TAIL_OUTPUT_MOTOR);
+                } else if (action != 0) {
+                    result = TAIL_OUTPUT_ERR_INVALID;
+                }
+            }
+
+            sbufWriteU8(dst, getTailOutput());
+            sbufWriteU8(dst, result);
+        }
+        break;
+#endif
+
 #ifdef USE_ACC
     case MSP2_BOARD_AUTO_ALIGN:
         if (sbufBytesRemaining(src) >= 1) {
@@ -3185,21 +3207,44 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_SERVO_OVERRIDE:
+        // payload: U8 idx + U16 value, optional U16 timeout ms (the
+        // override lapses unless re-sent). Any other length is refused, so
+        // a stray byte can't turn a timed override into a persistent one.
+        if (dataSize != 3 && dataSize != 5) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MAX_SUPPORTED_SERVOS) {
             return MSP_RESULT_ERROR;
         }
-        setServoOverride(i, sbufReadU16(src));
+        {
+            const int16_t value = sbufReadU16(src);
+            if (dataSize == 5) {
+                setServoOverrideTimed(i, value, sbufReadU16(src));
+            } else {
+                setServoOverride(i, value);
+            }
+        }
         break;
 
     case MSP_SET_SERVO_OVERRIDE_ALL: {
-        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable)
-        if (dataSize != 2) {
+        // payload: U16 value (e.g. 0 => enable/center-focus, 2001 => disable),
+        // optional U16 timeout ms
+        if (dataSize != 2 && dataSize != 4) {
             return MSP_RESULT_ERROR;
         }
         const uint16_t v = sbufReadU16(src);
+        // A supplied timeout is always timed, 0 included: the setter clamps
+        // it to OVERRIDE_TIMEOUT_MIN_MS. Only the 2-byte payload is
+        // persistent.
+        const bool timed = (dataSize == 4);
+        const uint16_t timeoutMs = timed ? sbufReadU16(src) : 0;
         for (int s = 0; s < MAX_SUPPORTED_SERVOS; s++) {
-            setServoOverride(s, v);
+            if (timed) {
+                setServoOverrideTimed(s, v, timeoutMs);
+            } else {
+                setServoOverride(s, v);
+            }
         }
         break;
     }
@@ -3866,11 +3911,23 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_OVERRIDE:
+        // payload: U8 idx + U16 value, optional U16 timeout ms (the
+        // override lapses unless re-sent). Any other length is refused.
+        if (dataSize != 3 && dataSize != 5) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MIXER_INPUT_COUNT) {
             return MSP_RESULT_ERROR;
         }
-        mixerSetOverride(i, sbufReadU16(src));
+        {
+            const int16_t value = sbufReadU16(src);
+            if (dataSize == 5) {
+                mixerSetOverrideTimed(i, value, sbufReadU16(src));
+            } else {
+                mixerSetOverride(i, value);
+            }
+        }
         break;
 
     case MSP_SET_RX_CONFIG:

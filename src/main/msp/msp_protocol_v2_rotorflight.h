@@ -45,3 +45,9 @@
 // (unsaved) on success.
 #define MSP2_BOARD_AUTO_ALIGN               0x5F13
 
+// action: 0 = read only, 1 = tail pin to SERVO 4, 2 = tail pin to MOTOR 2.
+// Replies with where the tail pin is (tailOutput_e) and the result of the
+// action (tailOutputResult_e). Changes the config unsaved; it takes effect
+// after a save and reboot.
+#define MSP2_TAIL_MOTOR_OUTPUT              0x5F14
+

@@ -88,6 +88,7 @@ bool checkMotorProtocolDshot(const motorDevConfig_t *motorDevConfig);
 
 bool isMotorProtocolDshot(void);
 bool isMotorProtocolEnabled(void);
+bool isMotorInitFailed(void);
 bool isMotorProtocolCastlePWM(void);
 bool isMotorProtocolSrxl2(void);
 
