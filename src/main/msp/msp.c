@@ -1444,7 +1444,10 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         fbusGpsData_t gps;
         fbusSensorGetGpsData(&gps);
         uint8_t gpsFlags = 0;
-        if (fbusSensorHasGpsData()) {
+        // Any fresh GPS field counts, not only position (which
+        // fbusSensorHasGpsData() requires for navigation), so fields sent
+        // before a position fix still show.
+        if (gps.lastUpdateUs > 0 && cmpTimeUs(micros(), gps.lastUpdateUs) < 1000000) {
             gpsFlags = (gps.hasPosition ? BIT(0) : 0) |
                        (gps.hasAltitude ? BIT(1) : 0) |
                        (gps.hasSpeed    ? BIT(2) : 0) |
