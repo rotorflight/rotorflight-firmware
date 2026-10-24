@@ -236,6 +236,14 @@ void servoShutdown(void)
 
 static inline void servoSetOutput(uint8_t index, float pos)
 {
+    // Last-resort guard right at the hardware boundary: lrintf() of a NaN/Inf
+    // is undefined behaviour, and the result would be written straight into
+    // a timer compare register. Everything upstream is already expected to
+    // hand this a finite, travel-limited value (see limitTravel()); this is
+    // the backstop in case it doesn't.
+    if (!isfinitef(pos))
+        pos = 0;
+
     servoOutput[index] = pos;
 
     if (servoChannel[index].ccr)
@@ -244,10 +252,17 @@ static inline void servoSetOutput(uint8_t index, float pos)
 
 static inline float limitTravel(uint8_t servo, float pos, float min, float max)
 {
+    // +-Inf are still correctly caught below even under -ffast-math (see
+    // constrainf() in common/maths.h). Only a NaN fails both comparisons
+    // and would otherwise fall through untouched -- isfinitef() catches
+    // that remaining case without changing how Inf is already handled.
     if (pos > max) {
         mixerSaturateServoOutput(servo);
         return max;
     } else if (pos < min) {
+        mixerSaturateServoOutput(servo);
+        return min;
+    } else if (!isfinitef(pos)) {
         mixerSaturateServoOutput(servo);
         return min;
     }
@@ -303,6 +318,15 @@ void servoUpdate(void)
         if (servo->flags & SERVO_FLAG_GEO_CORR)
             input[i] = geometryCorrection(input[i]);
 #endif
+
+        // Guard the boundary: a NaN here (a bad upstream sensor read, a
+        // misconfigured mixer, ...) would otherwise sit in servoInput[i] and
+        // poison every future limitSpeed()/limitRatio() call on this servo
+        // (and, via cyclic_ratio, every other cyclic servo) forever, since
+        // NaN - NaN is still NaN. isnan()/isfinite() cannot be trusted to
+        // catch it -- see isfinitef() in common/maths.h.
+        if (!isfinitef(input[i]))
+            input[i] = 0;
 
         if (servo->speed && mixerIsCyclicServo(i)) {
             const float limit = 1200 * pidGetDT() / servo->speed;

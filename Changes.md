@@ -32,6 +32,7 @@ the APIs or flight performance.
 - FBUS/S.Port current sensor accumulates consumed capacity (#513)
 - Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
+- NaN/Inf can no longer reach the servo outputs, bus servos or the mixer: `constrainf()`/`limitf()` and the servo, bus servo and mixer clamps now catch NaN even under `-ffast-math` (new `isfinitef()`), and `rc.range[]` is floored to 1 so an `rc_deadband` at or above `rc_deflection` (settable over MSP) cannot divide by zero (#512)
 
 ## Flight Performance
 

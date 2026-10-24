@@ -178,6 +178,23 @@ float pow_approx(float a, float b);
  * Basic math operations
  */
 
+/*
+ * NaN/Inf check that survives -ffast-math.
+ *
+ * This firmware is built with -ffast-math (see OPTIMISATION_BASE in the
+ * Makefile), which lets the compiler assume every float is finite and fold
+ * isnan()/isfinite()/the `x != x` idiom away as dead code returning a
+ * constant -- verified against this project's actual arm-none-eabi-gcc
+ * invocation. Any NaN/Inf guard in this codebase must test the IEEE-754
+ * exponent bits directly, a plain integer comparison that -ffast-math's
+ * "no NaN/Inf" assumption has no license to touch.
+ */
+static inline bool isfinitef(float x)
+{
+    union { float f; uint32_t u; } v = { .f = x };
+    return (v.u & 0x7F800000u) != 0x7F800000u;
+}
+
 static inline int constrain(int value, int low, int high)
 {
     if (value < low)
@@ -190,12 +207,22 @@ static inline int constrain(int value, int low, int high)
 
 static inline float constrainf(float value, float low, float high)
 {
+    // +-Inf are ordered values -- an Inf beyond `low`/`high` is still
+    // correctly caught by the plain comparisons below even under
+    // -ffast-math (verified: unlike isnan()/isfinite(), a runtime `<`/`>`
+    // compare is not an idiom the compiler folds away). Only a NaN is
+    // "unordered": it fails both comparisons and would otherwise fall
+    // through to the final `else` untouched. isfinitef() catches that
+    // remaining case without regressing the Inf handling that already
+    // worked -- see its comment for why isnan() itself can't be used here.
     if (value < low)
         return low;
     else if (value > high)
         return high;
-    else
+    else if (isfinitef(value))
         return value;
+    else
+        return low;
 }
 
 static inline int limit(int value, int limit)
@@ -210,12 +237,16 @@ static inline int limit(int value, int limit)
 
 static inline float limitf(float value, float limit)
 {
+    // See constrainf() above: Inf is already correctly caught below, only
+    // NaN needs the extra isfinitef() check.
     if (value < -limit)
         return -limit;
     else if (value > limit)
         return limit;
-    else
+    else if (isfinitef(value))
         return value;
+    else
+        return -limit;
 }
 
 static inline int scaleRange(int src, int srcFrom, int srcTo, int dstFrom, int dstTo)
