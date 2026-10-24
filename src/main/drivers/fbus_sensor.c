@@ -601,9 +601,9 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
         }
 
         // ESC_R&C 0x0B60~0x0B6F:
-        // bits 0..15 ERPM, bits 16..31 consumption (mAh)
+        // bits 0..15 ERPM/100, bits 16..31 consumption (mAh)
         if (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) {
-            fbusEsc.erpm = (uint32_t)(data & 0xFFFFU);
+            fbusEsc.erpm = (uint32_t)(data & 0xFFFFU) * 100U;
             fbusEsc.consumptionMah = (uint16_t)((data >> 16) & 0xFFFFU);
             fbusEsc.hasRpm = true;
             fbusEsc.hasConsumption = true;

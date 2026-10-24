@@ -7,6 +7,8 @@ the APIs or flight performance.
 
 ## Features
 
+- FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
+- F.Bus master speed selectable in the CLI: `fbus_master_baud_fast` (default `ON`, 460800); `OFF` runs at 115200 with the frame rate capped at 150 Hz (`PG_DRIVER_FBUS_MASTER_CONFIG` version bumped)
 - Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
 - Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
 - Spektrum bind supports pin swap; initial bind glitch fixed (#496)
@@ -20,6 +22,7 @@ the APIs or flight performance.
 - GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
 - Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
 - FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
+- New `SYSTEM_STATUS` (120; S.Port `0x5140`, CRSF `0x1230`) and `SYSTEM_CONFIG` (121; S.Port `0x5141`, CRSF `0x1231`) telemetry sensors pack FC status, governor and rescue state, profiles and config flags into two bitfields for radio dashboards; layout in `src/main/telemetry/status.h`. Existing sensors are unchanged. Both are added to the default `telemetry_sensors` (`PG_TELEMETRY_CONFIG` v8)
 
 ## Bug Fixes
 

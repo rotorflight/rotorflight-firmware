@@ -23,7 +23,7 @@ Rotorflight is split across several repositories under <https://github.com/rotor
 | [rotorflight-lua-ethos-suite](https://github.com/rotorflight/rotorflight-lua-ethos-suite) | Lua suite for FrSky Ethos |
 | [rotorflight-presets](https://github.com/rotorflight/rotorflight-presets) | Parameter presets loaded by the Configurator |
 | [rotorflight-artifacts](https://github.com/rotorflight/rotorflight-artifacts) | Firmware builds mirrored for the web configurator |
-| [rotorflight-docs](https://github.com/rotorflight/rotorflight-docs) | Documentation website (<https://www.rotorflight.org/>) |
+| [rotorflight-documentation](https://github.com/rotorflight/rotorflight-documentation) | Documentation website (<https://doc.rotorflight.org/>) |
 | [rotorflight-ref-design](https://github.com/rotorflight/rotorflight-ref-design) | Flight controller reference hardware designs |
 | [rotorflight](https://github.com/rotorflight/rotorflight) | Wiki material, media, changelogs and example files |
 
@@ -66,8 +66,13 @@ keeping stale defaults. The version is 4 bits (0–15).
 ### Document Behavior, Not Only Intent
 
 - If a setting is renamed, keep aliases where practical and record it in [Changes.md](Changes.md).
-- User-facing documentation lives on <https://www.rotorflight.org/>. Note in the PR when a behaviour change needs
+- User-facing documentation lives on <https://doc.rotorflight.org/>. Note in the PR when a behaviour change needs
   a matching docs update.
+- **Developer and internals documentation** (building, coding style, parameter groups, configuration and
+  Blackbox formats, governor and SmartFuel internals, hardware debugging) is in the Technical Reference under
+  Contributing on the same site: <https://doc.rotorflight.org/contributing/tech/>.
+- **`docs/` in this repository** holds only a README that points at the docs site. Do not add documents there; add
+  them to rotorflight-documentation, and link to them by URL from source comments.
 
 ## Build and Test
 

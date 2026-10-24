@@ -147,6 +147,7 @@
 #include "sensors/battery.h"
 #include "sensors/smartfuel.h"
 #include "sensors/boardalignment.h"
+#include "sensors/boardalignment_auto.h"
 #include "sensors/compass.h"
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
@@ -2111,6 +2112,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->yaw_inertia_precomp_cutoff);
         /* Error decay gain cyclic */
         sbufWriteU8(dst, currentPidProfile->error_decay_gain_cyclic);
+        /* Master gains */
+        sbufWriteU8(dst, currentPidProfile->cyclic_master_gain);
+        sbufWriteU8(dst, currentPidProfile->yaw_master_gain);
         break;
 
     case MSP_RESCUE_PROFILE:
@@ -2337,6 +2341,85 @@ void mspGetOptionalIndexRange(sbuf_t *src, const range_t *range, range_t *value)
 static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_t cmdMSP, sbuf_t *src, sbuf_t *dst, mspPostProcessFnPtr *mspPostProcessFn)
 {
     switch (cmdMSP) {
+#ifdef USE_ESC_SENSOR
+    case MSP2_ESC_SENSOR_TRIAL:
+        // action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel. No
+        // `inverted` field here (ESC telemetry never inverts) - just
+        // halfDuplex/pinSwap.
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                escSensorTrialStart();
+            } else if (action == 2) {
+                escSensorTrialStop();
+            }
+        }
+
+        {
+            const escSensorTrialStatus_t status = escSensorTrialGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteU8(dst, status.comboIndex);
+            sbufWriteU8(dst, status.halfDuplex);
+            sbufWriteU8(dst, status.pinSwap);
+            sbufWriteU16(dst, status.elapsedMs);
+            // Bench-diagnostic fields, temporary - appended (not inserted)
+            // so the wire format stays backward compatible with the
+            // original 6-byte response.
+            sbufWriteU16(dst, status.frameDelta);
+            sbufWriteU8(dst, status.comboCount);
+            sbufWriteU8(dst, status.portOpen);
+        }
+        break;
+#endif
+
+#ifdef USE_SERIAL_RX
+    case MSP2_RX_SERIAL_TRIAL:
+        // action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel - always
+        // restores the pre-trial wiring and reports the resulting status
+        // either way. Cycles serialrx_inverted/halfDuplex/pinSwap live for
+        // the already-configured serialrx_provider and reports which combo
+        // (if any) produces signal.
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                rxSerialTrialStart();
+            } else if (action == 2) {
+                rxSerialTrialStop();
+            }
+        }
+
+        {
+            const rxSerialTrialStatus_t status = rxSerialTrialGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteU8(dst, status.comboIndex);
+            sbufWriteU8(dst, status.inverted);
+            sbufWriteU8(dst, status.halfDuplex);
+            sbufWriteU8(dst, status.pinSwap);
+            sbufWriteU16(dst, status.elapsedMs);
+        }
+        break;
+#endif
+
+#ifdef USE_ACC
+    case MSP2_BOARD_AUTO_ALIGN:
+        if (sbufBytesRemaining(src) >= 1) {
+            const uint8_t action = sbufReadU8(src);
+            if (action == 1) {
+                boardAutoAlignStart();
+            }
+        }
+
+        {
+            const boardAutoAlignStatus_t status = boardAutoAlignGetStatus();
+            sbufWriteU8(dst, status.state);
+            sbufWriteS16(dst, status.rollDegrees);
+            sbufWriteS16(dst, status.pitchDegrees);
+            sbufWriteS16(dst, status.yawDegrees);
+            sbufWriteU8(dst, status.matchedSamples);
+        }
+        break;
+#endif
+
 #ifdef USE_RPM_FILTER
     case MSP_RPM_FILTER_V2:
         if (sbufBytesRemaining(src) == 1) {
@@ -3288,6 +3371,11 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->error_decay_gain_cyclic = sbufReadU8(src);
         }
+        /* Master gains */
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->cyclic_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
+            currentPidProfile->yaw_master_gain = constrain(sbufReadU8(src), MASTER_GAIN_MIN, MASTER_GAIN_MAX);
+        }
         /* Load new values */
         pidLoadProfile(currentPidProfile);
         break;
@@ -3730,6 +3818,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         boardAlignmentMutable()->rollDegrees = sbufReadU16(src);
         boardAlignmentMutable()->pitchDegrees = sbufReadU16(src);
         boardAlignmentMutable()->yawDegrees = sbufReadU16(src);
+        // Apply live so a reverted board auto-align result takes effect
+        if (!ARMING_FLAG(ARMED)) {
+            initBoardAlignment(boardAlignment());
+        }
         break;
 
     case MSP_SET_MIXER_CONFIG:

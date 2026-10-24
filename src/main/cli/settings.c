@@ -1173,6 +1173,9 @@ const clivalue_t valueTable[] = {
     { "cyclic_cross_coupling_ratio",  VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 0, 200 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_ratio) },
     { "cyclic_cross_coupling_cutoff", VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { 1, 250 }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_cross_coupling_cutoff) },
 
+    { "cyclic_master_gain",         VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { MASTER_GAIN_MIN, MASTER_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, cyclic_master_gain) },
+    { "yaw_master_gain",            VAR_UINT8 | PROFILE_VALUE, .config.minmaxUnsigned = { MASTER_GAIN_MIN, MASTER_GAIN_MAX }, PG_PID_PROFILE, offsetof(pidProfile_t, yaw_master_gain) },
+
     { "error_limit",                VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 3, PG_PID_PROFILE, offsetof(pidProfile_t, error_limit) },
     { "offset_limit",               VAR_UINT8  | PROFILE_VALUE | MODE_ARRAY, .config.array.length = 2, PG_PID_PROFILE, offsetof(pidProfile_t, offset_limit) },
 
@@ -1796,6 +1799,7 @@ const clivalue_t valueTable[] = {
     { "fbus_master_telemetry_rate",    VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, telemetryRate) },
     { "fbus_master_discovery_ms",      VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = {FBUS_MASTER_DISCOVERY_TIME_MIN_MS, FBUS_MASTER_DISCOVERY_TIME_MAX_MS}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, sensorDiscoveryTimeMs) },
     { "fbus_master_forwarded_sensors", VAR_UINT8 | MASTER_VALUE | MODE_ARRAY, .config.array.length = FBUS_MASTER_MAX_FORWARDED_SENSORS, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, forwardedSensors) },
+    { "fbus_master_baud_fast",         VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON}, PG_DRIVER_FBUS_MASTER_CONFIG, offsetof(fbusMasterConfig_t, baudFast) },
 #endif
 
 #ifdef USE_SPORT_MASTER

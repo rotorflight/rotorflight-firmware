@@ -193,6 +193,10 @@ maths_unittest_SRC := \
 		$(USER_DIR)/common/maths.c
 
 
+streambuf_unittest_SRC := \
+		$(USER_DIR)/common/streambuf.c
+
+
 # This test is disabled due to build errors.
 #motor_output_unittest_SRC := \
 #		$(USER_DIR)/drivers/dshot.c
@@ -430,6 +434,13 @@ tune_advisor_unittest_SRC := \
 
 tune_advisor_unittest_DEFINES := \
 		USE_TUNE_ADVISOR=
+
+telemetry_status_unittest_SRC := \
+		$(USER_DIR)/telemetry/status.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 trainer_unittest_SRC := \
 		$(USER_DIR)/common/filter.c \
