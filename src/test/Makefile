@@ -35,6 +35,15 @@ alignsensor_unittest_SRC := \
 		$(USER_DIR)/common/sensor_alignment.c \
 		$(USER_DIR)/common/maths.c
 
+accgyro_lsm6dsk320x_unittest_SRC := \
+        $(USER_DIR)/drivers/accgyro/accgyro_spi_lsm6dsk320x.c \
+        $(USER_DIR)/drivers/accgyro/gyro_sync.c
+
+accgyro_lsm6dsk320x_unittest_DEFINES := \
+        USE_ACCGYRO_LSM6DSK320X= \
+        USE_SPI_GYRO= \
+        USE_DMA=
+
 # This test is disabled due to build errors.
 #arming_prevention_unittest_SRC := \
 #		$(USER_DIR)/fc/core.c \

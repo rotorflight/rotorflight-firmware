@@ -205,7 +205,8 @@ typedef enum {
     BMI_323_SPI,
     LSM6DSO_SPI,
     L3GD20_SPI,
-    BMI_088_SPI
+    BMI_088_SPI,
+    LSM6DSK320X_SPI
 } mpuSensor_e;
 
 typedef enum {
@@ -223,6 +224,9 @@ struct gyroDeviceConfig_s;
 void mpuGyroInit(struct gyroDev_s *gyro);
 bool mpuGyroRead(struct gyroDev_s *gyro);
 bool mpuGyroReadSPI(struct gyroDev_s *gyro);
+#ifdef USE_SPI_GYRO
+busStatus_e mpuIntcallback(uint32_t arg);
+#endif
 void mpuPreInit(const struct gyroDeviceConfig_s *config);
 bool mpuDetect(struct gyroDev_s *gyro, const struct gyroDeviceConfig_s *config);
 uint8_t mpuGyroDLPF(struct gyroDev_s *gyro);
