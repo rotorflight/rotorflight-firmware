@@ -36,8 +36,9 @@ endif
 ifeq ($(TARGET),$(filter $(TARGET), $(F411_TARGETS)))
 EXCLUDES        += stm32f4xx_fsmc.c
 MCU_FLASH_SIZE  := 512
-# Override the OPTIMISE_SPEED compiler setting to save flash space on this 512KB target,
-# as STM32F7X2 and STM32G4 do.
+# Compile files marked for speed at -O2 instead of -Ofast to save flash space on this
+# 512KB target. LTO_FLAGS is expanded before this file is included, so the link step
+# itself is unaffected.
 OPTIMISE_SPEED = -O2
 else ifeq ($(TARGET),$(filter $(TARGET), $(F446_TARGETS)))
 EXCLUDES        += stm32f4xx_fsmc.c

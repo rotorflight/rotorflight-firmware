@@ -741,7 +741,7 @@ bool rxUpdateCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
     return taskUpdateRxMainInProgress() || rxDataProcessingRequired || auxiliaryProcessingRequired;
 }
 
-NOINLINE void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
+void rxFrameCheck(timeUs_t currentTimeUs, timeDelta_t currentDeltaTimeUs)
 {
     bool signalReceived = false;
     bool useDataDrivenProcessing = true;
