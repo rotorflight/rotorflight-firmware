@@ -24,6 +24,14 @@
 
 #include "build/version.h"
 
+// Disable the USB HID joystick (composite CDC+HID device) to free up flash.
+// Undefined here, ahead of the USB dependency handling further down, so that
+// USE_USB_ADVANCED_PROFILES is still derived from USE_USB_MSC alone.
+#undef USE_USB_CDC_HID
+
+// Disable the DShot beacon (motor locator tone) to free up flash.
+#undef USE_DSHOT_BEACON
+
 // The on-screen Configuration Menu System is disabled by default to free up flash.
 // It can be added back to any target with: make <target> OPTIONS=ENABLE_CMS
 // USE_CRSF_CMS_TELEMETRY, USE_SPEKTRUM_CMS_TELEMETRY and USE_CMS_FAILSAFE_MENU
@@ -492,6 +500,7 @@
 #ifndef USE_DSHOT
 #undef USE_DSHOT_TELEMETRY
 #undef USE_DSHOT_BITBANG
+#undef USE_DSHOT_BEACON
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY

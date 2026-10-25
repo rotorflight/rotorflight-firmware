@@ -116,7 +116,7 @@ void positionUpdate(void)
 #endif
 
 #ifdef USE_GPS
-    if (alt.source & ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
+    if (alt.source == ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
         if (sensors(SENSOR_GPS) && STATE(GPS_FIX) && gpsSol.numSat >= positionConfig()->gps_min_sats) {
             alt.gpsAlt = filterApply(&alt.gpsFilter, gpsSol.llh.altCm / 100.0f);
             alt.haveGpsAlt = true;

@@ -8,6 +8,7 @@ the APIs or flight performance.
 ## Features
 
 - FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
+- FBUS/S.Port sensor readings over MSP: new read-only `MSP2_GET_FBUS_SENSORS_STATUS` (0x5F15) returns the latest decoded GPS, current (FAS), cells (FLVSS), ESC/RPM sensor and XACT servo values; each block starts with a flags byte, 0 meaning nothing fresh in the last second
 - F.Bus master speed selectable in the CLI: `fbus_master_baud_fast` (default `ON`, 460800); `OFF` runs at 115200 with the frame rate capped at 150 Hz (`PG_DRIVER_FBUS_MASTER_CONFIG` version bumped)
 - Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
 - Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
@@ -32,6 +33,8 @@ the APIs or flight performance.
 - FBUS/S.Port current sensor accumulates consumed capacity (#513)
 - Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
+- `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
+- CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent in decimetres instead of centimetres (still S16), so it no longer stops at 327.67 m MSL; the range is now ±3276.7 m. Decoders must divide by 10 instead of 100 (#549)
 
 ## Flight Performance
 
