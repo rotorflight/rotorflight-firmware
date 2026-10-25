@@ -136,8 +136,7 @@ static mspDescriptor_t mspSharedDescriptor = -1;
 
 void initSharedMsp(void)
 {
-    responsePacket.buf.ptr = responseBuffer;
-    responsePacket.buf.end = ARRAYEND(responseBuffer);
+    sbufInit(&responsePacket.buf, responseBuffer, ARRAYEND(responseBuffer));
 
     mspSharedDescriptor = mspDescriptorAlloc();
 }
@@ -151,12 +150,18 @@ static void processMspPacket(void)
 {
     responsePacket.cmd = 0;
     responsePacket.result = 0;
-    responsePacket.buf.ptr = responseBuffer;
-    responsePacket.buf.end = ARRAYEND(responseBuffer);
+    sbufInit(&responsePacket.buf, responseBuffer, ARRAYEND(responseBuffer));
     headerSent = false;
 
     mspPostProcessFnPtr mspPostProcessFn = NULL;
     if (mspFcProcessCommand(mspSharedDescriptor, &requestPacket, &responsePacket, &mspPostProcessFn) == MSP_RESULT_ERROR) {
+        sbufWriteU8(&responsePacket.buf, TELEMETRY_MSP_ERROR);
+    }
+    // A reply too big for responseBuffer lost its tail: answer with an error
+    // rather than a truncated reply the radio would decode as real data.
+    if (sbufWriteOverflowed(&responsePacket.buf)) {
+        sbufInit(&responsePacket.buf, responseBuffer, ARRAYEND(responseBuffer));
+        responsePacket.result = MSP_RESULT_ERROR;
         sbufWriteU8(&responsePacket.buf, TELEMETRY_MSP_ERROR);
     }
     if (mspPostProcessFn) {
@@ -170,7 +175,8 @@ void sendMspErrorResponse(uint8_t error, int16_t cmd)
 {
     responsePacket.cmd = cmd;
     responsePacket.result = 0;
-    responsePacket.buf.ptr = responseBuffer;
+    // The end may still mark the previous reply's length (sbufSwitchToReader()).
+    sbufInit(&responsePacket.buf, responseBuffer, ARRAYEND(responseBuffer));
     headerSent = false;
 
     sbufWriteU8(&responsePacket.buf, error);
@@ -229,8 +235,7 @@ bool handleMspFrame(uint8_t *const payload, uint8_t const payloadLength, uint8_t
         }
         if (mspPayloadSize <= sizeof(requestBuffer)) { // prevent buffer overrun
             requestPacket.result = 0;
-            requestPacket.buf.ptr = requestBuffer;
-            requestPacket.buf.end = requestBuffer + mspPayloadSize;
+            sbufInit(&requestPacket.buf, requestBuffer, requestBuffer + mspPayloadSize);
             mspStarted = 1;
         } else { // this MSP packet is too big to fit in the buffer.
             sendMspErrorResponse(TELEMETRY_MSP_REQUEST_IS_TOO_BIG, requestPacket.cmd);
