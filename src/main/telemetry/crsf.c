@@ -340,6 +340,7 @@ bool handleCrsfMspFrameBuffer(mspResponseFnPtr responseFn)
  * uint16      Altitude ( meter ­1000m offset )
  * uint8_t     Satellites in use ( counter )
  */
+#ifdef USE_GPS
 static void crsfFrameGps(sbuf_t *dst)
 {
     sbufWriteU8(dst, CRSF_FRAMETYPE_GPS);
@@ -350,6 +351,7 @@ static void crsfFrameGps(sbuf_t *dst)
     sbufWriteU16BE(dst, getEstimatedAltitudeCm() / 100 + 1000);
     sbufWriteU8(dst, gpsSol.numSat);
 }
+#endif
 
 /*
  * 0x07 Variometer sensor
@@ -661,12 +663,14 @@ void crsfSensorEncodeAccel(telemetrySensor_t *sensor, sbuf_t *buf)
     sbufWriteS16BE(buf, acc.accADC[2] * acc.dev.acc_1G_rec * 100);
 }
 
+#ifdef USE_GPS
 void crsfSensorEncodeLatLong(telemetrySensor_t *sensor, sbuf_t *buf)
 {
     UNUSED(sensor);
     sbufWriteS32BE(buf, gpsSol.llh.lat);
     sbufWriteS32BE(buf, gpsSol.llh.lon);
 }
+#endif
 
 void crsfSensorEncodeAdjFunc(telemetrySensor_t *sensor, sbuf_t *buf)
 {
@@ -796,6 +800,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(ACCEL_Y,                 0x1112,   200,  3000,    100,   S16),
     TLM_SENSOR(ACCEL_Z,                 0x1113,   200,  3000,    100,   S16),
 
+#ifdef USE_GPS
     TLM_SENSOR(GPS_SATS,                0x1121,   500,  3000,    0,     U8),
     TLM_SENSOR(GPS_PDOP,                0x1122,   500,  3000,    0,     U8),
     TLM_SENSOR(GPS_HDOP,                0x1123,   500,  3000,    0,     U8),
@@ -806,6 +811,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(GPS_GROUNDSPEED,         0x1128,   200,  3000,    0,     U16),
     TLM_SENSOR(GPS_HOME_DISTANCE,       0x1129,   200,  3000,    0,     U16),
     TLM_SENSOR(GPS_HOME_DIRECTION,      0x112A,   200,  3000,    0,     S16),
+#endif
 
     TLM_SENSOR(CPU_LOAD,                0x1141,   500,  3000,    10,    U8),
     TLM_SENSOR(SYS_LOAD,                0x1142,   500,  3000,    10,    U8),

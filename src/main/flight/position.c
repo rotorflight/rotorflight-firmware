@@ -161,8 +161,10 @@ void positionUpdate(void)
     DEBUG(ALTITUDE, 3, alt.baroAltOffset * 100);
     DEBUG(ALTITUDE, 4, alt.gpsAlt * 100);
     DEBUG(ALTITUDE, 5, alt.gpsAltOffset * 100);
+#ifdef USE_GPS
     DEBUG(ALTITUDE, 6, gpsSol.llh.altCm);
     DEBUG(ALTITUDE, 7, gpsSol.numSat);
+#endif
 }
 
 void INIT_CODE positionInit(void)
