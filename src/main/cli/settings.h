@@ -50,6 +50,9 @@ typedef enum {
 #ifdef USE_SERIAL_RX
     TABLE_SERIAL_RX,
 #endif
+#ifdef USE_RX_INPUT_BACKUP
+    TABLE_RX_INPUT_BACKUP_PROVIDER,
+#endif
 #ifdef USE_RX_SPI
     TABLE_RX_SPI,
 #endif
