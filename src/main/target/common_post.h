@@ -186,7 +186,9 @@
 #if defined(DISABLE_FRSKY_TELEMETRY)
 #undef USE_TELEMETRY_FRSKY_HUB
 // FPort and FBUS receivers send their own telemetry through the S.Port code,
-// and S.Port master is built on it too
+// and S.Port master is built on it too. When any of them is enabled the shared
+// S.Port code stays, so a port can still be configured for standalone S.Port
+// telemetry even with this option set.
 #if !defined(USE_SERIALRX_FPORT) && !defined(USE_SERIALRX_FBUS) && !defined(USE_SPORT_MASTER)
 #undef USE_TELEMETRY_SMARTPORT
 #endif
