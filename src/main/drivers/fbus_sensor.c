@@ -36,6 +36,10 @@
 #include "drivers/fbus_sensor.h"
 #include "sensors/sensors.h"
 
+#ifdef USE_FBUS_MASTER
+#include "drivers/fbus_xact.h"
+#endif
+
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
 
 static const char* const fbusSensorNames[] = {
@@ -65,16 +69,6 @@ static fbusGpsData_t fbusGps;
 static fbusServoData_t fbusServo;
 static fbusCurrentData_t fbusCurrent;
 static fbusEscData_t fbusEsc;
-
-#define FBUS_FLVSS_MAX_CELLS 8
-
-typedef struct {
-    uint16_t cellVoltageCentiVolts[FBUS_FLVSS_MAX_CELLS];
-    uint32_t voltageCentiVolts;
-    uint8_t cellCount;
-    bool hasVoltage;
-    timeUs_t lastUpdateUs;
-} fbusFlvssData_t;
 
 static fbusFlvssData_t fbusFlvss;
 
@@ -513,6 +507,13 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
     
     if (detectedType == FBUS_DETECTED_SENSOR_XACT_SERVO) {
         if (appId >= FBUS_SERVO_DATA_BASE && appId <= (FBUS_SERVO_DATA_BASE + 0x0F)) {
+#ifdef USE_FBUS_MASTER
+            // Only the FBUS master link can send XACT read/write frames, so servo
+            // programming tracking is scoped to sensors observed on that source.
+            if (source == FBUS_SENSOR_SOURCE_FBUS) {
+                fbusXactTrackServo(physicalId, appId, currentTimeUs);
+            }
+#endif
             fbusServoConvertData(data, &fbusServo.currentDeciAmps,
                                 &fbusServo.voltageDeciVolts,
                                 &fbusServo.temperatureDegC);
@@ -590,9 +591,9 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
         }
 
         // ESC_R&C 0x0B60~0x0B6F:
-        // bits 0..15 ERPM, bits 16..31 consumption (mAh)
+        // bits 0..15 ERPM/100, bits 16..31 consumption (mAh)
         if (appId >= FBUS_ESC_RPM_CONS_BASE && appId <= (FBUS_ESC_RPM_CONS_BASE + 0x0F)) {
-            fbusEsc.erpm = (uint32_t)(data & 0xFFFFU);
+            fbusEsc.erpm = (uint32_t)(data & 0xFFFFU) * 100U;
             fbusEsc.consumptionMah = (uint16_t)((data >> 16) & 0xFFFFU);
             fbusEsc.hasRpm = true;
             fbusEsc.hasConsumption = true;
@@ -825,6 +826,28 @@ bool fbusSensorHasEscData(void)
     if ((fbusEsc.hasPower || fbusEsc.hasRpm || fbusEsc.hasConsumption || fbusEsc.hasTemperature )
         && fbusEsc.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void fbusSensorGetFlvssData(fbusFlvssData_t *flvssData)
+{
+    if (flvssData) {
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(flvssData, &fbusFlvss, sizeof(fbusFlvssData_t));
+        }
+    }
+}
+
+bool fbusSensorHasFlvssData(void)
+{
+    timeUs_t currentTimeUs = micros();
+
+    if (fbusFlvss.hasVoltage && fbusFlvss.lastUpdateUs > 0) {
+        if ((currentTimeUs - fbusFlvss.lastUpdateUs) < 1000000) {
             return true;
         }
     }

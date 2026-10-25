@@ -801,7 +801,7 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(GPS_HDOP,                0x1123,   500,  3000,    0,     U8),
     TLM_SENSOR(GPS_VDOP,                0x1124,   500,  3000,    0,     U8),
     TLM_SENSOR(GPS_COORD,               0x1125,   200,  3000,    0,     LatLong),
-    TLM_SENSOR(GPS_ALTITUDE,            0x1126,   200,  3000,    0,     S16),
+    TLM_SENSOR(GPS_ALTITUDE,            0x1126,   200,  3000,    10,    S16),
     TLM_SENSOR(GPS_HEADING,             0x1127,   200,  3000,    0,     S16),
     TLM_SENSOR(GPS_GROUNDSPEED,         0x1128,   200,  3000,    0,     U16),
     TLM_SENSOR(GPS_HOME_DISTANCE,       0x1129,   200,  3000,    0,     U16),
@@ -824,6 +824,9 @@ static telemetrySensor_t crsfCustomTelemetrySensors[] =
     TLM_SENSOR(BATTERY_PROFILE,         0x1214,   200,  3000,    0,     U8),
 
     TLM_SENSOR(ADJFUNC,                 0x1220,   200,  3000,    0,     AdjFunc),
+
+    TLM_SENSOR(SYSTEM_STATUS,           0x1230,   100,  3000,    0,     U32),
+    TLM_SENSOR(SYSTEM_CONFIG,           0x1231,   500,  3000,    0,     U32),
 
     TLM_SENSOR(DEBUG_0,                 0xDB00,   100,  3000,    0,     S32),
     TLM_SENSOR(DEBUG_1,                 0xDB01,   100,  3000,    0,     S32),

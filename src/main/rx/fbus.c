@@ -39,6 +39,8 @@
 #include "fc/firmware_update.h"
 #endif
 
+#include "fc/runtime_config.h"
+
 #include "io/serial.h"
 
 #ifdef USE_TELEMETRY
@@ -63,6 +65,12 @@
 #define FBUS_FC_MSP_ID 0x0D
 #define FPORT2_BAUDRATE 115200
 #define FBUS_BAUDRATE 460800
+// FBUS and F.Port2 are the same protocol at two speeds. The receiver streams
+// control frames all the time, so the port switches between the two speeds
+// until good frames arrive, then keeps that speed.
+#define FBUS_BAUD_HUNT_WINDOW_MS 150    // time on one speed before trying the other
+#define FBUS_BAUD_LOCK_FRAMES 3         // good frames needed to keep a speed
+#define FBUS_BAUD_RELOCK_MS 1000        // no frames this long while disarmed: search again
 #define FBUS_PORT_OPTIONS (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
 #define FBUS_RX_TIMEOUT 120 // µs
 #define FBUS_CONTROL_FRAME_LENGTH_8CH 13
@@ -180,6 +188,11 @@ static volatile uint8_t rxBufferWriteIndex = 0;
 static volatile uint8_t rxBufferReadIndex = 0;
 
 static serialPort_t *fbusPort;
+
+static uint32_t fbusBaudRate;
+static bool fbusBaudLocked;
+static uint8_t fbusBaudGoodFrames;
+static timeUs_t fbusBaudLastEventUs;    // last speed switch or last good frame
 
 #ifdef USE_TELEMETRY_SMARTPORT
 static smartPortPayload_t *mspPayload = NULL;
@@ -361,6 +374,39 @@ static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
 #endif
 #endif
 
+static void fbusBaudGoodFrame(timeUs_t currentTimeUs)
+{
+    fbusBaudLastEventUs = currentTimeUs;
+    if (!fbusBaudLocked && ++fbusBaudGoodFrames >= FBUS_BAUD_LOCK_FRAMES) {
+        fbusBaudLocked = true;
+    }
+}
+
+static void fbusBaudService(timeUs_t currentTimeUs)
+{
+    // SITL's TCP port has no baud rate
+    if (!fbusPort->vTable->serialSetBaudRate) {
+        fbusBaudLocked = true;
+        return;
+    }
+
+    const timeDelta_t idleUs = cmpTimeUs(currentTimeUs, fbusBaudLastEventUs);
+    if (fbusBaudLocked) {
+        // A lost link while armed is the radio, not a changed receiver setting
+        if (ARMING_FLAG(ARMED) || idleUs < MS2US(FBUS_BAUD_RELOCK_MS)) {
+            return;
+        }
+        fbusBaudLocked = false;
+    } else if (idleUs < MS2US(FBUS_BAUD_HUNT_WINDOW_MS)) {
+        return;
+    }
+
+    fbusBaudRate = (fbusBaudRate == FBUS_BAUDRATE) ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    serialSetBaudRate(fbusPort, fbusBaudRate);
+    fbusBaudGoodFrames = 0;
+    fbusBaudLastEventUs = currentTimeUs;
+}
+
 static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 {
 #ifdef USE_TELEMETRY_SMARTPORT
@@ -402,6 +448,7 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                             }
                             setRssi(scaleRange(frame->control.rc.rssi, 0, 100, 0, RSSI_MAX_VALUE), RSSI_SOURCE_RX_PROTOCOL);
                             frameReceivedTimestamp = currentTimeUs;
+                            fbusBaudGoodFrame(currentTimeUs);
 #if defined(USE_TELEMETRY_SMARTPORT)
                             otaMode = false;
 #endif
@@ -542,8 +589,15 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
         rxBufferReadIndex = (rxBufferReadIndex + 1) % NUM_RX_BUFFERS;
     }
 
+    fbusBaudService(currentTimeUs);
+
 #if defined(USE_TELEMETRY_SMARTPORT)
-    if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US)
+    // No replies until the speed is known, so the bus never sees our replies at the wrong speed
+    if (!fbusBaudLocked) {
+        hasTelemetryRequest = false;
+        mspPayload = NULL;
+        otaResponsePayload = NULL;
+    } else if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US)
            || (otaResponsePayload && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= otaMinResponseDelay)) {
         hasTelemetryRequest = false;
         clearToSend = true;
@@ -743,7 +797,11 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
         return false;
     }
 
-    uint32_t baudRate = isFPORT2 ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    // Start at the selected speed; fbusBaudService() finds the other if needed
+    fbusBaudRate = isFPORT2 ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    fbusBaudLocked = false;
+    fbusBaudGoodFrames = 0;
+    fbusBaudLastEventUs = micros();
 
     uint32_t options = FBUS_PORT_OPTIONS |
         (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
@@ -754,7 +812,7 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
         FUNCTION_RX_SERIAL,
         fbusDataReceive,
         NULL,
-        baudRate,
+        fbusBaudRate,
         MODE_RXTX,
         options
     );

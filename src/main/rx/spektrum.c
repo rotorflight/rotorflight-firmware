@@ -256,6 +256,16 @@ void spektrumBind(rxConfig_t *rxConfig)
             bindPin = rxConfig->halfDuplex ? txPin : rxPin;
         }
 
+#ifdef USE_SERIAL_PINSWAP
+        if (bindPin != IO_TAG_NONE && (rxConfig->pinSwap & SERIAL_PINSWAP)) {
+            if (bindPin == txPin) {
+                bindPin = rxPin;
+            } else {
+                bindPin = txPin;
+            }
+        }
+#endif
+
         if (!bindPin) {
             return;
         }
@@ -264,12 +274,14 @@ void spektrumBind(rxConfig_t *rxConfig)
     IO_t bindIO = IOGetByTag(bindPin);
 
     IOInit(bindIO, OWNER_RX_BIND, 0);
+
+    // Prepare bind pin, set output register high before setting it as an output to avoid glitch.
+    IOInit(bindIO, OWNER_RX_BIND, 0);
+    IOConfigGPIO(bindIO, IOCFG_IN_FLOATING); // doesn't change configuration, just enables the GPIO clock
+    IOWrite(bindIO, true);
     IOConfigGPIO(bindIO, IOCFG_OUT_PP);
 
     LED1_ON;
-
-    // RX line, set high
-    IOWrite(bindIO, true);
 
     // Bind window is around 20-140ms after powerup
     delay(60);

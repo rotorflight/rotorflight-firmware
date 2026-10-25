@@ -107,8 +107,8 @@ void INIT_CODE smartFuelInit(void)
 
     smartFuel.config.mode = batteryConfig()->smartfuel_mode;
 
-    smartFuel.config.vCellMin = batteryConfig()->vbatmincellvoltage / 100.0f;
-    smartFuel.config.vCellFull = batteryConfig()->vbatfullcellvoltage / 100.0f;
+    smartFuel.config.vCellMin = getBatteryMinCellVoltage() / 100.0f;
+    smartFuel.config.vCellFull = getBatteryFullCellVoltage() / 100.0f;
 
     smartFuel.config.voltageDropPerSample = (batteryConfig()->smartfuel_voltage_drop_rate / 1000.0f) * dT;
     smartFuel.config.chargeDropPerSample = (batteryConfig()->smartfuel_charge_drop_rate / 10000.0f) * dT;

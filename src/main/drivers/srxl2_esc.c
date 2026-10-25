@@ -1165,14 +1165,17 @@ bool srxl2escCopyLatestTelemetry(srxl2escTelemetrySnapshot_t *out, uint32_t *out
 
     uint32_t seqStart;
     uint32_t seqEnd;
-    do {
+    for (;;) {
         seqStart = srxl2escLatestTelemetrySeq;
         if (seqStart & 1U) {
             continue;
         }
         *out = srxl2escLatestTelemetrySnapshot;
         seqEnd = srxl2escLatestTelemetrySeq;
-    } while (seqStart != seqEnd);
+        if (seqStart == seqEnd) {
+            break;
+        }
+    }
 
     if (outSeq) {
         *outSeq = seqEnd;

@@ -29,6 +29,14 @@
 // USE_USB_ADVANCED_PROFILES is still derived from USE_USB_MSC alone.
 #undef USE_USB_CDC_HID
 
+// Disable the on-screen Configuration Menu System to free up flash.
+// USE_CRSF_CMS_TELEMETRY, USE_SPEKTRUM_CMS_TELEMETRY and USE_CMS_FAILSAFE_MENU
+// are undefined by the dependency handling further down; the two below are not
+// derived from USE_CMS anywhere, so they have to be undefined here.
+#undef USE_CMS
+#undef USE_EXTENDED_CMS_MENUS
+#undef USE_HOTT_TEXTMODE
+
 #if defined(USE_VTX_RTC6705_SOFTSPI)
 #define USE_VTX_RTC6705
 #endif

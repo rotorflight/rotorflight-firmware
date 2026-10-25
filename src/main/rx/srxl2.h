@@ -16,3 +16,4 @@ bool srxl2TelemetryRequested(void);
 void srxl2InitializeFrame(struct sbuf_s *dst);
 void srxl2FinalizeFrame(struct sbuf_s *dst);
 void srxl2Bind(void);
+void srxl2RxEarlyInit(const rxConfig_t *rxConfig);
