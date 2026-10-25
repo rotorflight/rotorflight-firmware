@@ -34,6 +34,7 @@ the APIs or flight performance.
 - Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
 - `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
+- CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent in decimetres instead of centimetres (still S16), so it no longer stops at 327.67 m MSL; the range is now ±3276.7 m. Decoders must divide by 10 instead of 100 (#549)
 
 ## Flight Performance
 
