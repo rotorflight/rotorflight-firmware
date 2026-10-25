@@ -57,6 +57,7 @@
 #include "scheduler/scheduler.h"
 
 #include "telemetry/sensors.h"
+#include "telemetry/status.h"
 
 #ifdef USE_FBUS_MASTER
 # include "drivers/fbus_sensor.h"
@@ -358,6 +359,11 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_BATTERY_PROFILE:
             return getCurrentBatteryProfileIndex() + 1;
 
+        case TELEM_SYSTEM_STATUS:
+            return telemetrySystemStatus();
+        case TELEM_SYSTEM_CONFIG:
+            return telemetrySystemConfig();
+
         case TELEM_ADJFUNC:
             return getAdjustmentsRangeName() ?
                 getTupleHash(getAdjustmentsRangeFunc(), getAdjustmentsRangeValue()) : 0;
@@ -557,6 +563,10 @@ bool telemetrySensorActive(sensor_id_e id)
             return true;
         case TELEM_LED_PROFILE:
             return false;
+
+        case TELEM_SYSTEM_STATUS:
+        case TELEM_SYSTEM_CONFIG:
+            return true;
 
         case TELEM_ADJFUNC:
             return true;

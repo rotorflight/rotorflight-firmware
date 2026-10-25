@@ -35,6 +35,7 @@
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
+#include "drivers/fbus_xact.h"
 
 #include "flight/mixer.h"
 #include "flight/servos.h"
@@ -86,6 +87,12 @@ static timeUs_t sensorDiscoveryEndTimeUs = 0;
 fbusMasterPayloadState_e fbusMasterPayloadState = FBUS_MASTER_TELEMETRY;
 fbusMasterTelemetryState_e fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
 
+uint16_t fbusMasterFrameRateHz(void)
+{
+    const uint16_t rate = fbusMasterConfig()->frameRate;
+    return fbusMasterConfig()->baudFast ? rate : MIN(rate, FBUS_MASTER_FRAME_RATE_MAX_SLOW_HZ);
+}
+
 static uint16_t fbusMasterTelemetryRateHz(void)
 {
     return constrain(fbusMasterConfig()->telemetryRate, FBUS_MASTER_TELEMETRY_RATE_MIN_HZ, FBUS_MASTER_TELEMETRY_RATE_MAX_HZ);
@@ -104,6 +111,17 @@ static timeDelta_t fbusMasterTelemetryPeriodUs(void)
 static void fbusMasterStartDiscoveryWindow(timeUs_t currentTimeUs)
 {
     sensorDiscoveryEndTimeUs = currentTimeUs + ((timeUs_t)fbusMasterDiscoveryTimeMs() * 1000);
+}
+
+// Resets phy-ID scanning state and re-arms the discovery window. Exposed so XACT servo
+// programming can force a fresh scan (e.g. after a servo's physical ID has been reprogrammed).
+void fbusMasterStartDiscovery(void)
+{
+    physIdsfound = 0;
+    physIdCnt = 0;
+    currentPhysId = 0;
+    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
+    fbusMasterStartDiscoveryWindow(micros());
 }
 
 static uint8_t fbusMasterTakeNextScanPhysId(void)
@@ -170,6 +188,15 @@ static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels,
         case FBUS_MASTER_TELEMETRY:
             memset(&frame->downlink, 0, sizeof(fbusMasterDownlink_t));
             frame->downlink.length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+
+            // XACT servo programming (read/write) takes priority over telemetry polling and
+            // is not subject to the telemetry rate throttle below, so reads/writes complete quickly.
+            if (fbusXactIsBusy() && fbusXactProcessQueue(&frame->downlink)) {
+                smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
+                crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
+                frame->downlink.crc = crc;
+                break;
+            }
 
             if (cmpTimeUs(currentTimeUs, nextTelemetryPollTimeUs) < 0) {
                 frame->downlink.phyID = 0;
@@ -263,6 +290,16 @@ static void processDownlinkFrame(uint8_t *data)
                                   (downlink.data[2] << 16) | (downlink.data[3] << 24);
             fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
         }
+        // XACT servo programming response frame:
+        // appId = App ID (16-bit), data[0] = FIELDID, data[1..2] = DATA1 (little-endian)
+        else if (downlink.prim == FBUS_FRAME_ID_RESPONSE) {
+            uint16_t appId = downlink.appId;
+            uint8_t fieldId = downlink.data[0];
+            uint16_t dataValue = (uint16_t)downlink.data[1] | ((uint16_t)downlink.data[2] << 8);
+
+            fbusXactSetServoParam(downlink.phyID, fieldId, appId, dataValue);
+            fbusXactNotifyResponse(downlink.phyID, fieldId);
+        }
     }
 }
 
@@ -289,6 +326,10 @@ static FAST_CODE void dataReceive(uint16_t c, void *data)
     }
 }
 
+// Speed-limit state for F.Bus output, separate from SBUS output's so each
+// output steps only on its own frames.
+static sbusOutSpeedState_t fbusMasterSpeedState;
+
 static float fbusMasterGetChannelValue(uint8_t channel)
 {
     const busServoSourceType_e source_type = busServoConfig()->sourceType[channel];
@@ -297,7 +338,7 @@ static float fbusMasterGetChannelValue(uint8_t channel)
             return sbusOutGetRX(channel);
         case BUS_SERVO_SOURCE_MIXER:
             // Use the same servo-parameter-aware function
-            return sbusOutGetValueMixer(channel);
+            return sbusOutGetValueMixer(channel, &fbusMasterSpeedState);
     }
     return 0;
 }
@@ -322,6 +363,8 @@ void fbusMasterUpdate(timeUs_t currentTimeUs)
     if (serialTxBytesFree(fbusMasterPort) <= sizeof(fbusMasterFrame_t)) {
         return;
     }
+
+    sbusOutBeginFrame(&fbusMasterSpeedState, currentTimeUs, fbusMasterFrameRateHz(), FBUS_MASTER_CHANNELS);
 
     // Start sending.
     fbusMasterFrame_t frame;
@@ -356,16 +399,16 @@ void fbusMasterInit(void)
         return;
     }
 
-    physIdsfound = 0;
-    physIdCnt = 0;
-    currentPhysId = 0;
-    fbusMasterTelemetryState = FBUS_MASTER_SCAN_PHY_ID;
     nextTelemetryPollTimeUs = 0;
-    fbusMasterStartDiscoveryWindow(micros());
+    fbusMasterStartDiscovery();
+
+    // Initialize XACT servo programming module
+    fbusXactInit();
 
     serialReceiveCallbackPtr callback = dataReceive;
     fbusMasterPort = openSerialPort(
-        portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL, 460800, MODE_RXTX,
+        portConfig->identifier, FUNCTION_FBUS_MASTER, callback, NULL,
+        fbusMasterConfig()->baudFast ? FBUS_MASTER_BAUD_FAST : FBUS_MASTER_BAUD_SLOW, MODE_RXTX,
         SERIAL_STOPBITS_1 | SERIAL_PARITY_NO |
             (fbusMasterConfig()->inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
             SERIAL_BIDIR |

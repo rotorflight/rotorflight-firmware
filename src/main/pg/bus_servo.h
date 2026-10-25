@@ -25,7 +25,8 @@
 // Bus servo defaults (S9-S26) - constrained to BUS_SERVO_MIN/MAX range
 #define DEFAULT_BUS_SERVO_MIN     -500
 #define DEFAULT_BUS_SERVO_MAX      500
-#define DEFAULT_BUS_SERVO_SCALE    1000
+// Full mixer output (1.0) x scale = full travel (+-500us), same as PWM servos
+#define DEFAULT_BUS_SERVO_SCALE    500
 #define BUS_SERVO_MAX_SIGNAL       2000
 #define BUS_SERVO_MIN_SIGNAL       1000
 

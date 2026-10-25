@@ -276,7 +276,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 
     // Show warning if battery is not fresh
     if (osdWarnGetState(OSD_WARNING_BATTERY_NOT_FULL) && !(ARMING_FLAG(ARMED) || ARMING_FLAG(WAS_EVER_ARMED)) && (getBatteryState() == BATTERY_OK)
-          && getBatteryAverageCellVoltage() < batteryConfig()->vbatfullcellvoltage) {
+          && getBatteryAverageCellVoltage() < getBatteryFullCellVoltage()) {
         tfp_sprintf(warningText, "BATT < FULL");
         *displayAttr = DISPLAYPORT_ATTR_INFO;
         return;

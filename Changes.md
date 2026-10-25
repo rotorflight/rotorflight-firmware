@@ -3,6 +3,133 @@
 This file is collecting the changes in the firmware that are affecting
 the APIs or flight performance.
 
+# 4.7.0
+
+## Features
+
+- FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
+- FBUS/S.Port sensor readings over MSP: new read-only `MSP2_GET_FBUS_SENSORS_STATUS` (0x5F15) returns the latest decoded GPS, current (FAS), cells (FLVSS), ESC/RPM sensor and XACT servo values; each block starts with a flags byte, 0 meaning nothing fresh in the last second
+- F.Bus master speed selectable in the CLI: `fbus_master_baud_fast` (default `ON`, 460800); `OFF` runs at 115200 with the frame rate capped at 150 Hz (`PG_DRIVER_FBUS_MASTER_CONFIG` version bumped)
+- Spektrum SRXL2 ESC support: new motor protocol, ESC telemetry protocol and serial function (#421, #489)
+- Spektrum full size receivers (e.g. AR6610T) supported; requires `srxl2_unit_id = 0` (#486)
+- Spektrum bind supports pin swap; initial bind glitch fixed (#496)
+- FrSky RPM and temperature sensor via FBUS/S.Port (#461)
+- XDFLY/ZTW/OMPHOBBY ESC telemetry works in both half duplex (bidirectional) and receive-only mode (#478)
+- Alternative takeoff detection based on stick response and Z-acceleration (#480)
+- Separate angle limit for Horizon mode (#479)
+- Speed-dependent cyclic I-term decay to prevent wind-up on cyclic input (#457)
+- Deadband on continuous adjustment channels stops values from toggling on pot noise (#507)
+- CMS compiled out on all targets (#492)
+- GHOST, RX_PPM and RX_PARALLEL_PWM removed from unified targets to free flash (#514)
+- Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
+- FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
+- New `SYSTEM_STATUS` (120; S.Port `0x5140`, CRSF `0x1230`) and `SYSTEM_CONFIG` (121; S.Port `0x5141`, CRSF `0x1231`) telemetry sensors pack FC status, governor and rescue state, profiles and config flags into two bitfields for radio dashboards; layout in `src/main/telemetry/status.h`. Existing sensors are unchanged. Both are added to the default `telemetry_sensors` (`PG_TELEMETRY_CONFIG` v8)
+
+## Bug Fixes
+
+- ICM42605 gyro uses the correct ODR (#475)
+- Servos are no longer set to midpoint at startup (#466)
+- Forwarding of S.Port master sensors fixed (#481)
+- FBUS/S.Port current sensor accumulates consumed capacity (#513)
+- Bus servo speed limit uses the real frame time; SBUS and F.Bus keep separate state (#515)
+- `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
+- `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
+- CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent in decimetres instead of centimetres (still S16), so it no longer stops at 327.67 m MSL; the range is now ±3276.7 m. Decoders must divide by 10 instead of 100 (#549)
+
+## Flight Performance
+
+Horizon mode uses a per-axis cubic leveling curve, ramps in over 500ms
+on activation, and has its own `horizon_angle_limit` (#479).
+
+Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
+(#457). Disabled by default.
+
+Bus servos with a `speed` set previously moved much slower than configured
+(about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
+## MSP Changes
+
+- API version 12.10 (#484)
+
+### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
+
+- added `error_decay_gain_cyclic` (#457)
+
+### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
+
+- `SRXL2` inserted in the motor and ESC sensor protocol lists; `DISABLED` and `RECORD` values are shifted by one (#421)
+
+### MSP2_GET_FBUS_SENSORS / MSP2_CLEAR_FBUS_SENSORS
+
+- new commands (0x5F07, 0x5F08) to list and clear observed FBUS/S.Port sensors (#482)
+
+### MSP2_GET_FBUS_MASTER_CONFIG / MSP2_SET_FBUS_MASTER_CONFIG
+
+- new commands (0x5F09, 0x5F0A) to get/set forwarded sensors; applied without reboot (#482)
+
+### MSP2_GET_TUNE_ADVISOR / MSP2_CLEAR_TUNE_ADVISOR
+
+- new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
+  Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
+  tune changes (checked on arming). New commands only, the API version is unchanged.
+- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (67 bytes), payload v1:
+  `U8 version, U8 collecting, U16 seconds, U8 axis`,
+  `U16 P, U16 F, U16 B, U8 iterm_relax_cutoff, U8 rates_type, U8 rc_rate, U8 s_rate`,
+  `U16 ffCount, S16 ffGain, S16 ffCorr, U16 ffLagMs` (ffGain = gyro / setpoint at the best delay),
+  3 x `S16 gain, U16 count` by request (40-100, 100-200, 200+ deg/s),
+  3 x `S16 gain, U16 count` by |collective| (<25%, 25-50%, 50%+),
+  `U16 fullCount, U16 fullSatCount, S16 fullRatio, U16 fullMaxRate`,
+  `U16 releases, U16 bigRebounds, S16 meanRebound, S16 meanOvershoot, S16 meanCounter,
+  S16 meanIterm` (meanCounter is P+I+D+B, so tail and pitch precomp do not count).
+  Ratios are x1000, counts saturate at 65535.
+
+### MSP_SET_XACT_SCAN
+
+New MSP command (161) to restart discovery of XACT servos on the F.Bus master link. No payload.
+Returns an error if F.Bus master is not enabled or the system is armed (#518).
+
+### MSP_XACT_SERVO_LIST
+
+New MSP command (165) to list the XACT servos discovered since the last scan (#518).
+Returns: U8 count, then per servo: U8 phyID, U8 appIdOffset, U8 conflict, U8 duplicateAppId, U8 ready, U8 channel.
+
+### MSP_XACT_PARAMS
+
+New MSP command (162) to read all parameters of one discovered XACT servo (#518). Payload: U8 phyID.
+Starts a read if none has completed yet; repeat until `ready` is 1. `ready` stays 0 while any field
+except the firmware version is unanswered, and the next request retries the read.
+Returns: U8 ready, U8 conflict, U8 duplicateAppId, U8 physicalId, U8 appIdOffset, U8 firmwareVersion,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 hasExtendedParams, U8 workingMode, U16 maxAngle.
+
+### MSP_SET_XACT_PARAMS
+
+New MSP command (163) to write the parameters of one discovered XACT servo (#518). Only changed fields are
+written, followed by a save to the servo's flash. Payload: U8 targetPhyID, U8 physicalId, U8 appIdOffset,
+U16 dataRate, U8 range, U8 direction, U8 pulseType, U8 channel, S8 center, U8 holdingStrength,
+U8 operationSmoothing, U8 deadband, U8 workingMode, U16 maxAngle.
+Returns an error if F.Bus master is not enabled, the system is armed, the servo is unknown, its
+parameters have not been read yet, physicalId is above 26 or appIdOffset above 15, another servo
+shares its App ID (unless the write changes it to an unused one), or earlier saves are still being sent. Succeeds without writing if no field
+differs from the last read. No XACT traffic is sent while armed.
+
+## CLI Changes
+
+- added `airborne_mode`, `airborne_gyro_threshold`, `airborne_acc_threshold` (#480)
+- added `horizon_angle_limit` (#479)
+- added `error_decay_gain_cyclic` (#457)
+- added `srxl2esc` command (#421)
+- `SRXL2` added to `motor_pwm_protocol` and `esc_sensor_protocol` (#421)
+- new serial function `FUNCTION_SRXL2_ESC` (2097152) (#421)
+
+## Defaults
+
+- `airborne_mode = CONSERVATIVE`, `airborne_gyro_threshold = 10`, `airborne_acc_threshold = 15` (#480)
+- `horizon_angle_limit = 55` (#479)
+- `error_decay_gain_cyclic = 0` (#457)
+- Bus servo scale (`rneg`/`rpos`) changed from 1000 to 500, matching PWM servos; saved configs are unchanged (#515)
+
+# 4.6.0
 
 ## Flight Performance
 
@@ -134,9 +261,17 @@ The `batteryProfile` field is added. (#415)
 
 The `batteryCapacity` array is added. (#415)
 
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added, one value
+per battery profile. The legacy single-value fields report the active profile.
+
 ### MSP_SET_BATTERY_CONFIG
 
 The `batteryCapacity` array is added. (#415)
+
+The `batteryCellCount`, `vbatmincellvoltage`, `vbatmaxcellvoltage`,
+`vbatfullcellvoltage` and `vbatwarningcellvoltage` arrays are added (optional).
+The legacy single-value fields are stored into the active profile.
 
 ### MSP_BATTERY_PROFILE
 
@@ -233,6 +368,14 @@ the actual values are calculated automatically (#332).
 `bat_capacity` parameter changed from a single value to an array of 6 values (one for each battery profile).
 
 `bat_profile` parameter added. Value in 0-5, selects the active battery profile.
+
+`battery_cell_count`, `vbat_max_cell_voltage`, `vbat_full_cell_voltage`,
+`vbat_min_cell_voltage` and `vbat_warning_cell_voltage` changed from a single
+value to an array of 6 values (one for each battery profile). This allows
+profiles with different cell counts (e.g. 3S and 4S) and chemistries
+(e.g. LiPo and LiHV). A single value in an old `diff` only sets profile 0.
+Each profile must be ordered `min` <= `warning` <= `full` <= `max`; a profile
+that is not ordered is reset to the defaults.
 
 `pid_gyro_filter_type` and `yaw_precomp_filter_type` parameters are removed (#414).
 

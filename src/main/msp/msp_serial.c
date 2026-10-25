@@ -416,6 +416,12 @@ static mspPostProcessFnPtr mspSerialProcessReceivedCommand(mspPort_t *msp, mspPr
     const mspResult_e status = mspProcessCommandFn(msp->descriptor, &command, &reply, &mspPostProcessFn);
 
     if (status != MSP_RESULT_NO_REPLY) {
+        if (sbufWriteOverflowed(&reply.buf)) {
+            // Too big for mspSerialOutBuf, so its tail was dropped: send an
+            // error with no payload rather than a truncated reply.
+            reply.buf.ptr = outBufHead;
+            reply.result = MSP_RESULT_ERROR;
+        }
         sbufSwitchToReader(&reply.buf, outBufHead); // change streambuf direction
         mspSerialEncode(msp, &reply, msp->mspVersion);
     }

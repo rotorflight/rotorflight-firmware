@@ -26,6 +26,7 @@
 #include "pg/boardalignment.h"
 
 void alignSensorViaMatrix(float *dest, fp_rotationMatrix_t* rotationMatrix);
+void alignSensorRotationOnly(float *dest, uint8_t rotation);
 void alignSensorViaRotation(float *dest, uint8_t rotation);
 
 void initBoardAlignment(const boardAlignment_t *boardAlignment);
