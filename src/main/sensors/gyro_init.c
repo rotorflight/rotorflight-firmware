@@ -671,20 +671,25 @@ int16_t gyroRateDps(int axis)
 }
 
 #ifdef USE_GYRO_REGISTER_DUMP
-static extDevice_t *gyroSensorDevByInstance(uint8_t whichSensor)
+static gyroDev_t *gyroDevByInstance(uint8_t whichSensor)
 {
 #ifdef USE_MULTI_GYRO
     if (whichSensor == GYRO_CONFIG_USE_GYRO_2) {
-        return &gyro.gyroSensor2.gyroDev.dev;
+        return &gyro.gyroSensor2.gyroDev;
     }
 #else
     UNUSED(whichSensor);
 #endif
-    return &gyro.gyroSensor1.gyroDev.dev;
+    return &gyro.gyroSensor1.gyroDev;
+}
+
+const mpuDetectionResult_t *gyroMpuDetectionResultByInstance(uint8_t whichSensor)
+{
+    return &gyroDevByInstance(whichSensor)->mpuDetectionResult;
 }
 
 uint8_t gyroReadRegister(uint8_t whichSensor, uint8_t reg)
 {
-    return mpuGyroReadRegister(gyroSensorDevByInstance(whichSensor), reg);
+    return mpuGyroReadRegister(&gyroDevByInstance(whichSensor)->dev, reg);
 }
 #endif // USE_GYRO_REGISTER_DUMP

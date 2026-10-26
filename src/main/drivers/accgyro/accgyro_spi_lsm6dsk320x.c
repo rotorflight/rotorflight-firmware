@@ -67,12 +67,12 @@
 #define LSM6DSV_CTRL4                       0x13
 #define LSM6DSV_CTRL4_DRDY_PULSED                       0x02
 #define LSM6DSV_CTRL6                       0x15
-#define LSM6DSV_CTRL6_LPF1_G_BW_MASK                    0x70 // See table 64
-#define LSM6DSV_CTRL6_LPF1_G_BW_SHIFT                   4
-#define LSM6DSV_CTRL6_FS_G_BW_288HZ                     0
-#define LSM6DSV_CTRL6_FS_G_BW_215HZ                     1
-#define LSM6DSV_CTRL6_FS_G_BW_157HZ                     2
-#define LSM6DSV_CTRL6_FS_G_BW_455HZ                     3
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_MASK                0x70 // See DS15060 Table 66
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_SHIFT               4
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_281HZ               0
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_213HZ               1
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_156HZ               2
+#define LSM6DSK320X_CTRL6_LPF1_G_BW_407HZ               3
 #define LSM6DSV_CTRL6_FS_G_MASK                         0x0f
 #define LSM6DSV_CTRL6_FS_G_SHIFT                        0
 #define LSM6DSV_CTRL6_FS_G_2000DPS                      0x04
@@ -215,12 +215,13 @@ static bool lsm6dsk320xReset(const extDevice_t *dev)
 static bool lsm6dsk320xConfigure(const extDevice_t *dev, uint8_t hardware_lpf)
 {
     // Set default LPF1 filter bandwidth to be as close as possible to MPU6000's 250Hz cutoff
+    // DS15060 Table 66 bandwidths at 7.68 kHz ODR.
     static const uint8_t lpf_bandwidth_options[GYRO_HARDWARE_LPF_COUNT] = {
-            [GYRO_HARDWARE_LPF_NORMAL] = LSM6DSV_CTRL6_FS_G_BW_288HZ,
-            [GYRO_HARDWARE_LPF_OPTION_1] = LSM6DSV_CTRL6_FS_G_BW_157HZ,
-            [GYRO_HARDWARE_LPF_OPTION_2] = LSM6DSV_CTRL6_FS_G_BW_215HZ,
+            [GYRO_HARDWARE_LPF_NORMAL] = LSM6DSK320X_CTRL6_LPF1_G_BW_281HZ,
+            [GYRO_HARDWARE_LPF_OPTION_1] = LSM6DSK320X_CTRL6_LPF1_G_BW_156HZ,
+            [GYRO_HARDWARE_LPF_OPTION_2] = LSM6DSK320X_CTRL6_LPF1_G_BW_213HZ,
 #ifdef USE_GYRO_DLPF_EXPERIMENTAL
-            [GYRO_HARDWARE_LPF_EXPERIMENTAL] = LSM6DSV_CTRL6_FS_G_BW_455HZ
+            [GYRO_HARDWARE_LPF_EXPERIMENTAL] = LSM6DSK320X_CTRL6_LPF1_G_BW_407HZ
 #endif
     };
 
@@ -261,8 +262,8 @@ static bool lsm6dsk320xConfigure(const extDevice_t *dev, uint8_t hardware_lpf)
             // LSM6DSK320X, where bit 3 must be 1 (DS15060 Table 64, reset value 0x08).
             { LSM6DSV_CTRL6, LSM6DSK320X_CTRL6_FS_G_BIT3 |
                              LSM6DSV_ENCODE_BITS(lpf_bandwidth_options[hardware_lpf],
-                                                 LSM6DSV_CTRL6_LPF1_G_BW_MASK,
-                                                 LSM6DSV_CTRL6_LPF1_G_BW_SHIFT) |
+                                                 LSM6DSK320X_CTRL6_LPF1_G_BW_MASK,
+                                                 LSM6DSK320X_CTRL6_LPF1_G_BW_SHIFT) |
                              LSM6DSV_ENCODE_BITS(LSM6DSV_CTRL6_FS_G_2000DPS,
                                                  LSM6DSV_CTRL6_FS_G_MASK,
                                                  LSM6DSV_CTRL6_FS_G_SHIFT) },

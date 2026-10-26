@@ -33,4 +33,5 @@ gyroDev_t *gyroActiveDev(void);
 struct mpuDetectionResult_s;
 const struct mpuDetectionResult_s *gyroMpuDetectionResult(void);
 int16_t gyroRateDps(int axis);
+const struct mpuDetectionResult_s *gyroMpuDetectionResultByInstance(uint8_t whichSensor);
 uint8_t gyroReadRegister(uint8_t whichSensor, uint8_t reg);

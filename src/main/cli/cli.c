@@ -4037,7 +4037,7 @@ static void cliPrintGyroRegisters(uint8_t whichSensor)
 #if defined(USE_ACCGYRO_LSM6DSK320X)
     // LSM sensors do not use the MPU register map: WHO_AM_I is at 0x0f, and 0x75/0x1a/0x1b
     // are reserved, so the MPU reads below only ever report 0x00 or 0xff on this sensor.
-    if (gyroMpuDetectionResult()->sensor == LSM6DSK320X_SPI) {
+    if (gyroMpuDetectionResultByInstance(whichSensor)->sensor == LSM6DSK320X_SPI) {
         cliPrintLinef("# WHO_AM_I  0x%X (0x75)", gyroReadRegister(whichSensor, 0x0F));
         cliPrintLinef("# CTRL1     0x%X (0x19)", gyroReadRegister(whichSensor, 0x10)); // high-accuracy accelerometer, 1 kHz
         cliPrintLinef("# CTRL2     0x%X (0x1C)", gyroReadRegister(whichSensor, 0x11)); // high-accuracy gyro, 8 kHz
