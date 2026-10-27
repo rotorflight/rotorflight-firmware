@@ -26,7 +26,7 @@
 #define MAX_SPI_PIN_SEL 2
 #elif defined(STM32F7)
 #define MAX_SPI_PIN_SEL 4
-#elif defined(STM32H7)
+#elif defined(STM32H7) || defined(CH32H4) || defined(CH32H41x)
 #define MAX_SPI_PIN_SEL 5
 #else
 #error Unknown MCU family
@@ -36,7 +36,7 @@
 
 typedef struct spiPinDef_s {
     ioTag_t pin;
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
     uint8_t af;
 #endif
 } spiPinDef_t;
@@ -63,7 +63,7 @@ typedef struct SPIDevice_s {
     ioTag_t sck;
     ioTag_t miso;
     ioTag_t mosi;
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
     uint8_t sckAF;
     uint8_t misoAF;
     uint8_t mosiAF;

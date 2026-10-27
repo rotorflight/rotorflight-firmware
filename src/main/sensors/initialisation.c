@@ -47,8 +47,8 @@
 #include "sensors/sensors.h"
 
 // requestedSensors is not actually used
-uint8_t requestedSensors[SENSOR_INDEX_COUNT] = { GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE };
-uint8_t detectedSensors[SENSOR_INDEX_COUNT] = { GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE };
+uint8_t requestedSensors[SENSOR_INDEX_COUNT] = {GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE};
+uint8_t detectedSensors[SENSOR_INDEX_COUNT] = {GYRO_NONE, ACC_NONE, BARO_NONE, MAG_NONE, RANGEFINDER_NONE};
 
 void sensorsPreInit(void)
 {
@@ -65,24 +65,30 @@ void sensorsPreInit(void)
 
 bool sensorsAutodetect(void)
 {
+    // extern void ch32_diag_blink(uint8_t count);
 
     // gyro must be initialised before accelerometer
 
     bool gyroDetected = gyroInit();
+    // ch32_diag_blink(1); /* 1: gyroInit done */
 
 #ifdef USE_ACC
-    if (gyroDetected) {
+    if (gyroDetected)
+    {
         accInit(gyro.accSampleRateHz);
     }
 #endif
+    // ch32_diag_blink(2); /* 2: accInit done */
 
 #ifdef USE_MAG
     compassInit();
 #endif
+    // ch32_diag_blink(3); /* 3: compassInit done */
 
 #ifdef USE_BARO
     baroDetect(&baro.dev, barometerConfig()->baro_hardware);
 #endif
+    // ch32_diag_blink(4); /* 4: baroDetect done */
 
 #ifdef USE_RANGEFINDER
     rangefinderInit();
@@ -91,6 +97,7 @@ bool sensorsAutodetect(void)
 #ifdef USE_ADC_INTERNAL
     adcInternalInit();
 #endif
+    // ch32_diag_blink(5); /* 5: adcInternalInit done */
 
     return gyroDetected;
 }

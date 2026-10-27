@@ -20,9 +20,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-
 #include "platform.h"
-
 #include "fc/init.h"
 
 #include "scheduler/scheduler.h"
@@ -31,6 +29,7 @@ void run(void);
 
 int main(void)
 {
+    
     init();
 
     run();
@@ -40,7 +39,8 @@ int main(void)
 
 FAST_CODE void run(void)
 {
-    while (true) {
+    while (true)
+    {
         scheduler();
 #ifdef SIMULATOR_BUILD
         delayMicroseconds_real(50); // max rate 20kHz

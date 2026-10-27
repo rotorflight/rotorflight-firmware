@@ -74,6 +74,18 @@
 #define UART_TX_BUFFER_SIZE     256
 #endif
 #endif
+#elif defined(CH32H41x) || defined(CH32H4)
+#define UARTDEV_COUNT_MAX 11
+#ifndef UART_RX_BUFFER_SIZE
+#define UART_RX_BUFFER_SIZE     128
+#endif
+#ifndef UART_TX_BUFFER_SIZE
+#ifdef USE_MSP_DISPLAYPORT
+#define UART_TX_BUFFER_SIZE     1280
+#else
+#define UART_TX_BUFFER_SIZE     256
+#endif
+#endif
 #else
 #error unknown MCU family
 #endif
@@ -150,7 +162,7 @@
 
 typedef struct uartPinDef_s {
     ioTag_t pin;
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H41x) || defined(CH32H4)
     uint8_t af;
 #endif
 } uartPinDef_t;

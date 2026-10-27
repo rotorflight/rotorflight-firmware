@@ -19,14 +19,38 @@
 
 #ifdef USE_TELEMETRY_CASTLE
 
-#include "build/atomic.h"
+#if defined(CH32H4) || defined(CH32H41x)
+/*
+ * Castle telemetry is not yet ported to CH32H4/CH32H41x.
+ * We provide a stub so the rest of the code links cleanly
+ */
 
+#include "drivers/castle_telemetry_decode.h"
+
+void getCastleTelemetry(castleTelemetry_t *telem){
+    // Return zeroed telemetry; feature not supported on CH32H4 yet.
+    memset(telem, 0, sizeof(castleTelemetry_t));
+}
+
+bool castleInputConfig(const timerHardware_t *timerHardware, struct timerChannel_s *timerChannel, uint32_t hz){
+    (void)timerHardware;
+    (void)timerChannel;
+    (void)hz;
+    // No castle telemetry on ch32h4 for now
+    return false;
+}
+#else //!CH32H4 / !CH32H41x
+
+// existing Rotorflight STM32 implementation
+
+#include "build/atomic.h"
 #include "drivers/castle_telemetry_decode.h"
 #include "drivers/nvic.h"
 #include "drivers/pwm_output.h"
 #include "drivers/timer.h"
 
-typedef struct castleInterrupt_s {
+typedef struct castleInterrupt_s
+{
     timerCCHandlerRec_t pwmEdgeCb;
     volatile timCCR_t *timingChannelCCR;
     volatile timCCR_t *directChannelCCR;
@@ -42,9 +66,10 @@ typedef struct castleInterrupt_s {
 
 static FAST_DATA_ZERO_INIT castleInterrupt_t castleState;
 
-void getCastleTelemetry(castleTelemetry_t* telem)
+void getCastleTelemetry(castleTelemetry_t *telem)
 {
-    ATOMIC_BLOCK(NVIC_PRIO_TIMER) {
+    ATOMIC_BLOCK(NVIC_PRIO_TIMER)
+    {
         memcpy(telem, &castleState.telem[castleState.whichTelem ^ 1], sizeof(castleTelemetry_t));
     }
 }
@@ -91,11 +116,13 @@ void getCastleTelemetry(castleTelemetry_t* telem)
 // Must provide OC_MODE and OC_FAST and OC_PRELOAD
 // or IC_FILTER, IC_PSC, and IC_INPUT
 typedef uint32_t timCCMR_t;
-#define CAPTURE_CONFIGURE(tim, channelIndex, conf) do {                 \
-        timCCMR_t val = *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1));   \
-        val = (val & (~((timCCMR_t)0xFF)<< (((channelIndex) & 1)<<3))) | ((timCCMR_t)(conf) << (((channelIndex) & 1)<<3)); \
-        *(&(tim)->CCMR1 + (((channelIndex) >> 1)&1)) = val;     \
-    } while(0)
+#define CAPTURE_CONFIGURE(tim, channelIndex, conf)                                                                              \
+    do                                                                                                                          \
+    {                                                                                                                           \
+        timCCMR_t val = *(&(tim)->CCMR1 + (((channelIndex) >> 1) & 1));                                                         \
+        val = (val & (~((timCCMR_t)0xFF) << (((channelIndex) & 1) << 3))) | ((timCCMR_t)(conf) << (((channelIndex) & 1) << 3)); \
+        *(&(tim)->CCMR1 + (((channelIndex) >> 1) & 1)) = val;                                                                   \
+    } while (0)
 
 static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingCompare)
 {
@@ -108,20 +135,27 @@ static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingC
     // The only requirements on the interrupt is the PWM-end interrupt must be serviced before 0.5ms
     // after the end of the pulse, and the output-on interrupt must be serviced before the next counter
     // reset.
-    if (timingCompare >= state->outputEnableTime) {
+    if (timingCompare >= state->outputEnableTime)
+    {
         uint16_t telemVal = *state->directChannelCCR;
-        if (telemVal <= state->pwmEdge) {
+        if (telemVal <= state->pwmEdge)
+        {
             // The capture register retained the PWM value. Thus no capture
             // occurred, so this was a sync frame.
             state->telemIndex = 1;
-        } else if (state->telemIndex > 0) {
+        }
+        else if (state->telemIndex > 0)
+        {
             telemVal -= state->pwmEdge;
-            ((uint16_t*)&state->telem[state->whichTelem])[state->telemIndex] = telemVal;
-            if (telemVal <= (state->pwmEdge >> 4)) {
+            ((uint16_t *)&state->telem[state->whichTelem])[state->telemIndex] = telemVal;
+            if (telemVal <= (state->pwmEdge >> 4))
+            {
                 // When the battery is disconnected we get some spurious
                 // telemetry frames.
                 state->telemIndex = 0;
-            } else if (++state->telemIndex == CASTLE_TELEM_NFRAMES) {
+            }
+            else if (++state->telemIndex == CASTLE_TELEM_NFRAMES)
+            {
                 state->telemIndex = 0;
                 // Note the first valid telemetry generation is 1.
                 state->telem[state->whichTelem ^ 1].generation =
@@ -142,7 +176,9 @@ static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingC
         // Also put it in the timing channel, so we get an interrupt.
         *state->timingChannelCCR = state->saveCCR;
         ENABLE_CHANNEL_POLARITY(state->timer->tim, state->directChannelIndex, OC_ENABLE_POLARITY_LOW);
-    } else {
+    }
+    else
+    {
         // Save the compare value used for the rising (end) edge of the PWM pullse.
         state->pwmEdge = *state->directChannelCCR;
 
@@ -159,28 +195,32 @@ static void pwmEdgeCallback(timerCCHandlerRec_t *cbRec, captureCompare_t timingC
 }
 
 // Assumes timer is already set up for output.
-bool castleInputConfig(const timerHardware_t* timerHardware,
+bool castleInputConfig(const timerHardware_t *timerHardware,
                        timerChannel_t *timerChannel,
                        uint32_t hz)
 {
-    TIM_HandleTypeDef* Handle = timerFindTimerHandle(timerHardware->tim);
+    TIM_HandleTypeDef *Handle = timerFindTimerHandle(timerHardware->tim);
     if (Handle == NULL)
         return false;
 
-    if (castleState.timer) {
+    if (castleState.timer)
+    {
         return false;
     }
     // Find an unassigned capture/compare channel.
     uint8_t timingChannel = 0xFF;
-    for (int8_t channelIndex = CC_CHANNELS_PER_TIMER - 1; channelIndex > 0; channelIndex--) {
+    for (int8_t channelIndex = CC_CHANNELS_PER_TIMER - 1; channelIndex > 0; channelIndex--)
+    {
         uint8_t channel = CC_CHANNEL_FROM_INDEX(channelIndex);
         if (!timerGetConfiguredByNumberAndChannel(timerGetTIMNumber(timerHardware->tim),
-                                                  channel)) {
+                                                  channel))
+        {
             timingChannel = channel;
             break;
         }
     }
-    if (timingChannel == 0xFF) {
+    if (timingChannel == 0xFF)
+    {
         /* No channels were available, so no telemetry will be collected. */
         return false;
     }
@@ -221,5 +261,7 @@ bool castleInputConfig(const timerHardware_t* timerHardware,
     HAL_TIM_OC_Start_IT(Handle, otherHardware.channel);
     return true;
 }
+
+#endif //CH32H4 / CH32H41x
 
 #endif // USE_TELEMETRY_CASTLE

@@ -27,21 +27,23 @@
 
 typedef uint16_t dmaCode_t;
 
-typedef struct dmaChannelSpec_s {
-    dmaCode_t             code;
-    dmaResource_t         *ref;
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
-    uint32_t              channel;
+typedef struct dmaChannelSpec_s
+{
+    dmaCode_t code;
+    dmaResource_t *ref;
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
+    uint32_t channel;
 #endif
 } dmaChannelSpec_t;
 
-#define DMA_CODE(dma, stream, chanreq) ((dma << 12)|(stream << 8)|(chanreq << 0))
+#define DMA_CODE(dma, stream, chanreq) ((dma << 12) | (stream << 8) | (chanreq << 0))
 #define DMA_CODE_CONTROLLER(code) ((code >> 12) & 0xf)
 #define DMA_CODE_STREAM(code) ((code >> 8) & 0xf)
 #define DMA_CODE_CHANNEL(code) ((code >> 0) & 0xff)
 #define DMA_CODE_REQUEST(code) DMA_CODE_CHANNEL(code)
 
-typedef enum {
+typedef enum
+{
     DMA_PERIPH_SPI_MOSI,
     DMA_PERIPH_SPI_MISO,
     DMA_PERIPH_ADC,
@@ -55,7 +57,7 @@ typedef int8_t dmaoptValue_t;
 
 #define DMA_OPT_UNUSED (-1)
 
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H4) || defined(CH32H41x)
 #define MAX_PERIPHERAL_DMA_OPTIONS 16
 #define MAX_TIMER_DMA_OPTIONS 16
 #else

@@ -50,3 +50,33 @@ ubuntu*.log
 
 # EEPROM image file (created by SITL)
 eeprom.bin
+
+
+
+# Accidentally committed files
+CH32H417RM.PDF
+CH32H417DS0.PDF
+CH32H41x_RF_4.6.0_REF_SCH.pdf
+usb_enumeration_debug_usbvcp.m
+
+# Local notes, logs, schematics, and copied project folders
+/CH32H417_CLI_CONFIGURATION_PORTING.md
+/Add_New_IMU_ICM40608.md
+/CH32H4_DShot_Bitbang_Fix.md
+/Changes_ICM40608_As_ICM40609D.md
+/CLI_ERRORS.txt
+/DEBUG_LOG_PWM_AF_FIX.md
+/DPS310_SPA06_003_Conditional_Support.md
+/FCSchematic.pdf
+/MOTOR_SERVO_CONFIGURATION.md
+/MSP LOAD MICROS_FIX_CH32H417.md
+/RPM_Sensor_FREQ_SENSOR_Fix.md
+/RTFLatest9_15_cli_20260915_100704.txt
+/SCH_Schematic1_2026-08-10.pdf
+/SCH_Schematic1_2026-08-13.pdf
+/Verify_PWM_DShot_with_Oscilloscope.md
+/*.pdf
+/*.PDF
+/*.txt
+/CH32H415_DFU-master/
+/rotorflight/
