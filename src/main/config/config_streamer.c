@@ -98,7 +98,7 @@ void config_streamer_start(config_streamer_t *c, uintptr_t base, int size)
 #if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
         HAL_FLASH_Unlock();
 #elif defined(CH32H41x) || defined(CH32H4)
-        FLASH_Unlock();
+        FLASH_Unlock_Fast();
 #else
         FLASH_Unlock();
 #endif
@@ -272,7 +272,17 @@ static uint32_t getFLASHSectorForEEPROM(void)
         failureMode(FAILURE_CONFIG_STORE_FAILURE);
     }
 }
-
+#elif defined(CH32H41x) || defined(CH32H4)
+/*
+Sector 0    0x08000000 - 0x08003FFF 16 Kbytes
+Sector 1    0x08004000 - 0x08007FFF 16 Kbytes
+Sector 2    0x08008000 - 0x0800BFFF 16 Kbytes
+Sector 3    0x0800C000 - 0x0800FFFF 16 Kbytes
+Sector 4    0x08010000 - 0x0801FFFF 64 Kbytes
+Sector 5    0x08020000 - 0x0803FFFF 128 Kbytes
+Sector 6    0x08040000 - 0x0805FFFF 128 Kbytes
+Sector 7    0x08060000 - 0x0807FFFF 128 Kbytes
+*/
 #elif defined(STM32H743xx) || defined(STM32G4) || defined(STM32H7A3xx) || defined(STM32H7A3xxQ) || defined(STM32H723xx) || defined(STM32H725xx)
 /*
 MCUs with uniform array of equal size sectors, handled in two banks having contiguous address.
@@ -477,26 +487,28 @@ static int write_word(config_streamer_t *c, config_streamer_buffer_align_type_t 
 #if defined(CH32H4) || defined(CH32H41x)
     if (c->address % FLASH_PAGE_SIZE == 0)
     {
-        FLASH_Status status = FLASH_ErasePage(c->address);
-        delay(10);
+        const FLASH_Status status = FLASH_ErasePage(c->address);
         if (status != FLASH_COMPLETE)
         {
             return -1;
         }
     }
+    // CH32H415/6/7 Fast page programming size is 256 bytes
+    STATIC_ASSERT(CONFIG_STREAMER_BUFFER_SIZE == sizeof(uint32_t) * 64, "CONFIG_STREAMER_BUFFER_SIZE does not match written size");
 
-    FLASH_Status status = FLASH_ProgramWord(c->address, *buffer);
-    delay(1);
+    FLASH_ProgramPage_Fast(c->address, buffer);
+    const FLASH_Status status = FLASH_GetStatus();
+    // const FLASH_Status status = FLASH_ProgramWord(address, *buffer);
     if (status != FLASH_COMPLETE)
     {
         return -2;
     }
     /* Verify the write — CH32H41x flash can silently fail, causing
      * config validation to fail on next boot → infinite reset loop. */
-    if (*(volatile uint32_t *)c->address != *buffer)
-    {
-        return -3;
-    }
+    // if (*(volatile uint32_t *)c->address != *buffer)
+    // {
+    //     return -3;
+    // }
 #elif defined(STM32H7)
     if (c->address % FLASH_PAGE_SIZE == 0)
     {

@@ -30,23 +30,28 @@
 #define CONFIG_STREAMER_BUFFER_SIZE 8 // Must not be greater than the smallest flash page size of all compiled-in flash devices.
 typedef uint32_t config_streamer_buffer_align_type_t;
 #elif defined(STM32H743xx) || defined(STM32H750xx) || defined(STM32H723xx) || defined(STM32H725xx)
-#define CONFIG_STREAMER_BUFFER_SIZE 32  // Flash word = 256-bits
+#define CONFIG_STREAMER_BUFFER_SIZE 32 // Flash word = 256-bits
 typedef uint64_t config_streamer_buffer_align_type_t;
 #elif defined(STM32H7A3xx) || defined(STM32H7A3xxQ)
-#define CONFIG_STREAMER_BUFFER_SIZE 16  // Flash word = 128-bits
+#define CONFIG_STREAMER_BUFFER_SIZE 16 // Flash word = 128-bits
 typedef uint64_t config_streamer_buffer_align_type_t;
 #elif defined(STM32G4)
-#define CONFIG_STREAMER_BUFFER_SIZE 8   // Flash word = 64-bits
+#define CONFIG_STREAMER_BUFFER_SIZE 8 // Flash word = 64-bits
 typedef uint64_t config_streamer_buffer_align_type_t;
+#elif defined(CH32H41x) || defined(CH32H4)
+#define CONFIG_STREAMER_BUFFER_SIZE 256 // Flash word = 256-bytes
+typedef uint32_t config_streamer_buffer_align_type_t;
 #else
 #define CONFIG_STREAMER_BUFFER_SIZE 4
 typedef uint32_t config_streamer_buffer_align_type_t;
 #endif
 
-typedef struct config_streamer_s {
+typedef struct config_streamer_s
+{
     uintptr_t address;
     int size;
-    union {
+    union
+    {
         uint8_t b[CONFIG_STREAMER_BUFFER_SIZE];
         config_streamer_buffer_align_type_t w;
     } buffer;
