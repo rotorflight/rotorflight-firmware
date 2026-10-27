@@ -430,11 +430,19 @@ UART_IRQHandler(USART, 1, 1) // USART1 Rx/Tx IRQ Handler
 #endif
 
 #ifdef USE_UART4
+#if defined(CH32H41x) || defined(CH32H4)
+    UART_IRQHandler(USART, 4, 4) // USART4 Rx/Tx IRQ Handler
+#else
     UART_IRQHandler(UART, 4, 4) // UART4 Rx/Tx IRQ Handler
+#endif
 #endif
 
 #ifdef USE_UART5
+#if defined(CH32H41x) || defined(CH32H4)
+    UART_IRQHandler(USART, 5, 5) // USART5 Rx/Tx IRQ Handler
+#else
     UART_IRQHandler(UART, 5, 5) // UART5 Rx/Tx IRQ Handler
+#endif
 #endif
 
 #ifdef USE_UART6
@@ -442,11 +450,19 @@ UART_IRQHandler(USART, 1, 1) // USART1 Rx/Tx IRQ Handler
 #endif
 
 #ifdef USE_UART7
+#if defined(CH32H41x) || defined(CH32H4)
+    UART_IRQHandler(USART, 7, 7) // USART7 Rx/Tx IRQ
+#else
     UART_IRQHandler(UART, 7, 7) // UART7 Rx/Tx IRQ Handler
+#endif
 #endif
 
 #ifdef USE_UART8
+#if defined(CH32H41x) || defined(CH32H4)
+    UART_IRQHandler(USART, 8, 8) // USART8 Rx/Tx IRQ
+#else
     UART_IRQHandler(UART, 8, 8) // UART8 Rx/Tx IRQ Handler
+#endif
 #endif
 
 #ifdef USE_UART9
