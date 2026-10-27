@@ -73,6 +73,15 @@ typedef enum {
 
 extern const char *armingDisableFlagNames[ARMING_DISABLE_FLAGS_COUNT];
 
+// Servo and mixer overrides set over MSP can carry a timeout: they lapse unless the
+// client re-sends them in time, so a client that disconnects or crashes cannot leave
+// them on. Every override blocks arming (ARMING_DISABLED_OVERRIDE) and none is ever
+// part of a parameter group.
+#define OVERRIDE_TIMEOUT_MIN_MS   500
+#define OVERRIDE_TIMEOUT_MAX_MS   30000
+#define OVERRIDE_EXPIRY_MS(now, timeoutMs)     ((now) + constrain((timeoutMs), OVERRIDE_TIMEOUT_MIN_MS, OVERRIDE_TIMEOUT_MAX_MS))
+#define OVERRIDE_EXPIRED(now, expiryMs)   ((int32_t)((now) - (expiryMs)) >= 0)
+
 void setArmingDisabled(armingDisableFlags_e flag);
 void unsetArmingDisabled(armingDisableFlags_e flag);
 bool isArmingDisabled(void);

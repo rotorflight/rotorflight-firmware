@@ -71,6 +71,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/motors.h"
 #include "flight/pid.h"
 #include "flight/trainer.h"
 #include "flight/position.h"
@@ -350,7 +351,13 @@ void updateArmingStatus(void)
         }
 #endif
 
-        if (!isMotorProtocolEnabled()) {
+        // Also when the motor outputs failed to set up (the FC would arm
+        // with no motor running), and for a motorised tail without a pin
+        // for MOTOR 2 (the tail pin still on SERVO 4, say), whose tail
+        // would never run. Reported under the motor protocol reason rather
+        // than a bit of its own.
+        if (!isMotorProtocolEnabled() || isMotorInitFailed() ||
+            (mixerMotorizedTail() && getMotorCount() < 2)) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
