@@ -377,7 +377,7 @@ void usbVcpInit(void)
     if ((RCC->PLLCFGR & RCC_SYSPLL_SEL) != RCC_SYSPLL_USBHS)
     {
         RCC_USBHS_PLLCmd(DISABLE);
-        RCC_USBHSPLLCLKConfig(RCC_USBHSPLLSource_HSE);
+        RCC_USBHSPLLCLKConfig(RCC_USBHSPLLSource_HSI);
         RCC_USBHSPLLReferConfig(RCC_USBHSPLLRefer_25M);
         RCC_USBHSPLLClockSourceDivConfig(RCC_USBHSPLL_IN_Div1);
         RCC_USBHS_PLLCmd(ENABLE);
