@@ -116,7 +116,7 @@ void positionUpdate(void)
 #endif
 
 #ifdef USE_GPS
-    if (alt.source & ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
+    if (alt.source == ALT_SOURCE_DEFAULT || alt.source == ALT_SOURCE_GPS_ONLY) {
         if (sensors(SENSOR_GPS) && STATE(GPS_FIX) && gpsSol.numSat >= positionConfig()->gps_min_sats) {
             alt.gpsAlt = filterApply(&alt.gpsFilter, gpsSol.llh.altCm / 100.0f);
             alt.haveGpsAlt = true;
@@ -161,8 +161,10 @@ void positionUpdate(void)
     DEBUG(ALTITUDE, 3, alt.baroAltOffset * 100);
     DEBUG(ALTITUDE, 4, alt.gpsAlt * 100);
     DEBUG(ALTITUDE, 5, alt.gpsAltOffset * 100);
+#ifdef USE_GPS
     DEBUG(ALTITUDE, 6, gpsSol.llh.altCm);
     DEBUG(ALTITUDE, 7, gpsSol.numSat);
+#endif
 }
 
 void INIT_CODE positionInit(void)
