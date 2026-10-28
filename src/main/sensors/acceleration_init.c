@@ -238,10 +238,11 @@ retry:
         FALLTHROUGH;
 #endif
 
-#if defined(USE_ACC_SPI_ICM42605) || defined(USE_ACC_SPI_ICM42688P) || defined(USE_ACC_SPI_ICM40608)
+#if defined(USE_ACC_SPI_ICM42605) || defined(USE_ACC_SPI_ICM42688P) || defined(USE_ACC_SPI_ICM40608) || defined(USE_ACC_SPI_IIM42652)
     case ACC_ICM42605:
     case ACC_ICM42688P:
     case ACC_ICM40608:
+    case ACC_IIM42652:
         if (icm426xxSpiAccDetect(dev)) {
             switch (dev->mpuDetectionResult.sensor) {
             case ICM_42605_SPI:
@@ -252,6 +253,9 @@ retry:
                 break;
             case ICM_40608_SPI:
                 accHardware = ACC_ICM40608;
+                break;
+            case IIM_42652_SPI:
+                accHardware = ACC_IIM42652;
                 break;
             default:
                 accHardware = ACC_NONE;
