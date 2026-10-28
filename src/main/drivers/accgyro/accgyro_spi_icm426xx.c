@@ -343,7 +343,7 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     // Disable AFSR to prevent stalls in gyro output. See
     //    https://github.com/ArduPilot/ardupilot/pull/25332
     //    https://github.com/betaflight/betaflight/pull/13132
-    // The ICM-40608 has no AFSR bits, INTF_CONFIG1 bits 7:4 are reserved
+    // AFSR is a 42xxx feature, ArduPilot does not apply this to the ICM-4060x either
     if (gyroModel != ICM_40608_SPI) {
         uint8_t intfConfig1Value = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG1);
         intfConfig1Value &= ~ICM426XX_INTF_CONFIG1_AFSR_MASK;
