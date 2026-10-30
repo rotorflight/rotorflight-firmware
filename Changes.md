@@ -27,6 +27,7 @@ the APIs or flight performance.
 
 ## Bug Fixes
 
+- DIRECT governor TTA applies only the proportional assist increment, avoiding doubled throttle when enabled (#487, #488)
 - ICM42605 gyro uses the correct ODR (#475)
 - Servos are no longer set to midpoint at startup (#466)
 - Forwarding of S.Port master sensors fixed (#481)

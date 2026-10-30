@@ -171,6 +171,17 @@ flight_mixer_unittest :=  \
 gps_conversion_unittest_SRC := \
 		$(USER_DIR)/common/gps_conversion.c
 
+governor_unittest_SRC := \
+		$(USER_DIR)/flight/governor.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
 
 io_serial_unittest_SRC := \
 		$(USER_DIR)/io/serial.c \
