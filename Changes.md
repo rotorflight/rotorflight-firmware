@@ -72,17 +72,17 @@ Bus servos with a `speed` set previously moved much slower than configured
 - new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
   Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
   tune changes (checked on arming). New commands only, the API version is unchanged.
-- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (52 bytes: one CRSF frame), payload v3:
+- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (51 bytes: one CRSF frame), payload v3:
   `U8 version, U8 flags` (bits 0-1 axis, bit 2 collecting, bits 3-5 rates_type), `U16 seconds`,
   `U32 P | F << 10 | B << 20, U8 iterm_relax_cutoff, U8 rc_rate, U8 s_rate`,
   `U16 ffCount, U8 ffGain x64, S8 ffCorr x100, U8 ffLagMs` (ffGain = gyro / setpoint at the best delay),
   3 x `U8 gain x64, U16 count` by request (40-100, 100-200, 200+ deg/s),
   3 x `U8 gain x64, U16 count` by |collective| (<25%, 25-50%, 50%+),
   `U16 fullCount, U16 fullSatCount, U8 fullRatio x100, U8 fullMaxRate` (10 deg/s steps),
-  `U16 releases, U16 bigRebounds, U8 meanRebound x100, U8 meanOvershoot x64, U8 meanCounter x100,
+  `U16 releases, U8 bigRebounds, U8 meanRebound x100, U8 meanOvershoot x64, U8 meanCounter x100,
   S16 meanIterm x1000` (meanCounter is P+I+D+B, so tail and pitch precomp do not count),
   `U16 shakeCount, U8 shakeRms x4` (gyro RMS in deg/s, stick centred, high-passed at 2 Hz).
-  Scaled values saturate at their byte's range, counts at 65535. Payload v1 (67 bytes) and v2
+  Scaled values and bigRebounds saturate at their byte's range, counts at 65535. Payload v1 (67 bytes) and v2
   (71 bytes, adding the shake fields) were 16-bit throughout and were never released.
 
 ### MSP_SET_XACT_SCAN

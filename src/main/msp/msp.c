@@ -2587,10 +2587,12 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 #ifdef USE_TUNE_ADVISOR
     case MSP2_GET_TUNE_ADVISOR: {
         // One axis per request (U8 axis: 0 roll, 1 pitch, 2 yaw). Payload version 3 packs each
-        // value into as few bytes as the client needs: 52 bytes, the most one CRSF frame carries
-        // after the MSP header (58 - 6), and 12 S.Port/FBUS frames instead of 16. A field added
-        // later takes it past one CRSF frame. Counts saturate at 65535 (about 11 min of 100 Hz
-        // samples); scaled values saturate at their byte's range.
+        // value into as few bytes as the client needs: 51 bytes, the most one CRSF frame carries:
+        // a frame holds 58 bytes and the MSP header takes 6, but sendMspReply() sends a reply
+        // that exactly fills one as two frames, the second only a status byte (msp_shared.c).
+        // 12 S.Port/FBUS frames instead of 16. A field added later takes it past one CRSF frame.
+        // Counts saturate at 65535 (about 11 min of 100 Hz samples); bigRebounds, counted within
+        // one flight, and scaled values saturate at their byte's range.
         if (sbufBytesRemaining(src) != 1) {
             return MSP_RESULT_ERROR;
         }
@@ -2634,7 +2636,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         sbufWriteU8(dst, mspScaledU8(ta.fullMaxRate, 0.1f));        // 10 deg/s steps, 0..2550
 
         sbufWriteU16(dst, ta.releases);
-        sbufWriteU16(dst, ta.bigRebounds);
+        sbufWriteU8(dst, MIN(ta.bigRebounds, UINT8_MAX));
         sbufWriteU8(dst, mspScaledU8(ta.meanRebound, 100));         // x100, 0..2.55
         sbufWriteU8(dst, mspScaledU8(ta.meanOvershoot, 64));        // x64, 0..3.98
         sbufWriteU8(dst, mspScaledU8(ta.meanCounter, 100));         // x100, 0..2.55
