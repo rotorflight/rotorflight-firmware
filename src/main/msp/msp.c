@@ -2591,8 +2591,9 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         // a frame holds 58 bytes and the MSP header takes 6, but sendMspReply() sends a reply
         // that exactly fills one as two frames, the second only a status byte (msp_shared.c).
         // 12 S.Port/FBUS frames instead of 16. A field added later takes it past one CRSF frame.
-        // Counts saturate at 65535 (about 11 min of 100 Hz samples); bigRebounds, counted within
-        // one flight, and scaled values saturate at their byte's range.
+        // Counts saturate at 65535 (about 11 min of 100 Hz samples); bigRebounds (no advice reads
+        // it; the Ethos suite clears it after each flight) and scaled values saturate at their
+        // byte's range.
         if (sbufBytesRemaining(src) != 1) {
             return MSP_RESULT_ERROR;
         }
