@@ -40,6 +40,7 @@
 #include "drivers/freq.h"
 #include "drivers/time.h"
 #include "drivers/io.h"
+#include "drivers/srxl2_esc.h"
 
 #include "sensors/esc_sensor.h"
 #include "sensors/gyro.h"
@@ -245,7 +246,7 @@ INIT_CODE void motorInit(void)
     const ioTag_t *ioTags = motorConfig()->dev.ioTags;
 
     if (isMotorProtocolSrxl2()) {
-        motorCount = 1;
+      motorCount = srxl2escMotorCount();
     } else {
       for (motorCount = 0;
             motorCount < MAX_SUPPORTED_MOTORS && ioTags[motorCount] != IO_TAG_NONE;
