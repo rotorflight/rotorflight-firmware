@@ -38,6 +38,11 @@
 // The controller's counter-output and I at release are kept next to it, so a client can tell
 // airframe rebound (small counter-output, I near 0: needs damping) from I-term push-back.
 //
+// Shake. An oscillating loop (usually P too high) also leaves an opposite-sign peak after every
+// stop, so it reads as rebound. The RMS of the gyro, high-passed at 2 Hz, while the stick is
+// centred and the stop has settled tells the two apart: a tuned heli holds a few deg/s there,
+// an oscillating one tens.
+//
 // Everything accumulates across flights, so the numbers firm up, and is cleared when the tune
 // changes (checked when arming) or on MSP2_CLEAR_TUNE_ADVISOR.
 
@@ -118,6 +123,11 @@ typedef struct {
     float sumOvershoot;
     float sumCounter;
     float sumIterm;
+
+    float shakeLp;              // slow part of the gyro, removed before the shake is measured
+    uint16_t shakeQuiet;        // samples the stick has been centred
+    uint32_t shakeCount;
+    float shakeSumSq;
 } taAxis_t;
 
 typedef struct {
@@ -335,6 +345,26 @@ static void processRelease(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
     }
 }
 
+static void processShake(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
+{
+    const float gyro = s->gyro[axis];
+
+    ax->shakeLp += TA_SHAKE_LP_K * (gyro - ax->shakeLp);
+
+    if (!s->valid || fabsf(s->setpoint[axis]) >= TA_STICK_CENTER) {
+        ax->shakeQuiet = 0;
+        return;
+    }
+    if (ax->shakeQuiet < TA_SHAKE_SETTLE) {
+        ax->shakeQuiet++;
+        return;
+    }
+
+    const float shake = gyro - ax->shakeLp;
+    ax->shakeCount++;
+    ax->shakeSumSq += shake * shake;
+}
+
 void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
 {
     // All three axes: a pirouette is flying. (Wingflight leaves yaw out because of taxi turns.)
@@ -361,6 +391,7 @@ void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
         processFeedforward(ax, &gated, axis, ta.histPos);
         processFullStick(ax, &gated, axis, ta.histPos);
         processRelease(ax, &gated, axis);
+        processShake(ax, &gated, axis);
 
         if ((ta.sampleCount % TA_SAMPLE_HZ) == 0)
             updateBestLag(ax);
@@ -401,6 +432,10 @@ void tuneAdvisorGetAxis(int axis, tuneAdvisorAxis_t *out)
         out->meanCounter = ax->sumCounter / ax->releases;
         out->meanIterm = ax->sumIterm / ax->releases;
     }
+
+    out->shakeCount = ax->shakeCount;
+    if (ax->shakeCount)
+        out->shakeRms = sqrtf(ax->shakeSumSq / ax->shakeCount);
 }
 
 uint32_t tuneAdvisorGetValidSamples(void)

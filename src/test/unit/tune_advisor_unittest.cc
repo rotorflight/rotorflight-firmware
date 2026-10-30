@@ -212,6 +212,49 @@ TEST_F(TuneAdvisorTest, SmallInputsAreNotReleases)
     EXPECT_EQ(0, roll().releases);
 }
 
+// Stick centred, gyro oscillating at freq Hz with this amplitude, plus a slow drift
+static void feedShake(float amplitude, float freq, int samples)
+{
+    for (int i = 0; i < samples; i++) {
+        const float t = (float)i / TA_SAMPLE_HZ;
+        tuneAdvisorSample_t s = {};
+        s.valid = true;
+        s.collective = 0.3f;
+        s.gyro[FD_ROLL] = amplitude * sinf(2.0f * (float)M_PI * freq * t) + 50.0f * sinf(2.0f * (float)M_PI * 0.1f * t);
+        tuneAdvisorProcessSample(&s);
+    }
+}
+
+TEST_F(TuneAdvisorTest, CentredShakeIsMeasured)
+{
+    feedShake(50, 15, 1000);            // the issue log's roll: P oscillating at 15 Hz
+
+    const tuneAdvisorAxis_t a = roll();
+    EXPECT_EQ(1000u - 1 - TA_SHAKE_SETTLE, a.shakeCount);       // the first sample is not rotating yet
+    EXPECT_NEAR(0.93f * 50.0f / sqrtf(2), a.shakeRms, 1.0f);    // the high-pass keeps 93% at 15 Hz
+}
+
+TEST_F(TuneAdvisorTest, SlowDriftIsNotShake)
+{
+    feedShake(0, 0, 1000);              // only the 0.1 Hz drift
+
+    EXPECT_GT(roll().shakeCount, 0u);
+    EXPECT_LT(roll().shakeRms, 3.0f);
+}
+
+TEST_F(TuneAdvisorTest, StopIsNotShake)
+{
+    feed(0, 50, 20);
+    feed(120, 180, 40);
+    feed(0, -45, 10);                   // big rebound, inside the settle time
+    feed(0, 50, 40);                    // the heli still rotating keeps the flying check on
+    feed(0, 50, 100);                   // steady rate, no shake
+
+    const tuneAdvisorAxis_t a = roll();
+    EXPECT_GT(a.shakeCount, 0u);
+    EXPECT_LT(a.shakeRms, 5.0f);
+}
+
 TEST_F(TuneAdvisorTest, FullStickReportsTheRateReached)
 {
     gain = 1.0f;
@@ -268,8 +311,10 @@ TEST_F(TuneAdvisorTest, PirouetteCountsAsFlying)
 TEST_F(TuneAdvisorTest, ResetClearsEverything)
 {
     flyRolls(10);
+    feedShake(50, 15, 100);
     tuneAdvisorReset();
 
     EXPECT_EQ(0u, roll().ffCount);
+    EXPECT_EQ(0u, roll().shakeCount);
     EXPECT_EQ(0u, tuneAdvisorGetValidSamples());
 }
