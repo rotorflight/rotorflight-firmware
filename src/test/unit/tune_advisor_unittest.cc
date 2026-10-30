@@ -255,6 +255,79 @@ TEST_F(TuneAdvisorTest, StopIsNotShake)
     EXPECT_LT(a.shakeRms, 5.0f);
 }
 
+// A stop with a slow second-order settle and no sustained oscillation: `stops` rolls held at
+// `rate` for 1 s, then the stick centred for `centredMs` while the rate settles with 15%
+// overshoot, the opposite-sign peak `peakMs` after the release.
+static void feedSlowStops(float rate, int peakMs, int centredMs, int stops)
+{
+    const float zeta = 0.517f;          // 15% overshoot
+    const float wd = (float)M_PI / (peakMs / 1000.0f);
+    const float wn = wd / sqrtf(1 - zeta * zeta);
+    for (int stop = 0; stop < stops; stop++) {
+        for (int i = 0; i < TA_SAMPLE_HZ; i++) {
+            tuneAdvisorSample_t s = {};
+            s.valid = true;
+            s.collective = 0.3f;
+            s.setpoint[FD_ROLL] = rate;
+            s.gyro[FD_ROLL] = rate;
+            s.deflection[FD_ROLL] = rate / 400.0f;
+            tuneAdvisorProcessSample(&s);
+        }
+        for (int i = 0; i < centredMs * TA_SAMPLE_HZ / 1000; i++) {
+            const float t = (float)i / TA_SAMPLE_HZ;
+            tuneAdvisorSample_t s = {};
+            s.valid = true;
+            s.collective = 0.3f;
+            s.gyro[FD_ROLL] = rate * expf(-zeta * wn * t) *
+                (cosf(wd * t) + zeta / sqrtf(1 - zeta * zeta) * sinf(wd * t));
+            tuneAdvisorProcessSample(&s);
+        }
+    }
+}
+
+TEST_F(TuneAdvisorTest, SlowReboundIsNotShake)
+{
+    // Rebounds peaking 300 and 400 ms after the stop read 15-40 deg/s with a 0.3 s settle,
+    // above the 15 deg/s the clients take for shaking
+    const float rates[] = { 360, 500 };
+    const int peaks[] = { 300, 400 };
+    for (float rate : rates) {
+        for (int peakMs : peaks) {
+            tuneAdvisorReset();
+            feedSlowStops(rate, peakMs, 1500, 12);
+
+            const tuneAdvisorAxis_t a = roll();
+            EXPECT_GT(a.shakeCount, 0u) << rate << " deg/s, peak at " << peakMs << " ms";
+            EXPECT_LT(a.shakeRms, 5.0f) << rate << " deg/s, peak at " << peakMs << " ms";
+            EXPECT_EQ(12, a.releases) << rate << " deg/s, peak at " << peakMs << " ms";
+        }
+    }
+}
+
+TEST_F(TuneAdvisorTest, CentredSpellShorterThanTheSettleAddsNothing)
+{
+    feedSlowStops(500, 400, 800, 12);
+
+    EXPECT_EQ(0u, roll().shakeCount);
+}
+
+TEST_F(TuneAdvisorTest, CrossCouplingIsNotShake)
+{
+    // A flip: pitch commanded, roll stick centred, roll moving with the pitch input
+    for (int i = 0; i < 500; i++) {
+        const float t = (float)i / TA_SAMPLE_HZ;
+        tuneAdvisorSample_t s = {};
+        s.valid = true;
+        s.collective = 0.3f;
+        s.setpoint[FD_PITCH] = 300;
+        s.gyro[FD_PITCH] = 300;
+        s.gyro[FD_ROLL] = 40.0f * sinf(2.0f * (float)M_PI * 6.0f * t);
+        tuneAdvisorProcessSample(&s);
+    }
+
+    EXPECT_EQ(0u, roll().shakeCount);
+}
+
 TEST_F(TuneAdvisorTest, FullStickReportsTheRateReached)
 {
     gain = 1.0f;
