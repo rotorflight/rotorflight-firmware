@@ -39,9 +39,11 @@
 // airframe rebound (small counter-output, I near 0: needs damping) from I-term push-back.
 //
 // Shake. An oscillating loop (usually P too high) also leaves an opposite-sign peak after every
-// stop, so it reads as rebound. The RMS of the gyro, high-passed at 2 Hz, while the stick is
+// stop, so it reads as rebound. The RMS of the gyro, high-passed at 2 Hz, while every stick is
 // centred and the stop has settled tells the two apart: a tuned heli holds a few deg/s there,
-// an oscillating one tens.
+// an oscillating one tens. Every stick, because a commanded axis couples into the others (a
+// flip moves roll too); settled, because a slow rebound is still moving the heli until the
+// end of TA_RELEASE_WINDOW.
 //
 // Everything accumulates across flights, so the numbers firm up, and is cleared when the tune
 // changes (checked when arming) or on MSP2_CLEAR_TUNE_ADVISOR.
@@ -345,13 +347,14 @@ static void processRelease(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
     }
 }
 
-static void processShake(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
+// centred: every axis's setpoint is inside TA_STICK_CENTER
+static void processShake(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis, bool centred)
 {
     const float gyro = s->gyro[axis];
 
     ax->shakeLp += TA_SHAKE_LP_K * (gyro - ax->shakeLp);
 
-    if (!s->valid || fabsf(s->setpoint[axis]) >= TA_STICK_CENTER) {
+    if (!s->valid || !centred) {
         ax->shakeQuiet = 0;
         return;
     }
@@ -385,13 +388,17 @@ void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
     ta.sampleCount++;
     ta.histPos = (ta.histPos + 1) % (TA_LAG_MAX + 1);
 
+    const bool centred = fabsf(s->setpoint[FD_ROLL]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_PITCH]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_YAW]) < TA_STICK_CENTER;
+
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         taAxis_t *ax = &ta.axis[axis];
 
         processFeedforward(ax, &gated, axis, ta.histPos);
         processFullStick(ax, &gated, axis, ta.histPos);
         processRelease(ax, &gated, axis);
-        processShake(ax, &gated, axis);
+        processShake(ax, &gated, axis, centred);
 
         if ((ta.sampleCount % TA_SAMPLE_HZ) == 0)
             updateBestLag(ax);
