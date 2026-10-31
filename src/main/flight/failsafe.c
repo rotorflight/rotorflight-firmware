@@ -138,8 +138,13 @@ void failsafeOnRxSuspend(uint32_t usSuspendPeriod)
 
 void failsafeOnRxResume(void)
 {
-    failsafeState.validRxDataReceivedAt = millis();                     // prevent RX link down trigger, restart rx link up
-    failsafeState.rxLinkState = FAILSAFE_RXLINK_UP;                     // do so while rx link is up
+    // Called after an EEPROM write, which also runs from the delayed write that
+    // follows a disarm. Only restart the link-up state if the receiver is actually
+    // delivering frames; otherwise a link still down is reported as recovered.
+    if (rxIsReceivingSignal()) {
+        failsafeState.validRxDataReceivedAt = millis();                 // prevent RX link down trigger, restart rx link up
+        failsafeState.rxLinkState = FAILSAFE_RXLINK_UP;                 // do so while rx link is up
+    }
 }
 
 void failsafeOnValidDataReceived(void)
