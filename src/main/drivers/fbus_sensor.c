@@ -434,23 +434,42 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
     // addFrameToBuffer() runs in the FBUS master UART RX callback
     ATOMIC_BLOCK(NVIC_PRIO_MAX) {
         fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+        const timeUs_t currentTimeUs = micros();
         if (buffer && buffer->lastUpdateUs != 0 &&
-            cmpTimeUs(micros(), buffer->lastUpdateUs) <= FBUS_FORWARDED_STALE_US) {
+            cmpTimeUs(currentTimeUs, buffer->lastUpdateUs) <= FBUS_FORWARDED_STALE_US) {
             result = true;
             frame->physicalId = physicalId;
             frame->appId = 0;
             frame->data = 0;
             frame->valid = false;
+
+            int8_t send = -1;
             for (uint8_t n = 0; n < buffer->valueCount; n++) {
                 const uint8_t i = (buffer->nextValue + n) % buffer->valueCount;
                 if (buffer->values[i].fresh) {
-                    frame->appId = buffer->values[i].appId;
-                    frame->data = buffer->values[i].data;
-                    frame->valid = true;
-                    buffer->values[i].fresh = false;
-                    buffer->nextValue = (i + 1) % buffer->valueCount;
+                    send = i;
                     break;
                 }
+            }
+            if (send < 0) {
+                // nothing new: repeat the value sent longest ago, if that was a while ago
+                timeDelta_t oldest = FBUS_FORWARDED_REPEAT_US;
+                for (uint8_t i = 0; i < buffer->valueCount; i++) {
+                    const timeDelta_t age = cmpTimeUs(currentTimeUs, buffer->values[i].lastSentUs);
+                    if (age > oldest) {
+                        oldest = age;
+                        send = i;
+                    }
+                }
+            }
+            if (send >= 0) {
+                fbusForwardedValue_t *value = &buffer->values[send];
+                frame->appId = value->appId;
+                frame->data = value->data;
+                frame->valid = true;
+                value->fresh = false;
+                value->lastSentUs = currentTimeUs;
+                buffer->nextValue = (send + 1) % buffer->valueCount;
             }
         }
     }

@@ -122,6 +122,38 @@ TEST_F(FbusSensorForwardTest, EmptyFrameWhenNothingNew)
     EXPECT_FALSE(frame.valid);
 }
 
+TEST_F(FbusSensorForwardTest, QuietValueIsRepeated)
+{
+    // an RB sends its battery value only now and then: the radio must not lose it
+    fbusSensorProcessData(RB, RB_BATT, 74);
+    EXPECT_TRUE(next(RB).valid);
+
+    testTimeUs += FBUS_FORWARDED_REPEAT_US / 2;
+    fbusSensorProcessData(RB, 0, 0);
+    EXPECT_FALSE(next(RB).valid);
+
+    testTimeUs += FBUS_FORWARDED_REPEAT_US / 2 + 1;
+    fbusSensorProcessData(RB, 0, 0);
+    const fbusSensorFrame_t frame = next(RB);
+    EXPECT_TRUE(frame.valid);
+    EXPECT_EQ(RB_BATT, frame.appId);
+    EXPECT_EQ(74u, frame.data);
+
+    // and not again straight away
+    EXPECT_FALSE(next(RB).valid);
+}
+
+TEST_F(FbusSensorForwardTest, NewValuesBeforeRepeats)
+{
+    fbusSensorProcessData(RB, RB_BATT, 74);
+    EXPECT_TRUE(next(RB).valid);
+
+    testTimeUs += FBUS_FORWARDED_REPEAT_US + 1;
+    fbusSensorProcessData(RB, RB_ACCZ, 1000);
+    EXPECT_EQ(RB_ACCZ, next(RB).appId);
+    EXPECT_EQ(RB_BATT, next(RB).appId);
+}
+
 TEST_F(FbusSensorForwardTest, ValuesTakeTurns)
 {
     for (uint16_t i = 0; i < 9; i++) {

@@ -24,6 +24,7 @@
 // Frame forwarding configuration
 #define FBUS_FORWARDED_VALUES 16            // App IDs kept per forwarded sensor (an RB sends 9)
 #define FBUS_FORWARDED_STALE_US 1000000     // no data for this long: stop answering for it
+#define FBUS_FORWARDED_REPEAT_US 1000000    // a value not sent for this long is sent again
 #define FBUS_SENSOR_MAX_FORWARD_BUFFERS 8
 
 // FBUS Sensor Physical IDs
@@ -131,6 +132,7 @@ typedef struct {
     uint16_t appId;
     uint32_t data;
     bool fresh;          // not yet sent to the receiver
+    timeUs_t lastSentUs;
 } fbusForwardedValue_t;
 
 typedef struct {
@@ -294,8 +296,10 @@ void fbusSensorInitForwarding(void);
 bool fbusSensorIsForwarded(uint8_t physicalId);
 // The value received last, without taking it. False if the sensor is not forwarded.
 bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
-// The next value not yet sent, one App ID after another (frame->valid false if none).
-// False if the sensor is not forwarded or has sent nothing for FBUS_FORWARDED_STALE_US.
+// The next value not yet sent, one App ID after another. With none, the value sent longest
+// ago if that was over FBUS_FORWARDED_REPEAT_US ago (a sensor may send a value that does not
+// change only now and then), else frame->valid is false. False if the sensor is not forwarded
+// or has sent nothing for FBUS_FORWARDED_STALE_US.
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
 bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source);
 void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source);
