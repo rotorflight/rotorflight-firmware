@@ -716,59 +716,29 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 #endif
 
 #if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
-            // First pass: advertise configured forwarded sensors on startup.
-            // Keep startup frames prioritized so all configured sensors are discovered.
-            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; !forwardedSensor && sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
-                // Check if this sensor is active (configured and FBUS master enabled)
-                if (telemetrySensorActive(sensorId)) {
-                    // Get the native FrSky physical ID for this sensor
-                    uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    
-                    if (physicalId <= FBUS_MAX_PHYS_ID) {
-                        // Check if we need to send startup frame
-                        if (fbusSensorNeedsStartupFrame(physicalId)) {
-                            // Send empty frame to signal sensor presence
-                            smartPortPayload_t startupPayload = {
-                                .frameId = FBUS_FRAME_ID_DATA,
-                                .valueId = 0,
-                                .data = 0
-                            };
-
-                            writeUplinkFramePhyID(fbusPhyIdWithCheckBits(physicalId), &startupPayload);
-                            fbusSensorMarkStartupFrameSent(physicalId);
-                            forwardedSensor = true;
-                            clearToSend = false;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Second pass: forward buffered sensor data once startup advertising is complete.
-            if (!forwardedSensor) {
-                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
-                    if (!telemetrySensorActive(sensorId)) {
-                        continue;
-                    }
-
-                    uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    if (physicalId > FBUS_MAX_PHYS_ID) {
+            // A forwarded sensor answers when the receiver polls its own ID: with its next
+            // value, or an empty data frame when nothing new has come in, while the sensor is
+            // sending. Never in another device's slot (it could be on the receiver's bus), and
+            // not for a null poll.
+            if (!forwardedSensor && !sendNullFrame) {
+                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; phyId >= 0 && sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
+                    if (!telemetrySensorActive(sensorId) || telemetryGetFbusSensorPhysicalId(sensorId) != phyId) {
                         continue;
                     }
 
                     fbusSensorFrame_t sensorFrame;
-                    if (fbusSensorGetForwardedFrame(physicalId, &sensorFrame) && sensorFrame.valid) {
-                        smartPortPayload_t forwardPayload = {
+                    if (fbusSensorGetForwardedFrame(phyId, &sensorFrame)) {
+                        const smartPortPayload_t forwardPayload = {
                             .frameId = FBUS_FRAME_ID_DATA,
-                            .valueId = sensorFrame.appId,
-                            .data = sensorFrame.data
+                            .valueId = sensorFrame.valid ? sensorFrame.appId : 0,
+                            .data = sensorFrame.valid ? sensorFrame.data : 0,
                         };
-
-                        writeUplinkFramePhyID(fbusPhyIdWithCheckBits(sensorFrame.physicalId), &forwardPayload);
+                        writeUplinkFramePhyID(downlinkPhyID, &forwardPayload);
                         forwardedSensor = true;
                         clearToSend = false;
-                        break;
                     }
+                    break;
                 }
             }
 #endif
