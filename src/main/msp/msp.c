@@ -3968,6 +3968,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         mixerRulesMutable(i)->output = sbufReadU8(src);
         mixerRulesMutable(i)->offset = sbufReadU16(src);
         mixerRulesMutable(i)->weight = sbufReadU16(src);
+        mixerUpdateMapping();
         break;
 
     case MSP_SET_MIXER_OVERRIDE:
