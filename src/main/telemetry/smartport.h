@@ -80,3 +80,5 @@ bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload);
 #else
 static inline bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload) { (void)payload; return false; }
 #endif
+// MSP reply chunks written so far, for the FBUS debug counters.
+uint32_t smartPortMspReplyChunksSent(void);

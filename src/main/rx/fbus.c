@@ -84,14 +84,18 @@
 
 #define MS2US(ms)   ((ms) * 1000)
 
+// debug_mode FBUS: how the receiver schedules the two IDs the FC answers on.
+// MSP replies go out one 6-byte chunk per poll, so the poll intervals of
+// 0x1B and 0x0D bound the MSP throughput a radio can see.
 enum {
-    DEBUG_FBUS_FRAME_INTERVAL = 0,
-    DEBUG_FBUS_FRAME_ERRORS,
-    DEBUG_FBUS_FRAME_LAST_ERROR,
-    DEBUG_FBUS_TELEMETRY_INTERVAL,
-    DEBUG_FBUS_MAX_BUFFER_USAGE,
-    DEBUG_FBUS_OTA_FRAME_RESPONSE_TIME,
-    DEBUG_FBUS_OTA_RECEIVED_BYTES,
+    DEBUG_FBUS_POLL_INTERVAL_COMMON = 0,    // us between downlink polls of the common ID (0x1B)
+    DEBUG_FBUS_POLL_INTERVAL_MSP,           // us between downlink polls of the MSP ID (0x0D)
+    DEBUG_FBUS_POLL_PRIM_COMMON,            // frame ID of the last poll of 0x1B (0x00 null, 0x10 data)
+    DEBUG_FBUS_POLL_PRIM_MSP,               // frame ID of the last poll of 0x0D (0x30 carries a request)
+    DEBUG_FBUS_MSP_REQUESTS,                // MSP request chunks received
+    DEBUG_FBUS_MSP_REPLIES,                 // MSP reply chunks sent
+    DEBUG_FBUS_FRAME_ERRORS,                // frames dropped by the checksum or type checks
+    DEBUG_FBUS_RESPONSE_DELAY,              // us from the end of the downlink frame to our uplink
 };
 
 enum {
@@ -224,6 +228,7 @@ static void reportFrameError(uint8_t errorReason)
 {
     UNUSED(errorReason);
     frameErrors++;
+    DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_FRAME_ERRORS, frameErrors);
 }
 
 static void clearWriteBuffer(void)
@@ -504,6 +509,18 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                     downlinkPhyID = frame->downlink.phyID;
                     uint8_t frameId = frame->downlink.telemetryData.frameId;
 
+                    if (downlinkPhyID == FBUS_FC_COMMON_ID) {
+                        static timeUs_t lastCommonPollUs = 0;
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_COMMON, cmpTimeUs(currentTimeUs, lastCommonPollUs));
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_COMMON, frameId);
+                        lastCommonPollUs = currentTimeUs;
+                    } else if (downlinkPhyID == FBUS_FC_MSP_ID) {
+                        static timeUs_t lastMspPollUs = 0;
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_MSP, cmpTimeUs(currentTimeUs, lastMspPollUs));
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_MSP, frameId);
+                        lastMspPollUs = currentTimeUs;
+                    }
+
                     switch (frameId) {
                         case FBUS_FRAME_ID_NULL:
                             hasTelemetryRequest = true;
@@ -561,9 +578,11 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 
                         default:
                             if ((frameId == FBUS_FRAME_ID_READ) && (downlinkPhyID == FBUS_FC_MSP_ID)) {
+                                static uint32_t mspRequestChunks = 0;
                                 memcpy(&payloadBuffer, &frame->downlink.telemetryData, sizeof(payloadBuffer));
                                 mspPayload = &payloadBuffer;
                                 hasTelemetryRequest = true;
+                                DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_MSP_REQUESTS, ++mspRequestChunks);
                             } else if (downlinkPhyID != FBUS_FC_COMMON_ID) {
 #if defined(USE_SMARTPORT_MASTER__WARNING_DEAD_CODE__)
                                 int8_t smartportPhyID = smartportMasterStripPhyIDCheckBits(downlinkPhyID);
@@ -741,7 +760,9 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
                     if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
                         // Send null frame
                     } else if (!sendNullFrame) {
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_RESPONSE_DELAY, cmpTimeUs(micros(), lastTelemetryFrameReceivedUs));
                         processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_MSP_REPLIES, smartPortMspReplyChunksSent());
                         mspPayload = NULL;
                     }
                 } else {
