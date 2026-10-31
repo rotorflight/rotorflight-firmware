@@ -338,10 +338,6 @@ void fbusSensorInitForwarding(void)
 #else
         forwardBuffers[i].physicalId = FBUS_INVALID_PHYSICAL_ID;
 #endif
-        forwardBuffers[i].writeIndex = 0;
-        forwardBuffers[i].readIndex = 0;
-        forwardBuffers[i].count = 0;
-        forwardBuffers[i].startupFrameSent = false;
     }
 }
 
@@ -365,26 +361,48 @@ static fbusSensorForwardBuffer_t* getForwardBuffer(uint8_t physicalId)
     return NULL;
 }
 
-static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data)
+// Runs in the FBUS master UART RX callback
+static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data, timeUs_t currentTimeUs)
 {
     fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
     if (!buffer) {
         return;
     }
-    
-    // If buffer is full, discard oldest frame
-    if (buffer->count >= FBUS_FORWARDED_FRAME_BUFFER_SIZE) {
-        buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
-        buffer->count--;
+
+    buffer->lastUpdateUs = currentTimeUs;
+
+    // App ID 0: a sensor with nothing to send this time, still alive
+    if (appId == 0) {
+        return;
     }
-    
-    buffer->frames[buffer->writeIndex].physicalId = physicalId;
-    buffer->frames[buffer->writeIndex].appId = appId;
-    buffer->frames[buffer->writeIndex].data = data;
-    buffer->frames[buffer->writeIndex].valid = true;
-    
-    buffer->writeIndex = (buffer->writeIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
-    buffer->count++;
+
+    // keep the latest value for each App ID
+    uint8_t slot = buffer->valueCount;
+    for (uint8_t i = 0; i < buffer->valueCount; i++) {
+        if (buffer->values[i].appId == appId) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot == FBUS_FORWARDED_VALUES) {
+        // more App IDs than kept: reuse one already sent
+        for (uint8_t i = 0; i < FBUS_FORWARDED_VALUES; i++) {
+            if (!buffer->values[i].fresh) {
+                slot = i;
+                break;
+            }
+        }
+        if (slot == FBUS_FORWARDED_VALUES) {
+            return;
+        }
+    } else if (slot == buffer->valueCount) {
+        buffer->valueCount++;
+    }
+
+    buffer->values[slot].appId = appId;
+    buffer->values[slot].data = data;
+    buffer->values[slot].fresh = true;
+    buffer->lastValue = slot;
 }
 
 bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
@@ -393,60 +411,70 @@ bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
         return false;
     }
 
-    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
-    if (!buffer) {
-        return false;
+    bool result = false;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        const fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+        if (buffer) {
+            result = true;
+            frame->physicalId = physicalId;
+            frame->valid = buffer->valueCount > 0;
+            frame->appId = frame->valid ? buffer->values[buffer->lastValue].appId : 0;
+            frame->data = frame->valid ? buffer->values[buffer->lastValue].data : 0;
+        }
     }
 
-    if (buffer->count == 0) {
-        frame->physicalId = physicalId;
-        frame->appId = 0;
-        frame->data = 0;
-        frame->valid = false;
-        return true;
-    }
-
-    memcpy(frame, &buffer->frames[buffer->readIndex], sizeof(fbusSensorFrame_t));
-    return true;
+    return result;
 }
 
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
 {
-    if (!fbusSensorPeekForwardedFrame(physicalId, frame)) {
-        return false;
+    bool result = false;
+
+    // addFrameToBuffer() runs in the FBUS master UART RX callback
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
+        const timeUs_t currentTimeUs = micros();
+        if (buffer && buffer->lastUpdateUs != 0 &&
+            cmpTimeUs(currentTimeUs, buffer->lastUpdateUs) <= FBUS_FORWARDED_STALE_US) {
+            result = true;
+            frame->physicalId = physicalId;
+            frame->appId = 0;
+            frame->data = 0;
+            frame->valid = false;
+
+            int8_t send = -1;
+            for (uint8_t n = 0; n < buffer->valueCount; n++) {
+                const uint8_t i = (buffer->nextValue + n) % buffer->valueCount;
+                if (buffer->values[i].fresh) {
+                    send = i;
+                    break;
+                }
+            }
+            if (send < 0) {
+                // nothing new: repeat the value sent longest ago, if that was a while ago
+                timeDelta_t oldest = FBUS_FORWARDED_REPEAT_US;
+                for (uint8_t i = 0; i < buffer->valueCount; i++) {
+                    const timeDelta_t age = cmpTimeUs(currentTimeUs, buffer->values[i].lastSentUs);
+                    if (age > oldest) {
+                        oldest = age;
+                        send = i;
+                    }
+                }
+            }
+            if (send >= 0) {
+                fbusForwardedValue_t *value = &buffer->values[send];
+                frame->appId = value->appId;
+                frame->data = value->data;
+                frame->valid = true;
+                value->fresh = false;
+                value->lastSentUs = currentTimeUs;
+                buffer->nextValue = (send + 1) % buffer->valueCount;
+            }
+        }
     }
 
-    if (!frame->valid) {
-        return true;
-    }
-
-    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
-    if (!buffer) {
-        return false;
-    }
-
-    buffer->readIndex = (buffer->readIndex + 1) % FBUS_FORWARDED_FRAME_BUFFER_SIZE;
-    buffer->count--;
-
-    return true;
-}
-
-bool fbusSensorNeedsStartupFrame(uint8_t physicalId)
-{
-    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
-    if (buffer) {
-        return !buffer->startupFrameSent;
-    }
-
-    return false;
-}
-
-void fbusSensorMarkStartupFrameSent(uint8_t physicalId)
-{
-    fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
-    if (buffer) {
-        buffer->startupFrameSent = true;
-    }
+    return result;
 }
 
 bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source)
@@ -464,7 +492,7 @@ bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_
     sensorCacheIndex = (sensorCacheIndex + 1) % FBUS_SENSOR_CACHE_SIZE;
 
     if (fbusSensorIsForwarded(physicalId)) {
-        addFrameToBuffer(physicalId, appId, data);
+        addFrameToBuffer(physicalId, appId, data, currentTimeUs);
     }
 
     if (detectedType == FBUS_DETECTED_SENSOR_GPS) {
@@ -872,6 +900,44 @@ void fbusSensorClearObserved(void)
 {
     memset(observedSensors, 0, sizeof(observedSensors));
     observedSensorCount = 0;
+}
+
+// The observed sensors are updated by the FBUS master UART RX callback.
+bool fbusSensorIsObservedOnFbus(uint8_t physicalId)
+{
+    bool found = false;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        found = getObservedSensor(physicalId, FBUS_SENSOR_SOURCE_FBUS) != NULL;
+    }
+
+    return found;
+}
+
+int8_t fbusSensorFindFbusPhysicalId(uint16_t appId)
+{
+    int8_t physicalId = -1;
+
+    if (appId == 0) {
+        return -1;
+    }
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        for (uint8_t i = 0; i < observedSensorCount && physicalId < 0; i++) {
+            const fbusObservedSensor_t *sensor = &observedSensors[i];
+            if (sensor->source != FBUS_SENSOR_SOURCE_FBUS) {
+                continue;
+            }
+            for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+                if (sensor->appIds[j] == appId) {
+                    physicalId = sensor->physicalId;
+                    break;
+                }
+            }
+        }
+    }
+
+    return physicalId;
 }
 
 const char* fbusSensorGetName(uint8_t physicalId)

@@ -523,6 +523,12 @@ flashfs_unittest_SRC := \
 flashfs_unittest_DEFINES := \
 		USE_FLASHFS_LOOP
 
+fbus_sensor_unittest_SRC := \
+        $(USER_DIR)/drivers/fbus_sensor.c
+
+fbus_sensor_unittest_DEFINES := \
+        USE_FBUS_MASTER=
+
 setpoint_unittest_SRC := \
         $(USER_DIR)/flight/setpoint.c \
 		$(USER_DIR)/build/debug.c \
