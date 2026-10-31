@@ -178,9 +178,13 @@ static uint8_t relayRequestCount = 0;
 // answer in the request's own slot, or only when polled (XACT servos)
 static fbusRelayFrame_t relayPoll;
 static bool relayPollPending = false;
-// the device whose answer is awaited; shared with the UART RX callback
+// the request whose answer is awaited; shared with the UART RX callback. The answer
+// is matched on device, App ID and field, so an XACT response for another field, or
+// a late answer to an earlier request, is not relayed as this one's answer.
 static volatile uint8_t relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
 static volatile uint8_t relayWaitReplyId = 0;
+static volatile uint16_t relayWaitAppId = 0;
+static volatile uint8_t relayWaitFieldId = 0;
 static timeUs_t relayWaitStartUs = 0;
 // answers for the radio, written by the UART RX callback
 static fbusRelayFrame_t relayAnswers[FBUS_RELAY_QUEUE_SIZE];
@@ -226,7 +230,7 @@ bool fbusMasterRelayRequest(uint8_t replyId, uint8_t prim, uint16_t appId, uint3
     // the radio repeats a request until it is answered: keep one copy
     for (uint8_t i = 0; i < relayRequestCount; i++) {
         const fbusRelayFrame_t *r = &relayRequests[i];
-        if (r->phyId == phyId && r->prim == prim && r->appId == appId && r->data == data) {
+        if (r->phyId == phyId && r->replyId == replyId && r->prim == prim && r->appId == appId && r->data == data) {
             return true;
         }
     }
@@ -277,12 +281,16 @@ static bool relayPrepareDownlink(fbusMasterDownlink_t *downlink, timeUs_t curren
     if (relayPollPending) {
         frame = relayPoll;
         relayPollPending = false;
-    } else if (relayRequestCount > 0) {
+    } else if (relayRequestCount > 0 && relayWaitPhyId == FBUS_RELAY_NO_DEVICE) {
+        // the next request waits until the pending answer arrives or times out, so
+        // the single wait slot is never overwritten
         frame = relayRequests[0];
         relayQueuePop(relayRequests, &relayRequestCount, 0);
         if (frame.prim == FBUS_FRAME_ID_READ || frame.prim == FBUS_FRAME_ID_WRITE) {
             ATOMIC_BLOCK(NVIC_PRIO_MAX) {
                 relayWaitReplyId = frame.replyId;
+                relayWaitAppId = frame.appId;
+                relayWaitFieldId = frame.data & 0xFF;   // field ID is the first data byte
                 relayWaitPhyId = frame.phyId;
             }
             relayWaitStartUs = currentTimeUs;
@@ -453,26 +461,30 @@ static void processDownlinkFrame(uint8_t *data)
                                   (downlink.data[2] << 16) | (downlink.data[3] << 24);
             fbusSensorProcessData(downlink.phyID, downlink.appId, sensorData);
         }
-        // XACT servo programming response frame:
+        // Response frame (XACT servo programming and relayed radio requests):
         // appId = App ID (16-bit), data[0] = FIELDID, data[1..2] = DATA1 (little-endian)
-        else if (downlink.prim == FBUS_FRAME_ID_RESPONSE && downlink.phyID == relayWaitPhyId) {
-            // the answer to a request from the radio: back to the ID it was sent to
-            const fbusRelayFrame_t answer = {
-                .phyId = downlink.phyID,
-                .replyId = relayWaitReplyId,
-                .prim = downlink.prim,
-                .appId = downlink.appId,
-                .data = downlink.data[0] | (downlink.data[1] << 8) |
-                        (downlink.data[2] << 16) | ((uint32_t)downlink.data[3] << 24),
-            };
-            relayQueuePush(relayAnswers, &relayAnswerCount, &answer);
-            relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
-        }
         else if (downlink.prim == FBUS_FRAME_ID_RESPONSE) {
             uint16_t appId = downlink.appId;
             uint8_t fieldId = downlink.data[0];
             uint16_t dataValue = (uint16_t)downlink.data[1] | ((uint16_t)downlink.data[2] << 8);
 
+            if (downlink.phyID == relayWaitPhyId && appId == relayWaitAppId && fieldId == relayWaitFieldId) {
+                // the answer to a request from the radio: back to the ID it was sent to
+                const fbusRelayFrame_t answer = {
+                    .phyId = downlink.phyID,
+                    .replyId = relayWaitReplyId,
+                    .prim = downlink.prim,
+                    .appId = appId,
+                    .data = downlink.data[0] | (downlink.data[1] << 8) |
+                            (downlink.data[2] << 16) | ((uint32_t)downlink.data[3] << 24),
+                };
+                relayQueuePush(relayAnswers, &relayAnswerCount, &answer);
+                relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+            }
+
+            // Also an XACT answer when a parameter read is in progress for this servo
+            // and field; a no-op otherwise, so a relayed answer is never lost to XACT
+            // nor an XACT answer to the relay.
             fbusXactSetServoParam(downlink.phyID, fieldId, appId, dataValue);
             fbusXactNotifyResponse(downlink.phyID, fieldId);
         }
