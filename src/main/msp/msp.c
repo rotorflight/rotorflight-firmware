@@ -2569,9 +2569,9 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
 #endif
 #ifdef USE_TUNE_ADVISOR
     case MSP2_GET_TUNE_ADVISOR: {
-        // One axis per request (U8 axis: 0 roll, 1 pitch, 2 yaw) so the reply, 67 bytes, fits
+        // One axis per request (U8 axis: 0 roll, 1 pitch, 2 yaw) so the reply, 71 bytes, fits
         // MSP over telemetry. Ratios are x1000 (signed), counts saturate at 65535 (about 11 min
-        // of 100 Hz samples).
+        // of 100 Hz samples). Payload version 2 added the shake fields at the end.
         if (sbufBytesRemaining(src) != 1) {
             return MSP_RESULT_ERROR;
         }
@@ -2583,7 +2583,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         tuneAdvisorAxis_t ta;
         tuneAdvisorGetAxis(axis, &ta);
 
-        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU8(dst, 2); // payload version
         sbufWriteU8(dst, tuneAdvisorIsCollecting() ? 1 : 0);
         sbufWriteU16(dst, mspSatU16(tuneAdvisorGetValidSamples() / TA_SAMPLE_HZ));
         sbufWriteU8(dst, axis);
@@ -2621,6 +2621,9 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
         sbufWriteU16(dst, mspRatio(ta.meanOvershoot));
         sbufWriteU16(dst, mspRatio(ta.meanCounter));
         sbufWriteU16(dst, mspRatio(ta.meanIterm));
+
+        sbufWriteU16(dst, mspSatU16(ta.shakeCount));
+        sbufWriteU16(dst, mspSatU16(lrintf(ta.shakeRms * 10)));     // deg/s x10
         break;
     }
 #endif
