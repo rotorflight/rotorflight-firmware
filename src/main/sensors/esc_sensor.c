@@ -1494,9 +1494,13 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
             // ...w/ 36 byte payload
             kontronikPacketLength = KON_FRAME_LENGTH;
             kontronikCrcExclude = 0;
+            readBytes = 0;
+            return true;
         }
+        // Neither length matched: discard and resync. Returning true here with
+        // kontronikPacketLength still 0 made the caller CRC a (0 - 4) byte span.
         readBytes = 0;
-        return true;
+        return false;
     }
 
     return false;
