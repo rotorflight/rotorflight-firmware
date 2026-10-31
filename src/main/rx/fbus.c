@@ -33,6 +33,7 @@
 #include "common/utils.h"
 
 #include "drivers/time.h"
+#include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
 
 #ifdef MSP_FIRMWARE_UPDATE__WARNING_DEAD_CODE__
@@ -129,6 +130,8 @@ typedef enum {
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
     FBUS_FRAME_ID_DATA = 0x10,
+    FBUS_FRAME_ID_WORK = 0x20,
+    FBUS_FRAME_ID_IDLE = 0x21,
     FBUS_FRAME_ID_READ = 0x30,
     FBUS_FRAME_ID_WRITE = 0x31,
     FBUS_FRAME_ID_RESPONSE = 0x32,
@@ -371,6 +374,13 @@ static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
     checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 4)) << 7;
     return checkedPhyID;
 }
+
+// The bare 5-bit ID of a physical ID byte, or -1 if its check bits are wrong
+static int8_t fbusPhyIdStripCheckBits(uint8_t phyID)
+{
+    const uint8_t id = phyID & 0x1F;
+    return (fbusPhyIdWithCheckBits(id) == phyID) ? id : -1;
+}
 #endif
 #endif
 
@@ -564,6 +574,17 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                                 memcpy(&payloadBuffer, &frame->downlink.telemetryData, sizeof(payloadBuffer));
                                 mspPayload = &payloadBuffer;
                                 hasTelemetryRequest = true;
+#if defined(USE_FBUS_MASTER)
+                            } else if (frameId == FBUS_FRAME_ID_READ || frameId == FBUS_FRAME_ID_WRITE ||
+                                       frameId == FBUS_FRAME_ID_WORK || frameId == FBUS_FRAME_ID_IDLE) {
+                                // for a device on the FBUS master line: Ethos Device config
+                                // (sent to 0x1B) or a request sent to the device's own ID
+                                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                                if (phyId >= 0) {
+                                    fbusMasterRelayRequest(phyId, frameId, frame->downlink.telemetryData.valueId,
+                                                           frame->downlink.telemetryData.data);
+                                }
+#endif
                             } else if (downlinkPhyID != FBUS_FC_COMMON_ID) {
 #if defined(USE_SMARTPORT_MASTER__WARNING_DEAD_CODE__)
                                 int8_t smartportPhyID = smartportMasterStripPhyIDCheckBits(downlinkPhyID);
@@ -676,11 +697,28 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // Check if we should forward sensor data from FBUS master using telemetry framework
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
-            
+
+#if defined(USE_FBUS_MASTER)
+            // A device's answer to a request from the radio goes first, under the ID
+            // the request was sent to (0x1B for Ethos Device config)
+            if (!sendNullFrame) {
+                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                uint8_t prim;
+                uint16_t appId;
+                uint32_t data;
+                if (phyId >= 0 && fbusMasterRelayGetAnswer(phyId, &prim, &appId, &data)) {
+                    const smartPortPayload_t answer = { .frameId = prim, .valueId = appId, .data = data };
+                    writeUplinkFramePhyID(downlinkPhyID, &answer);
+                    forwardedSensor = true;
+                    clearToSend = false;
+                }
+            }
+#endif
+
 #if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
             // First pass: advertise configured forwarded sensors on startup.
             // Keep startup frames prioritized so all configured sensors are discovered.
-            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
+            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; !forwardedSensor && sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                 // Check if this sensor is active (configured and FBUS master enabled)
                 if (telemetrySensorActive(sensorId)) {
                     // Get the native FrSky physical ID for this sensor

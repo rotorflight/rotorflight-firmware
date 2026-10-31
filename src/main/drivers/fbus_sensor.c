@@ -874,6 +874,44 @@ void fbusSensorClearObserved(void)
     observedSensorCount = 0;
 }
 
+// The observed sensors are updated by the FBUS master UART RX callback.
+bool fbusSensorIsObservedOnFbus(uint8_t physicalId)
+{
+    bool found = false;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        found = getObservedSensor(physicalId, FBUS_SENSOR_SOURCE_FBUS) != NULL;
+    }
+
+    return found;
+}
+
+int8_t fbusSensorFindFbusPhysicalId(uint16_t appId)
+{
+    int8_t physicalId = -1;
+
+    if (appId == 0) {
+        return -1;
+    }
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        for (uint8_t i = 0; i < observedSensorCount && physicalId < 0; i++) {
+            const fbusObservedSensor_t *sensor = &observedSensors[i];
+            if (sensor->source != FBUS_SENSOR_SOURCE_FBUS) {
+                continue;
+            }
+            for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+                if (sensor->appIds[j] == appId) {
+                    physicalId = sensor->physicalId;
+                    break;
+                }
+            }
+        }
+    }
+
+    return physicalId;
+}
+
 const char* fbusSensorGetName(uint8_t physicalId)
 {
     fbusObservedSensor_t *observed = getObservedSensorByPhysicalId(physicalId);

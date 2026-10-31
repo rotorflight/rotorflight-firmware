@@ -274,6 +274,10 @@ typedef struct {
 uint8_t fbusSensorGetObservedCount(void);
 const fbusObservedSensor_t* fbusSensorGetObserved(uint8_t index);
 void fbusSensorClearObserved(void);
+// Whether a device with this physical ID has answered on the FBUS master line
+bool fbusSensorIsObservedOnFbus(uint8_t physicalId);
+// The physical ID of the device on the FBUS master line that sends this App ID, or -1
+int8_t fbusSensorFindFbusPhysicalId(uint16_t appId);
 const char* fbusSensorGetName(uint8_t physicalId);
 const char* fbusSensorGetSourceName(fbusSensorSource_e source);
 

@@ -23,6 +23,8 @@
 
 #include "platform.h"
 
+#include "build/atomic.h"
+
 #include "pg/fbus_master.h"
 #include "pg/sbus_output.h"
 #include "pg/servos.h"
@@ -31,6 +33,7 @@
 #include "common/maths.h"
 #include "common/time.h"
 
+#include "drivers/nvic.h"
 #include "drivers/time.h"
 #include "drivers/sbus_output.h"
 #include "drivers/fbus_master.h"
@@ -50,8 +53,8 @@
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
     FBUS_FRAME_ID_DATA = 0x10,
-    FBUS_FRAME_ID_WORKING_STATE = 0x21,
-    FBUS_FRAME_IDLE_STATE = 0x22,
+    FBUS_FRAME_ID_WORK = 0x20,
+    FBUS_FRAME_ID_IDLE = 0x21,
     FBUS_FRAME_ID_READ = 0x30,
     FBUS_FRAME_ID_WRITE = 0x31,
     FBUS_FRAME_ID_RESPONSE = 0x32,
@@ -150,6 +153,159 @@ static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
     return phyID == phyIDCheck ? smartportPhyID : -1;
 }
 
+/*
+  Requests from the radio for a device on this line, passed on by the receiver:
+  Ethos Device config and the radio's device scripts. Reads and writes (0x30/0x31)
+  and work/idle (0x20/0x21) go out in the downlink slot; the device's answer (0x32)
+  goes back to the radio under the ID the request was sent to.
+ */
+#define FBUS_RELAY_QUEUE_SIZE           4
+#define FBUS_RELAY_NO_DEVICE            0xFF
+#define FBUS_RELAY_ANSWER_TIMEOUT_US    500000
+
+typedef struct {
+    uint8_t phyId;      // the device on this line
+    uint8_t replyId;    // the ID the radio sent the request to
+    uint8_t prim;
+    uint16_t appId;
+    uint32_t data;
+} fbusRelayFrame_t;
+
+// requests, from the receiver task
+static fbusRelayFrame_t relayRequests[FBUS_RELAY_QUEUE_SIZE];
+static uint8_t relayRequestCount = 0;
+// after a read or write, a data poll with its App ID collects the answer: a device may
+// answer in the request's own slot, or only when polled (XACT servos)
+static fbusRelayFrame_t relayPoll;
+static bool relayPollPending = false;
+// the device whose answer is awaited; shared with the UART RX callback
+static volatile uint8_t relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+static volatile uint8_t relayWaitReplyId = 0;
+static timeUs_t relayWaitStartUs = 0;
+// answers for the radio, written by the UART RX callback
+static fbusRelayFrame_t relayAnswers[FBUS_RELAY_QUEUE_SIZE];
+static volatile uint8_t relayAnswerCount = 0;
+
+static void relayQueuePush(fbusRelayFrame_t *queue, volatile uint8_t *count, const fbusRelayFrame_t *frame)
+{
+    if (*count >= FBUS_RELAY_QUEUE_SIZE) {
+        // full: drop the oldest
+        memmove(&queue[0], &queue[1], sizeof(queue[0]) * (FBUS_RELAY_QUEUE_SIZE - 1));
+        (*count)--;
+    }
+    queue[*count] = *frame;
+    (*count)++;
+}
+
+static void relayQueuePop(fbusRelayFrame_t *queue, volatile uint8_t *count, uint8_t index)
+{
+    for (uint8_t i = index; i + 1 < *count; i++) {
+        queue[i] = queue[i + 1];
+    }
+    (*count)--;
+}
+
+bool fbusMasterRelayRequest(uint8_t replyId, uint8_t prim, uint16_t appId, uint32_t data)
+{
+    if (!fbusMasterPort) {
+        return false;
+    }
+
+    // sent to the device's own ID, or to another ID (Ethos Device config uses 0x1B)
+    // for the device that sends this App ID
+    int8_t phyId = -1;
+    if (replyId != FC_COMMON_ID && fbusSensorIsObservedOnFbus(replyId)) {
+        phyId = replyId;
+    } else {
+        phyId = fbusSensorFindFbusPhysicalId(appId);
+    }
+    if (phyId < 0) {
+        return false;
+    }
+
+    // the radio repeats a request until it is answered: keep one copy
+    for (uint8_t i = 0; i < relayRequestCount; i++) {
+        const fbusRelayFrame_t *r = &relayRequests[i];
+        if (r->phyId == phyId && r->prim == prim && r->appId == appId && r->data == data) {
+            return true;
+        }
+    }
+
+    const fbusRelayFrame_t request = {
+        .phyId = phyId, .replyId = replyId, .prim = prim, .appId = appId, .data = data,
+    };
+    relayQueuePush(relayRequests, &relayRequestCount, &request);
+    return true;
+}
+
+bool fbusMasterRelayGetAnswer(uint8_t replyId, uint8_t *prim, uint16_t *appId, uint32_t *data)
+{
+    bool found = false;
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        for (uint8_t i = 0; i < relayAnswerCount; i++) {
+            if (relayAnswers[i].replyId == replyId) {
+                *prim = relayAnswers[i].prim;
+                *appId = relayAnswers[i].appId;
+                *data = relayAnswers[i].data;
+                relayQueuePop(relayAnswers, &relayAnswerCount, i);
+                found = true;
+                break;
+            }
+        }
+    }
+
+    return found;
+}
+
+// fills the downlink with the next relayed frame; false if there is none
+static bool relayPrepareDownlink(fbusMasterDownlink_t *downlink, timeUs_t currentTimeUs)
+{
+    // no settings changes in flight, as for XACT programming
+    if (ARMING_FLAG(ARMED)) {
+        relayRequestCount = 0;
+        relayPollPending = false;
+        return false;
+    }
+
+    if (relayWaitPhyId != FBUS_RELAY_NO_DEVICE &&
+        cmpTimeUs(currentTimeUs, relayWaitStartUs) > FBUS_RELAY_ANSWER_TIMEOUT_US) {
+        relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+    }
+
+    fbusRelayFrame_t frame;
+    if (relayPollPending) {
+        frame = relayPoll;
+        relayPollPending = false;
+    } else if (relayRequestCount > 0) {
+        frame = relayRequests[0];
+        relayQueuePop(relayRequests, &relayRequestCount, 0);
+        if (frame.prim == FBUS_FRAME_ID_READ || frame.prim == FBUS_FRAME_ID_WRITE) {
+            ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+                relayWaitReplyId = frame.replyId;
+                relayWaitPhyId = frame.phyId;
+            }
+            relayWaitStartUs = currentTimeUs;
+            relayPoll = frame;
+            relayPoll.prim = FBUS_FRAME_ID_DATA;
+            relayPoll.data = 0;
+            relayPollPending = true;
+        }
+    } else {
+        return false;
+    }
+
+    downlink->length = FBUS_DOWNLINK_PAYLOAD_SIZE;
+    downlink->phyID = frame.phyId;
+    downlink->prim = frame.prim;
+    downlink->appId = frame.appId;
+    downlink->data[0] = frame.data & 0xFF;
+    downlink->data[1] = (frame.data >> 8) & 0xFF;
+    downlink->data[2] = (frame.data >> 16) & 0xFF;
+    downlink->data[3] = (frame.data >> 24) & 0xFF;
+    return true;
+}
+
 static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels, timeUs_t currentTimeUs)
 {
     // Clear the control.c16 structure
@@ -195,6 +351,13 @@ static void fbusMasterPrepareFrame(fbusMasterFrame_t *frame, uint16_t *channels,
                 smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
                 crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
                 frame->downlink.crc = crc;
+                break;
+            }
+
+            // Then the radio's requests for devices on the line, also unthrottled
+            if (relayPrepareDownlink(&frame->downlink, currentTimeUs)) {
+                smartportMasterPhyIDFillCheckBits(&frame->downlink.phyID);
+                frame->downlink.crc = frskyCheckSum((uint8_t *)&frame->downlink.phyID, FBUS_DOWNLINK_PAYLOAD_SIZE);
                 break;
             }
 
@@ -292,6 +455,19 @@ static void processDownlinkFrame(uint8_t *data)
         }
         // XACT servo programming response frame:
         // appId = App ID (16-bit), data[0] = FIELDID, data[1..2] = DATA1 (little-endian)
+        else if (downlink.prim == FBUS_FRAME_ID_RESPONSE && downlink.phyID == relayWaitPhyId) {
+            // the answer to a request from the radio: back to the ID it was sent to
+            const fbusRelayFrame_t answer = {
+                .phyId = downlink.phyID,
+                .replyId = relayWaitReplyId,
+                .prim = downlink.prim,
+                .appId = downlink.appId,
+                .data = downlink.data[0] | (downlink.data[1] << 8) |
+                        (downlink.data[2] << 16) | ((uint32_t)downlink.data[3] << 24),
+            };
+            relayQueuePush(relayAnswers, &relayAnswerCount, &answer);
+            relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+        }
         else if (downlink.prim == FBUS_FRAME_ID_RESPONSE) {
             uint16_t appId = downlink.appId;
             uint8_t fieldId = downlink.data[0];
