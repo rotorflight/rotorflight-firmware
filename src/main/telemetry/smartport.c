@@ -79,6 +79,15 @@ static uint32_t smartPortMspReplyChunks = 0;
 
 #endif /* USE_MSP_OVER_TELEMETRY */
 
+bool smartPortMspReplyIsPending(void)
+{
+#if defined(USE_MSP_OVER_TELEMETRY)
+    return smartPortMspReplyPending;
+#else
+    return false;
+#endif
+}
+
 uint32_t smartPortMspReplyChunksSent(void)
 {
 #if defined(USE_MSP_OVER_TELEMETRY)
