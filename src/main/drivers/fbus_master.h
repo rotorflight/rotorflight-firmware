@@ -103,6 +103,9 @@ void fbusMasterUpdate(timeUs_t currentTimeUs);
 
 bool fbusMasterIsEnabled(void);
 
+// Frame rate in use, capped when running at 115200 baud
+uint16_t fbusMasterFrameRateHz(void);
+
 // Init function
 void fbusMasterInit(void);
 

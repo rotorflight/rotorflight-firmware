@@ -267,7 +267,6 @@
 
 #undef USE_RANGEFINDER
 
-#undef USE_GPS
 #undef USE_MAG
 
 

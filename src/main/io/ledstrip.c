@@ -1434,6 +1434,8 @@ void set_ADJUSTMENT_LED_PROFILE(int value)
 {
 #ifdef USE_LED_STRIP
     setLedProfile(value - 1);
+#else
+    UNUSED(value);
 #endif
 }
 
