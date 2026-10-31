@@ -610,7 +610,7 @@ void processRxModes(timeUs_t currentTimeUs)
     ) {
         if (isUsingSticksForArming()) {
             if (throttleOff) {
-                if ((autoDisarmDelayUs > 0) && (currentTimeUs > disarmAt)) {
+                if ((autoDisarmDelayUs > 0) && (cmpTimeUs(currentTimeUs, disarmAt) > 0)) {
                     // auto-disarm configured and delay is over
                     disarm(DISARM_REASON_THROTTLE_TIMEOUT);
                     armedBeeperOn = false;
@@ -797,9 +797,16 @@ static void subTaskMixerUpdate(timeUs_t currentTimeUs)
 
 static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
+    // Latch once the boot grace has passed. timeUs_t is 32 bits, so a plain
+    // currentTimeUs > MOTORS_GRACE_TIME_US goes false again for 2 s every time
+    // micros() wraps (71.6 min), freezing servos and starving the motors in flight.
+    static bool motorsGraceOver = false;
 
-    if (currentTimeUs > MOTORS_GRACE_TIME_US) {
+    if (!motorsGraceOver && cmpTimeUs(currentTimeUs, MOTORS_GRACE_TIME_US) > 0) {
+        motorsGraceOver = true;
+    }
+
+    if (motorsGraceOver) {
 #ifdef USE_SERVOS
         servoUpdate();
 #endif
