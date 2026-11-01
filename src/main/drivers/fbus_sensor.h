@@ -200,6 +200,17 @@ typedef struct {
     timeUs_t lastUpdateUs;
 } fbusEscData_t;
 
+// FLVSS cell sensor data structure
+#define FBUS_FLVSS_MAX_CELLS 8
+
+typedef struct {
+    uint16_t cellVoltageCentiVolts[FBUS_FLVSS_MAX_CELLS];
+    uint32_t voltageCentiVolts;      // Sum of the cells, 0.01V
+    uint8_t cellCount;
+    bool hasVoltage;                 // Every cell reported, pack voltage valid
+    timeUs_t lastUpdateUs;
+} fbusFlvssData_t;
+
 // Function prototypes
 void fbusSensorInit(void);
 void fbusSensorUpdate(timeUs_t currentTimeUs);
@@ -214,6 +225,8 @@ bool fbusSensorHasCurrentData(void);
 bool fbusSensorGetBatteryVoltageCentiVolts(uint32_t *voltageCentiVolts);
 void fbusSensorGetEscData(fbusEscData_t *escData);
 bool fbusSensorHasEscData(void);
+void fbusSensorGetFlvssData(fbusFlvssData_t *flvssData);
+bool fbusSensorHasFlvssData(void);
 
 // GPS data conversion functions
 int32_t fbusGpsConvertLatLon(uint32_t fbusData);

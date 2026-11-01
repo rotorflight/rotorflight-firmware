@@ -71,6 +71,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/motors.h"
 #include "flight/pid.h"
 #include "flight/trainer.h"
 #include "flight/position.h"
@@ -232,6 +233,19 @@ static bool accNeedsCalibration(void)
 }
 #endif
 
+motorProtocolCause_e getMotorProtocolCause(void)
+{
+    if (!isMotorProtocolEnabled())
+        return MOTOR_PROTO_CAUSE_DISABLED;
+    // The FC would arm with no motor running
+    if (isMotorInitFailed())
+        return MOTOR_PROTO_CAUSE_INIT_FAILED;
+    // The tail pin still on SERVO 4, say: the tail would never run
+    if (mixerMotorizedTail() && getMotorCount() < 2)
+        return MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR;
+    return MOTOR_PROTO_CAUSE_NONE;
+}
+
 void updateArmingStatus(void)
 {
     if (ARMING_FLAG(ARMED))
@@ -350,7 +364,9 @@ void updateArmingStatus(void)
         }
 #endif
 
-        if (!isMotorProtocolEnabled()) {
+        // Three causes share the motor protocol reason rather than each
+        // having a bit of its own; CLI `status` names the one that applies.
+        if (getMotorProtocolCause() != MOTOR_PROTO_CAUSE_NONE) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
@@ -497,7 +513,7 @@ void tryArm(void)
 
         const timeUs_t currentTimeUs = micros();
 
-#ifdef USE_DSHOT
+#ifdef USE_DSHOT_BEACON
         if (currentTimeUs - getLastDshotBeaconCommandTimeUs() < DSHOT_BEACON_GUARD_DELAY_US) {
             armingDelayed = ARMING_DELAYED;
             return;
