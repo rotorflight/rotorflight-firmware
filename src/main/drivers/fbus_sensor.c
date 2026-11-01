@@ -70,16 +70,6 @@ static fbusServoData_t fbusServo;
 static fbusCurrentData_t fbusCurrent;
 static fbusEscData_t fbusEsc;
 
-#define FBUS_FLVSS_MAX_CELLS 8
-
-typedef struct {
-    uint16_t cellVoltageCentiVolts[FBUS_FLVSS_MAX_CELLS];
-    uint32_t voltageCentiVolts;
-    uint8_t cellCount;
-    bool hasVoltage;
-    timeUs_t lastUpdateUs;
-} fbusFlvssData_t;
-
 static fbusFlvssData_t fbusFlvss;
 
 #define FBUS_SENSOR_CACHE_SIZE 32
@@ -836,6 +826,28 @@ bool fbusSensorHasEscData(void)
     if ((fbusEsc.hasPower || fbusEsc.hasRpm || fbusEsc.hasConsumption || fbusEsc.hasTemperature )
         && fbusEsc.lastUpdateUs > 0) {
         if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void fbusSensorGetFlvssData(fbusFlvssData_t *flvssData)
+{
+    if (flvssData) {
+        ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+            memcpy(flvssData, &fbusFlvss, sizeof(fbusFlvssData_t));
+        }
+    }
+}
+
+bool fbusSensorHasFlvssData(void)
+{
+    timeUs_t currentTimeUs = micros();
+
+    if (fbusFlvss.hasVoltage && fbusFlvss.lastUpdateUs > 0) {
+        if ((currentTimeUs - fbusFlvss.lastUpdateUs) < 1000000) {
             return true;
         }
     }
