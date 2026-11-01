@@ -180,6 +180,7 @@ typedef struct {
 typedef struct fbusBuffer_s {
     uint8_t data[sizeof(fbusFrame_t)+1]; // +1 for CRC
     uint8_t length;
+    timeUs_t arrivalUs;                  // end of a downlink frame, for debug_mode FBUS
 } fbusBuffer_t;
 
 typedef struct {
@@ -331,6 +332,7 @@ static void fbusDataReceive(uint16_t byte, void *callback_data)
                     otaFrameEndTimestamp = currentTimeUs;
                 }
                 lastTelemetryFrameReceivedUs = currentTimeUs;
+                rxBuffer[rxBufferWriteIndex].arrivalUs = currentTimeUs;
 #endif
                 nextWriteBuffer();
                 state = FS_CONTROL_FRAME_START;
@@ -509,16 +511,25 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                     downlinkPhyID = frame->downlink.phyID;
                     uint8_t frameId = frame->downlink.telemetryData.frameId;
 
+                    // Poll intervals from the time each frame arrived, not the time it
+                    // was drained: frames queued behind each other would otherwise
+                    // report one long interval and then short ones. No interval for
+                    // the first poll of an ID, which has nothing to measure from.
+                    const timeUs_t arrivalUs = rxBuffer[rxBufferReadIndex].arrivalUs;
                     if (downlinkPhyID == FBUS_FC_COMMON_ID) {
                         static timeUs_t lastCommonPollUs = 0;
-                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_COMMON, cmpTimeUs(currentTimeUs, lastCommonPollUs));
+                        if (lastCommonPollUs) {
+                            DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_COMMON, cmpTimeUs(arrivalUs, lastCommonPollUs));
+                        }
                         DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_COMMON, frameId);
-                        lastCommonPollUs = currentTimeUs;
+                        lastCommonPollUs = arrivalUs;
                     } else if (downlinkPhyID == FBUS_FC_MSP_ID) {
                         static timeUs_t lastMspPollUs = 0;
-                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_MSP, cmpTimeUs(currentTimeUs, lastMspPollUs));
+                        if (lastMspPollUs) {
+                            DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_MSP, cmpTimeUs(arrivalUs, lastMspPollUs));
+                        }
                         DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_MSP, frameId);
-                        lastMspPollUs = currentTimeUs;
+                        lastMspPollUs = arrivalUs;
                     }
 
                     switch (frameId) {
