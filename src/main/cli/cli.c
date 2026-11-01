@@ -5072,6 +5072,16 @@ static void cliStatus(const char *cmdName, char *cmdline)
         cliPrintf(" %s", armingDisableFlagNames[bitpos]);
     }
     cliPrintLinefeed();
+
+    static const char * const motorProtocolCauses[] = {
+        [MOTOR_PROTO_CAUSE_DISABLED]      = "motor protocol not set",
+        [MOTOR_PROTO_CAUSE_INIT_FAILED]   = "motor outputs failed to set up",
+        [MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR] = "motorised tail but no MOTOR 2",
+    };
+    const motorProtocolCause_e cause = getMotorProtocolCause();
+    if (cause != MOTOR_PROTO_CAUSE_NONE) {
+        cliPrintLinef("MOTOR_PROTO: %s", motorProtocolCauses[cause]);
+    }
 }
 
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
