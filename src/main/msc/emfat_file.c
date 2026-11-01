@@ -139,7 +139,9 @@ static const emfat_entry_t entriesPredefined[] =
     [EMFAT_ENTRY_ALL_LOGS]  = { "",             false, 0,           1,  0,      0,               0,              0,                  CMA,  bblog_read_proc,   NULL, { 0 } },
 };
 
+#ifdef USE_FLASHFS
 static char logFileNames[EMFAT_MAX_LOG_ENTRY + 1][EMFAT_MAX_NAME_LENGTH];
+#endif
 
 static emfat_entry_t entries[EMFAT_MAX_ENTRY];
 
@@ -147,7 +149,9 @@ emfat_t emfat;
 
 static uint32_t cmaTime = CMA_TIME;
 
+#ifdef USE_FLASHFS
 static char logPrefix[MAX_NAME_LENGTH + 1];
+#endif
 
 static void emfat_set_entry_cma(emfat_entry_t *entry)
 {

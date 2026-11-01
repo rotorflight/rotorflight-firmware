@@ -3845,7 +3845,7 @@ static void processBeeperCommand(const char *cmdName, char *cmdline, uint32_t *o
     }
 }
 
-#if defined(USE_DSHOT)
+#if defined(USE_DSHOT_BEACON)
 static void cliBeacon(const char *cmdName, char *cmdline)
 {
     processBeeperCommand(cmdName, cmdline, &(beeperConfigMutable()->dshotBeaconOffFlags), DSHOT_BEACON_ALLOWED_MODES);
@@ -5082,6 +5082,16 @@ static void cliStatus(const char *cmdName, char *cmdline)
         cliPrintf(" %s", armingDisableFlagNames[bitpos]);
     }
     cliPrintLinefeed();
+
+    static const char * const motorProtocolCauses[] = {
+        [MOTOR_PROTO_CAUSE_DISABLED]      = "motor protocol not set",
+        [MOTOR_PROTO_CAUSE_INIT_FAILED]   = "motor outputs failed to set up",
+        [MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR] = "motorised tail but no MOTOR 2",
+    };
+    const motorProtocolCause_e cause = getMotorProtocolCause();
+    if (cause != MOTOR_PROTO_CAUSE_NONE) {
+        cliPrintLinef("MOTOR_PROTO: %s", motorProtocolCauses[cause]);
+    }
 }
 
 #if defined(USE_FBUS_MASTER) || defined(USE_SPORT_MASTER)
@@ -6552,7 +6562,7 @@ static void printConfig(const char *cmdName, char *cmdline, bool doDiff)
 #if defined(USE_BEEPER)
             printBeeper(dumpMask, beeperConfig_Copy.beeper_off_flags, beeperConfig()->beeper_off_flags, "beeper", BEEPER_ALLOWED_MODES, "beeper");
 
-#if defined(USE_DSHOT)
+#if defined(USE_DSHOT_BEACON)
             printBeeper(dumpMask, beeperConfig_Copy.dshotBeaconOffFlags, beeperConfig()->dshotBeaconOffFlags, "beacon", DSHOT_BEACON_ALLOWED_MODES, "beacon");
 #endif
 #endif // USE_BEEPER
@@ -6766,7 +6776,7 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
 #endif
 #if defined(USE_BEEPER)
-#if defined(USE_DSHOT)
+#if defined(USE_DSHOT_BEACON)
     CLI_COMMAND_DEF("beacon", "enable/disable Dshot beacon for a condition", "list\r\n"
         "\t<->[name]", cliBeacon),
 #endif
