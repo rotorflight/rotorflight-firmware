@@ -72,12 +72,28 @@ So, it must be recalculated of needed for MSP-receiver.
 MSP frame must be returned to the origin address of the request
 
 ---------------------------------------------------------------
-Version 3 in the status byte is the compact framing the Wingflight Lua
-suites use. It carries an MSPv2 command with a 3-byte header instead of 5:
+Version 3 in the status byte is a compact framing of an MSPv2 command,
+used by the Rotorflight Lua suites. It carries a 3-byte header instead of 5:
 <ID_lo><ID_hi><size>, and when the size byte is 0xFF, <size_lo><size_hi>
-follow it. No flags byte. On a 6-byte S.Port frame the first chunk then
-carries 2 payload bytes instead of none, which saves a frame on most
-messages over a link that moves about one frame per 30 ms.
+follow it. No flags byte. On a 6-byte S.Port/FBUS frame the first chunk then
+carries 2 payload bytes instead of none, one frame fewer on most messages.
+Over CRSF (57 bytes per reply chunk) it saves a frame only for reply sizes
+52-53, 109-110, 166-167 and 223-224.
+
+A reply is always sent in the version of its request, so versions 1 and 2
+work as before. How a client knows it may use version 3:
+  - read MSP_API_VERSION in version 2, which every firmware answers;
+  - use version 3 only from the API version that ships this framing;
+  - firmware without it answers a version-3 request with
+    sendMspErrorResponse(TELEMETRY_MSP_VER_MISMATCH, 0) laid out as MSPv2:
+    a START frame with the error bit and the request's version bits, which
+    read as version 3 give command 0 and size 0. Treat a START frame with
+    the error bit and command 0, in answer to a version-3 request, as
+    "fall back to version 2". No firmware with version 3 sends command 0.
+
+The version field is two bits and version 3 is its last value, so the
+lastRequestVersion > TELEMETRY_MSP_VERSION check below can no longer be
+true. A later framing will need another way to announce itself.
 ---------------------------------------------------------------
 */
 #define TELEMETRY_MSP_VERSION    3
