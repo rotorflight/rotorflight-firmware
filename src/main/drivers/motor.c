@@ -44,6 +44,7 @@
 
 static FAST_DATA_ZERO_INIT bool motorProtocolEnabled;
 static FAST_DATA_ZERO_INIT bool motorProtocolDshot;
+static FAST_DATA_ZERO_INIT bool motorInitFailed;
 
 static FAST_DATA_ZERO_INIT motorDevice_t *motorDevice;
 
@@ -127,6 +128,14 @@ unsigned motorDeviceCount(void)
 bool isMotorProtocolEnabled(void)
 {
     return motorProtocolEnabled;
+}
+
+// A motor protocol is set but its outputs couldn't be set up, e.g. a motor
+// pin without the DMA DShot needs. The device then drives no motor at all,
+// not even the ones that would have worked.
+bool isMotorInitFailed(void)
+{
+    return motorInitFailed;
 }
 
 bool isMotorProtocolDshot(void)
@@ -247,6 +256,8 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
             motorDevice = motorPwmDevInit(motorDevConfig, motorCount);
         }
     }
+
+    motorInitFailed = motorProtocolEnabled && !motorDevice;
 
     if (motorDevice) {
         motorDevice->count = motorCount;
