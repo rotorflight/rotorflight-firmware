@@ -48,7 +48,7 @@
 // action: 0 = read only, 1 = tail pin to SERVO 4, 2 = tail pin to MOTOR 2.
 // Replies with where the tail pin is (tailOutput_e) and the result of the
 // action (tailOutputResult_e). Changes the config unsaved; it takes effect
-// after a save and reboot.
+// after a save and reboot. Actions 1 and 2 are refused while armed.
 #define MSP2_TAIL_MOTOR_OUTPUT              0x5F14
 
 // Latest decoded FBUS/S.Port sensor values (drivers/fbus_sensor.c), one block per

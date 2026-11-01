@@ -149,11 +149,12 @@ tailOutput_e getTailOutput(void)
         return motorPin ? TAIL_OUTPUT_MOTOR : TAIL_OUTPUT_NONE;
 }
 
-// Whether the timer behind `tag` also drives one of `tags` other than
-// `skip`. A timer runs at one rate, so a servo and a motor can't share it.
-static bool timerSharedWith(ioTag_t tag, const ioTag_t *tags, int count, int skip)
+// Whether `timer` also drives one of `tags` other than `skip`. A timer runs
+// at one rate, so a servo and a motor can't share it.
+static bool timerSharedWith(const timerHardware_t *timer, const ioTag_t *tags, int count, int skip)
 {
-    const timerHardware_t *timer = timerGetConfiguredByTag(tag);
+    if (!timer)
+        return false;
 
     for (int i = 0; i < count; i++) {
         if (i != skip && tags[i] != IO_TAG_NONE) {
@@ -165,27 +166,29 @@ static bool timerSharedWith(ioTag_t tag, const ioTag_t *tags, int count, int ski
     return false;
 }
 
-// DShot without bitbang needs a DMA stream for the pin's timer, found the
-// way dshot_dpwm.c / pwm_output_dshot.c do. Advice only: the protocol can
+// DShot without bitbang needs a free DMA stream for the pin's timer, found
+// and claimed the way pwm_output_dshot.c does. Advice only: the protocol can
 // change after the pin moved, and a motor that fails to set up blocks
 // arming (isMotorInitFailed()).
-static bool tailPinLacksDshotDma(const timerHardware_t *timer)
+static tailOutputResult_e checkTailPinDshotDma(const timerHardware_t *timer)
 {
 #if defined(USE_DSHOT) && defined(USE_TIMER_DMA)
     const motorDevConfig_t *dev = &motorConfig()->dev;
 
     if (!checkMotorProtocolDshot(dev))
-        return false;
+        return TAIL_OUTPUT_OK;
 #ifdef USE_DSHOT_BITBANG
     if (isDshotBitbangActive(dev))
-        return false;
+        return TAIL_OUTPUT_OK;
 #endif
 
     const dmaResource_t *dmaRef = NULL;
+    bool burst = false;
 #ifdef USE_DSHOT_DMAR
     if (dev->useBurstDshot == DSHOT_DMAR_ON ||
         (dev->useBurstDshot == DSHOT_DMAR_AUTO && !dev->useDshotTelemetry)) {
         dmaRef = timer->dmaTimUPRef;
+        burst = true;
     } else
 #endif
     {
@@ -196,22 +199,39 @@ static bool tailPinLacksDshotDma(const timerHardware_t *timer)
         dmaRef = timer->dmaRef;
 #endif
     }
-    return dmaRef == NULL;
+    if (!dmaRef)
+        return TAIL_OUTPUT_ERR_NO_DMA;
+
+    // Taken by something else now, it would be taken at boot too and the
+    // motors would not start. Burst DShot shares the timer's update stream,
+    // so one already held for this timer is fine.
+    const resourceOwner_t *owner = dmaGetOwner(dmaGetIdentifier(dmaRef));
+    if (owner->owner == OWNER_FREE)
+        return TAIL_OUTPUT_OK;
+    if (burst && owner->owner == OWNER_TIMUP &&
+        owner->resourceIndex == timerGetTIMNumber(timer->tim))
+        return TAIL_OUTPUT_OK;
+
+    return TAIL_OUTPUT_ERR_DMA_IN_USE;
 #else
     UNUSED(timer);
-    return false;
+    return TAIL_OUTPUT_OK;
 #endif
 }
 
 // Moves the tail pin between SERVO 4 and MOTOR 2 in the config, like
 // `resource SERVO 4 NONE` + `resource MOTOR 2 <pin>` would. Not saved, and
-// only used after a reboot.
+// only used after a reboot. Refused while armed, so a later save can't
+// write a change made in flight.
 tailOutputResult_e setTailOutput(tailOutput_e output)
 {
     const tailOutput_e current = getTailOutput();
 
     if (output != TAIL_OUTPUT_SERVO && output != TAIL_OUTPUT_MOTOR)
         return TAIL_OUTPUT_ERR_INVALID;
+
+    if (ARMING_FLAG(ARMED))
+        return TAIL_OUTPUT_ERR_ARMED;
 
     if (output == current)
         return TAIL_OUTPUT_OK;
@@ -228,20 +248,23 @@ tailOutputResult_e setTailOutput(tailOutput_e output)
             return TAIL_OUTPUT_ERR_NO_MAIN_MOTOR;
         if (!timer)
             return TAIL_OUTPUT_ERR_NO_TIMER;
-        if (timerSharedWith(tag, servoConfig()->ioTags, MAX_SUPPORTED_SERVOS, TAIL_SERVO_INDEX))
+        if (timerSharedWith(timer, servoConfig()->ioTags, MAX_SUPPORTED_SERVOS, TAIL_SERVO_INDEX))
             return TAIL_OUTPUT_ERR_TIMER_SHARED;
-        if (tailPinLacksDshotDma(timer))
-            return TAIL_OUTPUT_ERR_NO_DMA;
+
+        const tailOutputResult_e dma = checkTailPinDshotDma(timer);
+        if (dma != TAIL_OUTPUT_OK)
+            return dma;
 
         servoConfigMutable()->ioTags[TAIL_SERVO_INDEX] = IO_TAG_NONE;
         motorConfigMutable()->dev.ioTags[TAIL_MOTOR_INDEX] = tag;
     }
     else {
         const ioTag_t tag = motorConfig()->dev.ioTags[TAIL_MOTOR_INDEX];
+        const timerHardware_t *timer = timerGetConfiguredByTag(tag);
 
-        if (!timerGetConfiguredByTag(tag))
+        if (!timer)
             return TAIL_OUTPUT_ERR_NO_TIMER;
-        if (timerSharedWith(tag, motorConfig()->dev.ioTags, MAX_SUPPORTED_MOTORS, TAIL_MOTOR_INDEX))
+        if (timerSharedWith(timer, motorConfig()->dev.ioTags, MAX_SUPPORTED_MOTORS, TAIL_MOTOR_INDEX))
             return TAIL_OUTPUT_ERR_TIMER_SHARED;
 
         // Motors are counted up to the first one without a pin, so MOTOR 3

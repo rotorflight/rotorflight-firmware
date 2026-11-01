@@ -3338,7 +3338,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (dataSize != 2 && dataSize != 4) {
             return MSP_RESULT_ERROR;
         }
-        const uint16_t v = sbufReadU16(src);
+        const int16_t v = sbufReadU16(src);
         // A supplied timeout is always timed, 0 included: the setter clamps
         // it to OVERRIDE_TIMEOUT_MIN_MS. Only the 2-byte payload is
         // persistent.

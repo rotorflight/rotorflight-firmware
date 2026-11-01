@@ -79,6 +79,8 @@ typedef enum {
     TAIL_OUTPUT_ERR_TIMER_SHARED = 4,   // its timer also drives another servo (or motor)
     TAIL_OUTPUT_ERR_INVALID = 5,
     TAIL_OUTPUT_ERR_NO_DMA = 6,         // DShot without bitbang, and the pin has no DMA
+    TAIL_OUTPUT_ERR_DMA_IN_USE = 7,     // DShot without bitbang, and the pin's DMA stream is taken
+    TAIL_OUTPUT_ERR_ARMED = 8,          // armed: only reading is allowed
 } tailOutputResult_e;
 
 #ifdef USE_MOTOR
