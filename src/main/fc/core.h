@@ -42,6 +42,16 @@ typedef enum {
 #endif
 } flightLogDisarmReason_e;
 
+// Which of the causes behind ARMING_DISABLED_MOTOR_PROTOCOL applies.
+typedef enum {
+    MOTOR_PROTO_CAUSE_NONE = 0,
+    MOTOR_PROTO_CAUSE_DISABLED,         // motor protocol not set, or not supported
+    MOTOR_PROTO_CAUSE_INIT_FAILED,      // motor outputs failed to set up
+    MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR,    // motorised tail, but no MOTOR 2
+} motorProtocolCause_e;
+
+motorProtocolCause_e getMotorProtocolCause(void);
+
 void resetArmingDisabled(void);
 
 void disarm(flightLogDisarmReason_e reason);

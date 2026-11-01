@@ -233,6 +233,19 @@ static bool accNeedsCalibration(void)
 }
 #endif
 
+motorProtocolCause_e getMotorProtocolCause(void)
+{
+    if (!isMotorProtocolEnabled())
+        return MOTOR_PROTO_CAUSE_DISABLED;
+    // The FC would arm with no motor running
+    if (isMotorInitFailed())
+        return MOTOR_PROTO_CAUSE_INIT_FAILED;
+    // The tail pin still on SERVO 4, say: the tail would never run
+    if (mixerMotorizedTail() && getMotorCount() < 2)
+        return MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR;
+    return MOTOR_PROTO_CAUSE_NONE;
+}
+
 void updateArmingStatus(void)
 {
     if (ARMING_FLAG(ARMED))
@@ -351,13 +364,9 @@ void updateArmingStatus(void)
         }
 #endif
 
-        // Also when the motor outputs failed to set up (the FC would arm
-        // with no motor running), and for a motorised tail without a pin
-        // for MOTOR 2 (the tail pin still on SERVO 4, say), whose tail
-        // would never run. Reported under the motor protocol reason rather
-        // than a bit of its own.
-        if (!isMotorProtocolEnabled() || isMotorInitFailed() ||
-            (mixerMotorizedTail() && getMotorCount() < 2)) {
+        // Three causes share the motor protocol reason rather than each
+        // having a bit of its own; CLI `status` names the one that applies.
+        if (getMotorProtocolCause() != MOTOR_PROTO_CAUSE_NONE) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
