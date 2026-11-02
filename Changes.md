@@ -51,6 +51,10 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 - API version 12.10 (#484)
 
+### MSP2_GET_SRXL2_ESC_CONFIG / MSP2_SET_SRXL2_ESC_CONFIG
+
+- new, 0x5F16 / 0x5F17: the SRXL2 ESC settings (`pg/srxl2_esc.h`): payload version (U8, 1), `throttle_rate_hz` (U16), `telem_interval_frames` (U8), `motor2_channel` (U8, 0 = off, 1..31); the SET variant takes the same fields without the version byte, applied at the next boot (#537)
+
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
 - added `error_decay_gain_cyclic` (#457)
@@ -115,6 +119,7 @@ differs from the last read. No XACT traffic is sent while armed.
 
 ## CLI Changes
 
+- added `srxl2esc_motor2_channel`: SRXL2 channel carrying motor 2 for dual-motor Smart ESCs, 0 = off (#537)
 - added `airborne_mode`, `airborne_gyro_threshold`, `airborne_acc_threshold` (#480)
 - added `horizon_angle_limit` (#479)
 - added `error_decay_gain_cyclic` (#457)
