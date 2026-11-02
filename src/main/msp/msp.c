@@ -4573,7 +4573,8 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         // Same fields as MSP2_GET_SRXL2_ESC_CONFIG without the version byte.
         // Out-of-range values are repaired by validateAndFixSrxl2escConfig()
         // and the driver (an invalid motor 2 channel reads as off).
-        if (dataSize < 4) {
+        // Exact length, so a GET-format payload (leading version byte) is refused.
+        if (dataSize != 4) {
             return MSP_RESULT_ERROR;
         }
         srxl2escConfigMutable()->throttle_rate_hz = sbufReadU16(src);

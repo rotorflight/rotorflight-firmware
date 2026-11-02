@@ -245,11 +245,20 @@ typedef struct __attribute__((packed)) {
     uint8_t crcLow;
 } srxl2escChannelDataFrame2_t;
 
-/* 0 = disabled, 1..31 = SRXL2 channel for motor 2. Channel 0 is motor 1. */
-static inline uint8_t srxl2escMotor2Channel(void)
+/* 0 = disabled, 1..31 = SRXL2 channel for motor 2. Channel 0 is motor 1.
+ * Latched once at boot so a runtime config change (MSP, CLI) cannot change
+ * the frame layout while motorCount is fixed; it takes effect after reboot. */
+static uint8_t srxl2escMotor2Ch = 0;
+
+void srxl2escInitMotorConfig(void)
 {
     const uint8_t ch = srxl2escConfig()->motor2_channel;
-    return (ch >= 1 && ch < SRXL2_ESC_MAX_CHANNELS) ? ch : 0;
+    srxl2escMotor2Ch = (ch >= 1 && ch < SRXL2_ESC_MAX_CHANNELS) ? ch : 0;
+}
+
+static inline uint8_t srxl2escMotor2Channel(void)
+{
+    return srxl2escMotor2Ch;
 }
 
 uint8_t srxl2escMotorCount(void)
