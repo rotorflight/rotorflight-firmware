@@ -38,7 +38,7 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .filter_process_denom = FILTER_PROCESS_DENOM_DEFAULT,
 );
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 0);
+PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 1);
 
 void resetPidProfile(pidProfile_t *pidProfile)
 {
@@ -77,6 +77,8 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .cyclic_cross_coupling_gain = 50,
         .cyclic_cross_coupling_ratio = 0,
         .cyclic_cross_coupling_cutoff = 25,
+        .cyclic_master_gain = 100,
+        .yaw_master_gain = 100,
         .angle.level_strength = 40,
         .angle.level_limit = 55,
         .horizon.level_strength = 40,

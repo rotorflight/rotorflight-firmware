@@ -25,8 +25,34 @@
 
 #define MSP2_GET_CRSF_SENSORS_STATUS        0x5F0B
 
+// action: 0 = poll only, 1 = (re)start a scan, 2 = stop - cycles ESC
+// telemetry halfDuplex/pinSwap live for the already-configured protocol and
+// reports which combo (if any) produces a valid frame.
+#define MSP2_ESC_SENSOR_TRIAL               0x5F0C
+
 // In-flight rate-loop statistics (flight/tune_advisor.c) and their reset. 0x5F10, not 0x5F0C:
 // 0x5F0C/0x5F0D are claimed by open PRs (#490, #500).
 #define MSP2_GET_TUNE_ADVISOR               0x5F10
 #define MSP2_CLEAR_TUNE_ADVISOR             0x5F11
+
+// action: 0 = poll only, 1 = (re)start a scan, 2 = stop/cancel - cycles
+// serialrx_inverted/halfDuplex/pinSwap live for the already-configured
+// serialrx_provider and reports which combo (if any) produces signal.
+#define MSP2_RX_SERIAL_TRIAL                0x5F12
+
+// action: 0 = poll only, 1 = (re)start - detects the right-angle board
+// alignment from a level baseline followed by a tail lift, and applies it
+// (unsaved) on success.
+#define MSP2_BOARD_AUTO_ALIGN               0x5F13
+
+// action: 0 = read only, 1 = tail pin to SERVO 4, 2 = tail pin to MOTOR 2.
+// Replies with where the tail pin is (tailOutput_e) and the result of the
+// action (tailOutputResult_e). Changes the config unsaved; it takes effect
+// after a save and reboot. Actions 1 and 2 are refused while armed.
+#define MSP2_TAIL_MOTOR_OUTPUT              0x5F14
+
+// Latest decoded FBUS/S.Port sensor values (drivers/fbus_sensor.c), one block per
+// sensor type, for the configurator's sensors tab. 0x5F15, not 0x5F14: that one is
+// claimed by an open PR (#541).
+#define MSP2_GET_FBUS_SENSORS_STATUS        0x5F15
 

@@ -47,6 +47,13 @@
 #define TA_RELEASE_WINDOW       80      // rebound is searched this long after release
 #define TA_REBOUND_BIG          0.15f   // rebound fraction counted as a "big" bounce
 
+// Shake: gyro with its slow part removed (2 Hz first-order high-pass at TA_SAMPLE_HZ:
+// k = 1 - exp(-2 pi 2 / 100)), while the stick is centred and the stop has settled
+#define TA_SHAKE_LP_K           0.118f
+// Samples after centring before shake counts: the rebound window, so a stop's slow
+// bounce-back (peaking 300-400 ms after the release) is not read as shake
+#define TA_SHAKE_SETTLE         TA_RELEASE_WINDOW
+
 // Full stick: |deflection| at or above this
 #define TA_FULL_STICK           0.9f
 
@@ -109,6 +116,10 @@ typedef struct {
     float meanOvershoot;        // peak rate / peak setpoint
     float meanCounter;          // controller's peak counter-output (P+I+D+B) after release
     float meanIterm;            // I at release, positive = opposing the roll that just ended
+
+    // Shake with the stick centred: an oscillating loop looks like a rebound after every stop
+    uint32_t shakeCount;
+    float shakeRms;             // deg/s
 } tuneAdvisorAxis_t;
 
 void tuneAdvisorReset(void);

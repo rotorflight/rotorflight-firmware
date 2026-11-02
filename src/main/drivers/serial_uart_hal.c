@@ -46,21 +46,32 @@
 #include "drivers/serial_uart.h"
 #include "drivers/serial_uart_impl.h"
 
+// uartPort->Handle (and its AdvancedInit) is part of the persistent per-UART
+// uartDevmap[] entry, not something freshly zeroed on every uartOpen() -
+// AdvFeatureInit is a HAL "which of these fields should Init() actually
+// program" bitmask, so leaving a feature's *Init bit cleared here doesn't
+// mean "off", it means "leave whatever the register already has alone".
+// Previously this function only ever OR'd the enable bit/value in when
+// `inverted` was true and did nothing otherwise, so RX/TX inversion could
+// only ever be latched on, never back off, for the rest of that boot once
+// any prior open() on this same UART had requested it - invisible as long
+// as a UART was only ever opened once per boot (true everywhere until the
+// RX wiring auto-detect trial started reopening the same port repeatedly
+// with different options live). Always setting the *Init bit and choosing
+// the ENABLE/DISABLE value from the current option makes this correct
+// regardless of what any previous open() on this port requested.
 static void usartConfigurePinInversion(uartPort_t *uartPort) {
     bool inverted = uartPort->port.options & SERIAL_INVERTED;
 
-    if (inverted)
+    if (uartPort->port.mode & MODE_RX)
     {
-        if (uartPort->port.mode & MODE_RX)
-        {
-            uartPort->Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_RXINVERT_INIT;
-            uartPort->Handle.AdvancedInit.RxPinLevelInvert = UART_ADVFEATURE_RXINV_ENABLE;
-        }
-        if (uartPort->port.mode & MODE_TX)
-        {
-            uartPort->Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_TXINVERT_INIT;
-            uartPort->Handle.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
-        }
+        uartPort->Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_RXINVERT_INIT;
+        uartPort->Handle.AdvancedInit.RxPinLevelInvert = inverted ? UART_ADVFEATURE_RXINV_ENABLE : UART_ADVFEATURE_RXINV_DISABLE;
+    }
+    if (uartPort->port.mode & MODE_TX)
+    {
+        uartPort->Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_TXINVERT_INIT;
+        uartPort->Handle.AdvancedInit.TxPinLevelInvert = inverted ? UART_ADVFEATURE_TXINV_ENABLE : UART_ADVFEATURE_TXINV_DISABLE;
     }
 }
 
@@ -100,15 +111,16 @@ void uartSelectPins(UARTDevice_e device, portOptions_e options)
 }
 
 #ifdef USE_SERIAL_PINSWAP
+// Same "always set the *Init bit, choose the value from current state"
+// correction as usartConfigurePinInversion() above, and for the same
+// reason - see its comment.
 static void uartConfigurePinSwap(uartPort_t *uartPort)
 {
     uartDevice_t *uartDevice = uartFindDevice(uartPort);
     if (uartDevice) {
         bool swapOption = (uartPort->port.options & SERIAL_PINSWAP);
-        if (uartDevice->pinSwap ^ swapOption) {
-            uartDevice->port.Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_SWAP_INIT;
-            uartDevice->port.Handle.AdvancedInit.Swap = UART_ADVFEATURE_SWAP_ENABLE;
-        }
+        uartDevice->port.Handle.AdvancedInit.AdvFeatureInit |= UART_ADVFEATURE_SWAP_INIT;
+        uartDevice->port.Handle.AdvancedInit.Swap = (uartDevice->pinSwap ^ swapOption) ? UART_ADVFEATURE_SWAP_ENABLE : UART_ADVFEATURE_SWAP_DISABLE;
     }
 }
 #endif

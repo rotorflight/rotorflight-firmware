@@ -50,4 +50,8 @@ void setBusServoOutput(uint8_t channel, float value);
 uint16_t getBusServoOutput(uint8_t channel);
 
 // Bus servo configuration helpers
+#if defined(USE_SBUS_OUTPUT) || defined(USE_FBUS_MASTER) || defined(USE_BUS_SERVO)
 bool hasBusServosConfigured(void);
+#else
+static inline bool hasBusServosConfigured(void) { return false; }
+#endif

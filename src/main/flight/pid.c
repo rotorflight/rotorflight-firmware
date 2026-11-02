@@ -542,6 +542,28 @@ void set_ADJUSTMENT_INERTIA_PRECOMP_CUTOFF(int value)
     difFilterUpdate(&pid.precomp.yawInertiaFilter, value / 10.0f, pid.freq);
 }
 
+int get_ADJUSTMENT_CYCLIC_MASTER_GAIN(void)
+{
+    return currentPidProfile->cyclic_master_gain;
+}
+
+void set_ADJUSTMENT_CYCLIC_MASTER_GAIN(int value)
+{
+    currentPidProfile->cyclic_master_gain = value;
+    pid.masterGain[PID_ROLL] = pid.masterGain[PID_PITCH] = value / 100.0f;
+}
+
+int get_ADJUSTMENT_YAW_MASTER_GAIN(void)
+{
+    return currentPidProfile->yaw_master_gain;
+}
+
+void set_ADJUSTMENT_YAW_MASTER_GAIN(int value)
+{
+    currentPidProfile->yaw_master_gain = value;
+    pid.masterGain[PID_YAW] = value / 100.0f;
+}
+
 
 //// Internal functions
 
@@ -676,6 +698,17 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
     // Tail/yaw PID parameters
     pid.yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
     pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
+
+    // Master gains scale the feedback terms only: P and D directly, I and O
+    // through their integration rate, so trim already held in I and O does not
+    // jump when the gain is changed in flight. F, B and the precomps are
+    // feedforward and stay as set. Roll and pitch share one gain, as the
+    // accumulated cyclic error is rotated between them during pirouettes and
+    // must stay in common units.
+    pid.masterGain[PID_ROLL] = pid.masterGain[PID_PITCH] =
+        constrain(pidProfile->cyclic_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
+    pid.masterGain[PID_YAW] =
+        constrain(pidProfile->yaw_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
 
     // Collective/cyclic deflection lowpass filters
     filterUpdate(&pid.precomp.yawPrecompFilter,
@@ -1139,7 +1172,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
   //// P-term
 
     // Calculate P-component
-    pid.data[axis].P = pid.coef[axis].Kp * errorRate;
+    pid.data[axis].P = pid.coef[axis].Kp * pid.masterGain[axis] * errorRate;
 
 
   //// D-term (gyro only)
@@ -1148,7 +1181,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+    pid.data[axis].D = pid.coef[axis].Kd * pid.masterGain[axis] * dTerm;
 
 
   //// I-term
@@ -1160,7 +1193,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.masterGain[axis];
 
     // Calculate I-component
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
@@ -1202,7 +1235,7 @@ static void pidApplyCyclicMode3(uint8_t axis)
 
     // Offset change modulated by collective
     const float offMod = copysignf(pidTableLookup(curve, offset_charge_curve, PID_LOOKUP_CURVE_POINTS), collective) / 100.0f;
-    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod;
+    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.masterGain[axis];
 
     // Calculate Offset component
     pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis]);
@@ -1282,7 +1315,7 @@ static void pidApplyYawMode3(void)
   //// P-term
 
     // Calculate P-component
-    pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain;
+    pid.data[axis].P = pid.coef[axis].Kp * pid.masterGain[axis] * errorRate * stopGain;
 
 
   //// D-term
@@ -1291,7 +1324,7 @@ static void pidApplyYawMode3(void)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+    pid.data[axis].D = pid.coef[axis].Kd * pid.masterGain[axis] * dTerm;
 
 
   //// I-term
@@ -1303,7 +1336,7 @@ static void pidApplyYawMode3(void)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.masterGain[axis];
 
     // Calculate I-component
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis]);
@@ -1480,7 +1513,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
   //// P-term
 
     // Calculate P-component
-    pid.data[axis].P = pid.coef[axis].Kp * errorRate;
+    pid.data[axis].P = pid.coef[axis].Kp * pid.masterGain[axis] * errorRate;
 
 
   //// D-term (gyro only)
@@ -1489,7 +1522,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+    pid.data[axis].D = pid.coef[axis].Kd * pid.masterGain[axis] * dTerm;
 
 
   //// I-term
@@ -1501,7 +1534,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * pid.masterGain[axis];
 
     // Calculate I-component (axisError and I are the same in Mode 4)
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
@@ -1544,7 +1577,7 @@ static void pidApplyCyclicMode4(uint8_t axis)
 
     // Offset change modulated by collective
     const float offMod = copysignf(pidTableLookup(curve, offset_charge_curve, PID_LOOKUP_CURVE_POINTS), collective) / 100.0f;
-    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko;
+    const float offDelta = offSaturation ? 0 : itermErrorRate * pid.dT * offMod * pid.coef[axis].Ko * pid.masterGain[axis];
 
     // Calculate Offset component
     pid.data[axis].axisOffset = limitf(pid.data[axis].axisOffset + offDelta, pid.offsetLimit[axis] * pid.coef[axis].Ko);
@@ -1624,7 +1657,7 @@ static void pidApplyYawMode4(void)
   //// P-term
 
     // Calculate P-component
-    pid.data[axis].P = pid.coef[axis].Kp * errorRate * stopGain;
+    pid.data[axis].P = pid.coef[axis].Kp * pid.masterGain[axis] * errorRate * stopGain;
 
 
   //// D-term
@@ -1633,7 +1666,7 @@ static void pidApplyYawMode4(void)
     const float dTerm = difFilterApply(&pid.dtermFilter[axis], -gyroRate);
 
     // Calculate D-component
-    pid.data[axis].D = pid.coef[axis].Kd * dTerm;
+    pid.data[axis].D = pid.coef[axis].Kd * pid.masterGain[axis] * dTerm;
 
 
   //// I-term
@@ -1645,7 +1678,7 @@ static void pidApplyYawMode4(void)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * stopGain;
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * pid.masterGain[axis] * stopGain;
 
     // Calculate I-component
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);

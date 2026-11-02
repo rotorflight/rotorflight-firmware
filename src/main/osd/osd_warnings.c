@@ -109,7 +109,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         }
     }
 
-#ifdef USE_DSHOT
+#ifdef USE_DSHOT_BEACON
     if (isTryingToArm() && !ARMING_FLAG(ARMED)) {
         int armingDelayTime = (getLastDshotBeaconCommandTimeUs() + DSHOT_BEACON_GUARD_DELAY_US - currentTimeUs) / 1e5;
         if (armingDelayTime < 0) {
@@ -123,7 +123,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         *displayAttr = DISPLAYPORT_ATTR_INFO;
         return;
     }
-#endif // USE_DSHOT
+#endif // USE_DSHOT_BEACON
     if (osdWarnGetState(OSD_WARNING_FAIL_SAFE) && failsafeIsActive()) {
         tfp_sprintf(warningText, "FAIL SAFE");
         *displayAttr = DISPLAYPORT_ATTR_CRITICAL;
