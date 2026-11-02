@@ -240,12 +240,11 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
     motorProtocolDshot   = checkMotorProtocolDshot(motorDevConfig);
 
     // The SRXL2 ESC takes its throttle over the serial port and reads the
-    // mixer output directly, so it needs no MOTOR pin. Only set up the PWM
-    // outputs when one is assigned; without a pin there is nothing to drive
-    // and nothing that could have failed.
+    // mixer output directly, so it drives no MOTOR pins: any that are
+    // assigned are left alone, and there is nothing that could have failed.
     bool needsOutputs = motorProtocolEnabled;
 #ifdef USE_SRXL2_ESC
-    if (motorDevConfig->motorPwmProtocol == PWM_TYPE_SRXL2 && motorDevConfig->ioTags[0] == IO_TAG_NONE) {
+    if (motorDevConfig->motorPwmProtocol == PWM_TYPE_SRXL2) {
         needsOutputs = false;
     }
 #endif
