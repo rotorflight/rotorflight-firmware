@@ -111,3 +111,13 @@ void fbusMasterInit(void);
 
 // Restarts sensor discovery (used by XACT servo programming before a scan)
 void fbusMasterStartDiscovery(void);
+
+// A read, write or state change from the radio for a device on the FBUS master line:
+// Ethos Device config (sent to ID 0x1B, the device chosen by its App ID) or a request
+// sent to the device's own ID. replyId is the bare 5-bit ID the radio sent it to, where
+// the answer goes back. False if no device on the line matches.
+bool fbusMasterRelayRequest(uint8_t replyId, uint8_t prim, uint16_t appId, uint32_t data);
+
+// The next answer (0x32) from a device on the line for the radio, when polled under
+// replyId. False if there is none.
+bool fbusMasterRelayGetAnswer(uint8_t replyId, uint8_t *prim, uint16_t *appId, uint32_t *data);

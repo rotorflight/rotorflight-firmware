@@ -22,7 +22,9 @@
 #include "common/time.h"
 
 // Frame forwarding configuration
-#define FBUS_FORWARDED_FRAME_BUFFER_SIZE 10
+#define FBUS_FORWARDED_VALUES 16            // App IDs kept per forwarded sensor (an RB sends 9)
+#define FBUS_FORWARDED_STALE_US 1000000     // no data for this long: stop answering for it
+#define FBUS_FORWARDED_REPEAT_US 1000000    // a value not sent for this long is sent again
 #define FBUS_SENSOR_MAX_FORWARD_BUFFERS 8
 
 // FBUS Sensor Physical IDs
@@ -124,14 +126,23 @@ typedef struct {
     bool valid;
 } fbusSensorFrame_t;
 
-// Forwarded sensor buffer structure
+// A forwarded sensor's latest value for each of its App IDs. Sent one App ID after
+// another, so a value the sensor sends often cannot crowd out the others.
+typedef struct {
+    uint16_t appId;
+    uint32_t data;
+    bool fresh;          // not yet sent to the receiver
+    timeUs_t lastSentUs;
+} fbusForwardedValue_t;
+
 typedef struct {
     uint8_t physicalId;  // Physical ID this buffer is for
-    fbusSensorFrame_t frames[FBUS_FORWARDED_FRAME_BUFFER_SIZE];
-    uint8_t writeIndex;  // Next position to write
-    uint8_t readIndex;   // Next position to read
-    uint8_t count;       // Number of frames in buffer
-    bool startupFrameSent;  // Track if empty startup frame was sent
+    fbusForwardedValue_t values[FBUS_FORWARDED_VALUES];
+    uint8_t valueCount;
+    uint8_t nextValue;   // where the next search for a fresh value starts
+    uint8_t lastValue;   // the value received last
+    bool active;         // a frame has been received from the sensor
+    timeUs_t lastUpdateUs;
 } fbusSensorForwardBuffer_t;
 
 // GPS specific time/date structures
@@ -243,6 +254,9 @@ void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltag
 // the observed table is keyed by (physicalId, source), so allow a full set of
 // physical IDs for each supported source.
 #define FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE 32
+// App IDs remembered per device. With more, the one learned longest ago is replaced,
+// so every App ID a device sends is found within one round of its values.
+#define FBUS_OBSERVED_APP_IDS 16
 typedef enum {
     FBUS_DETECTED_SENSOR_UNKNOWN = 0,
     FBUS_DETECTED_SENSOR_GPS,
@@ -264,8 +278,9 @@ typedef enum {
 typedef struct {
     uint8_t physicalId;
     fbusSensorSource_e source;
-    uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
+    uint16_t appIds[FBUS_OBSERVED_APP_IDS];
     uint8_t appIdCount;
+    uint8_t appIdNext;    // the entry replaced next once the table is full
     timeUs_t lastSeenUs;
     uint32_t packetCount;
     fbusDetectedSensorType_e detectedType;
@@ -274,15 +289,24 @@ typedef struct {
 uint8_t fbusSensorGetObservedCount(void);
 const fbusObservedSensor_t* fbusSensorGetObserved(uint8_t index);
 void fbusSensorClearObserved(void);
+// Whether a device with this physical ID has answered on the FBUS master line
+bool fbusSensorIsObservedOnFbus(uint8_t physicalId);
+// The physical ID of the device on the FBUS master line that sends this App ID, or -1
+int8_t fbusSensorFindFbusPhysicalId(uint16_t appId);
+// How many devices on the FBUS master line send this App ID
+uint8_t fbusSensorCountFbusAppId(uint16_t appId);
 const char* fbusSensorGetName(uint8_t physicalId);
 const char* fbusSensorGetSourceName(fbusSensorSource_e source);
 
 // Frame forwarding functions
 void fbusSensorInitForwarding(void);
 bool fbusSensorIsForwarded(uint8_t physicalId);
+// The value received last, without taking it. False if the sensor is not forwarded.
 bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
+// The next value not yet sent, one App ID after another. With none, the value sent longest
+// ago if that was over FBUS_FORWARDED_REPEAT_US ago (a sensor may send a value that does not
+// change only now and then), else frame->valid is false. False if the sensor is not forwarded
+// or has sent nothing for FBUS_FORWARDED_STALE_US.
 bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame);
-bool fbusSensorNeedsStartupFrame(uint8_t physicalId);
-void fbusSensorMarkStartupFrameSent(uint8_t physicalId);
 bool fbusSensorProcessDataWithSource(uint8_t physicalId, uint16_t appId, uint32_t data, fbusSensorSource_e source);
 void fbusSensorObservePhysicalIdWithSource(uint8_t physicalId, fbusSensorSource_e source);
