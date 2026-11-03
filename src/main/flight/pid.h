@@ -158,6 +158,11 @@ void pidResetAxisError(int axis);
 void pidInit(const pidProfile_t *pidProfile);
 void pidLoadProfile(const pidProfile_t *pidProfile);
 void pidChangeProfile(const pidProfile_t *pidProfile);
+void pidSwitchProfile(const pidProfile_t *pidProfile);
+
+bool pidBlendActive(void);
+float pidBlendRatio(void);
+void pidBlendRetarget(void);
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 

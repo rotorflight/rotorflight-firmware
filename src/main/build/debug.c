@@ -116,4 +116,5 @@ const char * const debugModeNames[DEBUG_COUNT] = {
     DEBUG_NAME(POLAR_RATE),
     DEBUG_NAME(GYRO_CALIBRATION),
     DEBUG_NAME(FBUS),
+    DEBUG_NAME(PROFILE_BLEND),
 };

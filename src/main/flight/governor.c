@@ -356,6 +356,41 @@ bool isSpooledUp(void)
     return false;
 }
 
+float getGovernorHeadSpeed(void)
+{
+    return gov.currentHeadSpeed;
+}
+
+float getGovernorRequestedHeadSpeed(void)
+{
+    return gov.requestedHeadSpeed;
+}
+
+bool isGovernorTrackingHeadSpeed(void)
+{
+    // Only our own headspeed governor knows the headspeed it is heading for.
+    // An external (ESC) governor or a throttle curve gives no target.
+    if (gov.govMode <= GOV_MODE_DIRECT)
+        return false;
+
+    if (!ARMING_FLAG(ARMED) || !gov.motorRPMGood || IS_RC_MODE_ACTIVE(BOXGOVSUSPEND))
+        return false;
+
+    switch (gov.state)
+    {
+        case GOV_STATE_ACTIVE:
+        case GOV_STATE_SPOOLUP:
+        case GOV_STATE_RECOVERY:
+        case GOV_STATE_BAILOUT:
+            return true;
+
+        // No headspeed control: lost RPM signal, throttle hold,
+        // autorotation, bypass, idle or off.
+        default:
+            return false;
+    }
+}
+
 
 //// Internal functions
 
