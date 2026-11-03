@@ -53,7 +53,7 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 ### MSP2_GET_SRXL2_ESC_CONFIG / MSP2_SET_SRXL2_ESC_CONFIG
 
-- new, 0x5F16 / 0x5F17: the SRXL2 ESC settings (`pg/srxl2_esc.h`): payload version (U8, 1), `throttle_rate_hz` (U16), `telem_interval_frames` (U8), `motor2_channel` (U8, 0 = off, 1..31); the SET variant takes the same fields without the version byte, applied at the next boot (#537)
+- new, 0x5F16 / 0x5F17: the SRXL2 ESC settings (`pg/srxl2_esc.h`): payload version (U8, 1), `throttle_rate_hz` (U16), `telem_interval_frames` (U8), `motor2_channel` (U8, 0 = off, 1..31); the SET variant takes the same fields without the version byte. The throttle rate is applied through `motor_pwm_rate`, which the driver follows and adopts at runtime (capped at 250 Hz while the ESC is active), so GET returns the rate in effect; the other two are read at driver init and need a save and reboot (#537)
 
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
