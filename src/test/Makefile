@@ -197,6 +197,14 @@ streambuf_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c
 
 
+msp_shared_unittest_SRC := \
+		$(USER_DIR)/telemetry/msp_shared.c \
+		$(USER_DIR)/common/streambuf.c
+
+msp_shared_unittest_DEFINES := \
+		USE_MSP_OVER_TELEMETRY=
+
+
 # This test is disabled due to build errors.
 #motor_output_unittest_SRC := \
 #		$(USER_DIR)/drivers/dshot.c

@@ -244,11 +244,16 @@ static bool mspSerialProcessReceivedData(mspPort_t *mspPort, uint8_t c)
             mspPort->checksum2 = crc8_dvb_s2(mspPort->checksum2, c);
             if (mspPort->offset == sizeof(mspHeaderV2_t)) {
                 mspHeaderV2_t * hdrv2 = (mspHeaderV2_t *)&mspPort->inBuf[0];
-                mspPort->dataSize = hdrv2->size;
-                mspPort->cmdMSP = hdrv2->cmd;
-                mspPort->cmdFlags = hdrv2->flags;
-                mspPort->offset = 0;                // re-use buffer
-                mspPort->c_state = mspPort->dataSize > 0 ? MSP_PAYLOAD_V2_NATIVE : MSP_CHECKSUM_V2_NATIVE;
+                // Check incoming buffer size limit, as the V1 and V2-over-V1 paths do
+                if (hdrv2->size > MSP_PORT_INBUF_SIZE) {
+                    mspPort->c_state = MSP_IDLE;
+                } else {
+                    mspPort->dataSize = hdrv2->size;
+                    mspPort->cmdMSP = hdrv2->cmd;
+                    mspPort->cmdFlags = hdrv2->flags;
+                    mspPort->offset = 0;                // re-use buffer
+                    mspPort->c_state = mspPort->dataSize > 0 ? MSP_PAYLOAD_V2_NATIVE : MSP_CHECKSUM_V2_NATIVE;
+                }
             }
             break;
 
