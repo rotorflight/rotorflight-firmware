@@ -427,7 +427,10 @@ INIT_CODE void loadControlRateProfile(void)
     const int profile = systemConfig()->activeRateProfile;
 
     currentControlRateProfile = controlRateProfilesMutable(profile);
-    currentControlRateLimits = &ratesSettingLimits[profile];
+
+    // Limits depend on the profile's rates type, not on the profile index
+    const ratesType_e ratesType = currentControlRateProfile->rates_type;
+    currentControlRateLimits = &ratesSettingLimits[(ratesType < RATES_TYPE_COUNT) ? ratesType : RATES_TYPE_NONE];
 
     setpointInitProfile();
 }
