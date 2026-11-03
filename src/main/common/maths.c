@@ -370,13 +370,19 @@ void applyMatrixRotation(float *v, fp_rotationMatrix_t *rotationMatrix)
 // Small xorshift32 pseudo-random generator. Used instead of the C library's
 // rand(), which in newlib-nano drags in assert, fprintf, stdio and malloc
 // (about 3 KB of flash). Not for anything that needs real randomness.
+static uint32_t randomState = 2463534242;
+
+void randomSeed(uint32_t seed)
+{
+    // xorshift never leaves a zero state
+    randomState = seed ? seed : 2463534242;
+}
+
 uint32_t randomU32(void)
 {
-    static uint32_t state = 2463534242;
+    randomState ^= randomState << 13;
+    randomState ^= randomState >> 17;
+    randomState ^= randomState << 5;
 
-    state ^= state << 13;
-    state ^= state >> 17;
-    state ^= state << 5;
-
-    return state;
+    return randomState;
 }

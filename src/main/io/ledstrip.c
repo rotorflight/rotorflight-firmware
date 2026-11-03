@@ -966,6 +966,13 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
+// Random integer in [min, max). Returns min for an empty range, so a
+// ledstrip_flicker_rate of 100 does not divide by zero.
+static int randomInt(int min, int max)
+{
+    return (max > min) ? min + (int)(randomU32() % (uint32_t)(max - min)) : min;
+}
+
 static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
 {
     if (updateNow) {

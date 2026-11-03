@@ -382,18 +382,19 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
 
 # Code run only from slow tasks (MSP, telemetry, GPS, LED strip, sensor decoders).
 # Not telemetry/sbus2.c (8 kHz slot timer), drivers/crsf_sensors.c, sensors/esc_sensor.c
-# or telemetry/sport_master.c (UART receive callbacks, interrupt context).
+# or telemetry/sport_master.c (UART receive callbacks, interrupt context). Not
+# telemetry/crsf.c (MSP, command, displayport and device info handling run in the
+# CRSF UART receive callback) or telemetry/ibus_shared.c (checksum and telemetry
+# reply run from the per-loop RX frame check).
 SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             io/gps.c \
             io/ledstrip.c \
             msp/msp.c \
             msp/msp_box.c \
-            telemetry/crsf.c \
             telemetry/frsky_hub.c \
             telemetry/ghst.c \
             telemetry/hott.c \
             telemetry/ibus.c \
-            telemetry/ibus_shared.c \
             telemetry/jetiexbus.c \
             telemetry/ltm.c \
             telemetry/mavlink.c \

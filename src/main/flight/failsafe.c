@@ -26,7 +26,6 @@
 #include "build/debug.h"
 
 #include "common/axis.h"
-#include "common/utils.h"
 
 #include "pg/failsafe.h"
 #include "pg/rx.h"
