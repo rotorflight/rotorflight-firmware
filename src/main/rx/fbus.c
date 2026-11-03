@@ -748,9 +748,11 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
 #if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
             // A forwarded sensor answers when the receiver polls its own ID: with its next
             // value, or an empty data frame when nothing new has come in, while the sensor is
-            // sending. Never in another device's slot (it could be on the receiver's bus), and
-            // not for a null poll.
-            if (!forwardedSensor && !sendNullFrame) {
+            // sending. Never in another device's slot (it could be on the receiver's bus), not
+            // for a null poll, and never for the FC's own IDs, which keep their telemetry and
+            // MSP replies whatever a forwarded slot is set to.
+            if (!forwardedSensor && !sendNullFrame &&
+                downlinkPhyID != FBUS_FC_COMMON_ID && downlinkPhyID != FBUS_FC_MSP_ID) {
                 const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
                 for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; phyId >= 0 && sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
                     if (!telemetrySensorActive(sensorId) || telemetryGetFbusSensorPhysicalId(sensorId) != phyId) {

@@ -141,6 +141,7 @@ typedef struct {
     uint8_t valueCount;
     uint8_t nextValue;   // where the next search for a fresh value starts
     uint8_t lastValue;   // the value received last
+    bool active;         // a frame has been received from the sensor
     timeUs_t lastUpdateUs;
 } fbusSensorForwardBuffer_t;
 
@@ -253,6 +254,9 @@ void fbusServoConvertData(uint32_t fbusData, uint16_t *current, uint16_t *voltag
 // the observed table is keyed by (physicalId, source), so allow a full set of
 // physical IDs for each supported source.
 #define FBUS_MAX_OBSERVED_SENSORS_PER_SOURCE 32
+// App IDs remembered per device. With more, the one learned longest ago is replaced,
+// so every App ID a device sends is found within one round of its values.
+#define FBUS_OBSERVED_APP_IDS 16
 typedef enum {
     FBUS_DETECTED_SENSOR_UNKNOWN = 0,
     FBUS_DETECTED_SENSOR_GPS,
@@ -274,8 +278,9 @@ typedef enum {
 typedef struct {
     uint8_t physicalId;
     fbusSensorSource_e source;
-    uint16_t appIds[16];  // Track up to 16 different app IDs per physical ID
+    uint16_t appIds[FBUS_OBSERVED_APP_IDS];
     uint8_t appIdCount;
+    uint8_t appIdNext;    // the entry replaced next once the table is full
     timeUs_t lastSeenUs;
     uint32_t packetCount;
     fbusDetectedSensorType_e detectedType;
@@ -288,6 +293,8 @@ void fbusSensorClearObserved(void);
 bool fbusSensorIsObservedOnFbus(uint8_t physicalId);
 // The physical ID of the device on the FBUS master line that sends this App ID, or -1
 int8_t fbusSensorFindFbusPhysicalId(uint16_t appId);
+// How many devices on the FBUS master line send this App ID
+uint8_t fbusSensorCountFbusAppId(uint16_t appId);
 const char* fbusSensorGetName(uint8_t physicalId);
 const char* fbusSensorGetSourceName(fbusSensorSource_e source);
 

@@ -160,7 +160,6 @@ static int8_t smartportMasterStripPhyIDCheckBits(uint8_t phyID)
   goes back to the radio under the ID the request was sent to.
  */
 #define FBUS_RELAY_QUEUE_SIZE           4
-#define FBUS_RELAY_NO_DEVICE            0xFF
 #define FBUS_RELAY_ANSWER_TIMEOUT_US    500000
 
 typedef struct {
@@ -178,13 +177,12 @@ static uint8_t relayRequestCount = 0;
 // answer in the request's own slot, or only when polled (XACT servos)
 static fbusRelayFrame_t relayPoll;
 static bool relayPollPending = false;
-// the request whose answer is awaited; shared with the UART RX callback. The answer
-// is matched on device, App ID and field, so an XACT response for another field, or
-// a late answer to an earlier request, is not relayed as this one's answer.
-static volatile uint8_t relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
-static volatile uint8_t relayWaitReplyId = 0;
-static volatile uint16_t relayWaitAppId = 0;
-static volatile uint8_t relayWaitFieldId = 0;
+// the request in flight, whose answer is awaited; shared with the UART RX callback.
+// The answer is matched on device, App ID and field, so an XACT response for another
+// field, or a late answer to an earlier request, is not relayed as this one's answer.
+// Kept whole so a repeat of it from the radio is recognised while it is in flight.
+static volatile bool relayWaiting = false;
+static fbusRelayFrame_t relayWait;
 static timeUs_t relayWaitStartUs = 0;
 // answers for the radio, written by the UART RX callback
 static fbusRelayFrame_t relayAnswers[FBUS_RELAY_QUEUE_SIZE];
@@ -209,6 +207,12 @@ static void relayQueuePop(fbusRelayFrame_t *queue, volatile uint8_t *count, uint
     (*count)--;
 }
 
+static bool relayFrameEquals(const fbusRelayFrame_t *a, const fbusRelayFrame_t *b)
+{
+    return a->phyId == b->phyId && a->replyId == b->replyId && a->prim == b->prim &&
+           a->appId == b->appId && a->data == b->data;
+}
+
 bool fbusMasterRelayRequest(uint8_t replyId, uint8_t prim, uint16_t appId, uint32_t data)
 {
     if (!fbusMasterPort) {
@@ -227,18 +231,32 @@ bool fbusMasterRelayRequest(uint8_t replyId, uint8_t prim, uint16_t appId, uint3
         return false;
     }
 
-    // the radio repeats a request until it is answered: keep one copy
-    for (uint8_t i = 0; i < relayRequestCount; i++) {
-        const fbusRelayFrame_t *r = &relayRequests[i];
-        if (r->phyId == phyId && r->replyId == replyId && r->prim == prim && r->appId == appId && r->data == data) {
-            return true;
-        }
+    // A write is acted on by App ID, not only by physical ID (see fbus_xact.c): with two
+    // devices sending the same App ID it would change both, so it is not passed on.
+    if (prim == FBUS_FRAME_ID_WRITE && fbusSensorCountFbusAppId(appId) > 1) {
+        return false;
     }
 
     const fbusRelayFrame_t request = {
         .phyId = phyId, .replyId = replyId, .prim = prim, .appId = appId, .data = data,
     };
-    relayQueuePush(relayRequests, &relayRequestCount, &request);
+
+    // the radio repeats a request until it is answered: keep one copy, and do not send
+    // again one in flight or one whose answer waits to be collected
+    bool pending = false;
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        pending = relayWaiting && relayFrameEquals(&relayWait, &request);
+        for (uint8_t i = 0; i < relayAnswerCount && !pending; i++) {
+            const fbusRelayFrame_t *a = &relayAnswers[i];
+            pending = a->replyId == replyId && a->appId == appId && (a->data & 0xFF) == (data & 0xFF);
+        }
+    }
+    for (uint8_t i = 0; i < relayRequestCount && !pending; i++) {
+        pending = relayFrameEquals(&relayRequests[i], &request);
+    }
+    if (!pending) {
+        relayQueuePush(relayRequests, &relayRequestCount, &request);
+    }
     return true;
 }
 
@@ -272,26 +290,23 @@ static bool relayPrepareDownlink(fbusMasterDownlink_t *downlink, timeUs_t curren
         return false;
     }
 
-    if (relayWaitPhyId != FBUS_RELAY_NO_DEVICE &&
-        cmpTimeUs(currentTimeUs, relayWaitStartUs) > FBUS_RELAY_ANSWER_TIMEOUT_US) {
-        relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+    if (relayWaiting && cmpTimeUs(currentTimeUs, relayWaitStartUs) > FBUS_RELAY_ANSWER_TIMEOUT_US) {
+        relayWaiting = false;
     }
 
     fbusRelayFrame_t frame;
     if (relayPollPending) {
         frame = relayPoll;
         relayPollPending = false;
-    } else if (relayRequestCount > 0 && relayWaitPhyId == FBUS_RELAY_NO_DEVICE) {
+    } else if (relayRequestCount > 0 && !relayWaiting) {
         // the next request waits until the pending answer arrives or times out, so
         // the single wait slot is never overwritten
         frame = relayRequests[0];
         relayQueuePop(relayRequests, &relayRequestCount, 0);
         if (frame.prim == FBUS_FRAME_ID_READ || frame.prim == FBUS_FRAME_ID_WRITE) {
             ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-                relayWaitReplyId = frame.replyId;
-                relayWaitAppId = frame.appId;
-                relayWaitFieldId = frame.data & 0xFF;   // field ID is the first data byte
-                relayWaitPhyId = frame.phyId;
+                relayWait = frame;
+                relayWaiting = true;
             }
             relayWaitStartUs = currentTimeUs;
             relayPoll = frame;
@@ -468,18 +483,20 @@ static void processDownlinkFrame(uint8_t *data)
             uint8_t fieldId = downlink.data[0];
             uint16_t dataValue = (uint16_t)downlink.data[1] | ((uint16_t)downlink.data[2] << 8);
 
-            if (downlink.phyID == relayWaitPhyId && appId == relayWaitAppId && fieldId == relayWaitFieldId) {
+            // field ID is the first data byte of the request
+            if (relayWaiting && downlink.phyID == relayWait.phyId && appId == relayWait.appId &&
+                fieldId == (relayWait.data & 0xFF)) {
                 // the answer to a request from the radio: back to the ID it was sent to
                 const fbusRelayFrame_t answer = {
                     .phyId = downlink.phyID,
-                    .replyId = relayWaitReplyId,
+                    .replyId = relayWait.replyId,
                     .prim = downlink.prim,
                     .appId = appId,
                     .data = downlink.data[0] | (downlink.data[1] << 8) |
                             (downlink.data[2] << 16) | ((uint32_t)downlink.data[3] << 24),
                 };
                 relayQueuePush(relayAnswers, &relayAnswerCount, &answer);
-                relayWaitPhyId = FBUS_RELAY_NO_DEVICE;
+                relayWaiting = false;
             }
 
             // Also an XACT answer when a parameter read is in progress for this servo

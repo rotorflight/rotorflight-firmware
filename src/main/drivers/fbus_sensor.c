@@ -290,6 +290,7 @@ static fbusObservedSensor_t* ensureObservedSensor(uint8_t physicalId, fbusSensor
         sensor->physicalId = physicalId;
         sensor->source = source;
         sensor->appIdCount = 0;
+        sensor->appIdNext = 0;
         sensor->packetCount = 0;
         sensor->detectedType = FBUS_DETECTED_SENSOR_UNKNOWN;
     }
@@ -313,8 +314,14 @@ static fbusObservedSensor_t* trackObservedSensor(uint8_t physicalId, uint16_t ap
             }
         }
 
-        if (!appIdExists && sensor->appIdCount < 16) {
-            sensor->appIds[sensor->appIdCount++] = appId;
+        if (!appIdExists) {
+            if (sensor->appIdCount < FBUS_OBSERVED_APP_IDS) {
+                sensor->appIds[sensor->appIdCount++] = appId;
+            } else {
+                // full: replace the one learned longest ago
+                sensor->appIds[sensor->appIdNext] = appId;
+                sensor->appIdNext = (sensor->appIdNext + 1) % FBUS_OBSERVED_APP_IDS;
+            }
         }
 
         if (sensor->detectedType == FBUS_DETECTED_SENSOR_UNKNOWN) {
@@ -369,6 +376,7 @@ static void addFrameToBuffer(uint8_t physicalId, uint16_t appId, uint32_t data, 
         return;
     }
 
+    buffer->active = true;
     buffer->lastUpdateUs = currentTimeUs;
 
     // App ID 0: a sensor with nothing to send this time, still alive
@@ -418,7 +426,9 @@ bool fbusSensorPeekForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
         if (buffer) {
             result = true;
             frame->physicalId = physicalId;
-            frame->valid = buffer->valueCount > 0;
+            // a silent sensor's last value is not reported either (see fbusSensorGetForwardedFrame)
+            frame->valid = buffer->valueCount > 0 && buffer->active &&
+                           cmpTimeUs(micros(), buffer->lastUpdateUs) <= FBUS_FORWARDED_STALE_US;
             frame->appId = frame->valid ? buffer->values[buffer->lastValue].appId : 0;
             frame->data = frame->valid ? buffer->values[buffer->lastValue].data : 0;
         }
@@ -435,7 +445,7 @@ bool fbusSensorGetForwardedFrame(uint8_t physicalId, fbusSensorFrame_t *frame)
     ATOMIC_BLOCK(NVIC_PRIO_MAX) {
         fbusSensorForwardBuffer_t *buffer = getForwardBuffer(physicalId);
         const timeUs_t currentTimeUs = micros();
-        if (buffer && buffer->lastUpdateUs != 0 &&
+        if (buffer && buffer->active &&
             cmpTimeUs(currentTimeUs, buffer->lastUpdateUs) <= FBUS_FORWARDED_STALE_US) {
             result = true;
             frame->physicalId = physicalId;
@@ -938,6 +948,32 @@ int8_t fbusSensorFindFbusPhysicalId(uint16_t appId)
     }
 
     return physicalId;
+}
+
+uint8_t fbusSensorCountFbusAppId(uint16_t appId)
+{
+    uint8_t count = 0;
+
+    if (appId == 0) {
+        return 0;
+    }
+
+    ATOMIC_BLOCK(NVIC_PRIO_MAX) {
+        for (uint8_t i = 0; i < observedSensorCount; i++) {
+            const fbusObservedSensor_t *sensor = &observedSensors[i];
+            if (sensor->source != FBUS_SENSOR_SOURCE_FBUS) {
+                continue;
+            }
+            for (uint8_t j = 0; j < sensor->appIdCount; j++) {
+                if (sensor->appIds[j] == appId) {
+                    count++;
+                    break;
+                }
+            }
+        }
+    }
+
+    return count;
 }
 
 const char* fbusSensorGetName(uint8_t physicalId)
