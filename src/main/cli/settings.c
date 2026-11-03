@@ -111,6 +111,9 @@
 #include "pg/sport_master.h"
 #include "pg/bus_servo.h"
 #include "pg/crsf_sensors.h"
+#ifdef USE_SRXL2_ESC
+#include "pg/srxl2_esc.h"
+#endif
 
 #include "drivers/crsf_sensors.h"
 
@@ -1597,6 +1600,10 @@ const clivalue_t valueTable[] = {
     { "esc_sensor_voltage_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, voltage_correction) },
     { "esc_sensor_current_correction",      VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, current_correction) },
     { "esc_sensor_consumption_correction",  VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, consumption_correction) },
+#endif
+
+#ifdef USE_SRXL2_ESC
+    { "srxl2esc_motor2_channel",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 31 }, PG_SRXL2_ESC_CONFIG, offsetof(srxl2esc_pgConfig_t, motor2_channel) },
 #endif
 
 #ifdef USE_RX_FRSKY_SPI

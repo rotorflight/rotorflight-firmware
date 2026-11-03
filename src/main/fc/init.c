@@ -548,6 +548,10 @@ void init(void)
 
     mixerInit();
 
+#ifdef USE_SRXL2_ESC
+    srxl2escInitMotorConfig();
+#endif
+
 #ifdef USE_MOTOR
     motorInit();
     systemState |= SYSTEM_STATE_MOTORS_READY;
