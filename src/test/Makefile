@@ -437,6 +437,12 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/pg/mixer.c \
 		$(USER_DIR)/pg/rates.c
 
+rc_adjustments_unittest_SRC := \
+		$(USER_DIR)/fc/rc_adjustments.c \
+		$(USER_DIR)/pg/adjustments.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/pg.c
+
 tune_advisor_unittest_SRC := \
 		$(USER_DIR)/flight/tune_advisor.c
 
