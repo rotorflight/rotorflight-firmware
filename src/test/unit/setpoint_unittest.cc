@@ -13,6 +13,8 @@ extern "C" {
 extern "C" {
 float getCosTiltAngle(void) { return 0; }
 bool isSpooledUp(void) { return true; }
+void airborneInit(void) {}
+void airborneUpdate(const float rc[4]) { (void)rc; }
 float pidGetPidFrequency() { return 1000; }
 float pidGetDT() { return 1 / pidGetPidFrequency(); }
 PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
@@ -36,7 +38,7 @@ float getRcDeflection(int axis) { return g_mock->getRcDeflection(axis); }
 
 // Mocked variables
 static controlRateConfig_t controlRateProfile;
-controlRateConfig_t *currentControlRateProfile = &controlRateProfile;
+extern "C" { controlRateConfig_t *currentControlRateProfile = &controlRateProfile; }
 
 using testing::StrictMock;
 

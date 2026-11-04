@@ -42,8 +42,6 @@
 #include "pg/flash.h"
 #include "pg/pilot.h"
 
-#include "msc/usbd_storage.h"
-
 #define EMFAT_MAX_LOG_ENTRY 100
 
 #define HDR_BUF_SIZE 32

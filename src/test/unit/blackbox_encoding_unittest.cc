@@ -243,6 +243,11 @@ TEST(BlackboxTest, TestWriteTag2_3SVariable_BITS887)
 // STUBS
 extern "C" {
 PG_REGISTER(blackboxConfig_t, blackboxConfig, PG_BLACKBOX_CONFIG, 0);
+serialPort_t *openSerialPort(serialPortIdentifier_e, serialPortFunction_e, serialReceiveCallbackPtr,
+                            void *, uint32_t, portMode_e, portOptions_e) {
+    ADD_FAILURE() << "Encoding tests must use their serial buffer, not open a hardware port";
+    return nullptr;
+}
 int32_t blackboxHeaderBudget;
 void mspSerialAllocatePorts(void) {}
 void blackboxWrite(uint8_t value) {serialWrite(blackboxPort, value);}

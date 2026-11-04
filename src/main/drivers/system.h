@@ -72,6 +72,9 @@ void failureMode(failureMode_e mode);
 // bootloader/IAP
 void systemReset(int reason);
 void systemResetHard(void);
+#ifdef AT32F43x
+void systemResetToBootloader(bootloaderRequestType_e requestType) __attribute__((noreturn));
+#endif
 bool isMPUSoftReset(void);
 void cycleCounterInit(void);
 int32_t clockCyclesToMicros(int32_t clockCycles);

@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/timer_def.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -1124,3 +1127,5 @@
 
 #endif
 
+
+#endif // AT32F43x

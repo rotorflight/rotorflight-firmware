@@ -581,7 +581,9 @@ FAST_CODE void scheduler(void)
                 if (gyro->detectedEXTI >= terminalGyroRateCount) {
                     // Calculate the number of clock cycles on average between gyro interrupts
                     uint32_t sampleCycles = nowCycles - sampleRateStartCycles;
-                    desiredPeriodCycles = sampleCycles / GYRO_RATE_COUNT;
+                    if (sampleCycles >= GYRO_RATE_COUNT) {
+                        desiredPeriodCycles = sampleCycles / GYRO_RATE_COUNT;
+                    }
                     sampleRateStartCycles = nowCycles;
                     terminalGyroRateCount += GYRO_RATE_COUNT;
                 }

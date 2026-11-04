@@ -195,9 +195,8 @@ uint8_t busReadRegister(const extDevice_t *dev, uint8_t reg)
     UNUSED(reg);
     return false;
 #else
-    uint8_t data;
-    busReadRegisterBuffer(dev, reg, &data, 1);
-    return data;
+    uint8_t data = 0;
+    return busReadRegisterBuffer(dev, reg, &data, 1) ? data : 0;
 #endif
 }
 

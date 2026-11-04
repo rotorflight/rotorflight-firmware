@@ -36,7 +36,9 @@
 #include "sensors/battery.h"
 
 //TODO: Make it platform independent in the future
-#if defined(STM32F4)
+#if defined(AT32F43x)
+#include "drivers/serial_usb_vcp.h"
+#elif defined(STM32F4)
 #include "vcpf4/usbd_cdc_vcp.h"
 #include "usbd_hid_core.h"
 #elif defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
@@ -95,7 +97,9 @@ void sendRcDataToHid(void)
             report[8] |= (1 << i);
         }
     }
-#if defined(STM32F4)
+#if defined(AT32F43x)
+    usbVcpSendHidReport((const uint8_t *)report, sizeof(report));
+#elif defined(STM32F4)
     USBD_HID_SendReport(&USB_OTG_dev, (uint8_t*)report, sizeof(report));
 #elif defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
     USBD_HID_SendReport(&USBD_Device, (uint8_t*)report, sizeof(report));
@@ -106,6 +110,11 @@ void sendRcDataToHid(void)
 
 bool cdcDeviceIsMayBeActive(void)
 {
-    return usbDevConfig()->type == COMPOSITE && usbIsConnected() && (getBatteryState() == BATTERY_NOT_PRESENT || batteryConfig()->voltageMeterSource == VOLTAGE_METER_NONE);
+    #if defined(AT32F43x)
+    const bool usbConnected = usbVcpIsConnected();
+#else
+    const bool usbConnected = usbIsConnected();
+#endif
+    return usbDevConfig()->type == COMPOSITE && usbConnected && (getBatteryState() == BATTERY_NOT_PRESENT || batteryConfig()->voltageMeterSource == VOLTAGE_METER_NONE);
 }
 #endif

@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/dma.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -282,3 +285,5 @@ uint32_t dmaGetChannel(const uint8_t channel);
 #define xDMA_MemoryTargetConfig(dmaResource, address, target) DMA_MemoryTargetConfig((DMA_ARCH_TYPE *)(dmaResource), address, target)
 
 #endif
+
+#endif // AT32F43x

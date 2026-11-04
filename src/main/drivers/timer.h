@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/timer.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -300,3 +303,5 @@ uint16_t timerGetPeriodByPrescaler(TIM_TypeDef *tim, uint16_t prescaler, uint32_
 int8_t timerGetNumberByIndex(uint8_t index);
 int8_t timerGetTIMNumber(const TIM_TypeDef *tim);
 uint8_t timerLookupChannelIndex(const uint16_t channel);
+
+#endif // AT32F43x

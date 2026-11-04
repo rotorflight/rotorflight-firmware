@@ -324,10 +324,10 @@ static bool ak8963Read(magDev_t *mag, int16_t *magData)
         break;
     }
 
-    uint8_t status2 = buf[6];
     if (!ack) {
         return false;
     }
+    uint8_t status2 = buf[6];
 
     ak8963WriteRegister(dev, AK8963_MAG_REG_CNTL1, CNTL1_BIT_16_BIT | CNTL1_MODE_ONCE); // start reading again    uint8_t status2 = buf[6];
 

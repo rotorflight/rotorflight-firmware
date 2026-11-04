@@ -480,8 +480,8 @@ static void validateAndFixConfig(void)
 #endif
 #endif
 
-    bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
 #if defined(USE_DSHOT)
+    bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
     // If using DSHOT protocol disable unsynched PWM as it's meaningless
     if (configuredMotorProtocolDshot) {
         motorConfigMutable()->dev.useUnsyncedPwm = false;
@@ -576,7 +576,7 @@ void validateAndFixGyroConfig(void)
 {
     if (gyro.sampleRateHz > 0)
     {
-        uint32_t pidDenom = pidConfig()->pid_process_denom;
+        uint32_t pidDenom = constrain(pidConfig()->pid_process_denom, 1, MAX_PID_PROCESS_DENOM);
         uint32_t filtDenom = pidConfig()->filter_process_denom;
 
         // Loop rate restrictions based on motor protocol. Motor times have safety margin

@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/bus_spi_pinconfig.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -391,3 +394,5 @@ void spiPinConfigure(const spiPinConfig_t *pConfig)
     }
 }
 #endif
+
+#endif // AT32F43x

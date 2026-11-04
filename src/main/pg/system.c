@@ -25,6 +25,12 @@
 
 PG_REGISTER_WITH_RESET_TEMPLATE(systemConfig_t, systemConfig, PG_SYSTEM_CONFIG, 3);
 
+#ifdef AT32F43x
+#define AT32_HEXT_RESET .hextMhz = AT32_HEXT_DEFAULT_MHZ,
+#else
+#define AT32_HEXT_RESET
+#endif
+
 PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .boardIdentifier = TARGET_BOARD_IDENTIFIER,
     .pidProfileIndex = 0,
@@ -34,6 +40,7 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .task_statistics = true,
     .cpu_overclock = DEFAULT_CPU_OVERCLOCK,
     .hseMhz = SYSTEM_HSE_VALUE,
+    AT32_HEXT_RESET
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
 );
 

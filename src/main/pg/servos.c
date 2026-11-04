@@ -36,7 +36,11 @@ PG_REGISTER_WITH_RESET_FN(servoConfig_t, servoConfig, PG_SERVO_CONFIG, 1);
 void pgResetFn_servoConfig(servoConfig_t *servoConfig)
 {
     for (unsigned i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+#ifdef USE_TIMER
         servoConfig->ioTags[i] = timerioTagGetByUsage(TIM_USE_SERVO, i);
+#else
+        servoConfig->ioTags[i] = IO_TAG(NONE);
+#endif
     }
 }
 

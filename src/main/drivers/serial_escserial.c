@@ -126,7 +126,9 @@ enum {
 #define START_BIT_MASK (1 << (RX_TOTAL_BITS - 1))
 
 // XXX No TIM_DeInit equivalent in HAL driver???
-#ifdef USE_HAL_DRIVER
+#if defined(AT32F43x)
+#define TIM_DeInit tmr_reset
+#elif defined(USE_HAL_DRIVER)
 static void TIM_DeInit(TIM_TypeDef *tim)
 {
     UNUSED(tim);
@@ -377,7 +379,11 @@ static void onSerialRxPinChangeBL(timerCCHandlerRec_t *cbRec, captureCompare_t c
 #ifdef USE_HAL_DRIVER
         __HAL_TIM_SetCounter(escSerial->txTimerHandle, __HAL_TIM_GetAutoreload(escSerial->txTimerHandle) / 2);
 #else
+#if defined(AT32F43x)
+        tmr_counter_value_set(escSerial->txTimerHardware->tim, escSerial->txTimerHardware->tim->pr / 2);
+#else
         TIM_SetCounter(escSerial->txTimerHardware->tim, escSerial->txTimerHardware->tim->ARR / 2);
+#endif
 #endif
         if (escSerial->isTransmittingData) {
             escSerial->transmissionErrors++;
@@ -570,7 +576,11 @@ static void onSerialRxPinChangeEsc(timerCCHandlerRec_t *cbRec, captureCompare_t 
 #ifdef USE_HAL_DRIVER
     __HAL_TIM_SetCounter(escSerial->rxTimerHandle, 0);
 #else
-    TIM_SetCounter(escSerial->rxTimerHardware->tim,0);
+#if defined(AT32F43x)
+    tmr_counter_value_set(escSerial->rxTimerHardware->tim, 0);
+#else
+    TIM_SetCounter(escSerial->rxTimerHardware->tim, 0);
+#endif
 #endif
 
     if (capture > 40 && capture < 90)

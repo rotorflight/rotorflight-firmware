@@ -122,6 +122,8 @@ static void serialEnableCC(softSerial_t *softSerial)
 {
 #ifdef USE_HAL_DRIVER
     TIM_CCxChannelCmd(softSerial->timerHardware->tim, softSerial->timerHardware->channel, TIM_CCx_ENABLE);
+#elif defined(AT32F43x)
+    tmr_channel_enable(softSerial->timerHardware->tim, TIM_CH_TO_SELCHANNEL(softSerial->timerHardware->channel), TRUE);
 #else
     TIM_CCxCmd(softSerial->timerHardware->tim, softSerial->timerHardware->channel, TIM_CCx_Enable);
 #endif
@@ -152,6 +154,8 @@ static void serialInputPortDeActivate(softSerial_t *softSerial)
 
 #ifdef USE_HAL_DRIVER
     TIM_CCxChannelCmd(softSerial->timerHardware->tim, softSerial->timerHardware->channel, TIM_CCx_DISABLE);
+#elif defined(AT32F43x)
+    tmr_channel_enable(softSerial->timerHardware->tim, TIM_CH_TO_SELCHANNEL(softSerial->timerHardware->channel), FALSE);
 #else
     TIM_CCxCmd(softSerial->timerHardware->tim, softSerial->timerHardware->channel, TIM_CCx_Disable);
 #endif
@@ -507,7 +511,11 @@ void onSerialRxPinChange(timerCCHandlerRec_t *cbRec, captureCompare_t capture)
 #ifdef USE_HAL_DRIVER
         __HAL_TIM_SetCounter(self->timerHandle, __HAL_TIM_GetAutoreload(self->timerHandle) / 2);
 #else
+#if defined(AT32F43x)
+        tmr_counter_value_set(self->timerHardware->tim, self->timerHardware->tim->pr / 2);
+#else
         TIM_SetCounter(self->timerHardware->tim, self->timerHardware->tim->ARR / 2);
+#endif
 #endif
 
         // For a mono-timer full duplex configuration, this may clobber the

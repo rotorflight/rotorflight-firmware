@@ -66,7 +66,7 @@ dshotBitbangStatus_e bbStatus;
 #define BB_OUTPUT_BUFFER_ATTRIBUTE DMA_RW_AXI __attribute__((aligned(32)))
 #define BB_INPUT_BUFFER_ATTRIBUTE  DMA_RW_AXI __attribute__((aligned(32)))
 #else
-#if defined(STM32F4)
+#if defined(STM32F4) || defined(AT32F43x)
 #define BB_OUTPUT_BUFFER_ATTRIBUTE
 #define BB_INPUT_BUFFER_ATTRIBUTE
 #elif defined(STM32F7)
@@ -120,6 +120,15 @@ const timerHardware_t bbTimerHardware[] = {
     DEF_TIM(TIM1,  CH3, NONE,  TIM_USE_NONE, 0, 2, 0),
     DEF_TIM(TIM1,  CH4, NONE,  TIM_USE_NONE, 0, 3, 0),
 
+#elif defined(AT32F43x)
+    DEF_TIM(TMR8,  CH1, NONE,  TIM_USE_NONE, 0, 0, 0),
+    DEF_TIM(TMR8,  CH2, NONE,  TIM_USE_NONE, 0, 1, 0),
+    DEF_TIM(TMR8,  CH3, NONE,  TIM_USE_NONE, 0, 2, 0),
+    DEF_TIM(TMR8,  CH4, NONE,  TIM_USE_NONE, 0, 3, 0),
+    DEF_TIM(TMR1,  CH1, NONE,  TIM_USE_NONE, 0, 0, 0),
+    DEF_TIM(TMR1,  CH2, NONE,  TIM_USE_NONE, 0, 1, 0),
+    DEF_TIM(TMR1,  CH3, NONE,  TIM_USE_NONE, 0, 2, 0),
+    DEF_TIM(TMR1,  CH4, NONE,  TIM_USE_NONE, 0, 3, 0),
 #else
 #error MCU dependent code required
 #endif
@@ -295,6 +304,9 @@ static void bbSetupDma(bbPort_t *bbPort)
 {
     const dmaIdentifier_e dmaIdentifier = dmaGetIdentifier(bbPort->dmaResource);
     dmaEnable(dmaIdentifier);
+#ifdef AT32F43x
+    dmaMuxEnable(dmaIdentifier, bbPort->dmaChannel);
+#endif
     bbPort->dmaSource = timerDmaSource(bbPort->timhw->channel);
 
     bbPacer_t *bbPacer = bbFindMotorPacer(bbPort->timhw->tim);
@@ -381,6 +393,9 @@ static void bbFindPacerTimer(void)
 #ifdef USE_DMA_SPEC
             dmaoptValue_t dmaopt = dmaGetOptionByTimer(timer);
             const dmaChannelSpec_t *dmaChannelSpec = dmaGetChannelSpecByTimerValue(timer->tim, timer->channel, dmaopt);
+            if (!dmaChannelSpec) {
+                continue;
+            }
             dmaResource_t *dma = dmaChannelSpec->ref;
 #else
             dmaResource_t *dma = timer->dmaRef;
@@ -432,7 +447,11 @@ static bool bbMotorConfig(IO_t io, uint8_t motorIndex, motorPwmProtocolTypes_e p
 #ifdef USE_DMA_SPEC
             const dmaChannelSpec_t *dmaChannelSpec = dmaGetChannelSpecByTimerValue(timhw->tim, timhw->channel, dmaGetOptionByTimer(timhw));
             bbPort->dmaResource = dmaChannelSpec->ref;
+#if defined(AT32F43x)
+            bbPort->dmaChannel = dmaChannelSpec->dmaMuxId;
+#else
             bbPort->dmaChannel = dmaChannelSpec->channel;
+#endif
 #else
             bbPort->dmaResource = timhw->dmaRef;
             bbPort->dmaChannel = timhw->dmaChannel;
@@ -521,7 +540,7 @@ static bool bbUpdateStart(void)
             }
 #endif
 
-#ifdef STM32F4
+#if defined(STM32F4) || defined(AT32F43x)
             uint32_t value = decode_bb_bitband(
                 bbMotors[motorIndex].bbPort->portInputBuffer,
                 bbMotors[motorIndex].bbPort->portInputCount - bbDMA_Count(bbMotors[motorIndex].bbPort),
@@ -639,7 +658,7 @@ static void bbUpdateComplete(void)
         } else
 #endif
         {
-#if defined(STM32G4)
+#if defined(STM32G4) || defined(AT32F43x)
             // Using circular mode resets the counter one short, so explicitly reload
             bbSwitchToOutput(bbPort);
 #endif
@@ -763,6 +782,8 @@ motorDevice_t *dshotBitbangDevInit(const motorDevConfig_t *motorConfig, uint8_t 
         bbMotors[motorIndex].iocfg = IO_CONFIG(GPIO_Mode_OUT, GPIO_Speed_50MHz, GPIO_OType_PP, bbPuPdMode);
 #elif defined(STM32F7) || defined(STM32G4) || defined(STM32H7)
         bbMotors[motorIndex].iocfg = IO_CONFIG(GPIO_MODE_OUTPUT_PP, GPIO_SPEED_FREQ_LOW, bbPuPdMode);
+#elif defined(AT32F43x)
+        bbMotors[motorIndex].iocfg = IO_CONFIG(GPIO_MODE_OUTPUT, GPIO_DRIVE_STRENGTH_STRONGER, GPIO_OUTPUT_PUSH_PULL, bbPuPdMode);
 #endif
 
         IOInit(io, OWNER_MOTOR, RESOURCE_INDEX(motorIndex));

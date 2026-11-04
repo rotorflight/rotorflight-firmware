@@ -59,7 +59,11 @@ static uint32_t cpuClockFrequency = 0;
 
 void cycleCounterInit(void)
 {
-#if defined(USE_HAL_DRIVER)
+#if defined(AT32F43x)
+    crm_clocks_freq_type clocks;
+    crm_clocks_freq_get(&clocks);
+    cpuClockFrequency = clocks.sclk_freq;
+#elif defined(USE_HAL_DRIVER)
     cpuClockFrequency = HAL_RCC_GetSysClockFreq();
 #else
     RCC_ClocksTypeDef clocks;

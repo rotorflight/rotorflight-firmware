@@ -29,6 +29,7 @@
 #include "drivers/time.h"
 #include "usb_io.h"
 #include "sdcard.h"
+#include "pg/usb.h"
 
 #ifdef USE_USB_DETECT
 static IO_t usbDetectPin;
@@ -46,7 +47,7 @@ void usbCableDetectDeinit(void)
 void usbCableDetectInit(void)
 {
 #ifdef USE_USB_DETECT
-    usbDetectPin = IOGetByTag(IO_TAG(USB_DETECT_PIN));
+    usbDetectPin = IOGetByTag(usbDevConfig()->detectPin);
 
     IOInit(usbDetectPin, OWNER_USB_DETECT, 0);
     IOConfigGPIO(usbDetectPin, IOCFG_IPD);

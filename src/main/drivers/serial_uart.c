@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/serial_uart.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -410,3 +413,5 @@ UART_IRQHandler(LPUART, 1, 9) // UART9 (implemented with LPUART1) Rx/Tx IRQ Hand
 #endif
 
 #endif // USE_UART
+
+#endif // AT32F43x

@@ -208,6 +208,8 @@ FAST_CODE_NOINLINE bool pwmStartDshotMotorUpdate(void)
 
 #ifdef USE_FULL_LL_DRIVER
             LL_EX_TIM_DisableIT(dmaMotors[i].timerHardware->tim, dmaMotors[i].timerDmaSource);
+#elif defined(AT32F43x)
+            tmr_dma_request_enable(dmaMotors[i].timerHardware->tim, dmaMotors[i].inputTimerDmaSource, FALSE);
 #else
             TIM_DMACmd(dmaMotors[i].timerHardware->tim, dmaMotors[i].timerDmaSource, DISABLE);
 #endif

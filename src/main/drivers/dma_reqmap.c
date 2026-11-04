@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/dma_reqmap.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -114,6 +117,10 @@ static const dmaPeripheralMapping_t dmaPeripheralMapping[] = {
     { DMA_PERIPH_UART_TX, LPUARTDEV_1, DMA_REQUEST_LPUART1_TX },
     { DMA_PERIPH_UART_RX, LPUARTDEV_1, DMA_REQUEST_LPUART1_RX },
 #endif
+#endif
+
+#ifdef USE_SDCARD_SDIO
+    { DMA_PERIPH_SDIO, 0, DMAMUX_DMAREQ_ID_SDIO1 },
 #endif
 
 #ifdef USE_TIMER
@@ -599,3 +606,5 @@ dmaoptValue_t dmaGetUpOptionByTimer(const timerHardware_t *timer)
 #endif
 
 #endif // USE_DMA_SPEC
+
+#endif // AT32F43x

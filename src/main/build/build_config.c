@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/build_config.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -72,3 +75,5 @@ mcuTypeId_e getMcuTypeId(void)
     return MCU_TYPE_UNKNOWN;
 #endif
 }
+
+#endif // AT32F43x

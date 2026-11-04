@@ -746,7 +746,7 @@ bool afatfs_sectorCacheInSync(void)
             return false;
         }
     }
-    return true;
+    return sdcard_flush();
 }
 
 /**
@@ -873,7 +873,7 @@ bool afatfs_flush(void)
         }
     }
 
-    return true;
+    return sdcard_flush();
 }
 
 /**

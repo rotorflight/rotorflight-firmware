@@ -533,22 +533,15 @@ static void sdcardSpi_init(const sdcardConfig_t *config, const spiPinConfig_t *s
 {
     UNUSED(spiConfig);
 
-    sdcard.enabled = config->mode;
+    const IO_t chipSelectIO = IOGetByTag(config->chipSelectTag);
+    sdcard.enabled = config->mode && chipSelectIO && spiSetBusInstance(&sdcard.dev, config->device);
     if (!sdcard.enabled) {
         sdcard.state = SDCARD_STATE_NOT_PRESENT;
         return;
     }
 
-    spiSetBusInstance(&sdcard.dev, config->device);
-
-    IO_t chipSelectIO;
-    if (config->chipSelectTag) {
-        chipSelectIO = IOGetByTag(config->chipSelectTag);
-        IOInit(chipSelectIO, OWNER_SDCARD_CS, 0);
-        IOConfigGPIO(chipSelectIO, SPI_IO_CS_CFG);
-    } else {
-        chipSelectIO = IO_NONE;
-    }
+    IOInit(chipSelectIO, OWNER_SDCARD_CS, 0);
+    IOConfigGPIO(chipSelectIO, SPI_IO_CS_CFG);
     sdcard.dev.busType_u.spi.csnPin = chipSelectIO;
 
     // Set the clock phase/polarity
@@ -1102,6 +1095,7 @@ sdcardVTable_t sdcardSpiVTable = {
     sdcardSpi_beginWriteBlocks,
     sdcardSpi_writeBlock,
     sdcardSpi_poll,
+    NULL,
     sdcardSpi_isFunctional,
     sdcardSpi_isInitialized,
     sdcardSpi_getMetadata,

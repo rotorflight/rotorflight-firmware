@@ -71,7 +71,7 @@ motorDevice_t *dshotPwmDevInit(const struct motorDevConfig_s *motorConfig, uint8
 #define DSHOT_DMA_BUFFER_ATTRIBUTE // None
 #endif
 
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4) || defined(AT32F43x)
 #define DSHOT_DMA_BUFFER_UNIT uint32_t
 #else
 #define DSHOT_DMA_BUFFER_UNIT uint8_t
@@ -136,10 +136,19 @@ typedef struct motorDmaOutput_s {
     volatile bool isInput;
     timeDelta_t dshotTelemetryDeadtimeUs;
     uint8_t dmaInputLen;
+#if defined(AT32F43x)
+    const timerHardware_t *inputTimerHardware;
+    uint16_t inputTimerDmaSource;
+    uint8_t outputDmaMuxId;
+    uint8_t inputDmaMuxId;
+#endif
 
 #ifdef USE_HAL_DRIVER
     LL_TIM_OC_InitTypeDef ocInitStruct;
     LL_TIM_IC_InitTypeDef icInitStruct;
+#elif defined(AT32F43x)
+    tmr_output_config_type ocInitStruct;
+    tmr_input_config_type icInitStruct;
 #else
     TIM_OCInitTypeDef ocInitStruct;
     TIM_ICInitTypeDef icInitStruct;

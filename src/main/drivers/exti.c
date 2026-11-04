@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/exti.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -249,3 +252,5 @@ _EXTI_IRQ_HANDLER(EXTI15_10_IRQHandler, 0xfc00);
 
 #endif
 
+
+#endif // AT32F43x

@@ -43,8 +43,6 @@
 #include "drivers/time.h"
 #include "drivers/usb_msc.h"
 
-#include "msc/usbd_storage.h"
-
 #include "pg/usb.h"
 
 #define DEBOUNCE_TIME_MS 20

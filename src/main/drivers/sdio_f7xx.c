@@ -1346,7 +1346,7 @@ SD_Error_t SD_GetCardStatus(SD_CardStatus_t* pCardStatus)
 
     // Byte 13
     Temp = (Status[13] & 0xFC) >> 2;
-    pCardStatus->ERASE_TIMEOUT = (uint8_t)Temp;
+    pCardStatus->ERASE_TIMEOUT_VALUE = (uint8_t)Temp;
 
     // Byte 13
     Temp = (Status[13] & 0x3);

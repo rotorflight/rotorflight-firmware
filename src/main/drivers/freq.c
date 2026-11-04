@@ -47,7 +47,7 @@
 #define FREQ_PRESCALER_MAX    0x0080
 #elif defined(STM32F4) || defined(STM32G4) || defined(STM32F7)
 #define FREQ_PRESCALER_MAX    0x0100
-#elif defined(STM32H7)
+#elif defined(STM32H7) || defined(AT32F43x)
 #define FREQ_PRESCALER_MAX    0x0200
 #endif
 
@@ -146,9 +146,15 @@ static void freqSetBaseClock(freqInputPort_t *input, uint32_t prescaler)
 
     input->prescaler = prescaler;
 
+#if defined(AT32F43x)
+    tim->div = prescaler - 1;
+    tim->pr = UINT32_MAX;
+    tim->swevt = TMR_OVERFLOW_SWTRIG;
+#else
     tim->PSC = prescaler - 1;
-    tim->ARR = 0xffffffff;
+    tim->ARR = UINT32_MAX;
     tim->EGR = TIM_EGR_UG;
+#endif
 }
 
 static void freqResetCapture(freqInputPort_t *input, uint8_t port)
@@ -300,6 +306,17 @@ void freqICConfig(const timerHardware_t *timer, bool rising, uint16_t filter)
         HAL_TIM_IC_Start_IT(handle, timer->channel);
     }
 }
+#elif defined(AT32F43x)
+void freqICConfig(const timerHardware_t *timer, bool rising, uint16_t filter)
+{
+    tmr_input_config_type input = {
+        .input_channel_select = TIM_CH_TO_SELCHANNEL(timer->channel),
+        .input_polarity_select = rising ? TMR_INPUT_RISING_EDGE : TMR_INPUT_FALLING_EDGE,
+        .input_mapped_select = TMR_CC_CHANNEL_MAPPED_DIRECT,
+        .input_filter_value = filter,
+    };
+    tmr_input_channel_init(timer->tim, &input, TMR_CHANNEL_INPUT_DIV_1);
+}
 #else
 void freqICConfig(const timerHardware_t *timer, bool rising, uint16_t filter)
 {
@@ -325,7 +342,11 @@ void freqInit(const freqConfig_t *freqConfig)
 
             input->timerHardware = timer;
             input->enabled = true;
+#if defined(AT32F43x)
+            input->timer32 = (timer->tim == TMR2 || timer->tim == TMR5);
+#else
             input->timer32 = (timer->tim == TIM2 || timer->tim == TIM5);
+#endif
             input->clock = timerClock(timer->tim);
             input->prescaler = (input->timer32) ? 1 : FREQ_PRESCALER_MAX;
             input->overflows = 0;
@@ -351,6 +372,9 @@ void freqInit(const freqConfig_t *freqConfig)
             timerConfigure(timer, 0, timerClock(timer->tim));
 
             if (input->timer32) {
+#if defined(AT32F43x)
+                tmr_32_bit_function_enable(timer->tim, TRUE);
+#endif
                 timerChCCHandlerInit(&input->edgeCb, freqEdgeCallback32);
                 timerChConfigCallbacks(timer, &input->edgeCb, NULL);
             }
@@ -373,13 +397,16 @@ void freqUpdate(void)
         freqInputPort_t *input = &freqInputPorts[port];
         if (input->enabled && input->capture) {
             uint32_t delta;
+#if defined(AT32F43x)
+            const uint32_t count = input->timerHardware->tim->cval;
+#else
+            const uint32_t count = input->timerHardware->tim->CNT;
+#endif
             if (input->timer32) {
-                uint32_t count = input->timerHardware->tim->CNT;
                 uint32_t ticks = count - input->capture;
                 delta = input->prescaler * ticks;
             }
             else {
-                uint16_t count = input->timerHardware->tim->CNT;
                 uint16_t ticks = count - input->capture;
                 delta = input->prescaler * ticks;
             }

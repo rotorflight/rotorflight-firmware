@@ -348,7 +348,11 @@ void updateArmingStatus(void)
         }
 #endif
 
-        if (!isMotorProtocolEnabled()) {
+        if (!isMotorProtocolEnabled()
+#ifdef AT32F43x
+            || motorDeviceCount() < (mixerMotorizedTail() ? 2u : 1u)
+#endif
+        ) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 

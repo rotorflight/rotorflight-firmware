@@ -351,7 +351,7 @@
 
 #if defined(USE_DSHOT) || defined(USE_LED_STRIP)
 #define USE_TIMER_DMA
-#else
+#elif !defined(AT32F43x) || !defined(USE_ADC)
 #undef USE_DMA_SPEC
 #endif
 
