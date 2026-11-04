@@ -659,7 +659,6 @@ typedef struct {
 
     // Time based progress per second
     float timeRate;
-    float minRate;
 
     pidGains_t start;
     pidGains_t target;
@@ -797,12 +796,36 @@ static void pidSetGains(const pidGains_t *gains)
 
 static void pidBlendMix(pidGains_t *gains)
 {
-    const float *start = (const float *)&blend.start;
-    const float *target = (const float *)&blend.target;
+    // Copy first: a restart mixes into blend.start itself
+    const pidGains_t from = blend.start;
+    const pidGains_t *to = &blend.target;
+    const float ratio = blend.ratio;
+
+    const float *start = (const float *)&from;
+    const float *target = (const float *)to;
     float *mixed = (float *)gains;
 
     for (unsigned i = 0; i < sizeof(pidGains_t) / sizeof(float); i++)
-        mixed[i] = start[i] + (target[i] - start[i]) * blend.ratio;
+        mixed[i] = start[i] + (target[i] - start[i]) * ratio;
+
+    // The feedback terms act as K * masterGain. Mixing both factors on their
+    // own makes the product bulge past both profiles when they move in
+    // opposite directions, so mix the product and divide out the mixed
+    // master gain (>= MASTER_GAIN_MIN, never zero). F and B are not scaled
+    // by the master gain and stay mixed as above.
+    for (int axis = 0; axis < PID_AXIS_COUNT; axis++) {
+        const pidAxisCoef_t *s = &from.coef[axis];
+        const pidAxisCoef_t *t = &to->coef[axis];
+        const float ms = from.masterGain[axis];
+        const float mt = to->masterGain[axis];
+        const float mm = gains->masterGain[axis];
+        pidAxisCoef_t *coef = &gains->coef[axis];
+
+        coef->Kp = (s->Kp * ms + (t->Kp * mt - s->Kp * ms) * ratio) / mm;
+        coef->Ki = (s->Ki * ms + (t->Ki * mt - s->Ki * ms) * ratio) / mm;
+        coef->Kd = (s->Kd * ms + (t->Kd * mt - s->Kd * ms) * ratio) / mm;
+        coef->Ko = (s->Ko * ms + (t->Ko * mt - s->Ko * ms) * ratio) / mm;
+    }
 
     // The bleed conversion is a ratio, not a gain: derive it from the mixed gains
     for (int axis = PID_ROLL; axis <= PID_PITCH; axis++) {
@@ -865,7 +888,7 @@ static void pidBlendUpdate(void)
         }
         else {
             // Never slower than the slowest allowed blend
-            float ratio = blend.ratio + pid.dT * blend.minRate;
+            float ratio = blend.ratio + pid.dT / PID_BLEND_MAX_TIME;
             bool followHeadSpeed = false;
 
             if (tracking) {
@@ -1046,14 +1069,13 @@ void pidSwitchProfile(const pidProfile_t *pidProfile)
         // Start from the gains in use now, which may be a blend in progress
         pidGetGains(&blend.start);
 
-        const float blendTime = constrain(governorConfig()->gov_profile_blend_time, 2, 250) / 10.0f;
+        const float blendTime = constrain(governorConfig()->gov_profile_blend_time, 2, 100) / 10.0f;
 
         blend.active = true;
         blend.pidMode = pid.pidMode;
         blend.ratio = 0;
         blend.anchored = false;
         blend.timeRate = 1.0f / blendTime;
-        blend.minRate = 1.0f / fmaxf(blendTime, PID_BLEND_MAX_TIME);
 
         pidLoadProfile(pidProfile);
     }

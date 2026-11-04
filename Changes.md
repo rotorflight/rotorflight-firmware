@@ -7,6 +7,7 @@ the APIs or flight performance.
 
 ## Features
 
+- PID gains blended on in-flight profile switches: new CLI settings `gov_profile_blend` (`OFF` default, `ON` blends the gains instead of switching them at once) and `gov_profile_blend_time` (2–100, in 0.1 s, default 30). With the Rotorflight governor and a good RPM signal the blend follows the headspeed; otherwise, or if the headspeed changes by less than 5%, it runs over `gov_profile_blend_time`. A blend takes at least 0.2 s and at most 10 s. New debug mode `PROFILE_BLEND`, and a `gov_profile_blend` blackbox header line (#586)
 - FBUS and F.Port2 speed detected: `serialrx_provider` `FBUS` and `FPORT2` both find the receiver's speed (460800 or 115200) and keep it once good frames arrive
 - FBUS/S.Port sensor readings over MSP: new read-only `MSP2_GET_FBUS_SENSORS_STATUS` (0x5F15) returns the latest decoded GPS, current (FAS), cells (FLVSS), ESC/RPM sensor and XACT servo values; each block starts with a flags byte, 0 meaning nothing fresh in the last second
 - F.Bus master speed selectable in the CLI: `fbus_master_baud_fast` (default `ON`, 460800); `OFF` runs at 115200 with the frame rate capped at 150 Hz (`PG_DRIVER_FBUS_MASTER_CONFIG` version bumped)
