@@ -189,6 +189,7 @@ int tfp_sprintf(char *s, const char *fmt, ...)
     return written;
 }
 
+#ifdef USE_SERIAL_PRINTF
 static void serial_putc(void *p, char c)
 {
     serialWrite((serialPort_t *)p, c);
@@ -199,7 +200,9 @@ void printfSerialInit(serialPortIdentifier_e port, uint32_t baudRate, portOption
     stdout_putp = openSerialPort(port, FUNCTION_PRINTF, NULL, NULL, baudRate, MODE_TX, options);
     stdout_putf = serial_putc;
 }
+#endif
 
+#ifdef USE_ITM_PRINTF
 static void itm_putc(void *p, char c)
 {
     UNUSED(p);
@@ -211,6 +214,7 @@ void printfITMInit(void)
     stdout_putp = ITM;
     stdout_putf = itm_putc;
 }
+#endif
 
 int tfp_printf(const char *fmt, ...)
 {

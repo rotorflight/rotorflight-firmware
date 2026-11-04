@@ -834,6 +834,8 @@ static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 
 static void subTaskFilterUpdate(timeUs_t currentTimeUs)
 {
+    UNUSED(currentTimeUs);   // only used with USE_DYN_LPF
+
 #ifdef USE_FREQ_SENSOR
     freqUpdate();
 #endif
