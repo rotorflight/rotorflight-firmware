@@ -107,20 +107,30 @@ blackbox_encoding_unittest_SRC :=  \
 		$(USER_DIR)/common/printf.c \
 		$(USER_DIR)/common/typeconversion.c
 
-# This test is disabled due to build errors.
-#cli_unittest_SRC := \
-#		$(USER_DIR)/cli/cli.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/common/typeconversion.c
+cli_unittest_SRC := \
+		$(USER_DIR)/cli/cli.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/config/feature.c \
+		$(USER_DIR)/pg/adjustments.c \
+		$(USER_DIR)/pg/beeper.c \
+		$(USER_DIR)/pg/feature.c \
+		$(USER_DIR)/pg/gyro.c \
+		$(USER_DIR)/pg/ledstrip.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pilot.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/serial.c \
+		$(USER_DIR)/pg/servos.c \
+		$(USER_DIR)/pg/system.c \
+		$(USER_DIR)/pg/pg.c
 
-#cli_unittest_DEFINES := \
-#		USE_OSD= \
-#		USE_CLI= \
-#		SystemCoreClock=1000000
+cli_unittest_DEFINES := \
+		USE_CLI= \
+		SystemCoreClock=1000000
 
 cms_unittest_SRC := \
 		$(USER_DIR)/cms/cms.c \
