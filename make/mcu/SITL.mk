@@ -12,6 +12,10 @@ INCLUDE_DIRS    := $(filter-out $(SRC_DIR)/common,$(INCLUDE_DIRS)) \
 MCU_COMMON_SRC  := $(ROOT)/lib/main/dyad/dyad.c \
                    $(ROOT)/src/main/build/atomic.c
 
+# dyad is third-party host code working in doubles; with the float constants
+# below, newer GCCs (13, MinGW) flag its timeout arithmetic.
+%/dyad.o: CFLAGS += -Wno-double-promotion
+
 #Flags
 # Same float-constant semantics as the STM32 targets: an unsuffixed constant
 # is a float, so -Wdouble-promotion behaves as it does on a board build.
@@ -32,7 +36,19 @@ ifeq ($(OSFAMILY),windows)
 ARCH_FLAGS      := $(ARCH_FLAGS) -mno-ms-bitfields
 endif
 
+# SITL is a native build: no ARM cross toolchain. On Windows, use the MinGW-w64
+# GCC from 'make mingw_sdk_install' (tools/mingw64) when present, else the gcc
+# on PATH.
+MINGW_SDK_DIR   ?= $(TOOLS_DIR)/mingw64
+ifeq ($(OSFAMILY),windows)
+  ifeq ($(shell [ -x "$(MINGW_SDK_DIR)/bin/gcc.exe" ] && echo "exists"), exists)
+    ARM_SDK_PREFIX := $(MINGW_SDK_DIR)/bin/
+  else
+    ARM_SDK_PREFIX =
+  endif
+else
 ARM_SDK_PREFIX  =
+endif
 
 MCU_EXCLUDES = \
             drivers/adc.c \
@@ -63,12 +79,15 @@ TARGET_MAP  = $(OBJECT_DIR)/$(FORKNAME)_$(TARGET).map
 # MinGW/MSYS (native Windows) toolchains link libc implicitly and have no
 # separate librt (clock_gettime/nanosleep are provided via winpthreads /
 # msvcrt instead), so -lc/-lrt must be omitted there; they're required on
-# Linux/macOS.
+# Linux/macOS. -static on Windows, so the executable starts without the
+# toolchain's DLLs (libwinpthread-1.dll, libgcc_s_seh-1.dll) on PATH.
 ifeq ($(OSFAMILY),windows)
 LD_FLAGS    := \
               -lm \
               -lpthread \
               -lws2_32 \
+              -lwinmm \
+              -static \
               $(ARCH_FLAGS) \
               $(LTO_FLAGS) \
               $(DEBUG_FLAGS) \

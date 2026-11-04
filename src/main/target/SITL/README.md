@@ -13,6 +13,17 @@ make TARGET=SITL            # -> obj/main/rotorflight_SITL.elf
 ./obj/main/rotorflight_SITL.elf   # second start: stays up
 ```
 
+On Windows, build natively from an MSYS2 shell (or any shell with GNU make, curl and unzip):
+
+```sh
+make arm_sdk_install        # once, as above
+make mingw_sdk_install      # once: standalone MinGW-w64 GCC into tools/mingw64
+make TARGET=SITL            # -> obj/main/rotorflight_SITL.elf, a static Windows executable
+```
+
+The output keeps the `.elf` name; it is a Windows executable all the same (start it from a
+script or rename it to `.exe` to run it from Explorer).
+
 `python3 src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf` builds nothing; it runs the
 executable and checks first start, MSP identity, a CLI save, arming over MSP RX with a level FDM
 feed, motor output and disarming. CI runs it on every PR (`.github/workflows/sitl.yml`).
@@ -40,6 +51,7 @@ different build is replaced with defaults.
 
 ### Host timing
 
-`SITL_LOOP_SLEEP_US` sets the idle between scheduler passes (default 50 us). On a host whose
-sleep granularity is coarser than a gyro period, such as WSL1 (about 0.7 ms for any sleep), set
-it to 0: the main loop then only yields the CPU.
+`SITL_LOOP_SLEEP_US` sets the idle between scheduler passes (default 50 us on Linux). On a host
+whose sleep granularity is coarser than a gyro period, such as WSL1 (about 0.7 ms for any
+sleep), set it to 0: the main loop then only yields the CPU. On Windows that is the default,
+since Windows cannot sleep for less than a timer tick; delays under 1 ms are waited out there.
