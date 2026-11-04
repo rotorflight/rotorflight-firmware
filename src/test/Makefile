@@ -373,14 +373,14 @@ telemetry_crsf_msp_unittest_DEFINES := \
 		USE_MSP_OVER_TELEMETRY=
 
 
-#telemetry_hott_unittest_SRC := \
-#		$(USER_DIR)/telemetry/hott.c \
-#		$(USER_DIR)/common/gps_conversion.c
+telemetry_hott_unittest_SRC := \
+		$(USER_DIR)/telemetry/hott.c \
+		$(USER_DIR)/common/gps_conversion.c
 
 
-#telemetry_ibus_unittest_SRC := \
-#		$(USER_DIR)/telemetry/ibus_shared.c \
-#		$(USER_DIR)/telemetry/ibus.c
+telemetry_ibus_unittest_SRC := \
+		$(USER_DIR)/telemetry/ibus_shared.c \
+		$(USER_DIR)/telemetry/ibus.c
 
 timer_definition_unittest_EXPAND := yes
 
