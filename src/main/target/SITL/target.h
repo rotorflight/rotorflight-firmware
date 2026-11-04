@@ -112,6 +112,7 @@
 #undef USE_TELEMETRY_FRSKY_HUB
 #undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_SMARTPORT
+#undef USE_SPORT_MASTER
 #undef USE_TELEMETRY_MAVLINK
 #undef USE_RESOURCE_MGMT
 #undef USE_CMS
@@ -161,6 +162,11 @@ typedef enum {
     EXTI_Trigger_Rising_Falling = 0x10
 } EXTITrigger_TypeDef;
 
+// Register bit helpers that the STM32 CMSIS device headers provide on boards.
+#define SET_BIT(REG, BIT)     ((REG) |= (BIT))
+#define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
+#define READ_BIT(REG, BIT)    ((REG) & (BIT))
+
 typedef struct
 {
   uint32_t IDR;
@@ -174,6 +180,7 @@ typedef struct
 typedef struct
 {
     void* test;
+    uint32_t CCR1; // unused: present only so common driver code referencing tim->CCR1 (e.g. timerCCR()) type-checks on SITL
 } TIM_TypeDef;
 
 typedef struct
@@ -260,4 +267,12 @@ uint64_t micros64(void);
 uint64_t millis64(void);
 
 int lockMainPID(void);
+
+// dyad (lib/main/dyad) is not thread-safe: tcpThread() drives dyad_update()
+// continuously on a background thread while the main thread (via
+// serTcpOpen()/tcpDataOut() in drivers/serial_tcp.c) calls other dyad_*()
+// APIs that mutate the same global stream list/listener vectors. All dyad
+// API calls from outside dyad's own callbacks must be serialized with these.
+void simDyadLock(void);
+void simDyadUnlock(void);
 

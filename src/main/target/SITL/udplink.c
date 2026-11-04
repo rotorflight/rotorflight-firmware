@@ -7,21 +7,50 @@
 
 #include <string.h>
 
+#if defined(_WIN32) || defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#endif
 
 #include "udplink.h"
+
+#if defined(_WIN32) || defined(__MINGW32__)
+static void udpPlatformInit(void) {
+    static bool initialized = false;
+    if (!initialized) {
+        WSADATA wsaData;
+        WSAStartup(MAKEWORD(2, 2), &wsaData);
+        initialized = true;
+    }
+}
+
+static int udpSetNonBlocking(udp_socket_t fd) {
+    u_long mode = 1;
+    return ioctlsocket(fd, FIONBIO, &mode);
+}
+#else
+static int udpSetNonBlocking(udp_socket_t fd) {
+    return fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK);
+}
+#endif
 
 int udpInit(udpLink_t* link, const char* addr, int port, bool isServer) {
     int one = 1;
 
-    if ((link->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+#if defined(_WIN32) || defined(__MINGW32__)
+    udpPlatformInit();
+#endif
+
+    if ((link->fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == (udp_socket_t)-1) {
         return -2;
     }
 
-    setsockopt(link->fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)); // can multi-bind
-    fcntl(link->fd, F_SETFL, fcntl(link->fd, F_GETFL, 0) | O_NONBLOCK); // nonblock
+    setsockopt(link->fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&one, sizeof(one)); // can multi-bind
+    udpSetNonBlocking(link->fd); // nonblock
 
     link->isServer = isServer;
     memset(&link->si, 0, sizeof(link->si));
@@ -61,7 +90,11 @@ int udpRecv(udpLink_t* link, void* data, size_t size, uint32_t timeout_ms) {
         return -1;
     }
 
-    socklen_t len;
+#if defined(_WIN32) || defined(__MINGW32__)
+    int len = sizeof(link->recv);
+#else
+    socklen_t len = sizeof(link->recv);
+#endif
     int ret;
     ret = recvfrom(link->fd, data, size, 0, (struct sockaddr *)&link->recv, &len);
     return ret;

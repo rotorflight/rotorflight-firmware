@@ -20,7 +20,44 @@
 
 #pragma once
 
+#if defined(_WIN32) || defined(__MINGW32__)
+// Trim down windows.h (pulled in transitively via winsock2.h) so it does not
+// define the legacy serial-comm BAUD_* macros (from winbase.h), which clash
+// with the BAUD_* enum values declared in io/serial.h.
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOCOMM
+#define NOCOMM
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+// windows.h (via winbase.h) unconditionally defines legacy COMM BAUD_* macros
+// that collide with the BAUD_* values of io/serial.h's baudRate_e enum.
+// They are never used by this simulator build, so drop them.
+#undef BAUD_075
+#undef BAUD_110
+#undef BAUD_134_5
+#undef BAUD_150
+#undef BAUD_300
+#undef BAUD_600
+#undef BAUD_1200
+#undef BAUD_1800
+#undef BAUD_2400
+#undef BAUD_4800
+#undef BAUD_7200
+#undef BAUD_9600
+#undef BAUD_14400
+#undef BAUD_19200
+#undef BAUD_38400
+#undef BAUD_56K
+#undef BAUD_128K
+#undef BAUD_115200
+#undef BAUD_57600
+#undef BAUD_USER
+#else
 #include <netinet/in.h>
+#endif
 #include <pthread.h>
 #include "dyad.h"
 

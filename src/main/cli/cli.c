@@ -28,6 +28,30 @@
 
 #include "platform.h"
 
+// MinGW/MSYS toolchains used for native Windows SITL builds lack the GNU/BSD
+// strcasestr() extension that is available on the Linux/macOS and ARM/newlib
+// toolchains used for the other targets.
+#if defined(_WIN32) || defined(__MINGW32__)
+static const char *strcasestr(const char *haystack, const char *needle)
+{
+    if (!*needle) {
+        return haystack;
+    }
+    for (; *haystack; haystack++) {
+        const char *h = haystack;
+        const char *n = needle;
+        while (*h && *n && tolower((unsigned char)*h) == tolower((unsigned char)*n)) {
+            h++;
+            n++;
+        }
+        if (!*n) {
+            return haystack;
+        }
+    }
+    return NULL;
+}
+#endif
+
 // FIXME remove this for targets that don't need a CLI.  Perhaps use a no-op macro when USE_CLI is not enabled
 // signal that we're in cli mode
 bool cliMode = false;
@@ -1444,7 +1468,7 @@ static void cliSerial(const char *cmdName, char *cmdline)
 static void cbCtrlLine(void *context, uint16_t ctrl)
 {
 #ifdef USE_PINIO
-    int contextValue = (int)(long)context;
+    int contextValue = (int)(intptr_t)context;
     if (contextValue) {
         pinioSet(contextValue - 1, !(ctrl & CTRL_LINE_STATE_DTR));
     } else
@@ -4059,6 +4083,7 @@ static void cliDumpGyroRegisters(const char *cmdName, char *cmdline)
 #endif
 
 
+#if defined(USE_DSHOT) || defined(USE_ESCSERIAL)
 static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     int outputIndex = atoi(pch);
     if (outputIndex > 0 && outputIndex <= getMotorCount()) {
@@ -4071,6 +4096,7 @@ static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     }
     return outputIndex - 1;
 }
+#endif // USE_DSHOT || USE_ESCSERIAL
 
 #if defined(USE_DSHOT)
 static void cliDshotProg(const char *cmdName, char *cmdline)
