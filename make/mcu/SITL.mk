@@ -12,9 +12,12 @@ INCLUDE_DIRS    := $(filter-out $(SRC_DIR)/common,$(INCLUDE_DIRS)) \
 MCU_COMMON_SRC  := $(ROOT)/lib/main/dyad/dyad.c \
                    $(ROOT)/src/main/build/atomic.c
 
-# dyad is third-party host code working in doubles; with the float constants
-# below, newer GCCs (13, MinGW) flag its timeout arithmetic.
-%/dyad.o: CFLAGS += -Wno-double-promotion
+# dyad is third-party host code working in doubles: it must not get the
+# float constants below. dyad_getTime() is `tv_sec + tv_usec / 1e6`, which in
+# float has a resolution of 128 s at today's Unix time (1024 s for the Windows
+# FILETIME): dyad's clock jumped in 128 s steps, its 120 s stream timeout fired
+# at random, and a client connection was closed seconds after it was opened.
+%/dyad.o: CFLAGS += -fno-single-precision-constant -Wno-double-promotion
 
 #Flags
 # Same float-constant semantics as the STM32 targets: an unsuffixed constant
