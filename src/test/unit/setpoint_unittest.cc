@@ -15,6 +15,8 @@ float getCosTiltAngle(void) { return 0; }
 bool isSpooledUp(void) { return true; }
 float pidGetPidFrequency() { return 1000; }
 float pidGetDT() { return 1 / pidGetPidFrequency(); }
+void airborneInit(void) {}
+void airborneUpdate(const float[4]) {}
 PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 
 // We don't convert to any rates. The test focuses on normalized value (-1, 1).

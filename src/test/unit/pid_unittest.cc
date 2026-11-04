@@ -34,6 +34,10 @@ void beeperConfirmationBeeps(uint8_t) {}
 float getThrottle(void) { return throttle; }
 void governorInitProfile(const pidProfile_t *) {}
 void levelingInit(const pidProfile_t *) {}
+void levelingUpdate(void) {}
+pidProfile_t *currentPidProfile;
+uint8_t getCurrentPidProfileIndex(void) { return 0; }
+void changePidProfile(uint8_t) {}
 void INIT_CODE rescueInitProfile(const pidProfile_t *) {}
 bool isSpooledUp(void) { return true; }
 void setpointInitProfile(void) {}
@@ -109,7 +113,7 @@ TEST_F(PIDTestBase, Mode0)
 {
     mockPidProfile->pid_mode = 0;
     mockPidProfile->pid[0].F = 1;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
     PIDIO input;
     for (int i = 0; i < 100; i++) {
@@ -148,7 +152,7 @@ TEST_F(PIDFBTest, B)
     mockPidProfile->pid[0].F = 0;
     mockPidProfile->pid[0].B = 100;
     mockPidProfile->bterm_cutoff[0] = 30;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
     PIDIO input;
     for (int i = 0; i < 500; i++) {
