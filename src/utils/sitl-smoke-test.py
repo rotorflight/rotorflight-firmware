@@ -12,8 +12,11 @@ Runs the SITL executable in a fresh temporary directory and checks, in order:
   4. with a level FDM feed on UDP 9003 and RC frames over MSP RX:
      the accelerometer calibrates, all arming blockers clear, the switch arms,
      full throttle drives motor 1 on the UDP 9002 output, the switch disarms
+  5. CRSF on UART2 (TCP 5762), configured through the CLI: RC frames clear RXLOSS,
+     the firmware's CRSF telemetry arrives with valid CRCs, the CRSF switch arms
+     and disarms
 
-Uses only the Python standard library. Ports 5761, 9002 and 9003 must be free.
+Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free.
 SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
 """
 
@@ -214,6 +217,67 @@ class OutputReader(threading.Thread):
         return struct.unpack_from("<4f", data) if data and len(data) >= 16 else None
 
 
+def crc8_dvb_s2(data):
+    crc = 0
+    for b in data:
+        crc ^= b
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0xD5) & 0xFF if crc & 0x80 else (crc << 1) & 0xFF
+    return crc
+
+
+def crsf_rc_frame(channels_us):
+    """Up to 16 channels in microseconds -> CRSF RC_CHANNELS_PACKED frame."""
+    bits = 0
+    for i, us in enumerate(channels_us + [1500] * (16 - len(channels_us))):
+        ticks = max(172, min(1811, round((us - 1500) * 8 / 5 + 992)))
+        bits |= ticks << (11 * i)
+    body = bytes([0x16]) + bits.to_bytes(22, "little")
+    return bytes([0xC8, len(body) + 1]) + body + bytes([crc8_dvb_s2(body)])
+
+
+class CrsfRadio(threading.Thread):
+    """A radio on the CRSF UART: RC frames at 50 Hz out, telemetry frames in."""
+
+    def __init__(self, sock):
+        super().__init__(daemon=True)
+        self.sock = sock
+        self.sock.settimeout(0.005)
+        self.channels = rc_frame(1000, 1000)
+        self.frames = 0
+        self.bad_crc = 0
+        self.running = True
+
+    def run(self):
+        buf = b""
+        next_tx = time.monotonic()
+        while self.running:
+            try:
+                if time.monotonic() >= next_tx:
+                    self.sock.sendall(crsf_rc_frame(self.channels))
+                    next_tx += 0.02
+                data = self.sock.recv(4096)
+                if not data:
+                    return
+                buf += data
+            except socket.timeout:
+                pass
+            except OSError:
+                return
+            while len(buf) >= 2:
+                size = buf[1]
+                if size < 2 or size > 62:
+                    buf = buf[1:]
+                    continue
+                if len(buf) < size + 2:
+                    break
+                frame, buf = buf[:size + 2], buf[size + 2:]
+                if crc8_dvb_s2(frame[2:-1]) == frame[-1]:
+                    self.frames += 1
+                else:
+                    self.bad_crc += 1
+
+
 def hold(msp, throttle, aux1, seconds):
     end = time.time() + seconds
     while time.time() < end:
@@ -293,6 +357,62 @@ def run(elf, rundir):
     finally:
         feed.running = False
         outputs.running = False
+        sitl.stop()
+
+    # 5. CRSF receiver and telemetry on UART2
+    sitl = Sitl(elf, rundir, "4-crsf-config")
+    try:
+        sock = connect_uart1(sitl)
+        out = cli(sock, ["feature -RX_MSP", "feature RX_SERIAL", "feature TELEMETRY",
+                         "serial 1 64 115200 57600 0 115200", "set serialrx_provider = CRSF", "save"])
+        sock.close()
+        if sitl.wait(15) != 0:
+            raise Failure("CRSF configuration was not saved\n%s" % out)
+    finally:
+        sitl.stop()
+
+    feed = FdmFeed()
+    sitl = Sitl(elf, rundir, "5-crsf")
+    radio = None
+    try:
+        feed.start()
+        msp = Msp(connect_uart1(sitl))
+        deadline = time.time() + 10
+        while radio is None:
+            try:
+                radio = CrsfRadio(socket.create_connection(("127.0.0.1", 5762), timeout=1))
+            except OSError:
+                if time.time() > deadline:
+                    raise Failure("CRSF UART2 (TCP 5762) not served")
+                time.sleep(0.2)
+        radio.start()
+
+        deadline = time.time() + 20
+        armed, flags = msp.status()
+        while flags and time.time() < deadline:
+            time.sleep(0.2)
+            armed, flags = msp.status()
+        if flags:
+            raise Failure("CRSF: arming blockers did not clear within 20 s: %s" % flags)
+        if not radio.frames or radio.bad_crc:
+            raise Failure("CRSF telemetry: %d frames, %d with a bad CRC" % (radio.frames, radio.bad_crc))
+        log("PASS CRSF: RX up, %d telemetry frames, no CRC errors" % radio.frames)
+
+        radio.channels = rc_frame(1000, 1900)
+        time.sleep(1.0)
+        armed, flags = msp.status()
+        if not armed:
+            raise Failure("CRSF switch on, not armed: %s" % flags)
+        radio.channels = rc_frame(1000, 1000)
+        time.sleep(1.0)
+        armed, flags = msp.status()
+        if armed:
+            raise Failure("CRSF switch off, still armed")
+        log("PASS CRSF: armed and disarmed with the CRSF switch")
+    finally:
+        feed.running = False
+        if radio:
+            radio.running = False
         sitl.stop()
 
 

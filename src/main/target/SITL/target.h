@@ -98,8 +98,9 @@
 #undef USE_OSD
 #undef USE_PPM
 #undef USE_PWM
-#undef USE_SERIAL_RX
-#undef USE_SERIALRX_CRSF
+// Serial RX with CRSF over a TCP UART, for a (simulated) radio. CRSF v3 renegotiates
+// the baud rate, which a TCP port has no use for.
+#undef USE_CRSF_V3
 #undef USE_SERIALRX_GHST
 #undef USE_SERIALRX_IBUS
 #undef USE_SERIALRX_IBUS2
@@ -116,7 +117,6 @@
 #undef USE_TELEMETRY_MAVLINK
 #undef USE_RESOURCE_MGMT
 #undef USE_CMS
-#undef USE_TELEMETRY_CRSF
 #undef USE_TELEMETRY_GHST
 #undef USE_TELEMETRY_IBUS
 #undef USE_TELEMETRY_JETIEXBUS

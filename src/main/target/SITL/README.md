@@ -36,8 +36,20 @@ feed, motor output and disarming. CI runs it on every PR (`.github/workflows/sit
 | FC -> simulator | `udp://127.0.0.1:9002` | `servo_packet` (48 bytes): `motor_speed[4]` (M1-M4, 0..1), `servo[8]` (S1-S8, us, 0 = absent) |
 | UARTn <-> client | `tcp://127.0.0.1:576n` | one client per port; UART1 (5761) carries MSP and the CLI |
 
-Both structs are in [target.h](target.h). RC arrives as `MSP_SET_RAW_RC` (MSP RX). Point the
-Configurator at `tcp://127.0.0.1:5761`.
+Both structs are in [target.h](target.h). By default RC arrives as `MSP_SET_RAW_RC` (MSP RX).
+A radio can instead speak CRSF on any UART, with CRSF telemetry back on the same port, for
+example on UART2 (TCP 5762):
+
+```
+feature -RX_MSP
+feature RX_SERIAL
+feature TELEMETRY
+serial 1 64 115200 57600 0 115200
+set serialrx_provider = CRSF
+save
+```
+
+Point the Configurator at `tcp://127.0.0.1:5761`.
 
 The firmware does not estimate attitude here (`USE_IMU_CALC` is off): it takes the quaternion from
 the FDM packet. Its clock follows the packet timestamps (`simRate`, measured over at least 50 ms),
