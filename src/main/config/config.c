@@ -507,6 +507,7 @@ static void validateAndFixConfig(void)
 #endif
 
     bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
+    UNUSED(configuredMotorProtocolDshot);
 #if defined(USE_DSHOT)
     // If using DSHOT protocol disable unsynched PWM as it's meaningless
     if (configuredMotorProtocolDshot) {

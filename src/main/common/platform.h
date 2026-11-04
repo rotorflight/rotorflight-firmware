@@ -112,6 +112,13 @@
 
 // Nop
 
+// MinGW/MSYS toolchains used for native Windows SITL builds don't provide
+// the BSD-style __unused macro (normally pulled in via <sys/cdefs.h> on the
+// ARM/newlib and glibc toolchains used for the other targets).
+#ifndef __unused
+#define __unused __attribute__((__unused__))
+#endif
+
 #elif defined(UNIT_TEST)
 
 #include "unittest_platform.h"
