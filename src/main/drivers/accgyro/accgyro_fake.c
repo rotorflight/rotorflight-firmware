@@ -43,7 +43,6 @@ gyroDev_t *fakeGyroDev;
 
 static void fakeGyroInit(gyroDev_t *gyro)
 {
-    fakeGyroDev = gyro;
 #if defined(SIMULATOR_BUILD) && defined(SIMULATOR_MULTITHREAD)
     if (pthread_mutex_init(&gyro->lock, NULL) != 0) {
         printf("Create gyro lock error!\n");
@@ -58,6 +57,9 @@ static void fakeGyroInit(gyroDev_t *gyro)
     gyro->mpuDividerDrops = 1;
     gyro->gyroSampleRateHz = 4000;
     gyro->accSampleRateHz = 1000;
+
+    // Publish only once the lock exists: the SITL's UDP thread uses it.
+    fakeGyroDev = gyro;
 }
 
 void fakeGyroSet(gyroDev_t *gyro, int16_t x, int16_t y, int16_t z)
@@ -120,12 +122,13 @@ accDev_t *fakeAccDev;
 
 static void fakeAccInit(accDev_t *acc)
 {
-    fakeAccDev = acc;
 #if defined(SIMULATOR_BUILD) && defined(SIMULATOR_MULTITHREAD)
     if (pthread_mutex_init(&acc->lock, NULL) != 0) {
         printf("Create acc lock error!\n");
     }
 #endif
+    // Publish only once the lock exists: the SITL's UDP thread uses it.
+    fakeAccDev = acc;
 }
 
 void fakeAccSet(accDev_t *acc, int16_t x, int16_t y, int16_t z)
