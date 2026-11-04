@@ -130,8 +130,10 @@ TEST(EmfatInitSfn, LongDirName)
 
 TEST(EmfatInitSfn, LongFileNameIndexSuffix)
 {
-    // Truncated names get the entry index written into their tail so that
-    // two long names with the same prefix don't share a short name.
+    // Truncated names get the entry index written into their tail. This does
+    // not guarantee unique short names: with a digit in the overwritten
+    // places, e.g. abcdef11a.txt at index 1 and abcdef11b.txt at index 11,
+    // both become ABCDEF11.
     emfat_entry_t entry = {
         .name = "abcdefghi.txt",
         .attr = 0,

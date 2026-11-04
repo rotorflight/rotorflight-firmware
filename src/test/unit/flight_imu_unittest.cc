@@ -211,6 +211,13 @@ class ImuEstimatorTest : public ::testing::Test {
         accHasData = true;
         armingFlags = 0;
 
+        // The estimator keeps its last update time and the attitude across
+        // tests: run one level step so neither depends on the test before
+        setQ(1, 0, 0, 0);
+        imuComputeRotationMatrix();
+        setGravity(0, 0, 1);
+        now += 1000;
+        imuUpdateAttitude(now);
         setQ(1, 0, 0, 0);
         imuComputeRotationMatrix();
     }

@@ -50,6 +50,10 @@ class RcModesTest : public ::testing::Test {
         for (auto &v : rcInput) v = 1500;
         nowUs = 10 * 1000 * 1000;   // well past the sticky-mode boot delay
         macCount = 0;
+        // PARALYZE latches itself in the mode mask: start each test with none
+        boxBitmask_t none;
+        memset(&none, 0, sizeof(none));
+        rcModeUpdate(&none);
         analyze();
     }
 
@@ -239,6 +243,8 @@ TEST_F(RcModesTest, LinkedModeFollowsAndLogic)
 
 TEST_F(RcModesTest, ParalyzeIsStickyAndNeedsSwitchOffAfterBoot)
 {
+    // rc_modes.c remembers that the switch was seen off in a static it never
+    // resets, so this holds in any test order but only once per process
     addRange(BOXPARALYZE, 0, 50, 125);
     analyze();
 
