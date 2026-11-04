@@ -198,10 +198,21 @@ extern "C" {
     }
 }
 
+// Hook the task attributes up before any test runs, so tests don't depend on
+// running after a setup test
+static const struct TaskSetup {
+    TaskSetup()
+    {
+        for (int i = 0; i < TASK_COUNT; ++i) {
+            tasks[i].attribute = &task_attributes[i];
+        }
+    }
+} taskSetup;
+
 TEST(SchedulerUnittest, SetupTasks)
 {
     for (int i = 0; i < TASK_COUNT; ++i) {
-        tasks[i].attribute = &task_attributes[i];
+        EXPECT_EQ(&task_attributes[i], tasks[i].attribute);
     }
 }
 
@@ -379,7 +390,7 @@ TEST(SchedulerUnittest, TestSchedulerInit)
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
 }
 
-TEST(SchedulerUnittest, TestScheduleEmptyQueue)
+static void TestScheduleEmptyQueue(void)
 {
     queueClear();
     simulatedTime = 4000;
@@ -388,7 +399,7 @@ TEST(SchedulerUnittest, TestScheduleEmptyQueue)
     EXPECT_EQ(NULL, unittest_scheduler_selectedTask);
 }
 
-TEST(SchedulerUnittest, TestSingleTask)
+static void TestSingleTask(void)
 {
     schedulerInit();
     // disable all tasks except TASK_ACCEL
@@ -410,7 +421,7 @@ TEST(SchedulerUnittest, TestSingleTask)
     EXPECT_EQ(0, tasks[TASK_GYRO].dynamicPriority);
 }
 
-TEST(SchedulerUnittest, TestTwoTasks)
+static void TestTwoTasks(void)
 {
     // disable all tasks except TASK_ACCEL and TASK_ATTITUDE
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -464,7 +475,7 @@ TEST(SchedulerUnittest, TestTwoTasks)
     EXPECT_EQ(&tasks[TASK_ATTITUDE], unittest_scheduler_selectedTask);
 }
 
-TEST(SchedulerUnittest, TestPriorityBump)
+static void TestPriorityBump(void)
 {
     // disable all tasks except TASK_ACCEL and TASK_ATTITUDE
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -545,7 +556,7 @@ TEST(SchedulerUnittest, TestPriorityBump)
     EXPECT_EQ(11000 + TEST_UPDATE_ACCEL_TIME, simulatedTime);
 }
 
-TEST(SchedulerUnittest, TestGyroTask)
+static void TestGyroTask(void)
 {
     static const uint32_t startTime = 4000;
 
@@ -630,3 +641,16 @@ TEST(SchedulerUnittest, TestGyroTask)
     EXPECT_EQ(static_cast<task_t*>(0), unittest_scheduler_selectedTask);
 }
 
+
+// These steps run the scheduler itself. It keeps state the tests can't reset
+// (the gyro-enabled flag, set by TestGyroTask, and the loop counter that
+// TestPriorityBump's "eighth loop" relies on), so they only hold in this
+// order and are run as one test.
+TEST(SchedulerUnittest, SchedulerRunSequence)
+{
+    { SCOPED_TRACE("TestScheduleEmptyQueue"); TestScheduleEmptyQueue(); }
+    { SCOPED_TRACE("TestSingleTask");         TestSingleTask(); }
+    { SCOPED_TRACE("TestTwoTasks");           TestTwoTasks(); }
+    { SCOPED_TRACE("TestPriorityBump");       TestPriorityBump(); }
+    { SCOPED_TRACE("TestGyroTask");           TestGyroTask(); }
+}

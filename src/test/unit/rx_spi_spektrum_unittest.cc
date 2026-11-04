@@ -145,6 +145,7 @@ extern "C" {
 //make clean test_rx_spi_spektrum_unittest
 TEST(RxSpiSpektrumUnitTest, TestInitUnbound)
 {
+    PG_RESET(spektrumConfig);   // unbound: no bind data from an earlier test
     dsmReceiver = empty;
     spektrumSpiInit(&injectedConfig, &config, &extiConfig);
     EXPECT_FALSE(dsmReceiver.bound);
@@ -158,6 +159,7 @@ TEST(RxSpiSpektrumUnitTest, TestInitBound)
     const uint16_t validCrcSeed = (uint16_t) ~((validMfgId[0] << 8) + validMfgId[1]);
     const uint16_t changedSeed = ~validCrcSeed;
 
+    PG_RESET(spektrumConfig);
     dsmReceiver = empty;
     memcpy(spektrumConfigMutable()->mfgId, validMfgId, 4);
     spektrumConfigMutable()->numChannels = 7;
