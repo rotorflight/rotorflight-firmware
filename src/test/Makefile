@@ -814,9 +814,11 @@ $(OBJECT_DIR)/gmock_main.a : $(OBJECT_DIR)/gmock-all.o $(OBJECT_DIR)/gtest-all.o
 test_include_dirs  = $1 $(TEST_DIR) $(USER_DIR)
 test_cflags	   = $(addprefix -isystem,$(call test_include_dirs,$1) )
 # /common folder only works with "-iquote" because it contians naming conflict
-# with system include.
-test_quote_include_dirs  = $(USER_DIR)/common
-test_cflags   += $(addprefix -iquote,$(call test_quote_include_dirs))
+# with system include. "" includes search -iquote before -isystem, so the
+# endorsed directories are repeated here ahead of /common; otherwise a header
+# living in /common (e.g. platform.h) can't be overridden by the test.
+test_quote_include_dirs  = $1 $(USER_DIR)/common
+test_cflags   += $(addprefix -iquote,$(call test_quote_include_dirs,$1))
 
 
 # target name extractor
