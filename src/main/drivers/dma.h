@@ -37,8 +37,9 @@ typedef struct dmaResource_s dmaResource_t;
 #if defined(STM32F4) || defined(STM32F7)
 #define DMA_ARCH_TYPE DMA_Stream_TypeDef
 #elif defined(STM32H7)
-// H7 has stream based DMA and channel based BDMA, but we ignore BDMA (for now).
 #define DMA_ARCH_TYPE DMA_Stream_TypeDef
+#elif defined(CH32H4) || defined(CH32H41x)
+#define DMA_ARCH_TYPE DMA_Channel_TypeDef
 #else
 #define DMA_ARCH_TYPE DMA_Channel_TypeDef
 #endif
@@ -49,7 +50,7 @@ typedef void (*dmaCallbackHandlerFuncPtr)(struct dmaChannelDescriptor_s *channel
 typedef struct dmaChannelDescriptor_s {
     DMA_TypeDef*                dma;
     dmaResource_t               *ref;
-#if defined(STM32F4) || defined(STM32F7) || defined(STM32G4) || defined(STM32H7)
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32G4) || defined(STM32H7) || defined(CH32H4) || defined(CH32H41x)
     uint8_t                     stream;
 #endif
     uint32_t                    channel;
@@ -130,7 +131,35 @@ typedef enum {
 
 #else
 
-#if defined(STM32G4)
+#if defined(CH32H4) || defined(CH32H41x)
+
+typedef enum {
+    DMA_NONE = 0,
+    DMA1_CH1_HANDLER = 1,
+    DMA1_CH2_HANDLER,
+    DMA1_CH3_HANDLER,
+    DMA1_CH4_HANDLER,
+    DMA1_CH5_HANDLER,
+    DMA1_CH6_HANDLER,
+    DMA1_CH7_HANDLER,
+    DMA1_CH8_HANDLER,
+    DMA2_CH1_HANDLER,
+    DMA2_CH2_HANDLER,
+    DMA2_CH3_HANDLER,
+    DMA2_CH4_HANDLER,
+    DMA2_CH5_HANDLER,
+    DMA2_CH6_HANDLER,
+    DMA2_CH7_HANDLER,
+    DMA2_CH8_HANDLER,
+    DMA_LAST_HANDLER = DMA2_CH8_HANDLER
+} dmaIdentifier_e;
+
+#define DMA_DEVICE_NO(x)    ((((x)-1) / 8) + 1)
+#define DMA_DEVICE_INDEX(x) ((((x)-1) % 8) + 1)
+
+uint32_t dmaGetChannel(const uint8_t channel);
+
+#elif defined(STM32G4)
 
 typedef enum {
     DMA_NONE = 0,
@@ -201,8 +230,14 @@ typedef enum {
                                                                             handler(&dmaDescriptors[index]); \
                                                                     }
 
-#define DMA_CLEAR_FLAG(d, flag) d->dma->IFCR = (flag << d->flagsShift)
+#if defined(CH32H4) || defined(CH32H41x)
+// CH32H417 DMA uses INTFR (status) and INTFCR (clear) instead of ISR/IFCR
+#define DMA_CLEAR_FLAG(d, flag)      d->dma->INTFCR = (flag << d->flagsShift)
+#define DMA_GET_FLAG_STATUS(d, flag) (d->dma->INTFR & (flag << d->flagsShift))
+#else
+#define DMA_CLEAR_FLAG(d, flag)      d->dma->IFCR = (flag << d->flagsShift)
 #define DMA_GET_FLAG_STATUS(d, flag) (d->dma->ISR & (flag << d->flagsShift))
+#endif
 
 #define DMA_IT_TCIF         ((uint32_t)0x00000002)
 #define DMA_IT_HTIF         ((uint32_t)0x00000004)
@@ -235,16 +270,22 @@ typedef enum {
         (((DMA_Stream_TypeDef *)(reg))->CR & DMA_SxCR_EN) : \
         (((BDMA_Channel_TypeDef *)(reg))->CCR & BDMA_CCR_EN)
 #endif
+#elif defined(CH32H4) || defined(CH32H41x)
+#define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CFGR & DMA_CFGR1_EN)
 #elif defined(STM32G4)
 #define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CCR & DMA_CCR_EN)
 // Missing __HAL_DMA_SET_COUNTER in FW library V1.0.0
 #define __HAL_DMA_SET_COUNTER(__HANDLE__, __COUNTER__) ((__HANDLE__)->Instance->CNDTR = (uint16_t)(__COUNTER__))
+
 #else
 #define IS_DMA_ENABLED(reg) (((DMA_ARCH_TYPE *)(reg))->CCR & DMA_CCR_EN)
 #define DMAx_SetMemoryAddress(reg, address) ((DMA_ARCH_TYPE *)(reg))->CMAR = (uint32_t)&s->port.txBuffer[s->port.txBufferTail]
 #endif
 
 dmaIdentifier_e dmaAllocate(dmaIdentifier_e identifier, resourceOwner_e owner, uint8_t resourceIndex);
+#if defined(CH32H4) || defined(CH32H41x)
+void dmaMuxEnable(dmaIdentifier_e identifier, uint32_t dmaMuxId);
+#endif
 void dmaEnable(dmaIdentifier_e identifier);
 void dmaSetHandler(dmaIdentifier_e identifier, dmaCallbackHandlerFuncPtr callback, uint32_t priority, uint32_t userParam);
 

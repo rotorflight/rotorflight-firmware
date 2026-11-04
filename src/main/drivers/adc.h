@@ -26,7 +26,7 @@
 #include "drivers/time.h"
 
 #ifndef ADC_INSTANCE
-#define ADC_INSTANCE                ADC1
+#define ADC_INSTANCE ADC1
 #endif
 
 #if defined(STM32F4) || defined(STM32F7)
@@ -41,9 +41,10 @@
 #endif
 #endif
 
-typedef enum ADCDevice {
+typedef enum ADCDevice
+{
     ADCINVALID = -1,
-    ADCDEV_1   = 0,
+    ADCDEV_1 = 0,
 #if defined(ADC2)
     ADCDEV_2,
 #endif
@@ -62,15 +63,16 @@ typedef enum ADCDevice {
 #define ADC_CFG_TO_DEV(x) ((x) - 1)
 #define ADC_DEV_TO_CFG(x) ((x) + 1)
 
-typedef enum {
+typedef enum
+{
     ADC_BATTERY = 0,
     ADC_CURRENT = 1,
     ADC_RSSI = 2,
     ADC_VBEC = 3,
     ADC_VBUS = 4,
     ADC_VEXT = 5,
-#if defined(STM32H7) || defined(STM32G4)
-    // On H7 and G4, internal sensors are treated in the similar fashion as regular ADC inputs
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H41x) || defined(CH32H4)
+    // On H7, G4 and CH32H4, internal sensors are treated in the similar fashion as regular ADC inputs
     ADC_CHANNEL_INTERNAL_FIRST_ID = 6,
     ADC_TEMPSENSOR = 6,
     ADC_VREFINT = 7,
@@ -79,15 +81,16 @@ typedef enum {
     ADC_CHANNEL_COUNT
 } AdcChannel;
 
-typedef struct adcOperatingConfig_s {
+typedef struct adcOperatingConfig_s
+{
     ioTag_t tag;
-#if defined(STM32H7) || defined(STM32G4)
-    ADCDevice adcDevice;        // ADCDEV_x for this input
-    uint32_t adcChannel;        // Channel number for this input. Note that H7 and G4 HAL requires this to be 32-bit encoded number.
+#if defined(STM32H7) || defined(STM32G4) || defined(CH32H41x) || defined(CH32H4)
+    ADCDevice adcDevice; // ADCDEV_x for this input
+    uint32_t adcChannel; // Channel number for this input. Note that H7 and G4 HAL requires this to be 32-bit encoded number.
 #else
-    uint8_t adcChannel;         // ADCy_INxx channel number for this input (XXX May be consolidated with uint32_t case)
+    uint8_t adcChannel; // ADCy_INxx channel number for this input (XXX May be consolidated with uint32_t case)
 #endif
-    uint8_t dmaIndex;           // index into DMA buffer in case of sparse channels
+    uint8_t dmaIndex; // index into DMA buffer in case of sparse channels
     bool enabled;
     uint8_t sampleTime;
 } adcOperatingConfig_t;

@@ -33,6 +33,12 @@
 #else
 #define ADC_TAG_MAP_COUNT 28
 #endif
+#elif defined(CH32H41x) || defined(CH32H4)
+#ifdef USE_ADC_INTERNAL
+#define ADC_TAG_MAP_COUNT 17
+#else
+#define ADC_TAG_MAP_COUNT 15
+#endif
 #elif defined(STM32G4)
 #ifdef USE_ADC_INTERNAL
 #define ADC_TAG_MAP_COUNT 49
@@ -43,7 +49,8 @@
 #define ADC_TAG_MAP_COUNT 10
 #endif
 
-typedef struct adcTagMap_s {
+typedef struct adcTagMap_s
+{
     ioTag_t tag;
     uint8_t devices;
     uint32_t channel;
@@ -54,21 +61,22 @@ typedef struct adcTagMap_s {
 
 // Encoding for adcTagMap_t.devices
 
-#define ADC_DEVICES_1   (1 << ADCDEV_1)
-#define ADC_DEVICES_2   (1 << ADCDEV_2)
-#define ADC_DEVICES_3   (1 << ADCDEV_3)
-#define ADC_DEVICES_4   (1 << ADCDEV_4)
-#define ADC_DEVICES_5   (1 << ADCDEV_5)
-#define ADC_DEVICES_12  ((1 << ADCDEV_1)|(1 << ADCDEV_2))
-#define ADC_DEVICES_34  ((1 << ADCDEV_3)|(1 << ADCDEV_4))
-#define ADC_DEVICES_123 ((1 << ADCDEV_1)|(1 << ADCDEV_2)|(1 << ADCDEV_3))
-#define ADC_DEVICES_345 ((1 << ADCDEV_3)|(1 << ADCDEV_4)|(1 << ADCDEV_5))
+#define ADC_DEVICES_1 (1 << ADCDEV_1)
+#define ADC_DEVICES_2 (1 << ADCDEV_2)
+#define ADC_DEVICES_3 (1 << ADCDEV_3)
+#define ADC_DEVICES_4 (1 << ADCDEV_4)
+#define ADC_DEVICES_5 (1 << ADCDEV_5)
+#define ADC_DEVICES_12 ((1 << ADCDEV_1) | (1 << ADCDEV_2))
+#define ADC_DEVICES_34 ((1 << ADCDEV_3) | (1 << ADCDEV_4))
+#define ADC_DEVICES_123 ((1 << ADCDEV_1) | (1 << ADCDEV_2) | (1 << ADCDEV_3))
+#define ADC_DEVICES_345 ((1 << ADCDEV_3) | (1 << ADCDEV_4) | (1 << ADCDEV_5))
 
-typedef struct adcDevice_s {
-    ADC_TypeDef* ADCx;
+typedef struct adcDevice_s
+{
+    ADC_TypeDef *ADCx;
     rccPeriphTag_t rccADC;
 #if !defined(USE_DMA_SPEC)
-    dmaResource_t* dmaResource;
+    dmaResource_t *dmaResource;
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
     uint32_t channel;
 #endif
@@ -84,7 +92,7 @@ typedef struct adcDevice_s {
 } adcDevice_t;
 
 #ifdef USE_ADC_INTERNAL
-extern int32_t adcVREFINTCAL;      // ADC value (12-bit) of band gap with Vref = VREFINTCAL_VREF
+extern int32_t adcVREFINTCAL; // ADC value (12-bit) of band gap with Vref = VREFINTCAL_VREF
 extern int32_t adcTSCAL1;
 extern int32_t adcTSCAL2;
 extern int32_t adcTSSlopeK;
@@ -113,29 +121,38 @@ void adcGetChannelValues(void);
 // We manually copy required lines here.
 // XXX V1.14.0 may solve this problem
 
-#define VREFINT_CAL_VREF                   ( 3300U)                    /* Analog voltage reference (Vref+) value with which temperature sensor has been calibrated in production (tolerance: +-10 mV) (unit: mV). */
-#define TEMPSENSOR_CAL1_TEMP               (( int32_t)   30)           /* Internal temperature sensor, temperature at which temperature sensor has been calibrated in production for data into TEMPSENSOR_CAL1_ADDR (tolerance: +-5 DegC) (unit: DegC). */
-#define TEMPSENSOR_CAL2_TEMP               (( int32_t)  110)           /* Internal temperature sensor, temperature at which temperature sensor has been calibrated in production for data into TEMPSENSOR_CAL2_ADDR (tolerance: +-5 DegC) (unit: DegC). */
-#define TEMPSENSOR_CAL_VREFANALOG          ( 3300U)                    /* Analog voltage reference (Vref+) voltage with which temperature sensor has been calibrated in production (+-10 mV) (unit: mV). */
+#define VREFINT_CAL_VREF (3300U)            /* Analog voltage reference (Vref+) value with which temperature sensor has been calibrated in production (tolerance: +-10 mV) (unit: mV). */
+#define TEMPSENSOR_CAL1_TEMP ((int32_t)30)  /* Internal temperature sensor, temperature at which temperature sensor has been calibrated in production for data into TEMPSENSOR_CAL1_ADDR (tolerance: +-5 DegC) (unit: DegC). */
+#define TEMPSENSOR_CAL2_TEMP ((int32_t)110) /* Internal temperature sensor, temperature at which temperature sensor has been calibrated in production for data into TEMPSENSOR_CAL2_ADDR (tolerance: +-5 DegC) (unit: DegC). */
+#define TEMPSENSOR_CAL_VREFANALOG (3300U)   /* Analog voltage reference (Vref+) voltage with which temperature sensor has been calibrated in production (+-10 mV) (unit: mV). */
 
 // These addresses are incorrectly defined in stm32f7xx_ll_adc.h
 #if defined(STM32F745xx) || defined(STM32F746xx) || defined(STM32F765xx)
 // F745xx_F746xx and  F765xx_F767xx_F769xx
-#define VREFINT_CAL_ADDR                   ((uint16_t*) (0x1FF0F44A))
-#define TEMPSENSOR_CAL1_ADDR               ((uint16_t*) (0x1FF0F44C))
-#define TEMPSENSOR_CAL2_ADDR               ((uint16_t*) (0x1FF0F44E))
+#define VREFINT_CAL_ADDR ((uint16_t *)(0x1FF0F44A))
+#define TEMPSENSOR_CAL1_ADDR ((uint16_t *)(0x1FF0F44C))
+#define TEMPSENSOR_CAL2_ADDR ((uint16_t *)(0x1FF0F44E))
 #elif defined(STM32F722xx)
 // F72x_F73x
-#define VREFINT_CAL_ADDR                   ((uint16_t*) (0x1FF07A2A))
-#define TEMPSENSOR_CAL1_ADDR               ((uint16_t*) (0x1FF07A2C))
-#define TEMPSENSOR_CAL2_ADDR               ((uint16_t*) (0x1FF07A2E))
+#define VREFINT_CAL_ADDR ((uint16_t *)(0x1FF07A2A))
+#define TEMPSENSOR_CAL1_ADDR ((uint16_t *)(0x1FF07A2C))
+#define TEMPSENSOR_CAL2_ADDR ((uint16_t *)(0x1FF07A2E))
 #endif
 #endif // STM32F7
 
-#ifdef STM32F4
+#if defined(STM32F4) 
 // STM32F4 stdlib does not define any of these
-#define VREFINT_CAL_VREF                   (3300U)
-#define TEMPSENSOR_CAL_VREFANALOG          (3300U)
-#define TEMPSENSOR_CAL1_TEMP               ((int32_t)  30)
-#define TEMPSENSOR_CAL2_TEMP               ((int32_t) 110)
+#define VREFINT_CAL_VREF (3300U)
+#define TEMPSENSOR_CAL_VREFANALOG (3300U)
+#define TEMPSENSOR_CAL1_TEMP ((int32_t)30)
+#define TEMPSENSOR_CAL2_TEMP ((int32_t)110)
+#endif
+
+#if defined(CH32H41x) || defined(CH32H4)
+#define VREFINT_EXPECTED (1501U) // The raw ADC reading at 12bit resolution expected for the 1V21 internal ref
+#define VREFINT_CAL_VREF (3300U) // The nominal external Vref+ for the above reading
+#define TEMPSENSOR_CAL_VREFANALOG (3300U)
+#define TEMPSENSOR_CAL1_TEMP (25U)
+#define TEMPSENSOR_CAL1_V (1.45f)
+#define TEMPSENSOR_SLOPE (4.3f) //  mV/C
 #endif
