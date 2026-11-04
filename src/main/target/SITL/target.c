@@ -35,6 +35,11 @@
 #include <arpa/inet.h>      // inet_ntop()
 #endif
 #include <sched.h>
+#include <signal.h>
+#if defined(__linux__)
+#include <execinfo.h>       // backtrace() for the fault handler
+#include <unistd.h>
+#endif
 #include <time.h>
 #if defined(_WIN32) || defined(__MINGW32__)
 #include <pthread_time.h>
@@ -145,7 +150,28 @@ uint32_t timerClock(TIM_TypeDef *tim)
 static struct timespec start_time;
 static double simRate = 1.0;
 static pthread_t tcpWorker, udpWorker;
-static bool workerRunning = true;
+// Cleared by systemResetHard() on the main thread, polled by the UDP and TCP
+// threads. Without volatile, LTO may keep it in a register in their loops:
+// they never see the reset, the joins hang, and a save never ends the process.
+static volatile bool workerRunning = true;
+
+#if defined(__linux__)
+// A crash would otherwise end the process without a word, which a test
+// harness sees only as a closed connection. Print the signal and a backtrace
+// (module+offset, for addr2line) to stderr first.
+static void simFaultHandler(int sig)
+{
+    static const char msg[] = "\nSITL: fatal signal, backtrace:\n";
+    if (write(STDERR_FILENO, msg, sizeof(msg) - 1) < 0) {
+        // nothing else to do
+    }
+    void *frames[48];
+    const int n = backtrace(frames, ARRAYLEN(frames));
+    backtrace_symbols_fd(frames, n, STDERR_FILENO);
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+#endif
 static udpLink_t stateLink, pwmLink;
 static pthread_mutex_t updateLock;
 static pthread_mutex_t mainLoopLock;
@@ -444,6 +470,14 @@ static void simEnvEndpoint(const char *name, const char *defHost, int defPort, c
 
 void systemInit(void) {
     int ret;
+
+#if defined(__linux__)
+    signal(SIGSEGV, simFaultHandler);
+    signal(SIGBUS, simFaultHandler);
+    signal(SIGFPE, simFaultHandler);
+    signal(SIGILL, simFaultHandler);
+    signal(SIGABRT, simFaultHandler);
+#endif
 
     clock_gettime(CLOCK_MONOTONIC, &start_time);
     printf("[system]Init...\n");
@@ -847,49 +881,68 @@ char _estack;
 char _Min_Stack_Size;
 
 // fake EEPROM
-static FILE *eepromFd = NULL;
+//
+// eeprom.bin is read whole on unlock and written whole on lock, through a
+// temporary file renamed over the store: a process killed in the middle of a
+// save (Rotorflight saves the stats 0.5 s after every disarm) then leaves the
+// previous store intact instead of a torn one, which the next start would
+// reject and replace with defaults. Binary mode throughout: text mode on
+// Windows translates CRLF and EOF bytes.
+static bool eepromUnlocked = false;
 
-void FLASH_Unlock(void) {
-    if (eepromFd != NULL) {
-        fprintf(stderr, "[FLASH_Unlock] eepromFd != NULL\n");
+static void eepromWriteFile(void)
+{
+    static const char tmpName[] = EEPROM_FILENAME ".tmp";
+    FILE *f = fopen(tmpName, "wb");
+    if (f == NULL) {
+        fprintf(stderr, "[FLASH] cannot create '%s': %s\n", tmpName, strerror(errno));
         return;
     }
+    const bool written = fwrite(eepromData, sizeof(eepromData), 1, f) == 1 && fflush(f) == 0;
+    fclose(f);
+    if (!written) {
+        fprintf(stderr, "[FLASH] write to '%s' failed: %s\n", tmpName, strerror(errno));
+        remove(tmpName);
+        return;
+    }
+#if defined(_WIN32) || defined(__MINGW32__)
+    if (!MoveFileExA(tmpName, EEPROM_FILENAME, MOVEFILE_REPLACE_EXISTING)) {
+#else
+    if (rename(tmpName, EEPROM_FILENAME) != 0) {
+#endif
+        fprintf(stderr, "[FLASH] cannot replace '%s'\n", EEPROM_FILENAME);
+    }
+}
 
-    // open or create (binary mode - text mode on Windows corrupts binary
-    // data via CRLF/EOF-byte translation)
-    eepromFd = fopen(EEPROM_FILENAME,"rb+");
-    if (eepromFd != NULL) {
-        // obtain file size:
-        fseek(eepromFd , 0 , SEEK_END);
-        size_t lSize = ftell(eepromFd);
-        rewind(eepromFd);
+void FLASH_Unlock(void) {
+    if (eepromUnlocked) {
+        return;
+    }
+    eepromUnlocked = true;
 
-        size_t n = fread(eepromData, 1, sizeof(eepromData), eepromFd);
-        if (n == lSize) {
-            printf("[FLASH_Unlock] loaded '%s', size = %zu / %zu\n", EEPROM_FILENAME, lSize, sizeof(eepromData));
+    FILE *f = fopen(EEPROM_FILENAME, "rb");
+    if (f != NULL) {
+        fseek(f, 0, SEEK_END);
+        const long size = ftell(f);
+        rewind(f);
+        const size_t n = fread(eepromData, 1, sizeof(eepromData), f);
+        fclose(f);
+        if (size == (long)sizeof(eepromData) && n == sizeof(eepromData)) {
+            printf("[FLASH_Unlock] loaded '%s', size = %zu\n", EEPROM_FILENAME, n);
         } else {
-            fprintf(stderr, "[FLASH_Unlock] failed to load '%s'\n", EEPROM_FILENAME);
-            return;
+            fprintf(stderr, "[FLASH_Unlock] '%s' is %ld bytes, expected %zu; rewritten on save\n",
+                    EEPROM_FILENAME, size, sizeof(eepromData));
         }
     } else {
         printf("[FLASH_Unlock] created '%s', size = %zu\n", EEPROM_FILENAME, sizeof(eepromData));
-        if ((eepromFd = fopen(EEPROM_FILENAME, "wb+")) == NULL) {
-            fprintf(stderr, "[FLASH_Unlock] failed to create '%s'\n", EEPROM_FILENAME);
-            return;
-        }
-        if (fwrite(eepromData, sizeof(eepromData), 1, eepromFd) != 1) {
-            fprintf(stderr, "[FLASH_Unlock] write failed: %s\n", strerror(errno));
-        }
+        eepromWriteFile();
     }
 }
 
 void FLASH_Lock(void) {
-    // flush & close
-    if (eepromFd != NULL) {
-        fseek(eepromFd, 0, SEEK_SET);
-        fwrite(eepromData, 1, sizeof(eepromData), eepromFd);
-        fclose(eepromFd);
-        eepromFd = NULL;
+    if (eepromUnlocked) {
+        eepromWriteFile();
+        eepromUnlocked = false;
         printf("[FLASH_Lock] saved '%s'\n", EEPROM_FILENAME);
     } else {
         fprintf(stderr, "[FLASH_Lock] eeprom is not unlocked\n");
