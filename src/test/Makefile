@@ -120,15 +120,14 @@ blackbox_encoding_unittest_SRC :=  \
 #		USE_CLI= \
 #		SystemCoreClock=1000000
 
-# This test is disabled due to build errors.
-#cms_unittest_SRC := \
-#		$(USER_DIR)/cms/cms.c \
-#		$(USER_DIR)/cms/cms_menu_saveexit.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/display.c
+cms_unittest_SRC := \
+		$(USER_DIR)/cms/cms.c \
+		$(USER_DIR)/cms/cms_menu_saveexit.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/drivers/display.c
 
-#cms_unittest_DEFINES := \
-#		USE_OSD=
+cms_unittest_DEFINES := \
+		USE_OSD=
 
 
 common_filter_unittest_SRC := \
