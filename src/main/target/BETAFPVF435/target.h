@@ -102,8 +102,8 @@
 #define USE_PERSISTENT_MSC_RTC
 
 #define USE_UART1
-#define UART1_RX_PIN            NONE
-#define UART1_TX_PIN            NONE
+#define UART1_RX_PIN            PA10
+#define UART1_TX_PIN            PA9
 
 #define USE_UART3
 #define UART3_RX_PIN            PB11
@@ -119,7 +119,7 @@
 
 #define USE_UART6
 #define UART6_RX_PIN            PC7
-#define UART6_TX_PIN            NONE
+#define UART6_TX_PIN            PC6
 
 #define USE_UART2
 #define USE_SOFTSERIAL1
