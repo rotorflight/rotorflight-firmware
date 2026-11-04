@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <limits.h>
+#include <string>
 
 extern "C" {
     #include "platform.h"
@@ -218,92 +219,72 @@ TEST(TelemetryCrsfTest, TestAttitude)
     EXPECT_EQ(crfsCrc(frame, frameLen), frame[9]);
 }
 
-TEST(TelemetryCrsfTest, TestFlightMode)
+// Flight mode frame: type 0x21, then a zero-terminated string
+static std::string flightModeFrame(void)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
+    const int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
+    const std::string mode((const char *)&frame[3]);
 
+    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]);
+    EXPECT_EQ(0x21, frame[2]);
+    EXPECT_EQ((int)mode.size() + 1 + FRAME_HEADER_FOOTER_LEN, frameLen);
+    EXPECT_EQ(frameLen - 2, frame[1]);
+    EXPECT_EQ(0, frame[3 + mode.size()]);
+    EXPECT_EQ(crfsCrc(frame, frameLen), frame[frameLen - 1]);
+    return mode;
+}
+
+TEST(TelemetryCrsfTest, TestFlightMode)
+{
+    // Mode name, then '*' when armed or ' ' when not
+    armingFlags = 0;
+    flightModeFlags = 0;
+    unsetArmingDisabled((armingDisableFlags_e)0xFFFFFFFF);
     ENABLE_STATE(GPS_FIX);
     ENABLE_STATE(GPS_FIX_HOME);
 
-    airMode = false;
+    EXPECT_EQ("NORMAL ", flightModeFrame());
 
-    DISABLE_ARMING_FLAG(ARMED);
+    // Disarmed-only states
+    setArmingDisabled(ARMING_DISABLED_RX_FAILSAFE);
+    EXPECT_EQ("DISABLED ", flightModeFrame());
+    unsetArmingDisabled(ARMING_DISABLED_RX_FAILSAFE);
 
-    // nothing set, so ACRO mode
-    int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
-    EXPECT_EQ(6 + FRAME_HEADER_FOOTER_LEN, frameLen);
-    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
-    EXPECT_EQ(8, frame[1]); // length
-    EXPECT_EQ(0x21, frame[2]); // type
-    EXPECT_EQ('A', frame[3]);
-    EXPECT_EQ('C', frame[4]);
-    EXPECT_EQ('R', frame[5]);
-    EXPECT_EQ('O', frame[6]);
-    EXPECT_EQ('*', frame[7]);
-    EXPECT_EQ(0, frame[8]);
-    EXPECT_EQ(crfsCrc(frame, frameLen), frame[9]);
+    DISABLE_STATE(GPS_FIX_HOME);
+    EXPECT_EQ("GPS-WAIT ", flightModeFrame());
+    ENABLE_STATE(GPS_FIX_HOME);
 
+    // Armed, in decreasing order of importance
     ENABLE_ARMING_FLAG(ARMED);
-
-    frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
-    EXPECT_EQ(5 + FRAME_HEADER_FOOTER_LEN, frameLen);
-    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
-    EXPECT_EQ(7, frame[1]); // length
-    EXPECT_EQ(0x21, frame[2]); // type
-    EXPECT_EQ('A', frame[3]);
-    EXPECT_EQ('C', frame[4]);
-    EXPECT_EQ('R', frame[5]);
-    EXPECT_EQ('O', frame[6]);
-    EXPECT_EQ(0, frame[7]);
-    EXPECT_EQ(crfsCrc(frame, frameLen), frame[8]);
+    EXPECT_EQ("NORMAL*", flightModeFrame());
 
     enableFlightMode(ANGLE_MODE);
-    EXPECT_EQ(ANGLE_MODE, FLIGHT_MODE(ANGLE_MODE));
-    frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
-    EXPECT_EQ(5 + FRAME_HEADER_FOOTER_LEN, frameLen);
-    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
-    EXPECT_EQ(7, frame[1]); // length
-    EXPECT_EQ(0x21, frame[2]); // type
-    EXPECT_EQ('S', frame[3]);
-    EXPECT_EQ('T', frame[4]);
-    EXPECT_EQ('A', frame[5]);
-    EXPECT_EQ('B', frame[6]);
-    EXPECT_EQ(0, frame[7]);
-    EXPECT_EQ(crfsCrc(frame, frameLen), frame[8]);
+    EXPECT_EQ("ANGLE*", flightModeFrame());
 
-    disableFlightMode(ANGLE_MODE);
     enableFlightMode(HORIZON_MODE);
-    EXPECT_EQ(HORIZON_MODE, FLIGHT_MODE(HORIZON_MODE));
-    frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
-    EXPECT_EQ(4 + FRAME_HEADER_FOOTER_LEN, frameLen);
-    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
-    EXPECT_EQ(6, frame[1]); // length
-    EXPECT_EQ(0x21, frame[2]); // type
-    EXPECT_EQ('H', frame[3]);
-    EXPECT_EQ('O', frame[4]);
-    EXPECT_EQ('R', frame[5]);
-    EXPECT_EQ(0, frame[6]);
-    EXPECT_EQ(crfsCrc(frame, frameLen), frame[7]);
+    EXPECT_EQ("HORIZON*", flightModeFrame());
 
-    disableFlightMode(HORIZON_MODE);
-    airMode = true;
-    frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_FLIGHT_MODE);
-    EXPECT_EQ(4 + FRAME_HEADER_FOOTER_LEN, frameLen);
-    EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
-    EXPECT_EQ(6, frame[1]); // length
-    EXPECT_EQ(0x21, frame[2]); // type
-    EXPECT_EQ('A', frame[3]);
-    EXPECT_EQ('I', frame[4]);
-    EXPECT_EQ('R', frame[5]);
-    EXPECT_EQ(0, frame[6]);
-    EXPECT_EQ(crfsCrc(frame, frameLen), frame[7]);
+    enableFlightMode(RESCUE_MODE);
+    EXPECT_EQ("RESCUE*", flightModeFrame());
+
+    enableFlightMode(FAILSAFE_MODE);
+    EXPECT_EQ("FAILSAFE*", flightModeFrame());
+
+    // Armed ignores arming-disabled flags
+    setArmingDisabled(ARMING_DISABLED_RX_FAILSAFE);
+    EXPECT_EQ("FAILSAFE*", flightModeFrame());
+
+    unsetArmingDisabled(ARMING_DISABLED_RX_FAILSAFE);
+    flightModeFlags = 0;
+    DISABLE_ARMING_FLAG(ARMED);
 }
 
 // STUBS
 
 extern "C" {
 
-int16_t debug[DEBUG16_VALUE_COUNT];
+int32_t debug[DEBUG_VALUE_COUNT];
 
 const uint32_t baudRates[] = {0, 9600, 19200, 38400, 57600, 115200, 230400, 250000, 400000}; // see baudRate_e
 
@@ -336,22 +317,28 @@ const serialPortConfig_t *findSerialPortConfig(serialPortFunction_e) {return NUL
 
 bool telemetryDetermineEnabledState(portSharing_e) {return true;}
 bool telemetryCheckRxPortShared(const serialPortConfig_t *, SerialRXType) {return true;}
-bool telemetryIsSensorEnabled(sensor_e) {return true;}
+bool telemetryIsSensorEnabled(uint32_t) {return true;}
 
 portSharing_e determinePortSharing(const serialPortConfig_t *, serialPortFunction_e) {return PORTSHARING_NOT_SHARED;}
 
 bool airmodeIsEnabled(void) {return airMode;}
 
-int32_t getAmperage(void) {
-    return testAmperage;
-}
-
-uint16_t getBatteryVoltage(void) {
-    return testBatteryVoltage;
-}
-
+// testBatteryVoltage is in 0.01 V, testAmperage in 0.01 A; the CRSF
+// battery frame uses the legacy 0.1 V / 0.1 A getters
 uint16_t getLegacyBatteryVoltage(void) {
     return (testBatteryVoltage + 5) / 10;
+}
+
+uint16_t getLegacyBatteryCurrent(void) {
+    return testAmperage / 10;
+}
+
+uint32_t getBatteryCapacityUsed(void) {
+    return testmAhDrawn;
+}
+
+uint8_t getBatteryChargeLevel(void) {
+    return 67;
 }
 
 uint16_t getBatteryAverageCellVoltage(void) {
@@ -362,16 +349,8 @@ batteryState_e getBatteryState(void) {
     return BATTERY_OK;
 }
 
-uint8_t calculateBatteryPercentageRemaining(void) {
-    return 67;
-}
-
 int32_t getEstimatedAltitudeCm(void) {
-	return gpsSol.llh.altCm;    // function returns cm not m.
-}
-    
-int32_t getMAhDrawn(void){
-  return testmAhDrawn;
+    return gpsSol.llh.altCm;    // function returns cm not m.
 }
 
 bool sendMspReply(uint8_t, mspResponseFnPtr) { return false; }
@@ -379,4 +358,8 @@ bool handleMspFrame(uint8_t *, uint8_t, uint8_t *)  { return false; }
 bool isBatteryVoltageConfigured(void) { return true; }
 bool isAmperageConfigured(void) { return true; }
 timeUs_t rxFrameTimeUs(void) { return 0; }
+
+#include "crsf_telemetry_stubs.h"
+
+PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 }

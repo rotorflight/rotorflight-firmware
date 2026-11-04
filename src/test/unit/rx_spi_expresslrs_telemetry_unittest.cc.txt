@@ -415,7 +415,7 @@ extern "C" {
     batteryState_e getBatteryState(void) {return BATTERY_OK; }
 
     bool featureIsEnabled(uint32_t) {return true; }
-    bool telemetryIsSensorEnabled(sensor_e) {return true; }
+    bool telemetryIsSensorEnabled(uint32_t) {return true; }
     bool sensors(uint32_t ) { return true; }
 
     bool airmodeIsEnabled(void) {return airMode; }
