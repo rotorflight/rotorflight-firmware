@@ -209,8 +209,11 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     maxRealTimeCycles = 0;
 
 #if defined(SIMULATOR_BUILD)
+    // On a host these measure the host's scheduling jitter, not the
+    // firmware's headroom; left in, they block arming (LOAD) at random.
     averageCPULoad = 0;
     averageSystemLoad = 0;
+    maxRealTimeLoad = 0;
 #endif
 }
 
