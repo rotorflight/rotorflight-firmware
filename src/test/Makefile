@@ -364,42 +364,43 @@ sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_
 sensor_gyro_fake_calibration_unittest_SRC := $(sensor_gyro_unittest_SRC)
 
 sensor_gyro_fake_calibration_unittest_DEFINES := $(sensor_gyro_unittest_DEFINES) FAKE_GYRO_SKIP_CALIBRATION=
-#
-#telemetry_crsf_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/telemetry/crsf.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/gps_conversion.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/fc/runtime_config.c
-#
-#telemetry_crsf_unittest_DEFINES := \
-#		FLASH_SIZE=128 \
-#		__TARGET__="TEST" \
-#		__REVISION__="revision"
-#
-#
-#telemetry_crsf_msp_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/build/atomic.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/drivers/serial.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/telemetry/crsf.c \
-#		$(USER_DIR)/common/gps_conversion.c \
-#		$(USER_DIR)/telemetry/msp_shared.c \
-#		$(USER_DIR)/fc/runtime_config.c
-#
-#telemetry_crsf_msp_unittest_DEFINES := \
-#		USE_MSP_OVER_TELEMETRY=
-#
-#
+
+telemetry_crsf_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/telemetry/crsf.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/fc/runtime_config.c
+
+telemetry_crsf_unittest_DEFINES := \
+		FLASH_SIZE=128 \
+		__TARGET__="TEST" \
+		__REVISION__="revision" \
+		USE_RX_EXPRESSLRS=
+
+
+telemetry_crsf_msp_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/build/atomic.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/drivers/serial.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/telemetry/crsf.c \
+		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/telemetry/msp_shared.c \
+		$(USER_DIR)/fc/runtime_config.c
+
+telemetry_crsf_msp_unittest_DEFINES := \
+		USE_MSP_OVER_TELEMETRY=
+
+
 #telemetry_hott_unittest_SRC := \
 #		$(USER_DIR)/telemetry/hott.c \
 #		$(USER_DIR)/common/gps_conversion.c
