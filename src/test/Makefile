@@ -537,7 +537,10 @@ rx_spi_expresslrs_unittest_SRC := \
 		$(USER_DIR)/pg/rx_spi_expresslrs.c \
 		$(USER_DIR)/rx/expresslrs_common.c \
 		$(USER_DIR)/rx/expresslrs.c \
-		$(USER_DIR)/build/atomic.c
+		$(USER_DIR)/build/atomic.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 rx_spi_expresslrs_unittest_DEFINES := \
 		USE_RX_SPI= \

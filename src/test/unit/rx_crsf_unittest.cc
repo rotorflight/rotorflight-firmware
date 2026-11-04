@@ -124,6 +124,11 @@ TEST(CrossFireTest, CRC)
 
 TEST(CrossFireTest, TestCrsfFrameStatus)
 {
+    // A dropped frame must leave the channel data alone
+    for (int ii = 0; ii < CRSF_MAX_CHANNEL; ++ii) {
+        crsfChannelData[ii] = 1234;
+    }
+
     crsfFrameDone = true;
     crsfFrame.frame.deviceAddress = CRSF_ADDRESS_CRSF_RECEIVER;
     crsfFrame.frame.frameLength = 0;
@@ -139,7 +144,7 @@ TEST(CrossFireTest, TestCrsfFrameStatus)
     EXPECT_EQ(CRSF_ADDRESS_CRSF_RECEIVER, crsfFrame.frame.deviceAddress);
     EXPECT_EQ(CRSF_FRAMETYPE_RC_CHANNELS_PACKED, crsfFrame.frame.type);
     for (int ii = 0; ii < CRSF_MAX_CHANNEL; ++ii) {
-        EXPECT_EQ(0, crsfChannelData[ii]);
+        EXPECT_EQ(1234u, crsfChannelData[ii]);
     }
 }
 

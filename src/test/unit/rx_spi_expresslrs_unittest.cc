@@ -164,11 +164,15 @@ TEST(RxSpiExpressLrsUnitTest, TestFHSSTable)
         }
     };
 
+    // Only the first 240 entries are used for these domains; clear the table
+    // so leftovers from other tests don't show up in the unused tail
+    memset(fhssSequence, 0, sizeof(fhssSequence));
     fhssGenSequence(UID, ISM2400);
     for (int i = 0; i < ELRS_NR_SEQUENCE_ENTRIES; i++) {
         EXPECT_EQ(expectedSequence[0][i], fhssSequence[i]);
     }
 
+    memset(fhssSequence, 0, sizeof(fhssSequence));
     fhssGenSequence(UID, FCC915);
     for (int i = 0; i < ELRS_NR_SEQUENCE_ENTRIES; i++) {
         EXPECT_EQ(expectedSequence[1][i], fhssSequence[i]);
@@ -178,6 +182,7 @@ TEST(RxSpiExpressLrsUnitTest, TestFHSSTable)
 TEST(RxSpiExpressLrsUnitTest, TestInitUnbound)
 {
     const uint8_t bindUID[6] = {0, 1, 2, 3, 4, 5};
+    PG_RESET(rxExpressLrsSpiConfig);   // unbound: no UID from an earlier test
 
     receiver = empty;
     expressLrsSpiInit(&injectedConfig, &config, &extiConfig);
@@ -253,6 +258,7 @@ TEST(RxSpiExpressLrsUnitTest, TestInitUnbound)
 TEST(RxSpiExpressLrsUnitTest, TestInitBound)
 {
     const uint8_t validUID[6] = {0, 0, 1, 2, 3, 4};
+    PG_RESET(rxExpressLrsSpiConfig);
     receiver = empty;
     memcpy(rxExpressLrsSpiConfigMutable()->UID, validUID, 6);
     
