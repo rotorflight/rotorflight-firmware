@@ -285,26 +285,22 @@ rx_ibus_unittest_SRC := \
 		$(USER_DIR)/rx/ibus.c
 
 
-# This test is disabled due to build errors.
-#rx_ranges_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/rx/rx.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/pg/rx.c
+rx_rx_unittest_SRC := \
+		$(USER_DIR)/rx/rx.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/config/feature.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/feature.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
-
-# This test is disabled due to build errors.
-#rx_rx_unittest_SRC := \
-#		$(USER_DIR)/rx/rx.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/pg/rx.c
+rx_rx_unittest_DEFINES := \
+		USE_RX_LINK_QUALITY_INFO=
 
 rx_sumd_unittest_SRC := \
 		$(USER_DIR)/common/crc.c \
