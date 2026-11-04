@@ -53,6 +53,11 @@ void servoShutdown(void);
 
 void validateAndFixServoConfig(void);
 
+// Travel either side of center actually used: min/max limited so the output
+// stays in the servo's signal range at the current center.
+int servoTravelMin(uint8_t index);
+int servoTravelMax(uint8_t index);
+
 uint8_t getServoCount(void);
 uint16_t getServoOutput(uint8_t servo);
 
