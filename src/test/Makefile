@@ -453,22 +453,19 @@ trainer_unittest_SRC := \
 trainer_unittest_DEFINES := \
 		USE_ACRO_TRAINER=
 
-#vtx_unittest_SRC := \
-#		$(USER_DIR)/fc/core.c \
-#		$(USER_DIR)/fc/dispatch.c \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/drivers/vtx_common.c \
-#		$(USER_DIR)/drivers/vtx_table.c \
-#		$(USER_DIR)/io/vtx_control.c \
-#		$(USER_DIR)/io/vtx.c \
-#		$(USER_DIR)/common/bitarray.c
-#
-#vtx_unittest_DEFINES := \
-#		USE_VTX_COMMON= \
-#		USE_VTX_CONTROL= \
-#		USE_VTX_SMARTAUDIO=
+vtx_unittest_SRC := \
+		$(USER_DIR)/io/vtx.c \
+		$(USER_DIR)/drivers/vtx_common.c \
+		$(USER_DIR)/drivers/vtx_table.c \
+		$(USER_DIR)/pg/vtx.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+vtx_unittest_DEFINES := \
+		USE_VTX_COMMON= \
+		USE_VTX_CONTROL= \
+		USE_VTX_SMARTAUDIO=
 
 rx_spi_spektrum_unittest_SRC := \
 		$(USER_DIR)/rx/cyrf6936_spektrum.c \
