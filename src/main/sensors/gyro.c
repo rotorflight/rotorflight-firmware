@@ -137,12 +137,16 @@ void gyroStartCalibration(bool isFirstArmingCalibration)  // for init.c core.c r
     }
 
 #if defined(USE_FAKE_GYRO) && !defined(UNIT_TEST)
+    // A fake gyro has no offset to find: mark its calibration complete.
+    // Completion is !running && cycles > 0, so both fields are set.
     if (gyro.gyroSensor1.gyroDev.gyroHardware == GYRO_FAKE) {
         gyro.gyroSensor1.calibration.running = false;
+        gyro.gyroSensor1.calibration.cycles = 1;
     }
 #ifdef USE_MULTI_GYRO
     if (gyro.gyroSensor2.gyroDev.gyroHardware == GYRO_FAKE) {
         gyro.gyroSensor2.calibration.running = false;
+        gyro.gyroSensor2.calibration.cycles = 1;
     }
 #endif
 #endif
