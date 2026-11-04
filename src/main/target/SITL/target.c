@@ -56,10 +56,33 @@ static uint32_t simLoopSleepUs = 50;
 
 #include "drivers/timer.h"
 #include "drivers/timer_def.h"
-const timerHardware_t timerHardware[1]; // unused
+
+// Synthetic timer table. SITL has no timers, but the motor and servo pin
+// defaults (pg/motor.c, pg/servos.c) come from timerioTagGetByUsage(), and
+// motorInit()/servoInit() count the non-zero pins: with no table there are no
+// motors and no servos, and nothing is ever sent to the simulator.
+// Four motors match servo_packet.motor_speed[4] (motorPwmDevInit() takes at
+// most four), eight servos match servo_packet.servo[8].
+#define SITL_TIMER_MOTOR_COUNT 4
+#define SITL_TIMER_SERVO_COUNT 8
+const timerHardware_t timerHardware[SITL_TIMER_MOTOR_COUNT + SITL_TIMER_SERVO_COUNT] = {
+    { .tag = 0x01, .usageFlags = TIM_USE_MOTOR },
+    { .tag = 0x02, .usageFlags = TIM_USE_MOTOR },
+    { .tag = 0x03, .usageFlags = TIM_USE_MOTOR },
+    { .tag = 0x04, .usageFlags = TIM_USE_MOTOR },
+    { .tag = 0x11, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x12, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x13, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x14, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x15, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x16, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x17, .usageFlags = TIM_USE_SERVO },
+    { .tag = 0x18, .usageFlags = TIM_USE_SERVO },
+};
 
 #include "drivers/accgyro/accgyro_fake.h"
 #include "flight/imu.h"
+#include "flight/servos.h"
 
 #include "config/feature.h"
 #include "config/config.h"
@@ -77,6 +100,34 @@ uint32_t SystemCoreClock;
 
 static fdm_packet fdmPkt;
 static servo_packet pwmPkt;
+
+// servoInit() sizes servoCount from the TIM_USE_SERVO entries above, the
+// packet can only carry what fits: keep the two in step.
+STATIC_ASSERT(SITL_TIMER_SERVO_COUNT == ARRAYLEN(pwmPkt.servo), SITL_servo_channels_must_match_servo_packet);
+STATIC_ASSERT(USABLE_TIMER_CHANNEL_COUNT == ARRAYLEN(timerHardware), SITL_usable_timer_channel_count_must_match_table);
+
+// flight/servos.c arms each servo channel through pwmOutConfig(), whose home
+// (drivers/pwm_output.c) SITL does not build. Leave ccr NULL so the register
+// writes are skipped; positions are read back with getServoOutput() when the
+// output packet is sent.
+void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware, uint32_t hz, uint16_t period, uint16_t value, uint8_t inversion)
+{
+    UNUSED(timerHardware);
+    UNUSED(hz);
+    UNUSED(period);
+    UNUSED(value);
+    UNUSED(inversion);
+
+    channel->ccr = NULL;
+    channel->tim = NULL;
+}
+
+// servoInit() derives its timebase from timerClock(); any plausible value.
+uint32_t timerClock(TIM_TypeDef *tim)
+{
+    UNUSED(tim);
+    return 240000000;
+}
 
 static struct timespec start_time;
 static double simRate = 1.0;
@@ -117,6 +168,8 @@ int lockMainPID(void) {
 void sendMotorUpdate(void) {
     udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
 }
+
+static void refreshPwmPacket(bool motorsActive);
 void updateState(const fdm_packet* pkt) {
     static double last_timestamp = 0; // in seconds
     static uint64_t last_realtime = 0; // in uS
@@ -207,6 +260,13 @@ void updateState(const fdm_packet* pkt) {
         }
     }
 //    printf("simRate = %lf, millis64 = %lu, millis64_real = %lu, deltaSim = %lf\n", simRate, millis64(), millis64_real(), deltaSim*1e6);
+
+    // While disarmed motorWriteAll() skips the motor device, so
+    // pwmCompleteMotorUpdate() never runs; servos still move. Send from here.
+    if (!motorIsEnabled()) {
+        refreshPwmPacket(false);
+        sendMotorUpdate();
+    }
 
     last_timestamp = pkt->timestamp;
     last_realtime = micros64_real();
@@ -583,17 +643,27 @@ bool pwmIsMotorEnabled(uint8_t index) {
     return motors[index].enabled;
 }
 
+// Fill the output packet from the current motor and servo outputs.
+// motor_speed[i] carries M(i+1), the same layout as Wingflight's SITL (the old
+// Gazebo multicopter remap 1,2,3,0 is gone). Normal range [0, 1], 3D [-1, 1].
+static void refreshPwmPacket(bool motorsActive)
+{
+    const double outScale = 1000.0;
+
+    for (unsigned i = 0; i < ARRAYLEN(pwmPkt.motor_speed); i++) {
+        pwmPkt.motor_speed[i] = motorsActive ? motorsPwm[i] / outScale : 0;
+    }
+
+    const unsigned servoCount = MIN(getServoCount(), ARRAYLEN(pwmPkt.servo));
+    for (unsigned i = 0; i < ARRAYLEN(pwmPkt.servo); i++) {
+        pwmPkt.servo[i] = (i < servoCount) ? getServoOutput(i) : 0;
+    }
+}
+
 static void pwmCompleteMotorUpdate(void)
 {
     // send to simulator
-    // for gazebo8 ArduCopterPlugin remap, normal range = [0.0, 1.0], 3D rang = [-1.0, 1.0]
-
-    double outScale = 1000.0;
-
-    pwmPkt.motor_speed[3] = motorsPwm[0] / outScale;
-    pwmPkt.motor_speed[0] = motorsPwm[1] / outScale;
-    pwmPkt.motor_speed[1] = motorsPwm[2] / outScale;
-    pwmPkt.motor_speed[2] = motorsPwm[3] / outScale;
+    refreshPwmPacket(true);
 
     // get one "fdm_packet" can only send one "servo_packet"!!
     if (pthread_mutex_trylock(&updateLock) != 0) return;

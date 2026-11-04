@@ -69,7 +69,7 @@
 #define USE_BARO
 #define USE_FAKE_BARO
 
-#define USABLE_TIMER_CHANNEL_COUNT 0
+#define USABLE_TIMER_CHANNEL_COUNT 12  // 4 motors + 8 servos, see timerHardware[] in target.c
 
 #define USE_UART1
 #define USE_UART2
@@ -251,7 +251,8 @@ typedef struct {
     double position_xyz[3];             // meters, NED from origin
 } fdm_packet;
 typedef struct {
-    float motor_speed[4];   // normal: [0.0, 1.0], 3D: [-1.0, 1.0]
+    float motor_speed[4];   // M1-M4 in order; normal: [0.0, 1.0], 3D: [-1.0, 1.0]
+    float servo[8];         // S1-S8 pulse width in microseconds, 0 for an absent servo
 } servo_packet;
 
 void FLASH_Unlock(void);
