@@ -51,6 +51,13 @@ static void onData(dyad_Event *e) {
     tcpPort_t* s = (tcpPort_t*)(e->udata);
     tcpDataIn(s, (uint8_t*)e->data, e->size);
 }
+// Why a client connection ends, logged before the close: peer closed, a
+// receive/send error, or a stream timeout.
+static void onStreamProblem(dyad_Event *e) {
+    tcpPort_t* s = (tcpPort_t*)(e->udata);
+    fprintf(stderr, "[ERR]UART%u: %s\n", s->id + 1, e->msg ? e->msg : "?");
+}
+
 static void onClose(dyad_Event *e) {
     tcpPort_t* s = (tcpPort_t*)(e->udata);
     s->clientCount--;
@@ -91,6 +98,8 @@ static void onAccept(dyad_Event *e) {
     dyad_setTimeout(e->remote, 120);
     dyad_addListener(e->remote, DYAD_EVENT_DATA, onData, e->udata);
     dyad_addListener(e->remote, DYAD_EVENT_CLOSE, onClose, e->udata);
+    dyad_addListener(e->remote, DYAD_EVENT_ERROR, onStreamProblem, e->udata);
+    dyad_addListener(e->remote, DYAD_EVENT_TIMEOUT, onStreamProblem, e->udata);
 }
 static tcpPort_t* tcpReconfigure(tcpPort_t *s, int id)
 {
