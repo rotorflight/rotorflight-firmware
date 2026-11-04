@@ -40,6 +40,7 @@ extern "C" {
     #include "rx/crsf.h"
 
     #include "telemetry/msp_shared.h"
+    #include "drivers/persistent.h"
 
     rssiSource_e rssiSource;
 
@@ -57,6 +58,7 @@ extern "C" {
     uint32_t dummyTimeUs;
 
     PG_REGISTER(rxConfig_t, rxConfig, PG_RX_CONFIG, 0);
+    PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 }
 
 #include "unittest_macros.h"
@@ -349,7 +351,8 @@ TEST(CrossFireTest, TestCrsfDataReceive)
 
 extern "C" {
 
-int16_t debug[DEBUG16_VALUE_COUNT];
+int32_t debug[DEBUG_VALUE_COUNT];
+uint8_t debugMode;
 uint32_t micros(void) {return dummyTimeUs;}
 uint32_t microsISR(void) {return micros();}
 serialPort_t *openSerialPort(serialPortIdentifier_e, serialPortFunction_e, serialReceiveCallbackPtr, void *, uint32_t, portMode_e, portOptions_e) {return NULL;}
@@ -362,4 +365,12 @@ bool bufferMspFrame(uint8_t *, int) {return true;}
 bool isBatteryVoltageAvailable(void) { return true; }
 bool isAmperageAvailable(void) { return true; }
 timeUs_t rxFrameTimeUs(void) { return 0; }
+
+// CRSF V3 speed negotiation lives in telemetry/crsf.c
+bool crsfBaudNegotiationInProgress(void) { return false; }
+void crsfProcessCommand(uint8_t *) {}
+uint32_t getCrsfCachedBaudrate(void) { return 0; }
+void setCrsfDefaultSpeed(void) {}
+bool isEepromWriteInProgress(void) { return false; }
+void persistentObjectWrite(persistentObjectId_e, uint32_t) {}
 }
