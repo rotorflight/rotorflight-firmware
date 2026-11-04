@@ -35,18 +35,18 @@ alignsensor_unittest_SRC := \
 		$(USER_DIR)/common/sensor_alignment.c \
 		$(USER_DIR)/common/maths.c
 
-# This test is disabled due to build errors.
-#arming_prevention_unittest_SRC := \
-#		$(USER_DIR)/fc/core.c \
-#		$(USER_DIR)/fc/dispatch.c \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/flight/gps_rescue.c \
-#		$(USER_DIR)/common/bitarray.c
-
-#arming_prevention_unittest_DEFINES := \
-#            USE_GPS_RESCUE=
+arming_prevention_unittest_SRC := \
+		$(USER_DIR)/fc/core.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/pg/arming.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 atomic_unittest_SRC := \
 		$(USER_DIR)/build/atomic.c \
