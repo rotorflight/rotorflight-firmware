@@ -80,12 +80,14 @@ baro_ms5611_unittest_DEFINES := \
                 USE_BARO_MS5611= \
                 USE_BARO_SPI_MS5611=
 
-# This test is disabled due to build errors.
-# Its source code is archived in unit/battery_unittest.cc.txt
-#
-#battery_unittest_SRC := \
-#		$(USER_DIR)/sensors/battery.c \
-#		$(USER_DIR)/common/maths.c
+battery_unittest_SRC := \
+		$(USER_DIR)/sensors/battery.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/pg/battery.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 # This test is disabled due to build errors.
