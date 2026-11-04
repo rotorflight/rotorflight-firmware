@@ -174,14 +174,13 @@ encoding_unittest_SRC := \
 #		USE_GPS_RESCUE=
 
 
-# This test is disabled due to build errors.
-#flight_imu_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/flight/position.c \
-#		$(USER_DIR)/flight/imu.c
+flight_imu_unittest_SRC := \
+		$(USER_DIR)/flight/imu.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/pg/imu.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 flight_mixer_unittest_SRC :=  \
