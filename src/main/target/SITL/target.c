@@ -188,11 +188,23 @@ void updateState(const fdm_packet* pkt) {
 #endif
 
 
+    // The firmware clock runs at simRate = simulated time / real time. Taken
+    // per packet, two packets that arrive bunched (a sender or host that stalls
+    // and catches up) give a few ms of sim time over a few us of real time, and
+    // the clock races hundreds of times too fast until the next packet - every
+    // firmware timer with it. Measure over a window of at least 50 ms of real
+    // time instead (time-weighted, so bunching averages out), and clamp.
     if (deltaSim < 0.02 && deltaSim > 0) { // simulator should run faster than 50Hz
-//        simRate = simRate * 0.5 + (1e6 * deltaSim / (realtime_now - last_realtime)) * 0.5;
+        static double windowSim, windowReal;
         struct timespec out_ts;
         timeval_sub(&out_ts, &now_ts, &last_ts);
-        simRate = deltaSim / (out_ts.tv_sec + 1e-9*out_ts.tv_nsec);
+        windowSim += deltaSim;
+        windowReal += out_ts.tv_sec + 1e-9*out_ts.tv_nsec;
+        if (windowReal >= 0.05) {
+            simRate = constrainf(windowSim / windowReal, 0.05f, 20.0f);
+            windowSim = 0;
+            windowReal = 0;
+        }
     }
 //    printf("simRate = %lf, millis64 = %lu, millis64_real = %lu, deltaSim = %lf\n", simRate, millis64(), millis64_real(), deltaSim*1e6);
 
@@ -395,28 +407,40 @@ uint64_t millis64_real(void) {
     return 1.0e3*((ts.tv_sec + (ts.tv_nsec*1.0e-9)) - (start_time.tv_sec + (start_time.tv_nsec*1.0e-9)));
 }
 
-uint64_t micros64(void) {
+// The firmware clock integrates real time at simRate into a running total, a
+// read-modify-write on shared state, and it is read from more than the main
+// loop (the UDP and TCP threads). Unguarded, two callers can interleave so one
+// sees a `last` newer than its own `now`; the unsigned difference wraps and
+// throws the clock far ahead, stalling the scheduler on a gyro boundary that is
+// suddenly in the distant future. micros64() and millis64() also used separate
+// totals that drifted apart. One locked total for both (ported from Wingflight).
+static pthread_mutex_t clockLock = PTHREAD_MUTEX_INITIALIZER;
+
+static uint64_t simNanos64(void)
+{
     static uint64_t last = 0;
     static uint64_t out = 0;
-    uint64_t now = nanos64_real();
 
-    out += (now - last) * simRate;
-    last = now;
+    pthread_mutex_lock(&clockLock);
+    const uint64_t now = nanos64_real();
+    // A host clock read on another core can be a few ns behind the last one
+    // (seen on WSL1); the unsigned difference would wrap. Never step back.
+    if (now > last) {
+        out += (now - last) * simRate;
+        last = now;
+    }
+    const uint64_t result = out;
+    pthread_mutex_unlock(&clockLock);
 
-    return out*1e-3;
-//    return micros64_real();
+    return result;
+}
+
+uint64_t micros64(void) {
+    return simNanos64()*1e-3;
 }
 
 uint64_t millis64(void) {
-    static uint64_t last = 0;
-    static uint64_t out = 0;
-    uint64_t now = nanos64_real();
-
-    out += (now - last) * simRate;
-    last = now;
-
-    return out*1e-6;
-//    return millis64_real();
+    return simNanos64()*1e-6;
 }
 
 uint32_t micros(void) {
