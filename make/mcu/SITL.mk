@@ -52,6 +52,8 @@ endif
 
 MCU_EXCLUDES = \
             drivers/adc.c \
+            pg/adc.c \
+            drivers/freq.c \
             drivers/bus_i2c.c \
             drivers/bus_i2c_config.c \
             drivers/bus_spi.c \

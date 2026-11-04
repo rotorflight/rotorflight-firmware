@@ -117,9 +117,4 @@ uint16_t getVrefMv(void)
     return 3300;
 #endif
 }
-
-int16_t getCoreTemperatureCelsius(void)
-{
-    return 0;
-}
 #endif

@@ -92,6 +92,7 @@ const timerHardware_t timerHardware[SITL_TIMER_MOTOR_COUNT + SITL_TIMER_SERVO_CO
 };
 
 #include "drivers/accgyro/accgyro_fake.h"
+#include "drivers/barometer/barometer_fake.h"
 #include "flight/imu.h"
 #include "flight/servos.h"
 #include "flight/mixer.h"
@@ -182,7 +183,36 @@ void sendMotorUpdate(void) {
 }
 
 static void refreshPwmPacket(bool motorsActive);
-void updateState(const fdm_packet* pkt) {
+// The optional tail of the FDM packet (see fdm_packet in target.h): only the
+// fields the datagram actually contains are used.
+static void updateFdmTail(const fdm_packet *pkt, int size)
+{
+#if defined(USE_FREQ_SENSOR)
+    if (size >= FDM_PACKET_SIZE_ERPM) {
+        for (int i = 0; i < 4; i++) {
+            fakeFreqSet(i, pkt->motor_erpm[i] / 60.0);
+        }
+    }
+#endif
+
+#if defined(USE_FAKE_BARO)
+    // The simulator's own static pressure, or else the ISA troposphere at the
+    // FDM altitude (relative to the simulator's origin), so baro altitude
+    // tracks the flight either way.
+    double pressure;
+    if (size >= FDM_PACKET_SIZE_BARO && isfinite(pkt->pressure) && pkt->pressure > 0) {
+        pressure = pkt->pressure;
+    } else {
+        const double altitude = -pkt->position_xyz[2];
+        pressure = 101325.0 * pow(fmax(1.0 - 2.25577e-5 * altitude, 0.01), 5.25588);
+    }
+    fakeBaroSet((int32_t)lrint(pressure), 2500);
+#endif
+
+    simAdcUpdate(pkt, size);
+}
+
+void updateState(const fdm_packet* pkt, int size) {
     static double last_timestamp = 0; // in seconds
     static uint64_t last_realtime = 0; // in uS
     static struct timespec last_ts; // last packet
@@ -221,6 +251,8 @@ void updateState(const fdm_packet* pkt) {
     y = constrain(-pkt->imu_angular_velocity_rpy[1] * GYRO_SCALE * RAD2DEG, -32767, 32767);
     z = constrain(-pkt->imu_angular_velocity_rpy[2] * GYRO_SCALE * RAD2DEG, -32767, 32767);
     fakeGyroSet(fakeGyroDev, x, y, z);
+
+    updateFdmTail(pkt, size);
 //    printf("[gyr]%lf,%lf,%lf\n", pkt->imu_angular_velocity_rpy[0], pkt->imu_angular_velocity_rpy[1], pkt->imu_angular_velocity_rpy[2]);
 
 #if !defined(USE_IMU_CALC)
@@ -306,9 +338,9 @@ static void* udpThread(void* data) {
 
     while (workerRunning) {
         n = udpRecv(&stateLink, &fdmPkt, sizeof(fdm_packet), 100);
-        if (n == sizeof(fdm_packet)) {
-//            printf("[data]new fdm %d\n", n);
-            updateState(&fdmPkt);
+        if (n == FDM_PACKET_SIZE_BASE || n == FDM_PACKET_SIZE_ERPM || n == FDM_PACKET_SIZE_BARO ||
+            n == FDM_PACKET_SIZE_MCU || n == FDM_PACKET_SIZE_RAILS || n == FDM_PACKET_SIZE_PACK) {
+            updateState(&fdmPkt, n);
         }
     }
 
@@ -516,14 +548,6 @@ void systemReset(int reason)
 {
     UNUSED(reason);
     systemResetHard();
-}
-
-// drivers/adc.c is excluded from the SITL build (no real ADC hardware),
-// so provide a stub for the generic caller (blackbox.c, etc.).
-bool adcIsEnabled(uint8_t channel)
-{
-    UNUSED(channel);
-    return false;
 }
 
 void timerInit(void) {
@@ -816,12 +840,6 @@ motorDevice_t *motorPwmDevInit(const motorDevConfig_t *motorConfig, uint8_t moto
     motorPwmDevice.enabled = false;
 
     return &motorPwmDevice;
-}
-
-// ADC part
-uint16_t adcGetChannel(uint8_t channel) {
-    UNUSED(channel);
-    return 0;
 }
 
 // stack part
