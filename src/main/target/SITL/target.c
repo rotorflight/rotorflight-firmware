@@ -191,6 +191,13 @@ void updateState(const fdm_packet* pkt) {
         return;
     }
 
+    // The UDP thread starts before the sensors are initialised: a simulator
+    // that is already sending would write through a NULL device and crash
+    // the process. Drop sensor data until both fake devices exist.
+    if (!fakeAccDev || !fakeGyroDev) {
+        return;
+    }
+
     int16_t x,y,z;
     x = constrain(-pkt->imu_linear_acceleration_xyz[0] * ACC_SCALE, -32767, 32767);
     y = constrain(-pkt->imu_linear_acceleration_xyz[1] * ACC_SCALE, -32767, 32767);
