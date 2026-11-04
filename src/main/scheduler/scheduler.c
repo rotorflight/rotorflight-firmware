@@ -169,7 +169,7 @@ bool queueRemove(task_t *task)
 /*
  * Returns first item queue or NULL if queue empty
  */
-static inline task_t *queueFirst(void)
+STATIC_INLINE_UNIT_TESTED task_t *queueFirst(void)
 {
     taskQueuePos = 0;
     return taskQueueArray[0]; // guaranteed to be NULL if queue is empty
@@ -178,7 +178,7 @@ static inline task_t *queueFirst(void)
 /*
  * Returns next item in queue or NULL if at end of queue
  */
-static inline task_t *queueNext(void)
+STATIC_INLINE_UNIT_TESTED task_t *queueNext(void)
 {
     return taskQueueArray[++taskQueuePos]; // guaranteed to be NULL at end of queue
 }
@@ -573,7 +573,7 @@ FAST_CODE void scheduler(void)
                 static uint32_t terminalGyroRateCount = 0;
                 static uint32_t sampleRateStartCycles;
 
-                if ((terminalGyroRateCount == 0)) {
+                if (terminalGyroRateCount == 0) {
                     terminalGyroRateCount = gyro->detectedEXTI + GYRO_RATE_COUNT;
                     sampleRateStartCycles = nowCycles;
                 }
@@ -597,7 +597,7 @@ FAST_CODE void scheduler(void)
 
                 accGyroSkew += gyroSkew;
 
-                if ((terminalGyroLockCount == 0)) {
+                if (terminalGyroLockCount == 0) {
                     terminalGyroLockCount = gyro->detectedEXTI + GYRO_LOCK_COUNT;
                 }
 
@@ -745,6 +745,7 @@ FAST_CODE void scheduler(void)
 #endif
 
 #if defined(UNIT_TEST)
+    UNUSED(taskExecutionTimeUs);
     readSchedulerLocals(selectedTask, selectedTaskDynamicPriority);
 #endif
 
