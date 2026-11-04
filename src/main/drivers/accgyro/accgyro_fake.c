@@ -49,6 +49,15 @@ static void fakeGyroInit(gyroDev_t *gyro)
         printf("Create gyro lock error!\n");
     }
 #endif
+
+    // A real gyro driver sets its sample rate through gyroSetSampleRate().
+    // Without one, gyro.sampleRateHz is 0 and the gyro, filter and PID tasks
+    // never get a period, so they never run. Declare the rate of the F4/F7
+    // boards this stands in for: 8 kHz internal, every second sample, 4 kHz.
+    gyro->gyroRateKHz = GYRO_RATE_8_kHz;
+    gyro->mpuDividerDrops = 1;
+    gyro->gyroSampleRateHz = 4000;
+    gyro->accSampleRateHz = 1000;
 }
 
 void fakeGyroSet(gyroDev_t *gyro, int16_t x, int16_t y, int16_t z)

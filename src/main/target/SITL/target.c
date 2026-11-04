@@ -30,12 +30,19 @@
 #include <string.h>
 
 #include <errno.h>
+#include <sched.h>
 #include <time.h>
 #if defined(_WIN32) || defined(__MINGW32__)
 #include <pthread_time.h>
 #endif
 
 #include "common/maths.h"
+
+// Idle time between scheduler passes (simLoopIdle()). 50 us caps the loop at
+// 20 kHz and keeps the CPU load down. Hosts whose sleep granularity is coarser
+// than a gyro period (WSL1: ~0.7 ms for any sleep) starve the scheduler; there
+// SITL_LOOP_SLEEP_US=0 only yields the CPU instead of sleeping.
+static uint32_t simLoopSleepUs = 50;
 
 #include "drivers/io.h"
 #include "drivers/dma.h"
@@ -261,6 +268,12 @@ void systemInit(void) {
 
     SystemCoreClock = 500 * 1e6; // fake 500MHz
 
+    const char *loopSleep = getenv("SITL_LOOP_SLEEP_US");
+    if (loopSleep && *loopSleep) {
+        simLoopSleepUs = (uint32_t)strtoul(loopSleep, NULL, 10);
+    }
+    printf("[system]main loop idle: %u us\n", (unsigned)simLoopSleepUs);
+
     if (pthread_mutex_init(&updateLock, NULL) != 0) {
         printf("Create updateLock error!\n");
         exit(1);
@@ -451,6 +464,15 @@ void delayMicroseconds(uint32_t us) {
 
 void delayMicroseconds_real(uint32_t us) {
     microsleep(us);
+}
+
+void simLoopIdle(void)
+{
+    if (simLoopSleepUs) {
+        microsleep(simLoopSleepUs);
+    } else {
+        sched_yield();
+    }
 }
 
 void delay(uint32_t ms) {
