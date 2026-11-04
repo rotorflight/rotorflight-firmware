@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""
+SITL smoke test: build output in, pass/fail out.
+
+    python3 src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+Runs the SITL executable in a fresh temporary directory and checks, in order:
+
+  1. first start: no eeprom.bin yet, defaults are written, the process exits 0
+  2. MSP on TCP 5761: FC variant RTFL, board SITL
+  3. CLI: an ARM switch on AUX1 is set and saved (the save ends the process)
+  4. with a level FDM feed on UDP 9003 and RC frames over MSP RX:
+     the accelerometer calibrates, all arming blockers clear, the switch arms,
+     full throttle drives motor 1 on the UDP 9002 output, the switch disarms
+
+Uses only the Python standard library. Ports 5761, 9002 and 9003 must be free.
+SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
+"""
+
+import os
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+MSP_API_VERSION = 1
+MSP_FC_VARIANT = 2
+MSP_BOARD_INFO = 4
+MSP_STATUS = 101
+MSP_SET_RAW_RC = 200
+MSP_ACC_CALIBRATION = 205
+
+ARMING_FLAG_NAMES = [
+    "NOGYRO", "FAILSAFE", "RXLOSS", "BADRX", "BOXFAILSAFE", "GOVERNOR", "RPM_SIGNAL",
+    "THROTTLE", "ANGLE", "BOOTGRACE", "NOPREARM", "LOAD", "CALIB", "CLI", "CMS", "BST",
+    "MSP", "PARALYZE", "GPS", "RESCUE_SW", "RPMFILTER", "REBOOT_REQD", "DSHOT_BBANG",
+    "NO_ACC_CAL", "MOTOR_PROTO", "OVERRIDE", "ARMSWITCH",
+]
+
+# Default channel map AETRC123: roll, pitch, throttle, yaw, collective, aux1, aux2, aux3
+def rc_frame(throttle, aux1):
+    return [1500, 1500, throttle, 1500, 1500, aux1, 1000, 1000]
+
+
+class Failure(Exception):
+    pass
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+class Sitl:
+    """One SITL process in the run directory, its output in a log file."""
+
+    def __init__(self, elf, rundir, name):
+        self.log_path = os.path.join(rundir, name + ".log")
+        self.log_file = open(self.log_path, "w")
+        self.proc = subprocess.Popen([elf], cwd=rundir, stdout=self.log_file,
+                                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+
+    def wait(self, timeout):
+        try:
+            return self.proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return None
+
+    def stop(self):
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            if self.wait(5) is None:
+                self.proc.kill()
+                self.proc.wait()
+        self.log_file.close()
+
+    def log_contains(self, text):
+        with open(self.log_path, errors="replace") as f:
+            return text in f.read()
+
+
+def connect_uart1(sitl, timeout=15):
+    """Connect once the firmware itself has accepted UART1, not merely a TCP port."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if sitl.proc.poll() is not None:
+            raise Failure("SITL exited before serving UART1 (see %s)" % sitl.log_path)
+        if sitl.log_contains("bind port 5761"):
+            try:
+                return socket.create_connection(("127.0.0.1", 5761), timeout=3)
+            except OSError:
+                pass
+        time.sleep(0.2)
+    raise Failure("UART1 (TCP 5761) not served within %d s" % timeout)
+
+
+class Msp:
+    def __init__(self, sock):
+        self.sock = sock
+
+    def request(self, cmd, payload=b""):
+        frame = b"$M<" + bytes([len(payload), cmd]) + payload
+        checksum = 0
+        for b in frame[3:]:
+            checksum ^= b
+        self.sock.sendall(frame + bytes([checksum]))
+        buf = b""
+        deadline = time.time() + 3
+        while time.time() < deadline:
+            try:
+                chunk = self.sock.recv(512)
+            except socket.timeout:
+                continue
+            if not chunk:
+                raise Failure("MSP connection closed")
+            buf += chunk
+            i = buf.find(b"$M")
+            if i >= 0 and len(buf) >= i + 5:
+                size = buf[i + 3]
+                if len(buf) >= i + 6 + size:
+                    if buf[i + 2:i + 3] == b"!":
+                        raise Failure("MSP command %d rejected" % cmd)
+                    return buf[i + 5:i + 5 + size]
+        raise Failure("no MSP reply to command %d within 3 s" % cmd)
+
+    def status(self):
+        st = self.request(MSP_STATUS)
+        modes = struct.unpack_from("<I", st, 6)[0]
+        flags = struct.unpack_from("<I", st, 17)[0]
+        names = [ARMING_FLAG_NAMES[i] if i < len(ARMING_FLAG_NAMES) else str(i)
+                 for i in range(32) if flags >> i & 1]
+        return bool(modes & 1), names
+
+    def rc(self, channels):
+        self.request(MSP_SET_RAW_RC, struct.pack("<%dH" % len(channels), *channels))
+
+
+def cli(sock, commands):
+    """Enter the CLI and send commands; returns the text received."""
+    out = b""
+
+    def drain(seconds):
+        nonlocal out
+        end = time.time() + seconds
+        sock.settimeout(0.2)
+        while time.time() < end:
+            try:
+                data = sock.recv(4096)
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            if not data:
+                return
+            out += data
+
+    sock.sendall(b"#\r\n")
+    drain(1.0)
+    for c in commands:
+        sock.sendall(c.encode() + b"\r\n")
+        drain(1.5)
+    return out.decode(errors="replace")
+
+
+class FdmFeed(threading.Thread):
+    """Level, motionless FDM packets (136-byte fdm_packet) on UDP 9003 at a steady rate."""
+
+    def __init__(self, rate=200.0):
+        super().__init__(daemon=True)
+        self.rate = rate
+        self.running = True
+
+    def run(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        t0 = time.monotonic()
+        n = 0
+        while self.running:
+            ts = n / self.rate
+            # timestamp, gyro rpy, accel xyz (NED body, 1 g up), quat wxyz, velocity, position
+            pkt = struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            s.sendto(pkt, ("127.0.0.1", 9003))
+            n += 1
+            delay = t0 + n / self.rate - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+
+
+class OutputReader(threading.Thread):
+    """Latest output packet from UDP 9002: motor_speed[4], then servo[8] (us)."""
+
+    def __init__(self):
+        super().__init__(daemon=True)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 9002))
+        self.sock.settimeout(0.1)
+        self.latest = None
+        self.count = 0
+        self.running = True
+
+    def run(self):
+        while self.running:
+            try:
+                data, _ = self.sock.recvfrom(256)
+            except socket.timeout:
+                continue
+            self.latest = data
+            self.count += 1
+
+    def motors(self):
+        data = self.latest
+        return struct.unpack_from("<4f", data) if data and len(data) >= 16 else None
+
+
+def hold(msp, throttle, aux1, seconds):
+    end = time.time() + seconds
+    while time.time() < end:
+        msp.rc(rc_frame(throttle, aux1))
+        time.sleep(0.02)
+    return msp.status()
+
+
+def run(elf, rundir):
+    # 1. first start writes the defaults and exits
+    sitl = Sitl(elf, rundir, "1-first-start")
+    rc = sitl.wait(30)
+    sitl.stop()
+    eeprom = os.path.join(rundir, "eeprom.bin")
+    if rc != 0 or not os.path.isfile(eeprom):
+        raise Failure("first start: exit %s, eeprom.bin %s" % (rc, "written" if os.path.isfile(eeprom) else "missing"))
+    log("PASS first start: exit 0, eeprom.bin %d bytes" % os.path.getsize(eeprom))
+
+    # 2. identity, 3. ARM switch on AUX1 via the CLI
+    sitl = Sitl(elf, rundir, "2-config")
+    try:
+        sock = connect_uart1(sitl)
+        msp = Msp(sock)
+        api = msp.request(MSP_API_VERSION)
+        variant = msp.request(MSP_FC_VARIANT)[:4]
+        board = msp.request(MSP_BOARD_INFO)[:4]
+        if variant != b"RTFL" or board != b"SITL":
+            raise Failure("identity: variant %r board %r" % (variant, board))
+        log("PASS MSP identity: %s, API %d.%d, board %s" % (variant.decode(), api[1], api[2], board.decode()))
+
+        out = cli(sock, ["aux 0 0 0 1700 2100 0 0", "save"])
+        sock.close()
+        rc = sitl.wait(15)
+        if rc != 0:
+            raise Failure("CLI save did not end the process with exit 0 (exit %s)\n%s" % (rc, out))
+        log("PASS CLI: ARM on AUX1 saved, process exited 0")
+    finally:
+        sitl.stop()
+
+    # 4. arm and disarm with a level FDM feed
+    outputs = OutputReader()
+    outputs.start()
+    sitl = Sitl(elf, rundir, "3-arm")
+    feed = FdmFeed()
+    try:
+        feed.start()
+        sock = connect_uart1(sitl)
+        msp = Msp(sock)
+        msp.request(MSP_ACC_CALIBRATION)
+
+        deadline = time.time() + 20
+        armed, flags = hold(msp, 1000, 1000, 0.5)
+        while flags and time.time() < deadline:
+            armed, flags = hold(msp, 1000, 1000, 0.2)
+        if flags:
+            raise Failure("arming blockers did not clear within 20 s: %s" % flags)
+        log("PASS arming blockers clear (acc calibrated, RX up)")
+
+        armed, flags = hold(msp, 1000, 1900, 1.0)
+        if not armed:
+            raise Failure("switch on, not armed: %s" % flags)
+        log("PASS armed")
+
+        armed, flags = hold(msp, 2000, 1900, 1.5)
+        motors = outputs.motors()
+        if not armed or not motors or motors[0] < 0.9:
+            raise Failure("full throttle: armed=%s motors=%s" % (armed, motors))
+        log("PASS full throttle: motor 1 = %.3f, %d output packets of %d bytes"
+            % (motors[0], outputs.count, len(outputs.latest)))
+
+        armed, flags = hold(msp, 1000, 1000, 1.0)
+        motors = outputs.motors()
+        if armed or not motors or motors[0] != 0:
+            raise Failure("switch off: armed=%s motors=%s" % (armed, motors))
+        log("PASS disarmed, motor 1 = 0")
+        sock.close()
+    finally:
+        feed.running = False
+        outputs.running = False
+        sitl.stop()
+
+
+def main():
+    if len(sys.argv) != 2:
+        sys.exit("usage: %s <rotorflight_SITL.elf>" % sys.argv[0])
+    elf = os.path.abspath(sys.argv[1])
+    rundir = tempfile.mkdtemp(prefix="sitl-smoke-")
+    try:
+        run(elf, rundir)
+    except Failure as e:
+        log("FAIL %s" % e)
+        for name in sorted(os.listdir(rundir)):
+            if name.endswith(".log"):
+                with open(os.path.join(rundir, name), errors="replace") as f:
+                    lines = [l for l in f.read().splitlines() if "FLASH_ProgramWord" not in l]
+                log("--- %s (last 30 lines)\n%s" % (name, "\n".join(lines[-30:])))
+        sys.exit(1)
+    finally:
+        shutil.rmtree(rundir, ignore_errors=True)
+    log("SITL smoke test passed")
+
+
+if __name__ == "__main__":
+    main()

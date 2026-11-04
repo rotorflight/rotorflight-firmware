@@ -1,0 +1,35 @@
+name: SITL
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'RF-*'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+
+  sitl:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Build SITL
+      run: make TARGET=SITL
+
+    - name: Smoke test
+      run: python3 src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+    - name: Upload SITL executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-SITL-${{ github.sha }}
+        path: obj/main/rotorflight_SITL.elf
