@@ -22,7 +22,7 @@
 
 #include "platform.h"
 
-#if defined(USE_TIMER_MGMT) && (defined(STM32H7) || defined(STM32G4))
+#if defined(USE_TIMER_MGMT) && (defined(STM32H7) || defined(STM32G4) || (defined(AT32F43x) && defined(USE_DSHOT_DMAR)))
 
 #include "drivers/dma_reqmap.h"
 #include "drivers/timer.h"

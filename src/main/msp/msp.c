@@ -3268,11 +3268,17 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #ifdef USE_VTX_TABLE
     case MSP_SET_VTXTABLE_BAND:
         {
+            if (sbufBytesRemaining(src) < 5) {
+                return MSP_RESULT_ERROR;
+            }
             char bandName[VTX_TABLE_BAND_NAME_LENGTH + 1];
             memset(bandName, 0, VTX_TABLE_BAND_NAME_LENGTH + 1);
-            uint16_t frequencies[VTX_TABLE_MAX_CHANNELS];
+            uint16_t frequencies[VTX_TABLE_MAX_CHANNELS] = {0};
             const uint8_t band = sbufReadU8(src);
             const uint8_t bandNameLength = sbufReadU8(src);
+            if (sbufBytesRemaining(src) < bandNameLength + 3) {
+                return MSP_RESULT_ERROR;
+            }
             for (int i = 0; i < bandNameLength; i++) {
                 const char nameChar = sbufReadU8(src);
                 if (i < VTX_TABLE_BAND_NAME_LENGTH) {
@@ -3282,6 +3288,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             const char bandLetter = toupper(sbufReadU8(src));
             const bool isFactoryBand = (bool)sbufReadU8(src);
             const uint8_t channelCount = sbufReadU8(src);
+            if (sbufBytesRemaining(src) < channelCount * 2) {
+                return MSP_RESULT_ERROR;
+            }
             for (int i = 0; i < channelCount; i++) {
                 const uint16_t frequency = sbufReadU16(src);
                 if (i < vtxTableConfig()->channels) {

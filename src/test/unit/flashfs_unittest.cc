@@ -19,10 +19,12 @@
 #include <stdint.h>
 
 #include <limits.h>
+#include <chrono>
 
 extern "C" {
 #include "io/flashfs.h"
 #include "pg/blackbox.h"
+extern const blackboxConfig_t pgResetTemplate_blackboxConfig;
 
 extern uint32_t flashfsSize;
 extern uint32_t headAddress;
@@ -52,7 +54,6 @@ void flashfsClearBuffer();
 
 void pgReset(void) {
     // We will use the real config variable
-    extern blackboxConfig_t pgResetTemplate_blackboxConfig;
     memcpy(blackboxConfigMutable(), &pgResetTemplate_blackboxConfig,
            sizeof(blackboxConfig_t));
 }
@@ -193,6 +194,17 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_AllFlashTypes, FlashFSBandwidthTest,
                                          FlashEmulator::kFlashM25P16));
 
 class FlashFSLoopTest : public FlashFSTestBase {};
+
+TEST_F(FlashFSLoopTest, CloseWithoutStorageDoesNotDivideByZero)
+{
+    flashfsInit();
+    flashfsSize = 0;
+    headAddress = 0;
+    tailAddress = 7;
+    flashfsClose();
+    EXPECT_EQ(tailAddress, 7);
+    EXPECT_EQ(headAddress, 0);
+}
 
 TEST_F(FlashFSLoopTest, StartFromZero)
 {

@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/adc_impl.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -139,3 +142,5 @@ void adcGetChannelValues(void);
 #define TEMPSENSOR_CAL1_TEMP               ((int32_t)  30)
 #define TEMPSENSOR_CAL2_TEMP               ((int32_t) 110)
 #endif
+
+#endif // AT32F43x

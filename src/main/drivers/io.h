@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/io.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -122,3 +125,5 @@ void IOTraversePins(IOTraverseFuncPtr_t func);
 
 GPIO_TypeDef* IO_GPIO(IO_t io);
 uint16_t IO_Pin(IO_t io);
+
+#endif // AT32F43x

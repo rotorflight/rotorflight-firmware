@@ -134,9 +134,17 @@ const timerHardware_t *timerAllocate(ioTag_t ioTag, resourceOwner_e owner, uint8
         if (timerIOConfig(i)->ioTag == ioTag) {
             const timerHardware_t *timer = timerGetByTagAndIndex(ioTag, timerIOConfig(i)->index);
 
+#ifdef AT32F43x
+            // Alternate pins can address the same compare channel, including the tail RPM capture channel.
+            if (!timer || IOGetOwner(IOGetByTag(ioTag)) == OWNER_MCO ||
+                timerGetAllocatedByNumberAndChannel(timerGetTIMNumber(timer->tim), timer->channel)) {
+                return NULL;
+            }
+#else
             if (timerGetOwner(timer)->owner) {
                 return NULL;
             }
+#endif
 
             timerOwners[i].owner = owner;
             timerOwners[i].resourceIndex = resourceIndex;
@@ -191,8 +199,10 @@ ioTag_t timerioTagGetByUsage(timerUsageFlag_e usageFlag, uint8_t index)
     return IO_TAG_NONE;
 }
 
+#ifndef AT32F43x
 volatile timCCR_t* timerCCR(TIM_TypeDef *tim, uint8_t channel)
 {
     return (volatile timCCR_t*)((volatile char*)&tim->CCR1 + channel);
 }
+#endif
 #endif

@@ -59,6 +59,22 @@ TEST(SensorGyro, Detect)
     EXPECT_EQ(GYRO_FAKE, detected);
 }
 
+TEST(SensorGyro, ZeroLoopDivisorUsesOne)
+{
+    gyro.sampleRateHz = 8000;
+    gyroSetLooptime(0, 0);
+    EXPECT_EQ(activePidLoopDenom, 1);
+    EXPECT_EQ(activeFilterLoopDenom, 1);
+    EXPECT_EQ(gyro.targetLooptime, 125);
+    EXPECT_EQ(gyro.targetRateHz, 8000);
+    for (unsigned divisor = 1; divisor <= 32; ++divisor) {
+        gyroSetLooptime(divisor, 0);
+        EXPECT_EQ(gyro.targetLooptime, divisor * 125);
+        EXPECT_EQ(gyro.targetRateHz, 8000 / divisor);
+    }
+    gyroSetLooptime(1, 1);
+}
+
 TEST(SensorGyro, Init)
 {
     pgResetAll();

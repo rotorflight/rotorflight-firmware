@@ -24,6 +24,9 @@
 #include <math.h>
 
 #include "platform.h"
+#ifdef AT32F43x
+#include "at32f435_437_clock.h"
+#endif
 
 #include "blackbox/blackbox.h"
 
@@ -125,7 +128,6 @@
 
 #include "msc/emfat_file.h"
 #ifdef USE_PERSISTENT_MSC_RTC
-#include "msc/usbd_storage.h"
 #endif
 
 #include "msp/msp.h"
@@ -490,17 +492,20 @@ void init(void)
     systemClockSetHSEValue(systemConfig()->hseMhz * 1000000U);
 #endif
 
-#ifdef USE_OVERCLOCK
+#if defined(USE_OVERCLOCK) && defined(AT32F43x)
+    systemConfigMutable()->hextMhz = systemClockApplyProfile(systemConfig()->cpu_overclock,
+        mcoConfig(MCODEV_2)->enabled && mco2PinAvailable(), systemConfig()->hextMhz);
+#elif defined(USE_OVERCLOCK)
     OverclockRebootIfNecessary(systemConfig()->cpu_overclock);
 #endif
 
     // Configure MCO output after config is stable
-#ifdef USE_MCO
+#if defined(USE_MCO) && !defined(AT32F43x)
     // Note that mcoConfigure must be augmented with an additional argument to
     // indicate which device instance to configure when MCO and MCO2 are both supported
 
 #if defined(STM32F4) || defined(STM32F7)
-    // F4 and F7 support MCO on PA8 and MCO2 on PC9, but only MCO2 is supported for now
+    // Configure the PC9 clock output.
     mcoConfigure(MCODEV_2, mcoConfig(MCODEV_2));
 #elif defined(STM32G4)
     // G4 only supports one MCO on PA8
@@ -1011,6 +1016,10 @@ void init(void)
 
     swdPinsInit();
 
+#if defined(USE_MCO) && defined(AT32F43x)
+    // Let initialized peripherals claim PC9 before enabling the optional clock.
+    mcoConfigure(MCODEV_2, mcoConfig(MCODEV_2));
+#endif
     unusedPinsInit();
 
     tasksInit();

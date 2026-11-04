@@ -40,6 +40,48 @@
 
 FAST_DATA_ZERO_INIT pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 
+#if defined(AT32F43x)
+static void pwmOCConfig(tmr_type *tim, uint8_t channel, uint16_t value, uint8_t output)
+{
+    tmr_output_config_type  tmr_OCInitStruct;
+    tmr_output_default_para_init(&tmr_OCInitStruct);
+    tmr_OCInitStruct.oc_mode= TMR_OUTPUT_CONTROL_PWM_MODE_A;
+
+    if (output & TIMER_OUTPUT_N_CHANNEL) {
+        tmr_OCInitStruct.occ_output_state = TRUE;
+        tmr_OCInitStruct.occ_idle_state = FALSE;
+        tmr_OCInitStruct.occ_polarity =  (output & TIMER_OUTPUT_INVERTED) ? TMR_OUTPUT_ACTIVE_LOW : TMR_OUTPUT_ACTIVE_HIGH;
+    } else {
+        tmr_OCInitStruct.oc_output_state = TRUE;
+        tmr_OCInitStruct.oc_idle_state = TRUE;
+        tmr_OCInitStruct.oc_polarity =  (output & TIMER_OUTPUT_INVERTED) ? TMR_OUTPUT_ACTIVE_LOW : TMR_OUTPUT_ACTIVE_HIGH;
+    }
+    tmr_channel_value_set(tim, (channel-1)*2, value);
+    tmr_output_channel_config(tim,(channel-1)*2, &tmr_OCInitStruct);
+    tmr_output_channel_buffer_enable(tim, ((channel-1)*2),TRUE);
+}
+
+void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware, uint32_t hz, uint16_t period, uint16_t value, uint8_t inversion)
+{
+    configTimeBase(timerHardware->tim, period, hz);
+    pwmOCConfig(timerHardware->tim,
+        timerHardware->channel,
+        value,
+        inversion ? timerHardware->output ^ TIMER_OUTPUT_INVERTED : timerHardware->output
+        );
+
+
+    tmr_output_enable(timerHardware->tim, TRUE);
+    tmr_counter_enable(timerHardware->tim, TRUE);
+
+    channel->ccr = timerChCCR(timerHardware);
+
+    channel->tim = timerHardware->tim;
+
+    *channel->ccr = 0;
+}
+
+#else
 static void pwmOCConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t value, uint8_t output)
 {
 #if defined(USE_HAL_DRIVER)
@@ -111,6 +153,8 @@ void pwmOutConfig(timerChannel_t *channel, const timerHardware_t *timerHardware,
     *channel->ccr = 0;
 }
 
+
+#endif
 
 /* MOTORS */
 

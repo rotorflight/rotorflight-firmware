@@ -114,6 +114,7 @@ int flashPartitionCount(void) {
 }
 
 // Dummy functions we don't care
+bool flashEraseCompletelySupported(void) { return true; } // The test flash emulator supports whole-chip erase.
 bool flashSuspendSupported(void) { return false; }
 void flashSuspend(void) {}
 void flashResume(void) {}

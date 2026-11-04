@@ -351,6 +351,12 @@ uint16_t spiCalculateDivider(uint32_t freq)
     uint32_t spiClk = SystemCoreClock / 2;
 #elif defined(STM32H7)
     uint32_t spiClk = 100000000;
+#elif defined(AT32F43x)
+    if(freq> 36000000){
+        freq = 36000000;
+    }//at23f437 spi  最高36Mhz
+
+    uint32_t spiClk = system_core_clock / 2;
 #else
 #error "Base SPI clock not defined for this architecture"
 #endif
@@ -368,8 +374,15 @@ uint32_t spiCalculateClock(uint16_t spiClkDivisor)
 {
 #if defined(STM32F4) || defined(STM32G4) || defined(STM32F7)
     uint32_t spiClk = SystemCoreClock / 2;
-#elif defined(STM32H7)
+#elif defined(STM32H7) //H7 SPIClk 100Mhz max
     uint32_t spiClk = 100000000;
+#elif defined (AT32F43x)
+    uint32_t spiClk = system_core_clock / 2;
+//at32f437 spi max 48Mhz
+    if ((spiClk / spiClkDivisor) > 36000000){
+        return 36000000;
+    }
+
 #else
 #error "Base SPI clock not defined for this architecture"
 #endif
@@ -408,6 +421,13 @@ static void spiIrqHandler(const extDevice_t *dev)
     nextSegment = (busSegment_t *)bus->curSegment + 1;
 
     if (nextSegment->len == 0) {
+#ifdef AT32F43x
+        if (!bus->curSegment->negateCS) {
+            // Negate Chip Select if not done so already
+            IOHi(dev->busType_u.spi.csnPin);
+        }
+#endif
+
         // If a following transaction has been linked, start it
         if (nextSegment->u.link.dev) {
             const extDevice_t *nextDev = nextSegment->u.link.dev;
@@ -587,10 +607,15 @@ void spiInitBusDMA(void)
                     continue;
                 }
                 bus->dmaTx = dmaGetDescriptorByIdentifier(dmaTxIdentifier);
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32G4) || defined(STM32H7)
                 bus->dmaTx->stream = DMA_DEVICE_INDEX(dmaTxIdentifier);
                 bus->dmaTx->channel = dmaTxChannelSpec->channel;
+#endif
 
                 dmaEnable(dmaTxIdentifier);
+#ifdef AT32F43x
+                dmaMuxEnable(dmaTxIdentifier, dmaTxChannelSpec->dmaMuxId);
+#endif
 
                 break;
             }
@@ -621,10 +646,15 @@ void spiInitBusDMA(void)
                     continue;
                 }
                 bus->dmaRx = dmaGetDescriptorByIdentifier(dmaRxIdentifier);
+#if defined(STM32F4) || defined(STM32F7) || defined(STM32G4) || defined(STM32H7)
                 bus->dmaRx->stream = DMA_DEVICE_INDEX(dmaRxIdentifier);
                 bus->dmaRx->channel = dmaRxChannelSpec->channel;
+#endif
 
                 dmaEnable(dmaRxIdentifier);
+#ifdef AT32F43x
+                dmaMuxEnable(dmaRxIdentifier, dmaRxChannelSpec->dmaMuxId);
+#endif
 
                 break;
             }

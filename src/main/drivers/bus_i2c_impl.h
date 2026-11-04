@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/bus_i2c_impl.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -91,3 +94,5 @@ typedef struct i2cDevice_s {
 } i2cDevice_t;
 
 extern i2cDevice_t i2cDevice[];
+
+#endif // AT32F43x

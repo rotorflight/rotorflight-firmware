@@ -70,6 +70,7 @@ bool sdcard_isInitialized(void);
 bool sdcard_isFunctional(void);
 
 bool sdcard_poll(void);
+bool sdcard_flush(void);
 const sdcardMetadata_t* sdcard_getMetadata(void);
 
 void sdcard_setProfilerCallback(sdcard_profilerCallback_c callback);

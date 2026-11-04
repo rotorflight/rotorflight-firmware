@@ -54,6 +54,14 @@
 #endif
 #endif // STM32F4
 
+#ifdef AT32F4
+#define USE_FAST_DATA
+#define USE_DMA_SPEC
+#define USE_TIMER_MGMT
+#define USE_PERSISTENT_OBJECTS
+#define USE_LATE_TASK_STATISTICS
+#endif
+
 #ifdef STM32F7
 #define USE_ITCM_RAM
 #define ITCM_RAM_OPTIMISATION "-O2", "-freorder-blocks-algorithm=simple"
@@ -182,7 +190,7 @@
 #define FAST_DATA
 #endif // USE_FAST_DATA
 
-#if defined(STM32F4) || defined(STM32G4)
+#if defined(STM32F4) || defined(STM32G4) || defined(AT32F43x)
 // F4 can't DMA to/from CCM (core coupled memory) SRAM (where the stack lives)
 // On G4 there is no specific DMA target memory
 #define DMA_DATA_ZERO_INIT
@@ -200,7 +208,7 @@
 #define STATIC_DMA_DATA_AUTO        static DMA_DATA
 #endif
 
-#if defined(STM32F4) || defined (STM32H7)
+#if defined(STM32F4) || defined (STM32H7) || defined(AT32F4)
 // Data in RAM which is guaranteed to not be reset on hot reboot
 #define PERSISTENT                  __attribute__ ((section(".persistent_data"), aligned(4)))
 #endif

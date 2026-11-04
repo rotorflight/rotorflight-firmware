@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/bus_i2c.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -64,3 +67,5 @@ bool i2cBusy(I2CDevice device, bool *error);
 
 uint16_t i2cGetErrorCounter(void);
 uint8_t i2cGetRegisteredDeviceCount(void);
+
+#endif // AT32F43x

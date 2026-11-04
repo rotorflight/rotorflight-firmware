@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/rcc.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -88,3 +91,5 @@ enum rcc_reg {
 
 void RCC_ClockCmd(rccPeriphTag_t periphTag, FunctionalState NewState);
 void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState);
+
+#endif

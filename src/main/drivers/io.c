@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/io.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -436,3 +439,5 @@ void IOTraversePins(IOTraverseFuncPtr_t fnPtr)
         fnPtr(&ioRecs[i]);
     }
 }
+
+#endif // AT32F43x

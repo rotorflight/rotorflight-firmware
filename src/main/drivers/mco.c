@@ -29,6 +29,11 @@
 #include "drivers/io.h"
 #include "drivers/mco.h"
 #include "pg/mco.h"
+#ifdef AT32F43x
+#include "pg/motor.h"
+#include "pg/serial_pinconfig.h"
+#include "pg/servos.h"
+#endif
 
 #ifdef STM32G4
 
@@ -60,6 +65,57 @@ const uint32_t mcoDividers[MCO_DIVIDER_COUNT] = {
     RCC_MCO_DIV16,
 };
 #endif
+#ifdef AT32F4
+
+// Notes
+// - MCO output stability
+// MCO output should not be too high. 50Mhz max
+// For example
+// for PLL = 288 CLKOUTDIV1 SET TO 2 CLKOUTDIV2 = 4 ,MCO= 288/2/4= 36mHZ
+//
+// - MCO frequency can be more flexible if PLLR is made configurable.
+
+const uint32_t mcoSources[MCO_SOURCE_COUNT] = {
+		CRM_CLKOUT1_HICK , /*!< output high speed internal clock to clkout1 pin */
+		CRM_CLKOUT1_LEXT ,/*!< output low speed external crystal to clkout1 pin */
+		CRM_CLKOUT1_HEXT ,/*!< output high speed external crystal to clkout1 pin */
+		CRM_CLKOUT1_PLL
+
+};
+
+const uint32_t mcoDividers[MCO_DIVIDER_COUNT] = {
+		 CRM_CLKOUT_DIV1_1,
+		 CRM_CLKOUT_DIV1_2,
+		 CRM_CLKOUT_DIV1_3,
+		 CRM_CLKOUT_DIV1_4,
+		 CRM_CLKOUT_DIV1_5
+};
+#endif
+
+#ifdef AT32F43x
+bool mco2PinAvailable(void)
+{
+    const ioTag_t pin = IO_TAG(PC9);
+    for (unsigned i = 0; i < SERIAL_PORT_MAX_INDEX; i++) {
+        if (serialPinConfig()->ioTagInverter[i] == pin ||
+            serialPinConfig()->ioTagRx[i] == pin ||
+            serialPinConfig()->ioTagTx[i] == pin) {
+            return false;
+        }
+    }
+    for (unsigned i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
+        if (motorConfig()->dev.ioTags[i] == pin) {
+            return false;
+        }
+    }
+    for (unsigned i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
+        if (servoConfig()->ioTags[i] == pin) {
+            return false;
+        }
+    }
+    return IOGetOwner(IOGetByTag(pin)) == OWNER_FREE;
+}
+#endif
 
 void mcoConfigure(MCODevice_e device, const mcoConfig_t *config)
 {
@@ -80,14 +136,14 @@ void mcoConfigure(MCODevice_e device, const mcoConfig_t *config)
     case MCODEV_2: // MCO2 on PC9
         io = IOGetByTag(DEFIO_TAG_E(PC9));
         IOInit(io, OWNER_MCO, 2);
-#if defined(STM32F7)
-        HAL_RCC_MCOConfig(RCC_MCO2, RCC_MCO2SOURCE_PLLI2SCLK, RCC_MCODIV_4);
-        IOConfigGPIOAF(io, IO_CONFIG(GPIO_MODE_AF_PP, GPIO_SPEED_FREQ_VERY_HIGH,  GPIO_NOPULL), GPIO_AF0_MCO);
-#else
-        // All F4s
-        RCC_MCO2Config(RCC_MCO2Source_PLLI2SCLK, RCC_MCO2Div_4);
-        IOConfigGPIOAF(io, IO_CONFIG(GPIO_Mode_AF, GPIO_Speed_50MHz, GPIO_OType_PP, GPIO_PuPd_NOPULL), GPIO_AF_MCO);
-#endif
+	#if defined(STM32F7)
+			HAL_RCC_MCOConfig(RCC_MCO2, RCC_MCO2SOURCE_PLLI2SCLK, RCC_MCODIV_4);
+			IOConfigGPIOAF(io, IO_CONFIG(GPIO_MODE_AF_PP, GPIO_SPEED_FREQ_VERY_HIGH,  GPIO_NOPULL), GPIO_AF0_MCO);
+	#else
+			// All F4s
+			RCC_MCO2Config(RCC_MCO2Source_PLLI2SCLK, RCC_MCO2Div_4);
+			IOConfigGPIOAF(io, IO_CONFIG(GPIO_Mode_AF, GPIO_Speed_50MHz, GPIO_OType_PP, GPIO_PuPd_NOPULL), GPIO_AF_MCO);
+	#endif
         break;
     }
 #elif defined(STM32G4)
@@ -97,6 +153,16 @@ void mcoConfigure(MCODevice_e device, const mcoConfig_t *config)
     io = IOGetByTag(DEFIO_TAG_E(PA8));
     IOInit(io, OWNER_MCO, 1);
     HAL_RCC_MCOConfig(RCC_MCO, mcoSources[config->source], mcoDividers[config->divider]);
+
+#elif defined(AT32F43x)
+    if (device != MCODEV_2 || system_core_clock != 216000000U || !mco2PinAvailable()) {
+        return;
+    }
+    io = IOGetByTag(IO_TAG(PC9));
+    IOInit(io, OWNER_MCO, 2);
+    crm_clkout_div_set(CRM_CLKOUT_INDEX_2, CRM_CLKOUT_DIV1_2, CRM_CLKOUT_DIV2_4);
+    crm_clock_out2_set(CRM_CLKOUT2_PLL);
+    IOConfigGPIOAF(io, IO_CONFIG(GPIO_MODE_MUX, GPIO_DRIVE_STRENGTH_STRONGER, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_NONE), GPIO_MUX_0);
 #else
 #error Unsupported MCU
 #endif

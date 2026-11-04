@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/persistent.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -143,3 +146,5 @@ void persistentObjectInit(void)
         persistentObjectWrite(PERSISTENT_OBJECT_MAGIC, PERSISTENT_OBJECT_MAGIC_VALUE);
     }
 }
+
+#endif

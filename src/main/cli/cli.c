@@ -27,6 +27,9 @@
 #include <ctype.h>
 
 #include "platform.h"
+#ifdef AT32F43x
+#include "at32f435_437_clock.h"
+#endif
 
 // FIXME remove this for targets that don't need a CLI.  Perhaps use a no-op macro when USE_CLI is not enabled
 // signal that we're in cli mode
@@ -365,6 +368,8 @@ static const char *mcuTypeNames[] = {
     "H723/H725",
     "G474",
     "H730",
+    "AT32F403A",
+    "AT32F43x",
 };
 
 static const char *configurationStates[] = { "UNCONFIGURED", "CUSTOM DEFAULTS", "CONFIGURED" };
@@ -1480,7 +1485,9 @@ static void cliSerialPassthrough(const char *cmdName, char *cmdline)
     bool enableBaudCb = false;
     int port1PinioDtr = 0;
     bool port1ResetOnDtr = false;
+#ifdef USE_ESC_SENSOR
     bool escSensorPassthrough = false;
+#endif
     char *saveptr;
     char* tok = strtok_r(cmdline, " ", &saveptr);
     int index = 0;
@@ -1489,9 +1496,18 @@ static void cliSerialPassthrough(const char *cmdName, char *cmdline)
         switch (index) {
         case 0:
             if (strcasestr(tok, "esc_sensor")) {
+#ifdef USE_ESC_SENSOR
                 escSensorPassthrough = true;
                 const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_ESC_SENSOR);
+                if (!portConfig) {
+                    cliPrintLine("ESC sensor port is not configured.");
+                    return;
+                }
                 ports[0].id = portConfig->identifier;
+#else
+                cliPrintLine("ESC sensor support is not compiled.");
+                return;
+#endif
             } else {
                 ports[0].id = atoi(tok);
             }
@@ -4058,6 +4074,7 @@ static void cliDumpGyroRegisters(const char *cmdName, char *cmdline)
 #endif
 
 
+#if defined(USE_DSHOT) || defined(USE_ESCSERIAL)
 static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     int outputIndex = atoi(pch);
     if (outputIndex > 0 && outputIndex <= getMotorCount()) {
@@ -4070,6 +4087,7 @@ static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     }
     return outputIndex - 1;
 }
+#endif
 
 #if defined(USE_DSHOT)
 static void cliDshotProg(const char *cmdName, char *cmdline)
@@ -4909,8 +4927,9 @@ static void cliStatus(const char *cmdName, char *cmdline)
 
     cliPrintf("MCU %s Clock=%dMHz", getMcuTypeById(getMcuTypeId()), (SystemCoreClock / 1000000));
 
-#if defined(STM32F4) || defined(STM32G4)
-    // Only F4 and G4 is capable of switching between HSE/HSI (for now)
+#if defined(AT32F43x)
+    cliPrintf(" (PLL-%s)", systemClockUsesInternalOscillator() ? "HICK" : "HEXT");
+#elif defined(STM32F4) || defined(STM32G4)
     int sysclkSource = SystemSYSCLKSource();
 
     const char *SYSCLKSource[] = { "HSI", "HSE", "PLLP", "PLLR" };
@@ -5644,7 +5663,7 @@ dmaoptEntry_t dmaoptEntryTable[] = {
 #define DMA_OPT_UI_INDEX(i) ((i) + 1)
 #define DMA_OPT_STRING_BUFSIZE 5
 
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(AT32F43x)
 #define DMA_CHANREQ_STRING "Request"
 #else
 #define DMA_CHANREQ_STRING "Channel"
@@ -5677,7 +5696,11 @@ static void printPeripheralDmaoptDetails(dmaoptEntry_t *entry, int index, const 
     int uiIndex;
 
     if (entry->presenceMask) {
+#ifdef USE_TIMER
         uiIndex = timerGetNumberByIndex(index);
+#else
+        uiIndex = DMA_OPT_UI_INDEX(index);
+#endif
     } else {
         uiIndex = DMA_OPT_UI_INDEX(index);
     }
@@ -5919,7 +5942,9 @@ static void cliDmaopt(const char *cmdName, char *cmdline)
 #if defined(USE_TIMER_MGMT)
         timerIoConfig = timerIoConfigByTag(ioTag);
 #endif
+#ifdef USE_TIMER
         timer = timerGetConfiguredByTag(ioTag);
+#endif
     }
 
     // opt or list

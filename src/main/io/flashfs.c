@@ -774,6 +774,9 @@ bool flashfsIsEOF(void)
 
 void flashfsClose(void)
 {
+    if (!flashfsIsSupported() || !flashGeometry || !flashGeometry->pageSize) {
+        return;
+    }
     switch(flashGeometry->flashType) {
         case FLASH_TYPE_NAND:
             flashFlush();
@@ -843,6 +846,9 @@ void flashfsInit(void)
 
 void flashfsFillEntireFlash(void)
 {
+    if (!flashfsIsSupported()) {
+        return;
+    }
     flashfsEraseCompletely();
     while(flashfsState != FLASHFS_IDLE) {
         flashfsEraseAsync();
@@ -868,6 +874,9 @@ void flashfsFillEntireFlash(void)
 bool flashfsVerifyEntireFlash(void)
 {
     flashfsInit();
+    if (!flashfsIsSupported()) {
+        return false;
+    }
     uint32_t address = 0;
 
     const int bufferSize = 32;

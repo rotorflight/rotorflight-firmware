@@ -69,7 +69,7 @@ typedef enum {
     ADC_VBEC = 3,
     ADC_VBUS = 4,
     ADC_VEXT = 5,
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(AT32F43x)
     // On H7 and G4, internal sensors are treated in the similar fashion as regular ADC inputs
     ADC_CHANNEL_INTERNAL_FIRST_ID = 6,
     ADC_TEMPSENSOR = 6,
@@ -81,7 +81,7 @@ typedef enum {
 
 typedef struct adcOperatingConfig_s {
     ioTag_t tag;
-#if defined(STM32H7) || defined(STM32G4)
+#if defined(STM32H7) || defined(STM32G4) || defined(AT32F43x)
     ADCDevice adcDevice;        // ADCDEV_x for this input
     uint32_t adcChannel;        // Channel number for this input. Note that H7 and G4 HAL requires this to be 32-bit encoded number.
 #else

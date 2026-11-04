@@ -49,3 +49,7 @@ serialPort_t *usbVcpOpen(void);
 struct serialPort_s;
 uint32_t usbVcpGetBaudRate(struct serialPort_s *instance);
 uint8_t usbVcpIsConnected(void);
+
+#if defined(AT32F43x) && defined(USE_USB_CDC_HID)
+void usbVcpSendHidReport(const uint8_t *report, uint16_t size);
+#endif

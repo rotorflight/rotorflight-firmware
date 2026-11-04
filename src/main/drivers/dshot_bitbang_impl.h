@@ -79,6 +79,9 @@
 #ifdef USE_HAL_DRIVER
 #define BB_GPIO_PULLDOWN GPIO_PULLDOWN
 #define BB_GPIO_PULLUP   GPIO_PULLUP
+#elif defined(AT32F43x)
+#define BB_GPIO_PULLDOWN GPIO_PULL_DOWN
+#define BB_GPIO_PULLUP   GPIO_PULL_UP
 #else
 #define BB_GPIO_PULLDOWN GPIO_PuPd_DOWN
 #define BB_GPIO_PULLUP   GPIO_PuPd_UP
@@ -92,7 +95,7 @@ typedef struct dmaRegCache_s {
     uint32_t NDTR;
     uint32_t PAR;
     uint32_t M0AR;
-#elif defined(STM32G4)
+#elif defined(STM32G4) || defined(AT32F43x)
     uint32_t CCR;
     uint32_t CNDTR;
     uint32_t CPAR;
@@ -143,7 +146,7 @@ typedef struct bbPort_s {
 
 #ifdef USE_HAL_DRIVER
     LL_TIM_InitTypeDef timeBaseInit;
-#else
+#elif !defined(AT32F43x)
     TIM_TimeBaseInitTypeDef timeBaseInit;
 #endif
 

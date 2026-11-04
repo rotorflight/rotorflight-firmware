@@ -25,7 +25,7 @@
 
 #include "platform.h"
 
-#ifdef USE_TIMER
+#if defined(USE_TIMER) && !defined(AT32F43x)
 
 #include "build/atomic.h"
 

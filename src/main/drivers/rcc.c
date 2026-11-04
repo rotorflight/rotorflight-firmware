@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/rcc.c"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -222,3 +225,5 @@ void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState)
     }
 #endif
 }
+
+#endif

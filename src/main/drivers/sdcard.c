@@ -161,6 +161,14 @@ bool sdcard_poll(void)
     }
 }
 
+bool sdcard_flush(void)
+{
+    if (!sdcardVTable) {
+        return false;
+    }
+    return sdcardVTable->sdcard_flush ? sdcardVTable->sdcard_flush() : sdcard_poll();
+}
+
 bool sdcard_isFunctional(void)
 {
     // sdcard_isFunctional is called from multiple places, including the case of hardware implementation

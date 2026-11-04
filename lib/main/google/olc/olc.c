@@ -3,6 +3,7 @@
 #include <float.h>
 #include <math.h>
 #include <memory.h>
+#include <string.h>
 #include <stdio.h>
 #include "olc_private.h"
 
@@ -59,7 +60,9 @@ void OLC_GetCenter(const OLC_CodeArea* area, OLC_LatLon* center) {
 
 size_t OLC_CodeLength(const char* code, size_t size) {
   CodeInfo info;
-  analyse(code, size, &info);
+  if (analyse(code, size, &info) <= 0) {
+    return 0;
+  }
   return code_length(&info);
 }
 
@@ -323,13 +326,13 @@ static int analyse(const char* code, size_t size, CodeInfo* info) {
   }
 
   info->code = code;
-  info->size = size < kMaximumDigitCount ? size : kMaximumDigitCount;
+  info->size = size;
   info->sep_first = -1;
   info->sep_last = -1;
   info->pad_first = -1;
   info->pad_last = -1;
   int j = 0;
-  for (j = 0; j <= size && code[j] != '\0'; ++j) {
+  for (j = 0; j < size && code[j] != '\0'; ++j) {
     int ok = 0;
 
     // if this is a padding character, remember it
@@ -362,7 +365,7 @@ static int analyse(const char* code, size_t size, CodeInfo* info) {
   }
 
   // so far, code only has valid characters -- good
-  info->len = j < kMaximumDigitCount ? j : kMaximumDigitCount;
+  info->len = j < kMaximumDigitCount + 1 ? j : kMaximumDigitCount + 1;
 
   // Cannot be empty
   if (info->len <= 0) {
@@ -479,7 +482,7 @@ static int decode(CodeInfo* info, OLC_CodeArea* decoded) {
   // Create a copy of the code, skipping padding and separators.
   char clean_code[256];
   int ci = 0;
-  for (size_t i = 0; i < info->len + 1; i++) {
+  for (size_t i = 0; i < info->len; i++) {
     if (info->code[i] != kPaddingCharacter && info->code[i] != kSeparator) {
       clean_code[ci] = info->code[i];
       ci++;
@@ -500,7 +503,7 @@ static int decode(CodeInfo* info, OLC_CodeArea* decoded) {
                                                        : kPairCodeLength;
   // Define the place value for the most significant pair.
   int pv = pow(kEncodingBase, kPairCodeLength / 2);
-  for (size_t i = 0; i < digits - 1; i += 2) {
+  for (size_t i = 0; i + 1 < digits; i += 2) {
     pv /= kEncodingBase;
     normal_lat += get_alphabet_position(clean_code[i]) * pv;
     normal_lng += get_alphabet_position(clean_code[i + 1]) * pv;

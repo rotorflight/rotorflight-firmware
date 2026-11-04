@@ -32,4 +32,12 @@ typedef enum {
 #define MCO_DIVIDER_COUNT  5
 #endif
 
+#ifdef AT32F43x
+#define MCO_SOURCE_COUNT   4
+#define MCO_DIVIDER_COUNT  5
+#endif
+
 void mcoConfigure(MCODevice_e device, const mcoConfig_t *config);
+#ifdef AT32F43x
+bool mco2PinAvailable(void);
+#endif

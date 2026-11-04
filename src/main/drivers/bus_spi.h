@@ -1,3 +1,6 @@
+#if defined(AT32F43x)
+#include "at32_port/bus_spi.h"
+#else
 /*
  * This file is part of Cleanflight and Betaflight.
  *
@@ -169,3 +172,5 @@ void spiBusDeviceRegister(const extDevice_t *dev);
 uint8_t spiGetRegisteredDeviceCount(void);
 uint8_t spiGetExtDeviceCount(const extDevice_t *dev);
 
+
+#endif // AT32F43x

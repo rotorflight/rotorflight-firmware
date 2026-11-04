@@ -108,6 +108,48 @@
 #define STM32F4
 #endif
 
+#elif defined(AT32F43x)
+
+
+#include "at32f435_437.h"
+#define UID_BASE 0x1FFFF7E8UL
+#undef USE_STDPERIPH_DRIVER
+#define ADC_TypeDef adc_type
+#define DMA_InitTypeDef dma_init_type
+#define TIM_TypeDef tmr_type
+#define SPI_TypeDef spi_type
+#define USART_TypeDef usart_type
+#define GPIO_TypeDef gpio_type
+#define SystemCoreClock system_core_clock
+
+
+// Chip Unique ID on F103
+#define U_ID_0 (*(uint32_t*)0x1FFFF7E8)
+#define U_ID_1 (*(uint32_t*)0x1FFFF7EC)
+#define U_ID_2 (*(uint32_t*)0x1FFFF7F0)
+
+#ifndef AT32F4
+#define AT32F4
+#endif
+
+#define SET_BIT(REG, BIT)     ((REG) |= (BIT))
+
+#define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
+
+#define READ_BIT(REG, BIT)    ((REG) & (BIT))
+
+#define CLEAR_REG(REG)        ((REG) = (0x0))
+
+#define WRITE_REG(REG, VAL)   ((REG) = (VAL))
+
+#define READ_REG(REG)         ((REG))
+
+#define MODIFY_REG(REG, CLEARMASK, SETMASK)  WRITE_REG((REG), (((READ_REG(REG)) & (~(CLEARMASK))) | (SETMASK)))
+
+#define FunctionalState confirm_state
+#define ENABLE TRUE
+#define DISABLE FALSE
+
 #elif defined(SIMULATOR_BUILD)
 
 // Nop

@@ -54,6 +54,11 @@
 
 static inputFilteringMode_e inputFilteringMode;
 
+#if defined(AT32F43x)
+#define TIM_ICPolarity_Rising TMR_INPUT_RISING_EDGE
+#define TIM_ICPolarity_Falling TMR_INPUT_FALLING_EDGE
+#endif
+
 void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity);
 
 typedef enum {
@@ -342,6 +347,17 @@ void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
     HAL_TIM_IC_ConfigChannel(Handle, &TIM_ICInitStructure, channel);
     HAL_TIM_IC_Start_IT(Handle,channel);
 }
+#elif defined(AT32F43x)
+void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
+{
+    tmr_input_config_type input = {
+        .input_channel_select = TIM_CH_TO_SELCHANNEL(channel),
+        .input_polarity_select = polarity,
+        .input_mapped_select = TMR_CC_CHANNEL_MAPPED_DIRECT,
+        .input_filter_value = inputFilteringMode ? INPUT_FILTER_TO_HELP_WITH_NOISE_FROM_OPENLRS_TELEMETRY_RX : 0,
+    };
+    tmr_input_channel_init(tim, &input, TMR_CHANNEL_INPUT_DIV_1);
+}
 #else
 void pwmICConfig(TIM_TypeDef *tim, uint8_t channel, uint16_t polarity)
 {
@@ -412,7 +428,11 @@ void ppmAvoidPWMTimerClash(TIM_TypeDef *pwmTimer)
             continue;
         }
 
+#if defined(AT32F43x)
+        ppmCountDivisor = timerClock(pwmTimer) / (pwmTimer->div + 1);
+#else
         ppmCountDivisor = timerClock(pwmTimer) / (pwmTimer->PSC + 1);
+#endif
         return;
     }
 }

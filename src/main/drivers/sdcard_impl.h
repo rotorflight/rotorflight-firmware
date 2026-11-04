@@ -115,6 +115,7 @@ typedef struct sdcardVTable_s {
     sdcardOperationStatus_e (*sdcard_beginWriteBlocks)(uint32_t blockIndex, uint32_t blockCount);
     sdcardOperationStatus_e (*sdcard_writeBlock)(uint32_t blockIndex, uint8_t *buffer, sdcard_operationCompleteCallback_c callback, uint32_t callbackData);
     bool (*sdcard_poll)(void);
+    bool (*sdcard_flush)(void);
     bool (*sdcard_isFunctional)(void);
     bool (*sdcard_isInitialized)(void);
     const sdcardMetadata_t* (*sdcard_getMetadata)(void);
