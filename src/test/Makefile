@@ -291,14 +291,17 @@ rc_modes_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c
 
 
-# This test is disabled due to build errors.
-#rx_crsf_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/drivers/serial.c
+rx_crsf_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/drivers/serial.c \
+		$(USER_DIR)/pg/pg.c
+
+rx_crsf_unittest_DEFINES := \
+		USE_CRSF_V3=
 
 
 rx_ibus_unittest_SRC := \
