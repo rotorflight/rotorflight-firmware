@@ -69,6 +69,12 @@
 #define USE_BARO
 #define USE_FAKE_BARO
 
+// Rotor speed from the FDM packet (freq_fake.c), for the governor and the RPM
+// filter, as on the F4/F7 boards.
+#define USE_FREQ_SENSOR
+#define USE_RPM_FILTER
+#define USE_DYN_NOTCH_FILTER
+
 #define USABLE_TIMER_CHANNEL_COUNT 12  // 4 motors + 8 servos, see timerHardware[] in target.c
 
 #define USE_UART1
@@ -93,7 +99,12 @@
 #undef USE_STACK_CHECK // I think SITL don't need this
 #undef USE_DASHBOARD
 #undef USE_TELEMETRY_LTM
-#undef USE_ADC
+// Board ADC fed from the FDM packet (adc_fake.c); the pack is measured there
+// by default, so a simulator's pack voltage and current work out of the box.
+#define USE_ADC
+#define USE_ADC_INTERNAL
+#define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_ADC
+#define DEFAULT_CURRENT_METER_SOURCE    CURRENT_METER_ADC
 #undef USE_VCP
 #undef USE_OSD
 #undef USE_PPM
@@ -254,7 +265,28 @@ typedef struct {
     double imu_orientation_quat[4];     //w, x, y, z
     double velocity_xyz[3];             // m/s, earth frame
     double position_xyz[3];             // meters, NED from origin
+    // Optional tail, told apart by the datagram length: each longer layout is
+    // the shorter one plus fields at the end, and fields a packet does not
+    // contain are not read.
+    double motor_erpm[4];               // 168 bytes: electrical rpm per motor, -> frequency sensor
+    double pressure;                    // 176: static pressure, Pa (else ISA from position_xyz[2])
+    double mcu_vref;                    // 192: MCU supply rail, V
+    double mcu_temp;                    //      MCU die temperature, degC
+    double vbec;                        // 208: BEC rail, V
+    double vbus;                        //      bus rail, V
+    double vbat;                        // 224: pack voltage on the board ADC, V
+    double ibat;                        //      pack current on the board ADC, A
 } fdm_packet;
+
+#define FDM_PACKET_SIZE_BASE    136
+#define FDM_PACKET_SIZE_ERPM    168
+#define FDM_PACKET_SIZE_BARO    176
+#define FDM_PACKET_SIZE_MCU     192
+#define FDM_PACKET_SIZE_RAILS   208
+#define FDM_PACKET_SIZE_PACK    224
+
+void fakeFreqSet(uint8_t port, float hz);
+void simAdcUpdate(const fdm_packet *pkt, int size);
 typedef struct {
     float motor_speed[4];   // M1-M4 in order; normal: [0.0, 1.0], 3D: [-1.0, 1.0]
     float servo[8];         // S1-S8 pulse width in microseconds, 0 for an absent servo

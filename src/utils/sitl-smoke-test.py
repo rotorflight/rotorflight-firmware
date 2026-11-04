@@ -328,12 +328,16 @@ def run(elf, rundir):
         msp = Msp(sock)
         msp.request(MSP_ACC_CALIBRATION)
 
-        deadline = time.time() + 20
+        deadline = time.time() + 30   # the baro calibrates for 12.5 s, as on a board
         armed, flags = hold(msp, 1000, 1000, 0.5)
+        seen = None
         while flags and time.time() < deadline:
+            if flags != seen:
+                log("     waiting on %s" % flags)
+                seen = flags
             armed, flags = hold(msp, 1000, 1000, 0.2)
         if flags:
-            raise Failure("arming blockers did not clear within 20 s: %s" % flags)
+            raise Failure("arming blockers did not clear within 30 s: %s" % flags)
         log("PASS arming blockers clear (acc calibrated, RX up)")
 
         armed, flags = hold(msp, 1000, 1900, 1.0)
@@ -387,13 +391,17 @@ def run(elf, rundir):
                 time.sleep(0.2)
         radio.start()
 
-        deadline = time.time() + 20
+        deadline = time.time() + 30   # the baro calibrates for 12.5 s, as on a board
         armed, flags = msp.status()
+        seen = None
         while flags and time.time() < deadline:
+            if flags != seen:
+                log("     waiting on %s" % flags)
+                seen = flags
             time.sleep(0.2)
             armed, flags = msp.status()
         if flags:
-            raise Failure("CRSF: arming blockers did not clear within 20 s: %s" % flags)
+            raise Failure("CRSF: arming blockers did not clear within 30 s: %s" % flags)
         if not radio.frames or radio.bad_crc:
             raise Failure("CRSF telemetry: %d frames, %d with a bad CRC" % (radio.frames, radio.bad_crc))
         log("PASS CRSF: RX up, %d telemetry frames, no CRC errors" % radio.frames)
