@@ -53,7 +53,8 @@ extern "C" {
 
     #include "rx/rx.h"
 
-    float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // interval [1000;2000]
+    float rcInput[MAX_SUPPORTED_RC_CHANNEL_COUNT];     // aux channels, interval [1000;2000]
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];   // sticks, +-500 around centre
 
     extern rcdeviceSwitchState_t switchStates[BOXCAMERA3 - BOXCAMERA1 + 1];
     extern runcamDevice_t *camDevice;
@@ -305,7 +306,7 @@ TEST(RCDeviceTest, TestWifiModeChangeWithDeviceUnready)
     // bind aux1 to wifi button with range [900,1600]
     modeActivationConditionsMutable(0)->auxChannelIndex = 0;
     modeActivationConditionsMutable(0)->modeId = BOXCAMERA1;
-    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(CHANNEL_RANGE_MIN);
+    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(PWM_RANGE_MIN);
     modeActivationConditionsMutable(0)->range.endStep = CHANNEL_VALUE_TO_STEP(1600);
 
     // bind aux2 to power button with range [1900, 2100]
@@ -323,9 +324,9 @@ TEST(RCDeviceTest, TestWifiModeChangeWithDeviceUnready)
     analyzeModeActivationConditions();
     
     // make the binded mode inactive
-    rcData[modeActivationConditions(0)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1800;
-    rcData[modeActivationConditions(1)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 900;
-    rcData[modeActivationConditions(2)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 900;
+    rcInput[modeActivationConditions(0)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1800;
+    rcInput[modeActivationConditions(1)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 900;
+    rcInput[modeActivationConditions(2)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 900;
 
     updateActivatedModes();
 
@@ -378,7 +379,7 @@ TEST(RCDeviceTest, TestWifiModeChangeWithDeviceReady)
     // bind aux1 to wifi button with range [900,1600]
     modeActivationConditionsMutable(0)->auxChannelIndex = 0;
     modeActivationConditionsMutable(0)->modeId = BOXCAMERA1;
-    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(CHANNEL_RANGE_MIN);
+    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(PWM_RANGE_MIN);
     modeActivationConditionsMutable(0)->range.endStep = CHANNEL_VALUE_TO_STEP(1600);
 
     // bind aux2 to power button with range [1900, 2100]
@@ -395,9 +396,9 @@ TEST(RCDeviceTest, TestWifiModeChangeWithDeviceReady)
 
     analyzeModeActivationConditions();
 
-    rcData[modeActivationConditions(0)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1700;
-    rcData[modeActivationConditions(1)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 2000;
-    rcData[modeActivationConditions(2)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1700;
+    rcInput[modeActivationConditions(0)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1700;
+    rcInput[modeActivationConditions(1)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 2000;
+    rcInput[modeActivationConditions(2)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1700;
 
     updateActivatedModes();
 
@@ -447,7 +448,7 @@ TEST(RCDeviceTest, TestWifiModeChangeCombine)
     // bind aux1 to wifi button with range [900,1600]
     modeActivationConditionsMutable(0)->auxChannelIndex = 0;
     modeActivationConditionsMutable(0)->modeId = BOXCAMERA1;
-    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(CHANNEL_RANGE_MIN);
+    modeActivationConditionsMutable(0)->range.startStep = CHANNEL_VALUE_TO_STEP(PWM_RANGE_MIN);
     modeActivationConditionsMutable(0)->range.endStep = CHANNEL_VALUE_TO_STEP(1600);
 
     // bind aux2 to power button with range [1900, 2100]
@@ -465,9 +466,9 @@ TEST(RCDeviceTest, TestWifiModeChangeCombine)
     analyzeModeActivationConditions();
 
     // // make the binded mode inactive
-    rcData[modeActivationConditions(0)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1700;
-    rcData[modeActivationConditions(1)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 2000;
-    rcData[modeActivationConditions(2)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1700;
+    rcInput[modeActivationConditions(0)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1700;
+    rcInput[modeActivationConditions(1)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 2000;
+    rcInput[modeActivationConditions(2)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1700;
     updateActivatedModes();
 
     // runn process loop
@@ -481,9 +482,9 @@ TEST(RCDeviceTest, TestWifiModeChangeCombine)
 
 
     // // make the binded mode inactive
-    rcData[modeActivationConditions(0)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1500;
-    rcData[modeActivationConditions(1)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1300;
-    rcData[modeActivationConditions(2)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1900;
+    rcInput[modeActivationConditions(0)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1500;
+    rcInput[modeActivationConditions(1)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1300;
+    rcInput[modeActivationConditions(2)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1900;
     updateActivatedModes();
     rcdeviceUpdate((timeUs_t)0);
     EXPECT_TRUE(unitTestIsSwitchActivited(BOXCAMERA1));
@@ -491,12 +492,12 @@ TEST(RCDeviceTest, TestWifiModeChangeCombine)
     EXPECT_TRUE(unitTestIsSwitchActivited(BOXCAMERA3));
 
 
-    rcData[modeActivationConditions(2)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 1899;
+    rcInput[modeActivationConditions(2)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 1899;
     updateActivatedModes();
     rcdeviceUpdate((timeUs_t)0);
     EXPECT_FALSE(unitTestIsSwitchActivited(BOXCAMERA3));
 
-    rcData[modeActivationConditions(1)->auxChannelIndex + NON_AUX_CHANNEL_COUNT] = 2001;
+    rcInput[modeActivationConditions(1)->auxChannelIndex + CONTROL_CHANNEL_COUNT] = 2001;
     updateActivatedModes();
     rcdeviceUpdate((timeUs_t)0);
     EXPECT_TRUE(unitTestIsSwitchActivited(BOXCAMERA1));
@@ -714,10 +715,10 @@ TEST(RCDeviceTest, Test5KeyOSDCableSimulationWithout5KeyFeatureSupport)
     resetRCDeviceStatus();
     
     // test simulation without device init
-    rcData[THROTTLE] = FIVE_KEY_JOYSTICK_MID; // THROTTLE Mid
-    rcData[ROLL] = FIVE_KEY_JOYSTICK_MID; // ROLL Mid
-    rcData[PITCH] = FIVE_KEY_JOYSTICK_MID; // PITCH Mid
-    rcData[YAW] = FIVE_KEY_JOYSTICK_MAX; // Yaw High
+    rcCommand[THROTTLE] = FIVE_KEY_JOYSTICK_MID; // THROTTLE Mid
+    rcCommand[ROLL] = FIVE_KEY_JOYSTICK_MID; // ROLL Mid
+    rcCommand[PITCH] = FIVE_KEY_JOYSTICK_MID; // PITCH Mid
+    rcCommand[YAW] = FIVE_KEY_JOYSTICK_MAX; // Yaw High
     rcdeviceUpdate(millis() * 1000);
     EXPECT_FALSE(rcdeviceInMenu);
     // remove all request from queue
@@ -899,26 +900,6 @@ extern "C" {
         return 0;
     }
 
-    void sbufAdvance(sbuf_t *buf, int size)
-    {
-        if (testData.isAllowBufferReadWrite) {
-            buf->ptr += size;
-        }
-    }
-
-    int sbufBytesRemaining(sbuf_t *buf)
-    {
-        if (testData.isAllowBufferReadWrite) {
-            return buf->end - buf->ptr;
-        }
-        return 0;
-    }
-
-    const uint8_t* sbufConstPtr(const sbuf_t *buf)
-    {
-        return buf->ptr;
-    }
-
     void sbufReadData(sbuf_t *src, void *data, int len)
     {
         if (testData.isAllowBufferReadWrite) {
@@ -940,7 +921,7 @@ extern "C" {
         sbufWriteU8(dst, val >> 8);
     }
 
-    void sbufWriteU16BigEndian(sbuf_t *dst, uint16_t val)
+    void sbufWriteU16BE(sbuf_t *dst, uint16_t val)
     {
         sbufWriteU8(dst, val >> 8);
         sbufWriteU8(dst, (uint8_t)val);
@@ -971,11 +952,6 @@ extern "C" {
     void closeSerialPort(serialPort_t *serialPort)
     {
         UNUSED(serialPort);
-    }
-
-    uint8_t* sbufPtr(sbuf_t *buf)
-    {
-        return buf->ptr;
     }
 
     uint32_t sbufReadU32(sbuf_t *src)
