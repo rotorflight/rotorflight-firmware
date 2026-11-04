@@ -54,7 +54,9 @@ extern "C" {
     #include "io/gps.h"
     #include "io/serial.h"
 
+    #include "cms/cms.h"
     #include "osd/osd.h"
+    #include "sensors/acceleration.h"
     #include "osd/osd_elements.h"
     #include "osd/osd_warnings.h"
 
@@ -103,15 +105,10 @@ extern "C" {
 #include "gtest/gtest.h"
 
 extern "C" {
-    PG_REGISTER(flight3DConfig_t, flight3DConfig, PG_MOTOR_3D_CONFIG, 0);
-
-    boxBitmask_t rcModeActivationMask;
-    int16_t debug[DEBUG16_VALUE_COUNT];
+    int32_t debug[DEBUG_VALUE_COUNT];
     uint8_t debugMode = 0;
 
     uint16_t updateLinkQualitySamples(uint16_t value);
-
-    extern uint16_t applyRxChannelRangeConfiguraton(int sample, const rxChannelRangeConfig_t *range);
 }
 void setDefaultSimulationState()
 {
@@ -207,8 +204,8 @@ TEST(LQTest, TestInit)
 
     // and
     // this battery configuration (used for battery voltage elements)
-    batteryConfigMutable()->vbatmincellvoltage = 330;
-    batteryConfigMutable()->vbatmaxcellvoltage = 430;
+    batteryConfigMutable()->vbatmincellvoltage[0] = 330;
+    batteryConfigMutable()->vbatmaxcellvoltage[0] = 430;
 
     // when
     // OSD is initialised
@@ -221,9 +218,9 @@ TEST(LQTest, TestInit)
 
     // then
     // display buffer should contain splash screen
-    displayPortTestBufferSubstring(7, 8, "MENU:THR MID");
-    displayPortTestBufferSubstring(11, 9, "+ YAW LEFT");
-    displayPortTestBufferSubstring(11, 10, "+ PITCH UP");
+    displayPortTestBufferSubstring(7, 8, CMS_STARTUP_HELP_TEXT1);
+    displayPortTestBufferSubstring(11, 9, CMS_STARTUP_HELP_TEXT2);
+    displayPortTestBufferSubstring(11, 10, CMS_STARTUP_HELP_TEXT3);
 
     // when
     // splash screen timeout has elapsed
@@ -478,8 +475,25 @@ extern "C" {
     uint8_t getBatteryCellCount() { return 4; }
     uint16_t getBatteryVoltage() { return 1680; }
     uint16_t getBatteryAverageCellVoltage() { return  420; }
-    int32_t getAmperage() { return 0; }
-    int32_t getMAhDrawn() { return 0; }
+    uint16_t getBatteryCurrent(void) { return 0; }
+    uint32_t getBatteryCapacityUsed(void) { return 0; }
+    uint16_t getBatteryCapacity(void) { return 0; }
+    uint16_t getBatteryMinCellVoltage(void) { return batteryConfig()->vbatmincellvoltage[0]; }
+    uint16_t getBatteryMaxCellVoltage(void) { return batteryConfig()->vbatmaxcellvoltage[0]; }
+    uint16_t getBatteryFullCellVoltage(void) { return batteryConfig()->vbatfullcellvoltage[0]; }
+
+    bool isRpmSourceActive(void) { return false; }
+    int getHeadSpeed(void) { return 0; }
+    int16_t getMotorOutput(uint8_t) { return 0; }
+    float getThrottle(void) { return 0; }
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+    uint16_t getFailsafeCenter(void) { return 1500; }
+    uint16_t getFailsafeThrottle(void) { return 1000; }
+
+    bool ibus2Init(const rxConfig_t *, rxRuntimeState_t *) { return false; }
+    void crsfScheduleDeviceInfoResponse(void) {}
+    serialPortUsage_t *findSerialPortUsageByIdentifier(serialPortIdentifier_e) { return NULL; }
+    void closeSerialPort(serialPort_t *) {}
     int32_t getEstimatedAltitudeCm() { return 0; }
     int32_t getEstimatedVario() { return 0; }
     int32_t blackboxGetLogNumber() { return 0; }
@@ -590,26 +604,6 @@ extern "C" {
         UNUSED(rxRuntimeState);
         UNUSED(callback);
         return true;
-    }
-
-    float pt1FilterGain(float f_cut, float dT)
-    {
-        UNUSED(f_cut);
-        UNUSED(dT);
-        return 0.0;
-    }
-
-    void pt1FilterInit(pt1Filter_t *filter, float k)
-    {
-        UNUSED(filter);
-        UNUSED(k);
-    }
-
-    float pt1FilterApply(pt1Filter_t *filter, float input)
-    {
-        UNUSED(filter);
-        UNUSED(input);
-        return 0.0;
     }
 
     bool isUpright(void) { return true; }
