@@ -185,10 +185,12 @@ encoding_unittest_SRC := \
 #		$(USER_DIR)/flight/imu.c
 
 
-flight_mixer_unittest :=  \
+flight_mixer_unittest_SRC :=  \
 		$(USER_DIR)/flight/mixer.c \
-		$(USER_DIR)/flight/servos.c \
-		$(USER_DIR)/common/maths.c
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 gps_conversion_unittest_SRC := \
