@@ -606,8 +606,12 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
 //
 // When the PID profile is switched in flight, the gains below move from the
 // old profile's values to the new one's instead of stepping. The headspeed
-// the governor is heading for sets the pace: halfway between the old and new
-// headspeed means halfway between the old and new gains. Whenever headspeed
+// the governor is heading for sets the pace. Rotor and tail authority grow
+// with headspeed squared, so profiles tuned for their own headspeed have
+// gains that go roughly with 1/headspeed². The progress follows that curve:
+// with such profiles the loop gain stays constant through the change, where
+// a progress linear in headspeed would overshoot it by up to ~20% (for
+// 2500 -> 1500 rpm) on the way. Whenever headspeed
 // can't be trusted (external governor, throttle curve, lost RPM signal,
 // throttle hold, autorotation, ...) the blend carries on over time instead.
 // Every path is rate limited, only moves forward and always comes to an end.
@@ -877,7 +881,10 @@ static void pidBlendUpdate(void)
                 const float minChange = PID_BLEND_MIN_HS_CHANGE * fmaxf(targetHeadSpeed, blend.anchorHeadSpeed);
 
                 if (minChange > 0 && fabsf(change) > minChange) {
-                    const float progress = (headSpeed - blend.anchorHeadSpeed) / change;
+                    // Progress in 1/headspeed², from the anchor to the target
+                    const float anchorSq = sq(blend.anchorHeadSpeed);
+                    const float progress = (anchorSq / sq(fmaxf(headSpeed, 1.0f)) - 1) /
+                                           (anchorSq / sq(targetHeadSpeed) - 1);
                     ratio = fmaxf(ratio, blend.anchorRatio + (1 - blend.anchorRatio) * progress);
                     followHeadSpeed = true;
                 }
