@@ -582,6 +582,8 @@ void delayMicroseconds_real(uint32_t us) {
 
 void simLoopIdle(void)
 {
+    tcpProcessRxCallbacks();
+
     if (simLoopSleepUs) {
         microsleep(simLoopSleepUs);
     } else {

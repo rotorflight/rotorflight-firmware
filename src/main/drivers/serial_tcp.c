@@ -288,6 +288,24 @@ void tcpDataIn(tcpPort_t *instance, uint8_t* ch, int size)
 //    printf("\n");
 }
 
+// A port opened with an rxCallback (serial RX: CRSF, SBUS, ...) is fed byte by
+// byte from an interrupt on a board and never read with serialRead(). The
+// socket thread only buffers; the main loop hands the buffered bytes to the
+// callback here, so the callback runs on the firmware's own thread and never
+// concurrently with it.
+void tcpProcessRxCallbacks(void)
+{
+    for (int id = 0; id < SERIAL_PORT_COUNT; id++) {
+        tcpPort_t *s = &tcpSerialPorts[id];
+        if (!tcpPortInitialized[id] || !s->port.rxCallback) {
+            continue;
+        }
+        while (tcpTotalRxBytesWaiting(&s->port)) {
+            s->port.rxCallback(tcpRead(&s->port), s->port.rxCallbackData);
+        }
+    }
+}
+
 static const struct serialPortVTable tcpVTable = {
         .serialWrite = tcpWrite,
         .serialTotalRxWaiting = tcpTotalRxBytesWaiting,

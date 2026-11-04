@@ -83,6 +83,7 @@ serialPort_t *serTcpOpen(int id, serialReceiveCallbackPtr rxCallback, void *rxCa
 // tcpPort API
 void tcpDataIn(tcpPort_t *instance, uint8_t* ch, int size);
 void tcpDataOut(tcpPort_t *instance);
+void tcpProcessRxCallbacks(void);
 
 bool tcpIsStart(void);
 bool* tcpGetUsed(void);
