@@ -314,14 +314,13 @@ rx_sumd_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/rx/sumd.c
 
-# This test is disabled due to test failures.
-#scheduler_unittest_SRC := \
-#		$(USER_DIR)/scheduler/scheduler.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/streambuf.c
-#
-#scheduler_unittest_DEFINES := \
-#		USE_OSD=
+scheduler_unittest_SRC := \
+		$(USER_DIR)/scheduler/scheduler.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+scheduler_unittest_DEFINES := \
+		USE_OSD=
 
 sensor_gyro_unittest_SRC := \
 		$(USER_DIR)/sensors/gyro.c \
