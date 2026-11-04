@@ -43,7 +43,7 @@ FAST_CODE void run(void)
     while (true) {
         scheduler();
 #ifdef SIMULATOR_BUILD
-        delayMicroseconds_real(50); // max rate 20kHz
+        simLoopIdle();
 #endif
     }
 }
