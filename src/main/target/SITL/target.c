@@ -259,7 +259,7 @@ void updateState(const fdm_packet* pkt) {
         struct timespec out_ts;
         timeval_sub(&out_ts, &now_ts, &last_ts);
         windowSim += deltaSim;
-        windowReal += out_ts.tv_sec + 1e-9*out_ts.tv_nsec;
+        windowReal += out_ts.tv_sec + out_ts.tv_nsec / 1000000000.0L;
         if (windowReal >= 0.05) {
             simRate = constrainf(windowSim / windowReal, 0.05f, 20.0f);
             windowSim = 0;
@@ -456,22 +456,22 @@ void indicateFailure(failureMode_e mode, int repeatCount)
 
 // Time part
 // Thanks ArduPilot
+// Integer arithmetic only: with -fsingle-precision-constant, `tv_sec*1e9`
+// is computed in float, whose step at the host's uptime (CLOCK_MONOTONIC
+// counts from boot) is tens of milliseconds - the whole SITL then runs in
+// 67 ms clock steps on a Windows host that has been up for days.
 uint64_t nanos64_real(void) {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (ts.tv_sec*1e9 + ts.tv_nsec) - (start_time.tv_sec*1e9 + start_time.tv_nsec);
+    return (uint64_t)(ts.tv_sec - start_time.tv_sec) * 1000000000ull + (uint64_t)ts.tv_nsec - (uint64_t)start_time.tv_nsec;
 }
 
 uint64_t micros64_real(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return 1.0e6*((ts.tv_sec + (ts.tv_nsec*1.0e-9)) - (start_time.tv_sec + (start_time.tv_nsec*1.0e-9)));
+    return nanos64_real() / 1000;
 }
 
 uint64_t millis64_real(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return 1.0e3*((ts.tv_sec + (ts.tv_nsec*1.0e-9)) - (start_time.tv_sec + (start_time.tv_nsec*1.0e-9)));
+    return nanos64_real() / 1000000;
 }
 
 // The firmware clock integrates real time at simRate into a running total, a
@@ -503,11 +503,11 @@ static uint64_t simNanos64(void)
 }
 
 uint64_t micros64(void) {
-    return simNanos64()*1e-3;
+    return simNanos64() / 1000;
 }
 
 uint64_t millis64(void) {
-    return simNanos64()*1e-6;
+    return simNanos64() / 1000000;
 }
 
 uint32_t micros(void) {
