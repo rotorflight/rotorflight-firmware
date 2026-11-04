@@ -258,7 +258,9 @@ typedef struct {
 typedef struct {
     float motor_speed[4];   // M1-M4 in order; normal: [0.0, 1.0], 3D: [-1.0, 1.0]
     float servo[8];         // S1-S8 pulse width in microseconds, 0 for an absent servo
-} servo_packet;
+    float mixer[5];         // stabilized mixer inputs: roll, pitch, yaw, collective, throttle
+                            // (mixerGetInput(MIXER_IN_STABILIZED_*), dimensionless firmware units)
+} servo_packet;             // 68 bytes; the first 48 (motors + servos) are the older layout
 
 void FLASH_Unlock(void);
 void FLASH_Lock(void);

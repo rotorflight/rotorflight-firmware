@@ -30,6 +30,10 @@
 #include <string.h>
 
 #include <errno.h>
+#if !defined(_WIN32) && !defined(__MINGW32__)
+#include <netdb.h>          // getaddrinfo(); ws2tcpip.h on Windows, via serial_tcp.h
+#include <arpa/inet.h>      // inet_ntop()
+#endif
 #include <sched.h>
 #include <time.h>
 #if defined(_WIN32) || defined(__MINGW32__)
@@ -90,6 +94,7 @@ const timerHardware_t timerHardware[SITL_TIMER_MOTOR_COUNT + SITL_TIMER_SERVO_CO
 #include "drivers/accgyro/accgyro_fake.h"
 #include "flight/imu.h"
 #include "flight/servos.h"
+#include "flight/mixer.h"
 
 #include "config/feature.h"
 #include "config/config.h"
@@ -346,6 +351,65 @@ static void* tcpThread(void* data) {
 }
 
 // system
+// A decimal UDP port from the environment, or the default when unset.
+static int simEnvPort(const char *name, int def)
+{
+    const char *v = getenv(name);
+    if (!v) {
+        return def;
+    }
+    char *end;
+    const long port = strtol(v, &end, 10);
+    if (!*v || *end || port < 1 || port > 65535) {
+        fprintf(stderr, "SITL: %s='%s' is not a port number 1..65535\n", name, v);
+        exit(1);
+    }
+    return (int)port;
+}
+
+// host[:port] from the environment, the host resolved to a dotted IPv4
+// address (udpInit() takes inet_addr() input), or the defaults when unset.
+static void simEnvEndpoint(const char *name, const char *defHost, int defPort, char *host, size_t hostSize, int *port)
+{
+    const char *v = getenv(name);
+    if (!v) {
+        snprintf(host, hostSize, "%s", defHost);
+        *port = defPort;
+        return;
+    }
+
+    char name_[128];
+    snprintf(name_, sizeof(name_), "%s", v);
+    char *colon = strrchr(name_, ':');
+    *port = defPort;
+    if (colon) {
+        *colon = 0;
+        char *end;
+        const long p = strtol(colon + 1, &end, 10);
+        if (!colon[1] || *end || p < 1 || p > 65535) {
+            fprintf(stderr, "SITL: %s='%s': the port is not a number 1..65535\n", name, v);
+            exit(1);
+        }
+        *port = (int)p;
+    }
+    if (!name_[0]) {
+        fprintf(stderr, "SITL: %s='%s': no host\n", name, v);
+        exit(1);
+    }
+
+    struct addrinfo hints, *res = NULL;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    if (getaddrinfo(name_, NULL, &hints, &res) != 0 || !res) {
+        fprintf(stderr, "SITL: %s='%s': cannot resolve '%s' to an IPv4 address\n", name, v, name_);
+        exit(1);
+    }
+    inet_ntop(AF_INET, &((struct sockaddr_in *)res->ai_addr)->sin_addr, host, hostSize);
+    freeaddrinfo(res);
+}
+
+
 void systemInit(void) {
     int ret;
 
@@ -405,11 +469,26 @@ void systemInit(void) {
     }
     pthread_mutex_unlock(&dyadReadyLock);
 
-    ret = udpInit(&pwmLink, "127.0.0.1", 9002, false);
-    printf("init PwmOut UDP link...%d\n", ret);
+    // Endpoints: SITL_FDM_PORT (default 9003, all interfaces) and
+    // SITL_OUTPUT_ADDR as host[:port] (default 127.0.0.1:9002). Read once;
+    // an invalid value ends the process rather than falling back silently.
+    const int fdmPort = simEnvPort("SITL_FDM_PORT", 9003);
+    ret = udpInit(&stateLink, NULL, fdmPort, true);
+    printf("start UDP server on port %d...%d\n", fdmPort, ret);
+    if (ret != 0) {
+        fprintf(stderr, "SITL: cannot bind the FDM port %d\n", fdmPort);
+        exit(1);
+    }
 
-    ret = udpInit(&stateLink, NULL, 9003, true);
-    printf("start UDP server...%d\n", ret);
+    char outHost[64];
+    int outPort;
+    simEnvEndpoint("SITL_OUTPUT_ADDR", "127.0.0.1", 9002, outHost, sizeof(outHost), &outPort);
+    ret = udpInit(&pwmLink, outHost, outPort, false);
+    printf("init PwmOut UDP link to %s:%d...%d\n", outHost, outPort, ret);
+    if (ret != 0) {
+        fprintf(stderr, "SITL: cannot open the output link to %s:%d\n", outHost, outPort);
+        exit(1);
+    }
 
     ret = pthread_create(&udpWorker, NULL, udpThread, NULL);
     if (ret != 0) {
@@ -689,6 +768,12 @@ static void refreshPwmPacket(bool motorsActive)
     const unsigned servoCount = MIN(getServoCount(), ARRAYLEN(pwmPkt.servo));
     for (unsigned i = 0; i < ARRAYLEN(pwmPkt.servo); i++) {
         pwmPkt.servo[i] = (i < servoCount) ? getServoOutput(i) : 0;
+    }
+
+    // What the PID loop and the governor command, before the swash and tail
+    // mixing: for flight models that do not want to invert the servo mixing.
+    for (unsigned i = 0; i < ARRAYLEN(pwmPkt.mixer); i++) {
+        pwmPkt.mixer[i] = mixerGetInput(MIXER_IN_STABILIZED_ROLL + i);
     }
 }
 
