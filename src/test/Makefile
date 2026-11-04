@@ -197,6 +197,14 @@ streambuf_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c
 
 
+msp_shared_unittest_SRC := \
+		$(USER_DIR)/telemetry/msp_shared.c \
+		$(USER_DIR)/common/streambuf.c
+
+msp_shared_unittest_DEFINES := \
+		USE_MSP_OVER_TELEMETRY=
+
+
 # This test is disabled due to build errors.
 #motor_output_unittest_SRC := \
 #		$(USER_DIR)/drivers/dshot.c
@@ -522,6 +530,12 @@ flashfs_unittest_SRC := \
 
 flashfs_unittest_DEFINES := \
 		USE_FLASHFS_LOOP
+
+fbus_sensor_unittest_SRC := \
+        $(USER_DIR)/drivers/fbus_sensor.c
+
+fbus_sensor_unittest_DEFINES := \
+        USE_FBUS_MASTER=
 
 setpoint_unittest_SRC := \
         $(USER_DIR)/flight/setpoint.c \

@@ -72,8 +72,31 @@ So, it must be recalculated of needed for MSP-receiver.
 MSP frame must be returned to the origin address of the request
 
 ---------------------------------------------------------------
+Version 3 in the status byte is a compact framing of an MSPv2 command,
+used by the Rotorflight Lua suites. It carries a 3-byte header instead of 5:
+<ID_lo><ID_hi><size>, and when the size byte is 0xFF, <size_lo><size_hi>
+follow it. No flags byte. On a 6-byte S.Port/FBUS frame the first chunk then
+carries 2 payload bytes instead of none, one frame fewer on most messages.
+Over CRSF (57 bytes per reply chunk) it saves a frame only for reply sizes
+52-53, 109-110, 166-167 and 223-224.
+
+A reply is always sent in the version of its request, so versions 1 and 2
+work as before. How a client knows it may use version 3:
+  - read MSP_API_VERSION in version 2, which every firmware answers;
+  - use version 3 only from the API version that ships this framing;
+  - firmware without it answers a version-3 request with
+    sendMspErrorResponse(TELEMETRY_MSP_VER_MISMATCH, 0) laid out as MSPv2:
+    a START frame with the error bit and the request's version bits, which
+    read as version 3 give command 0 and size 0. Treat a START frame with
+    the error bit and command 0, in answer to a version-3 request, as
+    "fall back to version 2". No firmware with version 3 sends command 0.
+
+The version field is two bits and version 3 is its last value, so the
+lastRequestVersion > TELEMETRY_MSP_VERSION check below can no longer be
+true. A later framing will need another way to announce itself.
+---------------------------------------------------------------
 */
-#define TELEMETRY_MSP_VERSION    2
+#define TELEMETRY_MSP_VERSION    3
 #define TELEMETRY_MSP_RES_ERROR (-10)
 
 #define TELEMETRY_REQUEST_SKIPS_AFTER_EEPROMWRITE 5
@@ -97,7 +120,9 @@ enum { // minimum length for a frame.
     MIN_LENGTH_CHUNK         = 2, // status + at_least_one_byte
     MIN_LENGTH_REQUEST_V1    = 3, // status + length + ID 
     MIN_LENGTH_REQUEST_JUMBO = 5, // status + length=FF + ID + length_lo + length_hi 
-    MIN_LENGTH_REQUEST_V2    = 6, // status + flag + ID_lo + ID_hi + size_lo + size_hi 
+    MIN_LENGTH_REQUEST_V2    = 6, // status + flag + ID_lo + ID_hi + size_lo + size_hi
+    MIN_LENGTH_REQUEST_V3    = 4, // status + ID_lo + ID_hi + size
+    MIN_LENGTH_REQUEST_V3_JUMBO = 6, // status + ID_lo + ID_hi + size=FF + size_lo + size_hi
 };
 
 enum { // byte position(index) in msp-over-telemetry request payload
@@ -119,6 +144,15 @@ enum { // byte position(index) in msp-over-telemetry request payload
     MSP_INDEX_SIZE_V2_LO    = MSP_INDEX_ID_HI         + 1, // MSPv2 Lo byte of payload size
     MSP_INDEX_SIZE_V2_HI    = MSP_INDEX_SIZE_V2_LO    + 1, // MSPv2 Hi byte of payload size
     MSP_INDEX_PAYLOAD_V2    = MSP_INDEX_SIZE_V2_HI    + 1, // MSPv2 first byte of payload itself
+
+    // Version 3 (compact MSPv2)
+    MSP_INDEX_ID_V3_LO      = MSP_INDEX_STATUS        + 1, // Lo byte of ID/command/function
+    MSP_INDEX_ID_V3_HI      = MSP_INDEX_ID_V3_LO      + 1, // Hi byte of ID/command/function
+    MSP_INDEX_SIZE_V3       = MSP_INDEX_ID_V3_HI      + 1, // payload size, 0xFF = 16-bit size follows
+    MSP_INDEX_PAYLOAD_V3    = MSP_INDEX_SIZE_V3       + 1, // first byte of payload itself
+    MSP_INDEX_SIZE_V3_LO    = MSP_INDEX_PAYLOAD_V3,        // Lo byte of a 16-bit payload size
+    MSP_INDEX_SIZE_V3_HI    = MSP_INDEX_SIZE_V3_LO    + 1, // Hi byte of a 16-bit payload size
+    MSP_INDEX_PAYLOAD_V3_JUMBO = MSP_INDEX_SIZE_V3_HI + 1, // first byte of payload after a 16-bit size
 };
 
 STATIC_UNIT_TESTED uint8_t requestBuffer[MSP_TLM_INBUF_SIZE];
@@ -224,6 +258,22 @@ bool handleMspFrame(uint8_t *const payload, uint8_t const payloadLength, uint8_t
             } else {
                 sbufInit(&sbufInput, payload + MSP_INDEX_PAYLOAD_V1, payload + payloadLength);
             }
+        } else if (lastRequestVersion == 3) { // compact MSPv2
+            if (payloadLength < MIN_LENGTH_REQUEST_V3) {
+                return false;   // prevent analyzing garbage data
+            }
+            requestPacket.flags = 0;
+            requestPacket.cmd = payload[MSP_INDEX_ID_V3_LO] | (payload[MSP_INDEX_ID_V3_HI] << 8);
+            mspPayloadSize = payload[MSP_INDEX_SIZE_V3];
+            if (mspPayloadSize == 0xff) { // 16-bit size follows
+                if (payloadLength < MIN_LENGTH_REQUEST_V3_JUMBO) {
+                    return false;   // prevent analyzing garbage data
+                }
+                mspPayloadSize = payload[MSP_INDEX_SIZE_V3_LO] | (payload[MSP_INDEX_SIZE_V3_HI] << 8);
+                sbufInit(&sbufInput, payload + MSP_INDEX_PAYLOAD_V3_JUMBO, payload + payloadLength);
+            } else {
+                sbufInit(&sbufInput, payload + MSP_INDEX_PAYLOAD_V3, payload + payloadLength);
+            }
         } else { // MSPv2
             if (payloadLength < MIN_LENGTH_REQUEST_V2) {
                 return false;   // prevent analyzing garbage data
@@ -309,6 +359,14 @@ bool sendMspReply(const uint8_t payloadSizeMax, mspResponseFnPtr responseFn)
             } else {
                 sbufWriteU8(payloadBuf, size);
                 sbufWriteU8(payloadBuf, responsePacket.cmd); 
+            }
+        } else if (lastRequestVersion == 3) { // compact MSPv2
+            sbufWriteU16(payloadBuf, responsePacket.cmd);
+            if (size >= 0xff) {
+                sbufWriteU8(payloadBuf, 0xff);
+                sbufWriteU16(payloadBuf, (uint16_t)size);
+            } else {
+                sbufWriteU8(payloadBuf, size);
             }
         } else { // MSPv2
             sbufWriteU8 (payloadBuf, responsePacket.flags);  // MSPv2 flags

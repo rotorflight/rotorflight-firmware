@@ -106,7 +106,7 @@ float pow_approx(float a, float b);
 
 #define DEGREES_TO_DECIDEGREES(angle)       ((angle) * 10)
 #define DECIDEGREES_TO_DEGREES(angle)       ((angle) / 10)
-#define DECIDEGREES_TO_RADIANS(angle)       ((angle) / 10 * M_RADf)
+#define DECIDEGREES_TO_RADIANS(angle)       ((angle) / 10.0f * M_RADf)
 #define DEGREES_TO_RADIANS(angle)           ((angle) * M_RADf)
 
 #define CM_S_TO_KM_H(cmps)                  ((cmps) * 9 / 250)
@@ -359,3 +359,5 @@ void buildRotationMatrix(fp_angles_t *delta, fp_rotationMatrix_t *rotation);
 void applyMatrixRotation(float *v, fp_rotationMatrix_t *rotationMatrix);
 
 
+void randomSeed(uint32_t seed);
+uint32_t randomU32(void);
