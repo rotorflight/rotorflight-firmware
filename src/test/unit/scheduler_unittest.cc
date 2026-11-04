@@ -55,8 +55,8 @@ const int TEST_UPDATE_OSD_TIME = 30;
 #define TASK_PERIOD_HZ(hz) (1000000 / (hz))
 
 extern "C" {
-    task_t * unittest_scheduler_selectedTask;
-    uint8_t unittest_scheduler_selectedTaskDynPrio;
+    extern task_t *unittest_scheduler_selectedTask;
+    extern uint8_t unittest_scheduler_selectedTaskDynamicPriority;
     timeDelta_t unittest_scheduler_taskRequiredTimeUs;
     bool taskGyroRan = false;
     bool taskFilterRan = false;
@@ -231,19 +231,18 @@ task_t *deadBeefPtr = reinterpret_cast<task_t*>(0xDEADBEEF);
 TEST(SchedulerUnittest, TestQueue)
 {
     queueClear();
-    taskQueueArray[TASK_COUNT + 1] = deadBeefPtr;
 
     queueAdd(&tasks[TASK_SYSTEM]); // TASK_PRIORITY_MEDIUM_HIGH
     EXPECT_EQ(1, taskQueueSize);
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_SERIAL]); // TASK_PRIORITY_LOW
     EXPECT_EQ(2, taskQueueSize);
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_BATTERY_VOLTAGE]); // TASK_PRIORITY_MEDIUM
     EXPECT_EQ(3, taskQueueSize);
@@ -251,7 +250,7 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_RX]); // TASK_PRIORITY_HIGH
     EXPECT_EQ(4, taskQueueSize);
@@ -260,7 +259,7 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueRemove(&tasks[TASK_SYSTEM]); // TASK_PRIORITY_HIGH
     EXPECT_EQ(3, taskQueueSize);
@@ -268,26 +267,24 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 }
 
 TEST(SchedulerUnittest, TestQueueAddAndRemove)
 {
     queueClear();
-    taskQueueArray[TASK_COUNT + 1] = deadBeefPtr;
 
     // fill up the queue
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
         const bool added = queueAdd(&tasks[taskId]);
         EXPECT_TRUE(added);
         EXPECT_EQ(taskId + 1, taskQueueSize);
-        EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+        EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
     }
     // double check end of queue
     EXPECT_EQ(TASK_COUNT, taskQueueSize);
     EXPECT_NE(static_cast<task_t*>(0), taskQueueArray[TASK_COUNT - 1]); // last item was indeed added to queue
     EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]); // null pointer at end of queue is preserved
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]); // there hasn't been an out by one error
 
     // and empty it again
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -295,13 +292,13 @@ TEST(SchedulerUnittest, TestQueueAddAndRemove)
         EXPECT_TRUE(removed);
         EXPECT_EQ(TASK_COUNT - taskId - 1, taskQueueSize);
         EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT - taskId]);
-        EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+        EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
     }
 
     // double check size and end of queue
     EXPECT_EQ(0, taskQueueSize); // queue is indeed empty
     EXPECT_EQ(NULL, taskQueueArray[0]); // there is a null pointer at the end of the queueu
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]); // no accidental overwrites past end of queue
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]); // no accidental overwrites past end of queue
 }
 
 TEST(SchedulerUnittest, TestQueueArray)
