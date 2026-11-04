@@ -163,7 +163,7 @@ TEST(TelemetryHottTest, PrepareGPSMessage_Altitude1m)
 
 extern "C" {
 
-int16_t debug[DEBUG16_VALUE_COUNT];
+int32_t debug[DEBUG_VALUE_COUNT];
 
 uint8_t stateFlags;
 
@@ -255,8 +255,7 @@ bool telemetryDetermineEnabledState(portSharing_e)
     return true;
 }
 
-bool telemetryIsSensorEnabled(sensor_e sensor) {
-    UNUSED(sensor);
+bool telemetryIsSensorEnabled(uint32_t) {
     return true;
 }
 
@@ -290,11 +289,11 @@ uint16_t getLegacyBatteryVoltage(void)
     return (testBatteryVoltage + 5) / 10;
 }
 
-int32_t getAmperage(void) {
-    return testAmperage;
+uint16_t getLegacyBatteryCurrent(void) {
+    return testAmperage / 10;
 }
 
-int32_t getMAhDrawn(void) {
+uint32_t getBatteryCapacityUsed(void) {
     return testMAhDrawn;
 }
 
