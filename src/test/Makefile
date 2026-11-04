@@ -282,16 +282,13 @@ pg_unittest_SRC := \
 		$(USER_DIR)/pg/pg.c
 
 
-# This test is disabled due to build errors.
-#rc_controls_unittest_SRC := \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/fc/rc_adjustments.c \
-#		$(USER_DIR)/fc/rc_modes.c
+rc_modes_unittest_SRC := \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 # This test is disabled due to build errors.
