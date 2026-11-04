@@ -527,7 +527,10 @@ vtx_unittest_DEFINES := \
 
 rx_spi_spektrum_unittest_SRC := \
 		$(USER_DIR)/rx/cyrf6936_spektrum.c \
-		$(USER_DIR)/pg/rx_spektrum.c
+		$(USER_DIR)/pg/rx_spektrum.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 rx_spi_spektrum_unittest_DEFINES := \
 		USE_RX_SPI= \
