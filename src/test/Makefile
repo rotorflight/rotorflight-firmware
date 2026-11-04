@@ -90,16 +90,17 @@ battery_unittest_SRC := \
 		$(USER_DIR)/common/streambuf.c
 
 
-# This test is disabled due to build errors.
-#blackbox_unittest_SRC :=  \
-#		$(USER_DIR)/blackbox/blackbox.c \
-#		$(USER_DIR)/blackbox/blackbox_encoding.c \
-#		$(USER_DIR)/blackbox/blackbox_io.c \
-#		$(USER_DIR)/common/encoding.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/accgyro/gyro_sync.c
+blackbox_unittest_SRC :=  \
+		$(USER_DIR)/blackbox/blackbox.c \
+		$(USER_DIR)/blackbox/blackbox_encoding.c \
+		$(USER_DIR)/common/encoding.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 blackbox_encoding_unittest_SRC :=  \
 		$(USER_DIR)/blackbox/blackbox_encoding.c \
