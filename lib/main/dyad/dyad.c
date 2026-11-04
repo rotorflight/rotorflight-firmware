@@ -529,8 +529,12 @@ static void stream_handleReceivedData(dyad_Stream *stream) {
     int size = recv(stream->sockfd, data, sizeof(data) - 1, 0);
     if (size <= 0) {
       if (size == 0 || errno != EWOULDBLOCK) {
-        /* Handle disconnect */
-        dyad_close(stream);
+        /* Handle disconnect, saying why (an error event before the close) */
+        if (size == 0) {
+          stream_error(stream, "connection closed by peer", 0);
+        } else {
+          stream_error(stream, "receive failed", errno);
+        }
         return;
       } else {
         /* No more data */
@@ -637,8 +641,8 @@ static int stream_flushWriteBuffer(dyad_Stream *stream) {
         /* No more data can be written */
         return 0;
       } else {
-        /* Handle disconnect */
-        dyad_close(stream);
+        /* Handle disconnect, saying why (an error event before the close) */
+        stream_error(stream, "send failed", errno);
         return 0;
       }
     }

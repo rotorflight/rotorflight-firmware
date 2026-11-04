@@ -479,6 +479,10 @@ void systemInit(void) {
     signal(SIGABRT, simFaultHandler);
 #endif
 
+    // Line-buffered, so a log redirected to a file is complete up to the
+    // moment the process is killed.
+    setvbuf(stdout, NULL, _IOLBF, 0);
+
     clock_gettime(CLOCK_MONOTONIC, &start_time);
     printf("[system]Init...\n");
 
