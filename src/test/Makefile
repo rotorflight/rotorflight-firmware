@@ -228,11 +228,6 @@ msp_shared_unittest_DEFINES := \
 
 
 # This test is disabled due to build errors.
-#motor_output_unittest_SRC := \
-#		$(USER_DIR)/drivers/dshot.c
-
-
-# This test is disabled due to build errors.
 #osd_unittest_SRC := \
 #		$(USER_DIR)/osd/osd.c \
 #		$(USER_DIR)/osd/osd_elements.c \
