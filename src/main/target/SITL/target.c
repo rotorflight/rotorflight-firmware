@@ -42,13 +42,20 @@
 // 20 kHz and keeps the CPU load down. Hosts whose sleep granularity is coarser
 // than a gyro period (WSL1: ~0.7 ms for any sleep) starve the scheduler; there
 // SITL_LOOP_SLEEP_US=0 only yields the CPU instead of sleeping.
+#if defined(_WIN32) || defined(__MINGW32__)
+static uint32_t simLoopSleepUs = 0;   // no 50 us sleep on Windows (see microsleep())
+#else
 static uint32_t simLoopSleepUs = 50;
+#endif
 
 #include "drivers/io.h"
 #include "drivers/dma.h"
 #include "drivers/motor.h"
 #include "drivers/serial.h"
 #include "drivers/serial_tcp.h"
+#if defined(_WIN32) || defined(__MINGW32__)
+#include <timeapi.h>    // timeBeginPeriod(); windows.h comes with winsock2.h above
+#endif
 #include "drivers/system.h"
 #include "drivers/pwm_output.h"
 #include "drivers/light_led.h"
@@ -330,7 +337,7 @@ static void* tcpThread(void* data) {
         simDyadLock();
         dyad_update();
         simDyadUnlock();
-        delayMicroseconds_real(500);
+        delayMicroseconds_real(1000);   // a real sleep on every host, see microsleep()
     }
 
     dyad_shutdown();
@@ -346,6 +353,10 @@ void systemInit(void) {
     printf("[system]Init...\n");
 
     SystemCoreClock = 500 * 1e6; // fake 500MHz
+
+#if defined(_WIN32) || defined(__MINGW32__)
+    timeBeginPeriod(1);   // 1 ms sleep granularity instead of 15.6 ms
+#endif
 
     const char *loopSleep = getenv("SITL_LOOP_SLEEP_US");
     if (loopSleep && *loopSleep) {
@@ -543,9 +554,21 @@ uint32_t getCycleCounter(void)
 }
 
 void microsleep(uint32_t usec) {
+#if defined(_WIN32) || defined(__MINGW32__)
+    // Windows cannot sleep for less than a timer tick (1 ms after
+    // timeBeginPeriod(1), else 15.6 ms). The firmware's short delays would
+    // each stall the main loop for that long: wait them out instead.
+    if (usec < 1000) {
+        const uint64_t until = nanos64_real() + (uint64_t)usec * 1000;
+        while (nanos64_real() < until) {
+            sched_yield();
+        }
+        return;
+    }
+#endif
     struct timespec ts;
-    ts.tv_sec = 0;
-    ts.tv_nsec = usec*1000UL;
+    ts.tv_sec = usec / 1000000;
+    ts.tv_nsec = (usec % 1000000) * 1000UL;
     while (nanosleep(&ts, &ts) == -1 && errno == EINTR) ;
 }
 

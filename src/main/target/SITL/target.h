@@ -162,6 +162,11 @@ typedef enum {
     EXTI_Trigger_Rising_Falling = 0x10
 } EXTITrigger_TypeDef;
 
+#if defined(_WIN32) || defined(__MINGW32__)
+// MinGW has no ffs() (POSIX <strings.h>), which the CLI and the arming code use.
+#define ffs(x) __builtin_ffs(x)
+#endif
+
 // Register bit helpers that the STM32 CMSIS device headers provide on boards.
 #define SET_BIT(REG, BIT)     ((REG) |= (BIT))
 #define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
