@@ -50,6 +50,7 @@ extern "C" {
     #include "io/beeper.h"
     #include "io/gps.h"
 
+    #include "cms/cms.h"
     #include "osd/osd.h"
     #include "osd/osd_elements.h"
     #include "osd/osd_warnings.h"
@@ -72,7 +73,7 @@ extern "C" {
     float rMat[3][3];
 
     pidProfile_t *currentPidProfile;
-    int16_t debug[DEBUG16_VALUE_COUNT];
+    int32_t debug[DEBUG_VALUE_COUNT];
     float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
     uint8_t GPS_numSat;
     uint16_t GPS_distanceToHome;
@@ -349,8 +350,8 @@ TEST_F(OsdTest, TestInit)
 
     // and
     // this battery configuration (used for battery voltage elements)
-    batteryConfigMutable()->vbatmincellvoltage = 330;
-    batteryConfigMutable()->vbatmaxcellvoltage = 430;
+    batteryConfigMutable()->vbatmincellvoltage[0] = 330;
+    batteryConfigMutable()->vbatmaxcellvoltage[0] = 430;
 
     // when
     // OSD is initialised
@@ -360,9 +361,9 @@ TEST_F(OsdTest, TestInit)
 
     // then
     // display buffer should contain splash screen
-    displayPortTestBufferSubstring(7, 8, "MENU:THR MID");
-    displayPortTestBufferSubstring(11, 9, "+ YAW LEFT");
-    displayPortTestBufferSubstring(11, 10, "+ PITCH UP");
+    displayPortTestBufferSubstring(7, 8, CMS_STARTUP_HELP_TEXT1);
+    displayPortTestBufferSubstring(11, 9, CMS_STARTUP_HELP_TEXT2);
+    displayPortTestBufferSubstring(11, 10, CMS_STARTUP_HELP_TEXT3);
 
     // when
     // splash screen timeout has elapsed
@@ -1040,7 +1041,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
     osdAnalyzeActiveElements();
 
     // and
-    batteryConfigMutable()->vbatfullcellvoltage = 410;
+    batteryConfigMutable()->vbatfullcellvoltage[0] = 410;
 
     // and
     // 4S battery
@@ -1048,7 +1049,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
 
     // and
     // used battery
-    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage - 20) * simulationBatteryCellCount) - 1;
+    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage[0] - 20) * simulationBatteryCellCount) - 1;
     simulationBatteryState = BATTERY_OK;
 
     // when
@@ -1107,7 +1108,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
 
     // given
     // full battery
-    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage - 20) * simulationBatteryCellCount);
+    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage[0] - 20) * simulationBatteryCellCount);
     simulationBatteryState = BATTERY_OK;
 
     // when
@@ -1315,13 +1316,26 @@ extern "C" {
         return simulationBatteryVoltage / simulationBatteryCellCount;
     }
 
-    int32_t getAmperage() {
+    // 0.01 A
+    uint16_t getBatteryCurrent(void) {
         return simulationBatteryAmperage;
     }
 
-    int32_t getMAhDrawn() {
+    uint32_t getBatteryCapacityUsed(void) {
         return simulationMahDrawn;
     }
+
+    uint16_t getBatteryCapacity(void) { return batteryConfig()->batteryCapacity[0]; }
+    uint16_t getBatteryMinCellVoltage(void) { return batteryConfig()->vbatmincellvoltage[0]; }
+    uint16_t getBatteryMaxCellVoltage(void) { return batteryConfig()->vbatmaxcellvoltage[0]; }
+    uint16_t getBatteryFullCellVoltage(void) { return batteryConfig()->vbatfullcellvoltage[0]; }
+
+    // No RPM source or motor outputs in these tests
+    bool isRpmSourceActive(void) { return false; }
+    int getHeadSpeed(void) { return 0; }
+    int16_t getMotorOutput(uint8_t) { return 0; }
+    float getThrottle(void) { return 0; }
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 
     int32_t getEstimatedAltitudeCm() {
         return simulationAltitude;

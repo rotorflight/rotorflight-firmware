@@ -245,24 +245,25 @@ msp_shared_unittest_DEFINES := \
 		USE_MSP_OVER_TELEMETRY=
 
 
-# This test is disabled due to build errors.
-#osd_unittest_SRC := \
-#		$(USER_DIR)/osd/osd.c \
-#		$(USER_DIR)/osd/osd_elements.c \
-#		$(USER_DIR)/osd/osd_warnings.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/display.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/time.c \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/fc/runtime_config.c
+osd_unittest_SRC := \
+		$(USER_DIR)/osd/osd.c \
+		$(USER_DIR)/osd/osd_elements.c \
+		$(USER_DIR)/osd/osd_warnings.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/drivers/display.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/time.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/pg/osd.c \
+		$(USER_DIR)/pg/time.c
 
-#osd_unittest_DEFINES := \
-#		USE_OSD= \
-#		USE_GPS= \
-#		USE_RTC_TIME= \
-#		USE_ADC_INTERNAL=
+osd_unittest_DEFINES := \
+		USE_OSD= \
+		USE_GPS= \
+		USE_RTC_TIME= \
+		USE_ADC_INTERNAL=
 
 # This test is disabled due to build errors.
 #link_quality_unittest_SRC := \
