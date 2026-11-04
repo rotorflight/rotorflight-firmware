@@ -400,17 +400,17 @@ huffman_unittest_SRC := \
 huffman_unittest_DEFINES := \
 		USE_HUFFMAN=
 
-# This test is disabled due to build errors.
-#rcdevice_unittest_SRC := \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/io/rcdevice.c \
-#		$(USER_DIR)/io/rcdevice_cam.c \
-#		$(USER_DIR)/pg/pg.c \
-#
-#rcdevice_unittest_DEFINES := \
-#		USE_RCDEVICE=
+rcdevice_unittest_SRC := \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/io/rcdevice.c \
+		$(USER_DIR)/io/rcdevice_cam.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c
+
+rcdevice_unittest_DEFINES := \
+		USE_RCDEVICE=
 
 
 pid_unittest_SRC :=  \
