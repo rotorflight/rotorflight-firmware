@@ -218,18 +218,15 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, TestFlightMode)
     testSetDataToTransmit(payloadSize, payload);
 }
 
-TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVersionRequest)
-{ 
+// Send MSP_API_VERSION over ELRS telemetry and return the reply frame
+static uint8_t *mspVersionRoundTrip(uint8_t *payloadSize)
+{
     uint8_t request[15] = {238,12,122,200,234,48,0,1,1,0,0,0,0,128, 0};
-    uint8_t response[12] = {200,10,123,234,200,48,3,1,MSP_PROTOCOL_VERSION,API_VERSION_MAJOR,API_VERSION_MINOR,0};
-    response[11] = crc8_dvb_s2_update(0, &response[2], 9);   // CRSF CRC from the type byte on
     uint8_t data1[6] = {1, request[0], request[1], request[2], request[3], request[4]};
     uint8_t data2[6] = {2, request[5], request[6], request[7], request[8], request[9]};
     uint8_t data3[6] = {3, request[10], request[11], request[12], request[13], request[14]};
-    uint8_t mspBuffer[15] = {0};
-
-    uint8_t *payload = 0;
-    uint8_t payloadSize = 0;
+    static uint8_t mspBuffer[15];
+    memset(mspBuffer, 0, sizeof(mspBuffer));
 
     EXPECT_EQ(CRSF_ADDRESS_CRSF_TRANSMITTER, request[0]);
     EXPECT_EQ(CRSF_FRAMETYPE_MSP_REQ, request[2]);
@@ -250,18 +247,46 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVersionRequest)
     processMspPacket(mspBuffer);
     EXPECT_TRUE(mspReplyPending);
 
-    getNextTelemetryPayload(&payloadSize, &payload);
+    uint8_t *payload = 0;
+    getNextTelemetryPayload(payloadSize, &payload);
+    return payload;
+}
+
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVersionRequest)
+{
+    uint8_t payloadSize = 0;
+    uint8_t *payload = mspVersionRoundTrip(&payloadSize);
 
     EXPECT_EQ(payload[1] + 2, payloadSize);
     EXPECT_EQ(CRSF_FRAMETYPE_MSP_RESP, payload[2]);
     EXPECT_EQ(CRSF_ADDRESS_RADIO_TRANSMITTER, payload[3]);
     EXPECT_EQ(CRSF_ADDRESS_FLIGHT_CONTROLLER, payload[4]);
 
+    // Status: start flag and MSP v1; the sequence number in the low nibble
+    // runs on across replies and is checked in TestMspReplySequence
+    EXPECT_EQ(0x30, payload[5] & 0xF0);
+
+    uint8_t response[12] = {200,10,123,234,200,payload[5],3,1,MSP_PROTOCOL_VERSION,API_VERSION_MAJOR,API_VERSION_MINOR,0};
+    response[11] = crc8_dvb_s2_update(0, &response[2], 9);   // CRSF CRC from the type byte on
     for (int i = 0; i < 12; i++) {
-        EXPECT_EQ(response[i], payload[i]);
+        EXPECT_EQ(response[i], payload[i]) << "byte " << i;
     }
 
     testSetDataToTransmit(payloadSize, payload);
+}
+
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspReplySequence)
+{
+    uint8_t payloadSize = 0;
+    uint8_t *payload = mspVersionRoundTrip(&payloadSize);
+    const uint8_t first = payload[5] & 0x0F;
+    testSetDataToTransmit(payloadSize, payload);
+
+    payload = mspVersionRoundTrip(&payloadSize);
+    const uint8_t second = payload[5] & 0x0F;
+    testSetDataToTransmit(payloadSize, payload);
+
+    EXPECT_EQ((first + 1) & 0x0F, second);
 }
 
 TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspPidRequest)
@@ -302,7 +327,7 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspPidRequest)
     EXPECT_EQ(CRSF_FRAMETYPE_MSP_RESP, payload[2]);
     EXPECT_EQ(CRSF_ADDRESS_RADIO_TRANSMITTER, payload[3]);
     EXPECT_EQ(CRSF_ADDRESS_FLIGHT_CONTROLLER, payload[4]);
-    EXPECT_EQ(0x31, payload[5]); //0x30 + 1 since it is second request, see msp_shared.c:L204
+    EXPECT_EQ(0x30, payload[5] & 0xF0); // start flag and MSP v1, see TestMspReplySequence
     EXPECT_EQ(0x1E, payload[6]);
     EXPECT_EQ(0x70, payload[7]);
     for (int i = 1; i <= 30; i++) {
@@ -344,7 +369,7 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVtxRequest)
     EXPECT_EQ(CRSF_FRAMETYPE_MSP_RESP, payload[2]);
     EXPECT_EQ(CRSF_ADDRESS_RADIO_TRANSMITTER, payload[3]);
     EXPECT_EQ(CRSF_ADDRESS_FLIGHT_CONTROLLER, payload[4]);
-    EXPECT_EQ(0x32, payload[5]); //0x30 + 2 since it is third request, see msp_shared.c:L204
+    EXPECT_EQ(0x30, payload[5] & 0xF0); // start flag and MSP v1, see TestMspReplySequence
     EXPECT_EQ(0x00, payload[6]);
     EXPECT_EQ(0x59, payload[7]);
 
