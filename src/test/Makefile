@@ -131,10 +131,9 @@ blackbox_encoding_unittest_SRC :=  \
 #		USE_OSD=
 
 
-# This test is disabled due to build errors.
-#common_filter_unittest_SRC := \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/common/maths.c
+common_filter_unittest_SRC := \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c
 
 
 encoding_unittest_SRC := \
