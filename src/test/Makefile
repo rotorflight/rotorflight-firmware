@@ -140,15 +140,13 @@ encoding_unittest_SRC := \
 		$(USER_DIR)/common/encoding.c
 
 
-# This test is disabled due to build errors.
-#flight_failsafe_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/flight/failsafe.c
-
-#flight_failsafe_unittest_DEFINES := \
-#		USE_GPS_RESCUE=
+flight_failsafe_unittest_SRC := \
+		$(USER_DIR)/flight/failsafe.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/pg/failsafe.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 flight_imu_unittest_SRC := \
