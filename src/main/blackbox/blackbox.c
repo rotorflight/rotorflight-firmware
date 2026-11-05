@@ -479,10 +479,10 @@ STATIC_ASSERT((sizeof(blackboxConditionCache) * 8) >= FLIGHT_LOG_FIELD_CONDITION
 
 static uint32_t blackboxIteration;
 
-static uint32_t blackboxPInterval = 0;
-static uint32_t blackboxIInterval = 0;
-static uint32_t blackboxSInterval = 0;
-static uint32_t blackboxGInterval = 0;
+STATIC_UNIT_TESTED uint32_t blackboxPInterval = 0;
+STATIC_UNIT_TESTED uint32_t blackboxIInterval = 0;
+STATIC_UNIT_TESTED uint32_t blackboxSInterval = 0;
+STATIC_UNIT_TESTED uint32_t blackboxGInterval = 0;
 
 static uint32_t blackboxSlowFrameSkipCounter;
 #ifdef USE_GPS
@@ -1540,6 +1540,7 @@ static bool sendFieldDefinition(char mainFrameChar, char deltaFrameChar, const v
     return xmitState.headerIndex < headerCount;
 }
 
+#ifndef UNIT_TEST   // only used by the header writer, which unit tests leave out
 // Buf must be at least FORMATTED_DATE_TIME_BUFSIZE
 static char *blackboxGetStartDateTime(char *buf)
 {
@@ -1558,6 +1559,7 @@ static char *blackboxGetStartDateTime(char *buf)
 
 
 static char header_buffer[128];
+#endif
 
 #define BLACKBOX_PRINT_HEADER_LINE(name, format, ...) \
     case __COUNTER__: { \

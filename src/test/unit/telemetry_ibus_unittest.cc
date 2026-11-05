@@ -47,9 +47,9 @@ extern "C" {
     uint8_t stateFlags = 0;
     uint16_t flightModeFlags = 0;
     uint8_t testBatteryCellCount =3;
-    float rcCommand[4] = {0, 0, 0, 0};
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
     telemetryConfig_t telemetryConfig_System;
-    batteryConfig_s batteryConfig_System;
+    batteryConfig_t batteryConfig_System;
     attitudeEulerAngles_t attitude = EULER_INITIALIZE;
     acc_t acc;
     baro_t baro;
@@ -72,12 +72,19 @@ extern "C" {
 static int32_t amperage = 100;
 static int32_t estimatedVario = 0;
 static uint8_t batteryRemaining = 0;
-static throttleStatus_e throttleStatus = THROTTLE_HIGH;
 static uint32_t definedFeatures = 0;
 static uint32_t definedSensors = SENSOR_GYRO | SENSOR_ACC | SENSOR_MAG | SENSOR_SONAR | SENSOR_GPS | SENSOR_GPSMAG;
 static uint16_t testBatteryVoltage = 1000;
 
-int32_t getAmperage(void)
+static int headSpeed = 0;
+
+// iBUS reports head speed as its RPM sensor
+int getHeadSpeed(void)
+{
+    return headSpeed;
+}
+
+uint16_t getBatteryCurrent(void)
 {
     return amperage;
 }
@@ -87,7 +94,7 @@ int32_t getEstimatedVario(void)
     return estimatedVario;
 }
 
-uint8_t calculateBatteryPercentageRemaining(void)
+uint8_t getBatteryChargeLevel(void)
 {
     return batteryRemaining;
 }
@@ -95,16 +102,6 @@ uint8_t calculateBatteryPercentageRemaining(void)
 uint16_t getBatteryAverageCellVoltage(void)
 {
     return testBatteryVoltage / testBatteryCellCount;
-}
-
-int32_t getMAhDrawn(void)
-{
-    return 0;
-}
-
-throttleStatus_e calculateThrottleStatus(void)
-{
-    return throttleStatus;
 }
 
 bool featureIsEnabled(uint32_t mask)
@@ -182,8 +179,7 @@ bool telemetryDetermineEnabledState(portSharing_e portSharing)
 }
 
 
-bool telemetryIsSensorEnabled(sensor_e sensor) {
-    UNUSED(sensor);
+bool telemetryIsSensorEnabled(uint32_t) {
     return true;
 }
 
@@ -364,6 +360,9 @@ protected:
     virtual void SetUp()
     {
         serialTestResetPort();
+        // iBUS on its own port; don't rely on an init test having set this
+        findSerialPortConfig_stub_retval = &serialTestInstanceConfig;
+        setTestSensors();
         telemetryConfigMutable()->report_cell_voltage = false;
         serialTestResetBuffers();
         initIbusTelemetry();
@@ -518,12 +517,12 @@ TEST_F(IbusTelemteryProtocolUnitTest, Test_IbusRespondToGetMeasurementRpm)
 {
     //Given ibus command: Sensor at address 3, please send your measurement
     //then we respond with: I'm reading 0 rpm
-    rcCommand[THROTTLE] = 0;
+    headSpeed = 0;
     checkResponseToCommand("\x04\xA3\x58\xff", 4, "\x06\xA3\x00\x00\x56\xFF", 6);
 
     //Given ibus command: Sensor at address 3, please send your measurement
     //then we respond with: I'm reading 100 rpm
-    rcCommand[THROTTLE] = 100;
+    headSpeed = 100;
     checkResponseToCommand("\x04\xA3\x58\xff", 4, "\x06\xA3\x64\x00\xf2\xFe", 6);
 }
 
@@ -588,6 +587,6 @@ TEST_F(IbusTelemteryProtocolUnitTestDaisyChained, Test_IbusRespondToGetMeasureme
 
     //Given ibus command: Sensor at address 5, please send your measurement
     //then we respond with: I'm reading 100 rpm
-    rcCommand[THROTTLE] = 100;
+    headSpeed = 100;
     checkResponseToCommand("\x04\xA5\x56\xff", 4, "\x06\xA5\x64\x00\xf0\xFe", 6);
 }

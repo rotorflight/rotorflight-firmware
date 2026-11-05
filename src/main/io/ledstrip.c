@@ -341,7 +341,11 @@ bool parseLedStripConfig(int ledIndex, const char *config)
             } else {
                 if (parseState < BLINK_PATTERN && (parseState != RING_COLORS && !*config))
                     return false;
-                strcpy(chunk, "0"); // optional parameter, defaults to 0
+                // At the end of the string this is the last field given (or an
+                // empty chunk for an absent optional one, which parses as 0).
+                // Otherwise the chunk overflowed the buffer: ignore it.
+                if (*config)
+                    strcpy(chunk, "0");
             }
         }
         switch (parseState) {

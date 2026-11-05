@@ -30,6 +30,7 @@ extern "C" {
     #include "target.h"
     #include "cms/cms.h"
     #include "cms/cms_types.h"
+    #include "config/feature.h"
     #include "fc/rc_modes.h"
     #include "fc/runtime_config.h"
     #include "osd/osd.h"
@@ -141,7 +142,9 @@ CMS_Menu cmsx_menuMain = {
 };
 uint8_t armingFlags;
 int16_t debug[4];
-int16_t rcData[18];
+float rcCommand[18];
+timeUs_t resumeRefreshAt;
+bool featureIsEnabled(uint32_t mask) { return mask == FEATURE_CMS; }
 void delay(uint32_t) {}
 uint32_t micros(void) { return 0; }
 uint32_t millis(void) { return 0; }

@@ -280,9 +280,8 @@ void biquadDampedUpdate(biquadFilter_t *filter, float cutoff, float sampleRate);
 void biquadFilterInit(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType);
 void biquadFilterUpdate(biquadFilter_t *filter, float cutoff, float sampleRate, float Q, uint8_t filterType);
 
-float biquadFilterApply(biquadFilter_t *filter, float input);
 float biquadFilterApplyDF1(biquadFilter_t *filter, float input);
-float biquadFilterApplyDF2(biquadFilter_t *filter, float input);
+float biquadFilterApplyTF2(biquadFilter_t *filter, float input);
 
 static inline float biquadFilterOutput(biquadFilter_t *filter) { return filter->y1; }
 

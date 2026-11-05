@@ -54,7 +54,9 @@ extern "C" {
     #include "io/gps.h"
     #include "io/serial.h"
 
+    #include "cms/cms.h"
     #include "osd/osd.h"
+    #include "sensors/acceleration.h"
     #include "osd/osd_elements.h"
     #include "osd/osd_warnings.h"
 
@@ -103,15 +105,10 @@ extern "C" {
 #include "gtest/gtest.h"
 
 extern "C" {
-    PG_REGISTER(flight3DConfig_t, flight3DConfig, PG_MOTOR_3D_CONFIG, 0);
-
-    boxBitmask_t rcModeActivationMask;
-    int16_t debug[DEBUG16_VALUE_COUNT];
+    int32_t debug[DEBUG_VALUE_COUNT];
     uint8_t debugMode = 0;
 
     uint16_t updateLinkQualitySamples(uint16_t value);
-
-    extern uint16_t applyRxChannelRangeConfiguraton(int sample, const rxChannelRangeConfig_t *range);
 }
 void setDefaultSimulationState()
 {
@@ -192,49 +189,59 @@ void doTestDisarm()
     }
 }
 
+// The element tests need an initialised OSD past its splash screen. The OSD
+// draws the splash only once per process, so set it up once for the suite
+// and keep copies of the screen for TestInit, instead of relying on TestInit
+// running first.
+static char splashScreen[UNITTEST_DISPLAYPORT_BUFFER_LEN];
+static char afterSplashScreen[UNITTEST_DISPLAYPORT_BUFFER_LEN];
+
+class LQTest : public ::testing::Test
+{
+  protected:
+    static void SetUpTestCase()
+    {
+        displayPortTestInit();
+        setDefaultSimulationState();
+
+        // this battery configuration (used for battery voltage elements)
+        batteryConfigMutable()->vbatmincellvoltage[0] = 330;
+        batteryConfigMutable()->vbatmaxcellvoltage[0] = 430;
+
+        osdInit(&testDisplayPort, OSD_DISPLAYPORT_DEVICE_AUTO);
+        runOsd();
+        memcpy(splashScreen, testDisplayPortBuffer, sizeof(splashScreen));
+
+        // splash screen timeout
+        simulationTime += 4e6;
+        runOsd();
+        memcpy(afterSplashScreen, testDisplayPortBuffer, sizeof(afterSplashScreen));
+    }
+
+    static void runOsd()
+    {
+        while (osdUpdateCheck(simulationTime, 0)) {
+            osdUpdate(simulationTime);
+            simulationTime += 10;
+        }
+    }
+};
+
 /*
  * Tests initialisation of the OSD and the power on splash screen.
  */
-TEST(LQTest, TestInit)
+TEST_F(LQTest, TestInit)
 {
-    // given
-    // display port is initialised
-    displayPortTestInit();
-
-    // and
-    // default state values are set
-    setDefaultSimulationState();
-
-    // and
-    // this battery configuration (used for battery voltage elements)
-    batteryConfigMutable()->vbatmincellvoltage = 330;
-    batteryConfigMutable()->vbatmaxcellvoltage = 430;
-
-    // when
-    // OSD is initialised
-    osdInit(&testDisplayPort, OSD_DISPLAYPORT_DEVICE_AUTO);
-
-    while (osdUpdateCheck(simulationTime, 0)) {
-        osdUpdate(simulationTime);
-        simulationTime += 10;
-    }
-
     // then
     // display buffer should contain splash screen
-    displayPortTestBufferSubstring(7, 8, "MENU:THR MID");
-    displayPortTestBufferSubstring(11, 9, "+ YAW LEFT");
-    displayPortTestBufferSubstring(11, 10, "+ PITCH UP");
-
-    // when
-    // splash screen timeout has elapsed
-    simulationTime += 4e6;
-    while (osdUpdateCheck(simulationTime, 0)) {
-        osdUpdate(simulationTime);
-        simulationTime += 10;
-    }
+    memcpy(testDisplayPortBuffer, splashScreen, sizeof(splashScreen));
+    displayPortTestBufferSubstring(7, 8, CMS_STARTUP_HELP_TEXT1);
+    displayPortTestBufferSubstring(11, 9, CMS_STARTUP_HELP_TEXT2);
+    displayPortTestBufferSubstring(11, 10, CMS_STARTUP_HELP_TEXT3);
 
     // then
-    // display buffer should be empty
+    // after the splash screen timeout the display buffer should be empty
+    memcpy(testDisplayPortBuffer, afterSplashScreen, sizeof(afterSplashScreen));
 #ifdef DEBUG_OSD
     displayPortTestPrint();
 #endif
@@ -243,7 +250,7 @@ TEST(LQTest, TestInit)
 /*
  * Tests the Tests the OSD_LINK_QUALITY element updateLinkQualitySamples  default LQ_SOURCE_NONE
  */
-TEST(LQTest, TestElement_LQ_SOURCE_NONE_SAMPLES)
+TEST_F(LQTest, TestElement_LQ_SOURCE_NONE_SAMPLES)
 {
     // given
     linkQualitySource = LQ_SOURCE_NONE;
@@ -287,7 +294,7 @@ TEST(LQTest, TestElement_LQ_SOURCE_NONE_SAMPLES)
 /*
  * Tests the Tests the OSD_LINK_QUALITY element values  default LQ_SOURCE_NONE
  */
-TEST(LQTest, TestElement_LQ_SOURCE_NONE_VALUES)
+TEST_F(LQTest, TestElement_LQ_SOURCE_NONE_VALUES)
 {
     // given
 
@@ -323,7 +330,7 @@ TEST(LQTest, TestElement_LQ_SOURCE_NONE_VALUES)
 /*
  * Tests the OSD_LINK_QUALITY element LQ RX_PROTOCOL_CRSF.
  */
-TEST(LQTest, TestElementLQ_PROTOCOL_CRSF_VALUES)
+TEST_F(LQTest, TestElementLQ_PROTOCOL_CRSF_VALUES)
 {
     // given
     linkQualitySource = LQ_SOURCE_RX_PROTOCOL_CRSF;
@@ -361,7 +368,7 @@ TEST(LQTest, TestElementLQ_PROTOCOL_CRSF_VALUES)
  * Tests the LQ Alarms
  *
 */
-TEST(LQTest, TestLQAlarm)
+TEST_F(LQTest, TestLQAlarm)
 {
     timeUs_t startTime = simulationTime;
     // given
@@ -478,8 +485,25 @@ extern "C" {
     uint8_t getBatteryCellCount() { return 4; }
     uint16_t getBatteryVoltage() { return 1680; }
     uint16_t getBatteryAverageCellVoltage() { return  420; }
-    int32_t getAmperage() { return 0; }
-    int32_t getMAhDrawn() { return 0; }
+    uint16_t getBatteryCurrent(void) { return 0; }
+    uint32_t getBatteryCapacityUsed(void) { return 0; }
+    uint16_t getBatteryCapacity(void) { return 0; }
+    uint16_t getBatteryMinCellVoltage(void) { return batteryConfig()->vbatmincellvoltage[0]; }
+    uint16_t getBatteryMaxCellVoltage(void) { return batteryConfig()->vbatmaxcellvoltage[0]; }
+    uint16_t getBatteryFullCellVoltage(void) { return batteryConfig()->vbatfullcellvoltage[0]; }
+
+    bool isRpmSourceActive(void) { return false; }
+    int getHeadSpeed(void) { return 0; }
+    int16_t getMotorOutput(uint8_t) { return 0; }
+    float getThrottle(void) { return 0; }
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+    uint16_t getFailsafeCenter(void) { return 1500; }
+    uint16_t getFailsafeThrottle(void) { return 1000; }
+
+    bool ibus2Init(const rxConfig_t *, rxRuntimeState_t *) { return false; }
+    void crsfScheduleDeviceInfoResponse(void) {}
+    serialPortUsage_t *findSerialPortUsageByIdentifier(serialPortIdentifier_e) { return NULL; }
+    void closeSerialPort(serialPort_t *) {}
     int32_t getEstimatedAltitudeCm() { return 0; }
     int32_t getEstimatedVario() { return 0; }
     int32_t blackboxGetLogNumber() { return 0; }
@@ -590,26 +614,6 @@ extern "C" {
         UNUSED(rxRuntimeState);
         UNUSED(callback);
         return true;
-    }
-
-    float pt1FilterGain(float f_cut, float dT)
-    {
-        UNUSED(f_cut);
-        UNUSED(dT);
-        return 0.0;
-    }
-
-    void pt1FilterInit(pt1Filter_t *filter, float k)
-    {
-        UNUSED(filter);
-        UNUSED(k);
-    }
-
-    float pt1FilterApply(pt1Filter_t *filter, float input)
-    {
-        UNUSED(filter);
-        UNUSED(input);
-        return 0.0;
     }
 
     bool isUpright(void) { return true; }
