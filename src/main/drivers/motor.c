@@ -195,6 +195,8 @@ bool checkMotorProtocolDshot(const motorDevConfig_t *motorDevConfig)
     case PWM_TYPE_PROSHOT1000:
         return true;
     }
+#else
+    UNUSED(motorDevConfig);
 #endif
     return false;
 }

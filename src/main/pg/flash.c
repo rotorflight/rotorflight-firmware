@@ -23,7 +23,12 @@
 
 #include "platform.h"
 
-#ifdef USE_FLASH_CHIP
+// The file-backed flash (SITL) sits on no bus, so this has nothing to hold
+// for it - and registering it would cost more than nothing: a PG that is
+// registered but missing from eeprom.bin fails loadEEPROM(), which resets
+// the whole config. Every SITL eeprom.bin written before SITL had a flash
+// chip would be wiped on its first boot.
+#if defined(USE_FLASH_CHIP) && !defined(USE_FLASH_FILE)
 
 #include "drivers/bus_spi.h"
 #include "drivers/bus_quadspi.h"

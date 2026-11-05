@@ -113,6 +113,7 @@ bool telemetryCheckRxPortShared(const serialPortConfig_t *portConfig, const Seri
 
 void telemetryProcess(timeUs_t currentTime)
 {
+    UNUSED(currentTime);
 #ifdef USE_TELEMETRY_FRSKY_HUB
     handleFrSkyHubTelemetry(currentTime);
 #endif

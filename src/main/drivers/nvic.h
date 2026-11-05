@@ -82,6 +82,13 @@
 #define NVIC_BUILD_PRIORITY(base,sub) (((((base)<<(4-(7-(NVIC_PRIORITY_GROUPING))))|((sub)&(0x0f>>(7-(NVIC_PRIORITY_GROUPING)))))<<4)&0xf0)
 #define NVIC_PRIORITY_BASE(prio) (((prio)>>(4-(7-(NVIC_PRIORITY_GROUPING))))>>4)
 #define NVIC_PRIORITY_SUB(prio) (((prio)&(0x0f>>(7-(NVIC_PRIORITY_GROUPING))))>>4)
+#elif defined(SIMULATOR_BUILD)
+// There is no real NVIC on the SITL simulator target. These values are only
+// consumed by the software BASEPRI emulation in build/atomic.h, so any
+// deterministic base/sub priority encoding works here.
+#define NVIC_BUILD_PRIORITY(base,sub) (((((base) & 0x0f) << 4) | ((sub) & 0x0f)) & 0xff)
+#define NVIC_PRIORITY_BASE(prio) (((prio) >> 4) & 0x0f)
+#define NVIC_PRIORITY_SUB(prio) ((prio) & 0x0f)
 #else
 // utility macros to join/split priority
 #define NVIC_PRIORITY_GROUPING NVIC_PriorityGroup_2
