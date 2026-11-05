@@ -475,12 +475,13 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         sock.setblocking(False)
         steps = int(sim_seconds / dt)
         ask_at = {int(1.0 / dt), int(5.0 / dt)}
-        timeouts, rx, rtc = 0, b"", []
+        timeouts, rx, rtc, asked = 0, b"", [], None
         t0 = time.time()
         for n in range(steps):
             ts = n * dt
             if n in ask_at:
                 sock.send(b"$M<" + bytes([0, MSP_RTC, MSP_RTC]))
+                asked = ts
             fdm.sendto(struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                        ("127.0.0.1", 9003))
             try:
@@ -496,17 +497,23 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
                 payload = rx[i + 5:i + 5 + rx[i + 3]]
                 if rx[i + 4] == MSP_RTC and len(payload) >= 9:
                     _, _, _, h, mi, sec, ms = struct.unpack("<HBBBBBH", payload[:9])
-                    rtc.append((ts, ((h * 60 + mi) * 60 + sec) * 1000 + ms))
+                    rtc.append((asked, ts, ((h * 60 + mi) * 60 + sec) * 1000 + ms))
                 rx = rx[i + 6 + rx[i + 3]:]
         real = time.time() - t0
         if timeouts > steps // 100:
             raise Failure("lockstep: %d of %d steps got no output packet" % (timeouts, steps))
         if len(rtc) != 2:
             raise Failure("lockstep: MSP_RTC replies %s" % rtc)
-        dsim = (rtc[1][0] - rtc[0][0]) * 1000
-        dfw = rtc[1][1] - rtc[0][1]
-        if abs(dfw - dsim) > 5:
-            raise Failure("lockstep: firmware advanced %d ms over %.1f ms of sim time" % (dfw, dsim))
+        # Each reply was made somewhere between the step that sent the request and the
+        # step that received it. TCP is polled on real time, so running faster than real
+        # time a reply lags by tens of steps, by hundreds on Windows. The firmware's
+        # advance must lie within those bounds, +-2 ms for the RTC's ms resolution.
+        (ask1, got1, fw1), (ask2, got2, fw2) = rtc
+        dfw = fw2 - fw1
+        lo, hi = (ask2 - got1) * 1000 - 2, (got2 - ask1) * 1000 + 2
+        dsim = (ask2 - ask1) * 1000
+        if not lo <= dfw <= hi or max(got1 - ask1, got2 - ask2) > 1.0:
+            raise Failure("lockstep: firmware advanced %d ms, sim %.1f..%.1f ms" % (dfw, lo + 2, hi - 2))
         log("PASS lockstep: %d steps at %.1fx real time, %d without reply; firmware %d ms over %.1f ms sim"
             % (steps, sim_seconds / real, timeouts, dfw, dsim))
     finally:
