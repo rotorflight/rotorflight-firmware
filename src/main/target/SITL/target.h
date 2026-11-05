@@ -312,6 +312,16 @@ typedef struct {
 #define FDM_PACKET_SIZE_RAILS   208
 #define FDM_PACKET_SIZE_PACK    224
 
+// Barometer reading on the FDM port, told apart from fdm_packet by its size: the
+// layout of Wingflight's SITL, so a simulator written for either firmware works
+// with both. While these arrive, the FDM's pressure / ISA fallback stays out of
+// the way.
+typedef struct {
+    double timestamp;                   // in seconds, same clock as fdm_packet
+    double pressure_pa;                 // absolute static pressure, Pa
+    double temperature_c;               // sensor temperature, degC
+} baro_packet;
+
 void fakeFreqSet(uint8_t port, float hz);
 void simAdcUpdate(const fdm_packet *pkt, int size);
 typedef struct {
