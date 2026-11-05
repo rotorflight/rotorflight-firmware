@@ -22,6 +22,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#ifdef SIMULATOR_BUILD
+#include <stdio.h>
+#endif
 
 #include "platform.h"
 
@@ -207,6 +210,10 @@ static void validateAndFixPositionConfig(void)
 
 static void validateAndFixConfig(void)
 {
+#ifdef SIMULATOR_BUILD
+    const uint32_t requestedFeatures = featureConfig()->enabledFeatures;
+#endif
+
     if (!isSerialConfigValid(serialConfig())) {
         pgResetFn_serialConfig(serialConfigMutable());
     }
@@ -477,6 +484,17 @@ static void validateAndFixConfig(void)
 
 #if !defined(USE_ADC)
     featureDisableImmediate(FEATURE_RSSI_ADC);
+#endif
+
+#ifdef SIMULATOR_BUILD
+    // A feature this build does not have (LED strip, OSD, ...) is dropped
+    // silently above; say so on the SITL, where a config from a board often
+    // carries some (ported from Wingflight).
+    const uint32_t droppedFeatures = requestedFeatures & ~featureConfig()->enabledFeatures;
+    if (droppedFeatures) {
+        fprintf(stderr, "[config] features 0x%08x not supported by this build (or its config): disabled\n",
+                (unsigned)droppedFeatures);
+    }
 #endif
 
 #ifdef USE_RPM_FILTER
