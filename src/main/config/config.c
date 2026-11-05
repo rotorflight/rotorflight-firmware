@@ -485,8 +485,25 @@ static void validateAndFixConfig(void)
     // carries some (ported from Wingflight).
     const uint32_t droppedFeatures = requestedFeatures & ~featureConfig()->enabledFeatures;
     if (droppedFeatures) {
-        fprintf(stderr, "[config] features 0x%08x not supported by this build (or its config): disabled\n",
-                (unsigned)droppedFeatures);
+        // the CLI's names (cli.c featureNames[]), by bit
+        static const char * const names[32] = {
+            [0] = "RX_PPM", [3] = "RX_SERIAL", [6] = "SOFTSERIAL", [7] = "GPS",
+            [9] = "RANGEFINDER", [10] = "TELEMETRY", [13] = "RX_PARALLEL_PWM",
+            [14] = "RX_MSP", [15] = "RSSI_ADC", [16] = "LED_STRIP", [17] = "DASHBOARD",
+            [18] = "OSD", [19] = "CMS", [25] = "RX_SPI", [26] = "GOVERNOR",
+            [27] = "ESC_SENSOR", [28] = "FREQ_SENSOR", [29] = "DYN_NOTCH", [30] = "RPM_FILTER",
+        };
+        fprintf(stderr, "[config] not supported by this build (or its config), disabled:");
+        for (unsigned bit = 0; bit < 32; bit++) {
+            if (droppedFeatures & (1U << bit)) {
+                if (names[bit]) {
+                    fprintf(stderr, " %s", names[bit]);
+                } else {
+                    fprintf(stderr, " bit%u", bit);
+                }
+            }
+        }
+        fprintf(stderr, "\n");
     }
 #endif
 
