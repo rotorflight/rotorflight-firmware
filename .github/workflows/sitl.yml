@@ -34,6 +34,9 @@ jobs:
     - name: Scenarios
       run: python3 src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
 
+    - name: ESC check
+      run: python3 src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
       with:
@@ -71,6 +74,9 @@ jobs:
 
     - name: Scenarios
       run: python src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
+
+    - name: ESC check
+      run: python src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
