@@ -15,6 +15,8 @@ Runs the SITL executable in a fresh temporary directory and checks, in order:
   5. CRSF on UART2 (TCP 5762), configured through the CLI: RC frames clear RXLOSS,
      the firmware's CRSF telemetry arrives with valid CRCs, the CRSF switch arms
      and disarms
+  6. with FDM packets sent in bursts (a stalling sender), the firmware clock
+     still follows real time
 
 Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free.
 SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
@@ -169,11 +171,16 @@ def cli(sock, commands):
 
 
 class FdmFeed(threading.Thread):
-    """Level, motionless FDM packets (136-byte fdm_packet) on UDP 9003 at a steady rate."""
+    """Level, motionless FDM packets (136-byte fdm_packet) on UDP 9003 at a steady rate.
 
-    def __init__(self, rate=200.0):
+    With burst > 1, packets go out `burst` at a time, back to back, as from a sender
+    that stalls and catches up; the average rate and the timestamps stay the same.
+    """
+
+    def __init__(self, rate=200.0, burst=1):
         super().__init__(daemon=True)
         self.rate = rate
+        self.burst = burst
         self.running = True
 
     def run(self):
@@ -181,11 +188,12 @@ class FdmFeed(threading.Thread):
         t0 = time.monotonic()
         n = 0
         while self.running:
-            ts = n / self.rate
-            # timestamp, gyro rpy, accel xyz (NED body, 1 g up), quat wxyz, velocity, position
-            pkt = struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-            s.sendto(pkt, ("127.0.0.1", 9003))
-            n += 1
+            for _ in range(self.burst):
+                ts = n / self.rate
+                # timestamp, gyro rpy, accel xyz (NED body, 1 g up), quat wxyz, velocity, position
+                pkt = struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+                s.sendto(pkt, ("127.0.0.1", 9003))
+                n += 1
             delay = t0 + n / self.rate - time.monotonic()
             if delay > 0:
                 time.sleep(delay)
@@ -421,6 +429,26 @@ def run(elf, rundir):
         feed.running = False
         if radio:
             radio.running = False
+        sitl.stop()
+
+    # 6. the firmware clock follows real time under a bursty FDM feed
+    feed = FdmFeed(burst=4)
+    sitl = Sitl(elf, rundir, "6-clock")
+    try:
+        feed.start()
+        sock = connect_uart1(sitl)
+        t0 = time.time()
+        time.sleep(10)
+        out = cli(sock, ["status"])
+        real = time.time() - t0
+        sock.close()
+        uptime = [int(w) for line in out.splitlines() if "System Uptime" in line
+                  for w in line.replace(",", " ").split() if w.isdigit()]
+        if not uptime or abs(uptime[0] - real) > 4:
+            raise Failure("clock under a bursty feed: firmware uptime %s s after %.0f s" % (uptime, real))
+        log("PASS clock: uptime %d s after %.0f s with packets sent 4 at a time" % (uptime[0], real))
+    finally:
+        feed.running = False
         sitl.stop()
 
 
