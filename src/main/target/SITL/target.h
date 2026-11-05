@@ -141,6 +141,9 @@
 #undef USE_GPS_RESCUE
 #undef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
 #undef USE_SERIAL_4WAY_SK_BOOTLOADER
+// ESC configuration through the 4-way interface needs real ESC signal pins.
+#undef USE_BLHELI_FORWARD_PROGRAMMING
+#undef USE_AM32_FORWARD_PROGRAMMING
 
 #undef USE_I2C
 #undef USE_SPI
@@ -176,6 +179,11 @@ typedef enum {
 #if defined(_WIN32) || defined(__MINGW32__)
 // MinGW has no ffs() (POSIX <strings.h>), which the CLI and the arming code use.
 #define ffs(x) __builtin_ffs(x)
+#endif
+
+// The ARM newlib headers define __packed; glibc and MinGW do not.
+#ifndef __packed
+#define __packed __attribute__((packed))
 #endif
 
 // Register bit helpers that the STM32 CMSIS device headers provide on boards.
