@@ -499,6 +499,10 @@ TEST_F(FlashFSLoopInitialEraseTest, UnalignedSize)
 
 TEST(InitialErase, U16KiBOverflow)
 {
+    // Same start as the fixtures: no config or buffered data from an earlier test
+    pgReset();
+    flashfsClearBuffer();
+
     auto flash_emulator = std::make_shared<FlashEmulator>(
         FlashEmulator::kFlashW25N01G, /*page_size=*/2048,
         /*pages_per_sector=*/64,
@@ -523,6 +527,10 @@ TEST(InitialErase, U16KiBOverflow)
     }
 
     EXPECT_TRUE(flash_emulator->IsErased(0, 64 * 1024 * 1024));
+
+    while (!flashfsIsReady()) {
+        flashfsEraseAsync();
+    }
 }
 
 
