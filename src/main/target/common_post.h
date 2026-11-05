@@ -507,7 +507,11 @@
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY
+// The SITL feeds motor rpm through its frequency sensor, which the RPM filter reads
+// like any other rpm source.
+#ifndef SIMULATOR_BUILD
 #undef USE_RPM_FILTER
+#endif
 #undef USE_DSHOT_TELEMETRY_STATS
 #endif
 
