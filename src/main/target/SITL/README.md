@@ -95,6 +95,12 @@ so the simulator should send faster than 50 Hz, from one sender only.
   headspeed, and RX loss (Rotorflight keeps stage-2 failsafe off: the rxfail values cut the
   throttle, the heli stays armed, the governor recovers when the link is back)
 
+- hover check: the heli flight model of
+  [rotorflight-sim](https://github.com/rotorflight/rotorflight-sim) flies a scripted
+  angle-mode hover in lockstep, judged against fixed bounds - the closed-loop regression
+  gate (`python3 heli/heli_bridge.py <elf> --check [--governor 2100]` there). CI checks
+  that repository out at the commit in `SIM_REF`; move the pin to pick up model changes
+
 All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows.
 
 ### eeprom.bin
