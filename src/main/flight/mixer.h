@@ -58,6 +58,7 @@
 /** Interface function **/
 
 void mixerInit(void);
+void mixerUpdateMapping(void);
 void mixerInitConfig(void);
 
 void validateAndFixMixerConfig(void);

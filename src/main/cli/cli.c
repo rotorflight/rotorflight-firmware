@@ -2595,6 +2595,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
                 int index = atoi(args[RULE]);
                 if (index >= 0 && index < MIXER_RULE_COUNT) {
                     memset(mixerRulesMutable(index), 0, sizeof(mixerRule_t));
+                    mixerUpdateMapping();
                 } else {
                     cliShowArgumentRangeError(cmdName, NULL, 0, 0);
                 }
@@ -2630,6 +2631,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
                 mix->output = vals[OUTPUT];
                 mix->weight = vals[WEIGHT];
                 mix->offset = vals[OFFSET];
+                mixerUpdateMapping();
             } else {
                 cliShowArgumentRangeError(cmdName, NULL, 0, 0);
             }
