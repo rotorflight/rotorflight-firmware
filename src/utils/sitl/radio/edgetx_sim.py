@@ -14,9 +14,9 @@ is used instead. Nothing else does.
 
 Where the library comes from: Companion's install (`bin/` on Windows) or its AppImage
 (`--appimage-extract`, `usr/lib/companion212`, with `LD_LIBRARY_PATH` at `usr/lib`).
-**Status with Companion 2.12.5:** Linux works (also under WSL1, once `.note.ABI-tag` is
-stripped from the bundled `libQt6Core.so.6`); the Windows library binds and finds its
-channel array, but `start()` faults reading a null pointer.
+**Status with Companion 2.12.5:** works on Linux (also under WSL1, once `.note.ABI-tag` is
+stripped from the bundled `libQt6Core.so.6`) and on Windows, where the C++ runtime in the
+process has to be 14.40 or newer (`_system_cpp_runtime()`).
 
 `setSdPath` is mandatory before `start()`: the simulator writes `RADIO/` and `MODELS/`
 into that directory.

@@ -92,8 +92,9 @@ to the SITL as CRSF RC frames and the SITL's CRSF telemetry goes back into the r
 Lua suite on the card talks to the simulated flight controller over CRSF/MSP as it would
 to a real one. Linux, from Companion's AppImage (`--appimage-extract`, then
 `LD_LIBRARY_PATH=squashfs-root/usr/lib`, library dir `squashfs-root/usr/lib/companion212`);
-under WSL1 strip `.note.ABI-tag` from its `libQt6Core.so.6`. The Windows library binds but
-its `start()` faults (2.12.5). `radio_check.py` runs link, stick, arming and telemetry
+under WSL1 strip `.note.ABI-tag` from its `libQt6Core.so.6`. Windows: Companion's `bin`
+directory (the binding loads the system's `msvcp140.dll`, which must be 14.40 or newer -
+an older copy from a Python distribution crashes the simulator). `radio_check.py` runs link, stick, arming and telemetry
 end to end, with the EdgeTX Lua suite's `simulator/` card.
 
 ### Tests
@@ -105,7 +106,7 @@ end to end, with the EdgeTX Lua suite's `simulator/` card.
   headspeed, and RX loss (Rotorflight keeps stage-2 failsafe off: the rxfail values cut the
   throttle, the heli stays armed, the governor recovers when the link is back)
 
-All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows; the radio check on Linux.
+All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows.
 
 ### eeprom.bin
 

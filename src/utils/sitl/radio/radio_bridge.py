@@ -25,7 +25,8 @@ The SITL side is a CRSF receiver on a TCP UART:
 Linux: the simulator library is in Companion's AppImage (`--appimage-extract`,
 `usr/lib/companion212`); run with `LD_LIBRARY_PATH=<squashfs-root>/usr/lib`. Under WSL1,
 strip `.note.ABI-tag` from that `libQt6Core.so.6` (it asks for a newer kernel than WSL1
-reports). The Windows library is bound too, but its `start()` faults in 2.12.5.
+reports). Windows: Companion's `bin` directory; the binding makes sure the process uses a
+C++ runtime (`msvcp140.dll`) of 14.40 or newer, which the library needs.
 """
 
 import argparse
