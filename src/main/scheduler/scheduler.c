@@ -500,6 +500,15 @@ FAST_CODE void scheduler(void)
              * Recover as best we can, advancing scheduling by a whole number of cycles
              */
             nextTargetCycles += desiredPeriodCycles * (1 + (schedLoopRemainingCycles / -desiredPeriodCycles));
+#if defined(SIMULATOR_BUILD)
+            // Lockstep: the clock moves in whole simulator steps, so the old phase
+            // survives every step - a target left more than schedLoopStartCycles
+            // short of a step would never come due again, and the gyro/PID loop
+            // stops for good. Put the target on the clock instead.
+            if (simLockstepActive()) {
+                nextTargetCycles = nowCycles;
+            }
+#endif
             schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
         }
 
@@ -521,6 +530,9 @@ FAST_CODE void scheduler(void)
                 // so waiting here for the boundary would never end. Run the step
                 // on the newest sample now - it is the step for this sim time.
                 if (simLockstepActive()) {
+                    // ...and keep the target on the clock: schedLoopStartCycles
+                    // adapts, and a phase left inside it now could fall outside later.
+                    nextTargetCycles = nowCycles;
                     break;
                 }
 #endif
