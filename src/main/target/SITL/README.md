@@ -63,6 +63,17 @@ The firmware does not estimate attitude here (`USE_IMU_CALC` is off): it takes t
 the FDM packet. Its clock follows the packet timestamps (`simRate`, measured over at least 50 ms),
 so the simulator should send faster than 50 Hz, from one sender only.
 
+### Tests
+
+- `src/utils/sitl-smoke-test.py <elf>`: start, MSP, CLI, arming, outputs, CRSF, clock, lockstep
+- `src/utils/sitl/sitl-run-check.py <elf>`: restarts after reboots (see sitl-run.py above)
+- `src/utils/sitl/scenarios.py <elf> [governor|profile|failsafe]`: a ground-run rotor model
+  closes the loop through `motor_erpm[0]`; governor spool-up, a PID profile switch moving the
+  headspeed, and RX loss (Rotorflight keeps stage-2 failsafe off: the rxfail values cut the
+  throttle, the heli stays armed, the governor recovers when the link is back)
+
+All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows.
+
 ### eeprom.bin
 
 The configuration is `eeprom.bin` in the working directory (`EEPROM_SIZE`, 32768 bytes). A save
