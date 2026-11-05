@@ -38,6 +38,13 @@
 // The controller's counter-output and I at release are kept next to it, so a client can tell
 // airframe rebound (small counter-output, I near 0: needs damping) from I-term push-back.
 //
+// Shake. An oscillating loop (usually P too high) also leaves an opposite-sign peak after every
+// stop, so it reads as rebound. The RMS of the gyro, high-passed at 2 Hz, while every stick is
+// centred and the stop has settled tells the two apart: a tuned heli holds a few deg/s there,
+// an oscillating one tens. Every stick, because a commanded axis couples into the others (a
+// flip moves roll too); settled, because a slow rebound is still moving the heli until the
+// end of TA_RELEASE_WINDOW.
+//
 // Everything accumulates across flights, so the numbers firm up, and is cleared when the tune
 // changes (checked when arming) or on MSP2_CLEAR_TUNE_ADVISOR.
 
@@ -118,6 +125,11 @@ typedef struct {
     float sumOvershoot;
     float sumCounter;
     float sumIterm;
+
+    float shakeLp;              // slow part of the gyro, removed before the shake is measured
+    uint16_t shakeQuiet;        // samples the stick has been centred
+    uint32_t shakeCount;
+    float shakeSumSq;
 } taAxis_t;
 
 typedef struct {
@@ -335,6 +347,27 @@ static void processRelease(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
     }
 }
 
+// centred: every axis's setpoint is inside TA_STICK_CENTER
+static void processShake(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis, bool centred)
+{
+    const float gyro = s->gyro[axis];
+
+    ax->shakeLp += TA_SHAKE_LP_K * (gyro - ax->shakeLp);
+
+    if (!s->valid || !centred) {
+        ax->shakeQuiet = 0;
+        return;
+    }
+    if (ax->shakeQuiet < TA_SHAKE_SETTLE) {
+        ax->shakeQuiet++;
+        return;
+    }
+
+    const float shake = gyro - ax->shakeLp;
+    ax->shakeCount++;
+    ax->shakeSumSq += shake * shake;
+}
+
 void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
 {
     // All three axes: a pirouette is flying. (Wingflight leaves yaw out because of taxi turns.)
@@ -355,12 +388,17 @@ void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
     ta.sampleCount++;
     ta.histPos = (ta.histPos + 1) % (TA_LAG_MAX + 1);
 
+    const bool centred = fabsf(s->setpoint[FD_ROLL]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_PITCH]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_YAW]) < TA_STICK_CENTER;
+
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         taAxis_t *ax = &ta.axis[axis];
 
         processFeedforward(ax, &gated, axis, ta.histPos);
         processFullStick(ax, &gated, axis, ta.histPos);
         processRelease(ax, &gated, axis);
+        processShake(ax, &gated, axis, centred);
 
         if ((ta.sampleCount % TA_SAMPLE_HZ) == 0)
             updateBestLag(ax);
@@ -401,6 +439,10 @@ void tuneAdvisorGetAxis(int axis, tuneAdvisorAxis_t *out)
         out->meanCounter = ax->sumCounter / ax->releases;
         out->meanIterm = ax->sumIterm / ax->releases;
     }
+
+    out->shakeCount = ax->shakeCount;
+    if (ax->shakeCount)
+        out->shakeRms = sqrtf(ax->shakeSumSq / ax->shakeCount);
 }
 
 uint32_t tuneAdvisorGetValidSamples(void)
