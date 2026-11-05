@@ -46,7 +46,18 @@ const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT] =
     [RATES_TYPE_ROTORFLIGHT]    = { 200, 100, 100 },
 };
 
-FAST_DATA_ZERO_INIT const ratesSettingsLimits_t * currentControlRateLimits;
+const ratesSettingsLimits_t * getRatesSettingLimits(uint8_t ratesType)
+{
+    // rates_type is written unchecked over MSP_SET_RC_TUNING
+    return &ratesSettingLimits[(ratesType < RATES_TYPE_COUNT) ? ratesType : RATES_TYPE_NONE];
+}
+
+static const ratesSettingsLimits_t * getCurrentRatesSettingLimits(void)
+{
+    // Look up on every use, so a write to rates_type that does not reload
+    // the profile (e.g. MSP_COPY_PROFILE while armed) is still honoured
+    return getRatesSettingLimits(currentControlRateProfile->rates_type);
+}
 
 FAST_DATA_ZERO_INIT controlRateConfig_t * currentControlRateProfile;
 
@@ -71,7 +82,7 @@ int get_ADJUSTMENT_PITCH_SRATE(void)
 void set_ADJUSTMENT_PITCH_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_PITCH] =
-        MIN(value, currentControlRateLimits->srate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->srate_limit);
 }
 
 int get_ADJUSTMENT_ROLL_SRATE(void)
@@ -82,7 +93,7 @@ int get_ADJUSTMENT_ROLL_SRATE(void)
 void set_ADJUSTMENT_ROLL_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_ROLL] =
-        MIN(value, currentControlRateLimits->srate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->srate_limit);
 }
 
 int get_ADJUSTMENT_YAW_SRATE(void)
@@ -93,7 +104,7 @@ int get_ADJUSTMENT_YAW_SRATE(void)
 void set_ADJUSTMENT_YAW_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_YAW] =
-        MIN(value, currentControlRateLimits->srate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->srate_limit);
 }
 
 int get_ADJUSTMENT_PITCH_RC_RATE(void)
@@ -104,7 +115,7 @@ int get_ADJUSTMENT_PITCH_RC_RATE(void)
 void set_ADJUSTMENT_PITCH_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_PITCH] =
-        MIN(value, currentControlRateLimits->rc_rate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->rc_rate_limit);
 }
 
 int get_ADJUSTMENT_ROLL_RC_RATE(void)
@@ -115,7 +126,7 @@ int get_ADJUSTMENT_ROLL_RC_RATE(void)
 void set_ADJUSTMENT_ROLL_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_ROLL] =
-        MIN(value, currentControlRateLimits->rc_rate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->rc_rate_limit);
 }
 
 int get_ADJUSTMENT_YAW_RC_RATE(void)
@@ -126,7 +137,7 @@ int get_ADJUSTMENT_YAW_RC_RATE(void)
 void set_ADJUSTMENT_YAW_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_YAW] =
-        MIN(value, currentControlRateLimits->rc_rate_limit);
+        MIN(value, getCurrentRatesSettingLimits()->rc_rate_limit);
 }
 
 int get_ADJUSTMENT_PITCH_RC_EXPO(void)
@@ -137,7 +148,7 @@ int get_ADJUSTMENT_PITCH_RC_EXPO(void)
 void set_ADJUSTMENT_PITCH_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_PITCH] =
-        MIN(value, currentControlRateLimits->expo_limit);
+        MIN(value, getCurrentRatesSettingLimits()->expo_limit);
 }
 
 int get_ADJUSTMENT_ROLL_RC_EXPO(void)
@@ -148,7 +159,7 @@ int get_ADJUSTMENT_ROLL_RC_EXPO(void)
 void set_ADJUSTMENT_ROLL_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_ROLL] =
-        MIN(value, currentControlRateLimits->expo_limit);
+        MIN(value, getCurrentRatesSettingLimits()->expo_limit);
 }
 
 int get_ADJUSTMENT_YAW_RC_EXPO(void)
@@ -159,7 +170,7 @@ int get_ADJUSTMENT_YAW_RC_EXPO(void)
 void set_ADJUSTMENT_YAW_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_YAW] =
-        MIN(value, currentControlRateLimits->expo_limit);
+        MIN(value, getCurrentRatesSettingLimits()->expo_limit);
 }
 
 
@@ -427,10 +438,6 @@ INIT_CODE void loadControlRateProfile(void)
     const int profile = systemConfig()->activeRateProfile;
 
     currentControlRateProfile = controlRateProfilesMutable(profile);
-
-    // Limits depend on the profile's rates type, not on the profile index
-    const ratesType_e ratesType = currentControlRateProfile->rates_type;
-    currentControlRateLimits = &ratesSettingLimits[(ratesType < RATES_TYPE_COUNT) ? ratesType : RATES_TYPE_NONE];
 
     setpointInitProfile();
 }
