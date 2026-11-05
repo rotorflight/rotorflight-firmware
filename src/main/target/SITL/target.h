@@ -85,6 +85,13 @@
 // filter, as on the F4/F7 boards.
 #define USE_FREQ_SENSOR
 #define USE_RPM_FILTER
+
+// ESC sensor task at 250 Hz, as fast boards run it (STM32_UNIFIED: 100-250 Hz). The
+// generic default of 50 Hz is slower than the 10 ms reply window of the XDFLY/OMPHOBBY/ZTW
+// and FLYROTOR parameter dialogues: a reply arrives, but the request is resent and the
+// buffer reset before the next task run can decode it.
+#define ESC_SENSOR_TASK_FREQ_HZ 250
+
 #define USE_DYN_NOTCH_FILTER
 
 #define USABLE_TIMER_CHANNEL_COUNT 12  // 4 motors + 8 servos, see timerHardware[] in target.c
