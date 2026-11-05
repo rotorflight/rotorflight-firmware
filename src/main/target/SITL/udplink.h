@@ -12,15 +12,35 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#if defined(_WIN32) || defined(__MINGW32__)
+// Trim down windows.h (pulled in transitively via winsock2.h) so it does not
+// define the legacy serial-comm BAUD_* macros (from winbase.h), which clash
+// with the BAUD_* enum values declared in io/serial.h.
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOCOMM
+#define NOCOMM
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#if defined(_WIN32) || defined(__MINGW32__)
+typedef SOCKET udp_socket_t;
+#else
+typedef int udp_socket_t;
+#endif
+
 typedef struct {
-    int fd;
+    udp_socket_t fd;
     struct sockaddr_in si;
     struct sockaddr_in recv;
     int port;

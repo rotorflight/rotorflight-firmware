@@ -822,7 +822,11 @@ void init(void)
 
 #ifdef USE_FLASH_CHIP
     if (!(initFlags & FLASH_INIT_ATTEMPTED)) {
+#ifdef USE_FLASH_FILE
+        flashInit(NULL);    // no bus to configure; see pg/flash.c
+#else
         flashInit(flashConfig());
+#endif
         initFlags |= FLASH_INIT_ATTEMPTED;
     }
 #endif
