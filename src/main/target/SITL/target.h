@@ -124,6 +124,10 @@
 #define USE_ADC_INTERNAL
 #define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_ADC
 #define DEFAULT_CURRENT_METER_SOURCE    CURRENT_METER_ADC
+// The emulated 12-bit ADC clips at full scale like a real one: the generic
+// scale 110 ends at 36.3 V, short of a 12S pack. 250 reads up to 82.5 V (18S)
+// in 20 mV steps.
+#define VOLTAGE_SCALE_DEFAULT           250
 #undef USE_VCP
 #undef USE_OSD
 #undef USE_PPM
