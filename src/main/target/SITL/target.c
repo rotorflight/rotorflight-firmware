@@ -516,8 +516,13 @@ void systemInit(void) {
 #endif
 
     // Line-buffered, so a log redirected to a file is complete up to the
-    // moment the process is killed.
+    // moment the process is killed. The Windows CRT takes _IOLBF as full
+    // buffering (a 4 KiB block): unbuffered there.
+#if defined(_WIN32) || defined(__MINGW32__)
+    setvbuf(stdout, NULL, _IONBF, 0);
+#else
     setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
 
     clock_gettime(CLOCK_MONOTONIC, &start_time);
     printf("[system]Init...\n");
