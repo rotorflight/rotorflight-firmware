@@ -101,6 +101,10 @@ so the simulator should send faster than 50 Hz, from one sender only.
   gate (`python3 heli/heli_bridge.py <elf> --check [--governor 2100]` there). CI checks
   that repository out at the commit in `SIM_REF`; move the pin to pick up model changes
 
+- rescue check: the same model rolls inverted in acro and the rescue switch (CLIMB, flip)
+  must bring it upright within 2 s, level and no longer sinking, without losing height to
+  the ground (`--rescue --check` there)
+
 All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows.
 
 ### eeprom.bin

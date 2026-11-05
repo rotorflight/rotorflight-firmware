@@ -11,7 +11,7 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: caf4b1564bff6f90a2d305374a3b68b29a38fdb0
+  SIM_REF: 87e1030ebba2056156232bb49ca2de66a875ee06
 
 jobs:
 
@@ -53,6 +53,9 @@ jobs:
 
     - name: Hover check with the governor
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+
+    - name: Rescue check (heli model)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -107,6 +110,9 @@ jobs:
 
     - name: Hover check with the governor
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+
+    - name: Rescue check (heli model)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
