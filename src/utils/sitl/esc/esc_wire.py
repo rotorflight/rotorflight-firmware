@@ -95,8 +95,7 @@ def serve(sock, protocol, stop=None, on_event=None, rate_hz=10.0,
                     # header of this reply.
                     payload = request + reply
                     # And for a protocol whose walk is PUMPED by telemetry -- the XDFLY
-                    # family (no emulator here yet), where `xdfly_decode()`'s telemetry
-                    # branch is what asks for
+                    # family, where `xdfly_decode()`'s telemetry branch is what asks for
                     # the next parameter and starts the write walk -- one frame rides
                     # along, in the same send. Free-running telemetry cannot do this job:
                     # a frame that lands between the request and the echo is eaten by

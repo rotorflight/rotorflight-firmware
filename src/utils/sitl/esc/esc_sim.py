@@ -4,14 +4,15 @@
     python3 src/utils/sitl/esc/esc_sim.py --protocol openyge --port 5763
     python3 src/utils/sitl/esc/esc_sim.py --protocol hobbywingv5 --port 5763 \
             --volts 24.8 --amps 62 --headspeed 1750
-    python3 src/utils/sitl/esc/esc_sim.py --protocol openyge --port 5763 --seconds 60
+    python3 src/utils/sitl/esc/esc_sim.py --protocol ztw --port 5763 --seconds 60
 
 The SITL serves UARTn on TCP 5760+n; give the ESC sensor a UART (`serial 2 1024 ...` for
 UART3 = port 5763) and pick the protocol with `set esc_sensor_protocol = ...`.
 
-The protocols live one to a module (`oyge_esc`, `pl5_esc`), each saying where its
-constants come from; the wire discipline they share is in `esc_wire`, and it is the same
-for every protocol the firmware runs through its `rrfsm*` request/response machine. This is the tool end: one socket, telemetry and the parameter dialogue,
+The protocols live one to a module (`oyge_esc`, `pl5_esc`, `scorpion_esc`, `fly_esc`,
+`xdfly_esc`), each saying where its constants come from; the wire discipline they share is
+in `esc_wire`, the same for every protocol the firmware runs through its `rrfsm*`
+request/response machine. This is the tool end: one socket, telemetry and the parameter dialogue,
 and a summary of what the flight controller actually asked for.
 
 **Which protocols can be programmed at all, and what each needs:**
@@ -20,9 +21,10 @@ and a summary of what the flight controller actually asked for.
 |---|---|
 | `openyge` (OPENYGE) | yes |
 | `hobbywingv5` (HOBBYWINGV5) | yes |
+| `scorpion` (SCORPION) | yes |
+| `flyrotor` (FLYROTOR) | yes |
+| `xdfly` / `omphobby` / `ztw` (XDFLY / OMPHOBBY / ZTW) | yes (since #478; OFF is telemetry only) |
 
-SCORPION, FLYROTOR and the XDFLY family (XDFLY, OMPHOBBY, ZTW) also have a parameter
-dialogue; emulators for them are not here yet (the XDFLY handshake changed in #478).
 Everything else the firmware speaks -- BLHELI32, HOBBYWINGV4, KONTRONIK, APD, GRAUPNER,
 FBUS, RECORD -- decodes telemetry only.
 
@@ -47,6 +49,11 @@ import esc_wire                                                      # noqa: E40
 PROTOCOLS = {
     "openyge": ("oyge_esc", "OpenYGE", {}),
     "hobbywingv5": ("pl5_esc", "HobbyWingV5", {}),
+    "scorpion": ("scorpion_esc", "Tribunus", {}),
+    "flyrotor": ("fly_esc", "FlyRotor", {}),
+    "xdfly": ("xdfly_esc", "XDFly", {"flavour": "xdfly"}),
+    "omphobby": ("xdfly_esc", "XDFly", {"flavour": "omphobby"}),
+    "ztw": ("xdfly_esc", "XDFly", {"flavour": "ztw"}),
 }
 
 DEFAULT_POLES = 8
