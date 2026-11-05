@@ -360,6 +360,9 @@ protected:
     virtual void SetUp()
     {
         serialTestResetPort();
+        // iBUS on its own port; don't rely on an init test having set this
+        findSerialPortConfig_stub_retval = &serialTestInstanceConfig;
+        setTestSensors();
         telemetryConfigMutable()->report_cell_voltage = false;
         serialTestResetBuffers();
         initIbusTelemetry();
