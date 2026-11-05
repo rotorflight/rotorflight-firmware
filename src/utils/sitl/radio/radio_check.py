@@ -19,6 +19,7 @@ Checks, all driven from the simulated radio:
 import argparse
 import importlib.util
 import os
+import re
 import shutil
 import struct
 import sys
@@ -68,6 +69,18 @@ def make_sd(template):
     if not sep:
         raise smoke.Failure("model1.yml has no expoData section to insert the mix before")
     open(model, "w", encoding="utf-8").write(head + ARM_MIX + sep + rest)
+    # radio.yml carries a checksum over its exact bytes, so a checkout with other line
+    # endings than the file was saved with (git on Linux: LF) reads as corrupt and the
+    # radio comes up on an alert with its mixer stopped. manuallyEdited: 1 tells
+    # EdgeTX not to check it.
+    radio = os.path.join(sd, "RADIO", "radio.yml")
+    with open(radio, encoding="utf-8", newline="") as f:
+        text = f.read()
+    text, n = re.subn(r"(?m)^manuallyEdited:[ \t]*\d+", "manuallyEdited: 1", text)
+    if not n:
+        raise smoke.Failure("radio.yml has no manuallyEdited field")
+    with open(radio, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
     return sd
 
 
