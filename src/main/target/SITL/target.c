@@ -122,6 +122,21 @@ const timerHardware_t timerHardware[SITL_TIMER_MOTOR_COUNT + SITL_TIMER_SERVO_CO
 uint32_t SystemCoreClock;
 
 static fdm_packet fdmPkt;
+
+// What arrives on the FDM port, dispatched on its length.
+static union {
+    fdm_packet fdm;
+    baro_packet baro;
+} statePkt;
+
+STATIC_ASSERT(sizeof(baro_packet) < FDM_PACKET_SIZE_BASE, SITL_state_packets_must_differ_in_size);
+
+#if defined(USE_FAKE_BARO)
+// Last baro_packet, in real-time us (0 = never); the FDM-derived pressure waits
+// BARO_PACKET_TIMEOUT_US after one.
+static uint64_t lastBaroPacketUs;
+#define BARO_PACKET_TIMEOUT_US 500000
+#endif
 static servo_packet pwmPkt;
 
 // servoInit() sizes servoCount from the TIM_USE_SERVO entries above, the
@@ -233,11 +248,12 @@ static void updateFdmTail(const fdm_packet *pkt, int size)
     double pressure;
     if (size >= FDM_PACKET_SIZE_BARO && isfinite(pkt->pressure) && pkt->pressure > 0) {
         pressure = pkt->pressure;
-    } else {
+        fakeBaroSet((int32_t)lrint(pressure), 2500);
+    } else if (!lastBaroPacketUs || micros64_real() - lastBaroPacketUs >= BARO_PACKET_TIMEOUT_US) {
         const double altitude = -pkt->position_xyz[2];
         pressure = 101325.0 * pow(fmax(1.0 - 2.25577e-5 * altitude, 0.01), 5.25588);
+        fakeBaroSet((int32_t)lrint(pressure), 2500);
     }
-    fakeBaroSet((int32_t)lrint(pressure), 2500);
 #endif
 
     simAdcUpdate(pkt, size);
@@ -373,11 +389,21 @@ static void* udpThread(void* data) {
     int n = 0;
 
     while (workerRunning) {
-        n = udpRecv(&stateLink, &fdmPkt, sizeof(fdm_packet), 100);
+        n = udpRecv(&stateLink, &statePkt, sizeof(statePkt), 100);
         if (n == FDM_PACKET_SIZE_BASE || n == FDM_PACKET_SIZE_ERPM || n == FDM_PACKET_SIZE_BARO ||
             n == FDM_PACKET_SIZE_MCU || n == FDM_PACKET_SIZE_RAILS || n == FDM_PACKET_SIZE_PACK) {
+            memcpy(&fdmPkt, &statePkt.fdm, n);
             updateState(&fdmPkt, n);
         }
+#if defined(USE_FAKE_BARO)
+        else if (n == sizeof(baro_packet)) {
+            const baro_packet *b = &statePkt.baro;
+            if (isfinite(b->pressure_pa) && isfinite(b->temperature_c) && b->pressure_pa > 0) {
+                lastBaroPacketUs = micros64_real();
+                fakeBaroSet((int32_t)lrint(b->pressure_pa), (int32_t)lrint(b->temperature_c * 100.0));
+            }
+        }
+#endif
     }
 
     printf("udpThread end!!\n");
