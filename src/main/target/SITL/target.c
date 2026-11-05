@@ -48,14 +48,13 @@
 #include "common/maths.h"
 
 // Idle time between scheduler passes (simLoopIdle()). 50 us caps the loop at
-// 20 kHz and keeps the CPU load down. Hosts whose sleep granularity is coarser
-// than a gyro period (WSL1: ~0.7 ms for any sleep) starve the scheduler; there
-// SITL_LOOP_SLEEP_US=0 only yields the CPU instead of sleeping.
-#if defined(_WIN32) || defined(__MINGW32__)
-static uint32_t simLoopSleepUs = 0;   // no 50 us sleep on Windows (see microsleep())
-#else
-static uint32_t simLoopSleepUs = 50;
-#endif
+// 20 kHz and keeps the CPU load down, but only where the host can sleep that
+// briefly: where a 50 us sleep takes much longer (WSL1 ~0.7 ms, cloud VMs,
+// Windows), the gyro/PID loop and everything after it starve. Unless
+// SITL_LOOP_SLEEP_US sets it, systemInit() measures the host's sleep and falls
+// back to 0, which only yields the CPU.
+#define SIM_LOOP_SLEEP_DEFAULT_US   50
+static uint32_t simLoopSleepUs = SIM_LOOP_SLEEP_DEFAULT_US;
 
 #include "drivers/io.h"
 #include "drivers/dma.h"
@@ -495,8 +494,26 @@ void systemInit(void) {
     const char *loopSleep = getenv("SITL_LOOP_SLEEP_US");
     if (loopSleep && *loopSleep) {
         simLoopSleepUs = (uint32_t)strtoul(loopSleep, NULL, 10);
+        printf("[system]main loop idle: %u us (SITL_LOOP_SLEEP_US)\n", (unsigned)simLoopSleepUs);
+    } else {
+        // How long does a short sleep really take here? Median of 9.
+        uint64_t took[9];
+        for (unsigned i = 0; i < ARRAYLEN(took); i++) {
+            const uint64_t t0 = nanos64_real();
+            const struct timespec ts = { 0, SIM_LOOP_SLEEP_DEFAULT_US * 1000 };
+            nanosleep(&ts, NULL);
+            took[i] = nanos64_real() - t0;
+        }
+        for (unsigned i = 1; i < ARRAYLEN(took); i++) {     // insertion sort
+            for (unsigned j = i; j > 0 && took[j - 1] > took[j]; j--) {
+                const uint64_t t = took[j]; took[j] = took[j - 1]; took[j - 1] = t;
+            }
+        }
+        const unsigned medianUs = (unsigned)(took[ARRAYLEN(took) / 2] / 1000);
+        simLoopSleepUs = (medianUs <= 4 * SIM_LOOP_SLEEP_DEFAULT_US) ? SIM_LOOP_SLEEP_DEFAULT_US : 0;
+        printf("[system]main loop idle: %u us (a %u us sleep takes %u us here)\n",
+               (unsigned)simLoopSleepUs, SIM_LOOP_SLEEP_DEFAULT_US, medianUs);
     }
-    printf("[system]main loop idle: %u us\n", (unsigned)simLoopSleepUs);
 
     if (pthread_mutex_init(&updateLock, NULL) != 0) {
         printf("Create updateLock error!\n");
