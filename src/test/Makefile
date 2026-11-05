@@ -257,7 +257,10 @@ osd_unittest_SRC := \
 		$(USER_DIR)/common/filter.c \
 		$(USER_DIR)/fc/runtime_config.c \
 		$(USER_DIR)/pg/osd.c \
-		$(USER_DIR)/pg/time.c
+		$(USER_DIR)/pg/time.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 osd_unittest_DEFINES := \
 		USE_OSD= \
