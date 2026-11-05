@@ -65,6 +65,14 @@ The configuration is `eeprom.bin` in the working directory (`EEPROM_SIZE`, 32768
 that reboots ends the process: start it again on the store it just wrote. A store written by a
 different build is replaced with defaults.
 
+### Blackbox
+
+The SITL has onboard dataflash: `blackbox_flash.bin` next to `eeprom.bin`, a file-backed 128 MiB
+NOR chip (`drivers/flash_file.c`, ported from Wingflight). Blackbox logs to it by default, and
+flashfs, rolling erase, the CLI `flash_*` commands and the Configurator's dataflash download and
+erase work on it unchanged. Every write is flushed, so a log survives the process being killed.
+The RTC starts from the host clock, so logs carry real start times.
+
 ### Host timing
 
 The main loop idles 50 us between scheduler passes where the host can sleep that briefly. At

@@ -71,6 +71,16 @@
 
 #define USE_TARGET_CONFIG       // SITL defaults, config.c
 
+// Onboard dataflash for blackbox, backed by a file next to eeprom.bin
+// (drivers/flash_file.c). Blackbox logs to it by default, as on an FC with a
+// flash chip, and the Configurator can download and erase it over MSP.
+#define USE_FLASH_FILE
+#define FLASH_FILE_NAME "blackbox_flash.bin"
+#define USE_FLASHFS
+#define USE_FLASHFS_LOOP        // rolling erase once the flash is full
+#define USE_FLASH_TOOLS         // CLI flash_read / flash_write / flash_erase_sector
+#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+
 // Rotor speed from the FDM packet (freq_fake.c), for the governor and the RPM
 // filter, as on the F4/F7 boards.
 #define USE_FREQ_SENSOR
