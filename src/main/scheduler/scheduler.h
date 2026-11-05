@@ -32,8 +32,16 @@
 
 #define SCHED_TASK_DEFER_MASK           0x07 // Scheduler loop count is masked with this and when 0 long running tasks are processed
 
+#if defined(SIMULATOR_BUILD)
+// A host process is not woken to the microsecond: with a window of a few us
+// the scheduler pass practically never lands in it and the gyro task never
+// runs. Start polling for the gyro boundary from 100 us out.
+#define SCHED_START_LOOP_MIN_US         100
+#define SCHED_START_LOOP_MAX_US         100
+#else
 #define SCHED_START_LOOP_MIN_US         1   // Wait at start of scheduler loop if gyroTask is nearly due
 #define SCHED_START_LOOP_MAX_US         12
+#endif
 #define SCHED_START_LOOP_DOWN_STEP      50  // Fraction of a us to reduce start loop wait
 #define SCHED_START_LOOP_UP_STEP        1   // Fraction of a us to increase start loop wait
 

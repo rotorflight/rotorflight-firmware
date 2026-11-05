@@ -72,6 +72,59 @@ arm_sdk_clean:
 	$(V1) [ ! -d "$(ARM_SDK_DIR)" ] || $(RM) -r $(ARM_SDK_DIR)
 	$(V1) [ ! -d "$(DL_DIR)" ] || $(RM) -r $(DL_DIR)
 
+##############################
+#
+# Native Windows GCC (MinGW-w64), used to build TARGET=SITL natively on Windows.
+# Not needed on Linux/macOS, where the system gcc builds it.
+#
+##############################
+
+MINGW_SDK_DIR ?= $(TOOLS_DIR)/mingw64
+
+.PHONY: mingw_sdk_version
+mingw_sdk_version:
+	$(V1) $(MINGW_SDK_DIR)/bin/gcc --version
+
+## mingw_sdk_install : Install native Windows MinGW-w64 GCC (for TARGET=SITL)
+.PHONY: mingw_sdk_install
+
+# Standalone GCC + MinGW-w64 from https://winlibs.com/ (no installer, location independent).
+# Pinned to GCC 13.3 / mingw-w64 11: GCC 16.1 with mingw-w64 14 has a winpthreads header bug
+# (conflicting struct _timespec64 in <time.h> and <pthread.h>) that breaks the -Werror build.
+MINGW_SDK_URL := https://github.com/brechtsanders/winlibs_mingw/releases/download/13.3.0posix-11.0.1-ucrt-r1/winlibs-x86_64-posix-seh-gcc-13.3.0-mingw-w64ucrt-11.0.1-r1.zip
+
+MINGW_SDK_FILE := $(notdir $(MINGW_SDK_URL))
+
+MINGW_SDK_INSTALL_MARKER := $(MINGW_SDK_DIR)/bin/gcc.exe
+
+ifeq ($(OSFAMILY), windows)
+
+mingw_sdk_install: | $(TOOLS_DIR)
+
+mingw_sdk_install: mingw_sdk_download $(MINGW_SDK_INSTALL_MARKER)
+
+# the winlibs zip has a top-level mingw64 folder
+$(MINGW_SDK_INSTALL_MARKER):
+	$(V1) unzip -q -o -d $(TOOLS_DIR) "$(DL_DIR)/$(MINGW_SDK_FILE)"
+
+.PHONY: mingw_sdk_download
+mingw_sdk_download: | $(DL_DIR)
+mingw_sdk_download: $(DL_DIR)/$(MINGW_SDK_FILE)
+$(DL_DIR)/$(MINGW_SDK_FILE):
+	$(V1) curl -L -o "$(DL_DIR)/$(MINGW_SDK_FILE)" -z "$(DL_DIR)/$(MINGW_SDK_FILE)" "$(MINGW_SDK_URL)"
+
+else
+
+mingw_sdk_install:
+	@echo "mingw_sdk_install is only needed on Windows; the system gcc builds TARGET=SITL on $(OSFAMILY)"
+
+endif
+
+## mingw_sdk_clean   : Uninstall native Windows MinGW-w64 GCC
+.PHONY: mingw_sdk_clean
+mingw_sdk_clean:
+	$(V1) [ ! -d "$(MINGW_SDK_DIR)" ] || $(RM) -r $(MINGW_SDK_DIR)
+
 .PHONY: openocd_win_install
 
 openocd_win_install: | $(DL_DIR) $(TOOLS_DIR)

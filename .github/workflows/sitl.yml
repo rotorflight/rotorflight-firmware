@@ -1,0 +1,85 @@
+name: SITL
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'RF-*'
+  push:
+    branches:
+      - 'master'
+
+jobs:
+
+  sitl:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Build SITL
+      run: make TARGET=SITL
+
+    - name: Smoke test
+      run: python3 src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+    - name: Reboot check
+      run: python3 src/utils/sitl/sitl-run-check.py obj/main/rotorflight_SITL.elf
+
+    - name: Scenarios
+      run: python3 src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
+
+    - name: ESC check
+      run: python3 src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Upload SITL executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-SITL-linux-${{ github.sha }}
+        path: obj/main/rotorflight_SITL.elf
+
+  sitl-windows:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MSYS
+        update: false
+        install: make curl unzip git
+
+    - name: Install ARM and MinGW tools
+      shell: msys2 {0}
+      run: make arm_sdk_install mingw_sdk_install
+
+    - name: Build SITL
+      shell: msys2 {0}
+      run: make TARGET=SITL
+
+    - name: Smoke test
+      run: python src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+    - name: Reboot check
+      run: python src/utils/sitl/sitl-run-check.py obj/main/rotorflight_SITL.elf
+
+    - name: Scenarios
+      run: python src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
+
+    - name: ESC check
+      run: python src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Upload SITL executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-SITL-windows-${{ github.sha }}
+        path: obj/main/rotorflight_SITL.elf

@@ -346,7 +346,11 @@ void servoInit(void)
         const IO_t io = IOGetByTag(tag);
 
         IOInit(io, OWNER_SERVO, RESOURCE_INDEX(index));
+#if defined(SIMULATOR_BUILD)
+        IOConfigGPIO(io, IOCFG_AF_PP);
+#else
         IOConfigGPIOAF(io, IOCFG_AF_PP, timer[index]->alternateFunction);
+#endif
 
         servoCount = index + 1;
     }

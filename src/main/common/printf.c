@@ -200,6 +200,7 @@ void printfSerialInit(serialPortIdentifier_e port, uint32_t baudRate, portOption
     stdout_putf = serial_putc;
 }
 
+#if !defined(SIMULATOR_BUILD)
 static void itm_putc(void *p, char c)
 {
     UNUSED(p);
@@ -211,6 +212,12 @@ void printfITMInit(void)
     stdout_putp = ITM;
     stdout_putf = itm_putc;
 }
+#else
+// No ITM on a simulator.
+void printfITMInit(void)
+{
+}
+#endif
 
 int tfp_printf(const char *fmt, ...)
 {
