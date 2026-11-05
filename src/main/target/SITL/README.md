@@ -71,7 +71,7 @@ with telemetry and the parameter (programming) dialogue the Configurator's ESC t
 ```
 feature ESC_SENSOR
 serial 2 1024 115200 57600 0 115200
-set esc_sensor_protocol = OPENYGE        # or HOBBYWINGV5
+set esc_sensor_protocol = OPENYGE        # or HOBBYWINGV5, SCORPION, FLYROTOR, XDFLY, OMPHOBBY, ZTW
 set esc_sensor_halfduplex = ON           # selects the parameter dialogue
 save
 ```

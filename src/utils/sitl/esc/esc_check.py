@@ -37,6 +37,11 @@ MSP_SET_ESC_PARAMETERS = 218
 PROTOCOLS = {
     "openyge": ("OPENYGE", True),
     "hobbywingv5": ("HOBBYWINGV5", True),
+    "scorpion": ("SCORPION", True),
+    "flyrotor": ("FLYROTOR", True),
+    "xdfly": ("XDFLY", True),
+    "omphobby": ("OMPHOBBY", True),
+    "ztw": ("ZTW", True),
 }
 
 
@@ -55,7 +60,8 @@ def check(elf, protocol):
     sock = smoke.connect_uart1(s)
     smoke.cli(sock, ["feature ESC_SENSOR", "serial 2 1024 115200 57600 0 115200",
                      "set esc_sensor_protocol = %s" % fw_name,
-                     "set esc_sensor_halfduplex = %s" % ("ON" if half else "OFF"), "save"])
+                     "set esc_sensor_halfduplex = %s" % ("ON" if half else "OFF"),
+                     "save"])
     sock.close(); s.wait(15); s.stop()
 
     feed = smoke.FdmFeed(); feed.start()
@@ -83,12 +89,22 @@ def check(elf, protocol):
             time.sleep(0.5)
         if not params:
             return False, "no parameter block within 45 s"
-        tel = msp.request(MSP_MOTOR_TELEMETRY)
-        _rpm, _err, volt, curr = struct.unpack_from("<IHHH", tel, 1)
+        # telemetry: some ESCs stream only once the parameter dialogue has gone quiet
+        volt = curr = 0
+        deadline = time.time() + 15
+        while time.time() < deadline and not volt:
+            tel = msp.request(MSP_MOTOR_TELEMETRY)
+            _rpm, _err, volt, curr = struct.unpack_from("<IHHH", tel, 1)
+            if not volt:
+                time.sleep(0.5)
         # change one byte near the end of the block (settings, not the header/version
         # fields at its start) and write it back
         new = bytearray(params)
         new[-2] ^= 0x01
+        # header byte 1: version in the low 6 bits, command in the top 2. A block read
+        # back may carry capability bits there (Scorpion: 0x80, "can reset"); written
+        # back unchanged that is a command, not a save. Clear them to save.
+        new[1] &= 0x3F
         msp_try(msp, MSP_SET_ESC_PARAMETERS, bytes(new))
         wrote, deadline = False, time.time() + 30
         while time.time() < deadline and not wrote:
