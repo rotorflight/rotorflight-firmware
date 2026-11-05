@@ -27,7 +27,7 @@ the APIs or flight performance.
 
 ## Bug Fixes
 
-- DIRECT governor TTA applies only the proportional assist increment, avoiding doubled throttle when enabled (#487, #488)
+- DIRECT governor TTA applies only the proportional assist increment; the throttle was doubled whenever TTA was enabled (#487, #567)
 - ICM42605 gyro uses the correct ODR (#475)
 - Servos are no longer set to midpoint at startup (#466)
 - Forwarding of S.Port master sensors fixed (#481)
@@ -47,6 +47,13 @@ Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
 
 Bus servos with a `speed` set previously moved much slower than configured
 (about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
+**Check headspeed when using DIRECT governor mode with TTA.** In 4.6, with
+`tta_gain` and `tta_limit` both set, the DIRECT mode output was twice the
+throttle input, capped at `max_throttle` (#487). From 4.7 the output follows
+the throttle input/curve again, plus only the TTA increment. Models tuned
+on 4.6 will see a much lower throttle and headspeed than before: re-check the
+throttle curve and headspeed before the first flight (#567).
 
 ## MSP Changes
 
