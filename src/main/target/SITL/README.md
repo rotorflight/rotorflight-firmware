@@ -50,6 +50,10 @@ save
 ```
 
 Point the Configurator at `tcp://127.0.0.1:5762` (or 5761 when nothing else uses UART1).
+A reboot ends the SITL process ("Save and Reboot", leaving the CLI tab, `MSP_REBOOT`), so
+start it through `src/utils/sitl/sitl-run.py <elf> --dir <rundir>`: that starts it again
+on the same `eeprom.bin` after every reset the firmware announces (`[system]Reset!`) and
+the Configurator reconnects as it would to a board. A crash is reported, not restarted.
 
 Defaults for a simulator (`config.c`, applied on a config reset): MSP on UART2 as well as UART1,
 and the frequency sensor on with a 2-pole main motor, so FDM `motor_erpm[0]` reads 1:1 as motor
