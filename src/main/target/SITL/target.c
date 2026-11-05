@@ -817,6 +817,27 @@ void microsleep(uint32_t usec) {
         }
         return;
     }
+    // Longer sleeps: Windows 11 ignores timeBeginPeriod() for a process without a
+    // visible window - as the SITL usually runs - so nanosleep() rounds up to the
+    // 15.6 ms tick, and the TCP thread's 1 ms pause made every MSP round trip ~31 ms.
+    // A high-resolution waitable timer (Windows 10 1803+) sleeps what was asked.
+#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
+#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
+#endif
+    static __thread HANDLE timer;
+    static __thread bool timerTried;
+    if (!timerTried) {
+        timerTried = true;
+        timer = CreateWaitableTimerExW(NULL, NULL, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+    }
+    if (timer) {
+        LARGE_INTEGER due;
+        due.QuadPart = -(LONGLONG)usec * 10;        // relative, 100 ns units
+        if (SetWaitableTimer(timer, &due, 0, NULL, NULL, FALSE)) {
+            WaitForSingleObject(timer, INFINITE);
+            return;
+        }
+    }
 #endif
     struct timespec ts;
     ts.tv_sec = usec / 1000000;
