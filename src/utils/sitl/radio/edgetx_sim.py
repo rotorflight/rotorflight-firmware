@@ -139,6 +139,45 @@ TOUCH_PRESSED = 1
 PROTOCOL_CROSSFIRE = 2
 
 
+#: The simulator library is built with Visual Studio 2022 17.10 or later, whose
+#: `std::mutex` needs `msvcp140.dll` 14.40 or newer. An older copy in the process -
+#: Python distributions such as Anaconda ship one (14.27) next to python.exe, and the
+#: loader finds it first - makes the first lock in `start()` read a null pointer.
+MIN_MSVCP140 = (14, 40)
+
+
+def _file_version(path):
+    size = ctypes.windll.version.GetFileVersionInfoSizeW(path, None)
+    buf = ctypes.create_string_buffer(size)
+    ctypes.windll.version.GetFileVersionInfoW(path, 0, size, buf)
+    value, length = ctypes.c_void_p(), ctypes.c_uint()
+    ctypes.windll.version.VerQueryValueW(buf, "\\", ctypes.byref(value), ctypes.byref(length))
+    ms, ls = ctypes.cast(value, ctypes.POINTER(ctypes.c_uint32))[2:4]
+    return (ms >> 16, ms & 0xFFFF, ls >> 16, ls & 0xFFFF)
+
+
+def _system_cpp_runtime():
+    """Make sure the C++ runtime in this process is new enough for the simulator."""
+    k32 = ctypes.WinDLL("kernel32")
+    k32.GetModuleHandleW.restype = ctypes.c_void_p
+    k32.GetModuleFileNameW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    handle = k32.GetModuleHandleW("msvcp140.dll")
+    if not handle:
+        # not loaded yet: take the system's copy, so the simulator binds to it
+        ctypes.WinDLL(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                   "System32", "msvcp140.dll"))
+        handle = k32.GetModuleHandleW("msvcp140.dll")
+    name = ctypes.create_unicode_buffer(1024)
+    k32.GetModuleFileNameW(handle, name, 1024)
+    version = _file_version(name.value)
+    if version[:2] < MIN_MSVCP140:
+        raise RuntimeError(
+            f"{name.value} is version {'.'.join(map(str, version))}; the EdgeTX simulator "
+            f"needs msvcp140.dll {MIN_MSVCP140[0]}.{MIN_MSVCP140[1]} or newer and would "
+            f"crash in start(). Something loaded the older copy first: import edgetx_sim "
+            f"before it, or install the current Visual C++ redistributable.")
+
+
 class Sim:
     def __init__(self, radio="tx16smk3", bindir=None, sd_path=None):
         self.radio = radio
@@ -161,6 +200,7 @@ class Sim:
             # The loader needs the directory on the search path; there is no
             # equivalent step on Linux, where the image sets LD_LIBRARY_PATH and
             # the library's own dependencies resolve beside it.
+            _system_cpp_runtime()
             os.add_dll_directory(self.bindir)
             os.environ["PATH"] = self.bindir + os.pathsep + os.environ["PATH"]
             self.lib = ctypes.CDLL(self.dll_path, winmode=0)
