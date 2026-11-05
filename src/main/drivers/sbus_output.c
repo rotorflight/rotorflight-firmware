@@ -115,6 +115,12 @@ static float sbusOutGetInput(uint8_t channel, const servoParam_t *servo)
     UNUSED(servo);
 #endif
 
+    // Guard the boundary: a NaN here would otherwise sit in state->pos[]
+    // and poison every future sbusLimitSpeed()/sbusLimitRatio() call on
+    // this channel forever, since NaN - NaN is still NaN.
+    if (!isfinitef(input))
+        input = 0;
+
     return input;
 }
 
@@ -124,11 +130,19 @@ static float sbusOutGetInput(uint8_t channel, const servoParam_t *servo)
 // mixer don't saturate it.
 static inline float sbusLimitTravel(uint8_t channel, float pos, float min, float max)
 {
+    // +-Inf are still correctly caught below even under -ffast-math (see
+    // constrainf() in common/maths.h). Only a NaN fails both comparisons
+    // and would otherwise fall through untouched -- isfinitef() catches
+    // that remaining case without changing how Inf is already handled.
     if (pos > max) {
         if (sbusOutIsMixerChannel(channel))
             mixerSaturateServoOutput(sbusOutMixerIndex(channel));
         return max;
     } else if (pos < min) {
+        if (sbusOutIsMixerChannel(channel))
+            mixerSaturateServoOutput(sbusOutMixerIndex(channel));
+        return min;
+    } else if (!isfinitef(pos)) {
         if (sbusOutIsMixerChannel(channel))
             mixerSaturateServoOutput(sbusOutMixerIndex(channel));
         return min;

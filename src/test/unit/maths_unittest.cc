@@ -19,6 +19,7 @@
 #include <stdbool.h>
 
 #include <limits.h>
+#include <float.h>
 
 #include <math.h>
 
@@ -173,6 +174,47 @@ TEST(MathsUnittest, TestConstrainf)
     EXPECT_FLOAT_EQ(constrainf(2.0f, 0.0f, 1.0f), 1.0f);
     // Below bouth bounds.
     EXPECT_FLOAT_EQ(constrainf(0, 1.0f, 2.0f), 1.0f);
+}
+
+// isnan()/isfinite()/`x != x` are unreliable in this firmware's own build
+// (arm-none-eabi-gcc -O2 -ffast-math folds all three to a constant), so
+// isfinitef() tests the raw IEEE-754 bit pattern instead. This unit test is
+// built without -ffast-math, but isfinitef() must give the same, correct
+// answer either way -- that's the whole point of it.
+TEST(MathsUnittest, TestIsFiniteF)
+{
+    EXPECT_TRUE(isfinitef(0.0f));
+    EXPECT_TRUE(isfinitef(-0.0f));
+    EXPECT_TRUE(isfinitef(1.0f));
+    EXPECT_TRUE(isfinitef(-1.0f));
+    EXPECT_TRUE(isfinitef(1e30f));
+    EXPECT_TRUE(isfinitef(FLT_MAX));
+    EXPECT_TRUE(isfinitef(-FLT_MAX));
+
+    EXPECT_FALSE(isfinitef(NAN));
+    EXPECT_FALSE(isfinitef(-NAN));
+    EXPECT_FALSE(isfinitef(INFINITY));
+    EXPECT_FALSE(isfinitef(-INFINITY));
+}
+
+// Regression test: a NaN/Inf reaching a servo boundary produced an undefined
+// integer written straight to a timer compare register. constrainf() and
+// limitf() are the shared clamp helpers used at those boundaries (directly,
+// and via the hand-rolled equivalents in servos.c/mixer.c/sbus_output.c that
+// mirror this same isfinitef()-guarded pattern) -- confirm both now resolve a
+// non-finite input to a finite, bounded value instead of passing it through.
+TEST(MathsUnittest, TestConstrainfNonFinite)
+{
+    EXPECT_FLOAT_EQ(constrainf(NAN, -1.0f, 1.0f), -1.0f);
+    EXPECT_FLOAT_EQ(constrainf(INFINITY, -1.0f, 1.0f), 1.0f);
+    EXPECT_FLOAT_EQ(constrainf(-INFINITY, -1.0f, 1.0f), -1.0f);
+}
+
+TEST(MathsUnittest, TestLimitfNonFinite)
+{
+    EXPECT_FLOAT_EQ(limitf(NAN, 1.0f), -1.0f);
+    EXPECT_FLOAT_EQ(limitf(INFINITY, 1.0f), 1.0f);
+    EXPECT_FLOAT_EQ(limitf(-INFINITY, 1.0f), -1.0f);
 }
 
 TEST(MathsUnittest, TestDegreesToRadians)

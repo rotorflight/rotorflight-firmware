@@ -35,6 +35,7 @@ the APIs or flight performance.
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
 - `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
 - CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent in decimetres instead of centimetres (still S16), so it no longer stops at 327.67 m MSL; the range is now ±3276.7 m. Decoders must divide by 10 instead of 100 (#549)
+- NaN/Inf can no longer reach the servo outputs, bus servos or the mixer: `constrainf()`/`limitf()` and the servo, bus servo and mixer clamps now catch NaN even under `-ffast-math` (new `isfinitef()`), and `rc.range[]` is floored to 1 so an `rc_deadband` at or above `rc_deflection` (settable over MSP) cannot divide by zero (#512)
 
 ## Flight Performance
 
