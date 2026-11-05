@@ -63,7 +63,8 @@ different build is replaced with defaults.
 
 ### Host timing
 
-`SITL_LOOP_SLEEP_US` sets the idle between scheduler passes (default 50 us on Linux). On a host
-whose sleep granularity is coarser than a gyro period, such as WSL1 (about 0.7 ms for any
-sleep), set it to 0: the main loop then only yields the CPU. On Windows that is the default,
-since Windows cannot sleep for less than a timer tick; delays under 1 ms are waited out there.
+The main loop idles 50 us between scheduler passes where the host can sleep that briefly. At
+start the SITL measures a 50 us sleep; where it takes more than 200 us (WSL1 about 0.7 ms, many
+cloud VMs), the gyro/PID loop would starve, so the loop only yields the CPU instead (one busy
+core). The log says which: `[system]main loop idle: ...`. `SITL_LOOP_SLEEP_US` overrides the
+choice. On Windows, delays under 1 ms are waited out rather than slept.
