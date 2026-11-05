@@ -73,6 +73,16 @@ flashfs, rolling erase, the CLI `flash_*` commands and the Configurator's datafl
 erase work on it unchanged. Every write is flushed, so a log survives the process being killed.
 The RTC starts from the host clock, so logs carry real start times.
 
+### Lockstep
+
+By default the firmware clock runs in real time, scaled to the rate at which FDM timestamps
+arrive. With `SITL_LOCKSTEP=1` it is the simulator's clock instead: once the main loop runs, the
+firmware's time is the FDM timestamp. A simulator that steps its physics, sends the state and waits
+for the output packet gets exactly one output packet per FDM packet, sent after the scheduler pass
+that runs the control step for the new time. With 250 us steps that is one physics step per
+gyro/PID cycle, independent of host load and as fast as the host allows (2-3x real time on a
+laptop). Without FDM packets the clock stands still.
+
 ### Host timing
 
 The main loop idles 50 us between scheduler passes where the host can sleep that briefly. At
