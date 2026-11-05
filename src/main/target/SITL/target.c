@@ -895,28 +895,16 @@ int timeval_sub(struct timespec *result, struct timespec *x, struct timespec *y)
 // PWM part
 pwmOutputPort_t motors[MAX_SUPPORTED_MOTORS];
 
-// real value to send
-static int16_t motorsPwm[MAX_SUPPORTED_MOTORS];
+// Motor outputs as the mixer writes them: 0..1, or -1..1 for bidirectional motors.
+// A flight model wants the commanded fraction, not a PWM pulse: mapping through
+// min_throttle/max_throttle would add the analog-PWM idle offset (0.07 with the
+// usual min_throttle 1070) that a DShot ESC does not have.
+static float motorsOutput[MAX_SUPPORTED_MOTORS];
 
 static motorDevice_t motorPwmDevice; // Forward
 
 pwmOutputPort_t *pwmGetMotors(void) {
     return motors;
-}
-
-static float pwmConvertToInternal(uint8_t mode, float throttle)
-{
-    float value = motorConfig()->mincommand;
-
-    if (mode == MOTOR_CONTROL_BIDIR) {
-        if (throttle != 0)
-            value = scaleRangef(throttle, -1, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
-    } else {
-        if (throttle > 0)
-            value = scaleRangef(throttle, 0, 1, motorConfig()->minthrottle, motorConfig()->maxthrottle);
-    }
-
-    return value;
 }
 
 static void pwmDisableMotors(void)
@@ -933,7 +921,7 @@ static bool pwmEnableMotors(void)
 
 static void pwmWriteMotor(uint8_t index, uint8_t mode, float value)
 {
-    motorsPwm[index] = pwmConvertToInternal(mode, value) - motorConfig()->mincommand;
+    motorsOutput[index] = (mode == MOTOR_CONTROL_BIDIR) ? constrainf(value, -1, 1) : constrainf(value, 0, 1);
 }
 
 static void pwmShutdownPulsesForAllMotors(void)
@@ -950,10 +938,8 @@ bool pwmIsMotorEnabled(uint8_t index) {
 // Gazebo multicopter remap 1,2,3,0 is gone). Normal range [0, 1], 3D [-1, 1].
 static void refreshPwmPacket(bool motorsActive)
 {
-    const double outScale = 1000.0;
-
     for (unsigned i = 0; i < ARRAYLEN(pwmPkt.motor_speed); i++) {
-        pwmPkt.motor_speed[i] = motorsActive ? motorsPwm[i] / outScale : 0;
+        pwmPkt.motor_speed[i] = motorsActive ? motorsOutput[i] : 0;
     }
 
     const unsigned servoCount = MIN(getServoCount(), ARRAYLEN(pwmPkt.servo));
