@@ -18,6 +18,8 @@
 #include "types.h"
 #include "platform.h"
 
+#include "common/utils.h"
+
 #include "config/config.h"
 
 #include "pg/pg_ids.h"
