@@ -721,7 +721,12 @@ static uint64_t simNanos64(void)
         // A host clock read on another core can be a few ns behind the last one
         // (seen on WSL1); the unsigned difference would wrap. Never step back.
         if (now > simClockLast) {
-            simClockNs += (now - simClockLast) * simRate;
+            // Before a lockstep hand-over the FDM rate means nothing: the sender
+            // waits for replies that only start after the hand-over, so its
+            // timestamps crawl and simRate would sink to its floor - slowing init
+            // twentyfold, so a slow start (an antivirus scan of a new executable)
+            // could keep calibration from finishing for a whole run. Host time.
+            simClockNs += (now - simClockLast) * (simLockstep ? 1.0 : simRate);
             simClockLast = now;
         }
         result = simClockNs;
@@ -754,6 +759,8 @@ static void simLockstepAdvance(double timestamp)
         lockstepBaseNs = simClockNs;
         __atomic_store_n(&lockstepStarted, true, __ATOMIC_RELEASE);
         pthread_mutex_unlock(&clockLock);
+        printf("[system]lockstep: hand-over at FDM t=%.4f s, firmware clock %.4f s\n",
+               timestamp, lockstepBaseNs / 1e9);
     }
     // Only this (UDP) thread writes the clock from here on.
     const double elapsed = timestamp - lockstepTs0;
