@@ -34,7 +34,7 @@ feed, motor output and disarming. CI runs it on every PR (`.github/workflows/sit
 |---|---|---|
 | simulator -> FC | `udp://127.0.0.1:9003` | `fdm_packet` (136 bytes): timestamp, gyro, accelerometer, attitude quaternion, velocity, position |
 | FC -> simulator | `udp://127.0.0.1:9002` | `servo_packet` (48 bytes): `motor_speed[4]` (M1-M4, 0..1), `servo[8]` (S1-S8, us, 0 = absent) |
-| UARTn <-> client | `tcp://127.0.0.1:576n` | one client per port; UART1 (5761) carries MSP and the CLI |
+| UARTn <-> client | `tcp://127.0.0.1:576n` | one client per port; UART1 (5761) and UART2 (5762) carry MSP and the CLI by default |
 
 Both structs are in [target.h](target.h). By default RC arrives as `MSP_SET_RAW_RC` (MSP RX).
 A radio can instead speak CRSF on any UART, with CRSF telemetry back on the same port, for
@@ -49,7 +49,11 @@ set serialrx_provider = CRSF
 save
 ```
 
-Point the Configurator at `tcp://127.0.0.1:5761`.
+Point the Configurator at `tcp://127.0.0.1:5762` (or 5761 when nothing else uses UART1).
+
+Defaults for a simulator (`config.c`, applied on a config reset): MSP on UART2 as well as UART1,
+and the frequency sensor on with a 2-pole main motor, so FDM `motor_erpm[0]` reads 1:1 as motor
+rpm for the governor and the RPM filter. A model sending real electrical rpm sets `motor_poles`.
 
 The firmware does not estimate attitude here (`USE_IMU_CALC` is off): it takes the quaternion from
 the FDM packet. Its clock follows the packet timestamps (`simRate`, measured over at least 50 ms),
