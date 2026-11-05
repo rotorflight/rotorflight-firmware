@@ -64,7 +64,7 @@ different build is replaced with defaults.
 ### Host timing
 
 The main loop idles 50 us between scheduler passes where the host can sleep that briefly. At
-start the SITL measures a 50 us sleep; where it takes more than 200 us (WSL1 about 0.7 ms, many
+start the SITL measures a 50 us sleep; where it takes more than 75 us (WSL1 about 0.7 ms, many
 cloud VMs), the gyro/PID loop would starve, so the loop only yields the CPU instead (one busy
 core). The log says which: `[system]main loop idle: ...`. `SITL_LOOP_SLEEP_US` overrides the
 choice. On Windows, delays under 1 ms are waited out rather than slept.
