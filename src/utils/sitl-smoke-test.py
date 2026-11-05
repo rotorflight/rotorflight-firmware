@@ -17,6 +17,8 @@ Runs the SITL executable in a fresh temporary directory and checks, in order:
      and disarms
   6. with FDM packets sent in bursts (a stalling sender), the firmware clock
      still follows real time
+  7. lockstep (SITL_LOCKSTEP=1): each 250 us FDM step gets one output packet,
+     and the firmware clock advances exactly with the simulated time
 
 Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free.
 SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
@@ -38,6 +40,7 @@ MSP_BOARD_INFO = 4
 MSP_STATUS = 101
 MSP_SET_RAW_RC = 200
 MSP_ACC_CALIBRATION = 205
+MSP_RTC = 247
 
 ARMING_FLAG_NAMES = [
     "NOGYRO", "FAILSAFE", "RXLOSS", "BADRX", "BOXFAILSAFE", "GOVERNOR", "RPM_SIGNAL",
@@ -219,6 +222,7 @@ class OutputReader(threading.Thread):
                 continue
             self.latest = data
             self.count += 1
+        self.sock.close()       # frees UDP 9002 for a later stage
 
     def motors(self):
         data = self.latest
@@ -369,6 +373,7 @@ def run(elf, rundir):
     finally:
         feed.running = False
         outputs.running = False
+        outputs.join(2)
         sitl.stop()
 
     # 5. CRSF receiver and telemetry on UART2
@@ -449,6 +454,66 @@ def run(elf, rundir):
         log("PASS clock: uptime %d s after %.0f s with packets sent 4 at a time" % (uptime[0], real))
     finally:
         feed.running = False
+        sitl.stop()
+
+    # 7. lockstep: one FDM step, one output packet, firmware time = sim time
+    lockstep(elf, rundir)
+
+
+def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
+    """SITL_LOCKSTEP=1: step the FDM by dt, wait for the output packet, repeat.
+    MSP_RTC, read at two sim times while stepping, must advance by the sim time."""
+    outputs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    outputs.bind(("127.0.0.1", 9002))
+    outputs.settimeout(0.05)
+    fdm = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    env_before = os.environ.get("SITL_LOCKSTEP")
+    os.environ["SITL_LOCKSTEP"] = "1"
+    sitl = Sitl(elf, rundir, "7-lockstep")
+    try:
+        sock = connect_uart1(sitl)
+        sock.setblocking(False)
+        steps = int(sim_seconds / dt)
+        ask_at = {int(1.0 / dt), int(5.0 / dt)}
+        timeouts, rx, rtc = 0, b"", []
+        t0 = time.time()
+        for n in range(steps):
+            ts = n * dt
+            if n in ask_at:
+                sock.send(b"$M<" + bytes([0, MSP_RTC, MSP_RTC]))
+            fdm.sendto(struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                       ("127.0.0.1", 9003))
+            try:
+                outputs.recvfrom(256)
+            except socket.timeout:
+                timeouts += 1
+            try:
+                rx += sock.recv(512)
+            except (BlockingIOError, socket.timeout):
+                pass
+            i = rx.find(b"$M>")
+            if i >= 0 and len(rx) >= i + 6 + rx[i + 3]:
+                payload = rx[i + 5:i + 5 + rx[i + 3]]
+                if rx[i + 4] == MSP_RTC and len(payload) >= 9:
+                    _, _, _, h, mi, sec, ms = struct.unpack("<HBBBBBH", payload[:9])
+                    rtc.append((ts, ((h * 60 + mi) * 60 + sec) * 1000 + ms))
+                rx = rx[i + 6 + rx[i + 3]:]
+        real = time.time() - t0
+        if timeouts > steps // 100:
+            raise Failure("lockstep: %d of %d steps got no output packet" % (timeouts, steps))
+        if len(rtc) != 2:
+            raise Failure("lockstep: MSP_RTC replies %s" % rtc)
+        dsim = (rtc[1][0] - rtc[0][0]) * 1000
+        dfw = rtc[1][1] - rtc[0][1]
+        if abs(dfw - dsim) > 5:
+            raise Failure("lockstep: firmware advanced %d ms over %.1f ms of sim time" % (dfw, dsim))
+        log("PASS lockstep: %d steps at %.1fx real time, %d without reply; firmware %d ms over %.1f ms sim"
+            % (steps, sim_seconds / real, timeouts, dfw, dsim))
+    finally:
+        if env_before is None:
+            os.environ.pop("SITL_LOCKSTEP", None)
+        else:
+            os.environ["SITL_LOCKSTEP"] = env_before
         sitl.stop()
 
 

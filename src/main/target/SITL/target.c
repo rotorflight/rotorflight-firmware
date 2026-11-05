@@ -57,6 +57,11 @@
 #define SIM_LOOP_SLEEP_DEFAULT_US   50
 static uint32_t simLoopSleepUs = SIM_LOOP_SLEEP_DEFAULT_US;
 
+static bool simLockstep;                                // SITL_LOCKSTEP, see simNanos64()
+static bool simMainLoopRunning;                         // set on the first scheduler pass
+static void simLockstepAdvance(double timestamp);
+static uint32_t lockstepPacketSeq;                      // FDM packets taken in lockstep
+
 #include "drivers/io.h"
 #include "drivers/dma.h"
 #include "drivers/motor.h"
@@ -246,6 +251,8 @@ void updateState(const fdm_packet* pkt, int size) {
     struct timespec now_ts;
     clock_gettime(CLOCK_MONOTONIC, &now_ts);
 
+    simLockstepAdvance(pkt->timestamp);
+
     const uint64_t realtime_now = micros64_real();
     if (realtime_now > last_realtime + 500*1e3) { // 500ms timeout
         last_timestamp = pkt->timestamp;
@@ -340,7 +347,10 @@ void updateState(const fdm_packet* pkt, int size) {
 
     // While disarmed motorWriteAll() skips the motor device, so
     // pwmCompleteMotorUpdate() never runs; servos still move. Send from here.
-    if (!motorIsEnabled()) {
+    if (simLockstepActive()) {
+        // The main loop replies once this step has been run (simLoopIdle()).
+        __atomic_add_fetch(&lockstepPacketSeq, 1, __ATOMIC_RELEASE);
+    } else if (!motorIsEnabled()) {
         refreshPwmPacket(false);
         sendMotorUpdate();
     }
@@ -491,6 +501,12 @@ void systemInit(void) {
 #if defined(_WIN32) || defined(__MINGW32__)
     timeBeginPeriod(1);   // 1 ms sleep granularity instead of 15.6 ms
 #endif
+
+    const char *lockstep = getenv("SITL_LOCKSTEP");
+    simLockstep = lockstep && *lockstep && strcmp(lockstep, "0") != 0;
+    if (simLockstep) {
+        printf("[system]lockstep: the firmware clock follows the FDM timestamps\n");
+    }
 
     const char *loopSleep = getenv("SITL_LOOP_SLEEP_US");
     if (loopSleep && *loopSleep) {
@@ -673,23 +689,80 @@ uint64_t millis64_real(void) {
 // totals that drifted apart. One locked total for both (ported from Wingflight).
 static pthread_mutex_t clockLock = PTHREAD_MUTEX_INITIALIZER;
 
+// Lockstep (SITL_LOCKSTEP=1): once FDM packets arrive, the firmware's time is
+// the simulator's - the packet timestamps - instead of real time scaled by
+// simRate. Each FDM packet already releases exactly one output packet (see
+// updateLock), so a simulator that steps its physics, sends the state and
+// waits for the outputs gets one control step per physics step, at any speed
+// and independent of host load. Until the first packet the clock runs in real
+// time (boot, MSP); without packets it stands still.
+static bool lockstepStarted = false;
+static double lockstepTs0;
+static uint64_t lockstepBaseNs;
+static uint64_t simClockNs = 0;     // the running total of the real-time clock
+static uint64_t simClockLast = 0;
+
 static uint64_t simNanos64(void)
 {
-    static uint64_t last = 0;
-    static uint64_t out = 0;
+    // In lockstep the main loop spins on the clock while it waits for the
+    // next gyro boundary, which only the next FDM packet brings. Read it
+    // without the mutex there: an unfair mutex taken in a tight loop starves
+    // the UDP thread that has to advance the clock.
+    if (__atomic_load_n(&lockstepStarted, __ATOMIC_ACQUIRE)) {
+        return __atomic_load_n(&simClockNs, __ATOMIC_ACQUIRE);
+    }
 
     pthread_mutex_lock(&clockLock);
-    const uint64_t now = nanos64_real();
-    // A host clock read on another core can be a few ns behind the last one
-    // (seen on WSL1); the unsigned difference would wrap. Never step back.
-    if (now > last) {
-        out += (now - last) * simRate;
-        last = now;
+    uint64_t result;
+    if (lockstepStarted) {
+        result = simClockNs;
+    } else {
+        const uint64_t now = nanos64_real();
+        // A host clock read on another core can be a few ns behind the last one
+        // (seen on WSL1); the unsigned difference would wrap. Never step back.
+        if (now > simClockLast) {
+            simClockNs += (now - simClockLast) * simRate;
+            simClockLast = now;
+        }
+        result = simClockNs;
     }
-    const uint64_t result = out;
     pthread_mutex_unlock(&clockLock);
 
     return result;
+}
+
+bool simLockstepActive(void)
+{
+    return __atomic_load_n(&lockstepStarted, __ATOMIC_ACQUIRE);
+}
+
+// Lockstep: advance the firmware clock to an FDM packet's timestamp.
+static void simLockstepAdvance(double timestamp)
+{
+    if (!simLockstep) {
+        return;
+    }
+    if (!__atomic_load_n(&lockstepStarted, __ATOMIC_ACQUIRE)) {
+        // Hand over only once the main loop runs: init() still delay()s, and a
+        // clock frozen until the next packet would never let it finish.
+        if (!__atomic_load_n(&simMainLoopRunning, __ATOMIC_ACQUIRE)) {
+            return;
+        }
+        simNanos64();   // bring the real-time total up to date for the hand-over
+        pthread_mutex_lock(&clockLock);
+        lockstepTs0 = timestamp;
+        lockstepBaseNs = simClockNs;
+        __atomic_store_n(&lockstepStarted, true, __ATOMIC_RELEASE);
+        pthread_mutex_unlock(&clockLock);
+    }
+    // Only this (UDP) thread writes the clock from here on.
+    const double elapsed = timestamp - lockstepTs0;
+    if (elapsed >= 0) {
+        const uint64_t ns = lockstepBaseNs + (uint64_t)(elapsed * 1e9);
+        if (ns > __atomic_load_n(&simClockNs, __ATOMIC_RELAXED)) {
+            __atomic_store_n(&simClockNs, ns, __ATOMIC_RELEASE);
+        }
+    }
 }
 
 uint64_t micros64(void) {
@@ -761,7 +834,25 @@ void delayMicroseconds_real(uint32_t us) {
 
 void simLoopIdle(void)
 {
+    __atomic_store_n(&simMainLoopRunning, true, __ATOMIC_RELEASE);
     tcpProcessRxCallbacks();
+
+    // Lockstep reply: one output packet per FDM packet, sent after a full
+    // scheduler pass that started after the packet - the pass in which the
+    // gyro/PID step for the new time runs.
+    if (simLockstepActive()) {
+        static uint32_t seenSeq, repliedSeq;
+        const uint32_t seq = __atomic_load_n(&lockstepPacketSeq, __ATOMIC_ACQUIRE);
+        if (seq != repliedSeq) {
+            if (seq == seenSeq) {
+                refreshPwmPacket(motorIsEnabled());
+                sendMotorUpdate();
+                repliedSeq = seq;
+            } else {
+                seenSeq = seq;
+            }
+        }
+    }
 
     if (simLoopSleepUs) {
         microsleep(simLoopSleepUs);
@@ -881,6 +972,10 @@ static void pwmCompleteMotorUpdate(void)
 {
     // send to simulator
     refreshPwmPacket(true);
+
+    if (simLockstepActive()) {
+        return;     // the lockstep reply goes out from simLoopIdle()
+    }
 
     // get one "fdm_packet" can only send one "servo_packet"!!
     if (pthread_mutex_trylock(&updateLock) != 0) return;

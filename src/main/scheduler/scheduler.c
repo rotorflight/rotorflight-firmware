@@ -516,6 +516,14 @@ FAST_CODE void scheduler(void)
             }
 #if !defined(UNIT_TEST)
             while (schedLoopRemainingCycles > 0) {
+#if defined(SIMULATOR_BUILD)
+                // Lockstep: the clock only moves with the simulator's next step,
+                // so waiting here for the boundary would never end. Run the step
+                // on the newest sample now - it is the step for this sim time.
+                if (simLockstepActive()) {
+                    break;
+                }
+#endif
                 nowCycles = getCycleCounter();
                 schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
             }
