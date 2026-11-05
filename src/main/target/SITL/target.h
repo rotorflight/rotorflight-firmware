@@ -69,6 +69,8 @@
 #define USE_BARO
 #define USE_FAKE_BARO
 
+#define USE_TARGET_CONFIG       // SITL defaults, config.c
+
 // Rotor speed from the FDM packet (freq_fake.c), for the governor and the RPM
 // filter, as on the F4/F7 boards.
 #define USE_FREQ_SENSOR
