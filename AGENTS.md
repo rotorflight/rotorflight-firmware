@@ -101,6 +101,22 @@ the build with `fc_version_string_too_long`.
 Unit tests exist for PID, setpoint and maths. The governor, mixer, servos, rescue and leveling have none, so
 changes there need extra care and, where possible, a new test.
 
+## Agent Skills
+
+Step-by-step skills for tasks that need local tools are in
+[rotorflight-agent-skills](https://github.com/rotorflight/rotorflight-agent-skills).
+In Claude Code, install them with `/plugin marketplace add rotorflight/rotorflight-agent-skills`
+and `/plugin install rotorflight-dev@rotorflight`. Other agents: clone that repository and read
+the skill's `SKILL.md` before starting the task.
+
+| Skill | Use it to |
+| --- | --- |
+| [firmware-toolchain](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-toolchain/SKILL.md) | install the Arm toolchain, build and flash, platform pitfalls |
+| [firmware-unit-tests](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-unit-tests/SKILL.md) | run `make test` (clang 7-18, BlocksRuntime), write a test |
+| [firmware-sitl](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-sitl/SKILL.md) | build and run the firmware on a PC, drive it over MSP/CRSF/UDP |
+| [jlink-debug](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/jlink-debug/SKILL.md) | debug a flight controller over SWD with a J-Link |
+| [blackbox-decode](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/blackbox-decode/SKILL.md) | decode and analyse blackbox logs in Python |
+
 ## Issues and Pull Requests
 
 Maintainers and users read these, so keep them short and precise. No filler, no restating the diff.
