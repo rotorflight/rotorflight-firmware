@@ -209,8 +209,11 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     maxRealTimeCycles = 0;
 
 #if defined(SIMULATOR_BUILD)
+    // On a host these measure the host's scheduling jitter, not the
+    // firmware's headroom; left in, they block arming (LOAD) at random.
     averageCPULoad = 0;
     averageSystemLoad = 0;
+    maxRealTimeLoad = 0;
 #endif
 }
 
@@ -497,6 +500,15 @@ FAST_CODE void scheduler(void)
              * Recover as best we can, advancing scheduling by a whole number of cycles
              */
             nextTargetCycles += desiredPeriodCycles * (1 + (schedLoopRemainingCycles / -desiredPeriodCycles));
+#if defined(SIMULATOR_BUILD)
+            // Lockstep: the clock moves in whole simulator steps, so the old phase
+            // survives every step - a target left more than schedLoopStartCycles
+            // short of a step would never come due again, and the gyro/PID loop
+            // stops for good. Put the target on the clock instead.
+            if (simLockstepActive()) {
+                nextTargetCycles = nowCycles;
+            }
+#endif
             schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
         }
 
@@ -513,6 +525,17 @@ FAST_CODE void scheduler(void)
             }
 #if !defined(UNIT_TEST)
             while (schedLoopRemainingCycles > 0) {
+#if defined(SIMULATOR_BUILD)
+                // Lockstep: the clock only moves with the simulator's next step,
+                // so waiting here for the boundary would never end. Run the step
+                // on the newest sample now - it is the step for this sim time.
+                if (simLockstepActive()) {
+                    // ...and keep the target on the clock: schedLoopStartCycles
+                    // adapts, and a phase left inside it now could fall outside later.
+                    nextTargetCycles = nowCycles;
+                    break;
+                }
+#endif
                 nowCycles = getCycleCounter();
                 schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
             }
