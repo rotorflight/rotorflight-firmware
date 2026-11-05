@@ -107,7 +107,8 @@ Step-by-step skills for tasks that need local tools are in
 [rotorflight-agent-skills](https://github.com/rotorflight/rotorflight-agent-skills).
 In Claude Code, install them with `/plugin marketplace add rotorflight/rotorflight-agent-skills`
 and `/plugin install rotorflight-dev@rotorflight`. Other agents: clone that repository and read
-the skill's `SKILL.md` before starting the task.
+the skill's `SKILL.md` before starting the task. If the repository cannot be cloned, continue with
+the steps in this file and state that the skill was unavailable.
 
 | Skill | Use it to |
 | --- | --- |
