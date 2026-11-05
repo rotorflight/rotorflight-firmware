@@ -47,7 +47,8 @@
 #define USE_VTX_RTC6705
 #endif
 
-#ifndef USE_DSHOT
+// The SITL reads ESC telemetry from a TCP UART; it has no DSHOT to depend on.
+#if !defined(USE_DSHOT) && !defined(SIMULATOR_BUILD)
 #undef USE_ESC_SENSOR
 #endif
 
