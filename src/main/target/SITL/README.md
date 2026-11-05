@@ -32,8 +32,12 @@ feed, motor output and disarming. CI runs it on every PR (`.github/workflows/sit
 
 | Direction | Address | Payload |
 |---|---|---|
-| simulator -> FC | `udp://127.0.0.1:9003` | `fdm_packet` (136 bytes): timestamp, gyro, accelerometer, attitude quaternion, velocity, position |
-| FC -> simulator | `udp://127.0.0.1:9002` | `servo_packet` (48 bytes): `motor_speed[4]` (M1-M4, 0..1), `servo[8]` (S1-S8, us, 0 = absent) |
+| simulator -> FC | `udp://127.0.0.1:9003` (`SITL_FDM_PORT`) | `fdm_packet`, 136 bytes: timestamp, gyro, accelerometer, attitude quaternion, velocity, position; optional tail told apart by length: 168 + motor eRPM[4], 176 + pressure, 192 + MCU vref/temperature, 208 + BEC/bus rails, 224 + pack voltage/current |
+| simulator -> FC | same port | `baro_packet`, 24 bytes: timestamp, pressure, temperature (Wingflight's layout) |
+| FC -> simulator | `udp://127.0.0.1:9002` (`SITL_OUTPUT_ADDR`) | `servo_packet`, 68 bytes: `motor_speed[4]` (M1-M4, commanded fraction 0..1), `servo[8]` (S1-S8, us, 0 = absent), `mixer[5]` (stabilized roll, pitch, yaw, collective, throttle); the first 48 bytes are Wingflight's layout |
+
+Wingflight's SITL accepts the same FDM tail, so a simulator written for either firmware
+works with both.
 | UARTn <-> client | `tcp://127.0.0.1:576n` | one client per port; UART1 (5761) and UART2 (5762) carry MSP and the CLI by default |
 
 Both structs are in [target.h](target.h). By default RC arrives as `MSP_SET_RAW_RC` (MSP RX).
