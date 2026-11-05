@@ -510,7 +510,10 @@ void systemInit(void) {
             }
         }
         const unsigned medianUs = (unsigned)(took[ARRAYLEN(took) / 2] / 1000);
-        simLoopSleepUs = (medianUs <= 4 * SIM_LOOP_SLEEP_DEFAULT_US) ? SIM_LOOP_SLEEP_DEFAULT_US : 0;
+        // The scheduler polls for the gyro boundary from 100 us out (scheduler.h):
+        // an idle much longer than 50 us overshoots that window and gyro cycles
+        // are skipped (a 107 us sleep on the GitHub runner starved the loop).
+        simLoopSleepUs = (medianUs * 2 <= 3 * SIM_LOOP_SLEEP_DEFAULT_US) ? SIM_LOOP_SLEEP_DEFAULT_US : 0;
         printf("[system]main loop idle: %u us (a %u us sleep takes %u us here)\n",
                (unsigned)simLoopSleepUs, SIM_LOOP_SLEEP_DEFAULT_US, medianUs);
     }
