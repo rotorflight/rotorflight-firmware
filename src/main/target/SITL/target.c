@@ -496,6 +496,12 @@ void systemInit(void) {
         simLoopSleepUs = (uint32_t)strtoul(loopSleep, NULL, 10);
         printf("[system]main loop idle: %u us (SITL_LOOP_SLEEP_US)\n", (unsigned)simLoopSleepUs);
     } else {
+#if defined(_WIN32) || defined(__MINGW32__)
+        // Windows cannot sleep for less than a timer tick, and a short
+        // nanosleep() returns at once, so there is nothing to measure: yield.
+        simLoopSleepUs = 0;
+        printf("[system]main loop idle: 0 us (Windows)\n");
+#else
         // How long does a short sleep really take here? Median of 9.
         uint64_t took[9];
         for (unsigned i = 0; i < ARRAYLEN(took); i++) {
@@ -516,6 +522,7 @@ void systemInit(void) {
         simLoopSleepUs = (medianUs * 2 <= 3 * SIM_LOOP_SLEEP_DEFAULT_US) ? SIM_LOOP_SLEEP_DEFAULT_US : 0;
         printf("[system]main loop idle: %u us (a %u us sleep takes %u us here)\n",
                (unsigned)simLoopSleepUs, SIM_LOOP_SLEEP_DEFAULT_US, medianUs);
+#endif
     }
 
     if (pthread_mutex_init(&updateLock, NULL) != 0) {
