@@ -212,7 +212,7 @@ static bool lsm6dsk320xReset(const extDevice_t *dev)
     return false;
 }
 
-static bool lsm6dsk320xConfigure(const extDevice_t *dev, uint8_t hardware_lpf)
+static bool lsm6dsk320xConfigure(const extDevice_t *dev, uint8_t hardware_lpf, uint8_t gyroOdr)
 {
     // Set default LPF1 filter bandwidth to be as close as possible to MPU6000's 250Hz cutoff
     // DS15060 Table 66 bandwidths at 7.68 kHz ODR.
@@ -286,7 +286,7 @@ static bool lsm6dsk320xConfigure(const extDevice_t *dev, uint8_t hardware_lpf)
     // programming mode and ODR in a single write leaves them at 7.68 kHz / 960 Hz.
     delayMicroseconds(500);
     return lsm6dsk320xWriteRegVerified(dev, LSM6DSV_CTRL2,
-                gyro_mode | LSM6DSV_ENCODE_BITS(LSM6DSV_CTRL2_ODR_G_8000HZ,
+                gyro_mode | LSM6DSV_ENCODE_BITS(gyroOdr,
                                                 LSM6DSV_CTRL2_ODR_G_MASK,
                                                 LSM6DSV_CTRL2_ODR_G_SHIFT)) &&
            lsm6dsk320xWriteRegVerified(dev, LSM6DSV_CTRL1,
@@ -301,9 +301,12 @@ static void lsm6dsk320xGyroInit(gyroDev_t *gyro)
 
     spiSetClkDivisor(dev, spiCalculateDivider(LSM6DSK320X_MAX_SPI_CLK_HZ));
 
+    // Each ODR code step halves the rate (HAODR mode 1: 12 = 8 kHz, 11 = 4 kHz, ...)
+    const uint8_t gyroOdr = LSM6DSV_CTRL2_ODR_G_8000HZ - llog2(gyro->mpuDividerDrops + 1);
+
     bool configured = false;
     for (unsigned attempt = 0; attempt < LSM6DSK320X_INIT_ATTEMPTS && !configured; attempt++) {
-        configured = lsm6dsk320xConfigure(dev, gyro->hardware_lpf);
+        configured = lsm6dsk320xConfigure(dev, gyro->hardware_lpf, gyroOdr);
     }
     if (!configured) {
         failureMode(FAILURE_GYRO_INIT_FAILED);

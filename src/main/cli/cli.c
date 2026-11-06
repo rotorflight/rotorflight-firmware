@@ -4040,7 +4040,9 @@ static void cliPrintGyroRegisters(uint8_t whichSensor)
     if (gyroMpuDetectionResultByInstance(whichSensor)->sensor == LSM6DSK320X_SPI) {
         cliPrintLinef("# WHO_AM_I  0x%X (0x75)", gyroReadRegister(whichSensor, 0x0F));
         cliPrintLinef("# CTRL1     0x%X (0x19)", gyroReadRegister(whichSensor, 0x10)); // high-accuracy accelerometer, 1 kHz
-        cliPrintLinef("# CTRL2     0x%X (0x1C)", gyroReadRegister(whichSensor, 0x11)); // high-accuracy gyro, 8 kHz
+        // High-accuracy gyro; the ODR code drops by one per halving below 8 kHz (12 = 8 kHz, 11 = 4 kHz)
+        const unsigned gyroOdr = 12 - llog2(8000 / MAX(gyro.sampleRateHz, 1000));
+        cliPrintLinef("# CTRL2     0x%X (0x%X)", gyroReadRegister(whichSensor, 0x11), 0x10 | gyroOdr);
         cliPrintLinef("# CTRL3     0x%X (0x44)", gyroReadRegister(whichSensor, 0x12)); // BDU and auto-increment
         // LPF1 bandwidth occupies the upper nibble and depends on gyro_hardware_lpf.
         cliPrintLinef("# CTRL6     0x%X (FS bits 0x0C)", gyroReadRegister(whichSensor, 0x15));

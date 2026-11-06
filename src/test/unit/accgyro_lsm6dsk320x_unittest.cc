@@ -59,6 +59,7 @@ protected:
         reset_delay_ms = exti_init_count = failure_mode_count = sequence_count = wait_count = 0;
         spi_frequency = 0;
         dma_available = false;
+        gyro.mpuDividerDrops = 0;
         gyro.dev.txBuf = tx_buffer;
         gyro.dev.rxBuf = rx_buffer;
         // The reset verifies the chip identity, so the mock has to answer as a LSM6DSK320X.
@@ -147,6 +148,21 @@ TEST_F(Lsm6dsk320x, InitializesHighAccuracyRatesScalesAndInterrupt)
     EXPECT_EQ(0, gyro.mpuDividerDrops);
     EXPECT_EQ(0x22, gyro.gyroDataReg);
     EXPECT_EQ(0x28, gyro.accDataReg);
+}
+
+TEST_F(Lsm6dsk320x, LowersGyroOdrByTheSampleRateDivider)
+{
+    // F4/F7 and G4 targets run the gyro loop at 4 kHz and 2 kHz, F411 at 1 kHz: the sensor
+    // ODR must follow, otherwise the gyro EXTI and the PID loop run at the full 8 kHz.
+    const struct { uint8_t dividerDrops; uint8_t ctrl2; } cases[] = {
+        { 0, 0x1c }, { 1, 0x1b }, { 3, 0x1a }, { 7, 0x19 },
+    };
+    for (const auto &c : cases) {
+        gyro.mpuDividerDrops = c.dividerDrops;
+        gyro.initFn(&gyro);
+        EXPECT_EQ(c.ctrl2, registers[0x11]);
+        EXPECT_EQ(0x19, registers[0x10]); // accelerometer stays at 1 kHz
+    }
 }
 
 TEST_F(Lsm6dsk320x, ReportsInitFailureWhenTheResetNeverCompletes)

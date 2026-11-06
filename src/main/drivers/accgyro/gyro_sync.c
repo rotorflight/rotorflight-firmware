@@ -61,10 +61,22 @@ void gyroSetSampleRate(gyroDev_t *gyro)
     switch (gyro->mpuDetectionResult.sensor) {
 #ifdef USE_ACCGYRO_LSM6DSK320X
         case LSM6DSK320X_SPI:
-            // High-accuracy ODR mode 1, matching the driver register setup.
+            // High-accuracy ODR mode 1. The driver lowers the gyro ODR by
+            // mpuDividerDrops + 1, matching the ICM-426xx limits per MCU.
             gyroRateKHz = GYRO_RATE_8_kHz;
-            gyroSampleRateHz = 8000;
             accSampleRateHz = 1000;
+#if defined(STM32F411xE)
+            gyroSampleRateHz = 1000;
+            gyroDivider = 8;
+#elif defined(STM32G4)
+            gyroSampleRateHz = 2000;
+            gyroDivider = 4;
+#elif defined(STM32F4) || defined(STM32F7)
+            gyroSampleRateHz = 4000;
+            gyroDivider = 2;
+#else
+            gyroSampleRateHz = 8000;
+#endif
             break;
 #endif
 
