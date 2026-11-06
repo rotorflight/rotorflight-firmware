@@ -45,6 +45,9 @@
 #include "flight/governor.h"
 #include "flight/mixer.h"
 #include "flight/pid.h"
+#include "flight/setpoint.h"
+
+#include "fc/rc_rates.h"
 
 
 // Headspeed quality levels
@@ -84,6 +87,8 @@ typedef struct {
     bool            useDynMinThrottle;
     bool            useElectricMotor;
     bool            useTorqueAssist;
+    bool            useTTABanking;
+    bool            useTTAAfterPLimit;
     bool            useAutorotation;
 
     // State machine
@@ -214,7 +219,16 @@ typedef struct {
     float           ttaAdd;
     float           ttaGain;
     float           ttaLimit;
+    float           ttaThreshold;
     filter_t        ttaFilter;
+    float           ttaP;
+
+    // TTA momentum banking
+    float           bankHeadSpeed;
+    float           bankRelease;
+    float           bankLimit;
+    float           bankRate;
+    float           bankReleasePoint;
 
     // Timeouts
     long            throttleHoldTimeout;
@@ -513,8 +527,9 @@ static float govCalcTTA(void)
     float ttaAdd = 0;
 
     if (gov.useTorqueAssist) {
-        float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
-        float TTA = filterApply(&gov.ttaFilter, YAW) * getSpoolUpRatio() * gov.ttaGain;
+        // Positive when the tail cannot give the requested yaw torque on its own
+        float demand = getTailTorqueAssistDemand(gov.ttaThreshold);
+        float TTA = filterApply(&gov.ttaFilter, demand) * getSpoolUpRatio() * gov.ttaGain;
         float headroom = 0;
 
         if (gov.govMode == GOV_MODE_DIRECT)
@@ -524,13 +539,78 @@ static float govCalcTTA(void)
 
         ttaAdd = constrainf(TTA, 0, headroom);
 
-        DEBUG(TTA, 0, YAW * 1000);
+        DEBUG(TTA, 0, demand * 1000);
         DEBUG(TTA, 1, TTA * 1000);
         DEBUG(TTA, 2, headroom * 1000);
         DEBUG(TTA, 3, ttaAdd * 1000);
     }
 
     return ttaAdd;
+}
+
+/*
+ * TTA momentum banking (motorised tail, electric governor)
+ *
+ * TTA speeds the main rotor up to help the tail in the torque direction.
+ * Instead of letting the governor pull that speed straight back (which
+ * pushes the heli in the torque direction again), the extra headspeed is
+ * held as a bank on top of the governor target:
+ *
+ *  - Bank: while TTA is adding throttle, the bank follows the headspeed up,
+ *    capped at gov_tta_bank_limit above the target.
+ *  - Wind-down: the bank is given back at a rate set by the yaw setpoint.
+ *    At full yaw rate in the TTA direction it is held. At zero or in the
+ *    tail direction it winds down at gov_tta_bank_rate.
+ *  - Release: when the tail motor is asked for more than gov_tta_bank_release
+ *    (never below the TTA start point), the bank is dropped and main throttle is cut (negative TTA), so the
+ *    rotor slows and its reaction torque helps the tail. The cut is limited
+ *    to the speed above the target, so the headspeed is not pulled below it.
+ */
+#define GOV_BANK_RELEASE_GAIN   1.0f    // throttle cut per unit of tail demand above the release point
+#define GOV_BANK_TTA_ACTIVE     0.005f  // TTA above which the bank follows the headspeed up
+
+static void govCalcTTABanking(void)
+{
+    gov.bankRelease = 0;
+
+    if (!gov.useTTABanking || gov.state != GOV_STATE_ACTIVE) {
+        gov.bankHeadSpeed = 0;
+        return;
+    }
+
+    // Headspeed above the governor target
+    const float excess = fmaxf(gov.currentHeadSpeed - gov.targetHeadSpeed, 0);
+
+    // Tail motor demand from the yaw PID
+    const float tailDemand = getTailMotorDemand();
+
+    // Yaw setpoint as a fraction of the max yaw rate, positive in the TTA (torque) direction
+    const float maxRate = applyRatesCurve(FD_YAW, 1.0f);
+    const float ttaRate = -getSetpoint(FD_YAW) * mixerRotationSign();
+    const float rateRatio = (maxRate > 1) ? constrainf(ttaRate / maxRate, 0, 1) : 0;
+
+    // Release point, never below the TTA start point, so TTA and the release can't act together
+    const float releasePoint = fmaxf(gov.bankReleasePoint, getTailTorqueAssistStart(gov.ttaThreshold));
+
+    if (tailDemand > releasePoint) {
+        // Tail running out of authority - give back the bank as a throttle cut
+        gov.bankHeadSpeed = 0;
+        gov.bankRelease = fminf((tailDemand - releasePoint) * GOV_BANK_RELEASE_GAIN, excess / gov.fullHeadSpeed);
+    }
+    else if (gov.ttaAdd > GOV_BANK_TTA_ACTIVE && excess > gov.bankHeadSpeed) {
+        // TTA is speeding the rotor up - bank it
+        gov.bankHeadSpeed = fminf(excess, gov.targetHeadSpeed * gov.bankLimit);
+    }
+    else {
+        // Wind down, slower the closer the setpoint is to max rate in the TTA direction
+        const float rate = gov.targetHeadSpeed * gov.bankRate * (1.0f - rateRatio);
+        gov.bankHeadSpeed = fmaxf(gov.bankHeadSpeed - rate * pidGetDT(), 0);
+    }
+
+    DEBUG(TTA, 4, gov.bankHeadSpeed);
+    DEBUG(TTA, 5, rateRatio * 1000);
+    DEBUG(TTA, 6, gov.bankRelease * 1000);
+    DEBUG(TTA, 7, tailDemand * 1000);
 }
 
 static float govCalcDynMinThrottle(float minThrottle)
@@ -617,14 +697,22 @@ static void govDataUpdate(void)
     // Tail Torque Assist
     gov.ttaAdd = govCalcTTA();
 
+    // TTA momentum banking
+    govCalcTTABanking();
+
     // Normalized RPM error
-    const float newError = (gov.targetHeadSpeed - gov.currentHeadSpeed) / gov.fullHeadSpeed + gov.ttaAdd;
+    const float newError = (gov.targetHeadSpeed + gov.bankHeadSpeed - gov.currentHeadSpeed) / gov.fullHeadSpeed + gov.ttaAdd - gov.bankRelease;
     const float newDiff = difFilterApply(&gov.differentiator, newError);
 
     // Update PID terms
     gov.P = gov.K * gov.Kp * newError;
     gov.C = gov.K * gov.Ki * newError * pidGetDT();
     gov.D = gov.K * gov.Kd * newDiff;
+
+    // Motorised tail: the TTA and bank release share of P is added after the P limit,
+    // so gov_p_limit limits the speed loop only
+    gov.ttaP = gov.useTTAAfterPLimit ? gov.K * gov.Kp * (gov.ttaAdd - gov.bankRelease) : 0;
+    gov.P -= gov.ttaP;
 
     // All precomps
     gov.F = govCalcFeedforward();
@@ -877,7 +965,7 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
     if (gov.pidSpoolupActive)
     {
         // PID limits
-        gov.P = constrainf(gov.P, gov.minP, gov.maxP);
+        gov.P = constrainf(gov.P, gov.minP, gov.maxP) + gov.ttaP;
         gov.I = constrainf(gov.I, gov.minI, gov.maxI);
         gov.D = constrainf(gov.D, gov.minD, gov.maxD);
 
@@ -932,7 +1020,7 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
 static void govPIDControl(float minThrottle, float maxThrottle, float maxRate)
 {
     // PID limits
-    gov.P = constrainf(gov.P, gov.minP, gov.maxP);
+    gov.P = constrainf(gov.P, gov.minP, gov.maxP) + gov.ttaP;
     gov.I = constrainf(gov.I, gov.minI, gov.maxI);
     gov.D = constrainf(gov.D, gov.minD, gov.maxD);
     gov.F = constrainf(gov.F, gov.minF, gov.maxF);
@@ -1511,7 +1599,8 @@ void INIT_CODE validateAndFixGovernorProfile(void)
             BIT(GOV_FLAG_FALLBACK_PRECOMP) |
             BIT(GOV_FLAG_VOLTAGE_COMP) |
             BIT(GOV_FLAG_PID_SPOOLUP) |
-            BIT(GOV_FLAG_DYN_MIN_THROTTLE));
+            BIT(GOV_FLAG_DYN_MIN_THROTTLE) |
+            BIT(GOV_FLAG_TTA_BANKING));
     }
 
     validateAndSetMinMaxThrottle(
@@ -1525,9 +1614,16 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
     if ((gov.govMode == GOV_MODE_DIRECT || gov.govMode == GOV_MODE_ELECTRIC) &&
         pidProfile->governor.tta_gain > 0 && pidProfile->governor.tta_limit > 0)
     {
-        gov.ttaGain = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
+        gov.ttaGain = pidProfile->governor.tta_gain / 125.0f;
         gov.ttaLimit = pidProfile->governor.tta_limit / 100.0f;
+        gov.ttaThreshold = pidProfile->governor.tta_threshold / 1000.0f;
         gov.useTorqueAssist = true;
+        gov.useTTABanking = (gov.govMode == GOV_MODE_ELECTRIC) && mixerIsTailMode(TAIL_MODE_MOTORIZED) &&
+            (pidProfile->governor.flags & BIT(GOV_FLAG_TTA_BANKING));
+        gov.useTTAAfterPLimit = (gov.govMode == GOV_MODE_ELECTRIC) && mixerIsTailMode(TAIL_MODE_MOTORIZED);
+        gov.bankLimit = pidProfile->governor.tta_bank_limit / 100.0f;
+        gov.bankRate = pidProfile->governor.tta_bank_rate / 100.0f;
+        gov.bankReleasePoint = pidProfile->governor.tta_bank_release / 100.0f;
 
         if (gov.govMode == GOV_MODE_ELECTRIC)
             gov.ttaGain /= gov.K * gov.Kp;
@@ -1536,7 +1632,11 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
     {
         gov.ttaGain = 0;
         gov.ttaLimit = 0;
+        gov.ttaThreshold = 0;
         gov.useTorqueAssist = false;
+        gov.useTTABanking = false;
+        gov.useTTAAfterPLimit = false;
+        gov.ttaP = 0;
     }
 }
 

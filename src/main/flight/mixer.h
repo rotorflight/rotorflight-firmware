@@ -59,6 +59,7 @@
 
 void mixerInit(void);
 void mixerInitConfig(void);
+void mixerInitFilters(void);
 
 void validateAndFixMixerConfig(void);
 
@@ -70,6 +71,9 @@ float mixerGetInputHistory(uint8_t index, uint16_t delay);
 float mixerGetOutput(uint8_t index);
 
 float getCyclicDeflection(void);
+float getTailTorqueAssistStart(float threshold);
+float getTailTorqueAssistDemand(float threshold);
+float getTailMotorDemand(void);
 
 bool mixerSaturated(uint8_t index);
 bool mixerTakeStabilizedSaturation(void);

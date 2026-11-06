@@ -47,6 +47,50 @@ Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
 Bus servos with a `speed` set previously moved much slower than configured
 (about 20x at 50Hz SBUS). They now move at the configured speed (#515).
 
+Motorised tail: TTA now engages where the tail reaches `tail_motor_idle`,
+not only below `tail_center_trim`. With idle above trim there was a band
+where the tail sat at idle and TTA did not act yet. Setups with trim at or
+above idle (including the defaults) are unchanged. Debug mode `TTA` value 0
+now shows this demand instead of the raw yaw.
+
+New per-profile `gov_tta_threshold` (‰ tail throttle, default 0 = off)
+starts TTA above the idle, while the tail keeps control down to
+`tail_motor_idle`. Between the two, the tail and the main rotor torque act
+together. A value about 10–12 points below the hover tail throttle is a starting point (100–120
+for a hover tail throttle of 22%).
+It is in the PID profile with `gov_tta_gain` and `gov_tta_limit`, because the
+best value depends on the TTA gain and headspeed.
+
+New `tail_motor_lead` (ms, default 0 = off) drops the tail throttle early
+when it falls, to offset the tail motor spinning down slower than it spins
+up. This reduces overshoot on tail-direction stops. The lead follows the
+P, I and F terms of the yaw PID only, so D and B spikes don't drop the tail to
+idle, and it takes away at most half of the throttle above `tail_motor_idle`.
+
+New per-profile `gov_use_tta_banking` (default off, electric governor with a
+motorised tail). The headspeed TTA adds is held above the governor target
+instead of being pulled straight back, and wound down as the yaw stick comes
+back from full rate in the TTA direction: held at full rate, and at most
+`gov_tta_bank_rate` (% of headspeed per second, default 20) at zero or beyond.
+When the tail motor is asked for more than `gov_tta_bank_release` (% tail
+throttle, default 50, never below the TTA start point), the held speed is
+released as a main throttle cut, so the rotor slowing down helps the tail.
+Lower values release the bank earlier and hold less extra headspeed. Use 50,
+or at least 12 points above the hover tail throttle if that is higher (a weak
+tail). Lower values gave no clear gain in testing, and in wind the hover tail
+demand can rise well above its calm value and trigger the release in a hover. The bank is capped
+at `gov_tta_bank_limit` (% of headspeed, default 10) above the target.
+Debug mode `TTA` values 4-7 show the bank (rpm), the yaw rate ratio, the release
+and the tail motor demand. The Blackbox header has new lines `yaw_tta_threshold`,
+`yaw_tta_bank` (banking on/off, limit, rate, release), `tail_motor_idle` and `tail_motor_lead`.
+
+With the electric governor and a motorised tail, TTA (and the banking release) is
+now added to the governor P term after `gov_p_limit`, so the P limit only limits
+the speed loop. TTA is limited by `gov_tta_limit` and full throttle. Before, the
+P limit also capped TTA (on a K110 at `gov_p_limit` 20, at about 40% of what
+TTA asked for). Tunes that relied on that cap get stronger TTA. Pitch tails and
+nitro (direct) mode are unchanged.
+
 ## MSP Changes
 
 - API version 12.10 (#484)
@@ -54,6 +98,18 @@ Bus servos with a `speed` set previously moved much slower than configured
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
 - added `error_decay_gain_cyclic` (#457)
+
+### MSP_MIXER_CONFIG / MSP_SET_MIXER_CONFIG
+
+- added `tail_motor_lead` (U8, ms) at the end; optional on set
+
+### MSP_GOVERNOR_PROFILE / MSP_SET_GOVERNOR_PROFILE
+
+- added `gov_tta_threshold` (U8, ‰ tail throttle) at the end; optional on set
+- added `gov_tta_bank_limit`, `gov_tta_bank_rate` (2 × U8, %) after it;
+  optional on set (both)
+- added `gov_tta_bank_release` (U8, % tail throttle) after them; optional on set
+- `gov_use_tta_banking` is bit 7 of `flags`
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
 
