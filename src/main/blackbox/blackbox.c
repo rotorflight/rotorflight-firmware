@@ -1672,6 +1672,8 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->governor.d_gain,
                                                                             currentPidProfile->governor.f_gain,
                                                                             currentPidProfile->governor.gain);
+        BLACKBOX_PRINT_HEADER_LINE("gov_profile_blend", "%d,%d",            governorConfig()->gov_profile_blend,
+                                                                            governorConfig()->gov_profile_blend_time);
         BLACKBOX_PRINT_HEADER_LINE("rollBW", "%d,%d,%d",                    currentPidProfile->gyro_cutoff[PID_ROLL],
                                                                             currentPidProfile->dterm_cutoff[PID_ROLL],
                                                                             currentPidProfile->bterm_cutoff[PID_ROLL]);

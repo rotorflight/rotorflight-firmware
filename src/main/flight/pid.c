@@ -602,66 +602,392 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
     pt1FilterInit(&pid.offsetFloodRelaxFilter, 1, pid.freq);
 }
 
+//// Profile gain blending
+//
+// When the PID profile is switched in flight, the gains below move from the
+// old profile's values to the new one's instead of stepping. The headspeed
+// the governor is heading for sets the pace. Rotor and tail authority grow
+// with headspeed squared, so profiles tuned for their own headspeed have
+// gains that go roughly with 1/headspeed². The progress follows that curve:
+// with such profiles the loop gain stays constant through the change, where
+// a progress linear in headspeed would overshoot it by up to ~20% (for
+// 2500 -> 1500 rpm) on the way. Whenever headspeed
+// can't be trusted (external governor, throttle curve, lost RPM signal,
+// throttle hold, autorotation, ...) the blend carries on over time instead.
+// Every path is rate limited, only moves forward and always comes to an end.
+//
+// Filters, curves and the governor's own settings still switch at once.
+
+// Fastest allowed blend, so a headspeed glitch can't make a step [s]
+#define PID_BLEND_MIN_TIME          0.2f
+
+// Slowest allowed blend, even if the headspeed never gets there [s]
+#define PID_BLEND_MAX_TIME          10.0f
+
+// Smallest headspeed change worth following, relative to the larger one
+#define PID_BLEND_MIN_HS_CHANGE     0.05f
+
+typedef struct {
+    pidAxisCoef_t coef[PID_AXIS_COUNT];
+    float masterGain[PID_AXIS_COUNT];
+    float errorLimit[PID_AXIS_COUNT];
+    float offsetLimit[XY_AXIS_COUNT];
+    float yawCWStopGain;
+    float yawCCWStopGain;
+    float cyclicCrossCouplingGain[XY_AXIS_COUNT];
+    float yawCollectiveFFGain;
+    float yawCyclicFFGain;
+    float yawInertiaGain;
+    float pitchCollectiveFFGain;
+} pidGains_t;
+
+// Blending treats the gains as a flat array of floats
+STATIC_ASSERT(sizeof(pidGains_t) % sizeof(float) == 0, pidGains_t_holds_only_floats);
+
+typedef struct {
+    bool active;
+    uint8_t pidMode;
+
+    // Blend progress, 0 = old gains, 1 = new gains
+    float ratio;
+
+    // Headspeed progress is measured from this point (ratio and headspeed),
+    // taken when headspeed tracking starts or resumes
+    bool anchored;
+    float anchorRatio;
+    float anchorHeadSpeed;
+
+    // Time based progress per second
+    float timeRate;
+
+    pidGains_t start;
+    pidGains_t target;
+} pidBlend_t;
+
+static pidBlend_t blend;
+
+static void pidCalcGains(const pidProfile_t *pidProfile, uint8_t pidMode, pidGains_t *gains)
+{
+    pidAxisCoef_t *coef = gains->coef;
+
+    // Roll axis
+    coef[PID_ROLL].Kp = ROLL_P_TERM_SCALE * pidProfile->pid[PID_ROLL].P;
+    coef[PID_ROLL].Ki = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].I;
+    coef[PID_ROLL].Kd = ROLL_D_TERM_SCALE * pidProfile->pid[PID_ROLL].D;
+    coef[PID_ROLL].Kf = ROLL_F_TERM_SCALE * pidProfile->pid[PID_ROLL].F;
+    coef[PID_ROLL].Kb = ROLL_B_TERM_SCALE * pidProfile->pid[PID_ROLL].B;
+    coef[PID_ROLL].Ko = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].O;
+
+    // Pitch axis
+    coef[PID_PITCH].Kp = PITCH_P_TERM_SCALE * pidProfile->pid[PID_PITCH].P;
+    coef[PID_PITCH].Ki = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].I;
+    coef[PID_PITCH].Kd = PITCH_D_TERM_SCALE * pidProfile->pid[PID_PITCH].D;
+    coef[PID_PITCH].Kf = PITCH_F_TERM_SCALE * pidProfile->pid[PID_PITCH].F;
+    coef[PID_PITCH].Kb = PITCH_B_TERM_SCALE * pidProfile->pid[PID_PITCH].B;
+    coef[PID_PITCH].Ko = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].O;
+
+    // Yaw axis (no offset term)
+    coef[PID_YAW].Kp = YAW_P_TERM_SCALE * pidProfile->pid[PID_YAW].P;
+    coef[PID_YAW].Ki = YAW_I_TERM_SCALE * pidProfile->pid[PID_YAW].I;
+    coef[PID_YAW].Kd = YAW_D_TERM_SCALE * pidProfile->pid[PID_YAW].D;
+    coef[PID_YAW].Kf = YAW_F_TERM_SCALE * pidProfile->pid[PID_YAW].F;
+    coef[PID_YAW].Kb = YAW_B_TERM_SCALE * pidProfile->pid[PID_YAW].B;
+    coef[PID_YAW].Ko = 0;
+    coef[PID_YAW].Kc = 0;
+
+    // Adjust for PID Mode4
+    if (pidMode == 4) {
+        coef[PID_ROLL].Ki = coef[PID_PITCH].Ki = fminf(coef[PID_ROLL].Ki, coef[PID_PITCH].Ki);
+        coef[PID_ROLL].Ko = coef[PID_PITCH].Ko = fminf(coef[PID_ROLL].Ko, coef[PID_PITCH].Ko);
+        coef[PID_ROLL].Kf = coef[PID_PITCH].Kf = fminf(coef[PID_ROLL].Kf, coef[PID_PITCH].Kf);
+
+        coef[PID_PITCH].Kb *= 10;
+        coef[PID_ROLL].Kd /= 5;
+        coef[PID_ROLL].Kb /= 5;
+    }
+
+    // Bleed conversion for pitch
+    if (pidProfile->pid[PID_PITCH].O > 0 && pidProfile->pid[PID_PITCH].I > 0)
+      coef[PID_PITCH].Kc = coef[PID_PITCH].Ko / coef[PID_PITCH].Ki;
+    else
+      coef[PID_PITCH].Kc = 0;
+
+    // Bleed conversion for roll
+    if (pidProfile->pid[PID_ROLL].O > 0 && pidProfile->pid[PID_ROLL].I > 0)
+      coef[PID_ROLL].Kc = coef[PID_ROLL].Ko / coef[PID_ROLL].Ki;
+    else
+      coef[PID_ROLL].Kc = 0;
+
+    // Accumulated error limit
+    for (int i = 0; i < XYZ_AXIS_COUNT; i++)
+        gains->errorLimit[i] = pidProfile->error_limit[i];
+    for (int i = 0; i < XY_AXIS_COUNT; i++)
+        gains->offsetLimit[i] = pidProfile->offset_limit[i];
+
+    // Tail/yaw PID parameters
+    gains->yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
+    gains->yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
+
+    // Master gains scale the feedback terms only: P and D directly, I and O
+    // through their integration rate, so trim already held in I and O does not
+    // jump when the gain is changed in flight. F, B and the precomps are
+    // feedforward and stay as set. Roll and pitch share one gain, as the
+    // accumulated cyclic error is rotated between them during pirouettes and
+    // must stay in common units.
+    gains->masterGain[PID_ROLL] = gains->masterGain[PID_PITCH] =
+        constrain(pidProfile->cyclic_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
+    gains->masterGain[PID_YAW] =
+        constrain(pidProfile->yaw_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
+
+    // Tail/yaw precomp
+    gains->yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
+    gains->yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
+    gains->yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 200.0f;
+
+    // Pitch precomp
+    gains->pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
+
+    // Cross-coupling compensation
+    gains->cyclicCrossCouplingGain[FD_PITCH] = pidProfile->cyclic_cross_coupling_gain * mixerRotationSign() * -CROSS_COUPLING_SCALE;
+    gains->cyclicCrossCouplingGain[FD_ROLL]  = gains->cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
+}
+
+static void pidGetGains(pidGains_t *gains)
+{
+    for (int i = 0; i < PID_AXIS_COUNT; i++) {
+        gains->coef[i] = pid.coef[i];
+        gains->masterGain[i] = pid.masterGain[i];
+        gains->errorLimit[i] = pid.errorLimit[i];
+    }
+    for (int i = 0; i < XY_AXIS_COUNT; i++) {
+        gains->offsetLimit[i] = pid.offsetLimit[i];
+        gains->cyclicCrossCouplingGain[i] = pid.cyclicCrossCouplingGain[i];
+    }
+
+    gains->yawCWStopGain = pid.yawCWStopGain;
+    gains->yawCCWStopGain = pid.yawCCWStopGain;
+
+    gains->yawCollectiveFFGain = pid.precomp.yawCollectiveFFGain;
+    gains->yawCyclicFFGain = pid.precomp.yawCyclicFFGain;
+    gains->yawInertiaGain = pid.precomp.yawInertiaGain;
+    gains->pitchCollectiveFFGain = pid.precomp.pitchCollectiveFFGain;
+}
+
+static void pidSetGains(const pidGains_t *gains)
+{
+    for (int i = 0; i < PID_AXIS_COUNT; i++) {
+        pid.coef[i] = gains->coef[i];
+        pid.masterGain[i] = gains->masterGain[i];
+        pid.errorLimit[i] = gains->errorLimit[i];
+    }
+    for (int i = 0; i < XY_AXIS_COUNT; i++) {
+        pid.offsetLimit[i] = gains->offsetLimit[i];
+        pid.cyclicCrossCouplingGain[i] = gains->cyclicCrossCouplingGain[i];
+    }
+
+    pid.yawCWStopGain = gains->yawCWStopGain;
+    pid.yawCCWStopGain = gains->yawCCWStopGain;
+
+    pid.precomp.yawCollectiveFFGain = gains->yawCollectiveFFGain;
+    pid.precomp.yawCyclicFFGain = gains->yawCyclicFFGain;
+    pid.precomp.yawInertiaGain = gains->yawInertiaGain;
+    pid.precomp.pitchCollectiveFFGain = gains->pitchCollectiveFFGain;
+}
+
+static void pidBlendMix(pidGains_t *gains)
+{
+    // Copy first: a restart mixes into blend.start itself
+    const pidGains_t from = blend.start;
+    const pidGains_t *to = &blend.target;
+    const float ratio = blend.ratio;
+
+    const float *start = (const float *)&from;
+    const float *target = (const float *)to;
+    float *mixed = (float *)gains;
+
+    for (unsigned i = 0; i < sizeof(pidGains_t) / sizeof(float); i++)
+        mixed[i] = start[i] + (target[i] - start[i]) * ratio;
+
+    // The feedback terms act as K * masterGain. Mixing both factors on their
+    // own makes the product bulge past both profiles when they move in
+    // opposite directions, so mix the product and divide out the mixed
+    // master gain (>= MASTER_GAIN_MIN, never zero). F and B are not scaled
+    // by the master gain and stay mixed as above.
+    for (int axis = 0; axis < PID_AXIS_COUNT; axis++) {
+        const pidAxisCoef_t *s = &from.coef[axis];
+        const pidAxisCoef_t *t = &to->coef[axis];
+        const float ms = from.masterGain[axis];
+        const float mt = to->masterGain[axis];
+        const float mm = gains->masterGain[axis];
+        pidAxisCoef_t *coef = &gains->coef[axis];
+
+        coef->Kp = (s->Kp * ms + (t->Kp * mt - s->Kp * ms) * ratio) / mm;
+        coef->Ki = (s->Ki * ms + (t->Ki * mt - s->Ki * ms) * ratio) / mm;
+        coef->Kd = (s->Kd * ms + (t->Kd * mt - s->Kd * ms) * ratio) / mm;
+        coef->Ko = (s->Ko * ms + (t->Ko * mt - s->Ko * ms) * ratio) / mm;
+    }
+
+    // The bleed conversion is a ratio, not a gain: derive it from the mixed gains
+    for (int axis = PID_ROLL; axis <= PID_PITCH; axis++) {
+        pidAxisCoef_t *coef = &gains->coef[axis];
+        coef->Kc = (coef->Ko > 0 && coef->Ki > 0) ? coef->Ko / coef->Ki : 0;
+    }
+}
+
+static void pidBlendApply(void)
+{
+    pidGains_t gains;
+    pidBlendMix(&gains);
+    pidSetGains(&gains);
+}
+
+static void pidBlendRestart(void)
+{
+    // The target changed mid-blend: blend again from the gains in use now,
+    // so the change fades in as well instead of jumping by ratio * change.
+    // (Mixed from the blend state, as an adjustment may already have
+    // written the new value to the live gains.)
+    pidBlendMix(&blend.start);
+    blend.ratio = 0;
+    blend.anchored = false;
+}
+
+static void pidBlendRetargetTo(const pidGains_t *gains)
+{
+    if (memcmp(gains, &blend.target, sizeof(pidGains_t)) != 0) {
+        pidBlendRestart();
+        blend.target = *gains;
+    }
+    pidBlendApply();
+}
+
+static void pidBlendFinish(void)
+{
+    if (blend.active) {
+        blend.active = false;
+        blend.ratio = 1;
+        pidSetGains(&blend.target);
+    }
+}
+
+static void pidBlendCancel(void)
+{
+    blend.active = false;
+    blend.ratio = 1;
+}
+
+static void pidBlendUpdate(void)
+{
+    const bool tracking = blend.active && isGovernorTrackingHeadSpeed();
+    const float headSpeed = getGovernorHeadSpeed();
+    const float targetHeadSpeed = getGovernorRequestedHeadSpeed();
+
+    if (blend.active) {
+        if (!ARMING_FLAG(ARMED)) {
+            pidBlendFinish();
+        }
+        else {
+            // Never slower than the slowest allowed blend
+            float ratio = blend.ratio + pid.dT / PID_BLEND_MAX_TIME;
+            bool followHeadSpeed = false;
+
+            if (tracking) {
+                // (Re)start measuring from here, so losing and regaining the
+                // headspeed signal never makes the gains jump
+                if (!blend.anchored) {
+                    blend.anchored = true;
+                    blend.anchorRatio = blend.ratio;
+                    blend.anchorHeadSpeed = headSpeed;
+                }
+
+                const float change = targetHeadSpeed - blend.anchorHeadSpeed;
+                const float minChange = PID_BLEND_MIN_HS_CHANGE * fmaxf(targetHeadSpeed, blend.anchorHeadSpeed);
+
+                if (minChange > 0 && fabsf(change) > minChange) {
+                    // Progress in 1/headspeed², from the anchor to the target
+                    const float anchorSq = sq(blend.anchorHeadSpeed);
+                    const float progress = (anchorSq / sq(fmaxf(headSpeed, 1.0f)) - 1) /
+                                           (anchorSq / sq(targetHeadSpeed) - 1);
+                    ratio = fmaxf(ratio, blend.anchorRatio + (1 - blend.anchorRatio) * progress);
+                    followHeadSpeed = true;
+                }
+            }
+            else {
+                blend.anchored = false;
+            }
+
+            // No usable headspeed: blend over time
+            if (!followHeadSpeed) {
+                ratio = fmaxf(ratio, blend.ratio + pid.dT * blend.timeRate);
+            }
+
+            // Never faster than the fastest allowed blend
+            ratio = fminf(ratio, blend.ratio + pid.dT / PID_BLEND_MIN_TIME);
+
+            if (ratio >= 1) {
+                pidBlendFinish();
+            }
+            else if (ratio > blend.ratio) {
+                blend.ratio = ratio;
+                pidBlendApply();
+            }
+        }
+    }
+
+    DEBUG(PROFILE_BLEND, 0, lrintf(pidBlendRatio() * 1000));
+    DEBUG(PROFILE_BLEND, 1, blend.active ? (tracking ? 2 : 1) : 0);
+    DEBUG(PROFILE_BLEND, 2, lrintf(headSpeed));
+    DEBUG(PROFILE_BLEND, 3, lrintf(targetHeadSpeed));
+    DEBUG(PROFILE_BLEND, 4, lrintf(pid.coef[PID_YAW].Kp / YAW_P_TERM_SCALE));
+    DEBUG(PROFILE_BLEND, 5, lrintf(pid.coef[PID_YAW].Kf / YAW_F_TERM_SCALE));
+    DEBUG(PROFILE_BLEND, 6, lrintf(pid.coef[PID_PITCH].Kp / PITCH_P_TERM_SCALE));
+    DEBUG(PROFILE_BLEND, 7, lrintf(pid.coef[PID_ROLL].Kp / ROLL_P_TERM_SCALE));
+}
+
+bool pidBlendActive(void)
+{
+    return blend.active;
+}
+
+float pidBlendRatio(void)
+{
+    return blend.active ? blend.ratio : 1.0f;
+}
+
+void pidBlendRetarget(void)
+{
+    // An in-flight adjustment changed the active profile: blend towards it
+    if (blend.active) {
+        pidGains_t gains;
+        pidCalcGains(currentPidProfile, pid.pidMode, &gains);
+        pidBlendRetargetTo(&gains);
+    }
+}
+
+
 void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 {
     // PID not initialised yet
     if (pid.dT == 0)
       return;
 
+    // Both ends of a blend must use the same PID mode
+    if (blend.active && pidProfile->pid_mode != blend.pidMode)
+        pidBlendCancel();
+
     // PID algorithm
     pid.pidMode = pidProfile->pid_mode;
 
-    // Roll axis
-    pid.coef[PID_ROLL].Kp = ROLL_P_TERM_SCALE * pidProfile->pid[PID_ROLL].P;
-    pid.coef[PID_ROLL].Ki = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].I;
-    pid.coef[PID_ROLL].Kd = ROLL_D_TERM_SCALE * pidProfile->pid[PID_ROLL].D;
-    pid.coef[PID_ROLL].Kf = ROLL_F_TERM_SCALE * pidProfile->pid[PID_ROLL].F;
-    pid.coef[PID_ROLL].Kb = ROLL_B_TERM_SCALE * pidProfile->pid[PID_ROLL].B;
-    pid.coef[PID_ROLL].Ko = ROLL_I_TERM_SCALE * pidProfile->pid[PID_ROLL].O;
+    // Gains, limits and precomp gains
+    pidGains_t gains;
+    pidCalcGains(pidProfile, pid.pidMode, &gains);
 
-    // Pitch axis
-    pid.coef[PID_PITCH].Kp = PITCH_P_TERM_SCALE * pidProfile->pid[PID_PITCH].P;
-    pid.coef[PID_PITCH].Ki = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].I;
-    pid.coef[PID_PITCH].Kd = PITCH_D_TERM_SCALE * pidProfile->pid[PID_PITCH].D;
-    pid.coef[PID_PITCH].Kf = PITCH_F_TERM_SCALE * pidProfile->pid[PID_PITCH].F;
-    pid.coef[PID_PITCH].Kb = PITCH_B_TERM_SCALE * pidProfile->pid[PID_PITCH].B;
-    pid.coef[PID_PITCH].Ko = PITCH_I_TERM_SCALE * pidProfile->pid[PID_PITCH].O;
-
-    // Yaw axis
-    pid.coef[PID_YAW].Kp = YAW_P_TERM_SCALE * pidProfile->pid[PID_YAW].P;
-    pid.coef[PID_YAW].Ki = YAW_I_TERM_SCALE * pidProfile->pid[PID_YAW].I;
-    pid.coef[PID_YAW].Kd = YAW_D_TERM_SCALE * pidProfile->pid[PID_YAW].D;
-    pid.coef[PID_YAW].Kf = YAW_F_TERM_SCALE * pidProfile->pid[PID_YAW].F;
-    pid.coef[PID_YAW].Kb = YAW_B_TERM_SCALE * pidProfile->pid[PID_YAW].B;
-
-    // Adjust for PID Mode4
-    if (pid.pidMode == 4) {
-        pid.coef[PID_ROLL].Ki = pid.coef[PID_PITCH].Ki = fminf(pid.coef[PID_ROLL].Ki, pid.coef[PID_PITCH].Ki);
-        pid.coef[PID_ROLL].Ko = pid.coef[PID_PITCH].Ko = fminf(pid.coef[PID_ROLL].Ko, pid.coef[PID_PITCH].Ko);
-        pid.coef[PID_ROLL].Kf = pid.coef[PID_PITCH].Kf = fminf(pid.coef[PID_ROLL].Kf, pid.coef[PID_PITCH].Kf);
-
-        pid.coef[PID_PITCH].Kb *= 10;
-        pid.coef[PID_ROLL].Kd /= 5;
-        pid.coef[PID_ROLL].Kb /= 5;
+    if (blend.active) {
+        pidBlendRetargetTo(&gains);
     }
-
-    // Bleed conversion for pitch
-    if (pidProfile->pid[PID_PITCH].O > 0 && pidProfile->pid[PID_PITCH].I > 0)
-      pid.coef[PID_PITCH].Kc = pid.coef[PID_PITCH].Ko / pid.coef[PID_PITCH].Ki;
-    else
-      pid.coef[PID_PITCH].Kc = 0;
-
-    // Bleed conversion for roll
-    if (pidProfile->pid[PID_ROLL].O > 0 && pidProfile->pid[PID_ROLL].I > 0)
-      pid.coef[PID_ROLL].Kc = pid.coef[PID_ROLL].Ko / pid.coef[PID_ROLL].Ki;
-    else
-      pid.coef[PID_ROLL].Kc = 0;
-
-    // Accumulated error limit
-    for (int i = 0; i < XYZ_AXIS_COUNT; i++)
-        pid.errorLimit[i] = pidProfile->error_limit[i];
-    for (int i = 0; i < XY_AXIS_COUNT; i++)
-        pid.offsetLimit[i] = pidProfile->offset_limit[i];
+    else {
+        pidSetGains(&gains);
+    }
 
     // Exponential error decay rates
     pid.errorDecayRateGround = (pidProfile->error_decay_time_ground) ? (10.0f / pidProfile->error_decay_time_ground) : 0;
@@ -695,21 +1021,6 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
         }
     }
 
-    // Tail/yaw PID parameters
-    pid.yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
-    pid.yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
-
-    // Master gains scale the feedback terms only: P and D directly, I and O
-    // through their integration rate, so trim already held in I and O does not
-    // jump when the gain is changed in flight. F, B and the precomps are
-    // feedforward and stay as set. Roll and pitch share one gain, as the
-    // accumulated cyclic error is rotated between them during pirouettes and
-    // must stay in common units.
-    pid.masterGain[PID_ROLL] = pid.masterGain[PID_PITCH] =
-        constrain(pidProfile->cyclic_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
-    pid.masterGain[PID_YAW] =
-        constrain(pidProfile->yaw_master_gain, MASTER_GAIN_MIN, MASTER_GAIN_MAX) / 100.0f;
-
     // Collective/cyclic deflection lowpass filters
     filterUpdate(&pid.precomp.yawPrecompFilter,
       pidProfile->yaw_precomp_cutoff * (pid.pidMode == 4 ? 0.1f : 1.0f),
@@ -717,18 +1028,6 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 
     // RPM change filter
     difFilterUpdate(&pid.precomp.yawInertiaFilter, pidProfile->yaw_inertia_precomp_cutoff / 10.0f, pid.freq);
-
-    // Tail/yaw precomp
-    pid.precomp.yawCollectiveFFGain = pidProfile->yaw_collective_ff_gain / 100.0f;
-    pid.precomp.yawCyclicFFGain = pidProfile->yaw_cyclic_ff_gain / 100.0f;
-    pid.precomp.yawInertiaGain = pidProfile->yaw_inertia_precomp_gain / 200.0f;
-
-    // Pitch precomp
-    pid.precomp.pitchCollectiveFFGain = pidProfile->pitch_collective_ff_gain / 500.0f;
-
-    // Cross-coupling compensation
-    pid.cyclicCrossCouplingGain[FD_PITCH] = pidProfile->cyclic_cross_coupling_gain * mixerRotationSign() * -CROSS_COUPLING_SCALE;
-    pid.cyclicCrossCouplingGain[FD_ROLL]  = pid.cyclicCrossCouplingGain[FD_PITCH] * pidProfile->cyclic_cross_coupling_ratio / -100.0f;
 
     // Cross-coupling filters
     firstOrderHPFUpdate(&pid.crossCouplingFilter[FD_PITCH], pidProfile->cyclic_cross_coupling_cutoff / 10.0f, pid.freq);
@@ -752,8 +1051,37 @@ void INIT_CODE pidLoadProfile(const pidProfile_t *pidProfile)
 
 void INIT_CODE pidChangeProfile(const pidProfile_t *pidProfile)
 {
+    // Load the whole profile at once, without blending
+    pidBlendCancel();
     pidLoadProfile(pidProfile);
     //pidResetAxisErrors();
+}
+
+void pidSwitchProfile(const pidProfile_t *pidProfile)
+{
+    // Blend only in flight, with the PID loop running and the same PID mode
+    const bool useBlend = governorConfig()->gov_profile_blend &&
+                          ARMING_FLAG(ARMED) &&
+                          pid.dT > 0 &&
+                          pidProfile->pid_mode == pid.pidMode;
+
+    if (useBlend) {
+        // Start from the gains in use now, which may be a blend in progress
+        pidGetGains(&blend.start);
+
+        const float blendTime = constrain(governorConfig()->gov_profile_blend_time, 2, 100) / 10.0f;
+
+        blend.active = true;
+        blend.pidMode = pid.pidMode;
+        blend.ratio = 0;
+        blend.anchored = false;
+        blend.timeRate = 1.0f / blendTime;
+
+        pidLoadProfile(pidProfile);
+    }
+    else {
+        pidChangeProfile(pidProfile);
+    }
 }
 
 void INIT_CODE pidInit(const pidProfile_t *pidProfile)
@@ -1735,6 +2063,9 @@ void pidController(const pidProfile_t *pidProfile, timeUs_t currentTimeUs)
 {
     UNUSED(pidProfile);
     UNUSED(currentTimeUs);
+
+    // Move gains towards the new profile after an in-flight switch
+    pidBlendUpdate();
 
     // Update leveling mode state (resets horizon activation timer when mode is off)
     levelingUpdate();
