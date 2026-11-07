@@ -11,7 +11,7 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: c2f88038905f2808fa6ce722a23849071c6504af
+  SIM_REF: 1053d30355e8e9144ee10d9e4ce51b002e0d8496
 
 jobs:
 
@@ -65,6 +65,12 @@ jobs:
 
     - name: Hover check with vibration and gyro noise (RPM filter)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -131,6 +137,12 @@ jobs:
 
     - name: Hover check with vibration and gyro noise (RPM filter)
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
