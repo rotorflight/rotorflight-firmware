@@ -11,7 +11,7 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: 881c08991c05fb9cddd7a7946814e1a01a438fb5
+  SIM_REF: c2f88038905f2808fa6ce722a23849071c6504af
 
 jobs:
 
@@ -56,6 +56,15 @@ jobs:
 
     - name: Rescue check (heli model)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -113,6 +122,15 @@ jobs:
 
     - name: Rescue check (heli model)
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
