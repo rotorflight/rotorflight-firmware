@@ -11,7 +11,7 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: c05adffc0d028d9316bfb79d96c2c885c7c71d91
+  SIM_REF: 2ca92eccab80023442caf21d2d5f9383a39e438b
 
 jobs:
 
@@ -71,6 +71,18 @@ jobs:
 
     - name: Hover check with servo dynamics (digital servos)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+
+    - name: Replay of a real flight (OMP M7R cruise)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/m7r_cruise --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -143,6 +155,15 @@ jobs:
 
     - name: Hover check with servo dynamics (digital servos)
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
