@@ -62,6 +62,8 @@ typedef struct
     bool  polarCoord;
     float ringLimit[2];
 
+    float maxRate[4];
+
     float limited[4];
     float responseAccel[4];
     float responseFactor[4];
@@ -174,6 +176,11 @@ float getDeflection(int axis)
     return sp.deflection[axis];
 }
 
+float getMaxSetpoint(int axis)
+{
+    return sp.maxRate[axis];
+}
+
 static float setpointResponseAccel(int axis, float value)
 {
     sp.limited[axis] += limitf((value - sp.limited[axis]) * sp.responseFactor[axis], sp.responseAccel[axis]);
@@ -221,6 +228,8 @@ INIT_CODE void setpointInitProfile(void)
         else {
             sp.responseAccel[i] = 1;
         }
+
+        sp.maxRate[i] = applyRatesCurve(i, 1.0f);
 
         sp.boostGain[i] = currentControlRateProfile->setpoint_boost_gain[i] * SP_BOOST_SCALE;
         difFilterUpdate(&sp.boostFilter[i], currentControlRateProfile->setpoint_boost_cutoff[i], pidGetPidFrequency());

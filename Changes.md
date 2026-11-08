@@ -51,7 +51,10 @@ Motorised tail: TTA now engages where the tail reaches `tail_motor_idle`,
 not only below `tail_center_trim`. With idle above trim there was a band
 where the tail sat at idle and TTA did not act yet. Setups with trim at or
 above idle (including the defaults) are unchanged. Debug mode `TTA` value 0
-now shows this demand instead of the raw yaw.
+now shows this demand instead of the raw yaw. The demand is clamped at zero
+before `gov_tta_filter`, so with the filter on, TTA no longer starts late
+while the filter climbs back from the negative demand of a tail above the
+start point.
 
 New per-profile `gov_tta_threshold` (‰ tail throttle, default 0 = off)
 starts TTA above the idle, while the tail keeps control down to

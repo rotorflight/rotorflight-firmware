@@ -106,6 +106,10 @@ typedef struct pidProfile_s {
 
     char                profileName[MAX_PROFILE_NAME_LENGTH + 1];
 
+    // Governor TTA, motorised tail: tail throttle below which TTA starts.
+    // Kept here in the padding after the name so the stored layout is unchanged.
+    uint8_t             tta_threshold;
+
     pidf_t              pid[PID_ITEM_COUNT];
 
     uint8_t             pid_mode;

@@ -142,6 +142,12 @@ float getCyclicDeflection(void)
     return mixer.cyclicTotal;
 }
 
+static float getTailMotorThrottle(void)
+{
+    // Yaw input (positive is against torque) plus the center trim
+    return mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign() + mixer.tailCenterTrim;
+}
+
 float getTailTorqueAssistStart(float threshold)
 {
     // Motorised tail: tail throttle below which TTA starts.
@@ -153,16 +159,14 @@ float getTailTorqueAssistDemand(float threshold)
 {
     // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
 
-    // Yaw input value - positive is against torque
-    const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
-
     // Motorised tail: how far the tail throttle is asked to go below the TTA start point.
     // Above the idle the tail stays in control, and TTA adds main rotor torque alongside it.
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        return getTailTorqueAssistStart(threshold) - (yaw + mixer.tailCenterTrim);
+        return getTailTorqueAssistStart(threshold) - getTailMotorThrottle();
     }
 
-    return -yaw;
+    // Yaw input value - positive is against torque
+    return -mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
 }
 
 float getTailMotorDemand(void)
@@ -171,7 +175,7 @@ float getTailMotorDemand(void)
 
     // Motorised tail: tail throttle asked for by the yaw PID, before the lead and the idle
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED))
-        return mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign() + mixer.tailCenterTrim;
+        return getTailMotorThrottle();
 
     return 0;
 }
@@ -451,11 +455,8 @@ static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        // Yaw input value - positive is against torque
-        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
-
-        // Add center trim
-        float throttle = yaw + mixer.tailCenterTrim;
+        // Yaw input plus center trim
+        float throttle = getTailMotorThrottle();
 
         // Lead on falling throttle: the tail spins down slower than it spins up,
         // so drop the command early. Slow changes inside the deadband are ignored.

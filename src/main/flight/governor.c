@@ -47,8 +47,6 @@
 #include "flight/pid.h"
 #include "flight/setpoint.h"
 
-#include "fc/rc_rates.h"
-
 
 // Headspeed quality levels
 #define GOV_HS_DETECT_DELAY             200
@@ -528,8 +526,13 @@ static float govCalcTTA(void)
 
     if (gov.useTorqueAssist) {
         // Positive when the tail cannot give the requested yaw torque on its own
-        float demand = getTailTorqueAssistDemand(gov.ttaThreshold);
-        float TTA = filterApply(&gov.ttaFilter, demand) * getSpoolUpRatio() * gov.ttaGain;
+        const float demand = getTailTorqueAssistDemand(gov.ttaThreshold);
+
+        // Motorised tail: the demand is negative while the tail is above the start point.
+        // Clamp it before the filter, so the filter doesn't have to climb back through zero first.
+        const float input = mixerIsTailMode(TAIL_MODE_MOTORIZED) ? fmaxf(demand, 0) : demand;
+
+        float TTA = filterApply(&gov.ttaFilter, input) * getSpoolUpRatio() * gov.ttaGain;
         float headroom = 0;
 
         if (gov.govMode == GOV_MODE_DIRECT)
@@ -585,7 +588,7 @@ static void govCalcTTABanking(void)
     const float tailDemand = getTailMotorDemand();
 
     // Yaw setpoint as a fraction of the max yaw rate, positive in the TTA (torque) direction
-    const float maxRate = applyRatesCurve(FD_YAW, 1.0f);
+    const float maxRate = getMaxSetpoint(FD_YAW);
     const float ttaRate = -getSetpoint(FD_YAW) * mixerRotationSign();
     const float rateRatio = (maxRate > 1) ? constrainf(ttaRate / maxRate, 0, 1) : 0;
 
@@ -1626,7 +1629,7 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
         gov.bankReleasePoint = pidProfile->governor.tta_bank_release / 100.0f;
 
         if (gov.govMode == GOV_MODE_ELECTRIC)
-            gov.ttaGain /= gov.K * gov.Kp;
+            gov.ttaGain = (gov.K * gov.Kp > 0) ? gov.ttaGain / (gov.K * gov.Kp) : 0;
     }
     else
     {
