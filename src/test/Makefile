@@ -339,6 +339,11 @@ sensor_gyro_unittest_SRC := \
 		$(USER_DIR)/build/debug.c
 
 sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_LPF=
+
+# The same sources with the fake gyro calibration skip that SITL uses.
+sensor_gyro_fake_calibration_unittest_SRC := $(sensor_gyro_unittest_SRC)
+
+sensor_gyro_fake_calibration_unittest_DEFINES := $(sensor_gyro_unittest_DEFINES) FAKE_GYRO_SKIP_CALIBRATION=
 #
 #telemetry_crsf_unittest_SRC := \
 #		$(USER_DIR)/rx/crsf.c \
@@ -530,6 +535,12 @@ flashfs_unittest_SRC := \
 
 flashfs_unittest_DEFINES := \
 		USE_FLASHFS_LOOP
+
+fbus_sensor_unittest_SRC := \
+        $(USER_DIR)/drivers/fbus_sensor.c
+
+fbus_sensor_unittest_DEFINES := \
+        USE_FBUS_MASTER=
 
 setpoint_unittest_SRC := \
         $(USER_DIR)/flight/setpoint.c \

@@ -795,7 +795,12 @@ void writeEEPROM(void)
 
 void dispatchConfigWrite(struct dispatchEntry_s* self)
 {
-    UNUSED(self);
+    // The flash erase stalls the MCU for longer than a PID loop. A re-arm inside
+    // the 500 ms delay after a disarm would run it in flight, so defer until disarmed.
+    if (ARMING_FLAG(ARMED)) {
+        dispatchAdd(self, 500000);
+        return;
+    }
 
     writeUnmodifiedConfigToEEPROM();
     beeperConfirmationBeeps(1);

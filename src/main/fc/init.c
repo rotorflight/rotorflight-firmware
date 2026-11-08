@@ -1034,6 +1034,10 @@ void init(void)
 
     unusedPinsInit();
 
+    // Seed the pseudo-random generator (telemetry interval jitter, LED flicker)
+    // so the sequence differs between boards and boots.
+    randomSeed(micros() ^ U_ID_0 ^ U_ID_1 ^ U_ID_2);
+
     tasksInit();
 
     systemState |= SYSTEM_STATE_READY;
