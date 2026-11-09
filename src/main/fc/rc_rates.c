@@ -35,6 +35,8 @@
 #include "fc/rc.h"
 #include "fc/rc_rates.h"
 
+#include "flight/setpoint.h"
+
 
 const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT] =
 {
@@ -165,8 +167,9 @@ void set_ADJUSTMENT_YAW_RC_EXPO(int value)
 
 /*** Rates Curve Functions ***/
 
-static float applyNullRates(const int axis, const float rcCommandAbs)
+static float applyNullRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
+    UNUSED(rates);
     UNUSED(axis);
 
     return 500.0f * rcCommandAbs;
@@ -196,11 +199,11 @@ static float applyNullRates(const int axis, const float rcCommandAbs)
  *   }
  */
 
-static float applyBetaflightRates(const int axis, const float rcCommandAbs)
+static float applyBetaflightRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    float rcRate = currentControlRateProfile->rcRates[axis] * 2;
-    const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
+    float rcRate = rates->rcRates[axis] * 2;
+    const float rcExpo = rates->rcExpo[axis] / 100.0f;
+    const float sRate = rates->sRates[axis] / 100.0f;
 
     if (rcRate > 400) {
         rcRate += 14.54f * (rcRate - 400);
@@ -231,11 +234,11 @@ static float applyBetaflightRates(const int axis, const float rcCommandAbs)
  *  }
  */
 
-static float applyRaceFlightRates(const int axis, const float rcCommandAbs)
+static float applyRaceFlightRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    const float rcRate = currentControlRateProfile->rcRates[axis] * 10;
-    const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
+    const float rcRate = rates->rcRates[axis] * 10;
+    const float rcExpo = rates->rcExpo[axis] / 100.0f;
+    const float sRate = rates->sRates[axis] / 100.0f;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
@@ -264,11 +267,11 @@ static float applyRaceFlightRates(const int axis, const float rcCommandAbs)
  *  }
  */
 
-static float applyKissRates(const int axis, const float rcCommandAbs)
+static float applyKissRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    const float rcRate = currentControlRateProfile->rcRates[axis] * 2;
-    const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->sRates[axis] / 100.0f;
+    const float rcRate = rates->rcRates[axis] * 2;
+    const float rcExpo = rates->rcExpo[axis] / 100.0f;
+    const float sRate = rates->sRates[axis] / 100.0f;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
@@ -298,11 +301,11 @@ static float applyKissRates(const int axis, const float rcCommandAbs)
  *  }
  */
 
-static float applyActualRates(const int axis, const float rcCommandAbs)
+static float applyActualRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    const float rcRate = currentControlRateProfile->rcRates[axis] * 10;
-    const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->sRates[axis] * 10;
+    const float rcRate = rates->rcRates[axis] * 10;
+    const float rcExpo = rates->rcExpo[axis] / 100.0f;
+    const float sRate = rates->sRates[axis] * 10;
 
     float aRate = fmaxf(0, sRate - rcRate);
 
@@ -341,11 +344,11 @@ static float applyActualRates(const int axis, const float rcCommandAbs)
  *  }
  */
 
-static float applyQuickRates(const int axis, const float rcCommandAbs)
+static float applyQuickRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    const float rcRate = currentControlRateProfile->rcRates[axis] * 2;
-    const float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    const float sRate = currentControlRateProfile->sRates[axis] * 10;
+    const float rcRate = rates->rcRates[axis] * 2;
+    const float rcExpo = rates->rcExpo[axis] / 100.0f;
+    const float sRate = rates->sRates[axis] * 10;
 
     // Third order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + POWER3(rcCommandAbs) * rcExpo;
@@ -365,11 +368,11 @@ static float applyQuickRates(const int axis, const float rcCommandAbs)
  * ROTORFLIGHT
  */
 
-static float applyRotorflightRates(const int axis, const float rcCommandAbs)
+static float applyRotorflightRates(const controlRateConfig_t *rates, const int axis, const float rcCommandAbs)
 {
-    float rcRate = currentControlRateProfile->rcRates[axis] * 5;
-    float rcExpo = currentControlRateProfile->rcExpo[axis] / 100.0f;
-    float shape = currentControlRateProfile->sRates[axis] / 16.0f + 2.0f;
+    float rcRate = rates->rcRates[axis] * 5;
+    float rcExpo = rates->rcExpo[axis] / 100.0f;
+    float shape = rates->sRates[axis] / 16.0f + 2.0f;
 
     // Variable order Expo
     float expof = rcCommandAbs * (1.0f - rcExpo) + pow_approx(rcCommandAbs, shape) * rcExpo;
@@ -381,33 +384,33 @@ static float applyRotorflightRates(const int axis, const float rcCommandAbs)
 }
 
 
-float applyRatesCurve(const int axis, const float rcCommandf)
+float applyRatesCurveProfile(const controlRateConfig_t *rates, const int axis, const float rcCommandf)
 {
     const float rcCommandAbs = fabsf(rcCommandf);
     float rate = 0;
 
-    switch (currentControlRateProfile->rates_type)
+    switch (rates->rates_type)
     {
         case RATES_TYPE_BETAFLIGHT:
-            rate = applyBetaflightRates(axis, rcCommandAbs);
+            rate = applyBetaflightRates(rates, axis, rcCommandAbs);
             break;
         case RATES_TYPE_RACEFLIGHT:
-            rate = applyRaceFlightRates(axis, rcCommandAbs);
+            rate = applyRaceFlightRates(rates, axis, rcCommandAbs);
             break;
         case RATES_TYPE_KISS:
-            rate = applyKissRates(axis, rcCommandAbs);
+            rate = applyKissRates(rates, axis, rcCommandAbs);
             break;
         case RATES_TYPE_ACTUAL:
-            rate = applyActualRates(axis, rcCommandAbs);
+            rate = applyActualRates(rates, axis, rcCommandAbs);
             break;
         case RATES_TYPE_QUICK:
-            rate = applyQuickRates(axis, rcCommandAbs);
+            rate = applyQuickRates(rates, axis, rcCommandAbs);
             break;
         case RATES_TYPE_ROTORFLIGHT:
-            rate = applyRotorflightRates(axis, rcCommandAbs);
+            rate = applyRotorflightRates(rates, axis, rcCommandAbs);
             break;
         default:
-            rate = applyNullRates(axis, rcCommandAbs);
+            rate = applyNullRates(rates, axis, rcCommandAbs);
             break;
     }
 
@@ -419,6 +422,11 @@ float applyRatesCurve(const int axis, const float rcCommandf)
         rate *= 2.083333333f;
 
     return rate;
+}
+
+float applyRatesCurve(const int axis, const float rcCommandf)
+{
+    return applyRatesCurveProfile(currentControlRateProfile, axis, rcCommandf);
 }
 
 
@@ -435,6 +443,7 @@ INIT_CODE void loadControlRateProfile(void)
 INIT_CODE void changeControlRateProfile(uint8_t controlRateProfileIndex)
 {
     if (controlRateProfileIndex < CONTROL_RATE_PROFILE_COUNT) {
+        setpointSwitchRateProfile(systemConfig()->activeRateProfile, controlRateProfileIndex);
         systemConfigMutable()->activeRateProfile = controlRateProfileIndex;
     }
 

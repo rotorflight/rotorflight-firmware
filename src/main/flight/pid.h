@@ -160,6 +160,12 @@ void pidLoadProfile(const pidProfile_t *pidProfile);
 void pidChangeProfile(const pidProfile_t *pidProfile);
 void pidSwitchProfile(const pidProfile_t *pidProfile);
 
+// Fastest allowed profile blend, so a headspeed glitch can't make a step [s]
+#define PID_BLEND_MIN_TIME          0.2f
+
+// Slowest allowed profile blend, even if the headspeed never gets there [s]
+#define PID_BLEND_MAX_TIME          10.0f
+
 bool pidBlendActive(void);
 float pidBlendRatio(void);
 void pidBlendRetarget(void);

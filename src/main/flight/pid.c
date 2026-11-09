@@ -618,12 +618,6 @@ static void INIT_CODE pidInitFilters(const pidProfile_t *pidProfile)
 //
 // Filters, curves and the governor's own settings still switch at once.
 
-// Fastest allowed blend, so a headspeed glitch can't make a step [s]
-#define PID_BLEND_MIN_TIME          0.2f
-
-// Slowest allowed blend, even if the headspeed never gets there [s]
-#define PID_BLEND_MAX_TIME          10.0f
-
 // Smallest headspeed change worth following, relative to the larger one
 #define PID_BLEND_MIN_HS_CHANGE     0.05f
 

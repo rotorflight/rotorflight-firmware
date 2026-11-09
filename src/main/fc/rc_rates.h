@@ -40,6 +40,7 @@ extern const ratesSettingsLimits_t * currentControlRateLimits;
 extern controlRateConfig_t * currentControlRateProfile;
 
 float applyRatesCurve(const int axis, float rcCommandf);
+float applyRatesCurveProfile(const controlRateConfig_t *rates, const int axis, float rcCommandf);
 
 void loadControlRateProfile(void);
 
