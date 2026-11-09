@@ -358,7 +358,7 @@ int get_ADJUSTMENT_YAW_CW_GAIN(void)
 void set_ADJUSTMENT_YAW_CW_GAIN(int value)
 {
     currentPidProfile->yaw_cw_stop_gain = value;
-    pid.yawCWStopGain = value / 100.0f;
+    pid.yawCWStopGain = pid.yawCWStopGainI = value / 100.0f;
 }
 
 int get_ADJUSTMENT_YAW_CCW_GAIN(void)
@@ -369,7 +369,7 @@ int get_ADJUSTMENT_YAW_CCW_GAIN(void)
 void set_ADJUSTMENT_YAW_CCW_GAIN(int value)
 {
     currentPidProfile->yaw_ccw_stop_gain = value;
-    pid.yawCCWStopGain = value / 100.0f;
+    pid.yawCCWStopGain = pid.yawCCWStopGainI = value / 100.0f;
 }
 
 int get_ADJUSTMENT_YAW_CYCLIC_FF(void)
@@ -628,6 +628,8 @@ typedef struct {
     float offsetLimit[XY_AXIS_COUNT];
     float yawCWStopGain;
     float yawCCWStopGain;
+    float yawCWStopGainI;
+    float yawCCWStopGainI;
     float cyclicCrossCouplingGain[XY_AXIS_COUNT];
     float yawCollectiveFFGain;
     float yawCyclicFFGain;
@@ -721,6 +723,8 @@ static void pidCalcGains(const pidProfile_t *pidProfile, uint8_t pidMode, pidGai
     // Tail/yaw PID parameters
     gains->yawCWStopGain = pidProfile->yaw_cw_stop_gain / 100.0f;
     gains->yawCCWStopGain = pidProfile->yaw_ccw_stop_gain / 100.0f;
+    gains->yawCWStopGainI = gains->yawCWStopGain;
+    gains->yawCCWStopGainI = gains->yawCCWStopGain;
 
     // Master gains scale the feedback terms only: P and D directly, I and O
     // through their integration rate, so trim already held in I and O does not
@@ -760,6 +764,8 @@ static void pidGetGains(pidGains_t *gains)
 
     gains->yawCWStopGain = pid.yawCWStopGain;
     gains->yawCCWStopGain = pid.yawCCWStopGain;
+    gains->yawCWStopGainI = pid.yawCWStopGainI;
+    gains->yawCCWStopGainI = pid.yawCCWStopGainI;
 
     gains->yawCollectiveFFGain = pid.precomp.yawCollectiveFFGain;
     gains->yawCyclicFFGain = pid.precomp.yawCyclicFFGain;
@@ -781,6 +787,8 @@ static void pidSetGains(const pidGains_t *gains)
 
     pid.yawCWStopGain = gains->yawCWStopGain;
     pid.yawCCWStopGain = gains->yawCCWStopGain;
+    pid.yawCWStopGainI = gains->yawCWStopGainI;
+    pid.yawCCWStopGainI = gains->yawCCWStopGainI;
 
     pid.precomp.yawCollectiveFFGain = gains->yawCollectiveFFGain;
     pid.precomp.yawCyclicFFGain = gains->yawCyclicFFGain;
@@ -819,6 +827,36 @@ static void pidBlendMix(pidGains_t *gains)
         coef->Ki = (s->Ki * ms + (t->Ki * mt - s->Ki * ms) * ratio) / mm;
         coef->Kd = (s->Kd * ms + (t->Kd * mt - s->Kd * ms) * ratio) / mm;
         coef->Ko = (s->Ko * ms + (t->Ko * mt - s->Ko * ms) * ratio) / mm;
+    }
+
+    // Yaw P and I act as K * masterGain * stop gain, with a stop gain for
+    // each direction. Mix that whole product per term and direction and
+    // derive the stop gains from it, so neither bulges past both profiles.
+    // P and I get their own stop gains for this, as one shared pair can't
+    // keep both products in range. Without a gain on either end the stop
+    // gain has no effect and stays mixed as above.
+    {
+        const float ms = from.masterGain[PID_YAW];
+        const float mt = to->masterGain[PID_YAW];
+        const float ps = from.coef[PID_YAW].Kp * ms;
+        const float pt = to->coef[PID_YAW].Kp * mt;
+        const float pm = ps + (pt - ps) * ratio;
+        const float is = from.coef[PID_YAW].Ki * ms;
+        const float it = to->coef[PID_YAW].Ki * mt;
+        const float im = is + (it - is) * ratio;
+
+        if (pm > 0) {
+            gains->yawCWStopGain = (ps * from.yawCWStopGain +
+                (pt * to->yawCWStopGain - ps * from.yawCWStopGain) * ratio) / pm;
+            gains->yawCCWStopGain = (ps * from.yawCCWStopGain +
+                (pt * to->yawCCWStopGain - ps * from.yawCCWStopGain) * ratio) / pm;
+        }
+        if (im > 0) {
+            gains->yawCWStopGainI = (is * from.yawCWStopGainI +
+                (it * to->yawCWStopGainI - is * from.yawCWStopGainI) * ratio) / im;
+            gains->yawCCWStopGainI = (is * from.yawCCWStopGainI +
+                (it * to->yawCCWStopGainI - is * from.yawCCWStopGainI) * ratio) / im;
+        }
     }
 
     // The bleed conversion is a ratio, not a gain: derive it from the mixed gains
@@ -2000,7 +2038,8 @@ static void pidApplyYawMode4(void)
     const bool saturation = (pidAxisSaturated(axis) && pid.data[axis].axisError * itermErrorRate > 0);
 
     // I-term change
-    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * pid.masterGain[axis] * stopGain;
+    const float itermStopGain = transition(errorRate, -10, 10, pid.yawCCWStopGainI, pid.yawCWStopGainI);
+    const float itermDelta = saturation ? 0 : itermErrorRate * pid.dT * pid.coef[axis].Ki * pid.masterGain[axis] * itermStopGain;
 
     // Calculate I-component
     pid.data[axis].axisError = limitf(pid.data[axis].axisError + itermDelta, pid.errorLimit[axis] * pid.coef[axis].Ki);
