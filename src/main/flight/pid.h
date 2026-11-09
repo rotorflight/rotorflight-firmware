@@ -123,6 +123,12 @@ typedef struct pid_s {
     float yawCWStopGain;
     float yawCCWStopGain;
 
+    // Stop gains for the yaw I-term. Same as above, except during a profile
+    // blend, where P and I each get the stop gains that keep their own
+    // product between the two profiles.
+    float yawCWStopGainI;
+    float yawCCWStopGainI;
+
     float masterGain[PID_AXIS_COUNT];
 
     float cyclicCrossCouplingGain[XY_AXIS_COUNT];
