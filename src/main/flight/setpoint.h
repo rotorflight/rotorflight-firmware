@@ -29,6 +29,7 @@ float getDeflection(int axis);
 
 void setpointInit(void);
 void setpointInitProfile(void);
+void setpointSwitchRateProfile(uint8_t fromIndex, uint8_t toIndex);
 
 void setpointUpdateTiming(float frameTimeUs);
 

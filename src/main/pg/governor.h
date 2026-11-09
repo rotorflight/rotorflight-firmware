@@ -90,6 +90,7 @@ typedef struct governorConfig_s {
     uint8_t  gov_d_filter;
     uint8_t  gov_profile_blend;
     uint8_t  gov_profile_blend_time;
+    uint8_t  gov_profile_blend_collective;
 } governorConfig_t;
 
 PG_DECLARE(governorConfig_t, governorConfig);
