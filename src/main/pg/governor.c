@@ -46,5 +46,8 @@ PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_tta_filter = 0,
     .gov_ff_filter = 5,
     .gov_d_filter = 50,
+    .gov_profile_blend = 1,
+    .gov_profile_blend_time = 30,
+    .gov_profile_blend_collective = 1,
 );
 

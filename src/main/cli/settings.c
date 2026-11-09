@@ -991,6 +991,9 @@ const clivalue_t valueTable[] = {
     { "gov_tta_filter",             VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_tta_filter) },
     { "gov_ff_filter",              VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_ff_filter) },
     { "gov_d_filter",               VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 0, 250 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_d_filter) },
+    { "gov_profile_blend",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_profile_blend) },
+    { "gov_profile_blend_time",     VAR_UINT8  | MASTER_VALUE,  .config.minmaxUnsigned = { 2, 100 }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_profile_blend_time) },
+    { "gov_profile_blend_collective", VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GOVERNOR_CONFIG, offsetof(governorConfig_t, gov_profile_blend_collective) },
 
 // PG_CONTROLRATE_PROFILES
 #ifdef USE_PROFILE_NAMES

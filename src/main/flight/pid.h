@@ -123,6 +123,12 @@ typedef struct pid_s {
     float yawCWStopGain;
     float yawCCWStopGain;
 
+    // Stop gains for the yaw I-term. Same as above, except during a profile
+    // blend, where P and I each get the stop gains that keep their own
+    // product between the two profiles.
+    float yawCWStopGainI;
+    float yawCCWStopGainI;
+
     float masterGain[PID_AXIS_COUNT];
 
     float cyclicCrossCouplingGain[XY_AXIS_COUNT];
@@ -158,6 +164,17 @@ void pidResetAxisError(int axis);
 void pidInit(const pidProfile_t *pidProfile);
 void pidLoadProfile(const pidProfile_t *pidProfile);
 void pidChangeProfile(const pidProfile_t *pidProfile);
+void pidSwitchProfile(const pidProfile_t *pidProfile);
+
+// Fastest allowed profile blend, so a headspeed glitch can't make a step [s]
+#define PID_BLEND_MIN_TIME          0.2f
+
+// Slowest allowed profile blend, even if the headspeed never gets there [s]
+#define PID_BLEND_MAX_TIME          10.0f
+
+bool pidBlendActive(void);
+float pidBlendRatio(void);
+void pidBlendRetarget(void);
 
 void pidCopyProfile(uint8_t dstPidProfileIndex, uint8_t srcPidProfileIndex);
 
