@@ -477,6 +477,8 @@ static uint32_t tuneSignature(void)
 
     h = hashBytes(h, profiles, sizeof(profiles));
     h = hashBytes(h, currentPidProfile->pid, sizeof(currentPidProfile->pid));
+    h = hashBytes(h, &currentPidProfile->cyclic_master_gain, sizeof(currentPidProfile->cyclic_master_gain));
+    h = hashBytes(h, &currentPidProfile->yaw_master_gain, sizeof(currentPidProfile->yaw_master_gain));
     h = hashBytes(h, currentPidProfile->iterm_relax_cutoff, sizeof(currentPidProfile->iterm_relax_cutoff));
     h = hashBytes(h, &currentPidProfile->pid_mode, sizeof(currentPidProfile->pid_mode));
     h = hashBytes(h, &currentControlRateProfile->rates_type, sizeof(currentControlRateProfile->rates_type));
