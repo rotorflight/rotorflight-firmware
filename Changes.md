@@ -104,14 +104,13 @@ nitro (direct) mode are unchanged.
 
 ### MSP_MIXER_CONFIG / MSP_SET_MIXER_CONFIG
 
-- added `tail_motor_lead` (U8, ms) at the end; optional on set
+- added `tail_motor_lead` (U8, ms)
 
 ### MSP_GOVERNOR_PROFILE / MSP_SET_GOVERNOR_PROFILE
 
-- added `gov_tta_threshold` (U8, ‰ tail throttle) at the end; optional on set
-- added `gov_tta_bank_limit`, `gov_tta_bank_rate` (2 × U8, %) after it;
-  optional on set (both)
-- added `gov_tta_bank_release` (U8, % tail throttle) after them; optional on set
+- added `gov_tta_threshold` (U8, ‰ tail throttle)
+- added `gov_tta_bank_limit`, `gov_tta_bank_rate` (2 × U8, %)
+- added `gov_tta_bank_release` (U8, % tail throttle)
 - `gov_use_tta_banking` is bit 7 of `flags`
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
