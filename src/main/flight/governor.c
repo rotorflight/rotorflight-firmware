@@ -774,7 +774,7 @@ static void govDirectActiveControl(float minThrottle, float maxThrottle, float u
 
     // TTA effect
     if (gov.useTorqueAssist) {
-        throttle += throttle + throttle * gov.ttaAdd;
+        throttle += throttle * gov.ttaAdd;
     }
 
     // Set output throttle
