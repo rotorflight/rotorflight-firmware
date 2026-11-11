@@ -427,9 +427,8 @@ static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
     }
     const uint8_t replyId = requestTelemetry ? busMasterDeviceId : 0x00;
 
-    const uint8_t motor2ChIdx = srxl2escMotor2Channel()-1;  // Convert from ch number to ch index
 
-    if (motor2ChIdx) {
+    if (srxl2escMotor2Ch) {
         srxl2escChannelDataFrame2_t frame2 = {
             .header = {
                 .id = PACKET_HEADER,
@@ -443,7 +442,7 @@ static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
             .channel = {
                 .rssi = 0,
                 .frameLosses = 0,
-                .channelMask = {.u32 = 0x00000001u | (1u << motor2ChIdx)},
+                .channelMask = {.u32 = 0x00000001u | (1u << (srxl2escMotor2Ch -1))}, // Convert from ch number to ch index
             },
             .channelValue = { channelValue, srxl2escMotor2Command },
             .crcHigh = 0,
@@ -1272,7 +1271,7 @@ void validateAndFixSrxl2escConfig()
     if (cfg->throttle_rate_hz > 2000) {
         cfg->throttle_rate_hz = 2000;
     }
-    if (cfg->motor2_channel >= SRXL2_ESC_MAX_CHANNELS) {
+    if (cfg->motor2_channel < 2 || cfg->motor2_channel > SRXL2_ESC_MAX_CHANNELS ) {
         cfg->motor2_channel = 0;   /* invalid -> disabled */
     }
 }
