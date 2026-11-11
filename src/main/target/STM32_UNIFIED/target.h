@@ -47,6 +47,7 @@
 #define USE_ACC_SPI_ICM20689
 #define USE_GYRO_SPI_ICM20689
 #undef USE_ACCGYRO_LSM6DSO
+#define USE_ACCGYRO_LSM6DSK320X
 #undef USE_ACCGYRO_BMI160
 #define USE_ACCGYRO_BMI270
 #define USE_ACCGYRO_SPI_BMI323
@@ -245,6 +246,7 @@
 
 // Remove drivers that are not supported by any existinting F411 boards
 #undef USE_ACCGYRO_SPI_BMI323
+#undef USE_ACCGYRO_LSM6DSK320X
 #undef USE_ACCGYRO_SPI_BMI088
 
 #undef USE_BARO_BMP085
