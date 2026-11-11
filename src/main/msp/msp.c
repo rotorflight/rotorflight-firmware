@@ -1572,7 +1572,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, 1); // payload version
         sbufWriteU16(dst, srxl2escConfig()->throttle_rate_hz);
         sbufWriteU8(dst, srxl2escConfig()->telem_interval_frames);
-        sbufWriteU8(dst, srxl2escConfig()->motor2_channel); // 0 = off, 1..31
+        sbufWriteU8(dst, srxl2escConfig()->motor2_channel); // 0 = off, 2..32
         break;
 #endif
 

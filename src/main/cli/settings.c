@@ -1603,7 +1603,7 @@ const clivalue_t valueTable[] = {
 #endif
 
 #ifdef USE_SRXL2_ESC
-    { "srxl2esc_motor2_channel",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 31 }, PG_SRXL2_ESC_CONFIG, offsetof(srxl2esc_pgConfig_t, motor2_channel) },
+    { "srxl2esc_motor2_channel",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 32 }, PG_SRXL2_ESC_CONFIG, offsetof(srxl2esc_pgConfig_t, motor2_channel) },
 #endif
 
 #ifdef USE_RX_FRSKY_SPI
