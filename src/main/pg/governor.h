@@ -60,16 +60,16 @@ typedef struct {
     uint8_t     f_limit;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
-    uint8_t     tta_threshold;      // Motorised tail: tail throttle [permille] below which TTA starts
-    uint8_t     tta_bank_limit;     // TTA banking: max bank [% of headspeed]
-    uint8_t     tta_bank_rate;      // TTA banking: max wind-down rate [% of headspeed per second]
-    uint8_t     tta_bank_release;   // TTA banking: tail throttle [%] above which the bank is released
     uint8_t     yaw_weight;
     uint8_t     cyclic_weight;
     uint8_t     collective_weight;
     uint8_t     collective_curve;
     uint8_t     fallback_drop;
     uint8_t     dyn_min_throttle;
+    uint8_t     tta_threshold;      // Motorised tail: tail throttle [permille] below which TTA starts
+    uint8_t     tta_bank_limit;     // TTA banking: max bank [% of headspeed]
+    uint8_t     tta_bank_rate;      // TTA banking: max wind-down rate [% of headspeed per second]
+    uint8_t     tta_bank_release;   // TTA banking: tail throttle [%] above which the bank is released
 } governorProfile_t;
 
 #define GOV_THROTTLE_CURVE_POINTS    9
