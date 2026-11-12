@@ -3604,10 +3604,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->governor.flags = sbufReadU16(src);
         }
         if (sbufBytesRemaining(src) >= 4) {
-            currentPidProfile->governor.tta_threshold = sbufReadU8(src);
-            currentPidProfile->governor.tta_bank_limit = sbufReadU8(src);
-            currentPidProfile->governor.tta_bank_rate = sbufReadU8(src);
-            currentPidProfile->governor.tta_bank_release = sbufReadU8(src);
+            currentPidProfile->governor.tta_threshold = constrain(sbufReadU8(src), 0, 250);
+            currentPidProfile->governor.tta_bank_limit = constrain(sbufReadU8(src), 0, 25);
+            currentPidProfile->governor.tta_bank_rate = constrain(sbufReadU8(src), 1, 100);
+            currentPidProfile->governor.tta_bank_release = constrain(sbufReadU8(src), 10, 100);
         }
         /* Load new values */
         governorInitProfile(currentPidProfile);
