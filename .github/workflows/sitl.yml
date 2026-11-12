@@ -11,13 +11,15 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: c4d9dea80838d7e94e0c04c27d37194e10bf95d4
+  SIM_REF: c019820649ece7b925bbfce8b3735c073f0b3896
 
 jobs:
 
   sitl:
 
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04 (GCC 15), where vtx_table.c fails
+    # -Werror=unterminated-string-initialization; pin until that is fixed
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Check out repository
@@ -83,6 +85,12 @@ jobs:
 
     - name: Replay of a real flight (OMP M7R cruise)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/m7r_cruise --check
+
+    - name: Hover check, 200 class (Stratos preset, motorized tail, its CLI dump)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model stratos200 --dump sim/heli/replays/stratos_3300/dump.txt --seconds 34 --governor 3600 --check
+
+    - name: Replay of a real flight (Stratos 200, 3300 rpm, motorized tail)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/stratos_3300 --check
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
