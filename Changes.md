@@ -83,7 +83,9 @@ throttle curve and headspeed before the first flight (#567).
 
 - new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
   Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
-  tune changes (checked on arming). New commands only, the API version is unchanged.
+  tune changes (checked on arming, and in flight after a profile switch, an RC adjustment or an MSP
+  write of the PID or rate settings, so each starts the statistics again when it changes a setting
+  the tune signature covers, master gains included). New commands only, the API version is unchanged.
 - request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (51 bytes: one CRSF frame), payload v3:
   `U8 version, U8 flags` (bits 0-1 axis, bit 2 collecting, bits 3-5 rates_type), `U16 seconds`,
   `U32 P | F << 10 | B << 20, U8 iterm_relax_cutoff, U8 rc_rate, U8 s_rate`,
