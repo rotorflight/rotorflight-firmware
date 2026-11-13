@@ -79,6 +79,7 @@ back from full rate in the TTA direction: held at full rate, and at most
 When the tail motor is asked for more than `gov_tta_bank_release` (% tail
 throttle, default 50, never below the TTA start point), the held speed is
 released as a main throttle cut, so the rotor slowing down helps the tail.
+TTA is not added while the release is active.
 Lower values release the bank earlier and hold less extra headspeed. Use 50,
 or at least 12 points above the hover tail throttle if that is higher (a weak
 tail). Lower values gave no clear gain in testing, and in wind the hover tail
@@ -94,6 +95,13 @@ the speed loop. TTA is limited by `gov_tta_limit` and full throttle. Before, the
 P limit also capped TTA (on a K110 at `gov_p_limit` 20, at about 40% of what
 TTA asked for). Tunes that relied on that cap get stronger TTA. Pitch tails and
 nitro (direct) mode are unchanged.
+
+**The configuration resets when upgrading from a 4.7 development build.** The
+new TTA settings change the stored PID profile and mixer layout
+(`PG_PID_PROFILE` version 2, `PG_GENERIC_MIXER_CONFIG` version 1), so the first
+boot resets the whole configuration to the defaults. Save a `diff all` before
+flashing, then run `defaults` and paste it back. 4.6 configurations reset on
+4.7 anyway.
 
 **Check headspeed when using DIRECT governor mode with TTA.** In 4.6, with
 `tta_gain` and `tta_limit` both set, the DIRECT mode output was twice the

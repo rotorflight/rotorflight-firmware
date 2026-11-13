@@ -599,6 +599,8 @@ static void govCalcTTABanking(void)
         // Tail running out of authority - give back the bank as a throttle cut
         gov.bankHeadSpeed = 0;
         gov.bankRelease = fminf((tailDemand - releasePoint) * GOV_BANK_RELEASE_GAIN, excess / gov.fullHeadSpeed);
+        // Drop any TTA still held in the filter after a fast reversal, so it doesn't reduce the cut
+        gov.ttaAdd = 0;
     }
     else if (gov.ttaAdd > GOV_BANK_TTA_ACTIVE && excess > gov.bankHeadSpeed) {
         // TTA is speeding the rotor up - bank it
@@ -1630,6 +1632,9 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
 
         if (gov.govMode == GOV_MODE_ELECTRIC)
             gov.ttaGain = (gov.K * gov.Kp > 0) ? gov.ttaGain / (gov.K * gov.Kp) : 0;
+
+        // No banking without TTA (governor P gain 0)
+        gov.useTTABanking = gov.useTTABanking && gov.ttaGain > 0;
     }
     else
     {

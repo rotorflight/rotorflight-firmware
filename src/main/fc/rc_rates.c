@@ -74,6 +74,7 @@ void set_ADJUSTMENT_PITCH_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_PITCH] =
         MIN(value, currentControlRateLimits->srate_limit);
+    setpointUpdateMaxRate(FD_PITCH);
 }
 
 int get_ADJUSTMENT_ROLL_SRATE(void)
@@ -85,6 +86,7 @@ void set_ADJUSTMENT_ROLL_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_ROLL] =
         MIN(value, currentControlRateLimits->srate_limit);
+    setpointUpdateMaxRate(FD_ROLL);
 }
 
 int get_ADJUSTMENT_YAW_SRATE(void)
@@ -96,6 +98,7 @@ void set_ADJUSTMENT_YAW_SRATE(int value)
 {
     currentControlRateProfile->sRates[FD_YAW] =
         MIN(value, currentControlRateLimits->srate_limit);
+    setpointUpdateMaxRate(FD_YAW);
 }
 
 int get_ADJUSTMENT_PITCH_RC_RATE(void)
@@ -107,6 +110,7 @@ void set_ADJUSTMENT_PITCH_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_PITCH] =
         MIN(value, currentControlRateLimits->rc_rate_limit);
+    setpointUpdateMaxRate(FD_PITCH);
 }
 
 int get_ADJUSTMENT_ROLL_RC_RATE(void)
@@ -118,6 +122,7 @@ void set_ADJUSTMENT_ROLL_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_ROLL] =
         MIN(value, currentControlRateLimits->rc_rate_limit);
+    setpointUpdateMaxRate(FD_ROLL);
 }
 
 int get_ADJUSTMENT_YAW_RC_RATE(void)
@@ -129,6 +134,7 @@ void set_ADJUSTMENT_YAW_RC_RATE(int value)
 {
     currentControlRateProfile->rcRates[FD_YAW] =
         MIN(value, currentControlRateLimits->rc_rate_limit);
+    setpointUpdateMaxRate(FD_YAW);
 }
 
 int get_ADJUSTMENT_PITCH_RC_EXPO(void)
@@ -140,6 +146,7 @@ void set_ADJUSTMENT_PITCH_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_PITCH] =
         MIN(value, currentControlRateLimits->expo_limit);
+    setpointUpdateMaxRate(FD_PITCH);
 }
 
 int get_ADJUSTMENT_ROLL_RC_EXPO(void)
@@ -151,6 +158,7 @@ void set_ADJUSTMENT_ROLL_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_ROLL] =
         MIN(value, currentControlRateLimits->expo_limit);
+    setpointUpdateMaxRate(FD_ROLL);
 }
 
 int get_ADJUSTMENT_YAW_RC_EXPO(void)
@@ -162,6 +170,7 @@ void set_ADJUSTMENT_YAW_RC_EXPO(int value)
 {
     currentControlRateProfile->rcExpo[FD_YAW] =
         MIN(value, currentControlRateLimits->expo_limit);
+    setpointUpdateMaxRate(FD_YAW);
 }
 
 
