@@ -76,9 +76,11 @@ def main():
     try:
         while True:
             code, reset = run_once(elf, rundir, env)
-            if not reset:
-                print("[sitl-run] the SITL ended (exit %s) without announcing a reset: "
-                      "not restarted" % code, flush=True)
+            if not reset or code != 0:
+                # a reset exits 0 (systemResetHard()); a failure after the marker is still a failure
+                print("[sitl-run] the SITL ended (exit %s) %s: not restarted"
+                      % (code, "after announcing a reset" if reset else "without announcing a reset"),
+                      flush=True)
                 return code or 1
             if restarts >= args.max:
                 print("[sitl-run] reset again after %d restarts (--max): not restarted"

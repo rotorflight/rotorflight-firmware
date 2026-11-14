@@ -122,18 +122,27 @@ class Pilot(threading.Thread):
 
 
 def start(elf, commands):
+    """SITL configured with `commands`, rotor feed and pilot running. On a failure
+    everything started so far is stopped before the error goes on, so the next
+    scenario finds the ports free."""
     rundir = tempfile.mkdtemp(prefix="sitl-scenario-")
-    s = smoke.Sitl(elf, rundir, "1-first"); s.wait(30); s.stop()
-    s = smoke.Sitl(elf, rundir, "2-config")
-    sock = smoke.connect_uart1(s)
-    smoke.cli(sock, ["aux 0 0 0 1700 2100 0 0"] + commands + ["save"])
-    sock.close(); s.wait(15); s.stop()
-    rotor = Rotor(); rotor.start()
-    s = smoke.Sitl(elf, rundir, "3-run")
-    msp = smoke.Msp(smoke.connect_uart1(s))
-    pilot = Pilot(msp); pilot.start()
-    msp_lock_calibrate(pilot)
-    return s, rotor, pilot
+    s = rotor = pilot = None
+    try:
+        s = smoke.Sitl(elf, rundir, "1-first"); s.wait(30); s.stop()
+        s = smoke.Sitl(elf, rundir, "2-config")
+        sock = smoke.connect_uart1(s)
+        smoke.cli(sock, ["aux 0 0 0 1700 2100 0 0"] + commands + ["save"])
+        sock.close(); s.wait(15); s.stop()
+        s = None
+        rotor = Rotor(); rotor.start()
+        s = smoke.Sitl(elf, rundir, "3-run")
+        msp = smoke.Msp(smoke.connect_uart1(s))
+        pilot = Pilot(msp); pilot.start()
+        msp_lock_calibrate(pilot)
+        return s, rotor, pilot
+    except BaseException:
+        stop(s, rotor, pilot)
+        raise
 
 
 def msp_lock_calibrate(pilot):
@@ -159,9 +168,16 @@ def arm(pilot):
 
 
 def stop(s, rotor, pilot):
-    pilot.running = False
-    rotor.stop()
-    s.stop()
+    """Stop what is running, any of them None: the pilot first, and wait for its
+    last MSP frame, so it never writes to a SITL that is going away."""
+    if pilot is not None:
+        pilot.running = False
+        pilot.join(2)
+    if rotor is not None:
+        rotor.stop()
+        rotor.join(2)
+    if s is not None:
+        s.stop()
 
 
 GOV = ["feature GOVERNOR", "set gov_mode = ELECTRIC", "set gov_spoolup_time = 50",

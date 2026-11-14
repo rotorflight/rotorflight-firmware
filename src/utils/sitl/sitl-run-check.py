@@ -42,9 +42,28 @@ def wait_closed(s):
     try:
         while s.recv(256):
             pass
+    except socket.timeout:
+        s.close()
+        raise smoke.Failure("the SITL kept the connection open for 10 s instead of rebooting")
     except OSError:
-        pass
+        pass                        # reset by the closing process: closed
     s.close()
+
+
+def sitl_pid(logpath):
+    """The pid of the SITL sitl-run.py started last, or None."""
+    pids = re.findall(r"SITL pid (\d+)", open(logpath).read())
+    return int(pids[-1]) if pids else None
+
+
+def kill(pid):
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
+    else:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 def main():
@@ -72,18 +91,20 @@ def main():
         if sup.poll() is not None:
             raise smoke.Failure("sitl-run.py ended early")
 
-        pid = int(re.findall(r"SITL pid (\d+)", open(logpath).read())[-1])
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
-        else:
-            os.kill(pid, signal.SIGKILL)
+        kill(sitl_pid(logpath))
         code = sup.wait(15)
         if code == 0:
             raise smoke.Failure("sitl-run.py treated a killed SITL as a reset")
         smoke.log("PASS a killed SITL is not restarted (sitl-run.py exit %d)" % code)
     finally:
         if sup.poll() is None:
+            # sitl-run.py's SITL is a process of its own: stop it first, or it
+            # keeps the ports and the next run cannot bind them
+            pid = sitl_pid(logpath)
             sup.kill()
+            sup.wait(5)
+            if pid is not None:
+                kill(pid)
         log.close()
 
 
