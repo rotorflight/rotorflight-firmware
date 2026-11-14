@@ -50,6 +50,7 @@ extern "C" {
     #include "io/beeper.h"
     #include "io/gps.h"
 
+    #include "cms/cms.h"
     #include "osd/osd.h"
     #include "osd/osd_elements.h"
     #include "osd/osd_warnings.h"
@@ -72,8 +73,9 @@ extern "C" {
     float rMat[3][3];
 
     pidProfile_t *currentPidProfile;
-    int16_t debug[DEBUG16_VALUE_COUNT];
+    int32_t debug[DEBUG_VALUE_COUNT];
     float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
     uint8_t GPS_numSat;
     uint16_t GPS_distanceToHome;
     int16_t GPS_directionToHome;
@@ -135,6 +137,7 @@ void setDefaultSimulationState()
     simulationGpsHealthy = false;
 
     rcData[PITCH] = 1500;
+    memset(rcCommand, 0, sizeof(rcCommand));
 
     osdFlyTime = 0;
 
@@ -184,6 +187,35 @@ void doTestArm(bool testEmpty = true)
     if (testEmpty) {
         displayPortTestBufferIsEmpty();
     }
+}
+
+// Refresh for a blinking element at (x, y): its phase runs across tests, so
+// while the refresh lands in the off phase, step on (up to one second)
+static void osdRefreshBlinking(int x, int y, int len)
+{
+    osdRefresh();
+    for (int step = 0; step < 4; step++) {
+        bool blank = true;
+        for (int i = 0; i < len; i++) {
+            blank &= testDisplayPortBuffer[y * UNITTEST_DISPLAYPORT_COLS + x + i] == ' ';
+        }
+        if (!blank) {
+            break;
+        }
+        simulationTime += 0.25e6;
+        osdRefresh();
+    }
+}
+
+// True when nothing is drawn on the test display
+static bool testDisplayPortBufferBlank(void)
+{
+    for (int i = 0; i < UNITTEST_DISPLAYPORT_BUFFER_LEN; i++) {
+        if (testDisplayPortBuffer[i] != ' ') {
+            return false;
+        }
+    }
+    return true;
 }
 
 /*
@@ -315,15 +347,50 @@ void simulateFlight(void)
     simulationTime += 1e6;
 }
 
+// The OSD draws its splash screen only once per process. Initialise it once
+// for the suite and keep copies of the screen for TestInit, so no test
+// depends on TestInit running first.
+static char splashScreen[UNITTEST_DISPLAYPORT_BUFFER_LEN];
+static char afterSplashScreen[UNITTEST_DISPLAYPORT_BUFFER_LEN];
+
 class OsdTest : public ::testing::Test
 {
 protected:
     static void SetUpTestCase() {
         displayPortTestInit();
+        setDefaultSimulationState();
+
+        // this battery configuration (used for battery voltage elements)
+        batteryConfigMutable()->vbatmincellvoltage[0] = 330;
+        batteryConfigMutable()->vbatmaxcellvoltage[0] = 430;
+
+        osdInit(&testDisplayPort, OSD_DISPLAYPORT_DEVICE_AUTO);
+        osdRefresh();
+        memcpy(splashScreen, testDisplayPortBuffer, sizeof(splashScreen));
+
+        // splash screen timeout
+        simulationTime += 4e6;
+        osdRefresh();
+        memcpy(afterSplashScreen, testDisplayPortBuffer, sizeof(afterSplashScreen));
     }
 
     virtual void SetUp() {
+        // Each test enables its own elements and stats: start from the defaults
+        PG_RESET(osdConfig);
+        PG_RESET(osdElementConfig);
+        osdAnalyzeActiveElements();
         setDefaultSimulationState();
+        // GPS with a fix is part of the simulated default (FEATURE_GPS); tests
+        // that need it absent clear it themselves
+        sensorsSet(SENSOR_GPS);
+        stateFlags = GPS_FIX | GPS_FIX_HOME;
+
+        // A stats test may have left the post-flight stats on screen; they
+        // hold the display for a minute, so let that run out first
+        if (resumeRefreshAt) {
+            simulationTime = resumeRefreshAt + 1;
+            osdRefresh();
+        }
     }
 
     virtual void TearDown() {
@@ -339,38 +406,16 @@ protected:
  */
 TEST_F(OsdTest, TestInit)
 {
-    // given
-    // display port is initialised
-    displayPortTestInit();
-
-    // and
-    // default state values are set
-    setDefaultSimulationState();
-
-    // and
-    // this battery configuration (used for battery voltage elements)
-    batteryConfigMutable()->vbatmincellvoltage = 330;
-    batteryConfigMutable()->vbatmaxcellvoltage = 430;
-
-    // when
-    // OSD is initialised
-    osdInit(&testDisplayPort, OSD_DISPLAYPORT_DEVICE_AUTO);
-
-    osdRefresh();
-
     // then
     // display buffer should contain splash screen
-    displayPortTestBufferSubstring(7, 8, "MENU:THR MID");
-    displayPortTestBufferSubstring(11, 9, "+ YAW LEFT");
-    displayPortTestBufferSubstring(11, 10, "+ PITCH UP");
-
-    // when
-    // splash screen timeout has elapsed
-    simulationTime += 4e6;
-    osdRefresh();
+    memcpy(testDisplayPortBuffer, splashScreen, sizeof(splashScreen));
+    displayPortTestBufferSubstring(7, 8, CMS_STARTUP_HELP_TEXT1);
+    displayPortTestBufferSubstring(11, 9, CMS_STARTUP_HELP_TEXT2);
+    displayPortTestBufferSubstring(11, 10, CMS_STARTUP_HELP_TEXT3);
 
     // then
-    // display buffer should be empty
+    // after the splash screen timeout the display buffer should be empty
+    memcpy(testDisplayPortBuffer, afterSplashScreen, sizeof(afterSplashScreen));
 #ifdef DEBUG_OSD
     displayPortTestPrint();
 #endif
@@ -427,20 +472,28 @@ TEST_F(OsdTest, TestDisarmWithImmediateRearm)
  */
 TEST_F(OsdTest, TestDisarmWithDismissStats)
 {
-    doTestArm();
+    // given
+    // statistics are enabled, so the stats screen shows after disarming
+    setupStats();
+
+    doTestArm(false);
 
     doTestDisarm();
 
-    // given
-    // sticks have been moved
-    rcData[PITCH] = 1800;
+    // and
+    // with centered sticks the stats screen stays up
+    osdRefresh();
+    EXPECT_FALSE(testDisplayPortBufferBlank());
 
     // when
-    // sufficient OSD updates have been called
+    // pitch stick is moved past the dismiss threshold (rcCommand > 300)
+    rcCommand[PITCH] = 400;
+    osdRefresh();
+    rcCommand[PITCH] = 0;
     osdRefresh();
 
     // then
-    // post flight stats screen disappears
+    // post flight stats screen disappears well before its 60 s timeout
 #ifdef DEBUG_OSD
     displayPortTestPrint();
 #endif
@@ -653,6 +706,10 @@ TEST_F(OsdTest, TestAlarms)
     EXPECT_EQ(OSD_TIMER_SRC_ON, OSD_TIMER_SRC(osdConfig()->timers[OSD_TIMER_1]));
     EXPECT_EQ(OSD_TIMER_PREC_HUNDREDTHS, OSD_TIMER_PRECISION(osdConfig()->timers[OSD_TIMER_1]));
     EXPECT_EQ(5, OSD_TIMER_ALARM(osdConfig()->timers[OSD_TIMER_1]));
+    // The on timer counts from process start, so the time it shows depends on
+    // the tests before. No alarm while the values are in range; it is set
+    // to the current minute for the out of range part below.
+    osdConfigMutable()->timers[OSD_TIMER_1] = OSD_TIMER(OSD_TIMER_SRC_ON, OSD_TIMER_PREC_HUNDREDTHS, 0);
 
     // and
     // this timer 2 configuration
@@ -682,6 +739,7 @@ TEST_F(OsdTest, TestAlarms)
     for (int i = 0; i < 30; i++) {
         // Check for visibility every 100ms, elements should always be visible
         simulationTime += 0.1e6;
+        const timeUs_t renderTime = simulationTime;   // on timer value drawn by the refresh
         osdRefresh();
 
 #ifdef DEBUG_OSD
@@ -690,7 +748,8 @@ TEST_F(OsdTest, TestAlarms)
         displayPortTestBufferSubstring(1,  1, "%c01:", SYM_FLY_M); // only test the minute part of the timer
         displayPortTestBufferSubstring(8,  1, "%c99", SYM_RSSI);
         displayPortTestBufferSubstring(12, 1, "%c16.8%c", SYM_BATT_FULL, SYM_VOLT);
-        displayPortTestBufferSubstring(20, 1, "%c04:", SYM_ON_M); // only test the minute part of the timer
+        // on timer counts from process start, so it depends on earlier tests
+        displayPortTestBufferSubstring(20, 1, "%c%02d:", SYM_ON_M, (int)(renderTime / 60000000)); // only test the minute part of the timer
         displayPortTestBufferSubstring(23, 7, "%c0.0%c", SYM_ALTITUDE, SYM_M);
     }
 
@@ -703,6 +762,7 @@ TEST_F(OsdTest, TestAlarms)
     simulationMahDrawn = 999999;
 
     simulationTime += 60e6;
+    osdConfigMutable()->timers[OSD_TIMER_1] = OSD_TIMER(OSD_TIMER_SRC_ON, OSD_TIMER_PREC_HUNDREDTHS, simulationTime / 60000000);
     osdRefresh();
 
     // then
@@ -710,20 +770,28 @@ TEST_F(OsdTest, TestAlarms)
     simulationTime += 1000000;
     simulationTime -= simulationTime % 1000000;
     timeUs_t startTime = simulationTime;
+    // The blink phase comes from a refresh counter that runs across tests:
+    // take it from the first step and check the alternation from there
+    bool blankOnEven = true;
     for (int i = 0; i < 15; i++) {
         // Blinking should happen at 2Hz
         simulationTime = startTime + i*0.25e6;
+        const timeUs_t renderTime = simulationTime;   // on timer value drawn by the refresh
         osdRefresh();
+
+        if (i == 0) {
+            blankOnEven = testDisplayPortBufferBlank();
+        }
 
 #ifdef DEBUG_OSD
         printf("%d\n", i);
         displayPortTestPrint();
 #endif
-        if (i % 2 == 1) {
+        if ((i % 2 == 1) == blankOnEven) {
             displayPortTestBufferSubstring(8,  1, "%c12", SYM_RSSI);
             displayPortTestBufferSubstring(12, 1, "%c13.5%c", SYM_MAIN_BATT, SYM_VOLT);
             displayPortTestBufferSubstring(1,  1, "%c02:", SYM_FLY_M); // only test the minute part of the timer
-            displayPortTestBufferSubstring(20, 1, "%c05:", SYM_ON_M); // only test the minute part of the timer
+            displayPortTestBufferSubstring(20, 1, "%c%02d:", SYM_ON_M, (int)(renderTime / 60000000)); // only test the minute part of the timer
             displayPortTestBufferSubstring(23, 7, "%c120.0%c", SYM_ALTITUDE, SYM_M);
         } else {
             displayPortTestBufferIsEmpty();
@@ -1040,7 +1108,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
     osdAnalyzeActiveElements();
 
     // and
-    batteryConfigMutable()->vbatfullcellvoltage = 410;
+    batteryConfigMutable()->vbatfullcellvoltage[0] = 410;
 
     // and
     // 4S battery
@@ -1048,7 +1116,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
 
     // and
     // used battery
-    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage - 20) * simulationBatteryCellCount) - 1;
+    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage[0] - 20) * simulationBatteryCellCount) - 1;
     simulationBatteryState = BATTERY_OK;
 
     // when
@@ -1084,7 +1152,7 @@ TEST_F(OsdTest, TestElementWarningsBattery)
     simulationTime += 1000000;
     simulationTime -= simulationTime % 1000000;
     simulationTime += 0.25e6;
-    osdRefresh();
+    osdRefreshBlinking(9, 10, 12);
 
     // then
     displayPortTestBufferSubstring(9, 10, "LOW BATTERY ");
@@ -1100,14 +1168,14 @@ TEST_F(OsdTest, TestElementWarningsBattery)
     simulationTime += 1000000;
     simulationTime -= simulationTime % 1000000;
     simulationTime += 0.25e6;
-    osdRefresh();
+    osdRefreshBlinking(9, 10, 12);
 
     // then
     displayPortTestBufferSubstring(9, 10, " LAND NOW   ");
 
     // given
     // full battery
-    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage - 20) * simulationBatteryCellCount);
+    simulationBatteryVoltage = ((batteryConfig()->vbatmaxcellvoltage[0] - 20) * simulationBatteryCellCount);
     simulationBatteryState = BATTERY_OK;
 
     // when
@@ -1207,12 +1275,16 @@ TEST_F(OsdTest, TestGpsElements)
     simulationTime += 1000000;
     simulationTime -= simulationTime % 1000000;
     timeUs_t startTime = simulationTime;
+    bool blankOnEven = true;   // blink phase runs across tests, see TestAlarms
     for (int i = 0; i < 15; i++) {
         // Blinking should happen at 2Hz
         simulationTime = startTime + i*0.25e6;
         osdRefresh();
 
-        if (i % 2 == 1) {
+        if (i == 0) {
+            blankOnEven = testDisplayPortBufferBlank();
+        }
+        if ((i % 2 == 1) == blankOnEven) {
             displayPortTestBufferSubstring(2, 4, "%c%cNC", SYM_SAT_L, SYM_SAT_R);
         } else {
             displayPortTestBufferIsEmpty();
@@ -1236,7 +1308,10 @@ TEST_F(OsdTest, TestGpsElements)
         simulationTime = startTime + i*0.25e6;
         osdRefresh();
 
-        if (i % 2 == 1) {
+        if (i == 0) {
+            blankOnEven = testDisplayPortBufferBlank();
+        }
+        if ((i % 2 == 1) == blankOnEven) {
             displayPortTestBufferSubstring(2, 4, "%c%c 0", SYM_SAT_L, SYM_SAT_R);
         } else {
             displayPortTestBufferIsEmpty();
@@ -1315,13 +1390,25 @@ extern "C" {
         return simulationBatteryVoltage / simulationBatteryCellCount;
     }
 
-    int32_t getAmperage() {
+    // 0.01 A
+    uint16_t getBatteryCurrent(void) {
         return simulationBatteryAmperage;
     }
 
-    int32_t getMAhDrawn() {
+    uint32_t getBatteryCapacityUsed(void) {
         return simulationMahDrawn;
     }
+
+    uint16_t getBatteryCapacity(void) { return batteryConfig()->batteryCapacity[0]; }
+    uint16_t getBatteryMinCellVoltage(void) { return batteryConfig()->vbatmincellvoltage[0]; }
+    uint16_t getBatteryMaxCellVoltage(void) { return batteryConfig()->vbatmaxcellvoltage[0]; }
+    uint16_t getBatteryFullCellVoltage(void) { return batteryConfig()->vbatfullcellvoltage[0]; }
+
+    // No RPM source or motor outputs in these tests
+    bool isRpmSourceActive(void) { return false; }
+    int getHeadSpeed(void) { return 0; }
+    int16_t getMotorOutput(uint8_t) { return 0; }
+    float getThrottle(void) { return 0; }
 
     int32_t getEstimatedAltitudeCm() {
         return simulationAltitude;

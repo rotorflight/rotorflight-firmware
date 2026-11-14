@@ -49,13 +49,9 @@ void blackboxValidateConfig(void);
 bool blackboxMayEditConfig(void);
 
 #ifdef UNIT_TEST
-STATIC_UNIT_TESTED void blackboxLogIteration(timeUs_t currentTimeUs);
-STATIC_UNIT_TESTED bool blackboxShouldLogPFrame(void);
-STATIC_UNIT_TESTED bool blackboxShouldLogIFrame(void);
-STATIC_UNIT_TESTED bool blackboxShouldLogGpsHomeFrame(void);
-STATIC_UNIT_TESTED bool writeSlowFrameIfNeeded(void);
-// Called once every FC loop in order to keep track of how many FC loop iterations have passed
-STATIC_UNIT_TESTED void blackboxAdvanceIterationTimers(void);
-extern int32_t blackboxSInterval;
-extern int32_t blackboxSlowFrameIterationTimer;
+// Frame intervals, in loop iterations, set by blackboxInit()
+extern uint32_t blackboxPInterval;
+extern uint32_t blackboxIInterval;
+extern uint32_t blackboxSInterval;
+extern uint32_t blackboxGInterval;
 #endif

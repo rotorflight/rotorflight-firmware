@@ -142,9 +142,12 @@ TEST(EmfatInitSfn, LongFileNameNumericTail)
     emfat_init_sfn(&entry, 12);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDE~12", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "TXT", 3) == 0);
+    // The LFN entries carry the checksum of the final short name, tail included
+    EXPECT_EQ(sfn_checksum("ABCDE~12", "TXT"), entry.priv.checksum);
 
     emfat_init_sfn(&entry, 104);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD~104", 8) == 0);
+    EXPECT_EQ(sfn_checksum("ABCD~104", "TXT"), entry.priv.checksum);
 }
 
 TEST(EmfatInitSfn, DigitsInPrefixDontCollide)

@@ -22,6 +22,9 @@
 
 #define USE_PARAMETER_GROUPS
 
+// CMSIS helper also used for non-register configuration flags.
+#define CLEAR_BIT(REG, BIT) ((REG) &= ~(BIT))
+
 #define U_ID_0 0
 #define U_ID_1 1
 #define U_ID_2 2

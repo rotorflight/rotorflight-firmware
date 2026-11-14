@@ -4095,6 +4095,7 @@ static void cliDumpGyroRegisters(const char *cmdName, char *cmdline)
 #endif
 
 
+#if defined(USE_DSHOT) || defined(USE_ESCSERIAL)
 static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     int outputIndex = atoi(pch);
     if (outputIndex > 0 && outputIndex <= getMotorCount()) {
@@ -4107,6 +4108,7 @@ static int parseOutputIndex(const char *cmdName, char *pch, bool allowAllEscs) {
     }
     return outputIndex - 1;
 }
+#endif
 
 #if defined(USE_DSHOT)
 static void cliDshotProg(const char *cmdName, char *cmdline)

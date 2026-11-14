@@ -55,8 +55,8 @@ const int TEST_UPDATE_OSD_TIME = 30;
 #define TASK_PERIOD_HZ(hz) (1000000 / (hz))
 
 extern "C" {
-    task_t * unittest_scheduler_selectedTask;
-    uint8_t unittest_scheduler_selectedTaskDynPrio;
+    extern task_t *unittest_scheduler_selectedTask;
+    extern uint8_t unittest_scheduler_selectedTaskDynamicPriority;
     timeDelta_t unittest_scheduler_taskRequiredTimeUs;
     bool taskGyroRan = false;
     bool taskFilterRan = false;
@@ -198,10 +198,21 @@ extern "C" {
     }
 }
 
+// Hook the task attributes up before any test runs, so tests don't depend on
+// running after a setup test
+static const struct TaskSetup {
+    TaskSetup()
+    {
+        for (int i = 0; i < TASK_COUNT; ++i) {
+            tasks[i].attribute = &task_attributes[i];
+        }
+    }
+} taskSetup;
+
 TEST(SchedulerUnittest, SetupTasks)
 {
     for (int i = 0; i < TASK_COUNT; ++i) {
-        tasks[i].attribute = &task_attributes[i];
+        EXPECT_EQ(&task_attributes[i], tasks[i].attribute);
     }
 }
 
@@ -231,19 +242,18 @@ task_t *deadBeefPtr = reinterpret_cast<task_t*>(0xDEADBEEF);
 TEST(SchedulerUnittest, TestQueue)
 {
     queueClear();
-    taskQueueArray[TASK_COUNT + 1] = deadBeefPtr;
 
     queueAdd(&tasks[TASK_SYSTEM]); // TASK_PRIORITY_MEDIUM_HIGH
     EXPECT_EQ(1, taskQueueSize);
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_SERIAL]); // TASK_PRIORITY_LOW
     EXPECT_EQ(2, taskQueueSize);
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_BATTERY_VOLTAGE]); // TASK_PRIORITY_MEDIUM
     EXPECT_EQ(3, taskQueueSize);
@@ -251,7 +261,7 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueAdd(&tasks[TASK_RX]); // TASK_PRIORITY_HIGH
     EXPECT_EQ(4, taskQueueSize);
@@ -260,7 +270,7 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 
     queueRemove(&tasks[TASK_SYSTEM]); // TASK_PRIORITY_HIGH
     EXPECT_EQ(3, taskQueueSize);
@@ -268,26 +278,24 @@ TEST(SchedulerUnittest, TestQueue)
     EXPECT_EQ(&tasks[TASK_BATTERY_VOLTAGE], queueNext());
     EXPECT_EQ(&tasks[TASK_SERIAL], queueNext());
     EXPECT_EQ(NULL, queueNext());
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
 }
 
 TEST(SchedulerUnittest, TestQueueAddAndRemove)
 {
     queueClear();
-    taskQueueArray[TASK_COUNT + 1] = deadBeefPtr;
 
     // fill up the queue
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
         const bool added = queueAdd(&tasks[taskId]);
         EXPECT_TRUE(added);
         EXPECT_EQ(taskId + 1, taskQueueSize);
-        EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+        EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
     }
     // double check end of queue
     EXPECT_EQ(TASK_COUNT, taskQueueSize);
     EXPECT_NE(static_cast<task_t*>(0), taskQueueArray[TASK_COUNT - 1]); // last item was indeed added to queue
     EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]); // null pointer at end of queue is preserved
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]); // there hasn't been an out by one error
 
     // and empty it again
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -295,13 +303,13 @@ TEST(SchedulerUnittest, TestQueueAddAndRemove)
         EXPECT_TRUE(removed);
         EXPECT_EQ(TASK_COUNT - taskId - 1, taskQueueSize);
         EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT - taskId]);
-        EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]);
+        EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]);
     }
 
     // double check size and end of queue
     EXPECT_EQ(0, taskQueueSize); // queue is indeed empty
     EXPECT_EQ(NULL, taskQueueArray[0]); // there is a null pointer at the end of the queueu
-    EXPECT_EQ(deadBeefPtr, taskQueueArray[TASK_COUNT + 1]); // no accidental overwrites past end of queue
+    EXPECT_EQ(NULL, taskQueueArray[TASK_COUNT]); // no accidental overwrites past end of queue
 }
 
 TEST(SchedulerUnittest, TestQueueArray)
@@ -382,7 +390,7 @@ TEST(SchedulerUnittest, TestSchedulerInit)
     EXPECT_EQ(&tasks[TASK_SYSTEM], queueFirst());
 }
 
-TEST(SchedulerUnittest, TestScheduleEmptyQueue)
+static void TestScheduleEmptyQueue(void)
 {
     queueClear();
     simulatedTime = 4000;
@@ -391,7 +399,7 @@ TEST(SchedulerUnittest, TestScheduleEmptyQueue)
     EXPECT_EQ(NULL, unittest_scheduler_selectedTask);
 }
 
-TEST(SchedulerUnittest, TestSingleTask)
+static void TestSingleTask(void)
 {
     schedulerInit();
     // disable all tasks except TASK_ACCEL
@@ -413,7 +421,7 @@ TEST(SchedulerUnittest, TestSingleTask)
     EXPECT_EQ(0, tasks[TASK_GYRO].dynamicPriority);
 }
 
-TEST(SchedulerUnittest, TestTwoTasks)
+static void TestTwoTasks(void)
 {
     // disable all tasks except TASK_ACCEL and TASK_ATTITUDE
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -467,7 +475,7 @@ TEST(SchedulerUnittest, TestTwoTasks)
     EXPECT_EQ(&tasks[TASK_ATTITUDE], unittest_scheduler_selectedTask);
 }
 
-TEST(SchedulerUnittest, TestPriorityBump)
+static void TestPriorityBump(void)
 {
     // disable all tasks except TASK_ACCEL and TASK_ATTITUDE
     for (int taskId = 0; taskId < TASK_COUNT; ++taskId) {
@@ -548,7 +556,7 @@ TEST(SchedulerUnittest, TestPriorityBump)
     EXPECT_EQ(11000 + TEST_UPDATE_ACCEL_TIME, simulatedTime);
 }
 
-TEST(SchedulerUnittest, TestGyroTask)
+static void TestGyroTask(void)
 {
     static const uint32_t startTime = 4000;
 
@@ -633,3 +641,16 @@ TEST(SchedulerUnittest, TestGyroTask)
     EXPECT_EQ(static_cast<task_t*>(0), unittest_scheduler_selectedTask);
 }
 
+
+// These steps run the scheduler itself. It keeps state the tests can't reset
+// (the gyro-enabled flag, set by TestGyroTask, and the loop counter that
+// TestPriorityBump's "eighth loop" relies on), so they only hold in this
+// order and are run as one test.
+TEST(SchedulerUnittest, SchedulerRunSequence)
+{
+    { SCOPED_TRACE("TestScheduleEmptyQueue"); TestScheduleEmptyQueue(); }
+    { SCOPED_TRACE("TestSingleTask");         TestSingleTask(); }
+    { SCOPED_TRACE("TestTwoTasks");           TestTwoTasks(); }
+    { SCOPED_TRACE("TestPriorityBump");       TestPriorityBump(); }
+    { SCOPED_TRACE("TestGyroTask");           TestGyroTask(); }
+}

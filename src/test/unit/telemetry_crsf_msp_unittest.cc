@@ -254,7 +254,7 @@ extern "C" {
 
     gpsSolutionData_t gpsSol;
     attitudeEulerAngles_t attitude = { { 0, 0, 0 } };
-    uint8_t responseBuffer[MSP_TLM_OUTBUF_SIZE];
+    extern uint8_t responseBuffer[MSP_TLM_OUTBUF_SIZE];
 
     uint32_t micros(void) {return dummyTimeUs;}
     uint32_t microsISR(void) {return micros();}
@@ -311,13 +311,18 @@ extern "C" {
 
     void beeperConfirmationBeeps(uint8_t ) {}
 
-    int32_t getMAhDrawn(void) {
-      return testmAhDrawn;
-    }
+    uint16_t getLegacyBatteryCurrent(void) { return 0; }
+    uint32_t getBatteryCapacityUsed(void) { return testmAhDrawn; }
+    uint8_t getBatteryChargeLevel(void) { return 0; }
+    uint32_t randomU32(void) { return 4; }
 
-    bool telemetryIsSensorEnabled(sensor_e) {
+    bool telemetryIsSensorEnabled(uint32_t) {
         return true;
     }
 
     timeUs_t rxFrameTimeUs(void) { return 0; }
+
+#include "crsf_telemetry_stubs.h"
+
+PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 }

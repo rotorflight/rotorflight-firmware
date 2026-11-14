@@ -58,18 +58,18 @@ accgyro_lsm6dsk320x_experimental_unittest_DEFINES := \
         $(accgyro_lsm6dsk320x_unittest_DEFINES) \
         USE_GYRO_DLPF_EXPERIMENTAL=
 
-# This test is disabled due to build errors.
-#arming_prevention_unittest_SRC := \
-#		$(USER_DIR)/fc/core.c \
-#		$(USER_DIR)/fc/dispatch.c \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/flight/gps_rescue.c \
-#		$(USER_DIR)/common/bitarray.c
-
-#arming_prevention_unittest_DEFINES := \
-#            USE_GPS_RESCUE=
+arming_prevention_unittest_SRC := \
+		$(USER_DIR)/fc/core.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/pg/arming.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 atomic_unittest_SRC := \
 		$(USER_DIR)/build/atomic.c \
@@ -103,24 +103,27 @@ baro_ms5611_unittest_DEFINES := \
                 USE_BARO_MS5611= \
                 USE_BARO_SPI_MS5611=
 
-# This test is disabled due to build errors.
-# Its source code is archived in unit/battery_unittest.cc.txt
-#
-#battery_unittest_SRC := \
-#		$(USER_DIR)/sensors/battery.c \
-#		$(USER_DIR)/common/maths.c
+battery_unittest_SRC := \
+		$(USER_DIR)/sensors/battery.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/pg/battery.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
-# This test is disabled due to build errors.
-#blackbox_unittest_SRC :=  \
-#		$(USER_DIR)/blackbox/blackbox.c \
-#		$(USER_DIR)/blackbox/blackbox_encoding.c \
-#		$(USER_DIR)/blackbox/blackbox_io.c \
-#		$(USER_DIR)/common/encoding.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/accgyro/gyro_sync.c
+blackbox_unittest_SRC :=  \
+		$(USER_DIR)/blackbox/blackbox.c \
+		$(USER_DIR)/blackbox/blackbox_encoding.c \
+		$(USER_DIR)/common/encoding.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/pg/blackbox.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 blackbox_encoding_unittest_SRC :=  \
 		$(USER_DIR)/blackbox/blackbox_encoding.c \
@@ -128,71 +131,89 @@ blackbox_encoding_unittest_SRC :=  \
 		$(USER_DIR)/common/printf.c \
 		$(USER_DIR)/common/typeconversion.c
 
-# This test is disabled due to build errors.
-#cli_unittest_SRC := \
-#		$(USER_DIR)/cli/cli.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/common/typeconversion.c
+cli_unittest_SRC := \
+		$(USER_DIR)/cli/cli.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/config/feature.c \
+		$(USER_DIR)/pg/adjustments.c \
+		$(USER_DIR)/pg/beeper.c \
+		$(USER_DIR)/pg/feature.c \
+		$(USER_DIR)/pg/gyro.c \
+		$(USER_DIR)/pg/ledstrip.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pilot.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/serial.c \
+		$(USER_DIR)/pg/servos.c \
+		$(USER_DIR)/pg/system.c \
+		$(USER_DIR)/pg/pg.c
 
-#cli_unittest_DEFINES := \
-#		USE_OSD= \
-#		USE_CLI= \
-#		SystemCoreClock=1000000
+cli_unittest_DEFINES := \
+		USE_CLI= \
+		SystemCoreClock=1000000
 
-# This test is disabled due to build errors.
-#cms_unittest_SRC := \
-#		$(USER_DIR)/cms/cms.c \
-#		$(USER_DIR)/cms/cms_menu_saveexit.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/display.c
+cms_unittest_SRC := \
+		$(USER_DIR)/cms/cms.c \
+		$(USER_DIR)/cms/cms_menu_saveexit.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/drivers/display.c
 
-#cms_unittest_DEFINES := \
-#		USE_OSD=
+cms_unittest_DEFINES := \
+		USE_OSD=
 
 
-# This test is disabled due to build errors.
-#common_filter_unittest_SRC := \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/common/maths.c
+common_filter_unittest_SRC := \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c
 
 
 encoding_unittest_SRC := \
 		$(USER_DIR)/common/encoding.c
 
 
-# This test is disabled due to build errors.
-#flight_failsafe_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/flight/failsafe.c
-
-#flight_failsafe_unittest_DEFINES := \
-#		USE_GPS_RESCUE=
+flight_failsafe_unittest_SRC := \
+		$(USER_DIR)/flight/failsafe.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/pg/failsafe.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
-# This test is disabled due to build errors.
-#flight_imu_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/flight/position.c \
-#		$(USER_DIR)/flight/imu.c
+flight_imu_unittest_SRC := \
+		$(USER_DIR)/flight/imu.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/pg/imu.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
-flight_mixer_unittest :=  \
+flight_mixer_unittest_SRC :=  \
 		$(USER_DIR)/flight/mixer.c \
-		$(USER_DIR)/flight/servos.c \
-		$(USER_DIR)/common/maths.c
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 gps_conversion_unittest_SRC := \
 		$(USER_DIR)/common/gps_conversion.c
+
+governor_unittest_SRC := \
+		$(USER_DIR)/flight/governor.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/build/debug.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
 io_serial_unittest_SRC := \
@@ -202,14 +223,21 @@ io_serial_unittest_SRC := \
 		$(USER_DIR)/pg/serial_pinconfig.c
 
 
-# This test is disabled due to build errors.
-#ledstrip_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/io/ledstrip.c
+ledstrip_unittest_SRC := \
+		$(USER_DIR)/io/ledstrip.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/strtol.c \
+		$(USER_DIR)/pg/battery.c \
+		$(USER_DIR)/pg/ledstrip.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
-#ledstrip_unittest_DEFINES := \
-#		USE_LED_STRIP=
+ledstrip_unittest_DEFINES := \
+		USE_LED_STRIP=
 
 
 maths_unittest_SRC := \
@@ -228,55 +256,57 @@ msp_shared_unittest_DEFINES := \
 		USE_MSP_OVER_TELEMETRY=
 
 
-# This test is disabled due to build errors.
-#motor_output_unittest_SRC := \
-#		$(USER_DIR)/drivers/dshot.c
+osd_unittest_SRC := \
+		$(USER_DIR)/osd/osd.c \
+		$(USER_DIR)/osd/osd_elements.c \
+		$(USER_DIR)/osd/osd_warnings.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/drivers/display.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/time.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/pg/osd.c \
+		$(USER_DIR)/pg/time.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
+osd_unittest_DEFINES := \
+		USE_OSD= \
+		USE_GPS= \
+		USE_RTC_TIME= \
+		USE_ADC_INTERNAL=
 
-# This test is disabled due to build errors.
-#osd_unittest_SRC := \
-#		$(USER_DIR)/osd/osd.c \
-#		$(USER_DIR)/osd/osd_elements.c \
-#		$(USER_DIR)/osd/osd_warnings.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/display.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/time.c \
-#		$(USER_DIR)/common/filter.c \
-#		$(USER_DIR)/fc/runtime_config.c
+link_quality_unittest_SRC := \
+		$(USER_DIR)/osd/osd.c \
+		$(USER_DIR)/osd/osd_elements.c \
+		$(USER_DIR)/osd/osd_warnings.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/drivers/display.c \
+		$(USER_DIR)/drivers/serial.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/time.c \
+		$(USER_DIR)/fc/runtime_config.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/rx/rx.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/osd.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/time.c
 
-#osd_unittest_DEFINES := \
-#		USE_OSD= \
-#		USE_GPS= \
-#		USE_RTC_TIME= \
-#		USE_ADC_INTERNAL=
-
-# This test is disabled due to build errors.
-#link_quality_unittest_SRC := \
-#		$(USER_DIR)/osd/osd.c \
-#		$(USER_DIR)/osd/osd_elements.c \
-#		$(USER_DIR)/osd/osd_warnings.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/drivers/display.c \
-#		$(USER_DIR)/drivers/serial.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/time.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/rx/rx.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/pg/rx.c
-#
-#link_quality_unittest_DEFINES := \
-#		USE_OSD= \
-#		USE_CRSF_LINK_STATISTICS= \
-#		USE_RX_LINK_QUALITY_INFO=
+link_quality_unittest_DEFINES := \
+		USE_OSD= \
+		USE_CRSF_LINK_STATISTICS= \
+		USE_RX_LINK_QUALITY_INFO=
 
 pg_unittest_SRC := \
 		$(USER_DIR)/common/crc.c \
@@ -284,66 +314,61 @@ pg_unittest_SRC := \
 		$(USER_DIR)/pg/pg.c
 
 
-# This test is disabled due to build errors.
-#rc_controls_unittest_SRC := \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/fc/rc_adjustments.c \
-#		$(USER_DIR)/fc/rc_modes.c
+rc_modes_unittest_SRC := \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 
-# This test is disabled due to build errors.
-#rx_crsf_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/drivers/serial.c
+rx_crsf_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/drivers/serial.c \
+		$(USER_DIR)/pg/pg.c
+
+rx_crsf_unittest_DEFINES := \
+		USE_CRSF_V3=
 
 
 rx_ibus_unittest_SRC := \
 		$(USER_DIR)/rx/ibus.c
 
 
-# This test is disabled due to build errors.
-#rx_ranges_unittest_SRC := \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/rx/rx.c \
-#		$(USER_DIR)/pg/pg.c \
-#		$(USER_DIR)/pg/rx.c
+rx_rx_unittest_SRC := \
+		$(USER_DIR)/rx/rx.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/common/filter.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/config/feature.c \
+		$(USER_DIR)/pg/rx.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/feature.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
-
-# This test is disabled due to build errors.
-#rx_rx_unittest_SRC := \
-#		$(USER_DIR)/rx/rx.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/config/feature.c \
-#		$(USER_DIR)/pg/rx.c
+rx_rx_unittest_DEFINES := \
+		USE_RX_LINK_QUALITY_INFO=
 
 rx_sumd_unittest_SRC := \
 		$(USER_DIR)/common/crc.c \
 		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/rx/sumd.c
 
-# This test is disabled due to test failures.
-#scheduler_unittest_SRC := \
-#		$(USER_DIR)/scheduler/scheduler.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/streambuf.c
-#
-#scheduler_unittest_DEFINES := \
-#		USE_OSD=
+scheduler_unittest_SRC := \
+		$(USER_DIR)/scheduler/scheduler.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+scheduler_unittest_DEFINES := \
+		USE_OSD=
 
 sensor_gyro_unittest_SRC := \
 		$(USER_DIR)/sensors/gyro.c \
@@ -367,50 +392,51 @@ sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_
 sensor_gyro_fake_calibration_unittest_SRC := $(sensor_gyro_unittest_SRC)
 
 sensor_gyro_fake_calibration_unittest_DEFINES := $(sensor_gyro_unittest_DEFINES) FAKE_GYRO_SKIP_CALIBRATION=
-#
-#telemetry_crsf_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/telemetry/crsf.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/gps_conversion.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/fc/runtime_config.c
-#
-#telemetry_crsf_unittest_DEFINES := \
-#		FLASH_SIZE=128 \
-#		__TARGET__="TEST" \
-#		__REVISION__="revision"
-#
-#
-#telemetry_crsf_msp_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/build/atomic.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/drivers/serial.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/telemetry/crsf.c \
-#		$(USER_DIR)/common/gps_conversion.c \
-#		$(USER_DIR)/telemetry/msp_shared.c \
-#		$(USER_DIR)/fc/runtime_config.c
-#
-#telemetry_crsf_msp_unittest_DEFINES := \
-#		USE_MSP_OVER_TELEMETRY=
-#
-#
-#telemetry_hott_unittest_SRC := \
-#		$(USER_DIR)/telemetry/hott.c \
-#		$(USER_DIR)/common/gps_conversion.c
+
+telemetry_crsf_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/telemetry/crsf.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/fc/runtime_config.c
+
+telemetry_crsf_unittest_DEFINES := \
+		FLASH_SIZE=128 \
+		__TARGET__="TEST" \
+		__REVISION__="revision" \
+		USE_RX_EXPRESSLRS=
 
 
-#telemetry_ibus_unittest_SRC := \
-#		$(USER_DIR)/telemetry/ibus_shared.c \
-#		$(USER_DIR)/telemetry/ibus.c
+telemetry_crsf_msp_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/build/atomic.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/drivers/serial.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/telemetry/crsf.c \
+		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/telemetry/msp_shared.c \
+		$(USER_DIR)/fc/runtime_config.c
+
+telemetry_crsf_msp_unittest_DEFINES := \
+		USE_MSP_OVER_TELEMETRY=
+
+
+telemetry_hott_unittest_SRC := \
+		$(USER_DIR)/telemetry/hott.c \
+		$(USER_DIR)/common/gps_conversion.c
+
+
+telemetry_ibus_unittest_SRC := \
+		$(USER_DIR)/telemetry/ibus_shared.c \
+		$(USER_DIR)/telemetry/ibus.c
 
 timer_definition_unittest_EXPAND := yes
 
@@ -438,17 +464,17 @@ huffman_unittest_SRC := \
 huffman_unittest_DEFINES := \
 		USE_HUFFMAN=
 
-# This test is disabled due to build errors.
-#rcdevice_unittest_SRC := \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/bitarray.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/io/rcdevice.c \
-#		$(USER_DIR)/io/rcdevice_cam.c \
-#		$(USER_DIR)/pg/pg.c \
-#
-#rcdevice_unittest_DEFINES := \
-#		USE_RCDEVICE=
+rcdevice_unittest_SRC := \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/bitarray.c \
+		$(USER_DIR)/fc/rc_modes.c \
+		$(USER_DIR)/io/rcdevice.c \
+		$(USER_DIR)/io/rcdevice_cam.c \
+		$(USER_DIR)/pg/modes.c \
+		$(USER_DIR)/pg/pg.c
+
+rcdevice_unittest_DEFINES := \
+		USE_RCDEVICE=
 
 
 pid_unittest_SRC :=  \
@@ -499,61 +525,63 @@ trainer_unittest_SRC := \
 trainer_unittest_DEFINES := \
 		USE_ACRO_TRAINER=
 
-#vtx_unittest_SRC := \
-#		$(USER_DIR)/fc/core.c \
-#		$(USER_DIR)/fc/dispatch.c \
-#		$(USER_DIR)/fc/rc_controls.c \
-#		$(USER_DIR)/fc/rc_modes.c \
-#		$(USER_DIR)/fc/runtime_config.c \
-#		$(USER_DIR)/drivers/vtx_common.c \
-#		$(USER_DIR)/drivers/vtx_table.c \
-#		$(USER_DIR)/io/vtx_control.c \
-#		$(USER_DIR)/io/vtx.c \
-#		$(USER_DIR)/common/bitarray.c
-#
-#vtx_unittest_DEFINES := \
-#		USE_VTX_COMMON= \
-#		USE_VTX_CONTROL= \
-#		USE_VTX_SMARTAUDIO=
+vtx_unittest_SRC := \
+		$(USER_DIR)/io/vtx.c \
+		$(USER_DIR)/drivers/vtx_common.c \
+		$(USER_DIR)/drivers/vtx_table.c \
+		$(USER_DIR)/pg/vtx.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+vtx_unittest_DEFINES := \
+		USE_VTX_COMMON= \
+		USE_VTX_CONTROL= \
+		USE_VTX_SMARTAUDIO=
 
 rx_spi_spektrum_unittest_SRC := \
 		$(USER_DIR)/rx/cyrf6936_spektrum.c \
-		$(USER_DIR)/pg/rx_spektrum.c
+		$(USER_DIR)/pg/rx_spektrum.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
 
 rx_spi_spektrum_unittest_DEFINES := \
 		USE_RX_SPI= \
 		USE_RX_SPEKTRUM=
 
-# This test is disabled due to build errors.
-#rx_spi_expresslrs_unittest_SRC := \
-#        $(USER_DIR)/pg/rx_spi_expresslrs.c \
-#		$(USER_DIR)/rx/expresslrs_common.c \
-#		$(USER_DIR)/rx/expresslrs.c \
-#		$(USER_DIR)/build/atomic.c \
-#
-#rx_spi_expresslrs_unittest_DEFINES := \
-#		USE_RX_SPI= \
-#		USE_RX_SX1280= \
-#		USE_RX_SX127X=
-#		USE_RX_EXPRESSLRS= \
-#
-#rx_spi_expresslrs_telemetry_unittest_SRC := \
-#		$(USER_DIR)/rx/crsf.c \
-#		$(USER_DIR)/telemetry/crsf.c \
-#		$(USER_DIR)/common/crc.c \
-#		$(USER_DIR)/common/maths.c \
-#		$(USER_DIR)/common/streambuf.c \
-#		$(USER_DIR)/common/gps_conversion.c \
-#		$(USER_DIR)/common/printf.c \
-#		$(USER_DIR)/common/typeconversion.c \
-#		$(USER_DIR)/rx/expresslrs_telemetry.c \
-#		$(USER_DIR)/build/atomic.c \
-#		$(USER_DIR)/telemetry/msp_shared.c \
-#
-#rx_spi_expresslrs_telemetry_unittest_DEFINES := \
-#		USE_GPS= \
-#		USE_MSP_OVER_TELEMETRY=
-#		USE_RX_EXPRESSLRS= \
+rx_spi_expresslrs_unittest_SRC := \
+		$(USER_DIR)/pg/rx_spi_expresslrs.c \
+		$(USER_DIR)/rx/expresslrs_common.c \
+		$(USER_DIR)/rx/expresslrs.c \
+		$(USER_DIR)/build/atomic.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c
+
+rx_spi_expresslrs_unittest_DEFINES := \
+		USE_RX_SPI= \
+		USE_RX_SX1280= \
+		USE_RX_SX127X= \
+		USE_RX_EXPRESSLRS=
+
+rx_spi_expresslrs_telemetry_unittest_SRC := \
+		$(USER_DIR)/rx/crsf.c \
+		$(USER_DIR)/telemetry/crsf.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/maths.c \
+		$(USER_DIR)/common/streambuf.c \
+		$(USER_DIR)/common/gps_conversion.c \
+		$(USER_DIR)/common/printf.c \
+		$(USER_DIR)/common/typeconversion.c \
+		$(USER_DIR)/rx/expresslrs_telemetry.c \
+		$(USER_DIR)/build/atomic.c \
+		$(USER_DIR)/telemetry/msp_shared.c
+
+rx_spi_expresslrs_telemetry_unittest_DEFINES := \
+		USE_GPS= \
+		USE_MSP_OVER_TELEMETRY= \
+		USE_RX_EXPRESSLRS=
 
 emfat_unittest_SRC := \
 		$(USER_DIR)/msc/emfat.c
@@ -814,9 +842,11 @@ $(OBJECT_DIR)/gmock_main.a : $(OBJECT_DIR)/gmock-all.o $(OBJECT_DIR)/gtest-all.o
 test_include_dirs  = $1 $(TEST_DIR) $(USER_DIR)
 test_cflags	   = $(addprefix -isystem,$(call test_include_dirs,$1) )
 # /common folder only works with "-iquote" because it contians naming conflict
-# with system include.
-test_quote_include_dirs  = $(USER_DIR)/common
-test_cflags   += $(addprefix -iquote,$(call test_quote_include_dirs))
+# with system include. "" includes search -iquote before -isystem, so the
+# endorsed directories are repeated here ahead of /common; otherwise a header
+# living in /common (e.g. platform.h) can't be overridden by the test.
+test_quote_include_dirs  = $1 $(USER_DIR)/common
+test_cflags   += $(addprefix -iquote,$(call test_quote_include_dirs,$1))
 
 
 # target name extractor
