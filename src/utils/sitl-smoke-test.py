@@ -21,7 +21,9 @@ Runs the SITL executable in a fresh temporary directory and checks, in order:
      and the firmware clock advances exactly with the simulated time; on 200 us
      steps the gyro loop still runs at 4 kHz, not once per step
 
-Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free.
+Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free - or,
+with SITL_INSTANCE=k in the environment, each of them + 10 * k (the SITL started here
+inherits it and moves its own ports the same way), so several runs can share a host.
 SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
 """
 
@@ -34,6 +36,17 @@ import sys
 import tempfile
 import threading
 import time
+
+# SITL_INSTANCE=k: the SITL's default ports all move by 10 * k (target.c), and so do ours.
+PORT_OFFSET = 10 * int(os.environ.get("SITL_INSTANCE") or 0)
+FDM_PORT = 9003 + PORT_OFFSET           # we send FDM packets here
+OUTPUT_PORT = 9002 + PORT_OFFSET        # and read the output packets here
+
+
+def uart_port(n):
+    """TCP port of UARTn."""
+    return 5760 + PORT_OFFSET + n
+
 
 MSP_API_VERSION = 1
 MSP_FC_VARIANT = 2
@@ -97,13 +110,14 @@ def connect_uart1(sitl, timeout=15):
     while time.time() < deadline:
         if sitl.proc.poll() is not None:
             raise Failure("SITL exited before serving UART1 (see %s)" % sitl.log_path)
-        if sitl.log_contains("bind port 5761"):
+        # the newline: not "bind port ... failed!!", which also starts this way
+        if sitl.log_contains("bind port %d for UART1\n" % uart_port(1)):
             try:
-                return socket.create_connection(("127.0.0.1", 5761), timeout=3)
+                return socket.create_connection(("127.0.0.1", uart_port(1)), timeout=3)
             except OSError:
                 pass
         time.sleep(0.2)
-    raise Failure("UART1 (TCP 5761) not served within %d s" % timeout)
+    raise Failure("UART1 (TCP %d) not served within %d s" % (uart_port(1), timeout))
 
 
 class Msp:
@@ -196,7 +210,7 @@ class FdmFeed(threading.Thread):
                 ts = n / self.rate
                 # timestamp, gyro rpy, accel xyz (NED body, 1 g up), quat wxyz, velocity, position
                 pkt = struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-                s.sendto(pkt, ("127.0.0.1", 9003))
+                s.sendto(pkt, ("127.0.0.1", FDM_PORT))
                 n += 1
             delay = t0 + n / self.rate - time.monotonic()
             if delay > 0:
@@ -204,12 +218,12 @@ class FdmFeed(threading.Thread):
 
 
 class OutputReader(threading.Thread):
-    """Latest output packet from UDP 9002: motor_speed[4], then servo[8] (us)."""
+    """Latest output packet from the output port (UDP 9002): motor_speed[4], then servo[8] (us)."""
 
     def __init__(self):
         super().__init__(daemon=True)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(("127.0.0.1", 9002))
+        self.sock.bind(("127.0.0.1", OUTPUT_PORT))
         self.sock.settimeout(0.1)
         self.latest = None
         self.count = 0
@@ -398,10 +412,10 @@ def run(elf, rundir):
         deadline = time.time() + 10
         while radio is None:
             try:
-                radio = CrsfRadio(socket.create_connection(("127.0.0.1", 5762), timeout=1))
+                radio = CrsfRadio(socket.create_connection(("127.0.0.1", uart_port(2)), timeout=1))
             except OSError:
                 if time.time() > deadline:
-                    raise Failure("CRSF UART2 (TCP 5762) not served")
+                    raise Failure("CRSF UART2 (TCP %d) not served" % uart_port(2))
                 time.sleep(0.2)
         radio.start()
 
@@ -471,7 +485,7 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
     MSP_STATUS, read throughout, gives the gyro task's latest interval: on steps
     shorter than the gyro period it is one or two steps, averaging the period."""
     outputs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    outputs.bind(("127.0.0.1", 9002))
+    outputs.bind(("127.0.0.1", OUTPUT_PORT))
     outputs.settimeout(0.05)
     fdm = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     env_before = os.environ.get("SITL_LOCKSTEP")
@@ -498,7 +512,7 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
                 sock.send(b"$M<" + bytes([0, MSP_STATUS, MSP_STATUS]))
                 status_pending = True
             fdm.sendto(struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                       ("127.0.0.1", 9003))
+                       ("127.0.0.1", FDM_PORT))
             try:
                 outputs.recvfrom(256)
             except socket.timeout:

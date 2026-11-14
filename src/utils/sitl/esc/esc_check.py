@@ -65,6 +65,7 @@ def emulator(protocol):
 
 def check(elf, protocol):
     fw_name, half = PROTOCOLS[protocol]
+    esc_port = smoke.uart_port(3)           # UART3; moves with SITL_INSTANCE
     rundir = tempfile.mkdtemp(prefix="sitl-esc-%s-" % protocol)
     # Every SITL, socket and helper is cleaned up on any exit, Ctrl+C included: a
     # SITL left running holds the ports the next protocol's check needs.
@@ -88,15 +89,15 @@ def check(elf, protocol):
         deadline = time.time() + 15
         while True:                         # the ESC UART listens once the SITL is up
             try:
-                socket.create_connection(("127.0.0.1", 5763), timeout=1).close()
+                socket.create_connection(("127.0.0.1", esc_port), timeout=1).close()
                 break
             except OSError:
                 if time.time() > deadline:
-                    return False, "ESC UART 5763 not served"
+                    return False, "ESC UART (TCP %d) not served" % esc_port
                 time.sleep(0.2)
         time.sleep(0.5)
         esc = subprocess.Popen([sys.executable, os.path.join(HERE, "esc_sim.py"), "--protocol",
-                                protocol, "--port", "5763", "--seconds", "90"],
+                                protocol, "--port", str(esc_port), "--seconds", "90"],
                                stdout=out, stderr=subprocess.STDOUT)
         params, deadline = None, time.time() + 45
         while time.time() < deadline and not params:

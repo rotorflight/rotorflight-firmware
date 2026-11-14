@@ -462,6 +462,29 @@ static void* tcpThread(void* data) {
 }
 
 // system
+// SITL_INSTANCE=k moves every default port by 10 * k - the TCP UARTs
+// (5761.. -> 5761 + 10k..), the FDM input (9003) and the output link (9002) -
+// so several SITLs can run side by side on one host. 0 (unset) is the usual
+// set; SITL_FDM_PORT and SITL_OUTPUT_ADDR still override their own port.
+int simInstancePortOffset(void)
+{
+    static int offset = -1;
+    if (offset < 0) {
+        const char *v = getenv("SITL_INSTANCE");
+        long k = 0;
+        if (v) {
+            char *end;
+            k = strtol(v, &end, 10);
+            if (!*v || *end || k < 0 || k > SITL_INSTANCE_MAX) {
+                fprintf(stderr, "SITL: SITL_INSTANCE='%s' is not a number 0..%d\n", v, SITL_INSTANCE_MAX);
+                exit(1);
+            }
+        }
+        offset = (int)k * SITL_INSTANCE_PORT_STRIDE;
+    }
+    return offset;
+}
+
 // A decimal UDP port from the environment, or the default when unset.
 static int simEnvPort(const char *name, int def)
 {
@@ -632,9 +655,14 @@ void systemInit(void) {
     pthread_mutex_unlock(&dyadReadyLock);
 
     // Endpoints: SITL_FDM_PORT (default 9003, all interfaces) and
-    // SITL_OUTPUT_ADDR as host[:port] (default 127.0.0.1:9002). Read once;
-    // an invalid value ends the process rather than falling back silently.
-    const int fdmPort = simEnvPort("SITL_FDM_PORT", 9003);
+    // SITL_OUTPUT_ADDR as host[:port] (default 127.0.0.1:9002), both defaults
+    // moved by SITL_INSTANCE. Read once; an invalid value ends the process
+    // rather than falling back silently.
+    if (simInstancePortOffset()) {
+        printf("[system]instance %d: ports moved by %d\n",
+               simInstancePortOffset() / SITL_INSTANCE_PORT_STRIDE, simInstancePortOffset());
+    }
+    const int fdmPort = simEnvPort("SITL_FDM_PORT", 9003 + simInstancePortOffset());
     ret = udpInit(&stateLink, NULL, fdmPort, true);
     printf("start UDP server on port %d...%d\n", fdmPort, ret);
     if (ret != 0) {
@@ -644,7 +672,7 @@ void systemInit(void) {
 
     char outHost[64];
     int outPort;
-    simEnvEndpoint("SITL_OUTPUT_ADDR", "127.0.0.1", 9002, outHost, sizeof(outHost), &outPort);
+    simEnvEndpoint("SITL_OUTPUT_ADDR", "127.0.0.1", 9002 + simInstancePortOffset(), outHost, sizeof(outHost), &outPort);
     ret = udpInit(&pwmLink, outHost, outPort, false);
     printf("init PwmOut UDP link to %s:%d...%d\n", outHost, outPort, ret);
     if (ret != 0) {
