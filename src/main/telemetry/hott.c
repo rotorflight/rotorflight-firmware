@@ -217,14 +217,14 @@ void hottPrepareGPSResponse(HOTT_GPS_MSG_t *hottGPSMessage)
 #ifdef USE_VARIO
     const int32_t climbrate = getEstimatedVarioCms();
 #else
-	const int32_t climbrate = 0;
+    const int32_t climbrate = 0;
 #endif
     const uint16_t encoded_climbrate = (uint16_t)(30000 + climbrate);
     hottGPSMessage->climbrate_L = (uint8_t)(encoded_climbrate & 0x00FFU);
     hottGPSMessage->climbrate_H = (uint8_t)(encoded_climbrate >> 8);
     uint16_t encoded_climbrate3s = (uint16_t)(3 * climbrate / 100 + HOTT_EAM_OFFSET_M3S);
-	if (encoded_climbrate3s > 255)
-		encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
+    if (encoded_climbrate3s > 255)
+        encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
     hottGPSMessage->climbrate3s = (uint8_t)(encoded_climbrate3s);
 
     if (!STATE(GPS_FIX)) {
@@ -328,7 +328,7 @@ static inline void hottEAMUpdateClimbrate(HOTT_EAM_MSG_t *hottEAMMessage)
     hottEAMMessage->climbrate_H = (uint8_t)(encoded_vario >> 8);
     uint16_t encoded_climbrate3s = (uint16_t)(3 * vario / 100 + HOTT_EAM_OFFSET_M3S);
     if (encoded_climbrate3s > 255)
-	    encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
+        encoded_climbrate3s = HOTT_EAM_OFFSET_M3S;
     hottEAMMessage->climbrate3s = (uint8_t)(encoded_climbrate3s);
 }
 #endif
