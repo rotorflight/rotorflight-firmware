@@ -689,9 +689,13 @@ static void setMapping(uint8_t in, uint8_t out)
 {
     mixer.mapping[out] = BIT(in);
 
+    // SET replaces whatever fed this output, so the cyclic flag follows it too
     if (in == MIXER_IN_STABILIZED_ROLL || in == MIXER_IN_STABILIZED_PITCH ||
         in == MIXER_IN_RC_COMMAND_ROLL || in == MIXER_IN_RC_COMMAND_PITCH) {
         mixer.cyclicMapping |= BIT(out);
+    }
+    else {
+        mixer.cyclicMapping &= ~BIT(out);
     }
 }
 
@@ -710,9 +714,10 @@ static void addMapping(uint8_t in, uint8_t out)
 
 // Rebuild the output -> inputs map that mixerSaturateOutput() uses to flag the
 // stabilized inputs feeding a servo at its travel limit, and the cyclic map the
-// servo speed limit uses. Called at init and after every rule write
-// (MSP_SET_MIXER_RULE, CLI "mixer rule"), which edit rules live, so anti-windup
-// follows the current wiring rather than the boot-time one.
+// servo speed limit uses. Called at init and after every live write to the
+// rules or to the swash/tail type (MSP_SET_MIXER_RULE, MSP_SET_MIXER_CONFIG,
+// CLI "mixer rule" and "mixer reset"), so anti-windup follows the current
+// wiring rather than the boot-time one.
 void mixerUpdateMapping(void)
 {
     for (int i = 0; i < MIXER_OUTPUT_COUNT; i++) {
