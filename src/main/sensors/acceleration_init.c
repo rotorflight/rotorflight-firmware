@@ -398,7 +398,13 @@ bool accInit(uint16_t accSampleRateHz)
     acc.sampleRateHz = accSampleRateHz;
 
     // Valid key can't be 0 or 1
+#if defined(SIMULATOR_BUILD)
+    // No UID_BASE in a process: use the target's fixed U_ID_x values.
+    const uint32_t uid[3] = { U_ID_0, U_ID_1, U_ID_2 };
+    accelerationRuntime.calibrationKey = (crc16_ccitt_update(0, (void *)uid, sizeof(uid)) % 65521) + 2;
+#else
     accelerationRuntime.calibrationKey = (crc16_ccitt_update(0, (void *)UID_BASE, 12) % 65521) + 2;
+#endif
 
     accInitFilters();
 

@@ -209,8 +209,11 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     maxRealTimeCycles = 0;
 
 #if defined(SIMULATOR_BUILD)
+    // On a host these measure the host's scheduling jitter, not the
+    // firmware's headroom; left in, they block arming (LOAD) at random.
     averageCPULoad = 0;
     averageSystemLoad = 0;
+    maxRealTimeLoad = 0;
 #endif
 }
 
@@ -497,6 +500,15 @@ FAST_CODE void scheduler(void)
              * Recover as best we can, advancing scheduling by a whole number of cycles
              */
             nextTargetCycles += desiredPeriodCycles * (1 + (schedLoopRemainingCycles / -desiredPeriodCycles));
+#if defined(SIMULATOR_BUILD)
+            // Lockstep: the clock moves in whole simulator steps, so the old phase
+            // survives every step - a target left more than schedLoopStartCycles
+            // short of a step would never come due again, and the gyro/PID loop
+            // stops for good. Put the target on the clock instead.
+            if (simLockstepActive()) {
+                nextTargetCycles = nowCycles;
+            }
+#endif
             schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
         }
 
@@ -506,8 +518,20 @@ FAST_CODE void scheduler(void)
             schedLoopStartCycles += schedLoopStartDeltaUpCycles;
         }
 
+#if defined(SIMULATOR_BUILD)
+        // Lockstep: the clock only moves with the simulator's steps, so polling
+        // for a boundary still ahead would never end, and running the gyro
+        // early instead would run it on every step when the steps are shorter
+        // than the gyro period (5 kHz on 200 us steps). Skip it until the
+        // target is due; the target keeps its phase, and the clock reaches it
+        // within a step or two.
+        const bool gyroDue = !simLockstepActive() || schedLoopRemainingCycles <= 0;
+#else
+        const bool gyroDue = true;
+#endif
+
         // Once close to the timing boundary, poll for it's arrival
-        if (schedLoopRemainingCycles < schedLoopStartCycles) {
+        if (gyroDue && schedLoopRemainingCycles < schedLoopStartCycles) {
             if (schedLoopStartCycles > schedLoopStartMinCycles) {
                 schedLoopStartCycles -= schedLoopStartDeltaDownCycles;
             }

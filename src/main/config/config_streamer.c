@@ -549,7 +549,9 @@ int config_streamer_finish(config_streamer_t *c)
 #elif defined(CONFIG_IN_RAM)
         // NOP
 #elif defined(CONFIG_IN_FILE)
-        FLASH_Lock();
+        if (!FLASH_Lock()) {
+            c->err = -1;
+        }
 #elif defined(CONFIG_IN_FLASH)
 #if defined(STM32F7) || defined(STM32H7) || defined(STM32G4)
         HAL_FLASH_Lock();

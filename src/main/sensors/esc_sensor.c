@@ -984,7 +984,9 @@ static void sendDShotTelemetryReqeust(timeMs_t currentTimeMs)
 
     dshotTriggerTimestamp = currentTimeMs;
 
+#if defined(USE_DSHOT)
     getMotorDmaOutput(currentEsc)->protocolControl.requestTelemetry = true;
+#endif
 }
 
 static void blSelectNextEsc(void)

@@ -47,7 +47,8 @@
 #define USE_VTX_RTC6705
 #endif
 
-#ifndef USE_DSHOT
+// The SITL reads ESC telemetry from a TCP UART; it has no DSHOT to depend on.
+#if !defined(USE_DSHOT) && !defined(SIMULATOR_BUILD)
 #undef USE_ESC_SENSOR
 #endif
 
@@ -374,7 +375,7 @@
 #define USE_FLASH_W25M
 #endif
 
-#if defined(USE_FLASH_M25P16) || defined(USE_FLASH_W25N01G)
+#if defined(USE_FLASH_M25P16) || defined(USE_FLASH_W25N01G) || defined(USE_FLASH_FILE)
 #define USE_FLASH_CHIP
 #endif
 
@@ -506,7 +507,11 @@
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY
+// The SITL feeds motor rpm through its frequency sensor, which the RPM filter reads
+// like any other rpm source.
+#ifndef SIMULATOR_BUILD
 #undef USE_RPM_FILTER
+#endif
 #undef USE_DSHOT_TELEMETRY_STATS
 #endif
 

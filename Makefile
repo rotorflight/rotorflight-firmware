@@ -364,8 +364,13 @@ $(TARGET_BIN): $(TARGET_ELF)
 	$(V1) $(OBJCOPY) -O binary $< $@
 
 $(TARGET_HEX): $(TARGET_ELF)
+ifeq ($(SIMULATOR_BUILD),yes)
+	@echo "SITL is a native executable ($(TARGET_ELF)); skipping Intel HEX generation" "$(STDOUT)"
+	$(V1) touch $@
+else
 	@echo "Creating HEX $(TARGET_HEX)" "$(STDOUT)"
 	$(V1) $(OBJCOPY) -O ihex --set-start 0x8000000 $< $@
+endif
 
 $(TARGET_DFU): $(TARGET_HEX)
 	@echo "Creating DFU $(TARGET_DFU)" "$(STDOUT)"

@@ -34,6 +34,7 @@
 #include "flash_w25q128fv.h"
 #include "flash_w25m.h"
 #include "flash_w25n.h"
+#include "flash_file.h"
 #include "drivers/bus_spi.h"
 #include "drivers/bus_quadspi.h"
 #include "drivers/io.h"
@@ -44,8 +45,10 @@
 // 5 MHz max SPI init frequency
 #define FLASH_MAX_SPI_INIT_CLK 5000000
 
+#ifdef USE_SPI
 static extDevice_t devInstance;
 static extDevice_t *dev;
+#endif
 
 static flashDevice_t flashDevice;
 static flashPartitionTable_t flashPartitionTable;
@@ -212,6 +215,12 @@ static bool flashSpiInit(const flashConfig_t *flashConfig)
 
 bool flashDeviceInit(const flashConfig_t *flashConfig)
 {
+#ifdef USE_FLASH_FILE
+    // SITL: the chip is a file, on no bus.
+    UNUSED(flashConfig);
+    return flashFileDetect(&flashDevice);
+#endif
+
 #ifdef USE_SPI
     bool useSpi = (SPI_CFG_TO_DEV(flashConfig->spiDevice) != SPIINVALID);
 
@@ -418,7 +427,7 @@ static void flashConfigurePartitions(void)
 #endif
 }
 
-flashPartition_t *flashPartitionFindByType(uint8_t type)
+flashPartition_t *flashPartitionFindByType(flashPartitionType_e type)
 {
     for (int index = 0; index < FLASH_MAX_PARTITIONS; index++) {
         flashPartition_t *candidate = &flashPartitionTable.partitions[index];
