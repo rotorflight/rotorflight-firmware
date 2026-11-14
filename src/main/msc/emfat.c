@@ -291,12 +291,21 @@ STATIC_UNIT_TESTED void emfat_init_sfn(emfat_entry_t *entry, int index)
     memcpy(entry->priv.extension, entry->name + dot_pos + 1, l2);
 
     if (need_lfn) {
-        int pos = FILE_NAME_SHRT_LEN - 1;
-        int suffix = index;
-        while (pos >= 0 && suffix) {
-            entry->priv.short_name[pos] = suffix % 10 + '0';
+        // Numeric tail "~N" with the entry index, like FAT's own "~1". The
+        // index is unique per entry and the '~' marks where it starts, so
+        // truncated names that share a prefix can't end up the same.
+        char digits[FILE_NAME_SHRT_LEN];
+        int count = 0;
+        unsigned suffix = index;
+        do {
+            digits[count++] = suffix % 10 + '0';
             suffix /= 10;
-            pos--;
+        } while (suffix && count < FILE_NAME_SHRT_LEN - 1);
+
+        int pos = FILE_NAME_SHRT_LEN - 1 - count;
+        entry->priv.short_name[pos++] = '~';
+        while (count > 0) {
+            entry->priv.short_name[pos++] = digits[--count];
         }
     }
 

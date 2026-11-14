@@ -697,7 +697,7 @@ void fbusSensorObservePhysicalId(uint8_t physicalId)
 
 void fbusSensorUpdate(timeUs_t currentTimeUs)
 {
-    if (fbusGps.lastUpdateUs > 0 && (currentTimeUs - fbusGps.lastUpdateUs) > 1000000) {
+    if (fbusGps.lastUpdateUs > 0 && cmpTimeUs(currentTimeUs, fbusGps.lastUpdateUs) > 1000000) {
         fbusGps.hasPosition = false;
         fbusGps.hasAltitude = false;
         fbusGps.hasSpeed = false;
@@ -706,24 +706,24 @@ void fbusSensorUpdate(timeUs_t currentTimeUs)
         fbusGps.hasDate = false;
     }
     
-    if (fbusServo.lastUpdateUs > 0 && (currentTimeUs - fbusServo.lastUpdateUs) > 1000000) {
+    if (fbusServo.lastUpdateUs > 0 && cmpTimeUs(currentTimeUs, fbusServo.lastUpdateUs) > 1000000) {
         fbusServo.hasData = false;
     }
 
-    if (fbusCurrent.lastUpdateUs > 0 && (currentTimeUs - fbusCurrent.lastUpdateUs) > 1000000) {
+    if (fbusCurrent.lastUpdateUs > 0 && cmpTimeUs(currentTimeUs, fbusCurrent.lastUpdateUs) > 1000000) {
         fbusCurrent.hasCurrent = false;
         fbusCurrent.hasVoltage = false;
         fbusCurrent.hasHighPrecisionCurrent = false;
     }
 
-    if (fbusEsc.lastUpdateUs > 0 && (currentTimeUs - fbusEsc.lastUpdateUs) > 1000000) {
+    if (fbusEsc.lastUpdateUs > 0 && cmpTimeUs(currentTimeUs, fbusEsc.lastUpdateUs) > 1000000) {
         fbusEsc.hasPower = false;
         fbusEsc.hasRpm = false;
         fbusEsc.hasConsumption = false;
         fbusEsc.hasTemperature = false;
     }
 
-    if (fbusFlvss.lastUpdateUs > 0 && (currentTimeUs - fbusFlvss.lastUpdateUs) > 1000000) {
+    if (fbusFlvss.lastUpdateUs > 0 && cmpTimeUs(currentTimeUs, fbusFlvss.lastUpdateUs) > 1000000) {
         memset(fbusFlvss.cellVoltageCentiVolts, 0, sizeof(fbusFlvss.cellVoltageCentiVolts));
         fbusFlvss.voltageCentiVolts = 0;
         fbusFlvss.cellCount = 0;
@@ -777,7 +777,7 @@ bool fbusSensorHasGpsData(void)
     timeUs_t currentTimeUs = micros();
     
     if (fbusGps.hasPosition && fbusGps.lastUpdateUs > 0) {
-        if ((currentTimeUs - fbusGps.lastUpdateUs) < 1000000) {
+        if (cmpTimeUs(currentTimeUs, fbusGps.lastUpdateUs) < 1000000) {
             return true;
         }
     }
@@ -799,7 +799,7 @@ bool fbusSensorHasServoData(void)
     timeUs_t currentTimeUs = micros();
     
     if (fbusServo.hasData && fbusServo.lastUpdateUs > 0) {
-        if ((currentTimeUs - fbusServo.lastUpdateUs) < 1000000) {
+        if (cmpTimeUs(currentTimeUs, fbusServo.lastUpdateUs) < 1000000) {
             return true;
         }
     }
@@ -822,7 +822,7 @@ bool fbusSensorHasCurrentData(void)
 
     if ((fbusCurrent.hasCurrent || fbusCurrent.hasVoltage || fbusCurrent.hasHighPrecisionCurrent)
         && fbusCurrent.lastUpdateUs > 0) {
-        if ((currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000) {
+        if (cmpTimeUs(currentTimeUs, fbusCurrent.lastUpdateUs) < 1000000) {
             return true;
         }
     }
@@ -835,10 +835,10 @@ bool fbusSensorGetBatteryVoltageCentiVolts(uint32_t *voltageCentiVolts)
     const timeUs_t currentTimeUs = micros();
     const bool hasCurrentVoltage = fbusCurrent.hasVoltage
         && fbusCurrent.lastUpdateUs > 0
-        && (currentTimeUs - fbusCurrent.lastUpdateUs) < 1000000;
+        && cmpTimeUs(currentTimeUs, fbusCurrent.lastUpdateUs) < 1000000;
     const bool hasFlvssVoltage = fbusFlvss.hasVoltage
         && fbusFlvss.lastUpdateUs > 0
-        && (currentTimeUs - fbusFlvss.lastUpdateUs) < 1000000;
+        && cmpTimeUs(currentTimeUs, fbusFlvss.lastUpdateUs) < 1000000;
 
     if (voltageCentiVolts) {
         *voltageCentiVolts = hasCurrentVoltage ? fbusCurrent.voltageCentiVolts
@@ -863,7 +863,7 @@ bool fbusSensorHasEscData(void)
 
     if ((fbusEsc.hasPower || fbusEsc.hasRpm || fbusEsc.hasConsumption || fbusEsc.hasTemperature )
         && fbusEsc.lastUpdateUs > 0) {
-        if ((currentTimeUs - fbusEsc.lastUpdateUs) < 1000000) {
+        if (cmpTimeUs(currentTimeUs, fbusEsc.lastUpdateUs) < 1000000) {
             return true;
         }
     }
@@ -885,7 +885,7 @@ bool fbusSensorHasFlvssData(void)
     timeUs_t currentTimeUs = micros();
 
     if (fbusFlvss.hasVoltage && fbusFlvss.lastUpdateUs > 0) {
-        if ((currentTimeUs - fbusFlvss.lastUpdateUs) < 1000000) {
+        if (cmpTimeUs(currentTimeUs, fbusFlvss.lastUpdateUs) < 1000000) {
             return true;
         }
     }

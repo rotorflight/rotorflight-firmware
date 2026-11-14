@@ -25,6 +25,7 @@ README.pdf
 /build/
 # local changes only
 make/local.mk
+make/local-ci.json
 
 # artefacts for VisualGDB (running in Visual Studio)
 mcu.mak
@@ -50,3 +51,6 @@ ubuntu*.log
 
 # EEPROM image file (created by SITL)
 eeprom.bin
+
+# python bytecode (src/utils scripts)
+__pycache__/

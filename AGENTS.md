@@ -101,6 +101,21 @@ the build with `fc_version_string_too_long`.
 Unit tests exist for PID, setpoint and maths. The governor, mixer, servos, rescue and leveling have none, so
 changes there need extra care and, where possible, a new test.
 
+PR CI builds the firmware and runs the SITL checks, but not the unit tests. To run the CI's builds, unit tests
+and SITL checks locally, use [src/utils/local-ci/local_ci.py](src/utils/local-ci/local_ci.py). It reads the
+steps from the workflow files, so it stays in step with CI:
+
+```
+python3 src/utils/local-ci/local_ci.py --list                           # list the steps
+python3 src/utils/local-ci/local_ci.py --run --no-ui --only unit,sitl   # terminal only, exit 1 on a failure
+python3 src/utils/local-ci/local_ci.py                                  # web page on http://127.0.0.1:8765/
+```
+
+Agents should use `--no-ui`. Logs are in `obj/local-ci/<date-time>/`. Machine-specific shells and toolchain
+paths go in `make/local-ci.json` (see [src/utils/local-ci/README.md](src/utils/local-ci/README.md)). Only one
+SITL can run at a time because the ports are fixed; SITL steps wait while another SITL holds them. Name the steps
+you ran under **Testing** in the PR.
+
 ## Agent Skills
 
 Step-by-step skills for tasks that need local tools are in
@@ -131,8 +146,19 @@ Maintainers and users read these, so keep them short and precise. No filler, no 
 **Pull requests**
 
 - Title: imperative, under ~70 characters (e.g. "Fix governor spool-up overshoot").
-- Body, a few lines each:
-  - **What**: the change and why it is needed. Link the issue (`Fixes #123`).
+- Body, in this order:
+  - **Summary** (always the first section): a short bullet list that makes it obvious at a glance what the PR
+    does. Name what it fixes and where the problem shows up (feature, flight mode, protocol, target, symptom the
+    user sees). Link the issue (`Fixes #123`). One line per bullet, no background or implementation detail here.
+
+    ```
+    ## Summary
+    - Fixes #123: governor overshoots headspeed on spool-up after a throttle hold
+    - Affects electric governor mode only; nitro and external governor unchanged
+    - Limits the spool-up ramp to the configured rate until headspeed is reached
+    ```
+
+  - **Details** (optional): why the change is needed and how it works, only when the summary is not enough.
   - **Compatibility**: MSP, CLI or setting changes, and whether the Configurator or Lua scripts need updating.
   - **Testing**: what was built and run (unit tests, SITL, bench, flight).
 - One topic per PR. Leave out file-by-file change lists and generated summaries.

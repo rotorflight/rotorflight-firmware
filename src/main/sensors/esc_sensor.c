@@ -368,7 +368,8 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 #endif
             return NULL;
         }
-        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32 ||
+                 escSensorConfig()->protocol == ESC_SENSOR_PROTO_GOOSKY) {
             if (motorNumber < getMotorCount()) {
                 return &escSensorData[motorNumber];
             }
@@ -983,7 +984,9 @@ static void sendDShotTelemetryReqeust(timeMs_t currentTimeMs)
 
     dshotTriggerTimestamp = currentTimeMs;
 
+#if defined(USE_DSHOT)
     getMotorDmaOutput(currentEsc)->protocolControl.requestTelemetry = true;
+#endif
 }
 
 static void blSelectNextEsc(void)
@@ -3265,6 +3268,8 @@ static serialReceiveCallbackPtr tribSensorInit(bool bidirectional)
 #define OPENYGE_REQ_READ_TIMEOUT            200                 // Response timeout for read requests   TBD: confirm
 #define OPENYGE_REQ_WRITE_TIMEOUT           400                 // Response timeout for write requests  TBD: confirm
 #define OPENYGE_PARAM_CACHE_SIZE_MAX        64                  // limited by use of uint64_t as bit array for oygeCachedParams
+#define OPENYGE_PARAM_BUFFER_COUNT_MAX      ((PARAM_BUFFER_SIZE - PARAM_HEADER_SIZE) / 2)  // 16-bit params that fit paramBuffer after the header
+#define OPENYGE_PARAM_COUNT_MAX             MIN(OPENYGE_PARAM_CACHE_SIZE_MAX, OPENYGE_PARAM_BUFFER_COUNT_MAX)
 
 #define OPENYGE_FTYPE_TELE_AUTO             0x00                // auto telemetry frame
 #define OPENYGE_FTYPE_TELE_RESP             0x02                // telemetry response
@@ -3365,8 +3370,7 @@ static bool oygeParamCommit(uint8_t cmd)
 
 static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 {
-    const uint8_t maxParams = PARAM_BUFFER_SIZE / 2;
-    if (pidx >= maxParams || pidx >= OPENYGE_PARAM_CACHE_SIZE_MAX)
+    if (pidx >= OPENYGE_PARAM_COUNT_MAX)
         return;
 
     // don't accept params until pending writes cleared
@@ -3383,7 +3387,7 @@ static void oygeCacheParam(uint8_t pidx, uint16_t pdata)
 
     // make param payload available if all params cached
     const uint16_t ygeParamCount = ygeParams[0];
-    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_PARAM_CACHE_SIZE_MAX &&
+    if (ygeParamCount > 0 && ygeParamCount <= OPENYGE_PARAM_COUNT_MAX &&
         ~(~1ULL << (ygeParamCount - 1)) == oygeCachedParams) {
         paramPayloadLength = ygeParamCount * 2;
     }
@@ -4383,6 +4387,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
+            case ESC_SENSOR_PROTO_GOOSKY:
                 blSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_HW4:
@@ -4489,6 +4494,7 @@ bool INIT_CODE escSensorInit(void)
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:
+        case ESC_SENSOR_PROTO_GOOSKY:
             callback = blDataReceive;
             baudrate = 115200;
             break;

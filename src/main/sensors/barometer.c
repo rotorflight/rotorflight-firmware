@@ -96,6 +96,20 @@ bool baroDetect(baroDev_t *baroDev, baroSensor_e baroHardwareToUse)
     UNUSED(dev);
 #endif
 
+#if defined(SIMULATOR_BUILD) && defined(USE_FAKE_BARO)
+    // A process has no sensor bus; the simulator's barometer is fed from the
+    // FDM link (target/SITL/target.c). baro_hardware = NONE still turns it off.
+    if (baroHardware == BARO_NONE) {
+        return false;
+    }
+    if (fakeBaroDetect(baroDev)) {
+        detectedSensors[SENSOR_INDEX_BARO] = BARO_DEFAULT;
+        sensorsSet(SENSOR_BARO);
+        return true;
+    }
+    return false;
+#endif
+
     switch (barometerConfig()->baro_busType) {
 #ifdef USE_I2C
     case BUS_TYPE_I2C:

@@ -18,12 +18,16 @@
 #include "msc/emfat.h"
 #include "msc/emfat_file.h"
 
+#include <set>
+#include <string>
+#include <stdio.h>
+
 #include "gtest/gtest.h"
 
 extern "C" {
 // C functions under test.
 uint8_t sfn_checksum(const char* short_name, const char* extension);
-void emfat_init_sfn(emfat_entry_t *entry);
+void emfat_init_sfn(emfat_entry_t *entry, int index);
 bool emfat_init_entries(emfat_entry_t *entries);
 void fill_dir_sector(emfat_t *emfat, uint8_t *data, emfat_entry_t *entry, uint32_t rel_sect);
 }
@@ -39,7 +43,7 @@ TEST(EmfatInitSfn, ShortFileNameNoDot)
         .name = "abcd",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 3);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD    ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -51,7 +55,7 @@ TEST(EmfatInitSfn, ShortFileNameWithDot)
         .name = "abcd.xyz",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 3);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD    ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "XYZ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -63,7 +67,7 @@ TEST(EmfatInitSfn, ShortDirName)
         .name = "abcd.xy",
         .attr = ATTR_DIR,
     };
-    emfat_init_sfn(&entry);
+    emfat_init_sfn(&entry, 3);
     EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD.XY ", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 1);
@@ -75,8 +79,8 @@ TEST(EmfatInitSfn, LongFileNameNoDot)
         .name = "abcdefghi",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFGH", 8) == 0);
+    emfat_init_sfn(&entry, 3);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF~3", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -87,8 +91,8 @@ TEST(EmfatInitSfn, LongFileNameWithDot)
         .name = "abcdefghi.txt",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEFGH", 8) == 0);
+    emfat_init_sfn(&entry, 3);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF~3", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "TXT", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -99,8 +103,8 @@ TEST(EmfatInitSfn, LongFileNameEntry1)
         .name = "1234567890123",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345678", 8) == 0);
+    emfat_init_sfn(&entry, 3);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "123456~3", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 2);
 }
@@ -111,8 +115,8 @@ TEST(EmfatInitSfn, LongFileNameEntry2)
         .name = "1234567890123456789012.456",
         .attr = 0,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "12345678", 8) == 0);
+    emfat_init_sfn(&entry, 3);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "123456~3", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "456", 3) == 0);
     EXPECT_EQ(entry.priv.num_entry, 3);
 }
@@ -123,9 +127,52 @@ TEST(EmfatInitSfn, LongDirName)
         .name = "abcdef.xyz",
         .attr = ATTR_DIR,
     };
-    emfat_init_sfn(&entry);
-    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF.X", 8) == 0);
+    emfat_init_sfn(&entry, 3);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDEF~3", 8) == 0);
     EXPECT_TRUE(memcmp(entry.priv.extension, "   ", 3) == 0);
+}
+
+TEST(EmfatInitSfn, LongFileNameNumericTail)
+{
+    // Truncated names end in "~" and the entry index
+    emfat_entry_t entry = {
+        .name = "abcdefghi.txt",
+        .attr = 0,
+    };
+    emfat_init_sfn(&entry, 12);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCDE~12", 8) == 0);
+    EXPECT_TRUE(memcmp(entry.priv.extension, "TXT", 3) == 0);
+    // The LFN entries carry the checksum of the final short name, tail included
+    EXPECT_EQ(sfn_checksum("ABCDE~12", "TXT"), entry.priv.checksum);
+
+    emfat_init_sfn(&entry, 104);
+    EXPECT_TRUE(memcmp(entry.priv.short_name, "ABCD~104", 8) == 0);
+    EXPECT_EQ(sfn_checksum("ABCD~104", "TXT"), entry.priv.checksum);
+}
+
+TEST(EmfatInitSfn, DigitsInPrefixDontCollide)
+{
+    // Overwriting the tail with the bare index made both of these ABCDEF11
+    emfat_entry_t a = { .name = "abcdef11a.txt", .attr = 0 };
+    emfat_entry_t b = { .name = "abcdef11b.txt", .attr = 0 };
+    emfat_init_sfn(&a, 1);
+    emfat_init_sfn(&b, 11);
+    EXPECT_TRUE(memcmp(a.priv.short_name, "ABCDEF~1", 8) == 0);
+    EXPECT_TRUE(memcmp(b.priv.short_name, "ABCDE~11", 8) == 0);
+}
+
+TEST(EmfatInitSfn, ShortNamesUniqueForLogFiles)
+{
+    // Log files share the craft name as prefix; a digit in it must not matter
+    std::set<std::string> names;
+    for (int index = 1; index <= 120; index++) {
+        char name[32];
+        snprintf(name, sizeof(name), "TREX_7100_%03d.bbl", index);
+        emfat_entry_t entry = { .name = name, .attr = 0 };
+        emfat_init_sfn(&entry, index);
+        const std::string sfn((const char *)entry.priv.short_name, 8);
+        EXPECT_TRUE(names.insert(sfn).second) << "duplicate " << sfn << " at index " << index;
+    }
 }
 
 class EmfatTestBase : public ::testing::Test
@@ -158,13 +205,13 @@ TEST_F(EmfatTestBase, SFN)
     EXPECT_TRUE(memcmp(entries_[1].priv.short_name, "AUTORUN ", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[1].priv.extension, "INF", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[6].priv.short_name, "LONGFILE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[6].priv.short_name, "LONGFI~6", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[6].priv.extension, "   ", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[7].priv.short_name, "LONGDIRE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[7].priv.short_name, "LONGDI~7", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[7].priv.extension, "   ", 3) == 0);
 
-    EXPECT_TRUE(memcmp(entries_[8].priv.short_name, "LONGFILE", 8) == 0);
+    EXPECT_TRUE(memcmp(entries_[8].priv.short_name, "LONGFI~8", 8) == 0);
     EXPECT_TRUE(memcmp(entries_[8].priv.extension, "EXE", 3) == 0);
 }
 

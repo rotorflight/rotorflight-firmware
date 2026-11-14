@@ -323,9 +323,10 @@ static void taskTelemetry(timeUs_t currentTimeUs)
 static void taskSportMaster(timeUs_t currentTimeUs)
 {
     handleSportMaster(currentTimeUs);
-#ifndef USE_FBUS_MASTER
+    // Copy cached sensor data (GPS position, timeouts) into gpsSol etc.
+    // The F.Bus master task does this too, but it only runs with an
+    // F.Bus master port, so an S.Port master port must do it itself.
     fbusSensorUpdate(currentTimeUs);
-#endif
 }
 #endif
 
@@ -495,6 +496,12 @@ void tasksInit(void)
 
     setTaskEnabled(TASK_SERIAL, true);
     rescheduleTask(TASK_SERIAL, TASK_PERIOD_HZ(serialConfig()->serial_update_rate_hz));
+#if defined(SIMULATOR_BUILD)
+    // Serial can't be slowed down in the simulator (moved here from systemInit(),
+    // since task attributes aren't initialized until tasksInitData(), which runs
+    // after systemInit() in fc/init.c's init()).
+    rescheduleTask(TASK_SERIAL, TASK_PERIOD_HZ(2000));
+#endif
 
     rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(batteryConfig()->vbatUpdateHz));
     setTaskEnabled(TASK_BATTERY_VOLTAGE, true);

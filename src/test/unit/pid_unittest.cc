@@ -26,6 +26,8 @@ float throttle;
 
 // Dummies
 extern "C" {
+#include "common/filter.h"
+#include "flight/pid.h"
 #include "pg/pid.h"
 #include "sensors/gyro.h"
 
@@ -34,6 +36,10 @@ void beeperConfirmationBeeps(uint8_t) {}
 float getThrottle(void) { return throttle; }
 void governorInitProfile(const pidProfile_t *) {}
 void levelingInit(const pidProfile_t *) {}
+void levelingUpdate(void) {}
+pidProfile_t *currentPidProfile;
+uint8_t getCurrentPidProfileIndex(void) { return 0; }
+void changePidProfile(uint8_t) {}
 void INIT_CODE rescueInitProfile(const pidProfile_t *) {}
 bool isSpooledUp(void) { return true; }
 void setpointInitProfile(void) {}
@@ -109,7 +115,7 @@ TEST_F(PIDTestBase, Mode0)
 {
     mockPidProfile->pid_mode = 0;
     mockPidProfile->pid[0].F = 1;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
     PIDIO input;
     for (int i = 0; i < 100; i++) {
@@ -139,7 +145,8 @@ class PIDFBTest : public PIDTestBase {
 };
 
 TEST_F(PIDFBTest, B)
-// Basic B test
+// Basic B test: with every other term off, the roll output is the B-term,
+// Kb times the band-limited derivative of the setpoint
 {
     mockPidProfile->pid_mode = 3;
     mockPidProfile->pid[0].P = 0;
@@ -148,22 +155,69 @@ TEST_F(PIDFBTest, B)
     mockPidProfile->pid[0].F = 0;
     mockPidProfile->pid[0].B = 100;
     mockPidProfile->bterm_cutoff[0] = 30;
-    pidInitProfile(mockPidProfile);
+    pidLoadProfile(mockPidProfile);
 
+    // Step on roll only, so no cross-coupling from the other axes
     PIDIO input;
-    for (int i = 0; i < 500; i++) {
-        input[0].push_back(0);
+    for (int i = 0; i < 1000; i++) {
+        input[0].push_back(i < 500 ? 0 : 1);
         input[1].push_back(0);
         input[2].push_back(0);
         input[3].push_back(0);
     }
-    for (int i = 0; i < 500; i++) {
-        input[0].push_back(1);
-        input[1].push_back(1);
-        input[2].push_back(1);
-        input[3].push_back(1);
-    }
 
     PIDIO output = getResponse(input);
-    // This test is a NOP so far.
+
+    // Expected: the same differentiator on the roll setpoint (360 deg/s per unit)
+    const float Kb = ROLL_B_TERM_SCALE * 100;
+    difFilter_t bterm;
+    difFilterInit(&bterm, 30, 1000);
+
+    for (int i = 0; i < 1000; i++) {
+        const float expected = Kb * difFilterApply(&bterm, input[0][i] * 360);
+        EXPECT_NEAR(expected, output[0][i], 1e-6f) << "sample " << i;
+    }
+
+    // Zero before the step, a positive kick on it, decaying back to zero
+    EXPECT_EQ(0, output[0][499]);
+    EXPECT_GT(output[0][500], 0);
+    EXPECT_LT(output[0][501], output[0][500]);
+    EXPECT_NEAR(0, output[0][999], output[0][500] * 1e-3f);
+}
+
+TEST_F(PIDFBTest, BScalesWithGain)
+// The loader sets Kb from the profile: doubling B doubles the B-term
+{
+    mockPidProfile->pid_mode = 3;
+    mockPidProfile->pid[0].P = 0;
+    mockPidProfile->pid[0].I = 0;
+    mockPidProfile->pid[0].D = 0;
+    mockPidProfile->pid[0].F = 0;
+    mockPidProfile->bterm_cutoff[0] = 30;
+
+    PIDIO input;
+    for (int i = 0; i < 20; i++) {
+        input[0].push_back(i < 10 ? 0 : 1);
+        input[1].push_back(0);
+        input[2].push_back(0);
+        input[3].push_back(0);
+    }
+
+    mockPidProfile->pid[0].B = 0;
+    pidInit(mockPidProfile);
+    PIDIO off = getResponse(input);
+
+    mockPidProfile->pid[0].B = 100;
+    pidInit(mockPidProfile);
+    PIDIO single = getResponse(input);
+
+    mockPidProfile->pid[0].B = 200;
+    pidInit(mockPidProfile);
+    PIDIO dbl = getResponse(input);
+
+    for (int i = 0; i < 20; i++) {
+        EXPECT_EQ(0, off[0][i]) << "sample " << i;
+        EXPECT_NEAR(2 * single[0][i], dbl[0][i], 1e-6f) << "sample " << i;
+    }
+    EXPECT_GT(single[0][10], 0);
 }

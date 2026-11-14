@@ -28,7 +28,7 @@
 
 #include "platform.h"
 
-#if defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P)
+#if defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_GYRO_SPI_ICM40608) || defined(USE_GYRO_SPI_IIM42652)
 
 #include "common/axis.h"
 #include "common/utils.h"
@@ -160,7 +160,7 @@ static uint8_t odrLUT[ODR_CONFIG_COUNT] = {  // see GYRO_ODR in section 5.6
     [ODR_CONFIG_1K] = 6,
 };
 
-// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
+// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P and IIM-42652
 static aafConfig_t aafLUT42688[AAF_CONFIG_COUNT] = {  // see table in section 5.3
     [AAF_CONFIG_258HZ]  = {  6,   36, 10 },
     [AAF_CONFIG_536HZ]  = { 12,  144,  8 },
@@ -168,7 +168,7 @@ static aafConfig_t aafLUT42688[AAF_CONFIG_COUNT] = {  // see table in section 5.
     [AAF_CONFIG_1962HZ] = { 37, 1376,  4 },
 };
 
-// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42605
+// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42605 and ICM-40608
 // actual cutoff differs slightly from those of the 42688P
 static aafConfig_t aafLUT42605[AAF_CONFIG_COUNT] = {  // see table in section 5.3
     [AAF_CONFIG_258HZ]  = { 21,  440,  6 }, // actually 249 Hz
@@ -229,6 +229,12 @@ uint8_t icm426xxSpiDetect(const extDevice_t *dev)
         case ICM42688P_WHO_AM_I_CONST:
             icmDetected = ICM_42688P_SPI;
             break;
+        case ICM40608_WHO_AM_I_CONST:
+            icmDetected = ICM_40608_SPI;
+            break;
+        case IIM42652_WHO_AM_I_CONST:
+            icmDetected = IIM_42652_SPI;
+            break;
         default:
             icmDetected = MPU_NONE;
             break;
@@ -255,6 +261,10 @@ bool icm426xxSpiAccDetect(accDev_t *acc)
     case ICM_42605_SPI:
         break;
     case ICM_42688P_SPI:
+        break;
+    case ICM_40608_SPI:
+        break;
+    case IIM_42652_SPI:
         break;
     default:
         return false;
@@ -295,12 +305,16 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     setUserBank(dev, ICM426XX_BANK_SELECT0);
     turnGyroAccOff(dev);
 
+    const mpuSensor_e gyroModel = gyro->mpuDetectionResult.sensor;
+
 #if defined(USE_GYRO_CLK)
-    icm426xxEnableExternalClock(dev);
+    // The ICM-40608 has no CLKIN input
+    if (gyroModel != ICM_40608_SPI) {
+        icm426xxEnableExternalClock(dev);
+    }
 #endif
 
     // Configure gyro Anti-Alias Filter (see section 5.3 "ANTI-ALIAS FILTER")
-    const mpuSensor_e gyroModel = gyro->mpuDetectionResult.sensor;
     aafConfig_t aafConfig = getGyroAafConfig(gyroModel, gyroConfig()->gyro_hardware_lpf);
     setUserBank(dev, ICM426XX_BANK_SELECT1);
     spiWriteReg(dev, ICM426XX_RA_GYRO_CONFIG_STATIC3, aafConfig.delt);
@@ -334,10 +348,13 @@ void icm426xxGyroInit(gyroDev_t *gyro)
     // Disable AFSR to prevent stalls in gyro output. See
     //    https://github.com/ArduPilot/ardupilot/pull/25332
     //    https://github.com/betaflight/betaflight/pull/13132
-    uint8_t intfConfig1Value = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG1);
-    intfConfig1Value &= ~ICM426XX_INTF_CONFIG1_AFSR_MASK;
-    intfConfig1Value |= ICM426XX_INTF_CONFIG1_AFSR_DISABLE;
-    spiWriteReg(dev, ICM426XX_INTF_CONFIG1, intfConfig1Value);
+    // AFSR is a 42xxx feature, ArduPilot does not apply this to the ICM-4060x either
+    if (gyroModel != ICM_40608_SPI) {
+        uint8_t intfConfig1Value = spiReadRegMsk(dev, ICM426XX_INTF_CONFIG1);
+        intfConfig1Value &= ~ICM426XX_INTF_CONFIG1_AFSR_MASK;
+        intfConfig1Value |= ICM426XX_INTF_CONFIG1_AFSR_DISABLE;
+        spiWriteReg(dev, ICM426XX_INTF_CONFIG1, intfConfig1Value);
+    }
 
 
     // Turn on gyro and acc on again so ODR and FSR can be configured
@@ -369,6 +386,10 @@ bool icm426xxSpiGyroDetect(gyroDev_t *gyro)
         break;
     case ICM_42688P_SPI:
         break;
+    case ICM_40608_SPI:
+        break;
+    case IIM_42652_SPI:
+        break;
     default:
         return false;
     }
@@ -385,6 +406,7 @@ static aafConfig_t getGyroAafConfig(const mpuSensor_e gyroModel, const aafConfig
 {
     switch (gyroModel){
     case ICM_42605_SPI:
+    case ICM_40608_SPI:
         switch (config) {
         case GYRO_HARDWARE_LPF_NORMAL:
             return aafLUT42605[AAF_CONFIG_258HZ];
@@ -397,6 +419,7 @@ static aafConfig_t getGyroAafConfig(const mpuSensor_e gyroModel, const aafConfig
         }
 
     case ICM_42688P_SPI:
+    case IIM_42652_SPI:
     default:
         switch (config) {
         case GYRO_HARDWARE_LPF_NORMAL:
@@ -415,4 +438,4 @@ static aafConfig_t getGyroAafConfig(const mpuSensor_e gyroModel, const aafConfig
     }
 }
 
-#endif // USE_GYRO_SPI_ICM42605 || USE_GYRO_SPI_ICM42688P
+#endif // USE_GYRO_SPI_ICM42605 || USE_GYRO_SPI_ICM42688P || USE_GYRO_SPI_ICM40608 || USE_GYRO_SPI_IIM42652

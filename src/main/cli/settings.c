@@ -111,6 +111,9 @@
 #include "pg/sport_master.h"
 #include "pg/bus_servo.h"
 #include "pg/crsf_sensors.h"
+#ifdef USE_SRXL2_ESC
+#include "pg/srxl2_esc.h"
+#endif
 
 #include "drivers/crsf_sensors.h"
 
@@ -143,14 +146,14 @@
 const char * const lookupTableAccHardware[] = {
     "AUTO", "NONE", "ADXL345", "MPU6050", "MMA8452", "BMA280", "LSM303DLHC",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6DSO", "BMI088", "BMI323", "FAKE"
+    "BMI160", "BMI270", "LSM6DSO", "BMI088", "BMI323", "FAKE", "LSM6DSK320X", "ICM40608", "IIM42652"
 };
 
 // sync with gyroHardware_e
 const char * const lookupTableGyroHardware[] = {
     "AUTO", "NONE", "MPU6050", "L3G4200D", "MPU3050", "L3GD20",
     "MPU6000", "MPU6500", "MPU9250", "ICM20601", "ICM20602", "ICM20608G", "ICM20649", "ICM20689", "ICM42605", "ICM42688P",
-    "BMI160", "BMI270", "LSM6SDO", "BMI088", "BMI323", "FAKE"
+    "BMI160", "BMI270", "LSM6SDO", "BMI088", "BMI323", "FAKE", "LSM6DSK320X", "ICM40608", "IIM42652"
 };
 
 #if defined(USE_SENSOR_NAMES) || defined(USE_BARO)
@@ -497,7 +500,7 @@ const char * const lookupTableErrorRelaxType[] = {
 
 #ifdef USE_ESC_SENSOR
 static const char * const lookupTableEscSensorProtocol[] = {
-    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "FBUS", "SRXL2", "RECORD",
+    "OFF", "BLHELI32", "HOBBYWINGV4", "HOBBYWINGV5", "SCORPION", "KONTRONIK", "OMPHOBBY", "ZTW", "APD", "OPENYGE", "FLYROTOR", "GRAUPNER", "XDFLY", "FBUS", "SRXL2", "RECORD", "GOOSKY",
 };
 #endif
 
@@ -1605,6 +1608,10 @@ const clivalue_t valueTable[] = {
     { "esc_sensor_consumption_correction",  VAR_INT8    | MASTER_VALUE, .config.minmax = { -100, 125 }, PG_ESC_SENSOR_CONFIG, offsetof(escSensorConfig_t, consumption_correction) },
 #endif
 
+#ifdef USE_SRXL2_ESC
+    { "srxl2esc_motor2_channel",        VAR_UINT8   | MASTER_VALUE, .config.minmaxUnsigned = { 0, 32 }, PG_SRXL2_ESC_CONFIG, offsetof(srxl2esc_pgConfig_t, motor2_channel) },
+#endif
+
 #ifdef USE_RX_FRSKY_SPI
     { "frsky_spi_autobind",             VAR_UINT8   | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_RX_CC2500_SPI_CONFIG, offsetof(rxCc2500SpiConfig_t, autoBind) },
     { "frsky_spi_tx_id",                VAR_UINT8   | MASTER_VALUE | MODE_ARRAY, .config.array.length = 3, PG_RX_CC2500_SPI_CONFIG, offsetof(rxCc2500SpiConfig_t, bindTxId) },
@@ -1651,7 +1658,7 @@ const clivalue_t valueTable[] = {
     { "usb_msc_pin_pullup", VAR_UINT8 | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_USB_CONFIG, offsetof(usbDev_t, mscButtonUsePullup) },
 #endif
 // PG_FLASH_CONFIG
-#ifdef USE_FLASH_CHIP
+#if defined(USE_FLASH_CHIP) && !defined(USE_FLASH_FILE)
     { "flash_spi_bus", VAR_UINT8 | HARDWARE_VALUE, .config.minmaxUnsigned = { 0, SPIDEV_COUNT }, PG_FLASH_CONFIG, offsetof(flashConfig_t, spiDevice) },
 #endif
 // RCDEVICE

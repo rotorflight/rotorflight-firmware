@@ -144,4 +144,10 @@ uint16_t adcGetChannel(uint8_t channel)
     return 0;
 }
 
+bool adcIsEnabled(uint8_t channel)
+{
+    UNUSED(channel);
+    return false;
+}
+
 #endif // USE_DC

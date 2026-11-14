@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
 
 #include "common/utils.h"
 
@@ -69,7 +71,32 @@
 #define USE_BARO
 #define USE_FAKE_BARO
 
-#define USABLE_TIMER_CHANNEL_COUNT 0
+#define USE_TARGET_CONFIG       // SITL defaults, config.c
+
+// Onboard dataflash for blackbox, backed by a file next to eeprom.bin
+// (drivers/flash_file.c). Blackbox logs to it by default, as on an FC with a
+// flash chip, and the Configurator can download and erase it over MSP.
+#define USE_FLASH_FILE
+#define FLASH_FILE_NAME "blackbox_flash.bin"
+#define USE_FLASHFS
+#define USE_FLASHFS_LOOP        // rolling erase once the flash is full
+#define USE_FLASH_TOOLS         // CLI flash_read / flash_write / flash_erase_sector
+#define ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT
+
+// Rotor speed from the FDM packet (freq_fake.c), for the governor and the RPM
+// filter, as on the F4/F7 boards.
+#define USE_FREQ_SENSOR
+#define USE_RPM_FILTER
+
+// ESC sensor task at 250 Hz, as fast boards run it (STM32_UNIFIED: 100-250 Hz). The
+// generic default of 50 Hz is slower than the 10 ms reply window of the XDFLY/OMPHOBBY/ZTW
+// and FLYROTOR parameter dialogues: a reply arrives, but the request is resent and the
+// buffer reset before the next task run can decode it.
+#define ESC_SENSOR_TASK_FREQ_HZ 250
+
+#define USE_DYN_NOTCH_FILTER
+
+#define USABLE_TIMER_CHANNEL_COUNT 12  // 4 motors + 8 servos, see timerHardware[] in target.c
 
 #define USE_UART1
 #define USE_UART2
@@ -93,13 +120,23 @@
 #undef USE_STACK_CHECK // I think SITL don't need this
 #undef USE_DASHBOARD
 #undef USE_TELEMETRY_LTM
-#undef USE_ADC
+// Board ADC fed from the FDM packet (adc_fake.c); the pack is measured there
+// by default, so a simulator's pack voltage and current work out of the box.
+#define USE_ADC
+#define USE_ADC_INTERNAL
+#define DEFAULT_VOLTAGE_METER_SOURCE    VOLTAGE_METER_ADC
+#define DEFAULT_CURRENT_METER_SOURCE    CURRENT_METER_ADC
+// The emulated 12-bit ADC clips at full scale like a real one: the generic
+// scale 110 ends at 36.3 V, short of a 12S pack. 250 reads up to 82.5 V (18S)
+// in 20 mV steps.
+#define VOLTAGE_SCALE_DEFAULT           250
 #undef USE_VCP
 #undef USE_OSD
 #undef USE_PPM
 #undef USE_PWM
-#undef USE_SERIAL_RX
-#undef USE_SERIALRX_CRSF
+// Serial RX with CRSF over a TCP UART, for a (simulated) radio. CRSF v3 renegotiates
+// the baud rate, which a TCP port has no use for.
+#undef USE_CRSF_V3
 #undef USE_SERIALRX_GHST
 #undef USE_SERIALRX_IBUS
 #undef USE_SERIALRX_IBUS2
@@ -112,10 +149,10 @@
 #undef USE_TELEMETRY_FRSKY_HUB
 #undef USE_TELEMETRY_HOTT
 #undef USE_TELEMETRY_SMARTPORT
+#undef USE_SPORT_MASTER
 #undef USE_TELEMETRY_MAVLINK
 #undef USE_RESOURCE_MGMT
 #undef USE_CMS
-#undef USE_TELEMETRY_CRSF
 #undef USE_TELEMETRY_GHST
 #undef USE_TELEMETRY_IBUS
 #undef USE_TELEMETRY_JETIEXBUS
@@ -129,6 +166,9 @@
 #undef USE_GPS_RESCUE
 #undef USE_SERIAL_4WAY_BLHELI_BOOTLOADER
 #undef USE_SERIAL_4WAY_SK_BOOTLOADER
+// ESC configuration through the 4-way interface needs real ESC signal pins.
+#undef USE_BLHELI_FORWARD_PROGRAMMING
+#undef USE_AM32_FORWARD_PROGRAMMING
 
 #undef USE_I2C
 #undef USE_SPI
@@ -161,6 +201,21 @@ typedef enum {
     EXTI_Trigger_Rising_Falling = 0x10
 } EXTITrigger_TypeDef;
 
+#if defined(_WIN32) || defined(__MINGW32__)
+// MinGW has no ffs() (POSIX <strings.h>), which the CLI and the arming code use.
+#define ffs(x) __builtin_ffs(x)
+#endif
+
+// The ARM newlib headers define __packed; glibc and MinGW do not.
+#ifndef __packed
+#define __packed __attribute__((packed))
+#endif
+
+// Register bit helpers that the STM32 CMSIS device headers provide on boards.
+#define SET_BIT(REG, BIT)     ((REG) |= (BIT))
+#define CLEAR_BIT(REG, BIT)   ((REG) &= ~(BIT))
+#define READ_BIT(REG, BIT)    ((REG) & (BIT))
+
 typedef struct
 {
   uint32_t IDR;
@@ -174,6 +229,7 @@ typedef struct
 typedef struct
 {
     void* test;
+    uint32_t CCR1; // unused: present only so common driver code referencing tim->CCR1 (e.g. timerCCR()) type-checks on SITL
 } TIM_TypeDef;
 
 typedef struct
@@ -242,13 +298,71 @@ typedef struct {
     double imu_orientation_quat[4];     //w, x, y, z
     double velocity_xyz[3];             // m/s, earth frame
     double position_xyz[3];             // meters, NED from origin
+    // Optional tail, told apart by the datagram length: each longer layout is
+    // the shorter one plus fields at the end, and fields a packet does not
+    // contain are not read.
+    double motor_erpm[4];               // 168 bytes: electrical rpm per motor, -> frequency sensor
+    double pressure;                    // 176: static pressure, Pa (else ISA from position_xyz[2])
+    double mcu_vref;                    // 192: MCU supply rail, V
+    double mcu_temp;                    //      MCU die temperature, degC
+    double vbec;                        // 208: BEC rail, V
+    double vbus;                        //      bus rail, V
+    double vbat;                        // 224: pack voltage on the board ADC, V
+    double ibat;                        //      pack current on the board ADC, A
 } fdm_packet;
+
+#define FDM_PACKET_SIZE_BASE    136
+#define FDM_PACKET_SIZE_ERPM    168
+#define FDM_PACKET_SIZE_BARO    176
+#define FDM_PACKET_SIZE_MCU     192
+#define FDM_PACKET_SIZE_RAILS   208
+#define FDM_PACKET_SIZE_PACK    224
+
+// Barometer reading on the FDM port, told apart from fdm_packet by its size: the
+// layout of Wingflight's SITL, so a simulator written for either firmware works
+// with both. While these arrive, the FDM's pressure / ISA fallback stays out of
+// the way.
 typedef struct {
-    float motor_speed[4];   // normal: [0.0, 1.0], 3D: [-1.0, 1.0]
-} servo_packet;
+    double timestamp;                   // in seconds, same clock as fdm_packet
+    double pressure_pa;                 // absolute static pressure, Pa
+    double temperature_c;               // sensor temperature, degC
+} baro_packet;
+
+void fakeFreqSet(uint8_t port, float hz);
+void simAdcUpdate(const fdm_packet *pkt, int size);
+
+// isfinite() is not reliable here: the SITL builds with -Ofast, whose
+// -ffinite-math-only lets the compiler assume every value is finite and fold
+// isfinite() to true. Test the exponent bits instead.
+static inline bool simIsFinite(double v)
+{
+    uint64_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return ((bits >> 52) & 0x7FF) != 0x7FF;
+}
+
+// Sensor values the UDP thread writes and the firmware tasks read. Each value
+// stands alone, so relaxed atomics are enough to keep the accesses race-free.
+static inline void simStoreFloat(float *p, float v)
+{
+    __atomic_store(p, &v, __ATOMIC_RELAXED);
+}
+
+static inline float simLoadFloat(float *p)
+{
+    float v;
+    __atomic_load(p, &v, __ATOMIC_RELAXED);
+    return v;
+}
+typedef struct {
+    float motor_speed[4];   // M1-M4 in order; normal: [0.0, 1.0], 3D: [-1.0, 1.0]
+    float servo[8];         // S1-S8 pulse width in microseconds, 0 for an absent servo
+    float mixer[5];         // stabilized mixer inputs: roll, pitch, yaw, collective, throttle
+                            // (mixerGetInput(MIXER_IN_STABILIZED_*), dimensionless firmware units)
+} servo_packet;             // 68 bytes; the first 48 (motors + servos) are the older layout
 
 void FLASH_Unlock(void);
-void FLASH_Lock(void);
+bool FLASH_Lock(void);   // false when eeprom.bin could not be written
 FLASH_Status FLASH_ErasePage(uintptr_t Page_Address);
 FLASH_Status FLASH_ProgramWord(uintptr_t addr, uint32_t Data);
 
@@ -256,8 +370,23 @@ uint64_t nanos64_real(void);
 uint64_t micros64_real(void);
 uint64_t millis64_real(void);
 void delayMicroseconds_real(uint32_t us);
+void simLoopIdle(void);
+bool simLockstepActive(void);   // SITL_LOCKSTEP and the hand-over done (target.c)
+
+// SITL_INSTANCE=k: all default ports + 10 * k (target.c). 8 UARTs fit in 10.
+#define SITL_INSTANCE_PORT_STRIDE 10
+#define SITL_INSTANCE_MAX 99
+int simInstancePortOffset(void);
 uint64_t micros64(void);
 uint64_t millis64(void);
 
 int lockMainPID(void);
+
+// dyad (lib/main/dyad) is not thread-safe: tcpThread() drives dyad_update()
+// continuously on a background thread while the main thread (via
+// serTcpOpen()/tcpDataOut() in drivers/serial_tcp.c) calls other dyad_*()
+// APIs that mutate the same global stream list/listener vectors. All dyad
+// API calls from outside dyad's own callbacks must be serialized with these.
+void simDyadLock(void);
+void simDyadUnlock(void);
 

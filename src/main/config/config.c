@@ -22,6 +22,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#ifdef SIMULATOR_BUILD
+#include <stdio.h>
+#endif
 
 #include "platform.h"
 
@@ -185,11 +188,17 @@ static void adjustFilterLimit(uint16_t *parm, uint16_t maxValue, uint16_t resetV
 static void validateAndFixRatesSettings(void)
 {
     for (unsigned profileIndex = 0; profileIndex < CONTROL_RATE_PROFILE_COUNT; profileIndex++) {
-        const ratesType_e ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
+        const uint8_t ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
+        // An out-of-range type would get the all-zero NONE limits and have
+        // its rates wiped on save; leave such a profile's values untouched
+        if (ratesType >= RATES_TYPE_COUNT) {
+            continue;
+        }
+        const ratesSettingsLimits_t *limits = getRatesSettingLimits(ratesType);
         for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++) {
-            controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, ratesSettingLimits[ratesType].rc_rate_limit);
-            controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
-            controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, ratesSettingLimits[ratesType].expo_limit);
+            controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, limits->rc_rate_limit);
+            controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, limits->srate_limit);
+            controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, limits->expo_limit);
         }
     }
 }
@@ -201,6 +210,10 @@ static void validateAndFixPositionConfig(void)
 
 static void validateAndFixConfig(void)
 {
+#ifdef SIMULATOR_BUILD
+    const uint32_t requestedFeatures = featureConfig()->enabledFeatures;
+#endif
+
     if (!isSerialConfigValid(serialConfig())) {
         pgResetFn_serialConfig(serialConfigMutable());
     }
@@ -473,6 +486,34 @@ static void validateAndFixConfig(void)
     featureDisableImmediate(FEATURE_RSSI_ADC);
 #endif
 
+#ifdef SIMULATOR_BUILD
+    // A feature this build does not have (LED strip, OSD, ...) is dropped
+    // silently above; say so on the SITL, where a config from a board often
+    // carries some (ported from Wingflight).
+    const uint32_t droppedFeatures = requestedFeatures & ~featureConfig()->enabledFeatures;
+    if (droppedFeatures) {
+        // the CLI's names (cli.c featureNames[]), by bit
+        static const char * const names[32] = {
+            [0] = "RX_PPM", [3] = "RX_SERIAL", [6] = "SOFTSERIAL", [7] = "GPS",
+            [9] = "RANGEFINDER", [10] = "TELEMETRY", [13] = "RX_PARALLEL_PWM",
+            [14] = "RX_MSP", [15] = "RSSI_ADC", [16] = "LED_STRIP", [17] = "DASHBOARD",
+            [18] = "OSD", [19] = "CMS", [25] = "RX_SPI", [26] = "GOVERNOR",
+            [27] = "ESC_SENSOR", [28] = "FREQ_SENSOR", [29] = "DYN_NOTCH", [30] = "RPM_FILTER",
+        };
+        fprintf(stderr, "[config] not supported by this build (or its config), disabled:");
+        for (unsigned bit = 0; bit < 32; bit++) {
+            if (droppedFeatures & (1U << bit)) {
+                if (names[bit]) {
+                    fprintf(stderr, " %s", names[bit]);
+                } else {
+                    fprintf(stderr, " bit%u", bit);
+                }
+            }
+        }
+        fprintf(stderr, "\n");
+    }
+#endif
+
 #ifdef USE_RPM_FILTER
     validateAndFixRPMFilterConfig();
 #endif
@@ -501,6 +542,7 @@ static void validateAndFixConfig(void)
 #endif
 
     bool configuredMotorProtocolDshot = checkMotorProtocolDshot(&motorConfig()->dev);
+    UNUSED(configuredMotorProtocolDshot);
 #if defined(USE_DSHOT)
     // If using DSHOT protocol disable unsynched PWM as it's meaningless
     if (configuredMotorProtocolDshot) {

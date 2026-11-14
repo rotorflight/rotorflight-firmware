@@ -47,7 +47,8 @@
 #define USE_VTX_RTC6705
 #endif
 
-#ifndef USE_DSHOT
+// The SITL reads ESC telemetry from a TCP UART; it has no DSHOT to depend on.
+#if !defined(USE_DSHOT) && !defined(SIMULATOR_BUILD)
 #undef USE_ESC_SENSOR
 #endif
 
@@ -374,7 +375,7 @@
 #define USE_FLASH_W25M
 #endif
 
-#if defined(USE_FLASH_M25P16) || defined(USE_FLASH_W25N01G)
+#if defined(USE_FLASH_M25P16) || defined(USE_FLASH_W25N01G) || defined(USE_FLASH_FILE)
 #define USE_FLASH_CHIP
 #endif
 
@@ -429,7 +430,7 @@
 #define USE_I2C_GYRO
 #endif
 
-#if defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_L3GD20) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_ACCGYRO_SPI_BMI088)
+#if defined(USE_GYRO_SPI_ICM20689) || defined(USE_GYRO_SPI_MPU6000) || defined(USE_GYRO_SPI_MPU6500) || defined(USE_GYRO_SPI_MPU9250) || defined(USE_GYRO_L3GD20) || defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_GYRO_SPI_ICM40608) || defined(USE_GYRO_SPI_IIM42652) || defined(USE_ACCGYRO_SPI_BMI088) || defined(USE_ACCGYRO_LSM6DSK320X)
 #define USE_SPI_GYRO
 #endif
 
@@ -506,7 +507,11 @@
 #endif
 
 #ifndef USE_DSHOT_TELEMETRY
+// The SITL feeds motor rpm through its frequency sensor, which the RPM filter reads
+// like any other rpm source.
+#ifndef SIMULATOR_BUILD
 #undef USE_RPM_FILTER
+#endif
 #undef USE_DSHOT_TELEMETRY_STATS
 #endif
 

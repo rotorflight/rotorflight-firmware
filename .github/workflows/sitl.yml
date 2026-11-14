@@ -1,0 +1,305 @@
+name: SITL
+
+on:
+  pull_request:
+    branches:
+      - 'master'
+      - 'RF-*'
+  push:
+    branches:
+      - 'master'
+
+env:
+  # rotorflight/rotorflight-sim commit with the heli model and the hover check
+  SIM_REF: 8a7597f75f58645ad34b3b69ce5027a82fbfa937
+
+permissions:
+  contents: read
+
+jobs:
+
+  sitl:
+
+    # ubuntu-latest moved to 26.04 (GCC 15), where vtx_table.c fails
+    # -Werror=unterminated-string-initialization; pin until that is fixed
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Build SITL
+      run: make TARGET=SITL
+
+    - name: Smoke test
+      run: python3 src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+    - name: Reboot check
+      run: python3 src/utils/sitl/sitl-run-check.py obj/main/rotorflight_SITL.elf
+
+    - name: Scenarios
+      run: python3 src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
+
+    - name: ESC check
+      run: python3 src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Check out the flight models
+      uses: actions/checkout@v4
+      with:
+        repository: rotorflight/rotorflight-sim
+        ref: ${{ env.SIM_REF }}
+        path: sim
+
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
+      run: |
+        mkdir -p "$RUNNER_TEMP/heli-runs"
+        echo "TMPDIR=$RUNNER_TEMP/heli-runs" >> "$GITHUB_ENV"
+        echo "KEEP=1" >> "$GITHUB_ENV"
+
+    - name: Hover check (heli model, angle mode)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with the governor
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check (heli model)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Replay of a real flight (OMP M7R cruise)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/m7r_cruise --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 200 class (Stratos preset, motorized tail, its CLI dump)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model stratos200 --dump sim/heli/replays/stratos_3300/dump.txt --seconds 34 --governor 3600 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Replay of a real flight (Stratos 200, 3300 rpm, motorized tail)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/stratos_3300 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-linux-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
+
+    - name: Upload SITL executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-SITL-linux-${{ github.sha }}
+        path: obj/main/rotorflight_SITL.elf
+
+  sitl-radio:
+
+    # Radio in the loop: EdgeTX (Companion's simulator library) <-> CRSF <-> SITL
+    needs: sitl
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Download SITL executable
+      uses: actions/download-artifact@v4
+      with:
+        name: rotorflight-SITL-linux-${{ github.sha }}
+        path: obj/main
+
+    - name: Install EdgeTX simulator
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libgbm1 libwayland-client0 libx11-xcb1 libxkbcommon0 libegl1 libgl1 libfontconfig1 libdbus-1-3
+        sudo apt-get install -y -qq libasound2t64 || sudo apt-get install -y -qq libasound2
+        gh release download v2.12.5 -R EdgeTX/edgetx -p edgetx-cpn-linux-v2.12.5.zip -D /tmp/edgetx
+        cd /tmp/edgetx && unzip -q edgetx-cpn-linux-v2.12.5.zip
+        chmod +x EdgeTX_Companion_2.12.5-x86_64.AppImage
+        ./EdgeTX_Companion_2.12.5-x86_64.AppImage --appimage-extract > /dev/null
+        git clone -q --depth 1 https://github.com/rotorflight/rotorflight-lua-edgetx-suite.git /tmp/edgetx-suite
+
+    - name: Radio check
+      run: |
+        chmod +x obj/main/rotorflight_SITL.elf
+        LD_LIBRARY_PATH=/tmp/edgetx/squashfs-root/usr/lib python3 src/utils/sitl/radio/radio_check.py obj/main/rotorflight_SITL.elf --bindir /tmp/edgetx/squashfs-root/usr/lib/companion212 --sd-template /tmp/edgetx-suite/simulator
+
+  sitl-windows:
+
+    runs-on: windows-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MSYS
+        update: false
+        install: make curl unzip git
+
+    - name: Install ARM and MinGW tools
+      shell: msys2 {0}
+      run: make arm_sdk_install mingw_sdk_install
+
+    - name: Build SITL
+      shell: msys2 {0}
+      run: make TARGET=SITL
+
+    - name: Smoke test
+      run: python src/utils/sitl-smoke-test.py obj/main/rotorflight_SITL.elf
+
+    - name: Reboot check
+      run: python src/utils/sitl/sitl-run-check.py obj/main/rotorflight_SITL.elf
+
+    - name: Scenarios
+      run: python src/utils/sitl/scenarios.py obj/main/rotorflight_SITL.elf
+
+    - name: ESC check
+      run: python src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Check out the flight models
+      uses: actions/checkout@v4
+      with:
+        repository: rotorflight/rotorflight-sim
+        ref: ${{ env.SIM_REF }}
+        path: sim
+
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
+      run: |
+        New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\heli-runs" | Out-Null
+        "TMPDIR=$env:RUNNER_TEMP\heli-runs" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+        "KEEP=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+    - name: Hover check (heli model, angle mode)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with the governor
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check (heli model)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-windows-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
+
+    - name: Upload SITL executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: rotorflight-SITL-windows-${{ github.sha }}
+        path: obj/main/rotorflight_SITL.elf
+
+  sitl-radio-windows:
+
+    needs: sitl-windows
+    runs-on: windows-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Download SITL executable
+      uses: actions/download-artifact@v4
+      with:
+        name: rotorflight-SITL-windows-${{ github.sha }}
+        path: obj/main
+
+    - name: Install EdgeTX Companion
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release download v2.12.5 -R EdgeTX/edgetx -p edgetx-cpn-win64-v2.12.5.zip -D $env:RUNNER_TEMP
+        Expand-Archive "$env:RUNNER_TEMP\edgetx-cpn-win64-v2.12.5.zip" "$env:RUNNER_TEMP\cpn"
+        Start-Process "$env:RUNNER_TEMP\cpn\companion-windows-2.12.5.exe" -ArgumentList "/S", "/D=$env:RUNNER_TEMP\companion" -Wait
+        git clone -q --depth 1 https://github.com/rotorflight/rotorflight-lua-edgetx-suite.git "$env:RUNNER_TEMP\edgetx-suite"
+
+    - name: Radio check
+      shell: pwsh
+      run: python src/utils/sitl/radio/radio_check.py obj/main/rotorflight_SITL.elf --bindir "$env:RUNNER_TEMP\companion\bin" --sd-template "$env:RUNNER_TEMP\edgetx-suite\simulator"

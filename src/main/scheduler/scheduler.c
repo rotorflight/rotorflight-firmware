@@ -169,7 +169,7 @@ bool queueRemove(task_t *task)
 /*
  * Returns first item queue or NULL if queue empty
  */
-static inline task_t *queueFirst(void)
+STATIC_INLINE_UNIT_TESTED task_t *queueFirst(void)
 {
     taskQueuePos = 0;
     return taskQueueArray[0]; // guaranteed to be NULL if queue is empty
@@ -178,7 +178,7 @@ static inline task_t *queueFirst(void)
 /*
  * Returns next item in queue or NULL if at end of queue
  */
-static inline task_t *queueNext(void)
+STATIC_INLINE_UNIT_TESTED task_t *queueNext(void)
 {
     return taskQueueArray[++taskQueuePos]; // guaranteed to be NULL at end of queue
 }
@@ -209,8 +209,11 @@ void taskSystemLoad(timeUs_t currentTimeUs)
     maxRealTimeCycles = 0;
 
 #if defined(SIMULATOR_BUILD)
+    // On a host these measure the host's scheduling jitter, not the
+    // firmware's headroom; left in, they block arming (LOAD) at random.
     averageCPULoad = 0;
     averageSystemLoad = 0;
+    maxRealTimeLoad = 0;
 #endif
 }
 
@@ -457,6 +460,23 @@ static void readSchedulerLocals(task_t *selectedTask, uint8_t selectedTaskDynami
 }
 #endif
 
+// Time left for the other tasks before the gyro target.
+static inline int32_t taskTimeLeftCycles(uint32_t nextTargetCycles, uint32_t nowCycles)
+{
+    const int32_t left = cmpTimeCycles(nextTargetCycles, nowCycles);
+#if defined(SIMULATOR_BUILD)
+    // Lockstep: the clock stands still between simulator steps, so no task can
+    // make the gyro late, and on steps as long as the gyro period the gyro keeps
+    // the phase it had at the hand-over for the whole run. With a phase that
+    // leaves only a few us here, every other task (RX, MSP, servos) would be
+    // skipped on every step, for good. Give them the whole gyro period.
+    if (simLockstepActive() && left < desiredPeriodCycles) {
+        return desiredPeriodCycles;
+    }
+#endif
+    return left;
+}
+
 FAST_CODE void scheduler(void)
 {
     static uint32_t checkCycles = 0;
@@ -497,6 +517,15 @@ FAST_CODE void scheduler(void)
              * Recover as best we can, advancing scheduling by a whole number of cycles
              */
             nextTargetCycles += desiredPeriodCycles * (1 + (schedLoopRemainingCycles / -desiredPeriodCycles));
+#if defined(SIMULATOR_BUILD)
+            // Lockstep: the clock moves in whole simulator steps, so the old phase
+            // survives every step - a target left more than schedLoopStartCycles
+            // short of a step would never come due again, and the gyro/PID loop
+            // stops for good. Put the target on the clock instead.
+            if (simLockstepActive()) {
+                nextTargetCycles = nowCycles;
+            }
+#endif
             schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
         }
 
@@ -506,8 +535,20 @@ FAST_CODE void scheduler(void)
             schedLoopStartCycles += schedLoopStartDeltaUpCycles;
         }
 
+#if defined(SIMULATOR_BUILD)
+        // Lockstep: the clock only moves with the simulator's steps, so polling
+        // for a boundary still ahead would never end, and running the gyro
+        // early instead would run it on every step when the steps are shorter
+        // than the gyro period (5 kHz on 200 us steps). Skip it until the
+        // target is due; the target keeps its phase, and the clock reaches it
+        // within a step or two.
+        const bool gyroDue = !simLockstepActive() || schedLoopRemainingCycles <= 0;
+#else
+        const bool gyroDue = true;
+#endif
+
         // Once close to the timing boundary, poll for it's arrival
-        if (schedLoopRemainingCycles < schedLoopStartCycles) {
+        if (gyroDue && schedLoopRemainingCycles < schedLoopStartCycles) {
             if (schedLoopStartCycles > schedLoopStartMinCycles) {
                 schedLoopStartCycles -= schedLoopStartDeltaDownCycles;
             }
@@ -573,7 +614,7 @@ FAST_CODE void scheduler(void)
                 static uint32_t terminalGyroRateCount = 0;
                 static uint32_t sampleRateStartCycles;
 
-                if ((terminalGyroRateCount == 0)) {
+                if (terminalGyroRateCount == 0) {
                     terminalGyroRateCount = gyro->detectedEXTI + GYRO_RATE_COUNT;
                     sampleRateStartCycles = nowCycles;
                 }
@@ -597,7 +638,7 @@ FAST_CODE void scheduler(void)
 
                 accGyroSkew += gyroSkew;
 
-                if ((terminalGyroLockCount == 0)) {
+                if (terminalGyroLockCount == 0) {
                     terminalGyroLockCount = gyro->detectedEXTI + GYRO_LOCK_COUNT;
                 }
 
@@ -614,7 +655,7 @@ FAST_CODE void scheduler(void)
     }
 
     nowCycles = getCycleCounter();
-    schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
+    schedLoopRemainingCycles = taskTimeLeftCycles(nextTargetCycles, nowCycles);
 
     if (!gyroEnabled || (schedLoopRemainingCycles > (int32_t)clockMicrosToCycles(CHECK_GUARD_MARGIN_US))) {
         currentTimeUs = micros();
@@ -686,7 +727,7 @@ FAST_CODE void scheduler(void)
             int32_t taskRequiredTimeCycles = (int32_t)clockMicrosToCycles((uint32_t)taskRequiredTimeUs);
 
             nowCycles = getCycleCounter();
-            schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
+            schedLoopRemainingCycles = taskTimeLeftCycles(nextTargetCycles, nowCycles);
 
             // Allow a little extra time
             taskRequiredTimeCycles += taskGuardCycles;
@@ -745,6 +786,7 @@ FAST_CODE void scheduler(void)
 #endif
 
 #if defined(UNIT_TEST)
+    UNUSED(taskExecutionTimeUs);
     readSchedulerLocals(selectedTask, selectedTaskDynamicPriority);
 #endif
 
