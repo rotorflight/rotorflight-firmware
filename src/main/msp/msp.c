@@ -1373,6 +1373,27 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
 
+    case MSP_FREQ_SENSOR_STATUS:
+        // Lets the RPM sensor wiring be checked by turning the shaft by hand,
+        // below the frequency the RPM reading starts at
+#ifdef USE_FREQ_SENSOR
+        sbufWriteU8(dst, FREQ_SENSOR_PORT_COUNT);
+        for (int i = 0; i < FREQ_SENSOR_PORT_COUNT; i++) {
+            const bool active = featureIsEnabled(FEATURE_FREQ_SENSOR) && isFreqSensorPortInitialized(i);
+            uint8_t flags = 0;
+            if (active) {
+                flags |= BIT(0);
+                if (getFreqSensorPinState(i))
+                    flags |= BIT(1);
+            }
+            sbufWriteU8(dst, flags);
+            sbufWriteU16(dst, active ? getFreqSensorEdgeCount(i) : 0);
+        }
+#else
+        sbufWriteU8(dst, 0);
+#endif
+        break;
+
 #ifdef USE_VTX_COMMON
     case MSP2_GET_VTX_DEVICE_STATUS:
         {
@@ -3030,12 +3051,14 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         uint8_t srcProfileIndex = sbufReadU8(src);
         if (value == 0) {
             pidCopyProfile(dstProfileIndex, srcProfileIndex);
+            tuneAdvisorTuneChanged();
             if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentPidProfileIndex()) {
                 changePidProfile(dstProfileIndex);
             }
         }
         else if (value == 1) {
             copyControlRateProfile(dstProfileIndex, srcProfileIndex);
+            tuneAdvisorTuneChanged();
             if (!ARMING_FLAG(ARMED) && dstProfileIndex == getCurrentControlRateProfileIndex()) {
               changeControlRateProfile(dstProfileIndex);
             }
@@ -3099,6 +3122,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             }
         }
         pidLoadProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
         break;
 
     case MSP_SET_MODE_RANGE:
@@ -3178,6 +3202,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentControlRateProfile->cyclic_polar = sbufReadU8(src);
         }
         loadControlRateProfile();
+        tuneAdvisorTuneChanged();
         break;
 
 #ifdef USE_MSP_SET_MOTOR
@@ -3397,6 +3422,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 
     case MSP_SET_RESET_CURR_PID:
         resetPidProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
         break;
 
     case MSP_SET_SENSOR_ALIGNMENT:
@@ -3547,6 +3573,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         /* Load new values */
         pidLoadProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
         break;
 
     case MSP_SET_RESCUE_PROFILE:
@@ -4015,6 +4042,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
         }
         mixerInitConfig();
+        mixerUpdateMapping();
         break;
 
     case MSP_SET_MIXER_INPUT:
@@ -4028,15 +4056,30 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_RULE:
+        // payload: U8 idx, U8 oper, U8 input, U8 output, U16 offset,
+        // U16 weight. The rule is applied live, so refuse a short payload
+        // and anything that does not index a valid mixer input or output.
+        if (dataSize < 8) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MIXER_RULE_COUNT) {
             return MSP_RESULT_ERROR;
         }
-        mixerRulesMutable(i)->oper = sbufReadU8(src);
-        mixerRulesMutable(i)->input = sbufReadU8(src);
-        mixerRulesMutable(i)->output = sbufReadU8(src);
+        {
+            const uint8_t oper = sbufReadU8(src);
+            const uint8_t input = sbufReadU8(src);
+            const uint8_t output = sbufReadU8(src);
+            if (oper >= MIXER_OP_COUNT || input >= MIXER_INPUT_COUNT || output >= MIXER_OUTPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+            mixerRulesMutable(i)->oper = oper;
+            mixerRulesMutable(i)->input = input;
+            mixerRulesMutable(i)->output = output;
+        }
         mixerRulesMutable(i)->offset = sbufReadU16(src);
         mixerRulesMutable(i)->weight = sbufReadU16(src);
+        mixerUpdateMapping();
         break;
 
     case MSP_SET_MIXER_OVERRIDE:

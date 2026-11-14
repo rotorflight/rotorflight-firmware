@@ -101,6 +101,23 @@ the build with `fc_version_string_too_long`.
 Unit tests exist for PID, setpoint and maths. The governor, mixer, servos, rescue and leveling have none, so
 changes there need extra care and, where possible, a new test.
 
+## Agent Skills
+
+Step-by-step skills for tasks that need local tools are in
+[rotorflight-agent-skills](https://github.com/rotorflight/rotorflight-agent-skills).
+In Claude Code, install them with `/plugin marketplace add rotorflight/rotorflight-agent-skills`
+and `/plugin install rotorflight-dev@rotorflight`. Other agents: clone that repository and read
+the skill's `SKILL.md` before starting the task. If the repository cannot be cloned, continue with
+the steps in this file and state that the skill was unavailable.
+
+| Skill | Use it to |
+| --- | --- |
+| [firmware-toolchain](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-toolchain/SKILL.md) | install the Arm toolchain, build and flash, platform pitfalls |
+| [firmware-unit-tests](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-unit-tests/SKILL.md) | run `make test` (clang 7-18, BlocksRuntime), write a test |
+| [firmware-sitl](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-sitl/SKILL.md) | build and run the firmware on a PC, drive it over MSP/CRSF/UDP |
+| [jlink-debug](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/jlink-debug/SKILL.md) | debug a flight controller over SWD with a J-Link |
+| [blackbox-decode](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/blackbox-decode/SKILL.md) | decode and analyse blackbox logs in Python |
+
 ## Issues and Pull Requests
 
 Maintainers and users read these, so keep them short and precise. No filler, no restating the diff.
@@ -114,8 +131,19 @@ Maintainers and users read these, so keep them short and precise. No filler, no 
 **Pull requests**
 
 - Title: imperative, under ~70 characters (e.g. "Fix governor spool-up overshoot").
-- Body, a few lines each:
-  - **What**: the change and why it is needed. Link the issue (`Fixes #123`).
+- Body, in this order:
+  - **Summary** (always the first section): a short bullet list that makes it obvious at a glance what the PR
+    does. Name what it fixes and where the problem shows up (feature, flight mode, protocol, target, symptom the
+    user sees). Link the issue (`Fixes #123`). One line per bullet, no background or implementation detail here.
+
+    ```
+    ## Summary
+    - Fixes #123: governor overshoots headspeed on spool-up after a throttle hold
+    - Affects electric governor mode only; nitro and external governor unchanged
+    - Limits the spool-up ramp to the configured rate until headspeed is reached
+    ```
+
+  - **Details** (optional): why the change is needed and how it works, only when the summary is not enough.
   - **Compatibility**: MSP, CLI or setting changes, and whether the Configurator or Lua scripts need updating.
   - **Testing**: what was built and run (unit tests, SITL, bench, flight).
 - One topic per PR. Leave out file-by-file change lists and generated summaries.

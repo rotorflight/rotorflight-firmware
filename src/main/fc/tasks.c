@@ -323,9 +323,10 @@ static void taskTelemetry(timeUs_t currentTimeUs)
 static void taskSportMaster(timeUs_t currentTimeUs)
 {
     handleSportMaster(currentTimeUs);
-#ifndef USE_FBUS_MASTER
+    // Copy cached sensor data (GPS position, timeouts) into gpsSol etc.
+    // The F.Bus master task does this too, but it only runs with an
+    // F.Bus master port, so an S.Port master port must do it itself.
     fbusSensorUpdate(currentTimeUs);
-#endif
 }
 #endif
 

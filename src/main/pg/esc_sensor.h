@@ -43,6 +43,7 @@ enum {
     ESC_SENSOR_PROTO_FBUS,
     ESC_SENSOR_PROTO_SRXL2,
     ESC_SENSOR_PROTO_RECORD,
+    ESC_SENSOR_PROTO_GOOSKY,
 };
 
 typedef struct {
