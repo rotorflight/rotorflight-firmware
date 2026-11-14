@@ -36,6 +36,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -68,6 +69,21 @@ static FILE *flashFile;
 static uint32_t flashFileLength;    // bytes present in the file; beyond reads as 0xFF
 static uint8_t erased[FLASH_FILE_CHUNK];    // all 0xFF, set up in flashFileDetect()
 
+// Set by a failed erase, write or flush, cleared by the next successful erase.
+// While set, programming reports nothing written, so flashfs keeps the data in
+// its buffer and a sector whose erase failed is not programmed. (Reporting the
+// device as not ready instead would hang flashfs, which busy-waits on it.)
+static bool flashFileFailed;
+
+static void flashFileSetFailed(const char *what, uint32_t address)
+{
+    if (!flashFileFailed) {
+        fprintf(stderr, "[flash_file] %s '%s' at %u failed: %s; writes refused until the next erase\n",
+                what, FLASH_FILE_NAME, (unsigned)address, strerror(errno));
+    }
+    flashFileFailed = true;
+}
+
 // False also once a failed erase has lost the file: every access then fails
 // (reads come back erased) instead of crashing.
 static bool flashFileSeek(uint32_t address)
@@ -76,19 +92,22 @@ static bool flashFileSeek(uint32_t address)
 }
 
 // Grow the file to `length` bytes, filling the gap with erased bytes.
-static void flashFileExtend(uint32_t length)
+static bool flashFileExtend(uint32_t length)
 {
-    if (length <= flashFileLength || !flashFileSeek(flashFileLength)) {
-        return;
+    if (length <= flashFileLength) {
+        return true;
+    }
+    if (!flashFileSeek(flashFileLength)) {
+        return false;
     }
     while (flashFileLength < length) {
         const uint32_t chunk = MIN(length - flashFileLength, (uint32_t)FLASH_FILE_CHUNK);
         if (fwrite(erased, 1, chunk, flashFile) != chunk) {
-            fprintf(stderr, "[flash_file] extending '%s' failed\n", FLASH_FILE_NAME);
-            return;
+            return false;
         }
         flashFileLength += chunk;
     }
+    return true;
 }
 
 static bool flashFileIsReady(flashDevice_t *fdevice)
@@ -106,15 +125,28 @@ static bool flashFileWaitForReady(flashDevice_t *fdevice)
 static void flashFileEraseRange(uint32_t start, uint32_t end)
 {
     end = MIN(end, flashFileLength);
-    if (start >= end || !flashFileSeek(start)) {
+    if (start >= end) {
+        // Beyond the end of the file the chip reads erased already
+        flashFileFailed = (flashFile == NULL);
+        return;
+    }
+    if (!flashFileSeek(start)) {
+        flashFileSetFailed("erasing", start);
         return;
     }
     for (uint32_t address = start; address < end; ) {
         const uint32_t chunk = MIN(end - address, (uint32_t)FLASH_FILE_CHUNK);
-        fwrite(erased, 1, chunk, flashFile);
+        if (fwrite(erased, 1, chunk, flashFile) != chunk) {
+            flashFileSetFailed("erasing", address);
+            return;
+        }
         address += chunk;
     }
-    fflush(flashFile);
+    if (fflush(flashFile) != 0) {
+        flashFileSetFailed("erasing", start);
+        return;
+    }
+    flashFileFailed = false;
 }
 
 static void flashFileEraseSector(flashDevice_t *fdevice, uint32_t address)
@@ -127,44 +159,51 @@ static void flashFileEraseCompletely(flashDevice_t *fdevice)
 {
     UNUSED(fdevice);
 
-    // Reopening for writing truncates: an empty file is an erased chip.
-    FILE *reopened = freopen(FLASH_FILE_NAME, "wb+", flashFile);
+    // Reopening for writing truncates: an empty file is an erased chip. Once
+    // a failed erase has lost the stream there is none to reopen: open anew.
+    FILE *reopened = flashFile ? freopen(FLASH_FILE_NAME, "wb+", flashFile) : fopen(FLASH_FILE_NAME, "wb+");
     if (!reopened) {
-        fprintf(stderr, "[flash_file] erasing '%s' failed\n", FLASH_FILE_NAME);
         flashFile = NULL;
+        flashFileSetFailed("erasing", 0);
         return;
     }
     flashFile = reopened;
     flashFileLength = 0;
+    flashFileFailed = false;
     printf("[flash_file] erased '%s'\n", FLASH_FILE_NAME);
 }
 
 // NOR programming can only clear bits: AND the new data into the old.
-static void flashFileProgram(uint32_t address, const uint8_t *data, uint32_t length)
+// Returns the bytes programmed, fewer than `length` when the file fails.
+static uint32_t flashFileProgram(uint32_t address, const uint8_t *data, uint32_t length)
 {
     uint8_t merged[FLASH_FILE_PAGE_SIZE];
+    uint32_t done = 0;
 
-    while (length > 0) {
-        const uint32_t chunk = MIN(length, (uint32_t)sizeof(merged));
+    if (flashFileFailed) {
+        return 0;
+    }
+    while (done < length) {
+        const uint32_t chunk = MIN(length - done, (uint32_t)sizeof(merged));
 
-        flashFileExtend(address + chunk);
-        if (!flashFileSeek(address) || fread(merged, 1, chunk, flashFile) != chunk) {
-            fprintf(stderr, "[flash_file] reading back '%s' at %u failed\n", FLASH_FILE_NAME, (unsigned)address);
-            return;
+        if (!flashFileExtend(address + chunk) ||
+            !flashFileSeek(address) || fread(merged, 1, chunk, flashFile) != chunk) {
+            flashFileSetFailed("reading back", address);
+            break;
         }
         for (uint32_t i = 0; i < chunk; i++) {
-            merged[i] &= data[i];
+            merged[i] &= data[done + i];
         }
         // A read followed by a write on the same stream needs a seek between them.
         if (!flashFileSeek(address) || fwrite(merged, 1, chunk, flashFile) != chunk) {
-            fprintf(stderr, "[flash_file] writing '%s' at %u failed\n", FLASH_FILE_NAME, (unsigned)address);
-            return;
+            flashFileSetFailed("writing", address);
+            break;
         }
 
         address += chunk;
-        data += chunk;
-        length -= chunk;
+        done += chunk;
     }
+    return done;
 }
 
 static void flashFilePageProgramBegin(flashDevice_t *fdevice, uint32_t address, void (*callback)(uint32_t length))
@@ -180,11 +219,19 @@ static uint32_t flashFilePageProgramContinue(flashDevice_t *fdevice, uint8_t con
 {
     uint32_t written = 0;
 
+    // Report only what reached the file: flashfs keeps the rest in its buffer
+    // and offers it again. Programming the same bytes twice is harmless (AND).
     for (uint32_t i = 0; i < bufferCount; i++) {
-        flashFileProgram(fdevice->currentWriteAddress + written, buffers[i], bufferSizes[i]);
-        written += bufferSizes[i];
+        const uint32_t done = flashFileProgram(fdevice->currentWriteAddress + written, buffers[i], bufferSizes[i]);
+        written += done;
+        if (done < bufferSizes[i]) {
+            break;
+        }
     }
-    fflush(flashFile);
+    if (written && fflush(flashFile) != 0) {
+        flashFileSetFailed("flushing", fdevice->currentWriteAddress);
+        written = 0;
+    }
 
     fdevice->callbackArg = written;
     fdevice->currentWriteAddress += written;
