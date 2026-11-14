@@ -28,7 +28,7 @@
 
 #include "platform.h"
 
-#if defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_GYRO_SPI_ICM40608)
+#if defined(USE_GYRO_SPI_ICM42605) || defined(USE_GYRO_SPI_ICM42688P) || defined(USE_GYRO_SPI_ICM40608) || defined(USE_GYRO_SPI_IIM42652)
 
 #include "common/axis.h"
 #include "common/utils.h"
@@ -160,7 +160,7 @@ static uint8_t odrLUT[ODR_CONFIG_COUNT] = {  // see GYRO_ODR in section 5.6
     [ODR_CONFIG_1K] = 6,
 };
 
-// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P
+// Possible gyro Anti-Alias Filter (AAF) cutoffs for ICM-42688P and IIM-42652
 static aafConfig_t aafLUT42688[AAF_CONFIG_COUNT] = {  // see table in section 5.3
     [AAF_CONFIG_258HZ]  = {  6,   36, 10 },
     [AAF_CONFIG_536HZ]  = { 12,  144,  8 },
@@ -232,6 +232,9 @@ uint8_t icm426xxSpiDetect(const extDevice_t *dev)
         case ICM40608_WHO_AM_I_CONST:
             icmDetected = ICM_40608_SPI;
             break;
+        case IIM42652_WHO_AM_I_CONST:
+            icmDetected = IIM_42652_SPI;
+            break;
         default:
             icmDetected = MPU_NONE;
             break;
@@ -260,6 +263,8 @@ bool icm426xxSpiAccDetect(accDev_t *acc)
     case ICM_42688P_SPI:
         break;
     case ICM_40608_SPI:
+        break;
+    case IIM_42652_SPI:
         break;
     default:
         return false;
@@ -383,6 +388,8 @@ bool icm426xxSpiGyroDetect(gyroDev_t *gyro)
         break;
     case ICM_40608_SPI:
         break;
+    case IIM_42652_SPI:
+        break;
     default:
         return false;
     }
@@ -412,6 +419,7 @@ static aafConfig_t getGyroAafConfig(const mpuSensor_e gyroModel, const aafConfig
         }
 
     case ICM_42688P_SPI:
+    case IIM_42652_SPI:
     default:
         switch (config) {
         case GYRO_HARDWARE_LPF_NORMAL:
@@ -430,4 +438,4 @@ static aafConfig_t getGyroAafConfig(const mpuSensor_e gyroModel, const aafConfig
     }
 }
 
-#endif // USE_GYRO_SPI_ICM42605 || USE_GYRO_SPI_ICM42688P || USE_GYRO_SPI_ICM40608
+#endif // USE_GYRO_SPI_ICM42605 || USE_GYRO_SPI_ICM42688P || USE_GYRO_SPI_ICM40608 || USE_GYRO_SPI_IIM42652
