@@ -103,15 +103,17 @@ mingw_sdk_install: | $(TOOLS_DIR)
 
 mingw_sdk_install: mingw_sdk_download $(MINGW_SDK_INSTALL_MARKER)
 
-# the winlibs zip has a top-level mingw64 folder
-$(MINGW_SDK_INSTALL_MARKER):
+# the winlibs zip has a top-level mingw64 folder. Order-only on the archive: extraction
+# waits for the download (make -j), but unzip restores the archive's file times, so a
+# normal prerequisite would find gcc.exe older than the zip and extract again every time.
+$(MINGW_SDK_INSTALL_MARKER): | $(DL_DIR)/$(MINGW_SDK_FILE) $(TOOLS_DIR)
 	$(V1) unzip -q -o -d $(TOOLS_DIR) "$(DL_DIR)/$(MINGW_SDK_FILE)"
 
 .PHONY: mingw_sdk_download
-mingw_sdk_download: | $(DL_DIR)
 mingw_sdk_download: $(DL_DIR)/$(MINGW_SDK_FILE)
-$(DL_DIR)/$(MINGW_SDK_FILE):
-	$(V1) curl -L -o "$(DL_DIR)/$(MINGW_SDK_FILE)" -z "$(DL_DIR)/$(MINGW_SDK_FILE)" "$(MINGW_SDK_URL)"
+# --fail and a temporary file: an HTTP error page must not be left behind as the archive
+$(DL_DIR)/$(MINGW_SDK_FILE): | $(DL_DIR)
+	$(V1) curl --fail -L -o "$@.tmp" "$(MINGW_SDK_URL)" && mv -f "$@.tmp" "$@" || { rm -f "$@.tmp"; exit 1; }
 
 else
 
