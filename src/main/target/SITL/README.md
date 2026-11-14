@@ -63,6 +63,25 @@ Defaults for a simulator (`config.c`, applied on a config reset): MSP on UART2 a
 and the frequency sensor on with a 2-pole main motor, so FDM `motor_erpm[0]` reads 1:1 as motor
 rpm for the governor and the RPM filter. A model sending real electrical rpm sets `motor_poles`.
 
+### ESC on a UART
+
+The ESC sensor works on any TCP UART. `src/utils/sitl/esc/esc_sim.py` is a virtual ESC for it,
+with telemetry and the parameter (programming) dialogue the Configurator's ESC tab uses:
+
+```
+feature ESC_SENSOR
+serial 2 1024 115200 57600 0 115200
+set esc_sensor_protocol = OPENYGE        # or HOBBYWINGV5, SCORPION, FLYROTOR, XDFLY, OMPHOBBY, ZTW
+set esc_sensor_halfduplex = ON           # selects the parameter dialogue
+save
+```
+
+`save` reboots, which ends a SITL started directly: start it again (or run it through
+`sitl-run.py`, which does that for you), then
+`python3 src/utils/sitl/esc/esc_sim.py --protocol openyge --port 5763`.
+`src/utils/sitl/esc/esc_check.py <elf>` runs read, telemetry and write end to end for each
+emulated protocol.
+
 The firmware does not estimate attitude here (`USE_IMU_CALC` is off): it takes the quaternion from
 the FDM packet. Its clock follows the packet timestamps (`simRate`, measured over at least 50 ms),
 so the simulator should send faster than 50 Hz, from one sender only.
