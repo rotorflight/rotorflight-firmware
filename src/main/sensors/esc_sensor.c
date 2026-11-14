@@ -368,7 +368,8 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 #endif
             return NULL;
         }
-        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32 ||
+                 escSensorConfig()->protocol == ESC_SENSOR_PROTO_GOOSKY) {
             if (motorNumber < getMotorCount()) {
                 return &escSensorData[motorNumber];
             }
@@ -4383,6 +4384,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
+            case ESC_SENSOR_PROTO_GOOSKY:
                 blSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_HW4:
@@ -4489,6 +4491,7 @@ bool INIT_CODE escSensorInit(void)
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:
+        case ESC_SENSOR_PROTO_GOOSKY:
             callback = blDataReceive;
             baudrate = 115200;
             break;
