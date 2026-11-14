@@ -18,6 +18,9 @@ Scenarios:
              the new profile's gov_headspeed
   failsafe   RC lost while spinning: RXLOSS, throttle cut by the rxfail values, still armed
              (Rotorflight keeps stage-2 failsafe off); link back: the governor recovers
+  rpmsensor  RPM sensor wiring check (MSP_FREQ_SENSOR_STATUS) with the shaft turned slowly by
+             hand, disarmed: port 1 active, edges count at the shaft frequency, the pin
+             toggles; no edges once the shaft stops
 """
 
 import importlib.util
@@ -36,6 +39,7 @@ smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
 MSP_SELECT_SETTING = 210
+MSP_FREQ_SENSOR_STATUS = 168
 G = 9.80665
 # rotor law (dw/dt in rad/s^2; u 0..1, V volts, w rad/s, c collective -1..1)
 A, B, K0, K1 = 987.7, 16.84, 7.0e-4, 1.10e-2
@@ -49,6 +53,7 @@ class Rotor(threading.Thread):
         super().__init__(daemon=True)
         self.running = True
         self.w = 0.0
+        self.hold_rpm = None    # turn the shaft at this rpm regardless of the motor
         self.throttle = 0.0
         self.out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.out.bind(("127.0.0.1", 9002))
@@ -76,6 +81,8 @@ class Rotor(threading.Thread):
             u = self.throttle if self.throttle > 0.02 else 0.0
             drive = max(0.0, A * u * PACK_V - B * self.w) if u else 0.0
             self.w = max(0.0, self.w + (drive - self.w ** 2 * (K0 + K1 * COLLECTIVE ** 2)) * dt)
+            if self.hold_rpm is not None:
+                self.w = self.hold_rpm * 2 * math.pi / 60
             pkt = struct.pack("<21d", now - t0, 0, 0, 0, 0, 0, -G, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                               self.rpm, 0, 0, 0)        # 168 bytes: + motor_erpm[4]
             self.fdm.sendto(pkt, ("127.0.0.1", 9003))
@@ -256,7 +263,49 @@ def scenario_failsafe(elf):
         stop(s, rotor, pilot)
 
 
-SCENARIOS = {"governor": scenario_governor, "profile": scenario_profile, "failsafe": scenario_failsafe}
+def freq_status(pilot):
+    """Port 1 of MSP_FREQ_SENSOR_STATUS: (active, pin high, edge count)."""
+    d = pilot.request(MSP_FREQ_SENSOR_STATUS)
+    if len(d) < 4 or d[0] < 1:
+        raise smoke.Failure("rpmsensor: no frequency sensor ports reported (%r)" % d)
+    flags, edges = d[1], struct.unpack_from("<H", d, 2)[0]
+    return bool(flags & 1), bool(flags & 2), edges
+
+
+def scenario_rpmsensor(elf):
+    hz = 2.0
+    s, rotor, pilot = start(elf, ["feature FREQ_SENSOR"])
+    try:
+        rotor.hold_rpm = hz * 60
+        time.sleep(1)
+        active, _, e0 = freq_status(pilot)
+        if not active:
+            raise smoke.Failure("rpmsensor: port 1 not active")
+        t0, pins = time.time(), set()
+        while time.time() - t0 < 5:
+            pins.add(freq_status(pilot)[1])
+            time.sleep(0.05)
+        _, _, e1 = freq_status(pilot)
+        elapsed = time.time() - t0
+        rate = ((e1 - e0) & 0xFFFF) / elapsed
+        if abs(rate - hz) > 0.25 * hz:
+            raise smoke.Failure("rpmsensor: %.2f edges/s at a %.1f Hz shaft" % (rate, hz))
+        if pins != {False, True}:
+            raise smoke.Failure("rpmsensor: pin state never changed (%s)" % pins)
+        rotor.hold_rpm = 0
+        time.sleep(1)
+        _, _, e2 = freq_status(pilot)
+        time.sleep(2)
+        _, _, e3 = freq_status(pilot)
+        if e3 != e2:
+            raise smoke.Failure("rpmsensor: %d edges with the shaft stopped" % ((e3 - e2) & 0xFFFF))
+        smoke.log("PASS rpmsensor: %.2f edges/s at %.1f Hz, pin toggles, none when stopped" % (rate, hz))
+    finally:
+        stop(s, rotor, pilot)
+
+
+SCENARIOS = {"governor": scenario_governor, "profile": scenario_profile, "failsafe": scenario_failsafe,
+             "rpmsensor": scenario_rpmsensor}
 
 
 def main():
