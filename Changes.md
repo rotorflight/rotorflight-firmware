@@ -24,6 +24,7 @@ the APIs or flight performance.
 - Tune advisor: in-flight rate-loop statistics per axis over MSP, for tuning advice on the radio (#523)
 - FrSky XACT servo programming over the F.Bus master link, ported from WingFlight (#518)
 - New `SYSTEM_STATUS` (120; S.Port `0x5140`, CRSF `0x1230`) and `SYSTEM_CONFIG` (121; S.Port `0x5141`, CRSF `0x1231`) telemetry sensors pack FC status, governor and rescue state, profiles and config flags into two bitfields for radio dashboards; layout in `src/main/telemetry/status.h`. Existing sensors are unchanged. Both are added to the default `telemetry_sensors` (`PG_TELEMETRY_CONFIG` v8)
+- Arming is blocked with `NO_NOTCH` when neither the RPM filter nor the dynamic notch filter is active. In `arming_disable_flags` (MSP_STATUS) `NO_NOTCH` is bit 26, bit 27 is reserved for `BACKUPRX` (#490) and `ARMSWITCH` moves from bit 26 to bit 28 (#510)
 
 ## Bug Fixes
 
@@ -36,6 +37,7 @@ the APIs or flight performance.
 - `MSP_COPY_PROFILE` reloads the correct rate profile (#520)
 - `position_alt_source = DEFAULT` uses the GPS altitude: GPS-only boards no longer report an altitude of 0, and the armed baro drift correction against the GPS runs (#548)
 - CRSF custom telemetry `GPS_ALTITUDE` (0x1126) is sent in decimetres instead of centimetres (still S16), so it no longer stops at 327.67 m MSL; the range is now ±3276.7 m. Decoders must divide by 10 instead of 100 (#549)
+- `RPM_FILTER` is disabled at config validation when no real-time RPM source (frequency sensor or bidirectional DSHOT telemetry) is configured, instead of leaving the aircraft unable to arm (#510)
 
 ## Flight Performance
 
