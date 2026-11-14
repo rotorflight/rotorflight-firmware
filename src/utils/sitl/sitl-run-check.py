@@ -28,7 +28,7 @@ def connect(timeout=20):
     end = time.time() + timeout
     while time.time() < end:
         try:
-            s = socket.create_connection(("127.0.0.1", 5761), timeout=2)
+            s = socket.create_connection(("127.0.0.1", smoke.uart_port(1)), timeout=2)
             smoke.Msp(s).request(smoke.MSP_API_VERSION)
             return s
         except Exception:
