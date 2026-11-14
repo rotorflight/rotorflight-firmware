@@ -44,6 +44,7 @@
 
 static FAST_DATA_ZERO_INIT bool motorProtocolEnabled;
 static FAST_DATA_ZERO_INIT bool motorProtocolDshot;
+static FAST_DATA_ZERO_INIT bool motorInitFailed;
 
 static FAST_DATA_ZERO_INIT motorDevice_t *motorDevice;
 
@@ -127,6 +128,14 @@ unsigned motorDeviceCount(void)
 bool isMotorProtocolEnabled(void)
 {
     return motorProtocolEnabled;
+}
+
+// A motor protocol is set but its outputs couldn't be set up, e.g. a motor
+// pin without the DMA DShot needs. The device then drives no motor at all,
+// not even the ones that would have worked.
+bool isMotorInitFailed(void)
+{
+    return motorInitFailed;
 }
 
 bool isMotorProtocolDshot(void)
@@ -230,7 +239,17 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
     motorProtocolEnabled = checkMotorProtocolEnabled(motorDevConfig);
     motorProtocolDshot   = checkMotorProtocolDshot(motorDevConfig);
 
-    if (motorProtocolEnabled) {
+    // The SRXL2 ESC takes its throttle over the serial port and reads the
+    // mixer output directly, so it drives no MOTOR pins: any that are
+    // assigned are left alone, and there is nothing that could have failed.
+    bool needsOutputs = motorProtocolEnabled;
+#ifdef USE_SRXL2_ESC
+    if (motorDevConfig->motorPwmProtocol == PWM_TYPE_SRXL2) {
+        needsOutputs = false;
+    }
+#endif
+
+    if (needsOutputs) {
 #ifdef USE_DSHOT
         if (motorProtocolDshot) {
 #ifdef USE_DSHOT_BITBANG
@@ -247,6 +266,8 @@ void motorDevInit(const motorDevConfig_t *motorDevConfig, uint8_t motorCount)
             motorDevice = motorPwmDevInit(motorDevConfig, motorCount);
         }
     }
+
+    motorInitFailed = needsOutputs && !motorDevice;
 
     if (motorDevice) {
         motorDevice->count = motorCount;

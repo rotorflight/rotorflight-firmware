@@ -38,8 +38,16 @@
 // The controller's counter-output and I at release are kept next to it, so a client can tell
 // airframe rebound (small counter-output, I near 0: needs damping) from I-term push-back.
 //
+// Shake. An oscillating loop (usually P too high) also leaves an opposite-sign peak after every
+// stop, so it reads as rebound. The RMS of the gyro, high-passed at 2 Hz, while every stick is
+// centred and the stop has settled tells the two apart: a tuned heli holds a few deg/s there,
+// an oscillating one tens. Every stick, because a commanded axis couples into the others (a
+// flip moves roll too); settled, because a slow rebound is still moving the heli until the
+// end of TA_RELEASE_WINDOW.
+//
 // Everything accumulates across flights, so the numbers firm up, and is cleared when the tune
-// changes (checked when arming) or on MSP2_CLEAR_TUNE_ADVISOR.
+// changes (checked when arming, and in flight after a profile switch, an adjustment or an MSP
+// write of the tune) or on MSP2_CLEAR_TUNE_ADVISOR.
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -118,6 +126,11 @@ typedef struct {
     float sumOvershoot;
     float sumCounter;
     float sumIterm;
+
+    float shakeLp;              // slow part of the gyro, removed before the shake is measured
+    uint16_t shakeQuiet;        // samples the stick has been centred
+    uint32_t shakeCount;
+    float shakeSumSq;
 } taAxis_t;
 
 typedef struct {
@@ -136,6 +149,7 @@ typedef struct {
     float accTime;
     uint32_t signature;
     bool wasArmed;
+    bool tuneChanged;           // a profile or an adjusted setting changed: check the signature
 #endif
 } tuneAdvisor_t;
 
@@ -335,6 +349,27 @@ static void processRelease(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis)
     }
 }
 
+// centred: every axis's setpoint is inside TA_STICK_CENTER
+static void processShake(taAxis_t *ax, const tuneAdvisorSample_t *s, int axis, bool centred)
+{
+    const float gyro = s->gyro[axis];
+
+    ax->shakeLp += TA_SHAKE_LP_K * (gyro - ax->shakeLp);
+
+    if (!s->valid || !centred) {
+        ax->shakeQuiet = 0;
+        return;
+    }
+    if (ax->shakeQuiet < TA_SHAKE_SETTLE) {
+        ax->shakeQuiet++;
+        return;
+    }
+
+    const float shake = gyro - ax->shakeLp;
+    ax->shakeCount++;
+    ax->shakeSumSq += shake * shake;
+}
+
 void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
 {
     // All three axes: a pirouette is flying. (Wingflight leaves yaw out because of taxi turns.)
@@ -355,12 +390,17 @@ void tuneAdvisorProcessSample(const tuneAdvisorSample_t *s)
     ta.sampleCount++;
     ta.histPos = (ta.histPos + 1) % (TA_LAG_MAX + 1);
 
+    const bool centred = fabsf(s->setpoint[FD_ROLL]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_PITCH]) < TA_STICK_CENTER &&
+                         fabsf(s->setpoint[FD_YAW]) < TA_STICK_CENTER;
+
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         taAxis_t *ax = &ta.axis[axis];
 
         processFeedforward(ax, &gated, axis, ta.histPos);
         processFullStick(ax, &gated, axis, ta.histPos);
         processRelease(ax, &gated, axis);
+        processShake(ax, &gated, axis, centred);
 
         if ((ta.sampleCount % TA_SAMPLE_HZ) == 0)
             updateBestLag(ax);
@@ -401,6 +441,10 @@ void tuneAdvisorGetAxis(int axis, tuneAdvisorAxis_t *out)
         out->meanCounter = ax->sumCounter / ax->releases;
         out->meanIterm = ax->sumIterm / ax->releases;
     }
+
+    out->shakeCount = ax->shakeCount;
+    if (ax->shakeCount)
+        out->shakeRms = sqrtf(ax->shakeSumSq / ax->shakeCount);
 }
 
 uint32_t tuneAdvisorGetValidSamples(void)
@@ -424,8 +468,8 @@ static uint32_t hashBytes(uint32_t h, const void *data, size_t len)
     return h;
 }
 
-// Anything that changes what the statistics describe. Checked when arming, so the numbers
-// always belong to the tune being flown.
+// Anything that changes what the statistics describe. Checked when arming and after a change in
+// flight (tuneAdvisorTuneChanged()), so the numbers always belong to the tune being flown.
 static uint32_t tuneSignature(void)
 {
     uint32_t h = 2166136261u;
@@ -433,6 +477,8 @@ static uint32_t tuneSignature(void)
 
     h = hashBytes(h, profiles, sizeof(profiles));
     h = hashBytes(h, currentPidProfile->pid, sizeof(currentPidProfile->pid));
+    h = hashBytes(h, &currentPidProfile->cyclic_master_gain, sizeof(currentPidProfile->cyclic_master_gain));
+    h = hashBytes(h, &currentPidProfile->yaw_master_gain, sizeof(currentPidProfile->yaw_master_gain));
     h = hashBytes(h, currentPidProfile->iterm_relax_cutoff, sizeof(currentPidProfile->iterm_relax_cutoff));
     h = hashBytes(h, &currentPidProfile->pid_mode, sizeof(currentPidProfile->pid_mode));
     h = hashBytes(h, &currentControlRateProfile->rates_type, sizeof(currentControlRateProfile->rates_type));
@@ -448,6 +494,11 @@ static bool plainRateFlight(void)
     return ARMING_FLAG(ARMED) && isSpooledUp() && isAirborne() &&
         !FLIGHT_MODE(ANGLE_MODE | HORIZON_MODE | TRAINER_MODE | ALTHOLD_MODE | RESCUE_MODE |
                      GPS_RESCUE_MODE | FAILSAFE_MODE);
+}
+
+void tuneAdvisorTuneChanged(void)
+{
+    ta.tuneChanged = true;
 }
 
 void tuneAdvisorUpdate(float dT)
@@ -486,6 +537,20 @@ void tuneAdvisorUpdate(float dT)
 
     if (ta.accTime < 1.0f / TA_SAMPLE_HZ)
         return;
+
+    // A profile switch or an adjustment in flight changes the tune too: start again from the
+    // new one, so the statistics never mix two tunes. The signature is only worked out again
+    // after tuneAdvisorTuneChanged() was called, not on every sample.
+    if (armed && ta.tuneChanged) {
+        ta.tuneChanged = false;
+        const uint32_t signature = tuneSignature();
+        if (signature != ta.signature) {
+            tuneAdvisorReset();
+            ta.signature = signature;
+            ta.wasArmed = armed;
+            return;
+        }
+    }
 
     const float k = 1.0f / ta.accCount;
     acc->valid = ta.accValid;
