@@ -86,6 +86,21 @@ The firmware does not estimate attitude here (`USE_IMU_CALC` is off): it takes t
 the FDM packet. Its clock follows the packet timestamps (`simRate`, measured over at least 50 ms),
 so the simulator should send faster than 50 Hz, from one sender only.
 
+### Radio in the loop
+
+`src/utils/sitl/radio/radio_bridge.py` puts EdgeTX itself on the CRSF UART: Companion's
+simulator library (`edgetx_sim.py`) runs a radio with its own SD card, its mixer outputs go
+to the SITL as CRSF RC frames and the SITL's CRSF telemetry goes back into the radio, with
+link statistics as a receiver sends them, so EdgeTX and the Lua scripts on the card see the
+flight controller's telemetry as from a real one. The other direction stops in the radio:
+the simulator library discards what the radio sends to its module, so Lua MSP requests do
+not reach the SITL. Linux, from Companion's AppImage (`--appimage-extract`, then
+`LD_LIBRARY_PATH=squashfs-root/usr/lib`, library dir `squashfs-root/usr/lib/companion212`);
+under WSL1 strip `.note.ABI-tag` from its `libQt6Core.so.6`. Windows: Companion's `bin`
+directory (the binding loads the system's `msvcp140.dll`, which must be 14.40 or newer -
+an older copy from a Python distribution crashes the simulator). `radio_check.py` runs link, stick, arming and telemetry
+end to end, with the EdgeTX Lua suite's `simulator/` card.
+
 ### Tests
 
 - `src/utils/sitl-smoke-test.py <elf>`: start, MSP, CLI, arming, outputs, CRSF, clock, lockstep

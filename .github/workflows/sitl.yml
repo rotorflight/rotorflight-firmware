@@ -132,6 +132,40 @@ jobs:
         name: rotorflight-SITL-linux-${{ github.sha }}
         path: obj/main/rotorflight_SITL.elf
 
+  sitl-radio:
+
+    # Radio in the loop: EdgeTX (Companion's simulator library) <-> CRSF <-> SITL
+    needs: sitl
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Download SITL executable
+      uses: actions/download-artifact@v4
+      with:
+        name: rotorflight-SITL-linux-${{ github.sha }}
+        path: obj/main
+
+    - name: Install EdgeTX simulator
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq libgbm1 libwayland-client0 libx11-xcb1 libxkbcommon0 libegl1 libgl1 libfontconfig1 libdbus-1-3
+        sudo apt-get install -y -qq libasound2t64 || sudo apt-get install -y -qq libasound2
+        gh release download v2.12.5 -R EdgeTX/edgetx -p edgetx-cpn-linux-v2.12.5.zip -D /tmp/edgetx
+        cd /tmp/edgetx && unzip -q edgetx-cpn-linux-v2.12.5.zip
+        chmod +x EdgeTX_Companion_2.12.5-x86_64.AppImage
+        ./EdgeTX_Companion_2.12.5-x86_64.AppImage --appimage-extract > /dev/null
+        git clone -q --depth 1 https://github.com/rotorflight/rotorflight-lua-edgetx-suite.git /tmp/edgetx-suite
+
+    - name: Radio check
+      run: |
+        chmod +x obj/main/rotorflight_SITL.elf
+        LD_LIBRARY_PATH=/tmp/edgetx/squashfs-root/usr/lib python3 src/utils/sitl/radio/radio_check.py obj/main/rotorflight_SITL.elf --bindir /tmp/edgetx/squashfs-root/usr/lib/companion212 --sd-template /tmp/edgetx-suite/simulator
+
   sitl-windows:
 
     runs-on: windows-latest
@@ -240,3 +274,32 @@ jobs:
       with:
         name: rotorflight-SITL-windows-${{ github.sha }}
         path: obj/main/rotorflight_SITL.elf
+
+  sitl-radio-windows:
+
+    needs: sitl-windows
+    runs-on: windows-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Download SITL executable
+      uses: actions/download-artifact@v4
+      with:
+        name: rotorflight-SITL-windows-${{ github.sha }}
+        path: obj/main
+
+    - name: Install EdgeTX Companion
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release download v2.12.5 -R EdgeTX/edgetx -p edgetx-cpn-win64-v2.12.5.zip -D $env:RUNNER_TEMP
+        Expand-Archive "$env:RUNNER_TEMP\edgetx-cpn-win64-v2.12.5.zip" "$env:RUNNER_TEMP\cpn"
+        Start-Process "$env:RUNNER_TEMP\cpn\companion-windows-2.12.5.exe" -ArgumentList "/S", "/D=$env:RUNNER_TEMP\companion" -Wait
+        git clone -q --depth 1 https://github.com/rotorflight/rotorflight-lua-edgetx-suite.git "$env:RUNNER_TEMP\edgetx-suite"
+
+    - name: Radio check
+      shell: pwsh
+      run: python src/utils/sitl/radio/radio_check.py obj/main/rotorflight_SITL.elf --bindir "$env:RUNNER_TEMP\companion\bin" --sd-template "$env:RUNNER_TEMP\edgetx-suite\simulator"
