@@ -362,7 +362,7 @@ typedef struct {
 } servo_packet;             // 68 bytes; the first 48 (motors + servos) are the older layout
 
 void FLASH_Unlock(void);
-void FLASH_Lock(void);
+bool FLASH_Lock(void);   // false when eeprom.bin could not be written
 FLASH_Status FLASH_ErasePage(uintptr_t Page_Address);
 FLASH_Status FLASH_ProgramWord(uintptr_t addr, uint32_t Data);
 

@@ -697,9 +697,13 @@ void timerInit(void) {
 void timerStart(void) {
 }
 
+// A board blinks its LEDs forever; a process that hangs silently is worse
+// than one that stops. Exit without the reset marker, so sitl-run.py reports
+// a failure rather than restarting into it.
 void failureMode(failureMode_e mode) {
-    printf("[failureMode]!!! %d\n", mode);
-    while (1);
+    fprintf(stderr, "[failureMode]!!! %d: stopping\n", mode);
+    fflush(stdout);
+    exit(1);
 }
 
 void indicateFailure(failureMode_e mode, int repeatCount)
@@ -1085,20 +1089,21 @@ char _Min_Stack_Size;
 // Windows translates CRLF and EOF bytes.
 static bool eepromUnlocked = false;
 
-static void eepromWriteFile(void)
+// True once the store holds eepromData; on any failure the previous store is left as it was.
+static bool eepromWriteFile(void)
 {
     static const char tmpName[] = EEPROM_FILENAME ".tmp";
     FILE *f = fopen(tmpName, "wb");
     if (f == NULL) {
         fprintf(stderr, "[FLASH] cannot create '%s': %s\n", tmpName, strerror(errno));
-        return;
+        return false;
     }
     const bool written = fwrite(eepromData, sizeof(eepromData), 1, f) == 1 && fflush(f) == 0;
-    fclose(f);
-    if (!written) {
+    const bool closed = fclose(f) == 0;
+    if (!written || !closed) {
         fprintf(stderr, "[FLASH] write to '%s' failed: %s\n", tmpName, strerror(errno));
         remove(tmpName);
-        return;
+        return false;
     }
 #if defined(_WIN32) || defined(__MINGW32__)
     if (!MoveFileExA(tmpName, EEPROM_FILENAME, MOVEFILE_REPLACE_EXISTING)) {
@@ -1106,7 +1111,10 @@ static void eepromWriteFile(void)
     if (rename(tmpName, EEPROM_FILENAME) != 0) {
 #endif
         fprintf(stderr, "[FLASH] cannot replace '%s'\n", EEPROM_FILENAME);
+        remove(tmpName);
+        return false;
     }
+    return true;
 }
 
 void FLASH_Unlock(void) {
@@ -1116,6 +1124,15 @@ void FLASH_Unlock(void) {
     eepromUnlocked = true;
 
     FILE *f = fopen(EEPROM_FILENAME, "rb");
+    const int openErrno = errno;
+    if (f == NULL && openErrno != ENOENT) {
+        // The store exists but cannot be read: starting on defaults would replace
+        // it with the next save. Stop instead (without the reset marker, so
+        // sitl-run.py reports it rather than restarting).
+        fprintf(stderr, "[FLASH_Unlock] cannot read '%s': %s; not replacing it\n",
+                EEPROM_FILENAME, strerror(openErrno));
+        exit(1);
+    }
     if (f != NULL) {
         fseek(f, 0, SEEK_END);
         const long size = ftell(f);
@@ -1129,19 +1146,26 @@ void FLASH_Unlock(void) {
                     EEPROM_FILENAME, size, sizeof(eepromData));
         }
     } else {
-        printf("[FLASH_Unlock] created '%s', size = %zu\n", EEPROM_FILENAME, sizeof(eepromData));
-        eepromWriteFile();
+        if (eepromWriteFile()) {
+            printf("[FLASH_Unlock] created '%s', size = %zu\n", EEPROM_FILENAME, sizeof(eepromData));
+        }
     }
 }
 
-void FLASH_Lock(void) {
-    if (eepromUnlocked) {
-        eepromWriteFile();
-        eepromUnlocked = false;
-        printf("[FLASH_Lock] saved '%s'\n", EEPROM_FILENAME);
-    } else {
+// False when the save failed: config_streamer_finish() reports it, so the
+// config write is retried and then fails instead of passing as saved.
+bool FLASH_Lock(void) {
+    if (!eepromUnlocked) {
         fprintf(stderr, "[FLASH_Lock] eeprom is not unlocked\n");
+        return false;
     }
+    eepromUnlocked = false;
+    if (!eepromWriteFile()) {
+        fprintf(stderr, "[FLASH_Lock] save to '%s' FAILED\n", EEPROM_FILENAME);
+        return false;
+    }
+    printf("[FLASH_Lock] saved '%s'\n", EEPROM_FILENAME);
+    return true;
 }
 
 FLASH_Status FLASH_ErasePage(uintptr_t Page_Address) {
