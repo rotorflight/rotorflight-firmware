@@ -185,7 +185,13 @@ static void adjustFilterLimit(uint16_t *parm, uint16_t maxValue, uint16_t resetV
 static void validateAndFixRatesSettings(void)
 {
     for (unsigned profileIndex = 0; profileIndex < CONTROL_RATE_PROFILE_COUNT; profileIndex++) {
-        const ratesSettingsLimits_t *limits = getRatesSettingLimits(controlRateProfilesMutable(profileIndex)->rates_type);
+        const uint8_t ratesType = controlRateProfilesMutable(profileIndex)->rates_type;
+        // An out-of-range type would get the all-zero NONE limits and have
+        // its rates wiped on save; leave such a profile's values untouched
+        if (ratesType >= RATES_TYPE_COUNT) {
+            continue;
+        }
+        const ratesSettingsLimits_t *limits = getRatesSettingLimits(ratesType);
         for (unsigned axis = FD_ROLL; axis <= FD_YAW; axis++) {
             controlRateProfilesMutable(profileIndex)->rcRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcRates[axis], 0, limits->rc_rate_limit);
             controlRateProfilesMutable(profileIndex)->sRates[axis] = constrain(controlRateProfilesMutable(profileIndex)->sRates[axis], 0, limits->srate_limit);
