@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "gtest/gtest.h"
 
@@ -634,6 +635,108 @@ TEST_F(MixerTest, RuleSetOverridesSwash)
     // SET replaces the swash mapping of that servo
     mixerSaturateServoOutput(0);
     EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_PITCH));
+}
+
+/** Live mapping updates **/
+
+// Let the saturation flags left by the previous step expire
+static void clearSaturation(void)
+{
+    for (int i = 0; i <= MIXER_SATURATION_TIME; i++)
+        mixerUpdate(0);
+}
+
+TEST_F(MixerTest, LiveRuleWriteNeedsMappingUpdate)
+{
+    const uint8_t out = MIXER_SERVO_OFFSET + 4;
+
+    // Rule written after init, as MSP_SET_MIXER_RULE and "mixer rule" do
+    *mixerRulesMutable(0) = { MIXER_OP_ADD, MIXER_IN_RC_CHANNEL_AUX1, out, 0, 1000 };
+
+    // The boot-time map does not know the new rule yet
+    mixerSaturateServoOutput(4);
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_RC_CHANNEL_AUX1));
+
+    clearSaturation();
+    mixerUpdateMapping();
+
+    mixerSaturateServoOutput(4);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_RC_CHANNEL_AUX1));
+}
+
+TEST_F(MixerTest, LiveSetRuleReplacesSwashMapping)
+{
+    EXPECT_TRUE(mixerIsCyclicServo(0));
+
+    *mixerRulesMutable(0) = { MIXER_OP_SET, MIXER_IN_RC_CHANNEL_AUX1, MIXER_SERVO_OFFSET + 0, 0, 1000 };
+    mixerUpdateMapping();
+
+    // A SET with a non-cyclic input takes the servo out of the cyclic map
+    EXPECT_FALSE(mixerIsCyclicServo(0));
+    EXPECT_TRUE(mixerIsCyclicServo(1));
+    EXPECT_TRUE(mixerIsCyclicServo(2));
+
+    mixerSaturateServoOutput(0);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_RC_CHANNEL_AUX1));
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_PITCH));
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_COLLECTIVE));
+}
+
+TEST_F(MixerTest, LiveSetRuleWithCyclicInputKeepsCyclicFlag)
+{
+    *mixerRulesMutable(0) = { MIXER_OP_SET, MIXER_IN_STABILIZED_ROLL, MIXER_SERVO_OFFSET + 5, 0, 1000 };
+    mixerUpdateMapping();
+
+    EXPECT_TRUE(mixerIsCyclicServo(5));
+}
+
+TEST_F(MixerTest, LiveRuleClearRestoresSwashMapping)
+{
+    *mixerRulesMutable(0) = { MIXER_OP_SET, MIXER_IN_NONE, MIXER_SERVO_OFFSET + 0, 123, 0 };
+    mixerUpdateMapping();
+    EXPECT_FALSE(mixerIsCyclicServo(0));
+
+    // "mixer rule 0 reset" clears the rule and rebuilds the map
+    memset(mixerRulesMutable(0), 0, sizeof(mixerRule_t));
+    mixerUpdateMapping();
+
+    EXPECT_TRUE(mixerIsCyclicServo(0));
+    mixerSaturateServoOutput(0);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_PITCH));
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_COLLECTIVE));
+}
+
+TEST_F(MixerTest, LiveSwashTypeChangeRemaps)
+{
+    // MSP_SET_MIXER_CONFIG switches the swash type without a reboot
+    mixerConfigMutable()->swash_type = SWASH_TYPE_THRU;
+    mixerUpdateMapping();
+
+    mixerSaturateServoOutput(0);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_PITCH));
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_COLLECTIVE));
+
+    clearSaturation();
+    mixerSaturateServoOutput(2);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_COLLECTIVE));
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_PITCH));
+    EXPECT_FALSE(mixerIsCyclicServo(2));
+}
+
+TEST_F(MixerTest, LiveTailModeChangeRemaps)
+{
+    mixerSaturateServoOutput(3);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_YAW));
+
+    clearSaturation();
+    mixerConfigMutable()->tail_rotor_mode = TAIL_MODE_MOTORIZED;
+    mixerUpdateMapping();
+
+    // Yaw now feeds the tail motor, not the tail servo
+    mixerSaturateServoOutput(3);
+    EXPECT_FALSE(mixerSaturated(MIXER_IN_STABILIZED_YAW));
+    mixerSaturateMotorOutput(1);
+    EXPECT_TRUE(mixerSaturated(MIXER_IN_STABILIZED_YAW));
 }
 
 /** Config validation **/
