@@ -41,7 +41,10 @@ typedef enum {
 extern int32_t blackboxHeaderBudget;
 
 void blackboxOpen(void);
+void blackboxBeginWrite(void);
+void blackboxEndWrite(void);
 void blackboxWrite(uint8_t value);
+void blackboxWriteUnbuffered(uint8_t value);
 int blackboxWriteString(const char *s);
 
 void blackboxDeviceFlush(void);
