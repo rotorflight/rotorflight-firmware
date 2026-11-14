@@ -11,7 +11,7 @@ on:
 
 env:
   # rotorflight/rotorflight-sim commit with the heli model and the hover check
-  SIM_REF: c019820649ece7b925bbfce8b3735c073f0b3896
+  SIM_REF: 8a7597f75f58645ad34b3b69ce5027a82fbfa937
 
 permissions:
   contents: read

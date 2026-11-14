@@ -46,7 +46,8 @@ def workflow_commands(path, job):
                 if in_job:
                     break                   # the next job at the same level
             if in_job:
-                m = re.match(r"^\s+run:\s*(python3?\s.+)$", stripped)
+                # `run:` under a named step, or `- run:` opening an unnamed one
+                m = re.match(r"^\s+(?:-\s+)?run:\s*(python3?\s.+)$", stripped)
                 if m:
                     commands.append(m.group(1).strip())
     if not commands:
@@ -79,6 +80,8 @@ def main():
         ap.error("no commands")
     if not 1 <= a.jobs <= 99:
         ap.error("--jobs takes 1..99 (SITL_INSTANCE 1..99)")
+    if a.repeat < 1:
+        ap.error("--repeat takes 1 or more")     # 0 would run nothing and report success
 
     runs = [(i, cmd) for i, cmd in enumerate(commands * a.repeat, 1)]
     os.makedirs(a.logs, exist_ok=True)
@@ -97,8 +100,12 @@ def main():
             env = dict(os.environ, SITL_INSTANCE=str(instance), TMPDIR=tmp, TEMP=tmp, TMP=tmp)
             start = time.time()
             with open(os.path.join(tmp, "output.txt"), "w", encoding="utf-8") as out:
-                rc = subprocess.call(shlex.split(cmd, posix=os.name != "nt"), env=env,
-                                     stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL)
+                # POSIX: split as a shell would. Windows: hand the string to CreateProcess,
+                # which applies the Windows quoting rules itself - shlex's non-POSIX mode
+                # would keep the quote characters inside the arguments.
+                argv = cmd if os.name == "nt" else shlex.split(cmd)
+                rc = subprocess.call(argv, env=env, stdout=out, stderr=subprocess.STDOUT,
+                                     stdin=subprocess.DEVNULL)
             took = time.time() - start
         finally:
             with lock:
