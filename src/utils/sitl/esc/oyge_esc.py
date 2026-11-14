@@ -220,13 +220,15 @@ class OpenYGE:
     def frame_length(self, head):
         if len(head) < 4:
             return None
-        if head[0] != SYNC:
+        if head[0] != SYNC or head[3] < HEADER_LENGTH + CRC_LENGTH:
             return 1                     # resynchronise a byte at a time
         return head[3]
 
     def handle(self, request):
-        if len(request) < HEADER_LENGTH + CRC_LENGTH or request[0] != SYNC:
-            self.counts["rejected"] += 1
+        if (len(request) < HEADER_LENGTH + CRC_LENGTH or request[0] != SYNC
+                or struct.unpack_from("<H", request, len(request) - CRC_LENGTH)[0]
+                != crc16_ccitt_msb(request[:-CRC_LENGTH])):
+            self.counts["rejected"] += 1          # the firmware drops a bad CRC; so do we
             return None
         frame_type, seq = request[2], request[4]
         payload = request[HEADER_LENGTH:len(request) - CRC_LENGTH]

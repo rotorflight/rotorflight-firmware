@@ -76,7 +76,9 @@ set esc_sensor_halfduplex = ON           # selects the parameter dialogue
 save
 ```
 
-then `python3 src/utils/sitl/esc/esc_sim.py --protocol openyge --port 5763`.
+`save` reboots, which ends a SITL started directly: start it again (or run it through
+`sitl-run.py`, which does that for you), then
+`python3 src/utils/sitl/esc/esc_sim.py --protocol openyge --port 5763`.
 `src/utils/sitl/esc/esc_check.py <elf>` runs read, telemetry and write end to end for each
 emulated protocol.
 

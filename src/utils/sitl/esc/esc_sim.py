@@ -122,7 +122,7 @@ def main():
                 ap.error(f"--params takes k=v pairs, got {pair!r}")
             name, _, value = pair.partition("=")
             name, value = name.strip(), value.strip()
-            offset, size = field_offset(esc.spec, name)
+            offset, _size = field_offset(esc.spec, name)
             if offset is None:
                 ap.error(
                     f"--params: {args.protocol} has no field {name!r}. It carries "
@@ -130,7 +130,10 @@ def main():
                     f"model would be set nowhere and read back as whatever the fixture "
                     f"holds, which is the shape of a test that passes while measuring "
                     f"nothing.")
-            payload = esc.msp_with_change(payload, name, int(value, 0))
+            try:
+                payload = esc.msp_with_change(payload, name, int(value, 0))
+            except (KeyError, OverflowError, ValueError) as err:
+                ap.error(f"--params: cannot set {name}={value} on {args.protocol}: {err}")
             overridden.append(f"{name}={value}")
         esc.load_msp_payload(payload)
 
@@ -211,7 +214,10 @@ def main():
         writes = getattr(esc, "writes", ())
         while seen["writes"] < len(writes):
             seen["writes"] += 1
-            tell(f"WRITE #{seen['writes']}: {describe(writes[seen['writes'] - 1])}")
+            # The witness field as the ESC now holds it: proof of what was programmed,
+            # not only that something was.
+            tell(f"WRITE #{seen['writes']}: {describe(writes[seen['writes'] - 1])}; "
+                 f"{esc.witness} = {esc.named()[esc.witness]}")
         resets = int(esc.counts.get("reset", 0) or 0)
         while seen["reset"] < resets:
             seen["reset"] += 1
@@ -220,8 +226,10 @@ def main():
     sock = socket.create_connection((args.host, port), timeout=5)
     sock.settimeout(None)
     stop = threading.Event()
-    if args.seconds:
-        threading.Timer(args.seconds, stop.set).start()
+    timer = threading.Timer(args.seconds, stop.set) if args.seconds else None
+    if timer:
+        timer.daemon = True
+        timer.start()
     try:
         mode = args.mode if args.mode != "auto" else getattr(esc, "default_mode", "auto")
         if esc_wire.serve(sock, esc, stop=stop, on_event=on_event, rate_hz=esc.rate_hz,
@@ -230,6 +238,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if timer:
+            timer.cancel()
         sock.close()
 
     if args.state:

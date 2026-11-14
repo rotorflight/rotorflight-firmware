@@ -341,6 +341,11 @@ class Tribunus:
 
     witness = "bailout"
     msp_payload_length = PARAM_PAYLOAD_LENGTH
+    #: The payload as `esc_wire` field metadata, for `field_offset`: the 32-byte identity
+    #: block, then the named U16 fields. The IQ22 gains after them convert between wire
+    #: and MSP, so they are left out; `set_named` handles the U16 fields only.
+    spec = (("esc_info", "U128"), ("esc_info_2", "U128")) + tuple(
+        (name, "U16") for name in U16_FIELDS)
 
     def msp_payload(self):
         """What the flight controller would publish for this ESC."""

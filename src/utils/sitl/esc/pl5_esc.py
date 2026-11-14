@@ -173,9 +173,9 @@ class HobbyWingV5:
             min(0xFFFF, int(round(state["erpm"] / 10))),
             min(0xFFFF, int(round(state["volts"] * 10))),
             min(0xFFFF, int(round(state["amps"] * 10))),
-            min(255, int(round(state["temp_c"]))),
-            min(255, int(round(state["bec_temp_c"]))),
-            min(255, int(round(state["motor_temp_c"]))),
+            max(0, min(255, round(state["temp_c"]))),
+            max(0, min(255, round(state["bec_temp_c"]))),
+            max(0, min(255, round(state["motor_temp_c"]))),
             min(255, int(round(state["bec_volts"] * 10))),
             min(255, int(round(state["bec_amps"] * 10))),
             b"\xff" * 6)
@@ -194,8 +194,10 @@ class HobbyWingV5:
         return REQUEST_LENGTH
 
     def handle(self, request):
-        if len(request) < 8 or request[0] != 0x01:
-            self.counts["rejected"] += 1
+        if (len(request) < 8 or request[0] != 0x01
+                or struct.unpack_from("<H", request, len(request) - 2)[0]
+                != crc16_modbus(request[:-2])):
+            self.counts["rejected"] += 1          # bad framing or CRC: no state change
             return None
         function = request[3]
         frame_type = struct.unpack_from("<H", request, 4)[0]

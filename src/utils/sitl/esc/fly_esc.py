@@ -181,8 +181,9 @@ class FlyRotor:
         return HEADER_LENGTH + head[3] + FOOTER_LENGTH
 
     def handle(self, request):
-        if len(request) < HEADER_LENGTH + FOOTER_LENGTH or request[0] != SYNC:
-            self.counts["rejected"] += 1
+        if (len(request) < HEADER_LENGTH + FOOTER_LENGTH or request[0] != SYNC
+                or request[-1] != END or request[-2] != crc8_atm(request[:-FOOTER_LENGTH])):
+            self.counts["rejected"] += 1          # bad framing or CRC: no state change
             return None
         cmd = request[1]
         data = request[HEADER_LENGTH:HEADER_LENGTH + request[3]]

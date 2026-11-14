@@ -84,7 +84,12 @@ def serve(sock, protocol, stop=None, on_event=None, rate_hz=10.0,
             pending += chunk
             while pending:
                 need = protocol.frame_length(bytes(pending))
-                if need is None or len(pending) < need:
+                if need is None:
+                    break
+                # A length below one byte would slice nothing and spin here for good,
+                # deaf to `stop`: drop a byte and resynchronise instead.
+                need = max(1, need)
+                if len(pending) < need:
                     break
                 request, pending = bytes(pending[:need]), pending[need:]
                 last_request = time.monotonic()

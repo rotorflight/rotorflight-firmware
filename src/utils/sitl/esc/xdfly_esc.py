@@ -186,8 +186,9 @@ class XDFly:
         return FRAME_LENGTH
 
     def handle(self, request):
-        if len(request) < FRAME_LENGTH or request[0] != self.sync:
-            self.counts["rejected"] += 1
+        if (len(request) < FRAME_LENGTH or request[0] != self.sync
+                or (request[6] << 8 | request[7]) != crc16_modbus(request[:6])):
+            self.counts["rejected"] += 1          # bad framing or CRC: no state change
             return None
         cmd, index = request[2], request[3]
 

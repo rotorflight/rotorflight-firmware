@@ -8,8 +8,9 @@ SITL with a level FDM feed, run `esc_sim.py` on the ESC UART, then over MSP
 
   1. wait for the ESC's parameter block (MSP_ESC_PARAMETERS): the firmware read it
   2. check its telemetry arrived (MSP_MOTOR_TELEMETRY: voltage, current)
-  3. write the block back (MSP_SET_ESC_PARAMETERS) with one setting changed and wait for
-     the emulator to report the write: the programming path the Configurator's ESC tab uses
+  3. write the block back (MSP_SET_ESC_PARAMETERS) with the emulator's witness setting
+     changed and wait for the emulator to report holding the new value: the programming
+     path the Configurator's ESC tab uses
 
 Exit status 0 when every protocol passes.
 """
@@ -29,9 +30,14 @@ spec = importlib.util.spec_from_file_location(
 smoke = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(smoke)
 
+sys.path.insert(0, HERE)
+import esc_sim                                                       # noqa: E402
+from esc_wire import field_offset                                    # noqa: E402
+
 MSP_MOTOR_TELEMETRY = 139
 MSP_ESC_PARAMETERS = 217
 MSP_SET_ESC_PARAMETERS = 218
+MSP_PARAM_HEADER_LENGTH = 2          # signature, version/command; then the ESC's payload
 
 # esc_sim protocol -> (esc_sensor_protocol, half duplex)
 PROTOCOLS = {
@@ -50,6 +56,11 @@ def msp_try(msp, cmd, payload=b""):
         return msp.request(cmd, payload)
     except Exception:                       # an MSP error reply: not (yet) available
         return None
+
+
+def emulator(protocol):
+    module_name, class_name, kwargs = esc_sim.PROTOCOLS[protocol]
+    return getattr(importlib.import_module(module_name), class_name)(**kwargs)
 
 
 def check(elf, protocol):
@@ -92,29 +103,38 @@ def check(elf, protocol):
         # telemetry: some ESCs stream only once the parameter dialogue has gone quiet
         volt = curr = 0
         deadline = time.time() + 15
-        while time.time() < deadline and not volt:
+        while time.time() < deadline and not (volt and curr):
             tel = msp.request(MSP_MOTOR_TELEMETRY)
             _rpm, _err, volt, curr = struct.unpack_from("<IHHH", tel, 1)
-            if not volt:
+            if not (volt and curr):
                 time.sleep(0.5)
-        # change one byte near the end of the block (settings, not the header/version
-        # fields at its start) and write it back
+        # change the emulator's witness -- a real, writable setting of this protocol --
+        # and write the block back
+        esc_model = emulator(protocol)
+        witness = esc_model.witness
+        offset, size = field_offset(esc_model.spec, witness)
+        offset += MSP_PARAM_HEADER_LENGTH
         new = bytearray(params)
-        new[-2] ^= 0x01
+        want = int.from_bytes(new[offset:offset + size], "little") ^ 0x01
+        new[offset:offset + size] = want.to_bytes(size, "little")
         # header byte 1: version in the low 6 bits, command in the top 2. A block read
         # back may carry capability bits there (Scorpion: 0x80, "can reset"); written
         # back unchanged that is a command, not a save. Clear them to save.
         new[1] &= 0x3F
         msp_try(msp, MSP_SET_ESC_PARAMETERS, bytes(new))
+        # esc_sim prints the witness as the ESC holds it after every write
+        mark = "; %s = %d" % (witness, want)
         wrote, deadline = False, time.time() + 30
         while time.time() < deadline and not wrote:
             time.sleep(0.5)
             out.flush()
             with open(out.name) as f:
-                wrote = "WRITE #" in f.read()
-        detail = "%d-byte block, telemetry %.2f V %.2f A, write %s" % (
-            len(params), volt / 1000, curr / 1000, "reached the ESC" if wrote else "NOT seen")
-        return wrote and volt > 0, detail
+                wrote = any(line.rstrip().endswith(mark)
+                            for line in f if "WRITE #" in line)
+        detail = "%d-byte block, telemetry %.2f V %.2f A, %s %s" % (
+            len(params), volt / 1000, curr / 1000, witness,
+            "-> %d reached the ESC" % want if wrote else "-> %d NOT seen" % want)
+        return wrote and volt > 0 and curr > 0, detail
     finally:
         feed.running = False
         if esc:
