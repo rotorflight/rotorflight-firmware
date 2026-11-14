@@ -109,6 +109,8 @@ TEST(TelemetryCrsfTest, TestGPS)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
+    // gpsSol outlives the test: start from no fix on every run (--gtest_repeat)
+    memset(&gpsSol, 0, sizeof(gpsSol));
     int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_GPS);
     EXPECT_EQ(CRSF_FRAME_GPS_PAYLOAD_SIZE + FRAME_HEADER_FOOTER_LEN, frameLen);
     EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
@@ -155,7 +157,10 @@ TEST(TelemetryCrsfTest, TestBattery)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
+    // The globals outlive the test: start from zero on every run (--gtest_repeat)
     testBatteryVoltage = 0; // 0.1V units
+    testAmperage = 0;
+    testmAhDrawn = 0;
     int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_BATTERY_SENSOR);
     EXPECT_EQ(CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE + FRAME_HEADER_FOOTER_LEN, frameLen);
     EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
