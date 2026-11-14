@@ -8,8 +8,14 @@ The radio is EdgeTX itself, loaded from Companion's simulator library (`edgetx_s
 with its own SD card - radio settings, a model, Lua scripts. Its mixer outputs go to the
 SITL as CRSF RC frames at 50 Hz; the SITL's CRSF telemetry frames go back into the radio's
 internal module, where EdgeTX and its Lua scripts receive them as from a real receiver.
-So a Lua suite on the SD card talks to the simulated flight controller over the same
-CRSF/MSP path it uses with a real one.
+Like a receiver, the bridge also sends link statistics (good link, 10 Hz): EdgeTX takes
+no native telemetry values (battery, attitude, ...) until a `LINK_ID` frame with nonzero
+link quality says the link is up.
+
+**One way only for Lua MSP.** The simulator library discards whatever the radio sends to
+its module (Companion 2.12.5: `sendByte`/`sendBuffer` in `targets/simu/module_drivers.cpp`
+are empty), so a Lua script's CRSF MSP requests never leave the radio and cannot be
+forwarded from here. Telemetry from the FC reaches the scripts; their requests do not.
 
 The SITL side is a CRSF receiver on a TCP UART:
 
@@ -42,7 +48,9 @@ sys.path.insert(0, HERE)
 from edgetx_sim import Sim, settle      # noqa: E402
 
 CRSF_SYNC = 0xC8
+CRSF_FRAMETYPE_LINK_STATISTICS = 0x14
 CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16
+LINK_STATS_HZ = 10.0
 
 
 def crc8_dvb_s2(data):
@@ -74,6 +82,18 @@ def crsf_rc_frame(channels_us):
     return bytes([CRSF_SYNC, len(body) + 1]) + body + bytes([crc8_dvb_s2(body)])
 
 
+def crsf_link_stats_frame(lq=100, rssi_dbm=-50, snr_db=10):
+    """LINK_STATISTICS as a receiver reports it: a good link on both directions.
+
+    Uplink RSSI 1/2 (dBm, sent positive), uplink LQ, uplink SNR, active antenna, RF mode,
+    uplink TX power (index; 2 = 25 mW), downlink RSSI, LQ, SNR.
+    """
+    payload = bytes([-rssi_dbm, -rssi_dbm, lq, snr_db & 0xFF, 0, 2, 2,
+                     -rssi_dbm, lq, snr_db & 0xFF])
+    body = bytes([CRSF_FRAMETYPE_LINK_STATISTICS]) + payload
+    return bytes([CRSF_SYNC, len(body) + 1]) + body + bytes([crc8_dvb_s2(body)])
+
+
 class RadioBridge(threading.Thread):
     """Channels out, telemetry in, between a running `Sim` and a SITL CRSF UART."""
 
@@ -86,14 +106,20 @@ class RadioBridge(threading.Thread):
         self.running = True
         self.rc_frames = 0
         self.telemetry_frames = 0
+        self.link_stats_frames = 0
         self.bad_crc = 0
         self.last_channels = []
 
     def run(self):
         buf = b""
-        next_tx = time.monotonic()
+        next_tx = next_stats = time.monotonic()
         while self.running:
             now = time.monotonic()
+            if now >= next_stats:
+                # the receiver's part: link up, so EdgeTX takes native telemetry values
+                self.sim.send_internal_telemetry(crsf_link_stats_frame())
+                self.link_stats_frames += 1
+                next_stats = max(now, next_stats + 1.0 / LINK_STATS_HZ)
             if now >= next_tx:
                 self.last_channels = [edgetx_to_us(v) for v in self.sim.channels.read()[:16]]
                 try:

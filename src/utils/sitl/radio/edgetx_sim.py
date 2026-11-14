@@ -108,6 +108,10 @@ SYMBOLS_ELF = {
 # call that happens to be available here.
 QT_QSTRING_FROM_UTF16 = "_ZN7QStringC1EPK5QCharx"
 QT_QBA_CTOR_ELF = "_ZN10QByteArrayC1EPKcx"
+# `~QByteArray()` is inline, so nothing exports it; what it ends in is
+# `QArrayData::deallocate(d, sizeof(char), alignof(QArrayData))`, which is `::free(d)`.
+QT_ARRAYDATA_DEALLOCATE_ELF = "_ZN10QArrayData10deallocateEPS_xx"
+QARRAYDATA_ALIGN = 8
 
 WINDOWS = os.name == "nt"
 LIB_SUFFIX = ".dll" if WINDOWS else ".so"
@@ -259,6 +263,15 @@ class Sim:
                               [V, ctypes.c_void_p, ctypes.c_int64])
             self._qba = bind(self.qtcore, QT_QBA_CTOR_ELF, V,
                              [V, ctypes.c_char_p, ctypes.c_int64])
+            # Releases the QByteArray's buffer: Qt's own deallocate where it is
+            # exported, else libc free(), which is what that does in Qt 6.
+            if hasattr(self.qtcore, QT_ARRAYDATA_DEALLOCATE_ELF):
+                self._qadealloc = bind(self.qtcore, QT_ARRAYDATA_DEALLOCATE_ELF, None,
+                                       [V, ctypes.c_int64, ctypes.c_int64])
+            else:
+                libc_free = ctypes.CDLL(None).free
+                libc_free.argtypes, libc_free.restype = [V], None
+                self._qadealloc = lambda d, size, align: libc_free(d)
 
         self._buf = ctypes.create_string_buffer(OBJ_BUF)
         self.this = ctypes.cast(self._buf, ctypes.c_void_p)
@@ -427,6 +440,25 @@ class Sim:
         data = bytes(frame)
         self._qba(ctypes.cast(buf, ctypes.c_void_p), data, len(data))
         self._sendtlm(self.this, protocol, ctypes.cast(buf, ctypes.c_void_p))
+        if not WINDOWS:
+            self._release_qbytearray(buf)
+
+    def _release_qbytearray(self, buf):
+        """`~QByteArray()` for a by-value argument we built (Itanium ABI only).
+
+        Passed by value, a QByteArray is a temporary the CALLER destroys on the Itanium
+        ABI (Linux), while MSVC has the callee destroy it - so this is Linux only, or
+        every frame would be freed twice on Windows. `sendTelemetry` uses the bytes
+        synchronously and keeps no copy, so the reference count is back to 1 here.
+        """
+        d = ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p))[0]
+        if not d:
+            return
+        ref = ctypes.cast(d, ctypes.POINTER(ctypes.c_int))       # QArrayData::ref_
+        if ref[0] == 1:
+            self._qadealloc(d, 1, QARRAYDATA_ALIGN)
+        elif ref[0] > 1:
+            ref[0] -= 1        # someone kept a copy after all: leave it the buffer
 
     # -------------------------------------------------------------- context
 

@@ -106,11 +106,14 @@ def main():
     rundir = tempfile.mkdtemp(prefix="sitl-radio-")
     s = smoke.Sitl(elf, rundir, "1-first"); s.wait(30); s.stop()
     s = smoke.Sitl(elf, rundir, "2-config")
-    sock = smoke.connect_uart1(s)
-    smoke.cli(sock, ["feature -RX_MSP", "feature RX_SERIAL", "feature TELEMETRY",
-                     "serial 1 64 115200 57600 0 115200", "set serialrx_provider = CRSF",
-                     "map RETA1C23", "aux 0 0 0 1700 2100 0 0", "save"])
-    sock.close(); s.wait(15); s.stop()
+    try:
+        sock = smoke.connect_uart1(s)
+        smoke.cli(sock, ["feature -RX_MSP", "feature RX_SERIAL", "feature TELEMETRY",
+                         "serial 1 64 115200 57600 0 115200", "set serialrx_provider = CRSF",
+                         "map RETA1C23", "aux 0 0 0 1700 2100 0 0", "save"])
+        sock.close(); s.wait(15)
+    finally:
+        s.stop()        # a timeout above must not leave this SITL holding the ports
 
     sim = Sim(a.radio, bindir=a.bindir)
     sim.set_sd_path(make_sd(a.sd_template))
@@ -158,7 +161,10 @@ def main():
         got = bridge.telemetry_frames - before
         if got < 5 or bridge.bad_crc:
             raise smoke.Failure("telemetry: %d frames in 3 s, %d bad CRC" % (got, bridge.bad_crc))
-        smoke.log("PASS telemetry: %d CRSF frames in 3 s into the radio, no CRC errors" % got)
+        if not bridge.link_stats_frames:
+            raise smoke.Failure("telemetry: no link statistics sent to the radio")
+        smoke.log("PASS telemetry: %d CRSF frames in 3 s into the radio, no CRC errors; "
+                  "%d link statistics frames" % (got, bridge.link_stats_frames))
     finally:
         feed.running = False
         if bridge:
