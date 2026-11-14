@@ -31,10 +31,16 @@
 #if defined(USE_FREQ_SENSOR)
 
 #include "drivers/freq.h"
+#include "drivers/time.h"
 #include "pg/freq.h"
 
 static volatile float freqHz[FREQ_SENSOR_PORT_COUNT];
 static bool freqInitialised;
+
+// Simulated signal: one edge per period, pin high for the first half
+static float freqPhase[FREQ_SENSOR_PORT_COUNT];
+static uint16_t freqEdges[FREQ_SENSOR_PORT_COUNT];
+static timeUs_t freqLastUpdateUs;
 
 void freqInit(const freqConfig_t *freqConfig)
 {
@@ -44,6 +50,16 @@ void freqInit(const freqConfig_t *freqConfig)
 
 void freqUpdate(void)
 {
+    const timeUs_t now = micros();
+    const float dt = freqLastUpdateUs ? (now - freqLastUpdateUs) * 1e-6f : 0;
+    freqLastUpdateUs = now;
+
+    for (int port = 0; port < FREQ_SENSOR_PORT_COUNT; port++) {
+        freqPhase[port] += freqHz[port] * dt;
+        const float periods = floorf(freqPhase[port]);
+        freqEdges[port] += (uint16_t)periods;   // wraps like the hardware counter
+        freqPhase[port] -= periods;
+    }
 }
 
 void fakeFreqSet(uint8_t port, float hz)
@@ -61,6 +77,16 @@ float getFreqSensorFreq(uint8_t port)
 uint32_t getFreqSensorRPM(uint8_t port)
 {
     return lrintf(getFreqSensorFreq(port) * 60);
+}
+
+uint16_t getFreqSensorEdgeCount(uint8_t port)
+{
+    return (port < FREQ_SENSOR_PORT_COUNT) ? freqEdges[port] : 0;
+}
+
+bool getFreqSensorPinState(uint8_t port)
+{
+    return freqInitialised && port < FREQ_SENSOR_PORT_COUNT && freqPhase[port] < 0.5f;
 }
 
 bool isFreqSensorPortInitialized(uint8_t port)
