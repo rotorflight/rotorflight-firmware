@@ -112,7 +112,6 @@
 
 #include "telemetry/telemetry.h"
 #ifdef USE_SPORT_MASTER
-#include "drivers/fbus_sensor.h"
 #include "telemetry/sport_master.h"
 #endif
 
@@ -758,10 +757,6 @@ void processRxModes(timeUs_t currentTimeUs)
 void subTaskTelemetryPollSensors(timeUs_t currentTimeUs)
 {
     static timeUs_t lastGyroTempTimeUs = 0;
-
-#if defined(USE_SPORT_MASTER) && !defined(USE_FBUS_MASTER)
-    fbusSensorUpdate(currentTimeUs);
-#endif
 
     if (cmpTimeUs(currentTimeUs, lastGyroTempTimeUs) >= GYRO_TEMP_READ_DELAY_US) {
         // Read out gyro temperature if used for telemmetry
