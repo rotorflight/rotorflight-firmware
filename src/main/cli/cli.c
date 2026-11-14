@@ -525,7 +525,9 @@ static void cliPrintErrorVa(const char *cmdName, const char *format, va_list va)
         // appears -- only this error does, with nothing to say where it came
         // from. Tag it so it doesn't look like it fired out of context (e.g.
         // right after typing `defaults`, with no obvious connection to it).
-        if (processingCustomDefaults) {
+        // With DEBUG_CUSTOM_DEFAULTS the replay is echoed (cliWriter stays
+        // set), so the context is already visible and no tag is needed.
+        if (processingCustomDefaults && !cliWriter) {
             cliPrintInternal(cliErrorWriter, " (custom defaults)");
         }
 #endif
