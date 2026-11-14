@@ -56,7 +56,7 @@ class Rotor(threading.Thread):
         self.hold_rpm = None    # turn the shaft at this rpm regardless of the motor
         self.throttle = 0.0
         self.out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.out.bind(("127.0.0.1", 9002))
+        self.out.bind(("127.0.0.1", smoke.OUTPUT_PORT))
         self.out.setblocking(False)
         self.fdm = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -85,7 +85,7 @@ class Rotor(threading.Thread):
                 self.w = self.hold_rpm * 2 * math.pi / 60
             pkt = struct.pack("<21d", now - t0, 0, 0, 0, 0, 0, -G, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                               self.rpm, 0, 0, 0)        # 168 bytes: + motor_erpm[4]
-            self.fdm.sendto(pkt, ("127.0.0.1", 9003))
+            self.fdm.sendto(pkt, ("127.0.0.1", smoke.FDM_PORT))
             n += 1
             sleep = t0 + n * 0.002 - time.perf_counter()
             if sleep > 0:

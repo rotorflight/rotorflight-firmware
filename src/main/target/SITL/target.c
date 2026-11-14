@@ -41,6 +41,7 @@
 #include <unistd.h>
 #endif
 #include <time.h>
+#include <pthread.h>
 #if defined(_WIN32) || defined(__MINGW32__)
 #include <pthread_time.h>
 #endif
@@ -61,6 +62,36 @@ static bool simLockstep;                                // SITL_LOCKSTEP, see si
 static bool simMainLoopRunning;                         // set on the first scheduler pass
 static void simLockstepAdvance(double timestamp);
 static uint32_t lockstepPacketSeq;                      // FDM packets taken in lockstep
+
+// Lockstep: the main loop sleeps here between replying to one FDM packet and
+// the next one arriving, instead of spinning a core (simLoopIdle()).
+static pthread_mutex_t lockstepWaitLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t lockstepWaitCond = PTHREAD_COND_INITIALIZER;
+
+static void lockstepWakeMainLoop(void)
+{
+    pthread_mutex_lock(&lockstepWaitLock);
+    pthread_cond_signal(&lockstepWaitCond);
+    pthread_mutex_unlock(&lockstepWaitLock);
+}
+
+// Until lockstepPacketSeq moves past `seq`, or `timeoutUs` has passed.
+static void lockstepWaitForPacket(uint32_t seq, uint32_t timeoutUs)
+{
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_nsec += (long)timeoutUs * 1000;
+    until.tv_sec += until.tv_nsec / 1000000000;
+    until.tv_nsec %= 1000000000;
+
+    pthread_mutex_lock(&lockstepWaitLock);
+    while (__atomic_load_n(&lockstepPacketSeq, __ATOMIC_ACQUIRE) == seq) {
+        if (pthread_cond_timedwait(&lockstepWaitCond, &lockstepWaitLock, &until) != 0) {
+            break;      // timed out (or an error): the caller just runs another pass
+        }
+    }
+    pthread_mutex_unlock(&lockstepWaitLock);
+}
 
 #include "drivers/io.h"
 #include "drivers/dma.h"
@@ -384,6 +415,7 @@ void updateState(const fdm_packet* pkt, int size) {
     if (simLockstepActive()) {
         // The main loop replies once this step has been run (simLoopIdle()).
         __atomic_add_fetch(&lockstepPacketSeq, 1, __ATOMIC_RELEASE);
+        lockstepWakeMainLoop();
     } else if (!motorIsEnabled()) {
         sendPwmPacket(false);
     }
@@ -462,6 +494,29 @@ static void* tcpThread(void* data) {
 }
 
 // system
+// SITL_INSTANCE=k moves every default port by 10 * k - the TCP UARTs
+// (5761.. -> 5761 + 10k..), the FDM input (9003) and the output link (9002) -
+// so several SITLs can run side by side on one host. 0 (unset) is the usual
+// set; SITL_FDM_PORT and SITL_OUTPUT_ADDR still override their own port.
+int simInstancePortOffset(void)
+{
+    static int offset = -1;
+    if (offset < 0) {
+        const char *v = getenv("SITL_INSTANCE");
+        long k = 0;
+        if (v) {
+            char *end;
+            k = strtol(v, &end, 10);
+            if (!*v || *end || k < 0 || k > SITL_INSTANCE_MAX) {
+                fprintf(stderr, "SITL: SITL_INSTANCE='%s' is not a number 0..%d\n", v, SITL_INSTANCE_MAX);
+                exit(1);
+            }
+        }
+        offset = (int)k * SITL_INSTANCE_PORT_STRIDE;
+    }
+    return offset;
+}
+
 // A decimal UDP port from the environment, or the default when unset.
 static int simEnvPort(const char *name, int def)
 {
@@ -632,9 +687,14 @@ void systemInit(void) {
     pthread_mutex_unlock(&dyadReadyLock);
 
     // Endpoints: SITL_FDM_PORT (default 9003, all interfaces) and
-    // SITL_OUTPUT_ADDR as host[:port] (default 127.0.0.1:9002). Read once;
-    // an invalid value ends the process rather than falling back silently.
-    const int fdmPort = simEnvPort("SITL_FDM_PORT", 9003);
+    // SITL_OUTPUT_ADDR as host[:port] (default 127.0.0.1:9002), both defaults
+    // moved by SITL_INSTANCE. Read once; an invalid value ends the process
+    // rather than falling back silently.
+    if (simInstancePortOffset()) {
+        printf("[system]instance %d: ports moved by %d\n",
+               simInstancePortOffset() / SITL_INSTANCE_PORT_STRIDE, simInstancePortOffset());
+    }
+    const int fdmPort = simEnvPort("SITL_FDM_PORT", 9003 + simInstancePortOffset());
     ret = udpInit(&stateLink, NULL, fdmPort, true);
     printf("start UDP server on port %d...%d\n", fdmPort, ret);
     if (ret != 0) {
@@ -644,7 +704,7 @@ void systemInit(void) {
 
     char outHost[64];
     int outPort;
-    simEnvEndpoint("SITL_OUTPUT_ADDR", "127.0.0.1", 9002, outHost, sizeof(outHost), &outPort);
+    simEnvEndpoint("SITL_OUTPUT_ADDR", "127.0.0.1", 9002 + simInstancePortOffset(), outHost, sizeof(outHost), &outPort);
     ret = udpInit(&pwmLink, outHost, outPort, false);
     printf("init PwmOut UDP link to %s:%d...%d\n", outHost, outPort, ret);
     if (ret != 0) {
@@ -930,6 +990,13 @@ void simLoopIdle(void)
             } else {
                 seenSeq = seq;
             }
+        } else {
+            // Replied, and no new packet: the clock stands still until the next
+            // one, so another pass would do nothing. Sleep until it arrives (or
+            // 2 ms, so nothing can hang on a lost wakeup) instead of spinning a
+            // core - which is what lets several SITLs share a host.
+            lockstepWaitForPacket(repliedSeq, 2000);
+            return;
         }
     }
 

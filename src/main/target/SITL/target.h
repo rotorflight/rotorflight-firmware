@@ -372,6 +372,11 @@ uint64_t millis64_real(void);
 void delayMicroseconds_real(uint32_t us);
 void simLoopIdle(void);
 bool simLockstepActive(void);   // SITL_LOCKSTEP and the hand-over done (target.c)
+
+// SITL_INSTANCE=k: all default ports + 10 * k (target.c). 8 UARTs fit in 10.
+#define SITL_INSTANCE_PORT_STRIDE 10
+#define SITL_INSTANCE_MAX 99
+int simInstancePortOffset(void);
 uint64_t micros64(void);
 uint64_t millis64(void);
 

@@ -130,7 +130,7 @@ def main():
     bridge = None
     try:
         msp = smoke.Msp(smoke.connect_uart1(s))
-        bridge = RadioBridge(sim, port=5762)
+        bridge = RadioBridge(sim, port=smoke.uart_port(2))
         bridge.start()
         msp.request(smoke.MSP_ACC_CALIBRATION)
 

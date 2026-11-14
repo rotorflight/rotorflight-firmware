@@ -132,10 +132,11 @@ static tcpPort_t* tcpReconfigure(tcpPort_t *s, int id)
     dyad_setNoDelay(s->serv, 1);
     dyad_addListener(s->serv, DYAD_EVENT_ACCEPT, onAccept, s);
 
-    if (dyad_listenEx(s->serv, "0.0.0.0", BASE_PORT + id + 1, 10) == 0) {
-        fprintf(stderr, "bind port %u for UART%u\n", (unsigned)BASE_PORT + id + 1, (unsigned)id + 1);
+    const unsigned port = BASE_PORT + simInstancePortOffset() + id + 1;     // SITL_INSTANCE
+    if (dyad_listenEx(s->serv, "0.0.0.0", port, 10) == 0) {
+        fprintf(stderr, "bind port %u for UART%u\n", port, (unsigned)id + 1);
     } else {
-        fprintf(stderr, "bind port %u for UART%u failed!!\n", (unsigned)BASE_PORT + id + 1, (unsigned)id + 1);
+        fprintf(stderr, "bind port %u for UART%u failed!!\n", port, (unsigned)id + 1);
     }
     simDyadUnlock();
     return s;
