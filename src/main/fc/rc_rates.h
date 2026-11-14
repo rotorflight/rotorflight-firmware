@@ -36,8 +36,9 @@ typedef struct ratesSettingsLimits_s {
 
 extern const ratesSettingsLimits_t ratesSettingLimits[RATES_TYPE_COUNT];
 
-extern const ratesSettingsLimits_t * currentControlRateLimits;
 extern controlRateConfig_t * currentControlRateProfile;
+
+const ratesSettingsLimits_t * getRatesSettingLimits(uint8_t ratesType);
 
 float applyRatesCurve(const int axis, float rcCommandf);
 
