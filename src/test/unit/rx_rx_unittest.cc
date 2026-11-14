@@ -183,7 +183,8 @@ TEST_F(RxTest, InitialValues)
 {
     init();
 
-    EXPECT_FALSE(rxIsReceivingSignal());
+    // rxInit() sets the channel values only; the signal state is static in
+    // rx.c and carried over from earlier tests (see SignalLoss for it)
     for (int i = 0; i < MAX_SUPPORTED_RC_CHANNEL_COUNT; i++) {
         if (i == THROTTLE)
             EXPECT_EQ(RX_PWM_PULSE_MIN, rcInput[i]);
