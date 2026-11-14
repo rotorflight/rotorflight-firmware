@@ -81,18 +81,19 @@ static void onAccept(dyad_Event *e) {
     // Discard any bytes left over from a previous client's connection (e.g.
     // a reply that was still queued in the tx buffer when that client
     // disconnected). Without this, stale bytes get prepended to the new
-    // client's first read, corrupting the MSP stream.
-    // Note: don't take s->txLock/s->rxLock here. onAccept() runs from within
-    // dyad_update(), which the tcpThread calls with dyadLock already held,
-    // so the lock order here is dyadLock -> txLock. tcpDataOut() acquires
-    // the opposite order (txLock -> dyadLock), so taking txLock in this
-    // function would deadlock against it. Resetting the plain indices is
-    // safe enough here since onAccept() only fires when no client was
-    // previously connected (clientCount was 0).
-    s->port.txBufferHead = 0;
-    s->port.txBufferTail = 0;
+    // client's first read, corrupting the MSP stream. The firmware may be
+    // using either ring right now, so each is reset under its own lock:
+    // - RX: onAccept() runs inside dyad_update(), with dyadLock held, and
+    //   onData() already takes rxLock there; dyadLock -> rxLock is the only
+    //   order in use, so taking rxLock here is safe.
+    // - TX: tcpDataOut() takes txLock -> dyadLock, so taking txLock here
+    //   (dyadLock -> txLock) could deadlock. Flag the discard instead; the
+    //   writer drops the stale bytes under txLock before it adds new ones.
+    pthread_mutex_lock(&s->rxLock);
     s->port.rxBufferHead = 0;
     s->port.rxBufferTail = 0;
+    pthread_mutex_unlock(&s->rxLock);
+    __atomic_store_n(&s->txDiscard, true, __ATOMIC_RELEASE);
     s->conn = e->remote;
     dyad_setNoDelay(e->remote, 1);
     dyad_setTimeout(e->remote, 120);
@@ -213,6 +214,15 @@ bool isTcpTransmitBufferEmpty(const serialPort_t *instance)
     return isEmpty;
 }
 
+// With txLock held: drop what a previous client left in the TX ring (see onAccept()).
+static void tcpTxDiscardLocked(tcpPort_t *s)
+{
+    if (__atomic_exchange_n(&s->txDiscard, false, __ATOMIC_ACQUIRE)) {
+        s->port.txBufferHead = 0;
+        s->port.txBufferTail = 0;
+    }
+}
+
 uint8_t tcpRead(serialPort_t *instance)
 {
     uint8_t ch;
@@ -234,6 +244,7 @@ void tcpWrite(serialPort_t *instance, uint8_t ch)
 {
     tcpPort_t *s = (tcpPort_t *)instance;
     pthread_mutex_lock(&s->txLock);
+    tcpTxDiscardLocked(s);
 
     s->port.txBuffer[s->port.txBufferHead] = ch;
     if (s->port.txBufferHead + 1 >= s->port.txBufferSize) {
@@ -253,6 +264,7 @@ void tcpDataOut(tcpPort_t *instance)
     // the connection is already known to be closed.
     if (s->conn == NULL) return;
     pthread_mutex_lock(&s->txLock);
+    tcpTxDiscardLocked(s);
 
     simDyadLock();
     // Re-check s->conn now that dyadLock is held: onClose() (which nulls
@@ -309,7 +321,10 @@ void tcpProcessRxCallbacks(void)
         if (!tcpPortInitialized[id] || !s->port.rxCallback) {
             continue;
         }
-        while (tcpTotalRxBytesWaiting(&s->port)) {
+        // Only what was waiting at the start of this pass: a sender that keeps
+        // the ring topped up must not hold the main loop (and the lockstep
+        // reply after this) here. Later bytes wait for the next pass.
+        for (uint32_t n = tcpTotalRxBytesWaiting(&s->port); n > 0; n--) {
             s->port.rxCallback(tcpRead(&s->port), s->port.rxCallbackData);
         }
     }

@@ -75,6 +75,7 @@ typedef struct {
     pthread_mutex_t rxLock;
     bool connected;
     uint16_t clientCount;
+    bool txDiscard;         // set by onAccept(): drop the previous client's TX bytes (under txLock)
     uint8_t id;
 } tcpPort_t;
 
