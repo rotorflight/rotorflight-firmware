@@ -518,24 +518,25 @@ FAST_CODE void scheduler(void)
             schedLoopStartCycles += schedLoopStartDeltaUpCycles;
         }
 
+#if defined(SIMULATOR_BUILD)
+        // Lockstep: the clock only moves with the simulator's steps, so polling
+        // for a boundary still ahead would never end, and running the gyro
+        // early instead would run it on every step when the steps are shorter
+        // than the gyro period (5 kHz on 200 us steps). Skip it until the
+        // target is due; the target keeps its phase, and the clock reaches it
+        // within a step or two.
+        const bool gyroDue = !simLockstepActive() || schedLoopRemainingCycles <= 0;
+#else
+        const bool gyroDue = true;
+#endif
+
         // Once close to the timing boundary, poll for it's arrival
-        if (schedLoopRemainingCycles < schedLoopStartCycles) {
+        if (gyroDue && schedLoopRemainingCycles < schedLoopStartCycles) {
             if (schedLoopStartCycles > schedLoopStartMinCycles) {
                 schedLoopStartCycles -= schedLoopStartDeltaDownCycles;
             }
 #if !defined(UNIT_TEST)
             while (schedLoopRemainingCycles > 0) {
-#if defined(SIMULATOR_BUILD)
-                // Lockstep: the clock only moves with the simulator's next step,
-                // so waiting here for the boundary would never end. Run the step
-                // on the newest sample now - it is the step for this sim time.
-                if (simLockstepActive()) {
-                    // ...and keep the target on the clock: schedLoopStartCycles
-                    // adapts, and a phase left inside it now could fall outside later.
-                    nextTargetCycles = nowCycles;
-                    break;
-                }
-#endif
                 nowCycles = getCycleCounter();
                 schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
             }

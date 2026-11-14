@@ -18,7 +18,8 @@ Runs the SITL executable in a fresh temporary directory and checks, in order:
   6. with FDM packets sent in bursts (a stalling sender), the firmware clock
      still follows real time
   7. lockstep (SITL_LOCKSTEP=1): each 250 us FDM step gets one output packet,
-     and the firmware clock advances exactly with the simulated time
+     and the firmware clock advances exactly with the simulated time; on 200 us
+     steps the gyro loop still runs at 4 kHz, not once per step
 
 Uses only the Python standard library. Ports 5761, 5762, 9002 and 9003 must be free.
 SITL_LOOP_SLEEP_US is passed through to the SITL (see target/SITL/target.c).
@@ -458,11 +459,17 @@ def run(elf, rundir):
 
     # 7. lockstep: one FDM step, one output packet, firmware time = sim time
     lockstep(elf, rundir)
+    lockstep(elf, rundir, dt=200e-6)
+
+
+GYRO_PERIOD_US = 250    # the fake gyro's 4 kHz
 
 
 def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
     """SITL_LOCKSTEP=1: step the FDM by dt, wait for the output packet, repeat.
-    MSP_RTC, read at two sim times while stepping, must advance by the sim time."""
+    MSP_RTC, read at two sim times while stepping, must advance by the sim time.
+    MSP_STATUS, read throughout, gives the gyro task's latest interval: on steps
+    shorter than the gyro period it is one or two steps, averaging the period."""
     outputs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     outputs.bind(("127.0.0.1", 9002))
     outputs.settimeout(0.05)
@@ -476,12 +483,16 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         steps = int(sim_seconds / dt)
         ask_at = {int(1.0 / dt), int(5.0 / dt)}
         timeouts, rx, rtc, asked = 0, b"", [], None
+        gyro_us, status_pending = [], False
         t0 = time.time()
         for n in range(steps):
             ts = n * dt
             if n in ask_at:
                 sock.send(b"$M<" + bytes([0, MSP_RTC, MSP_RTC]))
                 asked = ts
+            elif not status_pending and n % 50 == 0 and n * dt >= 1.0:
+                sock.send(b"$M<" + bytes([0, MSP_STATUS, MSP_STATUS]))
+                status_pending = True
             fdm.sendto(struct.pack("<17d", ts, 0, 0, 0, 0, 0, -9.80665, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0),
                        ("127.0.0.1", 9003))
             try:
@@ -492,12 +503,17 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
                 rx += sock.recv(512)
             except (BlockingIOError, socket.timeout):
                 pass
-            i = rx.find(b"$M>")
-            if i >= 0 and len(rx) >= i + 6 + rx[i + 3]:
+            while True:
+                i = rx.find(b"$M>")
+                if i < 0 or len(rx) < i + 6 + rx[i + 3]:
+                    break
                 payload = rx[i + 5:i + 5 + rx[i + 3]]
                 if rx[i + 4] == MSP_RTC and len(payload) >= 9:
                     _, _, _, h, mi, sec, ms = struct.unpack("<HBBBBBH", payload[:9])
                     rtc.append((asked, ts, ((h * 60 + mi) * 60 + sec) * 1000 + ms))
+                elif rx[i + 4] == MSP_STATUS and len(payload) >= 4:
+                    gyro_us.append(struct.unpack_from("<H", payload, 2)[0])
+                    status_pending = False
                 rx = rx[i + 6 + rx[i + 3]:]
         real = time.time() - t0
         if timeouts > steps // 100:
@@ -514,8 +530,20 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         dsim = (ask2 - ask1) * 1000
         if not lo <= dfw <= hi or max(got1 - ask1, got2 - ask2) > 1.0:
             raise Failure("lockstep: firmware advanced %d ms, sim %.1f..%.1f ms" % (dfw, lo + 2, hi - 2))
-        log("PASS lockstep: %d steps at %.1fx real time, %d without reply; firmware %d ms over %.1f ms sim"
-            % (steps, sim_seconds / real, timeouts, dfw, dsim))
+        # The gyro runs on the first step at or after each 250 us boundary, so its
+        # intervals are whole steps averaging the gyro period: with 200 us steps three
+        # of 200 and one of 400 (a step-sampled mean of 240), never 200 throughout.
+        if len(gyro_us) < 10:
+            raise Failure("lockstep: only %d MSP_STATUS replies" % len(gyro_us))
+        step_us = dt * 1e6
+        gyro_mean = sum(gyro_us) / len(gyro_us)
+        expect = GYRO_PERIOD_US if step_us >= GYRO_PERIOD_US else 0.96 * GYRO_PERIOD_US
+        if abs(gyro_mean - expect) > 0.06 * GYRO_PERIOD_US:
+            raise Failure("lockstep: gyro interval %.0f us on %.0f us steps (expected ~%.0f): %s"
+                          % (gyro_mean, step_us, expect, sorted(set(gyro_us))))
+        log("PASS lockstep: %d steps of %.0f us at %.1fx real time, %d without reply; firmware %d ms "
+            "over %.1f ms sim; gyro interval %.0f us"
+            % (steps, step_us, sim_seconds / real, timeouts, dfw, dsim, gyro_mean))
     finally:
         if env_before is None:
             os.environ.pop("SITL_LOCKSTEP", None)
