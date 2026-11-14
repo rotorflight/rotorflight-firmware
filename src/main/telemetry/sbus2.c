@@ -98,7 +98,8 @@ void handleSbus2Telemetry(timeUs_t currentTimeUs)
 
     if (escData != NULL) {
         // 8 slots, esc
-        send_kontronik(8,  escData->voltage * 0.1f, escData->consumption * 100, rpm, escData->current * 0.01f, escData->temperature * 0.1f, escData->temperature2 * 0.1f, escData->bec_current * 10, escData->pwm * 0.1f);
+        // the encoder expects 0.01 V, mAh, rpm, 0.01 A, degC, degC, 0.01 A; escData is mV, mAh, mA, 0.1 degC, mA
+        send_kontronik(8,  escData->voltage * 0.1f, escData->consumption, rpm, escData->current * 0.1f, escData->temperature * 0.1f, escData->temperature2 * 0.1f, escData->bec_current * 0.1f, escData->pwm * 0.1f);
     }
 }
 

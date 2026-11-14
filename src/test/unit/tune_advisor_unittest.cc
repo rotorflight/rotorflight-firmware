@@ -212,6 +212,122 @@ TEST_F(TuneAdvisorTest, SmallInputsAreNotReleases)
     EXPECT_EQ(0, roll().releases);
 }
 
+// Stick centred, gyro oscillating at freq Hz with this amplitude, plus a slow drift
+static void feedShake(float amplitude, float freq, int samples)
+{
+    for (int i = 0; i < samples; i++) {
+        const float t = (float)i / TA_SAMPLE_HZ;
+        tuneAdvisorSample_t s = {};
+        s.valid = true;
+        s.collective = 0.3f;
+        s.gyro[FD_ROLL] = amplitude * sinf(2.0f * (float)M_PI * freq * t) + 50.0f * sinf(2.0f * (float)M_PI * 0.1f * t);
+        tuneAdvisorProcessSample(&s);
+    }
+}
+
+TEST_F(TuneAdvisorTest, CentredShakeIsMeasured)
+{
+    feedShake(50, 15, 1000);            // the issue log's roll: P oscillating at 15 Hz
+
+    const tuneAdvisorAxis_t a = roll();
+    EXPECT_EQ(1000u - 1 - TA_SHAKE_SETTLE, a.shakeCount);       // the first sample is not rotating yet
+    EXPECT_NEAR(0.93f * 50.0f / sqrtf(2), a.shakeRms, 1.0f);    // the high-pass keeps 93% at 15 Hz
+}
+
+TEST_F(TuneAdvisorTest, SlowDriftIsNotShake)
+{
+    feedShake(0, 0, 1000);              // only the 0.1 Hz drift
+
+    EXPECT_GT(roll().shakeCount, 0u);
+    EXPECT_LT(roll().shakeRms, 3.0f);
+}
+
+TEST_F(TuneAdvisorTest, StopIsNotShake)
+{
+    feed(0, 50, 20);
+    feed(120, 180, 40);
+    feed(0, -45, 10);                   // big rebound, inside the settle time
+    feed(0, 50, 40);                    // the heli still rotating keeps the flying check on
+    feed(0, 50, 100);                   // steady rate, no shake
+
+    const tuneAdvisorAxis_t a = roll();
+    EXPECT_GT(a.shakeCount, 0u);
+    EXPECT_LT(a.shakeRms, 5.0f);
+}
+
+// A stop with a slow second-order settle and no sustained oscillation: `stops` rolls held at
+// `rate` for 1 s, then the stick centred for `centredMs` while the rate settles with 15%
+// overshoot, the opposite-sign peak `peakMs` after the release.
+static void feedSlowStops(float rate, int peakMs, int centredMs, int stops)
+{
+    const float zeta = 0.517f;          // 15% overshoot
+    const float wd = (float)M_PI / (peakMs / 1000.0f);
+    const float wn = wd / sqrtf(1 - zeta * zeta);
+    for (int stop = 0; stop < stops; stop++) {
+        for (int i = 0; i < TA_SAMPLE_HZ; i++) {
+            tuneAdvisorSample_t s = {};
+            s.valid = true;
+            s.collective = 0.3f;
+            s.setpoint[FD_ROLL] = rate;
+            s.gyro[FD_ROLL] = rate;
+            s.deflection[FD_ROLL] = rate / 400.0f;
+            tuneAdvisorProcessSample(&s);
+        }
+        for (int i = 0; i < centredMs * TA_SAMPLE_HZ / 1000; i++) {
+            const float t = (float)i / TA_SAMPLE_HZ;
+            tuneAdvisorSample_t s = {};
+            s.valid = true;
+            s.collective = 0.3f;
+            s.gyro[FD_ROLL] = rate * expf(-zeta * wn * t) *
+                (cosf(wd * t) + zeta / sqrtf(1 - zeta * zeta) * sinf(wd * t));
+            tuneAdvisorProcessSample(&s);
+        }
+    }
+}
+
+TEST_F(TuneAdvisorTest, SlowReboundIsNotShake)
+{
+    // Rebounds peaking 300 and 400 ms after the stop read 15-40 deg/s with a 0.3 s settle,
+    // above the 15 deg/s the clients take for shaking
+    const float rates[] = { 360, 500 };
+    const int peaks[] = { 300, 400 };
+    for (float rate : rates) {
+        for (int peakMs : peaks) {
+            tuneAdvisorReset();
+            feedSlowStops(rate, peakMs, 1500, 12);
+
+            const tuneAdvisorAxis_t a = roll();
+            EXPECT_GT(a.shakeCount, 0u) << rate << " deg/s, peak at " << peakMs << " ms";
+            EXPECT_LT(a.shakeRms, 5.0f) << rate << " deg/s, peak at " << peakMs << " ms";
+            EXPECT_EQ(12, a.releases) << rate << " deg/s, peak at " << peakMs << " ms";
+        }
+    }
+}
+
+TEST_F(TuneAdvisorTest, CentredSpellShorterThanTheSettleAddsNothing)
+{
+    feedSlowStops(500, 400, 800, 12);
+
+    EXPECT_EQ(0u, roll().shakeCount);
+}
+
+TEST_F(TuneAdvisorTest, CrossCouplingIsNotShake)
+{
+    // A flip: pitch commanded, roll stick centred, roll moving with the pitch input
+    for (int i = 0; i < 500; i++) {
+        const float t = (float)i / TA_SAMPLE_HZ;
+        tuneAdvisorSample_t s = {};
+        s.valid = true;
+        s.collective = 0.3f;
+        s.setpoint[FD_PITCH] = 300;
+        s.gyro[FD_PITCH] = 300;
+        s.gyro[FD_ROLL] = 40.0f * sinf(2.0f * (float)M_PI * 6.0f * t);
+        tuneAdvisorProcessSample(&s);
+    }
+
+    EXPECT_EQ(0u, roll().shakeCount);
+}
+
 TEST_F(TuneAdvisorTest, FullStickReportsTheRateReached)
 {
     gain = 1.0f;
@@ -268,8 +384,10 @@ TEST_F(TuneAdvisorTest, PirouetteCountsAsFlying)
 TEST_F(TuneAdvisorTest, ResetClearsEverything)
 {
     flyRolls(10);
+    feedShake(50, 15, 100);
     tuneAdvisorReset();
 
     EXPECT_EQ(0u, roll().ffCount);
+    EXPECT_EQ(0u, roll().shakeCount);
     EXPECT_EQ(0u, tuneAdvisorGetValidSamples());
 }
