@@ -714,6 +714,9 @@ void init(void)
     // Initialize PID control
     pidInit(currentPidProfile);
 
+    // Mixer filters run at the PID rate
+    mixerInitFilters();
+
 #ifdef USE_SERVOS
     servoInit();
 #endif

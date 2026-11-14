@@ -166,6 +166,7 @@ float pidGetPidFrequency(void);
 
 float pidGetSetpoint(int axis);
 float pidGetOutput(int axis);
+float pidGetSlowOutput(int axis);
 
 float pidGetCollective(void);
 

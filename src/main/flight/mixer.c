@@ -66,7 +66,10 @@ typedef struct {
 
     float           tailCenterTrim;
     float           tailMotorIdle;
+    float           tailMotorLead;
     int8_t          tailMotorDirection;
+
+    difFilter_t     tailLeadFilter;
 
     float           swashTrim[3];
 
@@ -137,6 +140,44 @@ float mixerGetOutput(uint8_t index)
 float getCyclicDeflection(void)
 {
     return mixer.cyclicTotal;
+}
+
+static float getTailMotorThrottle(void)
+{
+    // Yaw input (positive is against torque) plus the center trim
+    return mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign() + mixer.tailCenterTrim;
+}
+
+float getTailTorqueAssistStart(float threshold)
+{
+    // Motorised tail: tail throttle below which TTA starts.
+    // The threshold is never below the idle, where the tail cannot follow any more.
+    return fmaxf(fmaxf(mixer.tailMotorIdle, mixer.tailCenterTrim), threshold);
+}
+
+float getTailTorqueAssistDemand(float threshold)
+{
+    // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
+
+    // Motorised tail: how far the tail throttle is asked to go below the TTA start point.
+    // Above the idle the tail stays in control, and TTA adds main rotor torque alongside it.
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
+        return getTailTorqueAssistStart(threshold) - getTailMotorThrottle();
+    }
+
+    // Yaw input value - positive is against torque
+    return -mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+}
+
+float getTailMotorDemand(void)
+{
+    // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
+
+    // Motorised tail: tail throttle asked for by the yaw PID, before the lead and the idle
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED))
+        return getTailMotorThrottle();
+
+    return 0;
 }
 
 bool mixerSaturated(uint8_t index)
@@ -405,15 +446,28 @@ static float mixerCollectiveScale(float SC, float SR, float SP)
     return SC * scale;
 }
 
+// Tail lead differentiator bandwidth [Hz] and deadband [throttle/s]
+#define TAIL_LEAD_CUTOFF        10.0f
+#define TAIL_LEAD_DEADBAND      2.0f
+#define TAIL_LEAD_LIMIT         0.5f
+
 static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        // Yaw input value - positive is against torque
-        const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+        // Yaw input plus center trim
+        float throttle = getTailMotorThrottle();
 
-        // Add center trim
-        float throttle = yaw + mixer.tailCenterTrim;
+        // Lead on falling throttle: the tail spins down slower than it spins up,
+        // so drop the command early. Slow changes inside the deadband are ignored.
+        // The rate comes from the P, I and F terms only, so D and B spikes don't
+        // trigger it, and the lead takes away at most half of the margin above idle.
+        const float slow = pidGetSlowOutput(PID_YAW) * mixerRotationSign() + mixer.tailCenterTrim;
+        const float rate = difFilterApply(&mixer.tailLeadFilter, slow);
+        if (rate < -TAIL_LEAD_DEADBAND) {
+            const float lead = (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
+            throttle += fmaxf(lead, -TAIL_LEAD_LIMIT * fmaxf(throttle - mixer.tailMotorIdle, 0));
+        }
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
@@ -683,6 +737,13 @@ void INIT_CODE mixerInitConfig(void)
 
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
     mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 1000.0f;
+    mixer.tailMotorLead = mixerConfig()->tail_motor_lead / 1000.0f;
+}
+
+void INIT_CODE mixerInitFilters(void)
+{
+    // Needs the PID loop rate, so runs after pidInit()
+    difFilterInit(&mixer.tailLeadFilter, TAIL_LEAD_CUTOFF, pidGetPidFrequency());
 }
 
 static void setMapping(uint8_t in, uint8_t out)

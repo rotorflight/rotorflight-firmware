@@ -1703,6 +1703,11 @@ static bool blackboxWriteSysinfo(void)
                                                                             currentPidProfile->yaw_inertia_precomp_cutoff);
         BLACKBOX_PRINT_HEADER_LINE("yaw_tta", "%d,%d",                      currentPidProfile->governor.tta_gain,
                                                                             currentPidProfile->governor.tta_limit);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_tta_threshold", "%d",               currentPidProfile->governor.tta_threshold);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_tta_bank", "%d,%d,%d,%d",           (currentPidProfile->governor.flags & BIT(GOV_FLAG_TTA_BANKING)) ? 1 : 0,
+                                                                            currentPidProfile->governor.tta_bank_limit,
+                                                                            currentPidProfile->governor.tta_bank_rate,
+                                                                            currentPidProfile->governor.tta_bank_release);
         BLACKBOX_PRINT_HEADER_LINE("hsi_gain", "%d,%d",                     currentPidProfile->pid[PID_ROLL].O,
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],
@@ -1780,6 +1785,8 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("maxthrottle", "%d",                     motorConfig()->maxthrottle);
         BLACKBOX_PRINT_HEADER_LINE("collectiveRange", "%d,%d",              mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->min,
                                                                             mixerInputs(MIXER_IN_STABILIZED_COLLECTIVE)->max);
+        BLACKBOX_PRINT_HEADER_LINE("tail_motor_idle", "%d",                 mixerConfig()->tail_motor_idle);
+        BLACKBOX_PRINT_HEADER_LINE("tail_motor_lead", "%d",                 mixerConfig()->tail_motor_lead);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_MODE, "%d",             debugMode);
         BLACKBOX_PRINT_HEADER_LINE(PARAM_NAME_DEBUG_AXIS, "%d",             debugAxis);
         BLACKBOX_PRINT_HEADER_LINE("fields_mask", "%d",                     blackboxConfig()->fields);
