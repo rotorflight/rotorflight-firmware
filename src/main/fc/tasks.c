@@ -500,7 +500,7 @@ void tasksInit(void)
     // Serial can't be slowed down in the simulator (moved here from systemInit(),
     // since task attributes aren't initialized until tasksInitData(), which runs
     // after systemInit() in fc/init.c's init()).
-    rescheduleTask(TASK_SERIAL, 1);
+    rescheduleTask(TASK_SERIAL, TASK_PERIOD_HZ(2000));
 #endif
 
     rescheduleTask(TASK_BATTERY_VOLTAGE, TASK_PERIOD_HZ(batteryConfig()->vbatUpdateHz));
