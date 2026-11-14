@@ -130,6 +130,13 @@ void tuneAdvisorProcessSample(const tuneAdvisorSample_t *sample);
 // Every PID loop, after pidController()
 void tuneAdvisorUpdate(float dT);
 
+// A profile or a setting in the tune signature changed: the next armed sample checks it
+#ifdef USE_TUNE_ADVISOR
+void tuneAdvisorTuneChanged(void);
+#else
+static inline void tuneAdvisorTuneChanged(void) {}
+#endif
+
 void tuneAdvisorGetAxis(int axis, tuneAdvisorAxis_t *out);
 uint32_t tuneAdvisorGetValidSamples(void);
 bool tuneAdvisorIsCollecting(void);

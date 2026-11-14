@@ -58,6 +58,7 @@
 #include "flight/motors.h"
 #include "flight/servos.h"
 #include "flight/position.h"
+#include "flight/tune_advisor.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -797,7 +798,12 @@ void writeEEPROM(void)
 
 void dispatchConfigWrite(struct dispatchEntry_s* self)
 {
-    UNUSED(self);
+    // The flash erase stalls the MCU for longer than a PID loop. A re-arm inside
+    // the 500 ms delay after a disarm would run it in flight, so defer until disarmed.
+    if (ARMING_FLAG(ARMED)) {
+        dispatchAdd(self, 500000);
+        return;
+    }
 
     writeUnmodifiedConfigToEEPROM();
     beeperConfirmationBeeps(1);
@@ -862,6 +868,7 @@ void changePidProfile(uint8_t pidProfileIndex)
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
         pidChangeProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

@@ -28,6 +28,7 @@ the APIs or flight performance.
 
 ## Bug Fixes
 
+- DIRECT governor TTA applies only the proportional assist increment; the throttle was doubled whenever TTA was enabled (#487, #567)
 - ICM42605 gyro uses the correct ODR (#475)
 - Servos are no longer set to midpoint at startup (#466)
 - Forwarding of S.Port master sensors fixed (#481)
@@ -48,6 +49,13 @@ Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
 
 Bus servos with a `speed` set previously moved much slower than configured
 (about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
+**Check headspeed when using DIRECT governor mode with TTA.** In 4.6, with
+`tta_gain` and `tta_limit` both set, the DIRECT mode output was twice the
+throttle input, capped at `max_throttle` (#487). From 4.7 the output follows
+the throttle input/curve again, plus only the TTA increment. Models tuned
+on 4.6 will see a much lower throttle and headspeed than before: re-check the
+throttle curve and headspeed before the first flight (#567).
 
 ## MSP Changes
 
@@ -73,17 +81,21 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 - new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
   Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
-  tune changes (checked on arming). New commands only, the API version is unchanged.
-- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (67 bytes), payload v1:
-  `U8 version, U8 collecting, U16 seconds, U8 axis`,
-  `U16 P, U16 F, U16 B, U8 iterm_relax_cutoff, U8 rates_type, U8 rc_rate, U8 s_rate`,
-  `U16 ffCount, S16 ffGain, S16 ffCorr, U16 ffLagMs` (ffGain = gyro / setpoint at the best delay),
-  3 x `S16 gain, U16 count` by request (40-100, 100-200, 200+ deg/s),
-  3 x `S16 gain, U16 count` by |collective| (<25%, 25-50%, 50%+),
-  `U16 fullCount, U16 fullSatCount, S16 fullRatio, U16 fullMaxRate`,
-  `U16 releases, U16 bigRebounds, S16 meanRebound, S16 meanOvershoot, S16 meanCounter,
-  S16 meanIterm` (meanCounter is P+I+D+B, so tail and pitch precomp do not count).
-  Ratios are x1000, counts saturate at 65535.
+  tune changes (checked on arming, and in flight after a profile switch, an RC adjustment or an MSP
+  write of the PID or rate settings, so each starts the statistics again when it changes a setting
+  the tune signature covers, master gains included). New commands only, the API version is unchanged.
+- request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (51 bytes: one CRSF frame), payload v3:
+  `U8 version, U8 flags` (bits 0-1 axis, bit 2 collecting, bits 3-5 rates_type), `U16 seconds`,
+  `U32 P | F << 10 | B << 20, U8 iterm_relax_cutoff, U8 rc_rate, U8 s_rate`,
+  `U16 ffCount, U8 ffGain x64, S8 ffCorr x100, U8 ffLagMs` (ffGain = gyro / setpoint at the best delay),
+  3 x `U8 gain x64, U16 count` by request (40-100, 100-200, 200+ deg/s),
+  3 x `U8 gain x64, U16 count` by |collective| (<25%, 25-50%, 50%+),
+  `U16 fullCount, U16 fullSatCount, U8 fullRatio x100, U8 fullMaxRate` (10 deg/s steps),
+  `U16 releases, U8 bigRebounds, U8 meanRebound x100, U8 meanOvershoot x64, U8 meanCounter x100,
+  S16 meanIterm x1000` (meanCounter is P+I+D+B, so tail and pitch precomp do not count),
+  `U16 shakeCount, U8 shakeRms x4` (gyro RMS in deg/s, stick centred, high-passed at 2 Hz).
+  Scaled values and bigRebounds saturate at their byte's range, counts at 65535. Payload v1 (67 bytes) and v2
+  (71 bytes, adding the shake fields) were 16-bit throughout and were never released.
 
 ### MSP_SET_XACT_SCAN
 

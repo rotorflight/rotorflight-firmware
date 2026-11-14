@@ -80,3 +80,8 @@ bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload);
 #else
 static inline bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload) { (void)payload; return false; }
 #endif
+// True while an MSP reply still has chunks to send; each poll answered by
+// processSmartPortTelemetry() then carries one of them instead of sensor data.
+bool smartPortMspReplyIsPending(void);
+// MSP reply chunks written so far, for the FBUS debug counters.
+uint32_t smartPortMspReplyChunksSent(void);

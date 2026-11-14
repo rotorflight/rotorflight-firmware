@@ -138,8 +138,13 @@ void failsafeOnRxSuspend(uint32_t usSuspendPeriod)
 
 void failsafeOnRxResume(void)
 {
-    failsafeState.validRxDataReceivedAt = millis();                     // prevent RX link down trigger, restart rx link up
-    failsafeState.rxLinkState = FAILSAFE_RXLINK_UP;                     // do so while rx link is up
+    // Called after an EEPROM write, which also runs from the delayed write that
+    // follows a disarm. Only restart the link-up state if the receiver is actually
+    // delivering frames; otherwise a link still down is reported as recovered.
+    if (rxIsReceivingSignal()) {
+        failsafeState.validRxDataReceivedAt = millis();                 // prevent RX link down trigger, restart rx link up
+        failsafeState.rxLinkState = FAILSAFE_RXLINK_UP;                 // do so while rx link is up
+    }
 }
 
 void failsafeOnValidDataReceived(void)
@@ -182,7 +187,7 @@ void failsafeOnValidDataFailed(void)
     }
 }
 
-void failsafeCheckDataFailurePeriod(void)
+NOINLINE void failsafeCheckDataFailurePeriod(void)
 // runs directly from scheduler, every 10ms, to validate the link
 {
     if (cmp32(millis(), failsafeState.validRxDataReceivedAt) > (int32_t)failsafeState.rxDataFailurePeriod) {
@@ -198,7 +203,7 @@ uint32_t failsafeFailurePeriodMs(void)
     return failsafeState.rxDataFailurePeriod;
 }
 
-void failsafeUpdateState(void)
+NOINLINE void failsafeUpdateState(void)
 // triggered directly, and ONLY, by the cheduler, at 10ms = PERIOD_RXDATA_FAILURE - intervals
 {
     if (!failsafeIsMonitoring()) {

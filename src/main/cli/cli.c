@@ -59,6 +59,7 @@ bool cliMode = false;
 #include "config/feature.h"
 
 #include "drivers/accgyro/accgyro.h"
+#include "drivers/accgyro/accgyro_mpu.h"
 #include "drivers/adc.h"
 #include "drivers/buf_writer.h"
 #include "drivers/bus_i2c.h"
@@ -518,6 +519,18 @@ static void cliPrintErrorVa(const char *cmdName, const char *format, va_list va)
     if (cliErrorWriter) {
         cliPrintInternal(cliErrorWriter, "###ERROR IN ");
         cliPrintInternal(cliErrorWriter, cmdName);
+#if defined(USE_CUSTOM_DEFAULTS)
+        // Custom-defaults replay (see cliProcessCustomDefaults()) runs with
+        // cliWriter suppressed, so a failing line's own command echo never
+        // appears -- only this error does, with nothing to say where it came
+        // from. Tag it so it doesn't look like it fired out of context (e.g.
+        // right after typing `defaults`, with no obvious connection to it).
+        // With DEBUG_CUSTOM_DEFAULTS the replay is echoed (cliWriter stays
+        // set), so the context is already visible and no tag is needed.
+        if (processingCustomDefaults && !cliWriter) {
+            cliPrintInternal(cliErrorWriter, " (custom defaults)");
+        }
+#endif
         cliPrintInternal(cliErrorWriter, ": ");
 
         tfp_format(cliErrorWriter, cliPutp, format, va);
@@ -4033,6 +4046,25 @@ static void cliGpsPassthrough(const char *cmdName, char *cmdline)
 #if defined(USE_GYRO_REGISTER_DUMP) && !defined(SIMULATOR_BUILD)
 static void cliPrintGyroRegisters(uint8_t whichSensor)
 {
+#if defined(USE_ACCGYRO_LSM6DSK320X)
+    // LSM sensors do not use the MPU register map: WHO_AM_I is at 0x0f, and 0x75/0x1a/0x1b
+    // are reserved, so the MPU reads below only ever report 0x00 or 0xff on this sensor.
+    if (gyroMpuDetectionResultByInstance(whichSensor)->sensor == LSM6DSK320X_SPI) {
+        cliPrintLinef("# WHO_AM_I  0x%X (0x75)", gyroReadRegister(whichSensor, 0x0F));
+        cliPrintLinef("# CTRL1     0x%X (0x19)", gyroReadRegister(whichSensor, 0x10)); // high-accuracy accelerometer, 1 kHz
+        // High-accuracy gyro; the ODR code drops by one per halving below 8 kHz (12 = 8 kHz, 11 = 4 kHz)
+        const unsigned gyroOdr = 12 - llog2(8000 / MAX(gyro.sampleRateHz, 1000));
+        cliPrintLinef("# CTRL2     0x%X (0x%X)", gyroReadRegister(whichSensor, 0x11), 0x10 | gyroOdr);
+        cliPrintLinef("# CTRL3     0x%X (0x44)", gyroReadRegister(whichSensor, 0x12)); // BDU and auto-increment
+        // LPF1 bandwidth occupies the upper nibble and depends on gyro_hardware_lpf.
+        cliPrintLinef("# CTRL6     0x%X (FS bits 0x0C)", gyroReadRegister(whichSensor, 0x15));
+        cliPrintLinef("# CTRL7     0x%X (0x01)", gyroReadRegister(whichSensor, 0x16)); // gyro LPF1 enable
+        cliPrintLinef("# CTRL8     0x%X (0x03)", gyroReadRegister(whichSensor, 0x17)); // +/-16 g, LPF2 ODR/4
+        cliPrintLinef("# INT1_CTRL 0x%X (0x02)", gyroReadRegister(whichSensor, 0x0D)); // gyro data ready on INT1
+        return;
+    }
+#endif
+
     cliPrintLinef("# WHO_AM_I    0x%X", gyroReadRegister(whichSensor, MPU_RA_WHO_AM_I));
     cliPrintLinef("# CONFIG      0x%X", gyroReadRegister(whichSensor, MPU_RA_CONFIG));
     cliPrintLinef("# GYRO_CONFIG 0x%X", gyroReadRegister(whichSensor, MPU_RA_GYRO_CONFIG));
