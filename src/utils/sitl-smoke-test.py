@@ -531,16 +531,30 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         if not lo <= dfw <= hi or max(got1 - ask1, got2 - ask2) > 1.0:
             raise Failure("lockstep: firmware advanced %d ms, sim %.1f..%.1f ms" % (dfw, lo + 2, hi - 2))
         # The gyro runs on the first step at or after each 250 us boundary, so its
-        # intervals are whole steps averaging the gyro period: with 200 us steps three
-        # of 200 and one of 400 (a step-sampled mean of 240), never 200 throughout.
+        # intervals are whole steps around the gyro period: with 200 us steps three of
+        # 200 and one of 400, never 200 throughout. The replies sample that pattern too
+        # sparsely, and too much in step with it, to pin the mix down (the share of 400s
+        # varies from a few % to over a third between runs), so for steps shorter than
+        # the gyro period check the values: only the two step multiples, and both of them.
         if len(gyro_us) < 10:
             raise Failure("lockstep: only %d MSP_STATUS replies" % len(gyro_us))
         step_us = dt * 1e6
         gyro_mean = sum(gyro_us) / len(gyro_us)
-        expect = GYRO_PERIOD_US if step_us >= GYRO_PERIOD_US else 0.96 * GYRO_PERIOD_US
-        if abs(gyro_mean - expect) > 0.06 * GYRO_PERIOD_US:
-            raise Failure("lockstep: gyro interval %.0f us on %.0f us steps (expected ~%.0f): %s"
-                          % (gyro_mean, step_us, expect, sorted(set(gyro_us))))
+        seen = sorted(set(gyro_us))
+        if step_us >= GYRO_PERIOD_US:
+            ok = abs(gyro_mean - GYRO_PERIOD_US) <= 0.06 * GYRO_PERIOD_US
+            expect = "~%d" % GYRO_PERIOD_US
+        else:
+            k = int(GYRO_PERIOD_US // step_us)
+            if abs(k * step_us - GYRO_PERIOD_US) < 1:
+                allowed = [GYRO_PERIOD_US]
+            else:
+                allowed = [round(k * step_us), round((k + 1) * step_us)]
+            ok = seen == allowed
+            expect = " and ".join("%d" % a for a in allowed)
+        if not ok:
+            raise Failure("lockstep: gyro interval %.0f us on %.0f us steps (expected %s): %s"
+                          % (gyro_mean, step_us, expect, seen))
         log("PASS lockstep: %d steps of %.0f us at %.1fx real time, %d without reply; firmware %d ms "
             "over %.1f ms sim; gyro interval %.0f us"
             % (steps, step_us, sim_seconds / real, timeouts, dfw, dsim, gyro_mean))
