@@ -105,11 +105,7 @@ uint16_t GPS_distanceToHome;        // distance to home point in meters
 */
 #define FRAME_HEADER_FOOTER_LEN 4
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestGPS)
+TEST(TelemetryCrsfTest, TestGPS)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
@@ -155,11 +151,7 @@ TEST(TelemetryCrsfTest, DISABLED_TestGPS)
     EXPECT_EQ(crfsCrc(frame, frameLen), frame[18]);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestBattery)
+TEST(TelemetryCrsfTest, TestBattery)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
@@ -194,11 +186,7 @@ TEST(TelemetryCrsfTest, DISABLED_TestBattery)
     EXPECT_EQ(crfsCrc(frame, frameLen), frame[11]);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestAttitude)
+TEST(TelemetryCrsfTest, TestAttitude)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
@@ -247,11 +235,7 @@ static std::string flightModeFrame(void)
     return mode;
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestFlightMode)
+TEST(TelemetryCrsfTest, TestFlightMode)
 {
     // Mode name, then '*' when armed or ' ' when not
     armingFlags = 0;
