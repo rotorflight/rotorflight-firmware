@@ -460,6 +460,23 @@ static void readSchedulerLocals(task_t *selectedTask, uint8_t selectedTaskDynami
 }
 #endif
 
+// Time left for the other tasks before the gyro target.
+static inline int32_t taskTimeLeftCycles(uint32_t nextTargetCycles, uint32_t nowCycles)
+{
+    const int32_t left = cmpTimeCycles(nextTargetCycles, nowCycles);
+#if defined(SIMULATOR_BUILD)
+    // Lockstep: the clock stands still between simulator steps, so no task can
+    // make the gyro late, and on steps as long as the gyro period the gyro keeps
+    // the phase it had at the hand-over for the whole run. With a phase that
+    // leaves only a few us here, every other task (RX, MSP, servos) would be
+    // skipped on every step, for good. Give them the whole gyro period.
+    if (simLockstepActive() && left < desiredPeriodCycles) {
+        return desiredPeriodCycles;
+    }
+#endif
+    return left;
+}
+
 FAST_CODE void scheduler(void)
 {
     static uint32_t checkCycles = 0;
@@ -638,7 +655,7 @@ FAST_CODE void scheduler(void)
     }
 
     nowCycles = getCycleCounter();
-    schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
+    schedLoopRemainingCycles = taskTimeLeftCycles(nextTargetCycles, nowCycles);
 
     if (!gyroEnabled || (schedLoopRemainingCycles > (int32_t)clockMicrosToCycles(CHECK_GUARD_MARGIN_US))) {
         currentTimeUs = micros();
@@ -710,7 +727,7 @@ FAST_CODE void scheduler(void)
             int32_t taskRequiredTimeCycles = (int32_t)clockMicrosToCycles((uint32_t)taskRequiredTimeUs);
 
             nowCycles = getCycleCounter();
-            schedLoopRemainingCycles = cmpTimeCycles(nextTargetCycles, nowCycles);
+            schedLoopRemainingCycles = taskTimeLeftCycles(nextTargetCycles, nowCycles);
 
             // Allow a little extra time
             taskRequiredTimeCycles += taskGuardCycles;
