@@ -75,6 +75,7 @@ extern "C" {
     pidProfile_t *currentPidProfile;
     int32_t debug[DEBUG_VALUE_COUNT];
     float rcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
+    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
     uint8_t GPS_numSat;
     uint16_t GPS_distanceToHome;
     int16_t GPS_directionToHome;
@@ -136,6 +137,7 @@ void setDefaultSimulationState()
     simulationGpsHealthy = false;
 
     rcData[PITCH] = 1500;
+    memset(rcCommand, 0, sizeof(rcCommand));
 
     osdFlyTime = 0;
 
@@ -470,20 +472,28 @@ TEST_F(OsdTest, TestDisarmWithImmediateRearm)
  */
 TEST_F(OsdTest, TestDisarmWithDismissStats)
 {
-    doTestArm();
+    // given
+    // statistics are enabled, so the stats screen shows after disarming
+    setupStats();
+
+    doTestArm(false);
 
     doTestDisarm();
 
-    // given
-    // sticks have been moved
-    rcData[PITCH] = 1800;
+    // and
+    // with centered sticks the stats screen stays up
+    osdRefresh();
+    EXPECT_FALSE(testDisplayPortBufferBlank());
 
     // when
-    // sufficient OSD updates have been called
+    // pitch stick is moved past the dismiss threshold (rcCommand > 300)
+    rcCommand[PITCH] = 400;
+    osdRefresh();
+    rcCommand[PITCH] = 0;
     osdRefresh();
 
     // then
-    // post flight stats screen disappears
+    // post flight stats screen disappears well before its 60 s timeout
 #ifdef DEBUG_OSD
     displayPortTestPrint();
 #endif
@@ -1399,7 +1409,6 @@ extern "C" {
     int getHeadSpeed(void) { return 0; }
     int16_t getMotorOutput(uint8_t) { return 0; }
     float getThrottle(void) { return 0; }
-    float rcCommand[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 
     int32_t getEstimatedAltitudeCm() {
         return simulationAltitude;
