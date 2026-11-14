@@ -877,7 +877,9 @@ static void simLockstepAdvance(double timestamp)
     // Only this (UDP) thread writes the clock from here on.
     const double elapsed = timestamp - lockstepTs0;
     if (elapsed >= 0) {
-        const uint64_t ns = lockstepBaseNs + (uint64_t)(elapsed * 1e9);
+        // Round, don't truncate: n * 200 us in a double is often a hair below the
+        // step, and a 1 ns shortfall moved micros() back by 1 us (199/399 us gyro intervals).
+        const uint64_t ns = lockstepBaseNs + (uint64_t)(elapsed * 1e9 + 0.5);
         if (ns > __atomic_load_n(&simClockNs, __ATOMIC_RELAXED)) {
             __atomic_store_n(&simClockNs, ns, __ATOMIC_RELEASE);
         }
