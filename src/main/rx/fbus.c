@@ -33,11 +33,14 @@
 #include "common/utils.h"
 
 #include "drivers/time.h"
+#include "drivers/fbus_master.h"
 #include "drivers/fbus_sensor.h"
 
 #ifdef MSP_FIRMWARE_UPDATE__WARNING_DEAD_CODE__
 #include "fc/firmware_update.h"
 #endif
+
+#include "fc/runtime_config.h"
 
 #include "io/serial.h"
 
@@ -63,6 +66,12 @@
 #define FBUS_FC_MSP_ID 0x0D
 #define FPORT2_BAUDRATE 115200
 #define FBUS_BAUDRATE 460800
+// FBUS and F.Port2 are the same protocol at two speeds. The receiver streams
+// control frames all the time, so the port switches between the two speeds
+// until good frames arrive, then keeps that speed.
+#define FBUS_BAUD_HUNT_WINDOW_MS 150    // time on one speed before trying the other
+#define FBUS_BAUD_LOCK_FRAMES 3         // good frames needed to keep a speed
+#define FBUS_BAUD_RELOCK_MS 1000        // no frames this long while disarmed: search again
 #define FBUS_PORT_OPTIONS (SERIAL_STOPBITS_1 | SERIAL_PARITY_NO)
 #define FBUS_RX_TIMEOUT 120 // µs
 #define FBUS_CONTROL_FRAME_LENGTH_8CH 13
@@ -76,14 +85,18 @@
 
 #define MS2US(ms)   ((ms) * 1000)
 
+// debug_mode FBUS: how the receiver schedules the two IDs the FC answers on.
+// MSP replies go out one 6-byte chunk per poll, so the poll intervals of
+// 0x1B and 0x0D bound the MSP throughput a radio can see.
 enum {
-    DEBUG_FBUS_FRAME_INTERVAL = 0,
-    DEBUG_FBUS_FRAME_ERRORS,
-    DEBUG_FBUS_FRAME_LAST_ERROR,
-    DEBUG_FBUS_TELEMETRY_INTERVAL,
-    DEBUG_FBUS_MAX_BUFFER_USAGE,
-    DEBUG_FBUS_OTA_FRAME_RESPONSE_TIME,
-    DEBUG_FBUS_OTA_RECEIVED_BYTES,
+    DEBUG_FBUS_POLL_INTERVAL_COMMON = 0,    // us between downlink polls of the common ID (0x1B)
+    DEBUG_FBUS_POLL_INTERVAL_MSP,           // us between downlink polls of the MSP ID (0x0D)
+    DEBUG_FBUS_POLL_PRIM_COMMON,            // frame ID of the last poll of 0x1B (0x00 null, 0x10 data)
+    DEBUG_FBUS_POLL_PRIM_MSP,               // frame ID of the last poll of 0x0D (0x30 carries a request)
+    DEBUG_FBUS_MSP_REQUESTS,                // MSP request chunks received
+    DEBUG_FBUS_MSP_REPLIES,                 // MSP reply chunks sent
+    DEBUG_FBUS_FRAME_ERRORS,                // frames dropped by the checksum or type checks
+    DEBUG_FBUS_RESPONSE_DELAY,              // us from the end of the downlink frame to our uplink
 };
 
 enum {
@@ -121,6 +134,8 @@ typedef enum {
 enum {
     FBUS_FRAME_ID_NULL = 0x00,
     FBUS_FRAME_ID_DATA = 0x10,
+    FBUS_FRAME_ID_WORK = 0x20,
+    FBUS_FRAME_ID_IDLE = 0x21,
     FBUS_FRAME_ID_READ = 0x30,
     FBUS_FRAME_ID_WRITE = 0x31,
     FBUS_FRAME_ID_RESPONSE = 0x32,
@@ -168,6 +183,7 @@ typedef struct {
 typedef struct fbusBuffer_s {
     uint8_t data[sizeof(fbusFrame_t)+1]; // +1 for CRC
     uint8_t length;
+    timeUs_t arrivalUs;                  // end of a downlink frame, for debug_mode FBUS
 } fbusBuffer_t;
 
 typedef struct {
@@ -180,6 +196,11 @@ static volatile uint8_t rxBufferWriteIndex = 0;
 static volatile uint8_t rxBufferReadIndex = 0;
 
 static serialPort_t *fbusPort;
+
+static uint32_t fbusBaudRate;
+static bool fbusBaudLocked;
+static uint8_t fbusBaudGoodFrames;
+static timeUs_t fbusBaudLastEventUs;    // last speed switch or last good frame
 
 #ifdef USE_TELEMETRY_SMARTPORT
 static smartPortPayload_t *mspPayload = NULL;
@@ -211,6 +232,7 @@ static void reportFrameError(uint8_t errorReason)
 {
     UNUSED(errorReason);
     frameErrors++;
+    DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_FRAME_ERRORS, frameErrors);
 }
 
 static void clearWriteBuffer(void)
@@ -313,6 +335,7 @@ static void fbusDataReceive(uint16_t byte, void *callback_data)
                     otaFrameEndTimestamp = currentTimeUs;
                 }
                 lastTelemetryFrameReceivedUs = currentTimeUs;
+                rxBuffer[rxBufferWriteIndex].arrivalUs = currentTimeUs;
 #endif
                 nextWriteBuffer();
                 state = FS_CONTROL_FRAME_START;
@@ -358,8 +381,48 @@ static uint8_t fbusPhyIdWithCheckBits(uint8_t phyID)
     checkedPhyID |= (fbusGetBit(checkedPhyID, 0) ^ fbusGetBit(checkedPhyID, 2) ^ fbusGetBit(checkedPhyID, 4)) << 7;
     return checkedPhyID;
 }
+
+// The bare 5-bit ID of a physical ID byte, or -1 if its check bits are wrong
+static int8_t fbusPhyIdStripCheckBits(uint8_t phyID)
+{
+    const uint8_t id = phyID & 0x1F;
+    return (fbusPhyIdWithCheckBits(id) == phyID) ? id : -1;
+}
 #endif
 #endif
+
+static void fbusBaudGoodFrame(timeUs_t currentTimeUs)
+{
+    fbusBaudLastEventUs = currentTimeUs;
+    if (!fbusBaudLocked && ++fbusBaudGoodFrames >= FBUS_BAUD_LOCK_FRAMES) {
+        fbusBaudLocked = true;
+    }
+}
+
+static void fbusBaudService(timeUs_t currentTimeUs)
+{
+    // SITL's TCP port has no baud rate
+    if (!fbusPort->vTable->serialSetBaudRate) {
+        fbusBaudLocked = true;
+        return;
+    }
+
+    const timeDelta_t idleUs = cmpTimeUs(currentTimeUs, fbusBaudLastEventUs);
+    if (fbusBaudLocked) {
+        // A lost link while armed is the radio, not a changed receiver setting
+        if (ARMING_FLAG(ARMED) || idleUs < MS2US(FBUS_BAUD_RELOCK_MS)) {
+            return;
+        }
+        fbusBaudLocked = false;
+    } else if (idleUs < MS2US(FBUS_BAUD_HUNT_WINDOW_MS)) {
+        return;
+    }
+
+    fbusBaudRate = (fbusBaudRate == FBUS_BAUDRATE) ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    serialSetBaudRate(fbusPort, fbusBaudRate);
+    fbusBaudGoodFrames = 0;
+    fbusBaudLastEventUs = currentTimeUs;
+}
 
 static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 {
@@ -402,6 +465,7 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
                             }
                             setRssi(scaleRange(frame->control.rc.rssi, 0, 100, 0, RSSI_MAX_VALUE), RSSI_SOURCE_RX_PROTOCOL);
                             frameReceivedTimestamp = currentTimeUs;
+                            fbusBaudGoodFrame(currentTimeUs);
 #if defined(USE_TELEMETRY_SMARTPORT)
                             otaMode = false;
 #endif
@@ -456,6 +520,27 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 
                     downlinkPhyID = frame->downlink.phyID;
                     uint8_t frameId = frame->downlink.telemetryData.frameId;
+
+                    // Poll intervals from the time each frame arrived, not the time it
+                    // was drained: frames queued behind each other would otherwise
+                    // report one long interval and then short ones. No interval for
+                    // the first poll of an ID, which has nothing to measure from.
+                    const timeUs_t arrivalUs = rxBuffer[rxBufferReadIndex].arrivalUs;
+                    if (downlinkPhyID == FBUS_FC_COMMON_ID) {
+                        static timeUs_t lastCommonPollUs = 0;
+                        if (lastCommonPollUs) {
+                            DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_COMMON, cmpTimeUs(arrivalUs, lastCommonPollUs));
+                        }
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_COMMON, frameId);
+                        lastCommonPollUs = arrivalUs;
+                    } else if (downlinkPhyID == FBUS_FC_MSP_ID) {
+                        static timeUs_t lastMspPollUs = 0;
+                        if (lastMspPollUs) {
+                            DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_INTERVAL_MSP, cmpTimeUs(arrivalUs, lastMspPollUs));
+                        }
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_POLL_PRIM_MSP, frameId);
+                        lastMspPollUs = arrivalUs;
+                    }
 
                     switch (frameId) {
                         case FBUS_FRAME_ID_NULL:
@@ -514,9 +599,22 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
 
                         default:
                             if ((frameId == FBUS_FRAME_ID_READ) && (downlinkPhyID == FBUS_FC_MSP_ID)) {
+                                static uint32_t mspRequestChunks = 0;
                                 memcpy(&payloadBuffer, &frame->downlink.telemetryData, sizeof(payloadBuffer));
                                 mspPayload = &payloadBuffer;
                                 hasTelemetryRequest = true;
+                                DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_MSP_REQUESTS, ++mspRequestChunks);
+#if defined(USE_FBUS_MASTER)
+                            } else if (frameId == FBUS_FRAME_ID_READ || frameId == FBUS_FRAME_ID_WRITE ||
+                                       frameId == FBUS_FRAME_ID_WORK || frameId == FBUS_FRAME_ID_IDLE) {
+                                // for a device on the FBUS master line: Ethos Device config
+                                // (sent to 0x1B) or a request sent to the device's own ID
+                                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                                if (phyId >= 0) {
+                                    fbusMasterRelayRequest(phyId, frameId, frame->downlink.telemetryData.valueId,
+                                                           frame->downlink.telemetryData.data);
+                                }
+#endif
                             } else if (downlinkPhyID != FBUS_FC_COMMON_ID) {
 #if defined(USE_SMARTPORT_MASTER__WARNING_DEAD_CODE__)
                                 int8_t smartportPhyID = smartportMasterStripPhyIDCheckBits(downlinkPhyID);
@@ -542,8 +640,15 @@ static uint8_t frameStatus(rxRuntimeState_t *rxRuntimeConfig)
         rxBufferReadIndex = (rxBufferReadIndex + 1) % NUM_RX_BUFFERS;
     }
 
+    fbusBaudService(currentTimeUs);
+
 #if defined(USE_TELEMETRY_SMARTPORT)
-    if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US)
+    // No replies until the speed is known, so the bus never sees our replies at the wrong speed
+    if (!fbusBaudLocked) {
+        hasTelemetryRequest = false;
+        mspPayload = NULL;
+        otaResponsePayload = NULL;
+    } else if (((mspPayload || hasTelemetryRequest) && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= FBUS_MIN_TELEMETRY_RESPONSE_DELAY_US)
            || (otaResponsePayload && cmpTimeUs(currentTimeUs, lastTelemetryFrameReceivedUs) >= otaMinResponseDelay)) {
         hasTelemetryRequest = false;
         clearToSend = true;
@@ -622,61 +727,50 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // Check if we should forward sensor data from FBUS master using telemetry framework
             // This uses the generic sensor IDs and maps them to physical IDs
             bool forwardedSensor = false;
-            
-#if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
-            // First pass: advertise configured forwarded sensors on startup.
-            // Keep startup frames prioritized so all configured sensors are discovered.
-            for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
-                // Check if this sensor is active (configured and FBUS master enabled)
-                if (telemetrySensorActive(sensorId)) {
-                    // Get the native FrSky physical ID for this sensor
-                    uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    
-                    if (physicalId <= FBUS_MAX_PHYS_ID) {
-                        // Check if we need to send startup frame
-                        if (fbusSensorNeedsStartupFrame(physicalId)) {
-                            // Send empty frame to signal sensor presence
-                            smartPortPayload_t startupPayload = {
-                                .frameId = FBUS_FRAME_ID_DATA,
-                                .valueId = 0,
-                                .data = 0
-                            };
 
-                            writeUplinkFramePhyID(fbusPhyIdWithCheckBits(physicalId), &startupPayload);
-                            fbusSensorMarkStartupFrameSent(physicalId);
-                            forwardedSensor = true;
-                            clearToSend = false;
-                            break;
-                        }
-                    }
+#if defined(USE_FBUS_MASTER)
+            // A device's answer to a request from the radio goes first, under the ID
+            // the request was sent to (0x1B for Ethos Device config)
+            if (!sendNullFrame) {
+                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                uint8_t prim;
+                uint16_t appId;
+                uint32_t data;
+                if (phyId >= 0 && fbusMasterRelayGetAnswer(phyId, &prim, &appId, &data)) {
+                    const smartPortPayload_t answer = { .frameId = prim, .valueId = appId, .data = data };
+                    writeUplinkFramePhyID(downlinkPhyID, &answer);
+                    forwardedSensor = true;
+                    clearToSend = false;
                 }
             }
+#endif
 
-            // Second pass: forward buffered sensor data once startup advertising is complete.
-            if (!forwardedSensor) {
-                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
-                    if (!telemetrySensorActive(sensorId)) {
-                        continue;
-                    }
-
-                    uint8_t physicalId = telemetryGetFbusSensorPhysicalId(sensorId);
-                    if (physicalId > FBUS_MAX_PHYS_ID) {
+#if defined(USE_FBUS_MASTER) && defined(USE_TELEMETRY)
+            // A forwarded sensor answers when the receiver polls its own ID: with its next
+            // value, or an empty data frame when nothing new has come in, while the sensor is
+            // sending. Never in another device's slot (it could be on the receiver's bus), not
+            // for a null poll, and never for the FC's own IDs, which keep their telemetry and
+            // MSP replies whatever a forwarded slot is set to.
+            if (!forwardedSensor && !sendNullFrame &&
+                downlinkPhyID != FBUS_FC_COMMON_ID && downlinkPhyID != FBUS_FC_MSP_ID) {
+                const int8_t phyId = fbusPhyIdStripCheckBits(downlinkPhyID);
+                for (sensor_id_e sensorId = TELEM_FBUS_SENSOR_1; phyId >= 0 && sensorId <= TELEM_FBUS_SENSOR_8; sensorId++) {
+                    if (!telemetrySensorActive(sensorId) || telemetryGetFbusSensorPhysicalId(sensorId) != phyId) {
                         continue;
                     }
 
                     fbusSensorFrame_t sensorFrame;
-                    if (fbusSensorGetForwardedFrame(physicalId, &sensorFrame) && sensorFrame.valid) {
-                        smartPortPayload_t forwardPayload = {
+                    if (fbusSensorGetForwardedFrame(phyId, &sensorFrame)) {
+                        const smartPortPayload_t forwardPayload = {
                             .frameId = FBUS_FRAME_ID_DATA,
-                            .valueId = sensorFrame.appId,
-                            .data = sensorFrame.data
+                            .valueId = sensorFrame.valid ? sensorFrame.appId : 0,
+                            .data = sensorFrame.valid ? sensorFrame.data : 0,
                         };
-
-                        writeUplinkFramePhyID(fbusPhyIdWithCheckBits(sensorFrame.physicalId), &forwardPayload);
+                        writeUplinkFramePhyID(downlinkPhyID, &forwardPayload);
                         forwardedSensor = true;
                         clearToSend = false;
-                        break;
                     }
+                    break;
                 }
             }
 #endif
@@ -684,10 +778,18 @@ static bool processFrame(const rxRuntimeState_t *rxRuntimeConfig)
             // If no forwarded sensor, handle FC telemetry or other sensors
             if (!forwardedSensor) {
                 if ((downlinkPhyID == FBUS_FC_COMMON_ID) || (downlinkPhyID == FBUS_FC_MSP_ID)) {
-                    if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload) {
+                    // An MSP reply goes out one chunk per poll, so a data poll of the
+                    // MSP ID (0x0D) carries the next chunk too, not only a poll that
+                    // brought a request. Replies are written under the common ID
+                    // (0x1B) whichever ID was polled, which is what the radio
+                    // listens for. Sensor data stays on 0x1B. Measured on an X20S:
+                    // an 81-byte reply takes 0.39 s instead of 0.48 s.
+                    if ((downlinkPhyID == FBUS_FC_MSP_ID) && !mspPayload && !smartPortMspReplyIsPending()) {
                         // Send null frame
                     } else if (!sendNullFrame) {
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_RESPONSE_DELAY, cmpTimeUs(micros(), lastTelemetryFrameReceivedUs));
                         processSmartPortTelemetry(mspPayload, &clearToSend, NULL);
+                        DEBUG_SET(DEBUG_FBUS, DEBUG_FBUS_MSP_REPLIES, smartPortMspReplyChunksSent());
                         mspPayload = NULL;
                     }
                 } else {
@@ -743,7 +845,11 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
         return false;
     }
 
-    uint32_t baudRate = isFPORT2 ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    // Start at the selected speed; fbusBaudService() finds the other if needed
+    fbusBaudRate = isFPORT2 ? FPORT2_BAUDRATE : FBUS_BAUDRATE;
+    fbusBaudLocked = false;
+    fbusBaudGoodFrames = 0;
+    fbusBaudLastEventUs = micros();
 
     uint32_t options = FBUS_PORT_OPTIONS |
         (rxConfig->serialrx_inverted ? SERIAL_INVERTED : SERIAL_NOT_INVERTED) |
@@ -754,7 +860,7 @@ bool fbusRxInit(const rxConfig_t *rxConfig, rxRuntimeState_t *rxRuntimeState, bo
         FUNCTION_RX_SERIAL,
         fbusDataReceive,
         NULL,
-        baudRate,
+        fbusBaudRate,
         MODE_RXTX,
         options
     );

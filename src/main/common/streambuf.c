@@ -28,10 +28,37 @@ sbuf_t *sbufInit(sbuf_t *sbuf, uint8_t *ptr, uint8_t *end)
 {
     sbuf->ptr = ptr;
     sbuf->end = end;
+    sbuf->overflowed = false;
     return sbuf;
 }
 
-#define SBUFPUSH(dst, val)      ((*(dst)->ptr++ = (val)))
+// A write that does not fit is dropped and sets `overflowed`
+// (sbufWriteOverflowed()) instead of writing over whatever follows the buffer;
+// ptr stops at end. A function, not a macro, so `val` is evaluated exactly
+// once even when the byte is dropped (sbufWriteString() passes `*string++`).
+// NOINLINE: one copy of the bounds check, not one per sbufWrite*() call site
+// (inlined, it no longer fit STM32F7X2 flash).
+static NOINLINE void sbufPush(sbuf_t *dst, uint8_t val)
+{
+    if (dst->ptr < dst->end) {
+        *dst->ptr++ = val;
+    } else {
+        dst->overflowed = true;
+    }
+}
+
+// Bytes of a `len`-byte write that fit before dst->end; flags the rest.
+static inline int sbufRoomFor(sbuf_t *dst, int len)
+{
+    const int room = dst->end - dst->ptr;
+    if (len > room) {
+        dst->overflowed = true;
+        return room > 0 ? room : 0;
+    }
+    return len > 0 ? len : 0;
+}
+
+#define SBUFPUSH(dst, val)      sbufPush((dst), (val))
 #define SBUFPOP(src)            ((*(src)->ptr++))
 
 void sbufWriteU8(sbuf_t *dst, uint8_t val)
@@ -113,14 +140,16 @@ void sbufWriteFloat(sbuf_t *dst, float val)
 
 void sbufFill(sbuf_t *dst, uint8_t data, int len)
 {
-    memset(dst->ptr, data, len);
-    dst->ptr += len;
+    const int n = sbufRoomFor(dst, len);
+    memset(dst->ptr, data, n);
+    dst->ptr += n;
 }
 
 void sbufWriteData(sbuf_t *dst, const void *data, int len)
 {
-    memcpy(dst->ptr, data, len);
-    dst->ptr += len;
+    const int n = sbufRoomFor(dst, len);
+    memcpy(dst->ptr, data, n);
+    dst->ptr += n;
 }
 
 void sbufWriteString(sbuf_t *dst, const char *string)
@@ -221,4 +250,5 @@ void sbufSwitchToReader(sbuf_t *buf, uint8_t *base)
 {
     buf->end = buf->ptr;
     buf->ptr = base;
+    buf->overflowed = false;
 }

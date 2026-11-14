@@ -71,6 +71,7 @@
 #include "flight/pid.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
+#include "flight/motors.h"
 #include "flight/pid.h"
 #include "flight/trainer.h"
 #include "flight/position.h"
@@ -232,6 +233,19 @@ static bool accNeedsCalibration(void)
 }
 #endif
 
+motorProtocolCause_e getMotorProtocolCause(void)
+{
+    if (!isMotorProtocolEnabled())
+        return MOTOR_PROTO_CAUSE_DISABLED;
+    // The FC would arm with no motor running
+    if (isMotorInitFailed())
+        return MOTOR_PROTO_CAUSE_INIT_FAILED;
+    // The tail pin still on SERVO 4, say: the tail would never run
+    if (mixerMotorizedTail() && getMotorCount() < 2)
+        return MOTOR_PROTO_CAUSE_NO_TAIL_MOTOR;
+    return MOTOR_PROTO_CAUSE_NONE;
+}
+
 void updateArmingStatus(void)
 {
     if (ARMING_FLAG(ARMED))
@@ -350,7 +364,9 @@ void updateArmingStatus(void)
         }
 #endif
 
-        if (!isMotorProtocolEnabled()) {
+        // Three causes share the motor protocol reason rather than each
+        // having a bit of its own; CLI `status` names the one that applies.
+        if (getMotorProtocolCause() != MOTOR_PROTO_CAUSE_NONE) {
             setArmingDisabled(ARMING_DISABLED_MOTOR_PROTOCOL);
         }
 
@@ -497,7 +513,7 @@ void tryArm(void)
 
         const timeUs_t currentTimeUs = micros();
 
-#ifdef USE_DSHOT
+#ifdef USE_DSHOT_BEACON
         if (currentTimeUs - getLastDshotBeaconCommandTimeUs() < DSHOT_BEACON_GUARD_DELAY_US) {
             armingDelayed = ARMING_DELAYED;
             return;
@@ -610,7 +626,7 @@ void processRxModes(timeUs_t currentTimeUs)
     ) {
         if (isUsingSticksForArming()) {
             if (throttleOff) {
-                if ((autoDisarmDelayUs > 0) && (currentTimeUs > disarmAt)) {
+                if ((autoDisarmDelayUs > 0) && (cmpTimeUs(currentTimeUs, disarmAt) > 0)) {
                     // auto-disarm configured and delay is over
                     disarm(DISARM_REASON_THROTTLE_TIMEOUT);
                     armedBeeperOn = false;
@@ -797,9 +813,16 @@ static void subTaskMixerUpdate(timeUs_t currentTimeUs)
 
 static void subTaskMotorsServosUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
+    // Latch once the boot grace has passed. timeUs_t is 32 bits, so a plain
+    // currentTimeUs > MOTORS_GRACE_TIME_US goes false again for 2 s every time
+    // micros() wraps (71.6 min), freezing servos and starving the motors in flight.
+    static bool motorsGraceOver = false;
 
-    if (currentTimeUs > MOTORS_GRACE_TIME_US) {
+    if (!motorsGraceOver && cmpTimeUs(currentTimeUs, MOTORS_GRACE_TIME_US) > 0) {
+        motorsGraceOver = true;
+    }
+
+    if (motorsGraceOver) {
 #ifdef USE_SERVOS
         servoUpdate();
 #endif

@@ -966,6 +966,13 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
+// Random integer in [min, max). Returns min for an empty range, so a
+// ledstrip_flicker_rate of 100 does not divide by zero.
+static int randomInt(int min, int max)
+{
+    return (max > min) ? min + (int)(randomU32() % (uint32_t)(max - min)) : min;
+}
+
 static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
 {
     if (updateNow) {
@@ -978,7 +985,7 @@ static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
         if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_FLICKER))
             continue;
 
-        if (rand() % 5 == 0) {
+        if (randomU32() % 5 == 0) {
             hsvColor_t color;
             getLedHsv(i, &color);
             color.v = randomInt(1, 256);
@@ -1434,6 +1441,8 @@ void set_ADJUSTMENT_LED_PROFILE(int value)
 {
 #ifdef USE_LED_STRIP
     setLedProfile(value - 1);
+#else
+    UNUSED(value);
 #endif
 }
 

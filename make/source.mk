@@ -141,6 +141,7 @@ COMMON_SRC = \
             sensors/acceleration.c \
             sensors/acceleration_init.c \
             sensors/boardalignment.c \
+            sensors/boardalignment_auto.c \
             sensors/compass.c \
             sensors/gyro.c \
             sensors/gyro_init.c \
@@ -207,6 +208,7 @@ COMMON_SRC = \
             telemetry/ibus.c \
             telemetry/ibus_shared.c \
             telemetry/sensors.c \
+            telemetry/status.c \
             sensors/esc_sensor.c \
             io/vtx.c \
             io/vtx_rtc6705.c \
@@ -249,6 +251,7 @@ SPEED_OPTIMISED_SRC := $(SPEED_OPTIMISED_SRC) \
             drivers/accgyro/accgyro_spi_bmi323.c \
             drivers/accgyro/accgyro_spi_bmi088.c \
             drivers/accgyro/accgyro_spi_lsm6dso.c \
+            drivers/accgyro/accgyro_spi_lsm6dsk320x.c \
             drivers/accgyro_legacy/accgyro_adxl345.c \
             drivers/accgyro_legacy/accgyro_bma280.c \
             drivers/accgyro_legacy/accgyro_l3g4200d.c \
@@ -377,6 +380,32 @@ SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
             osd/osd_elements.c \
             osd/osd_warnings.c \
             rx/rx_bind.c
+
+# Code run only from slow tasks (MSP, telemetry, GPS, LED strip, sensor decoders).
+# Not telemetry/sbus2.c (8 kHz slot timer), drivers/crsf_sensors.c, sensors/esc_sensor.c
+# or telemetry/sport_master.c (UART receive callbacks, interrupt context). Not
+# telemetry/crsf.c (MSP, command, displayport and device info handling run in the
+# CRSF UART receive callback) or telemetry/ibus_shared.c (checksum and telemetry
+# reply run from the per-loop RX frame check).
+SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \
+            io/gps.c \
+            io/ledstrip.c \
+            msp/msp.c \
+            msp/msp_box.c \
+            telemetry/frsky_hub.c \
+            telemetry/ghst.c \
+            telemetry/hott.c \
+            telemetry/ibus.c \
+            telemetry/jetiexbus.c \
+            telemetry/ltm.c \
+            telemetry/mavlink.c \
+            telemetry/msp_shared.c \
+            telemetry/sbus2_sensors.c \
+            telemetry/sensors.c \
+            telemetry/smartport.c \
+            telemetry/srxl.c \
+            telemetry/status.c \
+            telemetry/telemetry.c
 
 # Gyro driver files that only contain initialization and configuration code - not runtime code
 SIZE_OPTIMISED_SRC := $(SIZE_OPTIMISED_SRC) \

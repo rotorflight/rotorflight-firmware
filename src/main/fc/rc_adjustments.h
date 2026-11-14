@@ -153,6 +153,10 @@ typedef enum {
     ADJUSTMENT_GOV_YAW_FF               = 81,
     ADJUSTMENT_BATTERY_PROFILE          = 82,
 
+    // Master gains
+    ADJUSTMENT_CYCLIC_MASTER_GAIN       = 83,
+    ADJUSTMENT_YAW_MASTER_GAIN          = 84,
+
     ADJUSTMENT_FUNCTION_COUNT
 } adjustmentFunc_e;
 

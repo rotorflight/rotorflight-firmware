@@ -23,7 +23,7 @@ Rotorflight is split across several repositories under <https://github.com/rotor
 | [rotorflight-lua-ethos-suite](https://github.com/rotorflight/rotorflight-lua-ethos-suite) | Lua suite for FrSky Ethos |
 | [rotorflight-presets](https://github.com/rotorflight/rotorflight-presets) | Parameter presets loaded by the Configurator |
 | [rotorflight-artifacts](https://github.com/rotorflight/rotorflight-artifacts) | Firmware builds mirrored for the web configurator |
-| [rotorflight-docs](https://github.com/rotorflight/rotorflight-docs) | Documentation website (<https://www.rotorflight.org/>) |
+| [rotorflight-documentation](https://github.com/rotorflight/rotorflight-documentation) | Documentation website (<https://doc.rotorflight.org/>) |
 | [rotorflight-ref-design](https://github.com/rotorflight/rotorflight-ref-design) | Flight controller reference hardware designs |
 | [rotorflight](https://github.com/rotorflight/rotorflight) | Wiki material, media, changelogs and example files |
 
@@ -66,8 +66,13 @@ keeping stale defaults. The version is 4 bits (0–15).
 ### Document Behavior, Not Only Intent
 
 - If a setting is renamed, keep aliases where practical and record it in [Changes.md](Changes.md).
-- User-facing documentation lives on <https://www.rotorflight.org/>. Note in the PR when a behaviour change needs
+- User-facing documentation lives on <https://doc.rotorflight.org/>. Note in the PR when a behaviour change needs
   a matching docs update.
+- **Developer and internals documentation** (building, coding style, parameter groups, configuration and
+  Blackbox formats, governor and SmartFuel internals, hardware debugging) is in the Technical Reference under
+  Contributing on the same site: <https://doc.rotorflight.org/contributing/tech/>.
+- **`docs/` in this repository** holds only a README that points at the docs site. Do not add documents there; add
+  them to rotorflight-documentation, and link to them by URL from source comments.
 
 ## Build and Test
 
@@ -95,6 +100,23 @@ the build with `fc_version_string_too_long`.
 
 Unit tests exist for PID, setpoint and maths. The governor, mixer, servos, rescue and leveling have none, so
 changes there need extra care and, where possible, a new test.
+
+## Agent Skills
+
+Step-by-step skills for tasks that need local tools are in
+[rotorflight-agent-skills](https://github.com/rotorflight/rotorflight-agent-skills).
+In Claude Code, install them with `/plugin marketplace add rotorflight/rotorflight-agent-skills`
+and `/plugin install rotorflight-dev@rotorflight`. Other agents: clone that repository and read
+the skill's `SKILL.md` before starting the task. If the repository cannot be cloned, continue with
+the steps in this file and state that the skill was unavailable.
+
+| Skill | Use it to |
+| --- | --- |
+| [firmware-toolchain](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-toolchain/SKILL.md) | install the Arm toolchain, build and flash, platform pitfalls |
+| [firmware-unit-tests](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-unit-tests/SKILL.md) | run `make test` (clang 7-18, BlocksRuntime), write a test |
+| [firmware-sitl](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/firmware-sitl/SKILL.md) | build and run the firmware on a PC, drive it over MSP/CRSF/UDP |
+| [jlink-debug](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/jlink-debug/SKILL.md) | debug a flight controller over SWD with a J-Link |
+| [blackbox-decode](https://github.com/rotorflight/rotorflight-agent-skills/blob/master/skills/blackbox-decode/SKILL.md) | decode and analyse blackbox logs in Python |
 
 ## Issues and Pull Requests
 

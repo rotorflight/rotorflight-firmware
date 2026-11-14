@@ -75,8 +75,27 @@ static smartPortWriteFrameFn *smartPortWriteFrame = NULL;
 #define SMARTPORT_MSP_PAYLOAD_SIZE      6
 
 static bool smartPortMspReplyPending = false;
+static uint32_t smartPortMspReplyChunks = 0;
 
 #endif /* USE_MSP_OVER_TELEMETRY */
+
+bool smartPortMspReplyIsPending(void)
+{
+#if defined(USE_MSP_OVER_TELEMETRY)
+    return smartPortMspReplyPending;
+#else
+    return false;
+#endif
+}
+
+uint32_t smartPortMspReplyChunksSent(void)
+{
+#if defined(USE_MSP_OVER_TELEMETRY)
+    return smartPortMspReplyChunks;
+#else
+    return 0;
+#endif
+}
 
 
 /** Sensor definitions **/
@@ -94,6 +113,7 @@ static void smartPortSensorEncodeAttitude(__unused telemetrySensor_t *sensor, sm
     payload->data = roll | pitch << 16;
 }
 
+#ifdef USE_GPS
 static void smartPortSensorEncodeKnots(__unused telemetrySensor_t *sensor, smartPortPayload_t *payload)
 {
     const uint32_t mknots = gpsSol.groundSpeed * 19438UL / 1000;
@@ -127,6 +147,7 @@ static void smartPortSensorEncodeHeading(__unused telemetrySensor_t *sensor, sma
 
     payload->data = cdeg;
 }
+#endif
 
 static void smartPortSensorEncodeAdjFunc(__unused telemetrySensor_t *sensor, smartPortPayload_t *payload)
 {
@@ -218,12 +239,14 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(ACCEL_Y,                 0x0710,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(ACCEL_Z,                 0x0720,   100,  3000,   1,  10,   0,    INT),
 
+#ifdef USE_GPS
     TLM_SENSOR(GPS_SATS,                0x0860,   500,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(GPS_COORD,               0x0800,   100,  3000,   1,  10,   0,    Lat),
     TLM_SENSOR(GPS_COORD,               0x0800,   100,  3000,   1,  10,   0,    Lon),
     TLM_SENSOR(GPS_ALTITUDE,            0x0820,   100,  3000,   1,  10,   0,    INT),
     TLM_SENSOR(GPS_HEADING,             0x0840,   100,  3000,   1,  10,   0,    Heading),
     TLM_SENSOR(GPS_GROUNDSPEED,         0x0830,   100,  3000,   1,  10,   0,    Knots),
+#endif
 
     TLM_SENSOR(CPU_LOAD,                0x51D0,   200,  3000,   1,  10,   10,   INT),
     TLM_SENSOR(SYS_LOAD,                0x51D1,   200,  3000,   1,  10,   10,   INT),
@@ -240,6 +263,9 @@ static telemetrySensor_t smartportTelemetrySensors[] =
     TLM_SENSOR(RATES_PROFILE,           0x5131,   200,  3000,   1,   1,   0,    INT),
     TLM_SENSOR(LED_PROFILE,             0x5132,   200,  3000,   1,   1,   0,    INT),
     TLM_SENSOR(BATTERY_PROFILE,         0x5133,   200,  3000,   1,   1,   0,    INT),
+
+    TLM_SENSOR(SYSTEM_STATUS,           0x5140,   100,  3000,   1,   1,   0,    INT),
+    TLM_SENSOR(SYSTEM_CONFIG,           0x5141,   500,  3000,   1,   1,   0,    INT),
 
     TLM_SENSOR(ADJFUNC,                 0x5110,   200,  3000,   1,   1,   0,    AdjFunc),
     TLM_SENSOR(ADJFUNC,                 0x5111,   200,  3000,   1,   1,   0,    AdjValue),
@@ -360,7 +386,7 @@ static void INIT_CODE initSmartPortSensors(void)
                     if (telemetryConfig()->telemetry_interval[j])
                         sensor->fast_interval = telemetryConfig()->telemetry_interval[j];
                     if (sensor->slow_interval > 1000)
-                        sensor->slow_interval += rand() % 100;
+                        sensor->slow_interval += randomU32() % 100;
                     telemetryScheduleAdd(sensor);
                 }
             }
@@ -446,6 +472,7 @@ static void smartPortSendMspResponse(uint8_t *data, const uint8_t dataSize)
     memcpy(&payload.valueId, data, MIN(dataSize,SMARTPORT_MSP_PAYLOAD_SIZE));
 
     smartPortWriteFrame(&payload);
+    smartPortMspReplyChunks++;
 }
 
 bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload)

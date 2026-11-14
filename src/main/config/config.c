@@ -58,6 +58,7 @@
 #include "flight/motors.h"
 #include "flight/servos.h"
 #include "flight/position.h"
+#include "flight/tune_advisor.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -331,6 +332,11 @@ static void validateAndFixConfig(void)
             featureEnableImmediate(FEATURE_ESC_SENSOR);
         }
     } else
+#else
+    // The FBUS ESC protocol needs FBUS or S.Port master, which this build doesn't have
+    if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_FBUS) {
+        escSensorConfigMutable()->protocol = ESC_SENSOR_PROTO_NONE;
+    }
 #endif
     /* If there is no dedicated ESC_SENSOR serial port and we're not using
      * Castle PWM, normally disable the ESC sensor feature. However, allow
@@ -482,7 +488,7 @@ static void validateAndFixConfig(void)
         beeperConfigMutable()->beeper_off_flags = 0;
     }
 
-#ifdef USE_DSHOT
+#ifdef USE_DSHOT_BEACON
     if (beeperConfig()->dshotBeaconOffFlags & ~DSHOT_BEACON_ALLOWED_MODES) {
         beeperConfigMutable()->dshotBeaconOffFlags = 0;
     }
@@ -790,7 +796,12 @@ void writeEEPROM(void)
 
 void dispatchConfigWrite(struct dispatchEntry_s* self)
 {
-    UNUSED(self);
+    // The flash erase stalls the MCU for longer than a PID loop. A re-arm inside
+    // the 500 ms delay after a disarm would run it in flight, so defer until disarmed.
+    if (ARMING_FLAG(ARMED)) {
+        dispatchAdd(self, 500000);
+        return;
+    }
 
     writeUnmodifiedConfigToEEPROM();
     beeperConfirmationBeeps(1);
@@ -855,6 +866,7 @@ void changePidProfile(uint8_t pidProfileIndex)
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
         pidChangeProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

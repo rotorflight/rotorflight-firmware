@@ -57,6 +57,7 @@
 #include "scheduler/scheduler.h"
 
 #include "telemetry/sensors.h"
+#include "telemetry/status.h"
 
 #ifdef USE_FBUS_MASTER
 # include "drivers/fbus_sensor.h"
@@ -300,6 +301,7 @@ int telemetrySensorValue(sensor_id_e id)
         case TELEM_ACCEL_Z:
             return lrintf(acc.accADC[2] * acc.dev.acc_1G_rec * 1000);
 
+#ifdef USE_GPS
         case TELEM_GPS:
             return millis();
         case TELEM_GPS_SATS:
@@ -324,6 +326,7 @@ int telemetrySensorValue(sensor_id_e id)
             return GPS_directionToHome;
         case TELEM_GPS_DATE_TIME:
             return 0;
+#endif
 
         case TELEM_LOAD:
             return millis();
@@ -357,6 +360,11 @@ int telemetrySensorValue(sensor_id_e id)
             return 0;
         case TELEM_BATTERY_PROFILE:
             return getCurrentBatteryProfileIndex() + 1;
+
+        case TELEM_SYSTEM_STATUS:
+            return telemetrySystemStatus();
+        case TELEM_SYSTEM_CONFIG:
+            return telemetrySystemConfig();
 
         case TELEM_ADJFUNC:
             return getAdjustmentsRangeName() ?
@@ -527,7 +535,11 @@ bool telemetrySensorActive(sensor_id_e id)
         case TELEM_GPS_GROUNDSPEED:
         case TELEM_GPS_HOME_DISTANCE:
         case TELEM_GPS_HOME_DIRECTION:
+#ifdef USE_GPS
             return true;
+#else
+            return false;
+#endif
 
         case TELEM_GPS_PDOP:
         case TELEM_GPS_VDOP:
@@ -557,6 +569,10 @@ bool telemetrySensorActive(sensor_id_e id)
             return true;
         case TELEM_LED_PROFILE:
             return false;
+
+        case TELEM_SYSTEM_STATUS:
+        case TELEM_SYSTEM_CONFIG:
+            return true;
 
         case TELEM_ADJFUNC:
             return true;
