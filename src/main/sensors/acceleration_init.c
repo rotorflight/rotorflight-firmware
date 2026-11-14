@@ -51,6 +51,7 @@
 #include "drivers/accgyro/accgyro_spi_icm20689.h"
 #include "drivers/accgyro/accgyro_spi_icm426xx.h"
 #include "drivers/accgyro/accgyro_spi_lsm6dso.h"
+#include "drivers/accgyro/accgyro_spi_lsm6dsk320x.h"
 #include "drivers/accgyro/accgyro_spi_mpu6000.h"
 #include "drivers/accgyro/accgyro_spi_mpu6500.h"
 #include "drivers/accgyro/accgyro_spi_mpu9250.h"
@@ -238,9 +239,10 @@ retry:
         FALLTHROUGH;
 #endif
 
-#if defined(USE_ACC_SPI_ICM42605) || defined(USE_ACC_SPI_ICM42688P)
+#if defined(USE_ACC_SPI_ICM42605) || defined(USE_ACC_SPI_ICM42688P) || defined(USE_ACC_SPI_ICM40608)
     case ACC_ICM42605:
     case ACC_ICM42688P:
+    case ACC_ICM40608:
         if (icm426xxSpiAccDetect(dev)) {
             switch (dev->mpuDetectionResult.sensor) {
             case ICM_42605_SPI:
@@ -248,6 +250,9 @@ retry:
                 break;
             case ICM_42688P_SPI:
                 accHardware = ACC_ICM42688P;
+                break;
+            case ICM_40608_SPI:
+                accHardware = ACC_ICM40608;
                 break;
             default:
                 accHardware = ACC_NONE;
@@ -298,6 +303,15 @@ retry:
     case ACC_LSM6DSO:
         if (lsm6dsoSpiAccDetect(dev)) {
             accHardware = ACC_LSM6DSO;
+            break;
+        }
+        FALLTHROUGH;
+#endif
+
+#ifdef USE_ACCGYRO_LSM6DSK320X
+    case ACC_LSM6DSK320X:
+        if (lsm6dsk320xSpiAccDetect(dev)) {
+            accHardware = ACC_LSM6DSK320X;
             break;
         }
         FALLTHROUGH;

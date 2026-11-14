@@ -45,6 +45,7 @@
 #include "flight/trainer.h"
 #include "flight/governor.h"
 #include "flight/leveling.h"
+#include "flight/tune_advisor.h"
 
 #include "io/beeper.h"
 #include "io/ledstrip.h"
@@ -336,14 +337,20 @@ void processRcAdjustments(void)
                         continue;
                     }
                     if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange1)) {
-                        adjval = adjConfig->cfgGet() - adjRange->adjStep;
+                        adjval = -adjRange->adjStep;
                     }
                     else if (isRangeActive(adjRange->adjChannel, &adjRange->adjRange2)) {
-                        adjval = adjConfig->cfgGet() + adjRange->adjStep;
+                        adjval = adjRange->adjStep;
                     }
                     else {
                         continue;
                     }
+                    // A step works on the value that is live now, so compare against that
+                    // too. The value this slot wrote last can be out of date: a profile
+                    // switch or an MSP/CLI write changes the value underneath it, and a
+                    // step landing on the old value would be dropped as "no change".
+                    adjState->adjValue = adjConfig->cfgGet();
+                    adjval += adjState->adjValue;
                 }
                 // Continuous adjustment
                 else {
@@ -375,6 +382,7 @@ void processRcAdjustments(void)
 
                 if (adjval != adjState->adjValue) {
                     adjConfig->cfgSet(adjval);
+                    tuneAdvisorTuneChanged();
                     adjval = adjConfig->cfgGet();
 
                     if (adjval != adjState->adjValue) {

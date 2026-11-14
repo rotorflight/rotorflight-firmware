@@ -58,6 +58,7 @@
 #include "flight/motors.h"
 #include "flight/servos.h"
 #include "flight/position.h"
+#include "flight/tune_advisor.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -865,6 +866,7 @@ void changePidProfile(uint8_t pidProfileIndex)
         systemConfigMutable()->pidProfileIndex = pidProfileIndex;
         loadPidProfile();
         pidChangeProfile(currentPidProfile);
+        tuneAdvisorTuneChanged();
     }
 
     beeperConfirmationBeeps(pidProfileIndex + 1);

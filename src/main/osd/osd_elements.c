@@ -218,6 +218,7 @@ static const char compassBar[] = {
 };
 
 static unsigned activeOsdElementCount = 0;
+static uint8_t activeElement = 0;           // next element osdDrawNextActiveElement() draws
 static uint8_t activeOsdElementArray[OSD_ITEM_COUNT];
 static bool backgroundLayerSupported = false;
 
@@ -1635,6 +1636,7 @@ static void osdAddActiveElement(osd_items_e element)
 void osdAddActiveElements(void)
 {
     activeOsdElementCount = 0;
+    activeElement = 0;
 
 #ifdef USE_ACC
     if (sensors(SENSOR_ACC)) {
@@ -1736,8 +1738,6 @@ static void osdDrawSingleElementBackground(displayPort_t *osdDisplayPort, uint8_
     }
 }
 
-static uint8_t activeElement = 0;
-
 uint8_t osdGetActiveElement(void)
 {
     return activeElement;
@@ -1755,6 +1755,8 @@ bool osdDrawNextActiveElement(displayPort_t *osdDisplayPort, timeUs_t currentTim
     bool retval = true;
 
     if (activeElement >= activeOsdElementCount) {
+        // List got shorter under us: start over instead of never drawing again
+        activeElement = 0;
         return false;
     }
 
