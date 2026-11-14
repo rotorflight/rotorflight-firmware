@@ -65,7 +65,7 @@ class Rotor(threading.Thread):
         return self.w * 60 / (2 * math.pi)
 
     def run(self):
-        t0 = last = time.monotonic()
+        t0 = last = time.perf_counter()   # monotonic() ticks every 15.6 ms on Windows
         n = 0
         while self.running:
             try:
@@ -75,7 +75,7 @@ class Rotor(threading.Thread):
                         self.throttle = max(0.0, min(1.0, struct.unpack_from("<f", d, 0)[0]))
             except (BlockingIOError, OSError):
                 pass
-            now = time.monotonic()
+            now = time.perf_counter()
             dt = min(now - last, 0.02)
             last = now
             u = self.throttle if self.throttle > 0.02 else 0.0
@@ -87,7 +87,7 @@ class Rotor(threading.Thread):
                               self.rpm, 0, 0, 0)        # 168 bytes: + motor_erpm[4]
             self.fdm.sendto(pkt, ("127.0.0.1", 9003))
             n += 1
-            sleep = t0 + n * 0.002 - time.monotonic()
+            sleep = t0 + n * 0.002 - time.perf_counter()
             if sleep > 0:
                 time.sleep(sleep)
 
