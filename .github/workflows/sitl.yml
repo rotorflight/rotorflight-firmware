@@ -52,10 +52,12 @@ jobs:
 
     - name: Keep the heli runs' SITL logs
       # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
-      # eeprom.bin): put those under one folder, uploaded when a check fails
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
       run: |
         mkdir -p "$RUNNER_TEMP/heli-runs"
         echo "TMPDIR=$RUNNER_TEMP/heli-runs" >> "$GITHUB_ENV"
+        echo "KEEP=1" >> "$GITHUB_ENV"
 
     - name: Hover check (heli model, angle mode)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
@@ -157,10 +159,12 @@ jobs:
 
     - name: Keep the heli runs' SITL logs
       # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
-      # eeprom.bin): put those under one folder, uploaded when a check fails
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
       run: |
         New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\heli-runs" | Out-Null
         "TMPDIR=$env:RUNNER_TEMP\heli-runs" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+        "KEEP=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
     - name: Hover check (heli model, angle mode)
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
