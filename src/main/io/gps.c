@@ -906,8 +906,15 @@ void gpsUpdate(timeUs_t currentTimeUs)
     if (sensors(SENSOR_GPS)) {
         updateGpsIndicator(currentTimeUs);
     }
-    if (!ARMING_FLAG(ARMED) && !gpsConfig()->gps_set_home_point_once) {
-        DISABLE_STATE(GPS_FIX_HOME);
+    if (!ARMING_FLAG(ARMED)) {
+        if (!gpsConfig()->gps_set_home_point_once) {
+            DISABLE_STATE(GPS_FIX_HOME);
+        }
+    } else if (!STATE(GPS_FIX_HOME) && STATE(GPS_FIX) && gpsSol.numSat >= 5) {
+        // Armed before the fix (allowed on every re-arm via WAS_EVER_ARMED, and with
+        // gps_rescue_allow_arming_without_fix): take home from the first usable fix
+        // rather than fly with none, which leaves the GPS-RESCUE failsafe with no target.
+        GPS_reset_home_position();
     }
 
     uint8_t minSats = 5;

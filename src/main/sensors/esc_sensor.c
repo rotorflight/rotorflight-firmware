@@ -368,7 +368,8 @@ escSensorData_t * getEscSensorData(uint8_t motorNumber)
 #endif
             return NULL;
         }
-        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32) {
+        else if (escSensorConfig()->protocol == ESC_SENSOR_PROTO_BLHELI32 ||
+                 escSensorConfig()->protocol == ESC_SENSOR_PROTO_GOOSKY) {
             if (motorNumber < getMotorCount()) {
                 return &escSensorData[motorNumber];
             }
@@ -1494,9 +1495,13 @@ static bool processKontronikTelemetryStream(uint8_t dataByte)
             // ...w/ 36 byte payload
             kontronikPacketLength = KON_FRAME_LENGTH;
             kontronikCrcExclude = 0;
+            readBytes = 0;
+            return true;
         }
+        // Neither length matched: discard and resync. Returning true here with
+        // kontronikPacketLength still 0 made the caller CRC a (0 - 4) byte span.
         readBytes = 0;
-        return true;
+        return false;
     }
 
     return false;
@@ -4379,6 +4384,7 @@ void escSensorProcess(timeUs_t currentTimeUs)
     if (escSensorPort && motorIsEnabled()) {
         switch (escSensorConfig()->protocol) {
             case ESC_SENSOR_PROTO_BLHELI32:
+            case ESC_SENSOR_PROTO_GOOSKY:
                 blSensorProcess(currentTimeUs);
                 break;
             case ESC_SENSOR_PROTO_HW4:
@@ -4485,6 +4491,7 @@ bool INIT_CODE escSensorInit(void)
 
     switch (escSensorConfig()->protocol) {
         case ESC_SENSOR_PROTO_BLHELI32:
+        case ESC_SENSOR_PROTO_GOOSKY:
             callback = blDataReceive;
             baudrate = 115200;
             break;
