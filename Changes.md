@@ -27,6 +27,7 @@ the APIs or flight performance.
 
 ## Bug Fixes
 
+- DIRECT governor TTA applies only the proportional assist increment; the throttle was doubled whenever TTA was enabled (#487, #567)
 - ICM42605 gyro uses the correct ODR (#475)
 - Servos are no longer set to midpoint at startup (#466)
 - Forwarding of S.Port master sensors fixed (#481)
@@ -46,6 +47,13 @@ Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
 
 Bus servos with a `speed` set previously moved much slower than configured
 (about 20x at 50Hz SBUS). They now move at the configured speed (#515).
+
+**Check headspeed when using DIRECT governor mode with TTA.** In 4.6, with
+`tta_gain` and `tta_limit` both set, the DIRECT mode output was twice the
+throttle input, capped at `max_throttle` (#487). From 4.7 the output follows
+the throttle input/curve again, plus only the TTA increment. Models tuned
+on 4.6 will see a much lower throttle and headspeed than before: re-check the
+throttle curve and headspeed before the first flight (#567).
 
 ## MSP Changes
 
@@ -71,7 +79,9 @@ Bus servos with a `speed` set previously moved much slower than configured
 
 - new commands (0x5F10, 0x5F11): read one axis of the tune advisor statistics, or clear them (#523).
   Counted only while spooled up, airborne and in plain rate flight; RAM only, cleared when the
-  tune changes (checked on arming). New commands only, the API version is unchanged.
+  tune changes (checked on arming, and in flight after a profile switch, an RC adjustment or an MSP
+  write of the PID or rate settings, so each starts the statistics again when it changes a setting
+  the tune signature covers, master gains included). New commands only, the API version is unchanged.
 - request `U8 axis` (0 roll, 1 pitch, 2 yaw); reply (51 bytes: one CRSF frame), payload v3:
   `U8 version, U8 flags` (bits 0-1 axis, bit 2 collecting, bits 3-5 rates_type), `U16 seconds`,
   `U32 P | F << 10 | B << 20, U8 iterm_relax_cutoff, U8 rc_rate, U8 s_rate`,
