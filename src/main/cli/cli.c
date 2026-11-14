@@ -2499,6 +2499,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
     else if (strcasecmp(args[FUNC], "reset") == 0) {
         PG_RESET(mixerInputs);
         PG_RESET(mixerRules);
+        mixerUpdateMapping();
     }
     else if (strcasecmp(args[FUNC], "status") == 0) {
         for (unsigned i=1; i<MIXER_OUTPUT_COUNT; i++) {
@@ -2600,6 +2601,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
         else if (count == 2) {
             if (strcasecmp(args[ARG1], "reset") == 0) {
                 PG_RESET(mixerRules);
+                mixerUpdateMapping();
             }
         }
         else if (count == 3) {
@@ -2608,6 +2610,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
                 int index = atoi(args[RULE]);
                 if (index >= 0 && index < MIXER_RULE_COUNT) {
                     memset(mixerRulesMutable(index), 0, sizeof(mixerRule_t));
+                    mixerUpdateMapping();
                 } else {
                     cliShowArgumentRangeError(cmdName, NULL, 0, 0);
                 }
@@ -2643,6 +2646,7 @@ static void cliMixer(const char *cmdName, char *cmdline)
                 mix->output = vals[OUTPUT];
                 mix->weight = vals[WEIGHT];
                 mix->offset = vals[OFFSET];
+                mixerUpdateMapping();
             } else {
                 cliShowArgumentRangeError(cmdName, NULL, 0, 0);
             }

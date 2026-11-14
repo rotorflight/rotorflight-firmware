@@ -4039,6 +4039,7 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
         }
         mixerInitConfig();
+        mixerUpdateMapping();
         break;
 
     case MSP_SET_MIXER_INPUT:
@@ -4052,15 +4053,30 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         break;
 
     case MSP_SET_MIXER_RULE:
+        // payload: U8 idx, U8 oper, U8 input, U8 output, U16 offset,
+        // U16 weight. The rule is applied live, so refuse a short payload
+        // and anything that does not index a valid mixer input or output.
+        if (dataSize < 8) {
+            return MSP_RESULT_ERROR;
+        }
         i = sbufReadU8(src);
         if (i >= MIXER_RULE_COUNT) {
             return MSP_RESULT_ERROR;
         }
-        mixerRulesMutable(i)->oper = sbufReadU8(src);
-        mixerRulesMutable(i)->input = sbufReadU8(src);
-        mixerRulesMutable(i)->output = sbufReadU8(src);
+        {
+            const uint8_t oper = sbufReadU8(src);
+            const uint8_t input = sbufReadU8(src);
+            const uint8_t output = sbufReadU8(src);
+            if (oper >= MIXER_OP_COUNT || input >= MIXER_INPUT_COUNT || output >= MIXER_OUTPUT_COUNT) {
+                return MSP_RESULT_ERROR;
+            }
+            mixerRulesMutable(i)->oper = oper;
+            mixerRulesMutable(i)->input = input;
+            mixerRulesMutable(i)->output = output;
+        }
         mixerRulesMutable(i)->offset = sbufReadU16(src);
         mixerRulesMutable(i)->weight = sbufReadU16(src);
+        mixerUpdateMapping();
         break;
 
     case MSP_SET_MIXER_OVERRIDE:
