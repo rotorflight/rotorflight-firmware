@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Local test run</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --line: #e3e6ec;
+  --accent: #e8560c; --pass: #18864b; --fail: #c4302b; --run: #1f6fd1; --skip: #8a8f98;
+  --pass-bg: #e6f4ec; --fail-bg: #fbe9e8; --run-bg: #e7f0fc; --skip-bg: #eef0f3;
+  --log-bg: #12151b; --log-text: #d6dbe4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12151b; --panel: #1a1e26; --text: #e4e7ed; --muted: #8b93a3; --line: #2a303b;
+    --pass: #3fbf7a; --fail: #f0605a; --run: #5c9dff; --skip: #8b93a3;
+    --pass-bg: #18301f; --fail-bg: #3a1c1b; --run-bg: #172a45; --skip-bg: #232831;
+    --log-bg: #0b0d11;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+h1 { font-size: 16px; margin: 0; }
+h1 span { color: var(--accent); }
+.counts { display: flex; gap: 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.counts b { color: var(--text); }
+.bar { flex: 1 1 200px; height: 8px; background: var(--skip-bg); border-radius: 4px; overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; transition: width .3s; }
+.actions { display: flex; gap: 8px; }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .45; cursor: default; }
+main { display: grid; grid-template-columns: minmax(320px, 460px) 1fr; gap: 16px; padding: 16px;
+  height: calc(100vh - 57px); }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; height: auto; } #logpane { height: 60vh; } }
+#steps { overflow-y: auto; overflow-x: hidden; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px; }
+section > h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
+section > h2 .gsum { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: normal; }
+.step { display: grid; grid-template-columns: 18px 22px 1fr auto; gap: 6px; align-items: center;
+  padding: 6px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.step:last-child { border-bottom: 0; }
+.step:hover { background: var(--bg); }
+.step.sel { box-shadow: inset 3px 0 0 var(--accent); background: var(--bg); }
+.step .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step .meta { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.step.disabled .name { color: var(--muted); }
+.note { grid-column: 3 / 5; font-size: 12px; color: var(--muted); white-space: normal; }
+.note.bad { color: var(--fail); }
+.items { grid-column: 2 / 5; display: flex; flex-wrap: wrap; gap: 3px; padding-top: 4px; }
+.items span { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: var(--skip-bg); color: var(--skip); }
+.items .pass { background: var(--pass-bg); color: var(--pass); }
+.items .fail { background: var(--fail-bg); color: var(--fail); font-weight: 600; }
+.items .running { background: var(--run-bg); color: var(--run); }
+.ico { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; background: var(--skip-bg); }
+.ico.pass { background: var(--pass); }
+.ico.fail { background: var(--fail); }
+.ico.skipped, .ico.stopped { background: var(--skip); }
+.ico.queued { background: transparent; border: 2px solid var(--skip); }
+.ico.idle { background: transparent; border: 2px dashed var(--line); }
+.ico.running { background: transparent; border: 2px solid var(--run); border-top-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#logpane { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; min-height: 0; }
+#loghead { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+#loghead .t { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#loghead label { color: var(--muted); font-size: 12px; display: flex; gap: 4px; align-items: center; }
+#log { flex: 1; margin: 0; overflow: auto; background: var(--log-bg); color: var(--log-text); padding: 8px 12px;
+  border-radius: 0 0 8px 8px; font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap;
+  word-break: break-all; }
+#log .e { color: #ff8a84; }
+#log .ok { color: #6fdc9b; }
+#log .cmd { color: #9ec5ff; }
+.info { color: var(--muted); font-size: 12px; padding: 0 2px 10px; }
+.info code { font-size: 11px; word-break: break-all; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Rotorflight</span> local tests</h1>
+  <div class="counts" id="counts"></div>
+  <div class="bar" id="bar"></div>
+  <div class="counts" id="elapsed"></div>
+  <div class="actions">
+    <button id="runFailed" title="Run the steps that failed in the last run">Rerun failed</button>
+    <button id="run" class="primary">Run selected</button>
+    <button id="stop">Stop</button>
+  </div>
+</header>
+<main>
+  <div id="steps"></div>
+  <div id="logpane">
+    <div id="loghead"><span class="t" id="logtitle">Log</span>
+      <label><input type="checkbox" id="follow" checked> follow running step</label></div>
+    <pre id="log"></pre>
+  </div>
+</main>
+<script>
+const GROUPS = { build: "Firmware builds", unit: "Unit tests", sitl: "SITL" };
+const ICON = { pass: "✓", fail: "✕", skipped: "–", stopped: "■" };
+let state = null, viewId = null, logFrom = 0, selection = null;
+
+function store(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+
+function fmt(s) {
+  if (s == null) return "";
+  s = Math.round(s);
+  return s >= 60 ? Math.floor(s / 60) + "m " + String(s % 60).padStart(2, "0") + "s" : s + "s";
+}
+function esc(t) { return t.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) } : {});
+  return r.json();
+}
+
+function render() {
+  const st = state, steps = st.steps;
+  if (!selection) {
+    const saved = load("localci.selection");
+    selection = new Set(saved || st.info.selected);
+  }
+  const tally = { pass: 0, fail: 0, running: 0, queued: 0, skipped: 0, stopped: 0 };
+  steps.forEach(s => { if (s.status in tally) tally[s.status]++; });
+  const active = steps.filter(s => s.status !== "idle");
+  document.getElementById("counts").innerHTML =
+    `<span><b>${tally.pass}</b> passed</span><span><b>${tally.fail}</b> failed</span>` +
+    `<span><b>${tally.queued + tally.running}</b> to go</span>` +
+    (tally.skipped + tally.stopped ? `<span><b>${tally.skipped + tally.stopped}</b> skipped</span>` : "");
+  const n = Math.max(active.length, 1);
+  document.getElementById("bar").innerHTML =
+    `<i style="width:${100 * tally.pass / n}%;background:var(--pass)"></i>` +
+    `<i style="width:${100 * tally.fail / n}%;background:var(--fail)"></i>` +
+    `<i style="width:${100 * (tally.skipped + tally.stopped) / n}%;background:var(--skip)"></i>` +
+    `<i style="width:${100 * tally.running / n}%;background:var(--run);opacity:.5"></i>`;
+  const el = st.started ? (st.ended || st.now) - st.started : null;
+  document.getElementById("elapsed").textContent = st.running ? "running " + fmt(el) : (el != null ? "took " + fmt(el) : "");
+  document.getElementById("run").disabled = st.running;
+  document.getElementById("runFailed").disabled = st.running || !tally.fail;
+  document.getElementById("stop").disabled = !st.running;
+  document.title = (st.running ? "▶ " : tally.fail ? "✕ " : active.length ? "✓ " : "") + "Local test run";
+
+  const box = document.getElementById("steps");
+  const scroll = box.scrollTop;
+  let html = `<div class="info">Logs: <code>${esc(st.run_dir || "obj/local-ci/")}</code><br>` +
+    `rotorflight-sim: <code>${esc(st.info.sim_dir)}</code>, CI pins <code>${esc((st.info.sim_ref || "?").slice(0, 10))}</code>` +
+    (st.info.config ? `<br>Config: <code>${esc(st.info.config)}</code>` : "<br>No make/local-ci.json, using defaults") + `</div>`;
+  for (const g of Object.keys(GROUPS)) {
+    const gs = steps.filter(s => s.group === g);
+    if (!gs.length) continue;
+    const enabled = gs.filter(s => !s.disabled);
+    const allSel = enabled.every(s => selection.has(s.id));
+    const gp = gs.filter(s => s.status === "pass").length, gf = gs.filter(s => s.status === "fail").length;
+    html += `<section><h2><input type="checkbox" data-group="${g}" ${allSel ? "checked" : ""}>${GROUPS[g]}` +
+      `<span class="gsum">${gp ? gp + " ✓ " : ""}${gf ? gf + " ✕" : ""}</span></h2>`;
+    for (const s of gs) {
+      const meta = s.progress ? `${s.progress[0]}/${s.progress[1]} · ${fmt(s.duration)}` : fmt(s.duration);
+      html += `<div class="step ${s.id === viewId ? "sel" : ""} ${s.disabled ? "disabled" : ""}" data-id="${s.id}">` +
+        `<input type="checkbox" data-step="${s.id}" ${selection.has(s.id) && !s.disabled ? "checked" : ""} ${s.disabled ? "disabled" : ""}>` +
+        `<span class="ico ${s.status}">${ICON[s.status] || ""}</span>` +
+        `<span class="name" title="${esc(s.name)}">${esc(s.name)}</span><span class="meta">${meta}</span>`;
+      if (s.disabled) html += `<span class="note">${esc(s.disabled)}</span>`;
+      for (const note of s.notes) html += `<span class="note ${s.status === "fail" ? "bad" : ""}">${esc(note)}</span>`;
+      if (s.items.length) {
+        const order = { fail: 0, running: 1, pass: 3 };
+        const items = [...s.items].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
+        html += `<div class="items">` + items.map(i =>
+          `<span class="${i.status}" title="${i.status}">${esc(i.name.replace(/_unittest$/, ""))}</span>`).join("") + `</div>`;
+      }
+      html += `</div>`;
+    }
+    html += `</section>`;
+  }
+  box.innerHTML = html;
+  box.scrollTop = scroll;
+}
+
+async function poll() {
+  try {
+    state = await api("/api/state");
+    if (document.getElementById("follow").checked) {
+      const run = state.steps.find(s => s.status === "running");
+      if (run && run.id !== viewId) view(run.id);
+      if (!run && !viewId) {     // nothing running: show the step that finished last
+        const last = state.steps.filter(s => s.log_len).pop();
+        if (last) view(last.id);
+      }
+    }
+    render();
+    await pollLog();
+  } catch (e) {
+    document.getElementById("elapsed").textContent = "dashboard not reachable";
+  }
+  setTimeout(poll, 800);
+}
+
+function view(id) {
+  viewId = id; logFrom = 0;
+  const s = state.steps.find(x => x.id === id);
+  document.getElementById("logtitle").textContent = s ? s.name : "Log";
+  document.getElementById("log").innerHTML = "";
+}
+
+async function pollLog() {
+  if (!viewId) return;
+  const s = state.steps.find(x => x.id === viewId);
+  if (!s || s.log_len <= logFrom) {
+    if (s && s.log_len < logFrom) view(viewId);   // step restarted
+    return;
+  }
+  const r = await api(`/api/log?id=${encodeURIComponent(viewId)}&from=${logFrom}`);
+  const pre = document.getElementById("log");
+  const atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 30;
+  if (r.start > logFrom) pre.insertAdjacentHTML("beforeend", `<span class="e">… ${r.start - logFrom} lines dropped …</span>\n`);
+  pre.insertAdjacentHTML("beforeend", r.lines.map(l => {
+    const c = /^\$ /.test(l) ? "cmd" : /\b(FAIL|FAILED|Error|error:|Traceback)\b/.test(l) ? "e" :
+      /\b(PASS|PASSED|OK)\b/.test(l) ? "ok" : "";
+    return c ? `<span class="${c}">${esc(l)}</span>` : esc(l);
+  }).join("\n") + (r.lines.length ? "\n" : ""));
+  logFrom = r.start + r.lines.length;
+  if (atEnd) pre.scrollTop = pre.scrollHeight;
+}
+
+document.getElementById("steps").addEventListener("click", e => {
+  const t = e.target;
+  if (t.dataset.step) {
+    t.checked ? selection.add(t.dataset.step) : selection.delete(t.dataset.step);
+    store("localci.selection", [...selection]); render(); return;
+  }
+  if (t.dataset.group) {
+    state.steps.filter(s => s.group === t.dataset.group && !s.disabled)
+      .forEach(s => t.checked ? selection.add(s.id) : selection.delete(s.id));
+    store("localci.selection", [...selection]); render(); return;
+  }
+  const row = t.closest(".step");
+  if (row) {
+    document.getElementById("follow").checked = false;
+    view(row.dataset.id); render(); pollLog();
+  }
+});
+document.getElementById("run").onclick = async () => {
+  document.getElementById("follow").checked = true;
+  await api("/api/run", { ids: [...selection] });
+};
+document.getElementById("runFailed").onclick = async () => {
+  document.getElementById("follow").checked = true;
+  await api("/api/run", { ids: state.steps.filter(s => s.status === "fail").map(s => s.id) });
+};
+document.getElementById("stop").onclick = () => api("/api/stop", {});
+poll();
+</script>
+</body>
+</html>
