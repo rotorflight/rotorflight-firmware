@@ -252,11 +252,7 @@ static uint8_t *mspVersionRoundTrip(uint8_t *payloadSize)
     return payload;
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestMspVersionRequest)
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVersionRequest)
 {
     uint8_t payloadSize = 0;
     uint8_t *payload = mspVersionRoundTrip(&payloadSize);
@@ -293,11 +289,7 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspReplySequence)
     EXPECT_EQ((first + 1) & 0x0F, second);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestMspPidRequest)
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspPidRequest)
 {
     uint8_t pidRequest[15] = {0x00,0x0D,0x7A,0xC8,0xEA,0x30,0x00,0x70,0x70,0x00,0x00,0x00,0x00,0x69, 0x00};
     uint8_t data1[6] = {1, pidRequest[0], pidRequest[1], pidRequest[2], pidRequest[3], pidRequest[4]};
@@ -346,11 +338,7 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestMspPidRequest)
     testSetDataToTransmit(payloadSize, payload);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestMspVtxRequest)
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestMspVtxRequest)
 {
     uint8_t vtxRequest[15] = {0x00,0x0C,0x7C,0xC8,0xEA,0x30,0x04,0x59,0x18,0x00,0x01,0x00,0x44,0x5E, 0x00};
     uint8_t data1[6] = {1, vtxRequest[0], vtxRequest[1], vtxRequest[2], vtxRequest[3], vtxRequest[4]};
@@ -388,11 +376,7 @@ TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestMspVtxRequest)
     testSetDataToTransmit(payloadSize, payload);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(RxSpiExpressLrsTelemetryUnitTest, DISABLED_TestDeviceInfoResp)
+TEST(RxSpiExpressLrsTelemetryUnitTest, TestDeviceInfoResp)
 {
     uint8_t mspBuffer[15] = {0};
 

@@ -105,14 +105,12 @@ uint16_t GPS_distanceToHome;        // distance to home point in meters
 */
 #define FRAME_HEADER_FOOTER_LEN 4
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestGPS)
+TEST(TelemetryCrsfTest, TestGPS)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
+    // gpsSol outlives the test: start from no fix on every run (--gtest_repeat)
+    memset(&gpsSol, 0, sizeof(gpsSol));
     int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_GPS);
     EXPECT_EQ(CRSF_FRAME_GPS_PAYLOAD_SIZE + FRAME_HEADER_FOOTER_LEN, frameLen);
     EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
@@ -155,15 +153,14 @@ TEST(TelemetryCrsfTest, DISABLED_TestGPS)
     EXPECT_EQ(crfsCrc(frame, frameLen), frame[18]);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestBattery)
+TEST(TelemetryCrsfTest, TestBattery)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
+    // The globals outlive the test: start from zero on every run (--gtest_repeat)
     testBatteryVoltage = 0; // 0.1V units
+    testAmperage = 0;
+    testmAhDrawn = 0;
     int frameLen = getCrsfFrame(frame, CRSF_FRAMETYPE_BATTERY_SENSOR);
     EXPECT_EQ(CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE + FRAME_HEADER_FOOTER_LEN, frameLen);
     EXPECT_EQ(CRSF_SYNC_BYTE, frame[0]); // address
@@ -194,11 +191,7 @@ TEST(TelemetryCrsfTest, DISABLED_TestBattery)
     EXPECT_EQ(crfsCrc(frame, frameLen), frame[11]);
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestAttitude)
+TEST(TelemetryCrsfTest, TestAttitude)
 {
     uint8_t frame[CRSF_FRAME_SIZE_MAX];
 
@@ -247,11 +240,7 @@ static std::string flightModeFrame(void)
     return mode;
 }
 
-// DISABLED_: getCrsfFrame()/getCrsfMspFrame() still return one byte more than
-// the frame holds (crsfTransmitSbufBuf() counts the CRC twice). The fix is in
-// #594, pending flight testing with an onboard ExpressLRS receiver; it
-// re-enables these tests.
-TEST(TelemetryCrsfTest, DISABLED_TestFlightMode)
+TEST(TelemetryCrsfTest, TestFlightMode)
 {
     // Mode name, then '*' when armed or ' ' when not
     armingFlags = 0;
