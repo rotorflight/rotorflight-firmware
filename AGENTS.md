@@ -131,8 +131,19 @@ Maintainers and users read these, so keep them short and precise. No filler, no 
 **Pull requests**
 
 - Title: imperative, under ~70 characters (e.g. "Fix governor spool-up overshoot").
-- Body, a few lines each:
-  - **What**: the change and why it is needed. Link the issue (`Fixes #123`).
+- Body, in this order:
+  - **Summary** (always the first section): a short bullet list that makes it obvious at a glance what the PR
+    does. Name what it fixes and where the problem shows up (feature, flight mode, protocol, target, symptom the
+    user sees). Link the issue (`Fixes #123`). One line per bullet, no background or implementation detail here.
+
+    ```
+    ## Summary
+    - Fixes #123: governor overshoots headspeed on spool-up after a throttle hold
+    - Affects electric governor mode only; nitro and external governor unchanged
+    - Limits the spool-up ramp to the configured rate until headspeed is reached
+    ```
+
+  - **Details** (optional): why the change is needed and how it works, only when the summary is not enough.
   - **Compatibility**: MSP, CLI or setting changes, and whether the Configurator or Lua scripts need updating.
   - **Testing**: what was built and run (unit tests, SITL, bench, flight).
 - One topic per PR. Leave out file-by-file change lists and generated summaries.
