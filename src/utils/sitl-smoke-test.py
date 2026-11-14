@@ -484,12 +484,16 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         ask_at = {int(1.0 / dt), int(5.0 / dt)}
         timeouts, rx, rtc, asked = 0, b"", [], None
         gyro_us, status_pending = [], False
+        # For a failure report: every reply frame by (cmd, size), bytes received, and
+        # the step / real time of the first byte and of each MSP_RTC request
+        frames, rx_bytes, first_rx, asked_real = {}, 0, None, []
         t0 = time.time()
         for n in range(steps):
             ts = n * dt
             if n in ask_at:
                 sock.send(b"$M<" + bytes([0, MSP_RTC, MSP_RTC]))
                 asked = ts
+                asked_real.append((ts, time.time() - t0))
             elif not status_pending and n % 50 == 0 and n * dt >= 1.0:
                 sock.send(b"$M<" + bytes([0, MSP_STATUS, MSP_STATUS]))
                 status_pending = True
@@ -500,7 +504,11 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
             except socket.timeout:
                 timeouts += 1
             try:
-                rx += sock.recv(512)
+                d = sock.recv(512)
+                if d and first_rx is None:
+                    first_rx = (ts, time.time() - t0)
+                rx_bytes += len(d)
+                rx += d
             except (BlockingIOError, socket.timeout):
                 pass
             while True:
@@ -508,6 +516,8 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
                 if i < 0 or len(rx) < i + 6 + rx[i + 3]:
                     break
                 payload = rx[i + 5:i + 5 + rx[i + 3]]
+                key = (rx[i + 4], rx[i + 3])
+                frames[key] = frames.get(key, 0) + 1
                 if rx[i + 4] == MSP_RTC and len(payload) >= 9:
                     _, _, _, h, mi, sec, ms = struct.unpack("<HBBBBBH", payload[:9])
                     rtc.append((asked, ts, ((h * 60 + mi) * 60 + sec) * 1000 + ms))
@@ -519,7 +529,25 @@ def lockstep(elf, rundir, sim_seconds=6.0, dt=250e-6):
         if timeouts > steps // 100:
             raise Failure("lockstep: %d of %d steps got no output packet" % (timeouts, steps))
         if len(rtc) != 2:
-            raise Failure("lockstep: MSP_RTC replies %s" % rtc)
+            # Late or never? Stop stepping and give queued replies 2 s of real time.
+            late = b""
+            sock.settimeout(0.1)
+            end = time.time() + 2.0
+            while time.time() < end:
+                try:
+                    late += sock.recv(512)
+                except socket.timeout:
+                    pass
+                except OSError:
+                    break
+            raise Failure("lockstep: MSP_RTC replies %s; requests at (sim s, real s) %s; "
+                          "%d bytes received, first at %s, reply frames {(cmd, size): count} %s, "
+                          "%d MSP_STATUS replies, %d steps without output in %.1f s real; "
+                          "%d bytes after stepping stopped: %r; %d bytes unparsed: %r"
+                          % (rtc, [(round(a, 3), round(b, 3)) for a, b in asked_real],
+                             rx_bytes, first_rx and (round(first_rx[0], 3), round(first_rx[1], 3)),
+                             frames, len(gyro_us), timeouts, real,
+                             len(late), late[:64], len(rx), rx[:64]))
         # Each reply was made somewhere between the step that sent the request and the
         # step that received it. TCP is polled on real time, so running faster than real
         # time a reply lags by tens of steps, by hundreds on Windows. The firmware's
