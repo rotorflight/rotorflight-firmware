@@ -230,6 +230,7 @@ def main():
     if timer:
         timer.daemon = True
         timer.start()
+    error = None
     try:
         mode = args.mode if args.mode != "auto" else getattr(esc, "default_mode", "auto")
         if esc_wire.serve(sock, esc, stop=stop, on_event=on_event, rate_hz=esc.rate_hz,
@@ -237,18 +238,27 @@ def main():
             say("the flight controller closed the ESC UART")
     except KeyboardInterrupt:
         pass
+    except Exception as e:      # e.g. ConnectionResetError: save what was programmed first
+        error = e
     finally:
         if timer:
             timer.cancel()
         sock.close()
 
     if args.state:
-        with open(args.state, "w", encoding="utf-8") as handle:
-            json.dump({"protocol": args.protocol,
-                       "payload": esc.msp_payload().hex(),
-                       "named": {k: v for k, v in esc.named().items()}},
-                      handle, indent=2)
-        say(f"parameters saved to {args.state}")
+        try:
+            with open(args.state, "w", encoding="utf-8") as handle:
+                json.dump({"protocol": args.protocol,
+                           "payload": esc.msp_payload().hex(),
+                           "named": {k: v for k, v in esc.named().items()}},
+                          handle, indent=2)
+            say(f"parameters saved to {args.state}")
+        except Exception as save_error:
+            if error is None:
+                raise
+            say(f"parameters NOT saved to {args.state}: {save_error}")
+    if error is not None:
+        raise error             # the connection error, not a later save failure
 
     print("\n" + ", ".join(f"{key} {value}" for key, value in esc.counts.items()))
     for write in esc.writes:

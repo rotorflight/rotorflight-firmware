@@ -66,21 +66,25 @@ def emulator(protocol):
 def check(elf, protocol):
     fw_name, half = PROTOCOLS[protocol]
     rundir = tempfile.mkdtemp(prefix="sitl-esc-%s-" % protocol)
-    s = smoke.Sitl(elf, rundir, "1-first"); s.wait(30); s.stop()
-    s = smoke.Sitl(elf, rundir, "2-config")
-    sock = smoke.connect_uart1(s)
-    smoke.cli(sock, ["feature ESC_SENSOR", "serial 2 1024 115200 57600 0 115200",
-                     "set esc_sensor_protocol = %s" % fw_name,
-                     "set esc_sensor_halfduplex = %s" % ("ON" if half else "OFF"),
-                     "save"])
-    sock.close(); s.wait(15); s.stop()
-
-    feed = smoke.FdmFeed(); feed.start()
-    s = smoke.Sitl(elf, rundir, "3-esc")
-    out = open(os.path.join(rundir, "esc_sim.log"), "w")
-    esc = None
+    # Every SITL, socket and helper is cleaned up on any exit, Ctrl+C included: a
+    # SITL left running holds the ports the next protocol's check needs.
+    s = sock = feed = esc = out = None
     try:
-        msp = smoke.Msp(smoke.connect_uart1(s))
+        s = smoke.Sitl(elf, rundir, "1-first"); s.wait(30); s.stop()
+        s = smoke.Sitl(elf, rundir, "2-config")
+        sock = smoke.connect_uart1(s)
+        smoke.cli(sock, ["feature ESC_SENSOR", "serial 2 1024 115200 57600 0 115200",
+                         "set esc_sensor_protocol = %s" % fw_name,
+                         "set esc_sensor_halfduplex = %s" % ("ON" if half else "OFF"),
+                         "save"])
+        sock.close(); sock = None
+        s.wait(15); s.stop()
+
+        feed = smoke.FdmFeed(); feed.start()
+        s = smoke.Sitl(elf, rundir, "3-esc")
+        out = open(os.path.join(rundir, "esc_sim.log"), "w")
+        sock = smoke.connect_uart1(s)
+        msp = smoke.Msp(sock)
         deadline = time.time() + 15
         while True:                         # the ESC UART listens once the SITL is up
             try:
@@ -136,11 +140,16 @@ def check(elf, protocol):
             "-> %d reached the ESC" % want if wrote else "-> %d NOT seen" % want)
         return wrote and volt > 0 and curr > 0, detail
     finally:
-        feed.running = False
+        if feed:
+            feed.running = False
         if esc:
             esc.terminate()
-        s.stop()
-        out.close()
+        if sock:
+            sock.close()
+        if s:
+            s.stop()            # also safe on an already stopped SITL
+        if out:
+            out.close()
 
 
 def main():
