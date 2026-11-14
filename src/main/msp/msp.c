@@ -135,6 +135,9 @@
 #include "pg/sbus_output.h"
 #include "pg/fbus_master.h"
 #include "pg/bus_servo.h"
+#ifdef USE_SRXL2_ESC
+#include "pg/srxl2_esc.h"
+#endif
 
 #include "rx/rx.h"
 #include "rx/rx_bind.h"
@@ -1579,6 +1582,19 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         }
         break;
     }
+#endif
+
+#ifdef USE_SRXL2_ESC
+    case MSP2_GET_SRXL2_ESC_CONFIG:
+        // Payload version 1: the SRXL2 ESC bus settings (pg/srxl2_esc.h).
+        // throttle_rate_hz is the rate in effect (the driver writes it back from
+        // the motor PWM rate it follows); the other two are read at init, so a
+        // change takes effect after the save and reboot the Motors tab already does.
+        sbufWriteU8(dst, 1); // payload version
+        sbufWriteU16(dst, srxl2escConfig()->throttle_rate_hz);
+        sbufWriteU8(dst, srxl2escConfig()->telem_interval_frames);
+        sbufWriteU8(dst, srxl2escConfig()->motor2_channel); // 0 = off, 2..32
+        break;
 #endif
 
 #ifdef USE_CRSF_SENSORS
@@ -4618,6 +4634,32 @@ static mspResult_e mspCommonProcessInCommand(mspDescriptor_t srcDesc, int16_t cm
         // them now so the change is live immediately, without a reboot.
         fbusSensorInitForwarding();
         break;
+#endif
+
+#ifdef USE_SRXL2_ESC
+    case MSP2_SET_SRXL2_ESC_CONFIG: {
+        // Same fields as MSP2_GET_SRXL2_ESC_CONFIG without the version byte.
+        // Out-of-range values are repaired by validateAndFixSrxl2escConfig()
+        // and the driver (an invalid motor 2 channel reads as off).
+        // Exact length, so a GET-format payload (leading version byte) is refused.
+        if (dataSize != 4) {
+            return MSP_RESULT_ERROR;
+        }
+        const uint16_t throttleRateHz = sbufReadU16(src);
+        srxl2escConfigMutable()->throttle_rate_hz = throttleRateHz;
+        srxl2escConfigMutable()->telem_interval_frames = sbufReadU8(src);
+        srxl2escConfigMutable()->motor2_channel = sbufReadU8(src);
+#if defined(USE_MOTOR)
+        // The driver follows the motor PWM rate, not throttle_rate_hz, and adopts a
+        // change at runtime (capped at 250 Hz while the ESC is active), so the
+        // requested rate goes there too. Only with an SRXL2 ESC: on the other
+        // protocols the motor PWM rate is their own.
+        if (isMotorProtocolSrxl2() && throttleRateHz != 0) {
+            motorConfigMutable()->dev.motorPwmRate = constrain(throttleRateHz, 50, 2000);
+        }
+#endif
+        break;
+    }
 #endif
 
     case MSP_SET_BATTERY_PROFILE:

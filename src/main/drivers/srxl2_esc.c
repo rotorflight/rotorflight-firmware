@@ -236,7 +236,38 @@ typedef struct __attribute__((packed)) {
     uint8_t crcLow;
 } srxl2escChannelDataFrame_t;
 
+typedef struct __attribute__((packed)) {
+    Srxl2Header header;
+    Srxl2ControlDataSubHeader control;
+    Srxl2ChannelDataHeader channel;
+    uint16_t channelValue[2];      /* ascending channel order: ch0, then motor 2 */
+    uint8_t crcHigh;
+    uint8_t crcLow;
+} srxl2escChannelDataFrame2_t;
+
+/* 0 = disabled, 2..32 = SRXL2 channel for motor 2. Channel 1 is reserved for motor 1.
+ * Latched once at boot so a runtime config change (MSP, CLI) cannot change
+ * the frame layout while motorCount is fixed; it takes effect after reboot. */
+static uint8_t srxl2escMotor2Ch = 0;
+
+void srxl2escInitMotorConfig(void)
+{
+    const uint8_t ch = srxl2escConfig()->motor2_channel;
+    srxl2escMotor2Ch = (ch >= 2 && ch <= SRXL2_ESC_MAX_CHANNELS) ? ch : 0; // Channel 1 reserved for Motor 1.
+}
+
+static inline uint8_t srxl2escMotor2Channel(void)
+{
+    return srxl2escMotor2Ch;
+}
+
+uint8_t srxl2escMotorCount(void)
+{
+    return srxl2escMotor2Channel() > 0 ? 2 : 1;
+}
+
 static uint16_t srxl2escThrottleCommand = SRXL2_ESC_CHANNEL_CENTER;
+static uint16_t srxl2escMotor2Command = 0;   /* 0 = below pulse offset = no throttle */
 static uint32_t srxl2escNextThrottleSendUs = 0;
 static uint32_t srxl2escThrottleIntervalUs = 1000000 / 250; /* 250 Hz default */
 static uint8_t srxl2escThrottleFrameCounter = 0;
@@ -252,7 +283,9 @@ static uint32_t srxl2escComputeMinThrottleIntervalUs(void)
 {
     const uint32_t baud = srxl2escGetActiveBaudRate();
     const uint32_t bitsPerByte = 10; // 8N1
-    const uint32_t bytes = (uint32_t)sizeof(srxl2escChannelDataFrame_t);
+    const uint32_t bytes = srxl2escMotor2Channel()
+        ? (uint32_t)sizeof(srxl2escChannelDataFrame2_t)
+        : (uint32_t)sizeof(srxl2escChannelDataFrame_t);
     const uint32_t txTimeUs = (uint32_t)((bytes * bitsPerByte * 1000000ULL + (baud - 1)) / baud);
     return txTimeUs + SRXL2_ESC_REPLY_QUIESCENCE + 200;
 }
@@ -267,12 +300,12 @@ static uint16_t srxl2escPulseWidthToChannelValue(uint16_t pulseWidthUs)
     return (uint16_t)MIN(scaled, 0xFFFFu);
 }
 
-static uint16_t srxl2escPulseFromNormalized(float normalized)
+static uint16_t srxl2escPulseFromNormalized(float normalized, unsigned motorIndex)
 {
     float pulseUs;
 #if defined(USE_MOTOR)
     const motorConfig_t *config = motorConfig();
-    const motorControlMode_e mode = config->dev.motorControlMode[0];
+    const motorControlMode_e mode = config->dev.motorControlMode[motorIndex];
     if (mode == MOTOR_CONTROL_BIDIR) {
         const float clamped = constrainf(normalized, -1.0f, 1.0f);
         if (clamped == 0.0f) {
@@ -298,6 +331,7 @@ static uint16_t srxl2escPulseFromNormalized(float normalized)
     }
     pulseUs = constrainf(pulseUs, (float)config->mincommand, (float)config->maxthrottle);
 #else
+    UNUSED(motorIndex);
     const float clamped = constrainf(normalized, 0.0f, 1.0f);
     pulseUs = 1000.0f + clamped * 1000.0f;
 #endif
@@ -307,13 +341,21 @@ static uint16_t srxl2escPulseFromNormalized(float normalized)
 #if defined(USE_MOTOR)
 static void srxl2escUpdateThrottleFromMotors(void)
 {
-    if (getMotorCount() == 0) {
+    const uint8_t motorCount = getMotorCount();
+
+    if (motorCount == 0) {
         return;
     }
 
-    const float normalized = (float)getMotorOutput(0) / 1000.0f;
-    const uint16_t pulse = srxl2escPulseFromNormalized(normalized);
-    srxl2escThrottleCommand = srxl2escPulseWidthToChannelValue(pulse);
+    srxl2escThrottleCommand = srxl2escPulseWidthToChannelValue(
+        srxl2escPulseFromNormalized((float)getMotorOutput(0) / 1000.0f, 0));
+
+    if (srxl2escMotor2Channel() && motorCount >= 2) {
+        srxl2escMotor2Command = srxl2escPulseWidthToChannelValue(
+            srxl2escPulseFromNormalized((float)getMotorOutput(1) / 1000.0f, 1));
+    } else {
+        srxl2escMotor2Command = 0;
+    }
 }
 #endif
 
@@ -384,6 +426,31 @@ static bool srxl2escQueueChannelDataFrame(uint16_t channelValue)
         }
     }
     const uint8_t replyId = requestTelemetry ? busMasterDeviceId : 0x00;
+
+
+    if (srxl2escMotor2Ch) {
+        srxl2escChannelDataFrame2_t frame2 = {
+            .header = {
+                .id = PACKET_HEADER,
+                .packetType = ControlData,
+                .length = sizeof(srxl2escChannelDataFrame2_t),
+            },
+            .control = {
+                .command = ChannelData,
+                .replyId = replyId,
+            },
+            .channel = {
+                .rssi = 0,
+                .frameLosses = 0,
+                .channelMask = {.u32 = 0x00000001u | (1u << (srxl2escMotor2Ch -1))}, // Convert from ch number to ch index
+            },
+            .channelValue = { channelValue, srxl2escMotor2Command },
+            .crcHigh = 0,
+            .crcLow = 0,
+        };
+        srxl2escWriteData(&frame2, sizeof(frame2));
+        return true;
+    }
 
     srxl2escChannelDataFrame_t frame = {
         .header = {
@@ -1203,6 +1270,9 @@ void validateAndFixSrxl2escConfig()
     // Guard against flooding (min interval 500us => max 2000Hz)
     if (cfg->throttle_rate_hz > 2000) {
         cfg->throttle_rate_hz = 2000;
+    }
+    if (cfg->motor2_channel < 2 || cfg->motor2_channel > SRXL2_ESC_MAX_CHANNELS ) {
+        cfg->motor2_channel = 0;   /* invalid -> disabled */
     }
 }
 
