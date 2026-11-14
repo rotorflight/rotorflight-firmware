@@ -347,7 +347,11 @@ void updateState(const fdm_packet* pkt, int size) {
     // the clock races hundreds of times too fast until the next packet - every
     // firmware timer with it. Measure over a window of at least 50 ms of real
     // time instead (time-weighted, so bunching averages out), and clamp.
-    if (deltaSim < 0.02 && deltaSim > 0) { // simulator should run faster than 50Hz
+    // Packets that repeat the previous timestamp count too: a sender with a
+    // coarse clock (Python's time.monotonic() ticks every 15.6 ms on Windows)
+    // sends many of them, and leaving out their real time ran the firmware
+    // clock about twice as fast as the simulation.
+    if (deltaSim < 0.02 && deltaSim >= 0) { // simulator should run faster than 50Hz
         static double windowSim, windowReal;
         struct timespec out_ts;
         timeval_sub(&out_ts, &now_ts, &last_ts);
