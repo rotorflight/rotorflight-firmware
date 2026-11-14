@@ -41,6 +41,7 @@
 #include <unistd.h>
 #endif
 #include <time.h>
+#include <pthread.h>
 #if defined(_WIN32) || defined(__MINGW32__)
 #include <pthread_time.h>
 #endif
@@ -61,6 +62,36 @@ static bool simLockstep;                                // SITL_LOCKSTEP, see si
 static bool simMainLoopRunning;                         // set on the first scheduler pass
 static void simLockstepAdvance(double timestamp);
 static uint32_t lockstepPacketSeq;                      // FDM packets taken in lockstep
+
+// Lockstep: the main loop sleeps here between replying to one FDM packet and
+// the next one arriving, instead of spinning a core (simLoopIdle()).
+static pthread_mutex_t lockstepWaitLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t lockstepWaitCond = PTHREAD_COND_INITIALIZER;
+
+static void lockstepWakeMainLoop(void)
+{
+    pthread_mutex_lock(&lockstepWaitLock);
+    pthread_cond_signal(&lockstepWaitCond);
+    pthread_mutex_unlock(&lockstepWaitLock);
+}
+
+// Until lockstepPacketSeq moves past `seq`, or `timeoutUs` has passed.
+static void lockstepWaitForPacket(uint32_t seq, uint32_t timeoutUs)
+{
+    struct timespec until;
+    clock_gettime(CLOCK_REALTIME, &until);
+    until.tv_nsec += (long)timeoutUs * 1000;
+    until.tv_sec += until.tv_nsec / 1000000000;
+    until.tv_nsec %= 1000000000;
+
+    pthread_mutex_lock(&lockstepWaitLock);
+    while (__atomic_load_n(&lockstepPacketSeq, __ATOMIC_ACQUIRE) == seq) {
+        if (pthread_cond_timedwait(&lockstepWaitCond, &lockstepWaitLock, &until) != 0) {
+            break;      // timed out (or an error): the caller just runs another pass
+        }
+    }
+    pthread_mutex_unlock(&lockstepWaitLock);
+}
 
 #include "drivers/io.h"
 #include "drivers/dma.h"
@@ -384,6 +415,7 @@ void updateState(const fdm_packet* pkt, int size) {
     if (simLockstepActive()) {
         // The main loop replies once this step has been run (simLoopIdle()).
         __atomic_add_fetch(&lockstepPacketSeq, 1, __ATOMIC_RELEASE);
+        lockstepWakeMainLoop();
     } else if (!motorIsEnabled()) {
         sendPwmPacket(false);
     }
@@ -958,6 +990,13 @@ void simLoopIdle(void)
             } else {
                 seenSeq = seq;
             }
+        } else {
+            // Replied, and no new packet: the clock stands still until the next
+            // one, so another pass would do nothing. Sleep until it arrives (or
+            // 2 ms, so nothing can hang on a lost wakeup) instead of spinning a
+            // core - which is what lets several SITLs share a host.
+            lockstepWaitForPacket(repliedSeq, 2000);
+            return;
         }
     }
 

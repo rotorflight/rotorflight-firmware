@@ -122,6 +122,18 @@ end to end, with the EdgeTX Lua suite's `simulator/` card.
 
 All run in CI (`.github/workflows/sitl.yml`) on Linux and Windows.
 
+**Several at once.** Every SITL takes fixed ports, so on one host the checks run one at a
+time - unless each gets its own `SITL_INSTANCE=k`: that moves all the SITL's default ports by
+10 * k (UARTs 5761 + 10k.., FDM 9003 + 10k, outputs 9002 + 10k; `SITL_FDM_PORT` and
+`SITL_OUTPUT_ADDR` still override), and the scripts above and `heli_bridge.py` move theirs the
+same way. `src/utils/sitl/run-parallel.py` does the bookkeeping: it runs a list of commands, or
+a CI job's python steps (`--workflow .github/workflows/sitl.yml --job sitl`), N at a time, each
+worker on its own instance and TMPDIR, with `--repeat` for flake hunting. In lockstep the main
+loop sleeps from one reply to the next FDM packet, so a SITL and its driver share about one core
+between them; the default is half the CPUs. Checks that run on real time (the smoke test's
+clock and CRSF stages) are the ones that feel a loaded host. On a WSL1 laptop (8 threads) the
+CI job's 18 python steps take 831 s one at a time and 345 s four at a time.
+
 ### eeprom.bin
 
 The configuration is `eeprom.bin` in the working directory (`EEPROM_SIZE`, 32768 bytes). A save
@@ -144,7 +156,8 @@ firmware's time is the FDM timestamp. A simulator that steps its physics, sends 
 for the output packet gets exactly one output packet per FDM packet, sent after the scheduler pass
 that runs the control step for the new time. With 250 us steps that is one physics step per
 gyro/PID cycle, independent of host load and as fast as the host allows (2-3x real time on a
-laptop). Without FDM packets the clock stands still.
+laptop). Without FDM packets the clock stands still, and between a reply and the next packet
+the main loop sleeps rather than spinning a core.
 
 ### Host timing
 
