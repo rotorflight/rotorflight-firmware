@@ -35,6 +35,29 @@ alignsensor_unittest_SRC := \
 		$(USER_DIR)/common/sensor_alignment.c \
 		$(USER_DIR)/common/maths.c
 
+accgyro_lsm6dsk320x_unittest_SRC := \
+        $(USER_DIR)/drivers/accgyro/accgyro_spi_lsm6dsk320x.c \
+        $(USER_DIR)/drivers/accgyro/gyro_sync.c
+
+accgyro_lsm6dsk320x_unittest_DEFINES := \
+        USE_ACCGYRO_LSM6DSK320X= \
+        USE_SPI_GYRO= \
+        USE_DMA=
+
+accgyro_lsm6dsk320x_no_dma_unittest_SRC := \
+        $(accgyro_lsm6dsk320x_unittest_SRC)
+
+accgyro_lsm6dsk320x_no_dma_unittest_DEFINES := \
+        USE_ACCGYRO_LSM6DSK320X= \
+        USE_SPI_GYRO=
+
+accgyro_lsm6dsk320x_experimental_unittest_SRC := \
+        $(accgyro_lsm6dsk320x_unittest_SRC)
+
+accgyro_lsm6dsk320x_experimental_unittest_DEFINES := \
+        $(accgyro_lsm6dsk320x_unittest_DEFINES) \
+        USE_GYRO_DLPF_EXPERIMENTAL=
+
 # This test is disabled due to build errors.
 #arming_prevention_unittest_SRC := \
 #		$(USER_DIR)/fc/core.c \
@@ -339,6 +362,11 @@ sensor_gyro_unittest_SRC := \
 		$(USER_DIR)/build/debug.c
 
 sensor_gyro_unittest_DEFINES := USE_FAKE_GYRO= USE_GYRO_OVERFLOW_CHECK= USE_DYN_LPF=
+
+# The same sources with the fake gyro calibration skip that SITL uses.
+sensor_gyro_fake_calibration_unittest_SRC := $(sensor_gyro_unittest_SRC)
+
+sensor_gyro_fake_calibration_unittest_DEFINES := $(sensor_gyro_unittest_DEFINES) FAKE_GYRO_SKIP_CALIBRATION=
 #
 #telemetry_crsf_unittest_SRC := \
 #		$(USER_DIR)/rx/crsf.c \
