@@ -101,6 +101,21 @@ the build with `fc_version_string_too_long`.
 Unit tests exist for PID, setpoint and maths. The governor, mixer, servos, rescue and leveling have none, so
 changes there need extra care and, where possible, a new test.
 
+PR CI builds the firmware and runs the SITL checks, but not the unit tests. To run the CI's builds, unit tests
+and SITL checks locally, use [src/utils/local-ci/local_ci.py](src/utils/local-ci/local_ci.py). It reads the
+steps from the workflow files, so it stays in step with CI:
+
+```
+python3 src/utils/local-ci/local_ci.py --list                           # list the steps
+python3 src/utils/local-ci/local_ci.py --run --no-ui --only unit,sitl   # terminal only, exit 1 on a failure
+python3 src/utils/local-ci/local_ci.py                                  # web page on http://127.0.0.1:8765/
+```
+
+Agents should use `--no-ui`. Logs are in `obj/local-ci/<date-time>/`. Machine-specific shells and toolchain
+paths go in `make/local-ci.json` (see [src/utils/local-ci/README.md](src/utils/local-ci/README.md)). Only one
+SITL can run at a time because the ports are fixed; SITL steps wait while another SITL holds them. Name the steps
+you ran under **Testing** in the PR.
+
 ## Agent Skills
 
 Step-by-step skills for tasks that need local tools are in
