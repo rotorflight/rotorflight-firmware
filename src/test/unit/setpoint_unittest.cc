@@ -21,6 +21,9 @@ PG_REGISTER(rcControlsConfig_t, rcControlsConfig, PG_RC_CONTROLS_CONFIG, 0);
 
 // We don't convert to any rates. The test focuses on normalized value (-1, 1).
 float applyRatesCurve(const int, float rcCommandf) { return rcCommandf; }
+float applyRatesCurveProfile(const controlRateConfig_t *, const int, float rcCommandf) { return rcCommandf; }
+bool pidBlendActive(void) { return false; }
+float pidBlendRatio(void) { return 1.0f; }
 }
 // Dummy variables.
 uint8_t armingFlags = 0;
