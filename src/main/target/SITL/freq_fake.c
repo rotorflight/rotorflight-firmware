@@ -34,7 +34,9 @@
 #include "drivers/time.h"
 #include "pg/freq.h"
 
-static volatile float freqHz[FREQ_SENSOR_PORT_COUNT];
+// Written by the UDP thread (fakeFreqSet), read by the firmware tasks; always
+// through simStoreFloat()/simLoadFloat()
+static float freqHz[FREQ_SENSOR_PORT_COUNT];
 static bool freqInitialised;
 
 // Simulated signal: one edge per period, pin high for the first half
@@ -55,7 +57,8 @@ void freqUpdate(void)
     freqLastUpdateUs = now;
 
     for (int port = 0; port < FREQ_SENSOR_PORT_COUNT; port++) {
-        freqPhase[port] += freqHz[port] * dt;
+        const float hz = simLoadFloat(&freqHz[port]);
+        freqPhase[port] += hz * dt;
         const float periods = floorf(freqPhase[port]);
         freqEdges[port] += (uint16_t)periods;   // wraps like the hardware counter
         freqPhase[port] -= periods;
@@ -64,14 +67,17 @@ void freqUpdate(void)
 
 void fakeFreqSet(uint8_t port, float hz)
 {
+    // Up to the real sensor's FREQ_INPUT_MAXHZ_DEFAULT; NaN, infinity and
+    // anything above read as a stopped shaft
     if (port < FREQ_SENSOR_PORT_COUNT) {
-        freqHz[port] = hz > 0 ? hz : 0;
+        const bool valid = simIsFinite(hz) && hz > 0 && hz <= FREQ_INPUT_MAXHZ_DEFAULT;
+        simStoreFloat(&freqHz[port], valid ? hz : 0);
     }
 }
 
 float getFreqSensorFreq(uint8_t port)
 {
-    return (port < FREQ_SENSOR_PORT_COUNT) ? freqHz[port] : 0;
+    return (port < FREQ_SENSOR_PORT_COUNT) ? simLoadFloat(&freqHz[port]) : 0;
 }
 
 uint32_t getFreqSensorRPM(uint8_t port)

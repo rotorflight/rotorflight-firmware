@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
+#include <string.h>
 
 #include "common/utils.h"
 
@@ -328,6 +330,30 @@ typedef struct {
 
 void fakeFreqSet(uint8_t port, float hz);
 void simAdcUpdate(const fdm_packet *pkt, int size);
+
+// isfinite() is not reliable here: the SITL builds with -Ofast, whose
+// -ffinite-math-only lets the compiler assume every value is finite and fold
+// isfinite() to true. Test the exponent bits instead.
+static inline bool simIsFinite(double v)
+{
+    uint64_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    return ((bits >> 52) & 0x7FF) != 0x7FF;
+}
+
+// Sensor values the UDP thread writes and the firmware tasks read. Each value
+// stands alone, so relaxed atomics are enough to keep the accesses race-free.
+static inline void simStoreFloat(float *p, float v)
+{
+    __atomic_store(p, &v, __ATOMIC_RELAXED);
+}
+
+static inline float simLoadFloat(float *p)
+{
+    float v;
+    __atomic_load(p, &v, __ATOMIC_RELAXED);
+    return v;
+}
 typedef struct {
     float motor_speed[4];   // M1-M4 in order; normal: [0.0, 1.0], 3D: [-1.0, 1.0]
     float servo[8];         // S1-S8 pulse width in microseconds, 0 for an absent servo

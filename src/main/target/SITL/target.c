@@ -224,11 +224,22 @@ int lockMainPID(void) {
 #define RAD2DEG (180.0 / M_PI)
 #define ACC_SCALE (256 / 9.80665)
 #define GYRO_SCALE (16.4)
-void sendMotorUpdate(void) {
-    udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
-}
-
 static void refreshPwmPacket(bool motorsActive);
+
+// pwmPkt is built and sent from the main thread (motor updates, lockstep
+// replies) and from the UDP thread (replies while the motors are disabled).
+// Each build-and-send holds this lock, so neither thread can zero or rewrite
+// the packet while the other is filling or sending it.
+static pthread_mutex_t pwmPktLock = PTHREAD_MUTEX_INITIALIZER;
+
+// Rebuild pwmPkt from the current outputs and send it.
+static void sendPwmPacket(bool motorsActive)
+{
+    pthread_mutex_lock(&pwmPktLock);
+    refreshPwmPacket(motorsActive);
+    udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
+    pthread_mutex_unlock(&pwmPktLock);
+}
 // The optional tail of the FDM packet (see fdm_packet in target.h): only the
 // fields the datagram actually contains are used.
 static void updateFdmTail(const fdm_packet *pkt, int size)
@@ -246,7 +257,7 @@ static void updateFdmTail(const fdm_packet *pkt, int size)
     // FDM altitude (relative to the simulator's origin), so baro altitude
     // tracks the flight either way.
     double pressure;
-    if (size >= FDM_PACKET_SIZE_BARO && isfinite(pkt->pressure) && pkt->pressure > 0) {
+    if (size >= FDM_PACKET_SIZE_BARO && simIsFinite(pkt->pressure) && pkt->pressure > 0) {
         pressure = pkt->pressure;
         fakeBaroSet((int32_t)lrint(pressure), 2500);
     } else if (!lastBaroPacketUs || micros64_real() - lastBaroPacketUs >= BARO_PACKET_TIMEOUT_US) {
@@ -273,7 +284,7 @@ void updateState(const fdm_packet* pkt, int size) {
     if (realtime_now > last_realtime + 500*1e3) { // 500ms timeout
         last_timestamp = pkt->timestamp;
         last_realtime = realtime_now;
-        sendMotorUpdate();
+        sendPwmPacket(motorIsEnabled());
         return;
     }
 
@@ -285,7 +296,10 @@ void updateState(const fdm_packet* pkt, int size) {
     // The UDP thread starts before the sensors are initialised: a simulator
     // that is already sending would write through a NULL device and crash
     // the process. Drop sensor data until both fake devices exist.
-    if (!fakeAccDev || !fakeGyroDev) {
+    // The init functions publish them with a release store (accgyro_fake.c).
+    struct accDev_s *accDev = __atomic_load_n(&fakeAccDev, __ATOMIC_ACQUIRE);
+    struct gyroDev_s *gyroDev = __atomic_load_n(&fakeGyroDev, __ATOMIC_ACQUIRE);
+    if (!accDev || !gyroDev) {
         return;
     }
 
@@ -293,13 +307,13 @@ void updateState(const fdm_packet* pkt, int size) {
     x = constrain(-pkt->imu_linear_acceleration_xyz[0] * ACC_SCALE, -32767, 32767);
     y = constrain(-pkt->imu_linear_acceleration_xyz[1] * ACC_SCALE, -32767, 32767);
     z = constrain(-pkt->imu_linear_acceleration_xyz[2] * ACC_SCALE, -32767, 32767);
-    fakeAccSet(fakeAccDev, x, y, z);
+    fakeAccSet(accDev, x, y, z);
 //    printf("[acc]%lf,%lf,%lf\n", pkt->imu_linear_acceleration_xyz[0], pkt->imu_linear_acceleration_xyz[1], pkt->imu_linear_acceleration_xyz[2]);
 
     x = constrain(pkt->imu_angular_velocity_rpy[0] * GYRO_SCALE * RAD2DEG, -32767, 32767);
     y = constrain(-pkt->imu_angular_velocity_rpy[1] * GYRO_SCALE * RAD2DEG, -32767, 32767);
     z = constrain(-pkt->imu_angular_velocity_rpy[2] * GYRO_SCALE * RAD2DEG, -32767, 32767);
-    fakeGyroSet(fakeGyroDev, x, y, z);
+    fakeGyroSet(gyroDev, x, y, z);
 
     updateFdmTail(pkt, size);
 //    printf("[gyr]%lf,%lf,%lf\n", pkt->imu_angular_velocity_rpy[0], pkt->imu_angular_velocity_rpy[1], pkt->imu_angular_velocity_rpy[2]);
@@ -371,8 +385,7 @@ void updateState(const fdm_packet* pkt, int size) {
         // The main loop replies once this step has been run (simLoopIdle()).
         __atomic_add_fetch(&lockstepPacketSeq, 1, __ATOMIC_RELEASE);
     } else if (!motorIsEnabled()) {
-        refreshPwmPacket(false);
-        sendMotorUpdate();
+        sendPwmPacket(false);
     }
 
     last_timestamp = pkt->timestamp;
@@ -402,7 +415,7 @@ static void* udpThread(void* data) {
 #if defined(USE_FAKE_BARO)
         else if (n == sizeof(baro_packet)) {
             const baro_packet *b = &statePkt.baro;
-            if (isfinite(b->pressure_pa) && isfinite(b->temperature_c) && b->pressure_pa > 0) {
+            if (simIsFinite(b->pressure_pa) && simIsFinite(b->temperature_c) && b->pressure_pa > 0) {
                 lastBaroPacketUs = micros64_real();
                 fakeBaroSet((int32_t)lrint(b->pressure_pa), (int32_t)lrint(b->temperature_c * 100.0));
             }
@@ -908,8 +921,7 @@ void simLoopIdle(void)
         const uint32_t seq = __atomic_load_n(&lockstepPacketSeq, __ATOMIC_ACQUIRE);
         if (seq != repliedSeq) {
             if (seq == seenSeq) {
-                refreshPwmPacket(motorIsEnabled());
-                sendMotorUpdate();
+                sendPwmPacket(motorIsEnabled());
                 repliedSeq = seq;
             } else {
                 seenSeq = seq;
@@ -1019,16 +1031,13 @@ static void refreshPwmPacket(bool motorsActive)
 
 static void pwmCompleteMotorUpdate(void)
 {
-    // send to simulator
-    refreshPwmPacket(true);
-
     if (simLockstepActive()) {
-        return;     // the lockstep reply goes out from simLoopIdle()
+        return;     // the lockstep reply goes out from simLoopIdle(), rebuilt there
     }
 
     // get one "fdm_packet" can only send one "servo_packet"!!
     if (pthread_mutex_trylock(&updateLock) != 0) return;
-    udpSend(&pwmLink, &pwmPkt, sizeof(servo_packet));
+    sendPwmPacket(true);
 }
 
 static motorDevice_t motorPwmDevice = {

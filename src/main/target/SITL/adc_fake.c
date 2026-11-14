@@ -61,13 +61,18 @@ void pgResetFn_adcConfig(adcConfig_t *config)
     config->device = ADC_DEV_TO_CFG(ADCDEV_1);
 }
 
-// Simulated inputs, from the UDP thread. A board with nothing connected reads 0.
-static volatile float simVbat;          // V
-static volatile float simIbat;          // A
-static volatile float simVbec;          // V
-static volatile float simVbus;          // V
-static volatile float simMcuVref = 3.3f;    // V
-static volatile float simMcuTemp = 25.0f;   // degC
+// Simulated inputs, written by the UDP thread and read by the firmware tasks,
+// always through simStoreFloat()/simLoadFloat(). A board with nothing
+// connected reads 0.
+static float simVbat;           // V
+static float simIbat;           // A
+static float simVbec;           // V
+static float simVbus;           // V
+static float simMcuVref = 3.3f; // V
+static float simMcuTemp = 25.0f;    // degC
+
+// adcInternalReadVrefint() reports millivolts in a uint16_t
+#define SIM_MCU_VREF_MAX_MV 65535
 
 static bool channelEnabled[ADC_CHANNEL_COUNT];
 
@@ -121,13 +126,13 @@ uint16_t adcGetChannel(uint8_t channel)
     }
     switch (channel) {
     case ADC_BATTERY:
-        return voltageSample(VOLTAGE_SENSOR_ADC_BAT, simVbat);
+        return voltageSample(VOLTAGE_SENSOR_ADC_BAT, simLoadFloat(&simVbat));
     case ADC_CURRENT:
-        return currentSample(simIbat);
+        return currentSample(simLoadFloat(&simIbat));
     case ADC_VBEC:
-        return voltageSample(VOLTAGE_SENSOR_ADC_BEC, simVbec);
+        return voltageSample(VOLTAGE_SENSOR_ADC_BEC, simLoadFloat(&simVbec));
     case ADC_VBUS:
-        return voltageSample(VOLTAGE_SENSOR_ADC_BUS, simVbus);
+        return voltageSample(VOLTAGE_SENSOR_ADC_BUS, simLoadFloat(&simVbus));
     default:
         return 0;
     }
@@ -147,12 +152,12 @@ void adcInternalStartConversion(void)
 
 uint16_t adcInternalReadVrefint(void)
 {
-    return (uint16_t)lrintf(simMcuVref * 1000);
+    return (uint16_t)lrintf(simLoadFloat(&simMcuVref) * 1000);
 }
 
 uint16_t adcInternalReadTempsensor(void)
 {
-    return (uint16_t)lrintf(simMcuTemp + 1000);
+    return (uint16_t)lrintf(simLoadFloat(&simMcuTemp) + 1000);
 }
 
 uint16_t adcInternalCompensateVref(uint16_t vrefAdcValue)
@@ -169,17 +174,19 @@ int16_t adcInternalComputeTemperature(uint16_t tempAdcValue, uint16_t vrefValue)
 
 void simAdcUpdate(const fdm_packet *pkt, int size)
 {
-    if (size >= FDM_PACKET_SIZE_MCU && isfinite(pkt->mcu_vref) && isfinite(pkt->mcu_temp)) {
-        simMcuVref = pkt->mcu_vref;
-        simMcuTemp = pkt->mcu_temp;
+    // An out-of-range Vref keeps the previous one: Vref scales every other ADC reading
+    if (size >= FDM_PACKET_SIZE_MCU && simIsFinite(pkt->mcu_vref) && simIsFinite(pkt->mcu_temp) &&
+        pkt->mcu_vref > 0 && pkt->mcu_vref * 1000 <= SIM_MCU_VREF_MAX_MV) {
+        simStoreFloat(&simMcuVref, pkt->mcu_vref);
+        simStoreFloat(&simMcuTemp, pkt->mcu_temp);
     }
-    if (size >= FDM_PACKET_SIZE_RAILS && isfinite(pkt->vbec) && isfinite(pkt->vbus)) {
-        simVbec = pkt->vbec;
-        simVbus = pkt->vbus;
+    if (size >= FDM_PACKET_SIZE_RAILS && simIsFinite(pkt->vbec) && simIsFinite(pkt->vbus)) {
+        simStoreFloat(&simVbec, pkt->vbec);
+        simStoreFloat(&simVbus, pkt->vbus);
     }
-    if (size >= FDM_PACKET_SIZE_PACK && isfinite(pkt->vbat) && isfinite(pkt->ibat)) {
-        simVbat = pkt->vbat;
-        simIbat = pkt->ibat;
+    if (size >= FDM_PACKET_SIZE_PACK && simIsFinite(pkt->vbat) && simIsFinite(pkt->ibat)) {
+        simStoreFloat(&simVbat, pkt->vbat);
+        simStoreFloat(&simIbat, pkt->ibat);
     }
 }
 

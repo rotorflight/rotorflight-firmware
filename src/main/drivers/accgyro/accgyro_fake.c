@@ -58,8 +58,10 @@ static void fakeGyroInit(gyroDev_t *gyro)
     gyro->gyroSampleRateHz = 4000;
     gyro->accSampleRateHz = 1000;
 
-    // Publish only once the lock exists: the SITL's UDP thread uses it.
-    fakeGyroDev = gyro;
+    // Publish only once the lock exists: the SITL's UDP thread uses it. The
+    // release store orders the lock and settings above before the pointer;
+    // the UDP thread reads it with an acquire load.
+    __atomic_store_n(&fakeGyroDev, gyro, __ATOMIC_RELEASE);
 }
 
 void fakeGyroSet(gyroDev_t *gyro, int16_t x, int16_t y, int16_t z)
@@ -127,8 +129,10 @@ static void fakeAccInit(accDev_t *acc)
         printf("Create acc lock error!\n");
     }
 #endif
-    // Publish only once the lock exists: the SITL's UDP thread uses it.
-    fakeAccDev = acc;
+    // Publish only once the lock exists: the SITL's UDP thread uses it. The
+    // release store orders the lock and settings above before the pointer;
+    // the UDP thread reads it with an acquire load.
+    __atomic_store_n(&fakeAccDev, acc, __ATOMIC_RELEASE);
 }
 
 void fakeAccSet(accDev_t *acc, int16_t x, int16_t y, int16_t z)
