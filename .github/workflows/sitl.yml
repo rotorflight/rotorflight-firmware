@@ -50,6 +50,13 @@ jobs:
         ref: ${{ env.SIM_REF }}
         path: sim
 
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin): put those under one folder, uploaded when a check fails
+      run: |
+        mkdir -p "$RUNNER_TEMP/heli-runs"
+        echo "TMPDIR=$RUNNER_TEMP/heli-runs" >> "$GITHUB_ENV"
+
     - name: Hover check (heli model, angle mode)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
 
@@ -91,6 +98,14 @@ jobs:
 
     - name: Replay of a real flight (Stratos 200, 3300 rpm, motorized tail)
       run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/stratos_3300 --check
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-linux-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -140,6 +155,13 @@ jobs:
         ref: ${{ env.SIM_REF }}
         path: sim
 
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin): put those under one folder, uploaded when a check fails
+      run: |
+        New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\heli-runs" | Out-Null
+        "TMPDIR=$env:RUNNER_TEMP\heli-runs" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
     - name: Hover check (heli model, angle mode)
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
 
@@ -172,6 +194,14 @@ jobs:
 
     - name: Take-off and landing on a 15 deg slope
       run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-windows-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
