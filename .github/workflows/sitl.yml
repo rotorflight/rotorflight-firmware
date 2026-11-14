@@ -9,11 +9,20 @@ on:
     branches:
       - 'master'
 
+env:
+  # rotorflight/rotorflight-sim commit with the heli model and the hover check
+  SIM_REF: c019820649ece7b925bbfce8b3735c073f0b3896
+
+permissions:
+  contents: read
+
 jobs:
 
   sitl:
 
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved to 26.04 (GCC 15), where vtx_table.c fails
+    # -Werror=unterminated-string-initialization; pin until that is fixed
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Check out repository
@@ -36,6 +45,86 @@ jobs:
 
     - name: ESC check
       run: python3 src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Check out the flight models
+      uses: actions/checkout@v4
+      with:
+        repository: rotorflight/rotorflight-sim
+        ref: ${{ env.SIM_REF }}
+        path: sim
+
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
+      run: |
+        mkdir -p "$RUNNER_TEMP/heli-runs"
+        echo "TMPDIR=$RUNNER_TEMP/heli-runs" >> "$GITHUB_ENV"
+        echo "KEEP=1" >> "$GITHUB_ENV"
+
+    - name: Hover check (heli model, angle mode)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with the governor
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check (heli model)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Replay of a real flight (OMP M7R cruise)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/m7r_cruise --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 200 class (Stratos preset, motorized tail, its CLI dump)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model stratos200 --dump sim/heli/replays/stratos_3300/dump.txt --seconds 34 --governor 3600 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Replay of a real flight (Stratos 200, 3300 rpm, motorized tail)
+      run: python3 sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --replay-case sim/heli/replays/stratos_3300 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-linux-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
@@ -77,6 +166,74 @@ jobs:
 
     - name: ESC check
       run: python src/utils/sitl/esc/esc_check.py obj/main/rotorflight_SITL.elf
+
+    - name: Check out the flight models
+      uses: actions/checkout@v4
+      with:
+        repository: rotorflight/rotorflight-sim
+        ref: ${{ env.SIM_REF }}
+        path: sim
+
+    - name: Keep the heli runs' SITL logs
+      # heli_bridge.py runs each SITL in a tempfile.mkdtemp() folder (config.log, fly.log,
+      # eeprom.bin) and deletes it afterwards unless KEEP is set: keep them under one
+      # folder, uploaded when a check fails
+      run: |
+        New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\heli-runs" | Out-Null
+        "TMPDIR=$env:RUNNER_TEMP\heli-runs" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+        "KEEP=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+    - name: Hover check (heli model, angle mode)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with the governor
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --governor 2100 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check (heli model)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation and landing (governor AUTOROTATION)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation land --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Autorotation bailout (governor BAILOUT)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --governor 2100 --autorotation bailout --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with vibration and gyro noise (RPM filter)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --vibration omp_m7r --gyro-chip ICM40608 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check in wind (5 m/s crosswind, Dryden gusts)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --wind 5,90 --gust 1.0 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check with servo dynamics (digital servos)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --seconds 34 --servos digital --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Hover check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --seconds 34 --governor 1800 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Rescue check, 700 class (OMP M7R preset, governor)
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --model m7r --governor 1800 --rescue --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Take-off and landing on a 15 deg slope
+      run: python sim/heli/heli_bridge.py obj/main/rotorflight_SITL.elf --slope 15 --check
+      timeout-minutes: 5     # ~20-50 s normally; a stalled SITL must not run on
+
+    - name: Upload the heli runs' SITL logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: heli-runs-windows-${{ github.sha }}
+        path: ${{ runner.temp }}/heli-runs
+        retention-days: 14
 
     - name: Upload SITL executable
       uses: actions/upload-artifact@v4
