@@ -49,7 +49,8 @@ typedef enum {
     ACC_LSM6DSO,
     ACC_BMI088,
     ACC_BMI323,
-    ACC_FAKE
+    ACC_FAKE,
+    ACC_LSM6DSK320X
 } accelerationSensor_e;
 
 typedef union {

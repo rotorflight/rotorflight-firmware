@@ -75,8 +75,27 @@ static smartPortWriteFrameFn *smartPortWriteFrame = NULL;
 #define SMARTPORT_MSP_PAYLOAD_SIZE      6
 
 static bool smartPortMspReplyPending = false;
+static uint32_t smartPortMspReplyChunks = 0;
 
 #endif /* USE_MSP_OVER_TELEMETRY */
+
+bool smartPortMspReplyIsPending(void)
+{
+#if defined(USE_MSP_OVER_TELEMETRY)
+    return smartPortMspReplyPending;
+#else
+    return false;
+#endif
+}
+
+uint32_t smartPortMspReplyChunksSent(void)
+{
+#if defined(USE_MSP_OVER_TELEMETRY)
+    return smartPortMspReplyChunks;
+#else
+    return 0;
+#endif
+}
 
 
 /** Sensor definitions **/
@@ -367,7 +386,7 @@ static void INIT_CODE initSmartPortSensors(void)
                     if (telemetryConfig()->telemetry_interval[j])
                         sensor->fast_interval = telemetryConfig()->telemetry_interval[j];
                     if (sensor->slow_interval > 1000)
-                        sensor->slow_interval += rand() % 100;
+                        sensor->slow_interval += randomU32() % 100;
                     telemetryScheduleAdd(sensor);
                 }
             }
@@ -453,6 +472,7 @@ static void smartPortSendMspResponse(uint8_t *data, const uint8_t dataSize)
     memcpy(&payload.valueId, data, MIN(dataSize,SMARTPORT_MSP_PAYLOAD_SIZE));
 
     smartPortWriteFrame(&payload);
+    smartPortMspReplyChunks++;
 }
 
 bool smartPortPayloadContainsMSP(const smartPortPayload_t *payload)
