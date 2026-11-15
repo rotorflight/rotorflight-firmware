@@ -51,6 +51,9 @@ float horizonModeApply(int, float pidSetpoint) { return pidSetpoint; }
 float getSpoolUpRatio(void) { return 1.0f; }
 float mixerGetInput(uint8_t) { return 0.0; }
 bool mixerSaturated(uint8_t) { return false; }
+float getGovernorHeadSpeed(void) { return 0; }
+float getGovernorRequestedHeadSpeed(void) { return 0; }
+bool isGovernorTrackingHeadSpeed(void) { return false; }
 } // extern "C"
 
 // Mocks

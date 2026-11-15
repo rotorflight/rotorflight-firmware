@@ -43,6 +43,7 @@ bool rxIsReceivingSignal(void) { return true; }
 void beeperConfirmationBeeps(uint8_t count) { beeps += count; }
 void setConfigDirty(void) { dirty++; }
 void blackboxLogEvent(FlightLogEvent, flightLogEventData_t *) {}
+void pidBlendRetarget(void) {}
 
 int get_ADJUSTMENT_PITCH_P_GAIN(void) { return pitchP[profile]; }
 void set_ADJUSTMENT_PITCH_P_GAIN(int value) { pitchP[profile] = value; }

@@ -385,6 +385,9 @@ void processRcAdjustments(void)
                     tuneAdvisorTuneChanged();
                     adjval = adjConfig->cfgGet();
 
+                    // Keep a profile blend in progress heading for the adjusted values
+                    pidBlendRetarget();
+
                     if (adjval != adjState->adjValue) {
                         updateAdjustmentData(adjFunc, adjval);
                         blackboxAdjustmentEvent(adjFunc, adjval);

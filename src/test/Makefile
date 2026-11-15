@@ -489,6 +489,7 @@ pid_unittest_SRC :=  \
 		$(USER_DIR)/common/crc.c \
 		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/pg/mixer.c \
+		$(USER_DIR)/pg/governor.c \
 		$(USER_DIR)/pg/rates.c
 
 rc_adjustments_unittest_SRC := \
@@ -603,6 +604,11 @@ fbus_sensor_unittest_DEFINES := \
 
 setpoint_unittest_SRC := \
         $(USER_DIR)/flight/setpoint.c \
+		$(USER_DIR)/pg/governor.c \
+		$(USER_DIR)/pg/rates.c \
+		$(USER_DIR)/pg/pg.c \
+		$(USER_DIR)/common/crc.c \
+		$(USER_DIR)/common/streambuf.c \
 		$(USER_DIR)/build/debug.c \
 		$(USER_DIR)/common/filter.c \
 		$(USER_DIR)/common/maths.c

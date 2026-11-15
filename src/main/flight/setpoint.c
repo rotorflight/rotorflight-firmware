@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "platform.h"
 
@@ -37,6 +38,9 @@
 
 #include "fc/runtime_config.h"
 #include "fc/rc.h"
+#include "fc/rc_rates.h"
+
+#include "pg/governor.h"
 
 #include "setpoint.h"
 
@@ -204,8 +208,169 @@ void setpointUpdateTiming(float frameTimeUs)
     }
 }
 
+//// Collective blending
+//
+// Collective is an angle, so switching to a rate profile with a different
+// collective curve steps the blade pitch at any stick position but centre.
+// With gov_profile_blend_collective the collective output moves from the
+// old curve to the new one instead. The curves themselves are evaluated and
+// their outputs mixed, so profiles with different rates types mix cleanly.
+//
+// While a PID profile blend runs, the collective follows its progress, so
+// pitch and gains change together with the headspeed. Otherwise it runs
+// over gov_profile_blend_time. Like the PID blend it only moves forward,
+// takes 0.2..10 s and ends on disarm. Cyclic, yaw and all other rate
+// settings still switch at once.
+//
+// The curves the blend starts from are copied when it starts, so writing
+// to those profiles in flight (e.g. MSP_COPY_PROFILE) can't step the
+// collective. The target profile is used live, like the active profile
+// outside a blend.
+
+typedef struct {
+    bool active;
+
+    // Profile being blended to
+    uint8_t target;
+
+    // Blend progress, 0 = start mix, 1 = target profile
+    float ratio;
+
+    // Mix of profiles the blend started from. A switch during a blend
+    // starts from the mix in use, so any number of switches stays smooth.
+    float weight[CONTROL_RATE_PROFILE_COUNT];
+
+    // Copies of the profiles in that mix, valid where weight > 0
+    controlRateConfig_t start[CONTROL_RATE_PROFILE_COUNT];
+
+    // Progress of the PID profile blend being followed, taken when
+    // following starts and kept to spot a restart of that blend
+    bool following;
+    float anchorRatio;
+    float anchorPidRatio;
+    float lastPidRatio;
+
+    // Time based progress per second
+    float timeRate;
+} collectiveBlend_t;
+
+static collectiveBlend_t cb;
+
+void setpointSwitchRateProfile(uint8_t fromIndex, uint8_t toIndex)
+{
+    // Blend only in flight, with the PID loop running
+    const bool useBlend = governorConfig()->gov_profile_blend_collective &&
+                          ARMING_FLAG(ARMED) &&
+                          pidGetDT() > 0 &&
+                          fromIndex < CONTROL_RATE_PROFILE_COUNT &&
+                          toIndex < CONTROL_RATE_PROFILE_COUNT;
+
+    if (!useBlend) {
+        cb.active = false;
+        return;
+    }
+
+    // Already there or already heading there
+    if (cb.active ? (toIndex == cb.target) : (toIndex == fromIndex))
+        return;
+
+    // Start from the collective in use now, which may be a blend in progress.
+    // The profile blended to so far joins the start mix as a copy.
+    if (cb.active) {
+        for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
+            cb.weight[i] *= 1 - cb.ratio;
+        cb.weight[cb.target] += cb.ratio;
+        fromIndex = cb.target;
+    }
+    else {
+        for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
+            cb.weight[i] = (i == fromIndex);
+    }
+    memcpy(&cb.start[fromIndex], controlRateProfiles(fromIndex), sizeof(controlRateConfig_t));
+
+    const float blendTime = constrain(governorConfig()->gov_profile_blend_time, 2, 100) / 10.0f;
+
+    cb.active = true;
+    cb.target = toIndex;
+    cb.ratio = 0;
+    cb.following = false;
+    cb.timeRate = 1.0f / blendTime;
+}
+
+static void collectiveBlendUpdate(void)
+{
+    if (!cb.active)
+        return;
+
+    if (!ARMING_FLAG(ARMED)) {
+        cb.active = false;
+        return;
+    }
+
+    const float dT = pidGetDT();
+    float ratio;
+
+    if (pidBlendActive()) {
+        const float pidRatio = pidBlendRatio();
+
+        // (Re)start following from here, also when the PID blend restarted
+        if (!cb.following || pidRatio < cb.lastPidRatio) {
+            cb.following = true;
+            cb.anchorRatio = cb.ratio;
+            cb.anchorPidRatio = pidRatio;
+        }
+        cb.lastPidRatio = pidRatio;
+
+        // pidRatio < 1 while the PID blend is active
+        const float progress = (pidRatio - cb.anchorPidRatio) / (1 - cb.anchorPidRatio);
+
+        // Never slower than the slowest allowed blend
+        ratio = fmaxf(cb.ratio + dT / PID_BLEND_MAX_TIME,
+                      cb.anchorRatio + (1 - cb.anchorRatio) * progress);
+    }
+    else if (cb.following) {
+        // The followed PID blend is over: catch up (rate limited below)
+        ratio = 1;
+    }
+    else {
+        // Blend over time
+        ratio = cb.ratio + dT * cb.timeRate;
+    }
+
+    // Never faster than the fastest allowed blend
+    ratio = fminf(ratio, cb.ratio + dT / PID_BLEND_MIN_TIME);
+
+    if (ratio >= 1) {
+        cb.active = false;
+    }
+    else if (ratio > cb.ratio) {
+        cb.ratio = ratio;
+    }
+}
+
+static float applyCollectiveRates(float deflection)
+{
+    if (!cb.active)
+        return applyRatesCurve(FD_COLL, deflection);
+
+    float collective = 0;
+
+    for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
+        if (cb.weight[i] > 0)
+            collective += cb.weight[i] * applyRatesCurveProfile(&cb.start[i], FD_COLL, deflection);
+    }
+
+    return collective * (1 - cb.ratio) +
+        applyRatesCurveProfile(controlRateProfiles(cb.target), FD_COLL, deflection) * cb.ratio;
+}
+
+
 INIT_CODE void setpointInitProfile(void)
 {
+    // A profile loaded other than by an in-flight switch ends the blend
+    if (cb.active && currentControlRateProfile != controlRateProfiles(cb.target))
+        cb.active = false;
+
     for (int i = 0; i < 4; i++) {
         if (currentControlRateProfile->response_time[i]) {
             const float cutoff = 500.0f / currentControlRateProfile->response_time[i];
@@ -343,7 +508,10 @@ void setpointUpdate(void)
     SP[FD_YAW] = applyRatesCurve(FD_YAW, SP[FD_YAW]);
     DEBUG_AXIS(SETPOINT, FD_YAW, 5, SP[FD_YAW]);
 
-    SP[FD_COLL] = applyRatesCurve(FD_COLL, SP[FD_COLL]);
+    collectiveBlendUpdate();
+    DEBUG_AXIS(SETPOINT, FD_COLL, 6, cb.active ? lrintf(cb.ratio * 1000) : 1000);
+
+    SP[FD_COLL] = applyCollectiveRates(SP[FD_COLL]);
     DEBUG_AXIS(SETPOINT, FD_COLL, 5, SP[FD_COLL]);
 
     for (int axis = 0; axis < 4; axis++) {

@@ -65,6 +65,10 @@ float getTTAIncrease(void);
 
 bool isSpooledUp(void);
 
+float getGovernorHeadSpeed(void);
+float getGovernorRequestedHeadSpeed(void);
+bool isGovernorTrackingHeadSpeed(void);
+
 ADJFUN_DECLARE(GOV_GAIN)
 ADJFUN_DECLARE(GOV_P_GAIN)
 ADJFUN_DECLARE(GOV_I_GAIN)
