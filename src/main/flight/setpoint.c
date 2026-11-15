@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>
+#include <string.h>
 
 #include "platform.h"
 
@@ -220,6 +221,11 @@ void setpointUpdateTiming(float frameTimeUs)
 // over gov_profile_blend_time. Like the PID blend it only moves forward,
 // takes 0.2..10 s and ends on disarm. Cyclic, yaw and all other rate
 // settings still switch at once.
+//
+// The curves the blend starts from are copied when it starts, so writing
+// to those profiles in flight (e.g. MSP_COPY_PROFILE) can't step the
+// collective. The target profile is used live, like the active profile
+// outside a blend.
 
 typedef struct {
     bool active;
@@ -234,6 +240,9 @@ typedef struct {
     // starts from the mix in use, so any number of switches stays smooth.
     float weight[CONTROL_RATE_PROFILE_COUNT];
 
+    // Copies of the profiles in that mix, valid where weight > 0
+    controlRateConfig_t start[CONTROL_RATE_PROFILE_COUNT];
+
     // Progress of the PID profile blend being followed, taken when
     // following starts and kept to spot a restart of that blend
     bool following;
@@ -246,13 +255,6 @@ typedef struct {
 } collectiveBlend_t;
 
 static collectiveBlend_t cb;
-
-static float collectiveBlendWeight(int profile)
-{
-    const float target = (profile == cb.target) ? cb.ratio : 0;
-
-    return cb.weight[profile] * (1 - cb.ratio) + target;
-}
 
 void setpointSwitchRateProfile(uint8_t fromIndex, uint8_t toIndex)
 {
@@ -272,12 +274,19 @@ void setpointSwitchRateProfile(uint8_t fromIndex, uint8_t toIndex)
     if (cb.active ? (toIndex == cb.target) : (toIndex == fromIndex))
         return;
 
-    // Start from the collective in use now, which may be a blend in progress
-    float weight[CONTROL_RATE_PROFILE_COUNT];
-    for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
-        weight[i] = cb.active ? collectiveBlendWeight(i) : (i == fromIndex);
-    for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
-        cb.weight[i] = weight[i];
+    // Start from the collective in use now, which may be a blend in progress.
+    // The profile blended to so far joins the start mix as a copy.
+    if (cb.active) {
+        for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
+            cb.weight[i] *= 1 - cb.ratio;
+        cb.weight[cb.target] += cb.ratio;
+        fromIndex = cb.target;
+    }
+    else {
+        for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++)
+            cb.weight[i] = (i == fromIndex);
+    }
+    memcpy(&cb.start[fromIndex], controlRateProfiles(fromIndex), sizeof(controlRateConfig_t));
 
     const float blendTime = constrain(governorConfig()->gov_profile_blend_time, 2, 100) / 10.0f;
 
@@ -347,12 +356,12 @@ static float applyCollectiveRates(float deflection)
     float collective = 0;
 
     for (int i = 0; i < CONTROL_RATE_PROFILE_COUNT; i++) {
-        const float weight = collectiveBlendWeight(i);
-        if (weight > 0)
-            collective += weight * applyRatesCurveProfile(controlRateProfiles(i), FD_COLL, deflection);
+        if (cb.weight[i] > 0)
+            collective += cb.weight[i] * applyRatesCurveProfile(&cb.start[i], FD_COLL, deflection);
     }
 
-    return collective;
+    return collective * (1 - cb.ratio) +
+        applyRatesCurveProfile(controlRateProfiles(cb.target), FD_COLL, deflection) * cb.ratio;
 }
 
 
