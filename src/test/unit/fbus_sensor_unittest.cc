@@ -300,3 +300,13 @@ TEST_F(FbusSensorForwardTest, CountsDevicesSendingAnAppId)
     EXPECT_EQ(0, fbusSensorCountFbusAppId(0x6807));
     EXPECT_EQ(0, fbusSensorCountFbusAppId(0));
 }
+
+TEST(FbusGpsConvertTest, SpeedInCmPerSecond)
+{
+    // FrSky GPS speed is knots * 1000; gpsSol.groundSpeed is cm/s
+    EXPECT_EQ(0, fbusGpsConvertSpeed(0));
+    EXPECT_EQ(51, fbusGpsConvertSpeed(1000));          // 1 kn = 0.514 m/s
+    EXPECT_EQ(1000, fbusGpsConvertSpeed(19438));       // 10 m/s
+    EXPECT_EQ(2572, fbusGpsConvertSpeed(50000));       // 50 kn
+    EXPECT_EQ(UINT16_MAX, fbusGpsConvertSpeed(0xFFFFFFFF));
+}

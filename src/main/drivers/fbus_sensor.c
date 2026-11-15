@@ -116,13 +116,13 @@ int32_t fbusGpsConvertAltitude(uint32_t fbusData)
     return (int32_t)fbusData;
 }
 
+// FrSky GPS speed (0x0830): knots * 1000. gpsSol.groundSpeed is in cm/s, as every other GPS
+// driver fills it and GPS rescue, the OSD and the telemetry read it.
 uint16_t fbusGpsConvertSpeed(uint32_t fbusData)
 {
-    float knots = (float)fbusData / 1000.0f;
-    float metersPerSec = knots * 0.514444f;
-    uint16_t result = (uint16_t)(metersPerSec * 10.0f);
-    
-    return result;
+    const float cmPerSec = (float)fbusData * (0.514444f / 10.0f);   // knots/1000 * 51.4444 cm/s
+
+    return (uint16_t)MIN(lrintf(cmPerSec), UINT16_MAX);
 }
 
 uint16_t fbusGpsConvertCourse(uint32_t fbusData)
