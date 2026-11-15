@@ -25,7 +25,7 @@
 #include "pg/governor.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(governorConfig_t, governorConfig, PG_GOVERNOR_CONFIG, 1);
 
 PG_RESET_TEMPLATE(governorConfig_t, governorConfig,
     .gov_mode = GOV_MODE_NONE,
