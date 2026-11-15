@@ -41,6 +41,7 @@ typedef enum {
     GOV_FLAG_VOLTAGE_COMP           = 3,
     GOV_FLAG_PID_SPOOLUP            = 4,
     GOV_FLAG_DYN_MIN_THROTTLE       = 6,
+    GOV_FLAG_TTA_BANKING            = 7,
 } govFlags_e;
 
 typedef struct {
@@ -59,6 +60,10 @@ typedef struct {
     uint8_t     f_limit;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
+    uint8_t     tta_threshold;      // Motorised tail: tail throttle [permille] below which TTA starts
+    uint8_t     tta_bank_limit;     // TTA banking: max bank [% of headspeed]
+    uint8_t     tta_bank_rate;      // TTA banking: max wind-down rate [% of headspeed per second]
+    uint8_t     tta_bank_release;   // TTA banking: tail throttle [%] above which the bank is released
     uint8_t     yaw_weight;
     uint8_t     cyclic_weight;
     uint8_t     collective_weight;

@@ -97,6 +97,12 @@ float pidGetOutput(int axis)
     return pid.data[axis].pidSum;
 }
 
+float pidGetSlowOutput(int axis)
+{
+    // P + I + F (feedforward and precomp), without the fast D and B terms
+    return pid.data[axis].P + pid.data[axis].I + pid.data[axis].F;
+}
+
 float pidGetCollective(void)
 {
     return pid.collective;
