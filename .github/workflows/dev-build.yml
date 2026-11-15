@@ -1,0 +1,132 @@
+name: Feature Branch Dev Build
+
+# Publishes a rolling GitHub prerelease, tagged dev/<branch-slug>, for every
+# push to a feature/** branch, and deletes it again when the branch is
+# deleted. The configurator's Firmware Flasher lists these under "All
+# Releases, Snapshots and Feature Branches" (an advanced option), so a branch
+# can be flashed and tested without building it locally.
+#
+# There is one release per branch, replaced on every push, so the releases
+# list doesn't fill up with one entry per commit. The firmware version still
+# embeds the commit's short SHA, which keeps every build's .hex filename
+# unique: the configurator caches firmware by filename, and a filename reused
+# across pushes would serve the old cached build.
+#
+# rotorflight-artifacts' sync-firmware.yml mirrors these for the web
+# configurator, the same way it mirrors releases and snapshots.
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+  delete:
+
+# One group per branch, so deleting a branch cancels a build still running for
+# it (and can't be overtaken by it). A push carries the branch in ref_name; a
+# delete event runs on the default branch and carries it in event.ref.
+concurrency:
+  group: dev-build-${{ github.event_name == 'delete' && github.event.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+
+  build:
+
+    if: github.event_name == 'push' && !github.event.deleted
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Install ARM tools
+      run: make arm_sdk_install
+
+    - name: Set build variables
+      run: |
+        BRANCH="${GITHUB_REF#refs/heads/}"
+        RAW_SLUG="${BRANCH#feature/}"
+        # The tag name allows hyphens, so keep it readable. Different branch
+        # names can clean up to the same slug (feature/a/b and feature/a-b),
+        # or to nothing, so a hash of the branch name is added whenever
+        # cleaning changed it. Keep this in step with the cleanup job below.
+        SLUG="$(echo "${RAW_SLUG}" | sed -E 's/[^A-Za-z0-9]+/-/g; s/^-+//; s/-+$//')"
+        if [ "${SLUG}" != "${RAW_SLUG}" ]
+        then
+          HASH="$(printf '%s' "${BRANCH}" | sha1sum | cut -c1-7)"
+          SLUG="${SLUG:+${SLUG}-}${HASH}"
+        fi
+        # The version suffix ends up in the firmware's semver string and in
+        # the .hex filename. Semver allows [0-9A-Za-z-] there and the
+        # configurator's filename pattern allows [0-9A-Za-z_], so only plain
+        # alphanumerics are safe in both. The version string must also stay
+        # under 30 bytes (STATIC_ASSERT in src/main/build/version.h):
+        # "4.6.0-dev" + 10 slug characters + a 7-character SHA is 26.
+        VER_SLUG="$(echo "${RAW_SLUG}" | sed -E 's/[^A-Za-z0-9]+//g' | cut -c1-10)"
+        SHORT_SHA="${GITHUB_SHA:0:7}"
+        echo "BRANCH=${BRANCH}" >> ${GITHUB_ENV}
+        echo "GIT_TAG=dev/${SLUG}" >> ${GITHUB_ENV}
+        echo "GIT_PRE=dev${VER_SLUG}${SHORT_SHA}" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
+
+    - name: Build HEX files for unified targets
+      run: make unified FC_VER_SUFFIX="${{ env.GIT_PRE }}" FLASH_CONFIG_ERASE=yes
+
+    - name: Remove the previous dev build of this branch
+      run: |
+        # Only a missing release is fine; any other failure fails the job.
+        if ! OUT="$(gh release delete "${GIT_TAG}" --yes --cleanup-tag 2>&1)"
+        then
+          grep -q "release not found" <<< "${OUT}" || { echo "${OUT}" >&2; exit 1; }
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create dev build
+      run: |
+        {
+          echo "Automatic development build of \`${BRANCH}\` at ${GITHUB_SHA}."
+          echo
+          echo "${COMMIT_MSG}"
+          echo
+          echo "This release is replaced on every push to the branch and removed"
+          echo "when the branch is deleted. **Not for production use.**"
+        } > Notes.md
+        gh release create "${GIT_TAG}" --prerelease --target "${GITHUB_SHA}" \
+          --notes-file Notes.md --title "Rotorflight Dev Build ${BRANCH}" obj/*.hex
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        COMMIT_MSG: ${{ github.event.head_commit.message }}
+
+  cleanup:
+
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch' && startsWith(github.event.ref, 'feature/')
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Delete the dev build of this branch
+      run: |
+        RAW_SLUG="${BRANCH#feature/}"
+        # Must match the SLUG of the build job above.
+        SLUG="$(echo "${RAW_SLUG}" | sed -E 's/[^A-Za-z0-9]+/-/g; s/^-+//; s/-+$//')"
+        if [ "${SLUG}" != "${RAW_SLUG}" ]
+        then
+          HASH="$(printf '%s' "${BRANCH}" | sha1sum | cut -c1-7)"
+          SLUG="${SLUG:+${SLUG}-}${HASH}"
+        fi
+        # Only a missing release is fine; any other failure fails the job.
+        if ! OUT="$(gh release delete "dev/${SLUG}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag 2>&1)"
+        then
+          grep -q "release not found" <<< "${OUT}" || { echo "${OUT}" >&2; exit 1; }
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: ${{ github.event.ref }}
