@@ -61,6 +61,17 @@
 
 #define BLACKBOX_SERIAL_PORT_MODE MODE_TX
 
+/*
+ * There are ~145 main fields. In the absolute mathematical worst-case where every single field
+ * generates a 32-bit max integer, Variable Byte encoding uses 5 bytes per field.
+ * 145 * 5 = 725 bytes theoretical max. So 1024 is the safest compile-time boundary.
+ */
+#define BLACKBOX_SERIAL_BUFFER_SIZE 1024
+
+static uint8_t bbSerialBuffer[BLACKBOX_SERIAL_BUFFER_SIZE];
+static uint32_t bbSerialBufferLen = 0;
+static bool bbIsSerialBufferActive = false;
+
 // How many bytes can we transmit per loop iteration when writing headers?
 static uint8_t blackboxMaxHeaderBytesPerIteration;
 
@@ -106,9 +117,89 @@ static uint32_t bbBits;
 static timeMs_t bbLastclearMs;
 static uint16_t bbRateMax;
 static uint32_t bbDrops;
+
+static void blackboxUpdateDebugRate(void)
+{
+    timeMs_t now = millis();
+    if (now > bbLastclearMs + 100) {  // Debug log every 100[msec]
+        uint16_t bbRate = ((bbBits * 10 + 5) / (now - bbLastclearMs)) / 10; // In unit of [Kbps]
+        DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 0, bbRate);
+        if (bbRate > bbRateMax) {
+            bbRateMax = bbRate;
+            DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 1, bbRateMax);
+        }
+        bbLastclearMs = now;
+        bbBits = 0;
+    }
+}
 #endif
 
+void blackboxBeginWrite(void)
+{
+    if (blackboxPort) {
+        bbIsSerialBufferActive = true;
+        serialBeginWrite(blackboxPort);
+        bbSerialBufferLen = 0;
+    }
+}
+
+static void flushSerialBuffer(void)
+{
+    if (bbSerialBufferLen == 0) {
+        return;
+    }
+
+#ifdef DEBUG_BB_OUTPUT
+    DEBUG_TIME_START(BLACKBOX_OUTPUT, 4);
+#endif
+
+    uint32_t txBytesFree = serialTxBytesFree(blackboxPort);
+#ifdef DEBUG_BB_OUTPUT
+    DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 3, txBytesFree);
+    bbBits += (bbSerialBufferLen * 8);
+#endif
+
+    uint32_t bytesToWrite = txBytesFree < bbSerialBufferLen ? txBytesFree : bbSerialBufferLen;
+
+    if (bytesToWrite > 0) {
+        serialWriteBuf(blackboxPort, bbSerialBuffer, bytesToWrite);
+    }
+
+#ifdef DEBUG_BB_OUTPUT
+    if (bbSerialBufferLen > bytesToWrite) {
+        bbDrops += (bbSerialBufferLen - bytesToWrite);
+        DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 2, bbDrops);
+    }
+    // Record the time spent pushing data to the UART
+    DEBUG_TIME_END(BLACKBOX_OUTPUT, 4);
+
+    // We only update debug rate when flushing to limit overhead
+    blackboxUpdateDebugRate();
+#endif
+    bbSerialBufferLen = 0;
+}
+
+void blackboxEndWrite(void)
+{
+    if (blackboxPort) {
+        flushSerialBuffer();
+        serialEndWrite(blackboxPort);
+        bbIsSerialBufferActive = false;
+    }
+}
+
 void blackboxWrite(uint8_t value)
+{
+    if (bbIsSerialBufferActive) {
+        if (bbSerialBufferLen < BLACKBOX_SERIAL_BUFFER_SIZE) {
+            bbSerialBuffer[bbSerialBufferLen++] = value;
+        }
+    } else {
+        blackboxWriteUnbuffered(value);
+    }
+}
+
+void blackboxWriteUnbuffered(uint8_t value)
 {
 #ifdef DEBUG_BB_OUTPUT
     bbBits += 8;
@@ -148,18 +239,7 @@ void blackboxWrite(uint8_t value)
     }
 
 #ifdef DEBUG_BB_OUTPUT
-    timeMs_t now = millis();
-
-    if (now > bbLastclearMs + 100) {  // Debug log every 100[msec]
-        uint16_t bbRate = ((bbBits * 10 + 5) / (now - bbLastclearMs)) / 10; // In unit of [Kbps]
-        DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 0, bbRate);
-        if (bbRate > bbRateMax) {
-            bbRateMax = bbRate;
-            DEBUG_SET(DEBUG_BLACKBOX_OUTPUT, 1, bbRateMax);
-        }
-        bbLastclearMs = now;
-        bbBits = 0;
-    }
+    blackboxUpdateDebugRate();
 #endif
 }
 
@@ -411,6 +491,10 @@ void blackboxDeviceClose(void)
     switch (blackboxConfig()->device) {
     case BLACKBOX_DEVICE_SERIAL:
         // Can immediately close without attempting to flush any remaining data.
+        if (bbIsSerialBufferActive) {
+            serialEndWrite(blackboxPort);
+            bbIsSerialBufferActive = false;
+        }
         // Since the serial port could be shared with other processes, we have to give it back here
         closeSerialPort(blackboxPort);
         blackboxPort = NULL;

@@ -2055,6 +2055,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
 {
     static BlackboxState cacheFlushNextState;
 
+    blackboxBeginWrite();
+
     blackboxCheckEnabler(currentTimeUs);
 
     if (IS_RC_MODE_ACTIVE(BOXBLACKBOXERASE) &&
@@ -2250,6 +2252,8 @@ void blackboxUpdate(timeUs_t currentTimeUs)
             blackboxSetState(BLACKBOX_STATE_FULL);
         }
     }
+
+    blackboxEndWrite();
 }
 
 uint8_t blackboxGetRateDenom(void)
