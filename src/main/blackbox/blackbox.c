@@ -1704,10 +1704,7 @@ static bool blackboxWriteSysinfo(void)
         BLACKBOX_PRINT_HEADER_LINE("yaw_tta", "%d,%d",                      currentPidProfile->governor.tta_gain,
                                                                             currentPidProfile->governor.tta_limit);
         BLACKBOX_PRINT_HEADER_LINE("yaw_tta_threshold", "%d",               currentPidProfile->governor.tta_threshold);
-        BLACKBOX_PRINT_HEADER_LINE("yaw_tta_bank", "%d,%d,%d,%d",           (currentPidProfile->governor.flags & BIT(GOV_FLAG_TTA_BANKING)) ? 1 : 0,
-                                                                            currentPidProfile->governor.tta_bank_limit,
-                                                                            currentPidProfile->governor.tta_bank_rate,
-                                                                            currentPidProfile->governor.tta_bank_release);
+        BLACKBOX_PRINT_HEADER_LINE("yaw_tta_bank", "%d",                    (currentPidProfile->governor.flags & BIT(GOV_FLAG_TTA_BANKING)) ? 1 : 0);
         BLACKBOX_PRINT_HEADER_LINE("hsi_gain", "%d,%d",                     currentPidProfile->pid[PID_ROLL].O,
                                                                             currentPidProfile->pid[PID_PITCH].O);
         BLACKBOX_PRINT_HEADER_LINE("hsi_limit", "%d,%d",                    currentPidProfile->offset_limit[0],

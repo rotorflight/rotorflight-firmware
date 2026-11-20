@@ -73,7 +73,6 @@ float mixerGetOutput(uint8_t index);
 
 float getCyclicDeflection(void);
 float getTailTorqueAssistStart(float threshold);
-float getTailTorqueAssistDemand(float threshold);
 float getTailMotorDemand(void);
 
 bool mixerSaturated(uint8_t index);

@@ -155,20 +155,6 @@ float getTailTorqueAssistStart(float threshold)
     return fmaxf(fmaxf(mixer.tailMotorIdle, mixer.tailCenterTrim), threshold);
 }
 
-float getTailTorqueAssistDemand(float threshold)
-{
-    // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
-
-    // Motorised tail: how far the tail throttle is asked to go below the TTA start point.
-    // Above the idle the tail stays in control, and TTA adds main rotor torque alongside it.
-    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        return getTailTorqueAssistStart(threshold) - getTailMotorThrottle();
-    }
-
-    // Yaw input value - positive is against torque
-    return -mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
-}
-
 float getTailMotorDemand(void)
 {
     // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
@@ -462,11 +448,13 @@ static void mixerUpdateMotorizedTail(void)
         // so drop the command early. Slow changes inside the deadband are ignored.
         // The rate comes from the P, I and F terms only, so D and B spikes don't
         // trigger it, and the lead takes away at most half of the margin above idle.
-        const float slow = pidGetSlowOutput(PID_YAW) * mixerRotationSign() + mixer.tailCenterTrim;
-        const float rate = difFilterApply(&mixer.tailLeadFilter, slow);
-        if (rate < -TAIL_LEAD_DEADBAND) {
-            const float lead = (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
-            throttle += fmaxf(lead, -TAIL_LEAD_LIMIT * fmaxf(throttle - mixer.tailMotorIdle, 0));
+        if (mixer.tailMotorLead > 0) {
+            const float slow = pidGetSlowOutput(PID_YAW) * mixerRotationSign() + mixer.tailCenterTrim;
+            const float rate = difFilterApply(&mixer.tailLeadFilter, slow);
+            if (rate < -TAIL_LEAD_DEADBAND) {
+                const float lead = (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
+                throttle += fmaxf(lead, -TAIL_LEAD_LIMIT * fmaxf(throttle - mixer.tailMotorIdle, 0));
+            }
         }
 
         // Apply minimum throttle

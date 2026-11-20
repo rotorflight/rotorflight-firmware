@@ -75,22 +75,16 @@ idle, and it takes away at most half of the throttle above `tail_motor_idle`.
 New per-profile `gov_use_tta_banking` (default off, electric governor with a
 motorised tail). The headspeed TTA adds is held above the governor target
 instead of being pulled straight back, and wound down as the yaw stick comes
-back from full rate in the TTA direction: held at full rate, and at most
-`gov_tta_bank_rate` (% of headspeed per second, default 20) at zero or beyond.
-When the tail motor is asked for more than `gov_tta_bank_release` (% tail
-throttle, default 50, never below the TTA start point), the held speed is
-released as a main throttle cut, so the rotor slowing down helps the tail.
-TTA is not added while the release is active.
-Lower values release the bank earlier and hold less extra headspeed. Use 50,
-or at least 12 points above the hover tail throttle if that is higher (a weak
-tail). Lower values gave no clear gain in testing, and in wind the hover tail
-demand can rise well above its calm value and trigger the release in a hover. The bank is capped
-at `gov_tta_bank_limit` (% of headspeed, default 10) above the target.
-Debug mode `TTA` values 4-7 show the bank (rpm), the yaw rate ratio, the release
-and the tail motor demand. The Blackbox header has new lines `yaw_tta_threshold`,
-`yaw_tta_bank` (banking on/off, limit, rate, release), `tail_motor_idle` and `tail_motor_lead`.
+back from full deflection in the TTA direction: held at full stick, and at most
+20% of headspeed per second at centre or beyond. The bank is capped at 10% of
+headspeed above the target. When the tail motor is asked for more than 50%
+throttle (never below the TTA start point), the bank is dropped, so the rotor
+slowing back to the target helps the tail. Banking has no further settings.
+Debug mode `TTA` values 4-6 show the bank (rpm), the yaw stick ratio and the
+tail motor demand. The Blackbox header has new lines `yaw_tta_threshold`,
+`yaw_tta_bank` (banking on/off), `tail_motor_idle` and `tail_motor_lead`.
 
-With the electric governor and a motorised tail, TTA (and the banking release) is
+With the electric governor and a motorised tail, TTA is
 now added to the governor P term after `gov_p_limit`, so the P limit only limits
 the speed loop. TTA is limited by `gov_tta_limit` and full throttle. Before, the
 P limit also capped TTA (on a K110 at `gov_p_limit` 20, at about 40% of what
@@ -130,8 +124,6 @@ throttle curve and headspeed before the first flight (#567).
 ### MSP_GOVERNOR_PROFILE / MSP_SET_GOVERNOR_PROFILE
 
 - added `gov_tta_threshold` (U8, ‰ tail throttle)
-- added `gov_tta_bank_limit`, `gov_tta_bank_rate` (2 × U8, %)
-- added `gov_tta_bank_release` (U8, % tail throttle)
 - `gov_use_tta_banking` is bit 7 of `flags`
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG

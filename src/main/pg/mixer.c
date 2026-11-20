@@ -30,7 +30,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .main_rotor_dir = DIR_CW,
     .tail_rotor_mode = TAIL_MODE_VARIABLE,
     .tail_motor_idle = 0,
-    .tail_motor_lead = 0,   
+    .tail_motor_lead = 0,
     .tail_center_trim = 0,
     .swash_type = SWASH_TYPE_120,
     .swash_ring = 100,
@@ -40,7 +40,7 @@ PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .swash_tta_precomp = 0,
     .swash_geo_correction = 0,
     .collective_tilt_correction_pos = 0,
-    .collective_tilt_correction_neg = 10
+    .collective_tilt_correction_neg = 10,
 );
 
 PG_REGISTER_ARRAY(mixerRule_t, MIXER_RULE_COUNT, mixerRules, PG_GENERIC_MIXER_RULES, 0);
